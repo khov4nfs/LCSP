@@ -34,7 +34,7 @@ model {
     }
 
     // ----------------------------------------------------
-    // 3. REPOSITORY SCANNER DOMAIN ENTITIES
+    // 3. REPOSITORY ANALYSIS DOMAIN ENTITIES
     // ----------------------------------------------------
     repositoryConnectionEntity = entity 'RepositoryConnection' {
       description 'Authorized read-only GitHub repository link via GitHub App installation.'
@@ -49,14 +49,14 @@ model {
     }
 
     technicalEvidenceReportEntity = entity 'TechnicalEvidenceReport' {
-      description 'Metadata-only static analysis technical evidence (Syft, Knip, Semgrep).'
+      description 'Metadata-only source-grounded technical evidence emitted by the Repository Analysis Agent.'
     }
 
     // ----------------------------------------------------
     // 4. RECONCILIATION & CLAIMS DOMAIN ENTITIES
     // ----------------------------------------------------
     technicalProfileEntity = entity 'TechnicalProfile' {
-      description 'Aggregated technical dimensions derived from static evidence report.'
+      description 'Aggregated technical dimensions derived from repository-analysis evidence.'
     }
 
     aiUsageFlowEntity = entity 'AIUsageFlow' {
@@ -64,7 +64,7 @@ model {
     }
 
     conflictRecordEntity = entity 'ConflictRecord' {
-      description 'Material mismatches between Wizard declarations and scanner evidence.'
+      description 'Material mismatches between Wizard declarations and repository-analysis evidence.'
     }
 
     verifiedProfileEntity = entity 'VerifiedProfile' {
@@ -105,9 +105,6 @@ model {
   // ----------------------------------------------------
   // ERD RELATIONSHIPS
   // ----------------------------------------------------
-  lcsp.database.authOrganizationEntity -> lcsp.database.authMembershipEntity '1:N Memberships'
-  lcsp.database.userEntity -> lcsp.database.authMembershipEntity '1:N Memberships'
-  lcsp.database.authPolicyEntity -> lcsp.database.authMembershipEntity '1:N Applied Policies'
   lcsp.database.authOrganizationEntity -> lcsp.database.authRecordEntity '1:N Active Sessions'
   lcsp.database.userEntity -> lcsp.database.authRecordEntity '1:N Active Sessions'
   lcsp.database.authOrganizationEntity -> lcsp.database.auditEventEntity '1:N Audit Events'
@@ -149,8 +146,6 @@ views {
     include
       lcsp.database.authOrganizationEntity,
       lcsp.database.userEntity,
-      lcsp.database.authPolicyEntity,
-      lcsp.database.authMembershipEntity,
       lcsp.database.authRecordEntity,
       lcsp.database.auditEventEntity
   }

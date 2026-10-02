@@ -5,7 +5,6 @@ import {
   BILLING_ADMIN_PAYMENT_FILTERS,
   BILLING_ADMIN_PERIODS,
   BILLING_ORDER_STATUSES,
-  LLM_USAGE_STATUSES,
   PAYMENT_RECONCILIATION_STATUSES,
 } from "@lcsp/contracts/billing";
 import type {
@@ -52,7 +51,6 @@ export class GetBillingAdminDashboardHandler implements IQueryHandler<GetBilling
 
     const [
       topUps,
-      usage,
       pendingReconciliationCount,
       duplicatePaymentCount,
       settledTopUpTrend,
@@ -65,13 +63,6 @@ export class GetBillingAdminDashboardHandler implements IQueryHandler<GetBilling
           creditedAt: { gte: from, lte: now },
         },
         _sum: { amountMinorUnits: true },
-      }),
-      this.prisma.llmUsageEvent.aggregate({
-        where: {
-          status: LLM_USAGE_STATUSES.SETTLED,
-          occurredAt: { gte: from, lte: now },
-        },
-        _sum: { customerChargeVnd: true },
       }),
       this.prisma.paymentTransaction.count({
         where: {
@@ -100,7 +91,6 @@ export class GetBillingAdminDashboardHandler implements IQueryHandler<GetBilling
       period: input.period,
       summary: {
         settledTopUpVnd: (topUps._sum.amountMinorUnits ?? 0n).toString(),
-        usageRevenueVnd: (usage._sum.customerChargeVnd ?? 0n).toString(),
         pendingReconciliationCount,
         duplicatePaymentCount,
         settledTopUpTrend,

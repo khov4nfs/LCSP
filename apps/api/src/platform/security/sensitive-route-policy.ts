@@ -5,7 +5,6 @@ type SensitiveRouteDefinition = {
 };
 
 export const SENSITIVE_ROUTE_IDS = {
-  githubAppStart: "GITHUB_APP_START",
   githubCliRepositoryDiscovery: "GITHUB_CLI_REPOSITORY_DISCOVERY",
   githubCliRepositoryConnect: "GITHUB_CLI_REPOSITORY_CONNECT",
   mfaRecoveryCodesGenerate: "MFA_RECOVERY_CODES_GENERATE",
@@ -49,17 +48,6 @@ export function registerSensitiveRoute(
     method: normalizedMethod,
     pathTemplate: normalizedPathTemplate,
   });
-}
-
-/**
- * Checks whether an HTTP method/path pair matches a registered sensitive route.
- *
- * @param method - HTTP method to evaluate.
- * @param route - Request path or URL to evaluate.
- * @returns True when a registered sensitive-route policy matches the request.
- */
-export function isSensitiveRoute(method: string, route: string): boolean {
-  return matchSensitiveRoute(method, route) !== null;
 }
 
 /**

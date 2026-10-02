@@ -4,6 +4,7 @@ import {
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
 import {
+  GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
@@ -19,13 +20,21 @@ import * as assert from "node:assert/strict";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import {
+  CredentialProvider,
+  PrismaClient,
+  ProviderCredentialStatus,
+  RepositoryAuthenticationMode,
+} from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import type { PinSnapshotDto } from "../src/modules/github-integration/application/contracts/github-integration/pin-snapshot.contract.js";
 import type { TriggerScanDto } from "../src/modules/github-integration/application/contracts/github-integration/trigger-scan.contract.js";
-import { GitHubAppClient } from "../src/modules/github-integration/infrastructure/github/github-app.client.js";
+import { GITHUB_REPOSITORY_PROVIDER } from "../src/modules/github-integration/application/ports/github-repository-provider.port.js";
+import { CREDENTIAL_AUTHORIZATION_RESOLVER } from "../src/modules/github-integration/application/ports/security/credential-authorization-resolver.port.js";
+import { CredentialLease } from "../src/modules/github-integration/application/security/credential-lease.js";
+import { GitHubCliProviderError } from "../src/modules/github-integration/infrastructure/github/github-cli-repository.provider.js";
 import { OutboxPublisherService } from "../src/platform/outbox/outbox-publisher.service.js";
 import { RabbitMqClient } from "../src/platform/outbox/rabbitmq.client.js";
 import {
@@ -53,11 +62,15 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(GitHubAppClient)
+      .overrideProvider(GITHUB_REPOSITORY_PROVIDER)
       .useValue({
         resolveCommit: () => {
           if (resolveCommitError) {
-            return Promise.reject(new Error("unresolvable"));
+            return Promise.reject(
+              new GitHubCliProviderError(
+                GITHUB_CREDENTIAL_ERROR_CODES.repositoryUnavailable,
+              ),
+            );
           }
           return Promise.resolve({
             sha: RESOLVED_SHA,
@@ -67,6 +80,19 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
             committerDate: "2026-07-18T00:00:01.000Z",
           });
         },
+      })
+      .overrideProvider(CREDENTIAL_AUTHORIZATION_RESOLVER)
+      .useValue({
+        resolveForConnection: () =>
+          Promise.resolve(
+            new CredentialLease("e2e-token", {
+              credentialVersion: 1,
+              internalCredentialId: "credential-1",
+              repositoryFullName: "acme/example-repo",
+              expiresAt: new Date(Date.now() + 60_000),
+            }),
+          ),
+        markInvalid: () => Promise.resolve(),
       })
       .overrideProvider(RabbitMqClient)
       .useValue({
@@ -96,12 +122,26 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
         status: ASSESSMENT_STATUS_CODES.wizardInProgress,
       },
     });
+    await prisma.providerCredential.deleteMany();
+    await prisma.providerCredential.create({
+      data: {
+        id: "credential-1",
+        provider: CredentialProvider.GITHUB,
+        ownerUserId: "user-1",
+        providerAccountId: 1n,
+        providerLogin: "acme-bot",
+        status: ProviderCredentialStatus.ACTIVE,
+        currentVersion: 1,
+      },
+    });
     await prisma.repositoryConnection.create({
       data: {
         id: "connection-1",
         assessmentId: "assessment-1",
         userId: "user-1",
-        installationId: "installation-1",
+        authenticationMode: RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL,
+        providerCredentialId: "credential-1",
+        credentialVersion: 1,
         repositoryId: "repo-1",
         repositoryName: "example-repo",
         repositoryFullName: "acme/example-repo",
@@ -206,10 +246,10 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ connection_id: "connection-1", ref: "refs/heads/missing" });
 
-    assert.equal(response.status, 400);
+    assert.equal(response.status, 404);
     assert.equal(
       problemCode(response),
-      GITHUB_INTEGRATION_ERROR_CODES.refNotResolvable,
+      GITHUB_CREDENTIAL_ERROR_CODES.repositoryUnavailable,
     );
     assert.equal(await prisma.repositorySnapshot.count(), 0);
     assert.equal(await prisma.outboxMessage.count(), beforeOutbox);

@@ -7,24 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from contracts.handoffs import (
-    InvestigatorClaim,
-    InvestigatorRequirementMetClaim,
-    InvestigatorRequirementNotMetClaim,
-    InvestigatorResult,
-    InvestigatorScopeNotApplicableClaim,
-    InvestigatorUnresolvedClaim,
-    ResolverResult,
-    SPECIALIST_RESPONSE_FORMATS,
-)
-from tools.common.capabilities.assessment.claims.evidence_claim.evidence_claim_validator import (
-    EvidenceClaimValidationError,
-    EvidenceClaimValidator,
-)
-from tools.common.capabilities.assessment.claims.evidence_claim.models import (
-    ENGINEERING_EVIDENCE_CLAIM_TYPES,
-    ENGINEERING_LIMITATION_CODES,
-)
+from contracts.handoffs import ResolverResult, SPECIALIST_RESPONSE_FORMATS
 
 
 class SpecialistHandoffValidationError(RuntimeError):
@@ -34,78 +17,19 @@ class SpecialistHandoffValidationError(RuntimeError):
 _CAUSE_DETAIL_LIMIT = 500
 _LOGGER = logging.getLogger(__name__)
 _INTERVIEW_TARGETED_FRONTIER_REPAIRED = "INTERVIEW_TARGETED_FRONTIER_REPAIRED"
-_INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED = "INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED"
-
-# `InvestigatorClaim` is a plain `Union` (anyOf, not a discriminated oneOf — see
-# contracts/handoffs.py for why). Pydantic's "smart union" validates a claim against every
-# variant and reports every variant's failures, so a real error (e.g. the UNRESOLVED
-# variant's empty `limitations`) arrives buried under 3 irrelevant "this isn't a MET claim"
-# reports. _filter_union_variant_noise below narrows to the one variant whose claim_type
-# actually matched before rendering.
-_INVESTIGATOR_CLAIM_VARIANT_NAMES = tuple(
-    cls.__name__
-    for cls in (
-        InvestigatorRequirementMetClaim,
-        InvestigatorRequirementNotMetClaim,
-        InvestigatorUnresolvedClaim,
-        InvestigatorScopeNotApplicableClaim,
-    )
-)
-
-
-def _union_variant_in_segment(segment: Any) -> str | None:
-    text = str(segment)
-    for name in _INVESTIGATOR_CLAIM_VARIANT_NAMES:
-        if name in text:
-            return name
-    return None
-
-
-def _filter_union_variant_noise(errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    generic: list[dict[str, Any]] = []
-    variant_groups: dict[str, list[dict[str, Any]]] = {}
-    for error in errors:
-        variant = next(
-            (v for v in map(_union_variant_in_segment, error.get("loc", ())) if v),
-            None,
-        )
-        (generic if variant is None else variant_groups.setdefault(variant, [])).append(
-            error
-        )
-    if not variant_groups:
-        return errors
-    # A variant whose own errors include a `claim_type` mismatch never matched the input at
-    # all; its other field errors ("criterion required", etc.) are artifacts of the smart
-    # union trying every shape, not real problems with the claim the caller sent.
-    matched = {
-        variant: group
-        for variant, group in variant_groups.items()
-        if not any(error.get("loc", ())[-1:] == ("claim_type",) for error in group)
-    }
-    if len(matched) == 1:
-        (group,) = matched.values()
-        return [*generic, *group]
-    return errors
 
 
 def _bounded_cause(exc: Exception) -> str:
     """Render a bounded, PII-safe summary of the underlying validation failure.
 
-    Callers (structured logs, ``_recovery_instruction``) need the actual field/rule that
-    failed, not just the generic outer message, or the model has nothing concrete to
-    self-correct against. ``ValidationError.errors(include_input=False)`` keeps this safe:
-    it surfaces ``loc``/``msg`` only, never the model's raw field values.
+    ``ValidationError.errors(include_input=False)`` surfaces ``loc``/``msg`` only, never
+    the model's raw field values.
     """
     if isinstance(exc, ValidationError):
         errors = exc.errors(include_url=False, include_context=False, include_input=False)
-        errors = _filter_union_variant_noise(errors)
         parts = []
         for error in errors:
-            loc = ".".join(
-                str(segment)
-                for segment in error.get("loc", ())
-                if _union_variant_in_segment(segment) is None
-            )
+            loc = ".".join(str(segment) for segment in error.get("loc", ()))
             msg = str(error.get("msg") or "")
             parts.append(f"{loc}: {msg}" if loc else msg)
         text = "; ".join(parts)
@@ -127,231 +51,6 @@ CONTROLLED_NON_VERDICT_PATHS = frozenset(
         ("nextStep",),
     }
 )
-
-
-def _validate_customer_context_claim_refs(
-    claims: list[InvestigatorClaim],
-    *,
-    confirmed_statement_refs: tuple[str, ...],
-) -> None:
-    known = {str(ref) for ref in confirmed_statement_refs if str(ref).strip()}
-    for claim in claims:
-        if (
-            claim.claim_type
-            != ENGINEERING_EVIDENCE_CLAIM_TYPES["rule_scope_not_applicable"]
-        ):
-            continue
-        missing = [ref for ref in claim.customer_context_refs if ref not in known]
-        if missing or not known:
-            raise SpecialistHandoffValidationError(
-                "RULE_SCOPE_NOT_APPLICABLE customer_context_refs must reference confirmed statements"
-            )
-
-
-def _normalize_investigator_payload(
-    payload: Any,
-    *,
-    allow_fail_closed_recovery: bool = False,
-) -> Any:
-    """Remove provider-added customer refs from non-customer-context claim variants.
-
-    Gemini's native responseSchema currently does not reliably enforce
-    ``additionalProperties: false`` inside the Investigator claim ``anyOf``. The field is
-    meaningful only for RULE_SCOPE_NOT_APPLICABLE, where it remains required and fully
-    validated against confirmed customer statements. On MET/NOT_MET/UNRESOLVED variants it
-    is an inert extra key that would otherwise mask the actual evidence/value guard being
-    evaluated by Pydantic and EvidenceClaimValidator.
-    """
-    if not isinstance(payload, dict):
-        return payload
-    claims = payload.get("claims")
-    if not isinstance(claims, list):
-        return payload
-    normalized = dict(payload)
-    normalized_claims: list[Any] = []
-    for claim in claims:
-        if not isinstance(claim, dict):
-            normalized_claims.append(claim)
-            continue
-        if (
-            claim.get("claim_type")
-            != ENGINEERING_EVIDENCE_CLAIM_TYPES["rule_scope_not_applicable"]
-            and "customer_context_refs" in claim
-        ):
-            claim = dict(claim)
-            claim.pop("customer_context_refs", None)
-        # Lossless provider-shape repair runs on every attempt so a safely repairable
-        # response never costs another model call. Fail-closed downgrades stay gated.
-        claim = _normalize_not_met_null_value_shape(claim)
-        claim = _normalize_unresolved_shape(claim)
-        claim = _clamp_investigator_claim_strings(claim)
-        if allow_fail_closed_recovery:
-            claim = _fail_closed_investigator_claim(claim)
-        normalized_claims.append(claim)
-    normalized["claims"] = normalized_claims
-    missing_input = normalized.get("missing_input")
-    if isinstance(missing_input, str) and len(missing_input) > 1_000:
-        normalized["missing_input"] = missing_input[:999] + "…"
-    return normalized
-
-
-def _normalize_not_met_null_value_shape(claim: dict[str, Any]) -> dict[str, Any]:
-    """Fill only the value already fixed by an explicit RULE_REQUIREMENT_NOT_MET variant.
-
-    Gemini sometimes drops the ``const: false`` value of the NOT_MET variant. The
-    claim type alone fixes that value, so restoring it is lossless, but only when the
-    claim is otherwise a complete NOT_MET claim: a non-blank criterion, at least one
-    technical provenance ref, and every other field accepted by the strict contract
-    model. Anything less is left untouched for strict validation / fail-closed handling.
-    MET, UNRESOLVED, unknown variants and non-null values are never touched, so no
-    positive or negative truth is inferred from a missing value.
-    """
-    if claim.get("claim_type") != ENGINEERING_EVIDENCE_CLAIM_TYPES["requirement_not_met"]:
-        return claim
-    if claim.get("value") is not None:
-        return claim
-    criterion = claim.get("criterion")
-    if not isinstance(criterion, str) or not criterion.strip():
-        return claim
-    if not _investigator_claim_refs(claim):
-        return claim
-    candidate = {**claim, "value": False}
-    try:
-        InvestigatorRequirementNotMetClaim.model_validate(candidate)
-    except ValidationError:
-        return claim
-    _LOGGER.warning(
-        "%s claim_id=%s reason=missing_not_met_const_value",
-        _INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED,
-        claim.get("claim_id"),
-    )
-    return candidate
-
-
-def _normalize_unresolved_shape(claim: dict[str, Any]) -> dict[str, Any]:
-    """Repair provider drift that is fixed by the UNRESOLVED variant itself."""
-    if claim.get("claim_type") != ENGINEERING_EVIDENCE_CLAIM_TYPES["unresolved"]:
-        return claim
-    normalized = dict(claim)
-    changed = False
-    if normalized.get("value") is not None:
-        normalized["value"] = None
-        changed = True
-    if not isinstance(normalized.get("confidence"), (int, float)) or isinstance(
-        normalized.get("confidence"), bool
-    ):
-        normalized["confidence"] = 0.0
-        changed = True
-    limitations = normalized.get("limitations")
-    if not isinstance(limitations, list) or not limitations:
-        normalized["limitations"] = [
-            ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
-        ]
-        changed = True
-    if changed:
-        _LOGGER.warning(
-            "%s claim_id=%s reason=unresolved_value_or_limitations",
-            _INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED,
-            claim.get("claim_id"),
-        )
-    return normalized
-
-
-_INVESTIGATOR_CLAIM_STRING_LIMITS = {
-    "criterion": 500,
-    "missing_input": 1_000,
-}
-
-
-def _clamp_investigator_claim_strings(claim: dict[str, Any]) -> dict[str, Any]:
-    """Clamp over-long free-text fields to their contract bounds.
-
-    Gemini's native responseSchema does not reliably enforce ``maxLength``, so the model
-    can copy oversized observation or tool text into bounded explanatory fields. The
-    bounded prefix plus an explicit truncation marker preserves the claim's semantics
-    without costing another model call; identity and provenance fields are never touched.
-    """
-    clamped = claim
-    for field, limit in _INVESTIGATOR_CLAIM_STRING_LIMITS.items():
-        value = clamped.get(field)
-        if not isinstance(value, str) or len(value) <= limit:
-            continue
-        if clamped is claim:
-            clamped = dict(claim)
-        clamped[field] = value[: limit - 1] + "…"
-    if clamped is not claim:
-        _LOGGER.warning(
-            "%s claim_id=%s reason=oversized_string_fields_clamped",
-            _INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED,
-            claim.get("claim_id"),
-        )
-    return clamped
-
-
-def _fail_closed_investigator_claim(claim: dict[str, Any]) -> dict[str, Any]:
-    """Canonicalize unsafe Gemini claim shapes to unresolved, never to decided.
-
-    Gemini may ignore per-variant ``required``/``const`` constraints inside the
-    Investigator ``anyOf``. Filling a missing decided value/ref would fabricate a closed
-    compliance-relevant claim. Downgrading an unprovable decided claim to
-    UNRESOLVED_ENGINEERING_FACT preserves the strict evidence guard: downstream receives a
-    non-decision with an explicit limitation instead of an unsupported MET/NOT_MET.
-    """
-    claim_type = claim.get("claim_type")
-    unresolved_type = ENGINEERING_EVIDENCE_CLAIM_TYPES["unresolved"]
-    if claim_type == unresolved_type:
-        normalized = dict(claim)
-        normalized["value"] = None
-        refs = _investigator_claim_refs(normalized)
-        if not refs:
-            normalized["confidence"] = 0.0
-        limitations = normalized.get("limitations")
-        if not isinstance(limitations, list) or not limitations:
-            normalized["limitations"] = [
-                ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
-            ]
-        return normalized
-
-    if claim_type not in {
-        ENGINEERING_EVIDENCE_CLAIM_TYPES["requirement_met"],
-        ENGINEERING_EVIDENCE_CLAIM_TYPES["requirement_not_met"],
-    }:
-        return claim
-
-    refs = _investigator_claim_refs(claim)
-    if refs and isinstance(claim.get("value"), bool) and claim.get("criterion"):
-        return claim
-
-    normalized = dict(claim)
-    normalized["claim_type"] = unresolved_type
-    normalized["value"] = None
-    normalized["limitations"] = [
-        ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
-    ]
-    normalized.setdefault("evidence_refs", [])
-    normalized.setdefault("graph_path_refs", [])
-    normalized.setdefault("source_anchor_refs", [])
-    normalized["confidence"] = 0.0
-    return normalized
-
-
-def _investigator_claim_refs(claim: dict[str, Any]) -> list[str]:
-    refs: list[str] = []
-    for key in ("evidence_refs", "graph_path_refs", "source_anchor_refs"):
-        value = claim.get(key)
-        if isinstance(value, list):
-            refs.extend(str(item).strip() for item in value if str(item).strip())
-    return refs
-
-
-def _is_fail_closed_unresolved_without_refs(claim: InvestigatorClaim) -> bool:
-    return (
-        claim.claim_type == ENGINEERING_EVIDENCE_CLAIM_TYPES["unresolved"]
-        and claim.confidence == 0.0
-        and not (claim.evidence_refs or claim.graph_path_refs or claim.source_anchor_refs)
-        and ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
-        in claim.limitations
-    )
 
 
 def _response_model(subagent_type: str) -> type[BaseModel]:
@@ -400,23 +99,9 @@ def _assert_no_final_verdict(value: Any, *, path: tuple[str, ...] = ()) -> None:
             _assert_no_final_verdict(child, path=path)
 
 
-def validate_specialist_handoff(
-    subagent_type: str,
-    payload: Any,
-    *,
-    graph: Any | None = None,
-    pinned_rule_ids: tuple[str, ...] | list[str] | None = None,
-    pinned_versions: dict[str, str] | None = None,
-    confirmed_statement_refs: tuple[str, ...] | list[str] | None = None,
-    allow_fail_closed_recovery: bool = False,
-) -> BaseModel:
-    """Validate a specialist handoff before root or deterministic gates consume it."""
+def validate_specialist_handoff(subagent_type: str, payload: Any) -> BaseModel:
+    """Validate a specialist handoff before boundaries consume it."""
     model = _response_model(subagent_type)
-    if subagent_type == "investigator":
-        payload = _normalize_investigator_payload(
-            payload,
-            allow_fail_closed_recovery=allow_fail_closed_recovery,
-        )
     try:
         handoff = payload if isinstance(payload, model) else model.model_validate(payload)
     except ValidationError as exc:
@@ -425,27 +110,6 @@ def validate_specialist_handoff(
         ) from exc
 
     _assert_no_final_verdict(handoff.model_dump(mode="json"))
-
-    if subagent_type == "investigator":
-        investigator = InvestigatorResult.model_validate(handoff)
-        if (
-            graph is not None
-            and pinned_rule_ids is not None
-            and pinned_versions is not None
-        ):
-            validate_investigator_handoff(
-                investigator,
-                pinned_rule_ids=tuple(pinned_rule_ids),
-                pinned_versions=pinned_versions,
-                program_graph=graph,
-                confirmed_statement_refs=confirmed_statement_refs,
-                allow_fail_closed_recovery=allow_fail_closed_recovery,
-            )
-        elif investigator.status == "READY":
-            raise SpecialistHandoffValidationError(
-                "READY investigator handoff requires graph, pinned_rule_ids, and pinned_versions"
-            )
-
     return handoff
 
 
@@ -519,77 +183,8 @@ def repair_targeted_interview_frontier(
     return repaired
 
 
-def validate_investigator_handoff(
-    result: InvestigatorResult | dict[str, Any],
-    *,
-    pinned_rule_ids: tuple[str, ...],
-    pinned_versions: dict[str, str],
-    program_graph: Any,
-    confirmed_statement_refs: tuple[str, ...] | list[str] | None = None,
-    allow_fail_closed_recovery: bool = False,
-) -> tuple[Any, ...]:
-    """Validate an Investigator handoff against immutable run pins."""
-    handoff = (
-        result if isinstance(result, InvestigatorResult) else InvestigatorResult.model_validate(result)
-    )
-    expected_versions = {str(key): str(value) for key, value in pinned_versions.items()}
-    if handoff.artifact_versions != expected_versions:
-        raise SpecialistHandoffValidationError(
-            "investigator handoff artifact_versions do not match pinned versions"
-        )
-
-    pinned_rules = set(pinned_rule_ids)
-    changed_rules = sorted(
-        {
-            claim.engineering_rule_id
-            for claim in handoff.claims
-            if claim.engineering_rule_id not in pinned_rules
-        }
-    )
-    if changed_rules:
-        raise SpecialistHandoffValidationError(
-            f"investigator handoff contains unpinned engineering_rule_ids: {changed_rules}"
-        )
-
-    if handoff.status != "READY":
-        return ()
-
-    _validate_customer_context_claim_refs(
-        handoff.claims,
-        confirmed_statement_refs=tuple(confirmed_statement_refs or ()),
-    )
-
-    validator = EvidenceClaimValidator()
-    validated_claims: list[Any] = []
-    try:
-        for claim in handoff.claims:
-            if (
-                claim.claim_type
-                == ENGINEERING_EVIDENCE_CLAIM_TYPES["rule_scope_not_applicable"]
-            ):
-                validated_claims.append(claim.to_evidence_claim())
-                continue
-            if allow_fail_closed_recovery and _is_fail_closed_unresolved_without_refs(claim):
-                validated_claims.append(claim.to_evidence_claim())
-                continue
-            validated_claims.append(validator.validate(claim.to_evidence_claim(), program_graph))
-    except EvidenceClaimValidationError as exc:
-        raise SpecialistHandoffValidationError(
-            "investigator handoff failed evidence-claim validation "
-            f"(claim_id={claim.claim_id!r}, criterion={claim.criterion!r}): "
-            f"{_bounded_cause(exc)}"
-        ) from exc
-
-    if not validated_claims:
-        raise SpecialistHandoffValidationError(
-            "READY investigator handoff requires validated claims"
-        )
-    return tuple(validated_claims)
-
-
 __all__ = [
     "FORBIDDEN_FINAL_VERDICTS",
     "SpecialistHandoffValidationError",
-    "validate_investigator_handoff",
     "validate_specialist_handoff",
 ]

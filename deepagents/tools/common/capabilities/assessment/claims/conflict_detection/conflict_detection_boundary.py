@@ -8,7 +8,7 @@ from structlog import get_logger
 
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.callback_schemas import ConflictDetectionCallbackPayload
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 
 from .conflict_detector import ConflictDetector
 

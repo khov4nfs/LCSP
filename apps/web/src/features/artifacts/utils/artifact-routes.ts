@@ -11,7 +11,7 @@ export type ArtifactOpenTarget =
   | { kind: typeof ARTIFACT_OPEN_KINDS.download; href: string }
   | { kind: typeof ARTIFACT_OPEN_KINDS.unsupported };
 
-export type ArtifactOpenAction = (ref: ArtifactRef) => ArtifactOpenTarget;
+type ArtifactOpenAction = (ref: ArtifactRef) => ArtifactOpenTarget;
 
 export function buildArtifactOpenTarget(ref: ArtifactRef): ArtifactOpenTarget {
   const assessment = `/assessments/${encodeURIComponent(ref.assessmentId)}`;

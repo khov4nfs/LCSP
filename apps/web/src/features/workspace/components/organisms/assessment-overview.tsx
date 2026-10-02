@@ -5,17 +5,17 @@ import {
   ASSESSMENT_REPOSITORY_PROVIDERS,
 } from "@lcsp/contracts/assessment";
 import {
+  ASSESSMENT_AGENT_STREAM_STAGES,
+  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
-  ASSESSMENT_RUNTIME_RUN_STATUSES,
-  ASSESSMENT_RUNTIME_STAGE_CODES,
   type AssessmentInterviewBlockedAction,
   type RemediationDecision,
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_CONNECTION_STATUSES } from "@lcsp/contracts/github-integration";
 import { resolveMessage } from "@lcsp/i18n";
-import { SaveIcon, TextCursorInputIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { InfoIcon, SaveIcon, TextCursorInputIcon } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { RepositorySetupConversation } from "@/features/assessment-flow/components/organisms/repository-setup-conversation";
@@ -26,18 +26,33 @@ import { deriveRepositorySetupAnswer } from "@/features/assessment-flow/utils/re
 import {
   useAssessmentInterviewBlockedActionMutation,
   useAssessmentInterviewStateQuery,
+  useContinueAssessmentPipelineMutation,
+  useInterruptAssessmentInterviewMutation,
   useProgramEvidenceGraphOverviewQuery,
   useReadinessStatusQuery,
-  useRerunClassificationMutation,
   useRerunRepositoryScanMutation,
+  useResumeAssessmentInterviewMutation,
   useSubmitAssessmentInterviewAnswerMutation,
   useSubmitAssessmentPostFindingDecisionMutation,
 } from "@/lib/api/assessment-queries";
 import { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
+import { useAssessmentsQuery } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
 
+import {
+  PIPELINE_CONTINUE_FAILED_MESSAGE_KEY,
+  PIPELINE_CONTINUE_FINISHED_STATUSES,
+  pipelineContinueMessageKey,
+} from "../../config/pipeline-continue";
 import { useAssessmentRuntimeViewModel } from "../../hooks/use-assessment-runtime-view-model";
 import type { AssessmentOverviewProps } from "../../types/assessment-overview.types";
+import {
+  deriveLatestAgentStreamTurnState,
+  groupAgentStreamEventsByRun,
+  groupAgentStreamEventsByStage,
+  interleaveInterviewTranscript,
+  splitCurrentInterviewActivity,
+} from "../../utils/agent-stream-stages";
 import {
   selectComposerAvailability,
   selectCustomerActions,
@@ -47,7 +62,17 @@ import {
   selectRuntimeThinkingItems,
   selectWorkflowPresentation,
 } from "../../utils/assessment-runtime-selectors";
-import { AgentStreamTimeline } from "../molecules/agent-stream-timeline";
+import {
+  AgentStreamTimeline,
+  AGENT_STREAM_RUN_OUTCOMES,
+} from "../molecules/agent-stream-timeline";
+import {
+  scopeAgentStreamRunEvents,
+  shouldShowAgentStreamHistoryAction,
+} from "../../utils/agent-stream-projection";
+import { agentThinkingLabel } from "../../utils/agent-thinking-label";
+import { AgentStreamDispatchTurns } from "../molecules/agent-stream-dispatch-turns";
+import { AgentStreamTurn } from "../molecules/agent-stream-turn";
 import {
   AgentMessage,
   AgentTurn,
@@ -58,9 +83,12 @@ import {
   AssessmentQuestionTurn,
   type AssessmentQuestionAnswerInput,
 } from "../molecules/assessment-question-turn";
-import { InterviewAnswerHistory } from "../molecules/interview-answer-history";
+import {
+  InterviewCycleOutput,
+  InterviewCycleTurn,
+} from "../molecules/interview-cycle-turn";
+import { InterviewOutputPanel } from "../molecules/interview-output-panel";
 import { PostFindingFlowSteps } from "../molecules/post-finding-flow-steps";
-import { RuntimeThinkingActivity } from "../molecules/runtime-thinking-activity";
 import { TurnFooter } from "../molecules/turn-footer";
 import { AssessmentComposer } from "./assessment-composer";
 import { AssessmentTranscript } from "./assessment-transcript";
@@ -183,6 +211,14 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
             }}
             activities={flow.activities}
             evidenceReady={flow.evidenceAccepted}
+            thinkingLabel={agentThinkingLabel(
+              flow.scanActive,
+              scopeAgentStreamRunEvents(
+                groupAgentStreamEventsByStage(timeline.agentStreamEvents ?? [])
+                  .byStage[ASSESSMENT_AGENT_STREAM_STAGES.scanner],
+                scanJob?.id ?? null,
+              ),
+            )}
             programEvidenceSummary={flow.programEvidenceSummary}
             canonicalOverview={evidenceOverviewQuery.data}
             scanFailed={flow.scanFailed}
@@ -198,6 +234,9 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
         </>
       }
       scanFailed={flow.scanFailed}
+      scannerActive={flow.scanActive}
+      activeScanRunId={retryScan.data?.scanJobId ?? scanJob?.id ?? null}
+      resetScannerActivity={retryScan.isPending}
       runtimeKey={[
         snapshot?.id,
         scanJob?.id,
@@ -214,12 +253,18 @@ function AssessmentInterviewFlow({
   interviewEnabled,
   scanner,
   scanFailed,
+  scannerActive,
+  activeScanRunId,
+  resetScannerActivity,
   runtimeKey,
 }: {
   assessmentId: string;
   interviewEnabled: boolean;
   scanner: ReactNode;
   scanFailed: boolean;
+  scannerActive: boolean;
+  activeScanRunId: string | null;
+  resetScannerActivity: boolean;
   runtimeKey: string;
 }) {
   const workspaceRuntime = useWorkspaceRuntime();
@@ -237,15 +282,105 @@ function AssessmentInterviewFlow({
   const workflow = selectWorkflowPresentation(normalized);
   const customerActions = selectCustomerActions(normalized);
   const composerAvailability = selectComposerAvailability(normalized);
-  const interviewHandoff = selectInterviewHandoffPresentation(normalized);
+  const assessmentsQuery = useAssessmentsQuery();
+  const assessmentStatus =
+    assessmentsQuery.data?.kind === API_OUTCOME_KINDS.loaded
+      ? (assessmentsQuery.data.assessments.find(
+          (assessment) => assessment.id === assessmentId,
+        )?.status ?? null)
+      : null;
+  const interviewHandoff = selectInterviewHandoffPresentation(
+    normalized,
+    assessmentStatus,
+  );
   const postFinding = selectPostFindingPresentation(normalized);
+  // Kept only as an autoScrollKey signal below: Rule-analysis activity
+  // itself now renders exclusively through interviewTranscript (per-turn,
+  // interleaved with its own Q&A), not as these aggregate summary rows.
   const runtimeThinkingItems = selectRuntimeThinkingItems(normalized);
+  const stageEvents = useMemo(
+    () => groupAgentStreamEventsByStage(liveTimeline.agentStreamEvents ?? []),
+    [liveTimeline.agentStreamEvents],
+  );
+  const interviewTurnState = useMemo(
+    () =>
+      deriveLatestAgentStreamTurnState(
+        stageEvents.byStage[ASSESSMENT_AGENT_STREAM_STAGES.interview],
+      ),
+    [stageEvents],
+  );
+  const boundaryPaused =
+    groupAgentStreamEventsByRun(liveTimeline.agentStreamEvents ?? [])
+      .at(-1)
+      ?.events.some(
+        (event) =>
+          event.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused,
+      ) ?? false;
+  // Cooperative stops belong to Interview; billing can pause any dispatch.
+  // Downstream work still owns the turn while it is running.
+  const downstreamTurnRunning = useMemo(
+    () =>
+      [
+        ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+        ASSESSMENT_AGENT_STREAM_STAGES.gate,
+      ].some(
+        (stage) =>
+          deriveLatestAgentStreamTurnState(stageEvents.byStage[stage]) ===
+          "running",
+      ),
+    [stageEvents],
+  );
+  // A customer stop of rule analysis/Gate: Continue resumes it through
+  // the pipeline (finished rules are reused), not an Interview turn.
+  const downstreamTurnPaused = useMemo(
+    () =>
+      !downstreamTurnRunning &&
+      [
+        ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+        ASSESSMENT_AGENT_STREAM_STAGES.gate,
+      ].some(
+        (stage) =>
+          deriveLatestAgentStreamTurnState(stageEvents.byStage[stage]) ===
+          "paused",
+      ),
+    [stageEvents, downstreamTurnRunning],
+  );
+  const anyAgentTurnRunning =
+    interviewTurnState === "running" || downstreamTurnRunning;
+  // Which downstream stage is actively running right now, if any — drives a
+  // composer placeholder that reflects what's really happening (planning,
+  // investigating, reviewing) instead of always saying "waiting on Interview"
+  // while rule analysis/Gate are the ones doing the work.
+  const runningDownstreamStage = useMemo(() => {
+    const priority = [
+      ASSESSMENT_AGENT_STREAM_STAGES.gate,
+      ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+    ] as const;
+    return (
+      priority.find(
+        (stage) =>
+          deriveLatestAgentStreamTurnState(stageEvents.byStage[stage]) ===
+          "running",
+      ) ?? null
+    );
+  }, [stageEvents]);
+  const downstreamPlaceholderKey =
+    runningDownstreamStage === ASSESSMENT_AGENT_STREAM_STAGES.gate
+      ? "pages.assessmentFlow.interview.gatePlaceholder"
+      : runningDownstreamStage === ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis
+        ? "pages.assessmentFlow.interview.investigatePlaceholder"
+        : null;
   const runtimeInterviewState = interviewQuery.data;
   const interviewTurnTimestamp = normalized.identity.audit?.timestamp;
   const submitAnswer = useSubmitAssessmentInterviewAnswerMutation(assessmentId);
   const recordBlockedAction =
     useAssessmentInterviewBlockedActionMutation(assessmentId);
-  const resumeAssessmentPipeline = useRerunClassificationMutation(assessmentId);
+  const continuePipeline = useContinueAssessmentPipelineMutation(assessmentId);
+  const interruptInterviewTurn =
+    useInterruptAssessmentInterviewMutation(assessmentId);
+  const resumeInterviewTurn =
+    useResumeAssessmentInterviewMutation(assessmentId);
   const submitPostFindingDecision =
     useSubmitAssessmentPostFindingDecisionMutation(assessmentId);
 
@@ -343,15 +478,58 @@ function AssessmentInterviewFlow({
     } else if (composerAvailability.isEnabled) {
       composerPlaceholderKey = "pages.assessmentFlow.interview.placeholder";
     } else {
-      composerPlaceholderKey = interviewHandoff.placeholderKey;
+      composerPlaceholderKey =
+        downstreamPlaceholderKey ?? interviewHandoff.placeholderKey;
     }
   } else if (composerAvailability.isEnabled) {
     composerPlaceholderKey = "pages.assessmentFlow.interview.placeholder";
   } else {
-    composerPlaceholderKey = interviewHandoff.placeholderKey;
+    composerPlaceholderKey =
+      downstreamPlaceholderKey ?? interviewHandoff.placeholderKey;
   }
 
   const answerHistory = interview.answerHistory;
+  const interviewTranscript = interleaveInterviewTranscript(answerHistory, [
+    {
+      stage: ASSESSMENT_AGENT_STREAM_STAGES.interview,
+      groups: groupAgentStreamEventsByRun(
+        stageEvents.byStage[ASSESSMENT_AGENT_STREAM_STAGES.interview],
+      ),
+    },
+    {
+      stage: ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+      groups: groupAgentStreamEventsByRun(
+        stageEvents.byStage[ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis],
+      ),
+    },
+    {
+      stage: ASSESSMENT_AGENT_STREAM_STAGES.gate,
+      groups: groupAgentStreamEventsByRun(
+        stageEvents.byStage[ASSESSMENT_AGENT_STREAM_STAGES.gate],
+      ),
+    },
+  ]);
+  const scannerTurnEvents = useMemo(
+    () =>
+      resetScannerActivity
+        ? []
+        : scopeAgentStreamRunEvents(
+            stageEvents.byStage[ASSESSMENT_AGENT_STREAM_STAGES.scanner],
+            activeScanRunId,
+          ),
+    [resetScannerActivity, stageEvents, activeScanRunId],
+  );
+  const onLoadOlderScannerActivity = () => {
+    void workspaceRuntime.loadMoreAgentStreamHistory(assessmentId);
+  };
+  const scannerHistoryAction = shouldShowAgentStreamHistoryAction(
+    liveTimeline.agentStreamHistory,
+    onLoadOlderScannerActivity,
+  );
+  const transcriptTurns = splitCurrentInterviewActivity(
+    interviewTranscript,
+    interview.questionTurnProps?.question,
+  );
   const autoScrollKey = [
     assessmentId,
     runtimeKey,
@@ -510,29 +688,81 @@ function AssessmentInterviewFlow({
     (activeQuestion?.control === ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust &&
       !activeDraft.isAdjusting);
   const hasComposerDraft = composerValue.trim().length > 0;
-  const canResumeAssessmentPipeline =
-    interviewEnabled &&
+  // Continue is offered whenever the pipeline is not waiting on the Customer:
+  // the API decides whether a failed/stalled Interview turn or the downstream
+  // assessment restarts, and refuses while a worker still owns the pipeline.
+  const canContinuePipeline =
+    (boundaryPaused || interviewEnabled) &&
     !scanFailed &&
-    workflow.activeStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting &&
-    workflow.activeStage === ASSESSMENT_RUNTIME_STAGE_CODES.legalRetrieval &&
     !hasComposerDraft &&
+    (boundaryPaused || !(customerActions.canAnswerQuestion && activeQuestion)) &&
+    !customerActions.canSubmitBlockedAction &&
+    !(
+      assessmentStatus !== null &&
+      PIPELINE_CONTINUE_FINISHED_STATUSES.has(assessmentStatus)
+    ) &&
+    (boundaryPaused || !interviewHandoff.isGenuinelyPending) &&
     !submitAnswer.isPending &&
     !recordBlockedAction.isPending &&
-    !submitPostFindingDecision.isPending &&
-    !resumeAssessmentPipeline.isPending;
+    !submitPostFindingDecision.isPending;
   const composerDisabled =
-    isComposerDisabled && !canResumeAssessmentPipeline && !hasComposerDraft;
+    isComposerDisabled && !canContinuePipeline && !hasComposerDraft;
 
-  function handleResumeAssessmentPipeline() {
-    if (!canResumeAssessmentPipeline) {
+  function handleContinuePipeline() {
+    if (!canContinuePipeline || continuePipeline.isPending) {
       return;
     }
-    resumeAssessmentPipeline.mutate(undefined, {
-      onSuccess: () => {
-        setLastSavedMessage(t("pages.assessment.resumeQueued"));
+    requestContinuePipeline();
+  }
+
+  // Resuming a stopped rule analysis does not depend on Interview
+  // composer state; the API decides whether the pipeline can continue.
+  function handleResumeStoppedPipeline() {
+    if (continuePipeline.isPending) return;
+    requestContinuePipeline();
+  }
+
+  function requestContinuePipeline() {
+    continuePipeline.mutate(undefined, {
+      onSuccess: (outcome) => {
+        setLastSavedMessage(t(pipelineContinueMessageKey(outcome)));
+      },
+      onError: () => {
+        setLastSavedMessage(t(PIPELINE_CONTINUE_FAILED_MESSAGE_KEY));
       },
     });
   }
+
+  const interviewThinkingLabel = agentThinkingLabel(
+    false,
+    groupAgentStreamEventsByRun(
+      stageEvents.byStage[ASSESSMENT_AGENT_STREAM_STAGES.interview],
+    ).at(-1)?.events ?? [],
+  );
+  const handoffPanel = (
+    <InterviewOutputPanel
+      icon={InfoIcon}
+      label={
+        interview.assistantMessage ??
+        (interviewHandoff.messageKey ===
+        "pages.assessmentFlow.interview.contextReadyHandoff"
+          ? t("pages.assessment.noMoreQuestionsOutput")
+          : t(interviewHandoff.messageKey))
+      }
+    />
+  );
+  // The handoff status belongs to the answer's own agent turn when that turn is
+  // the latest thing on screen, so Technical details still ends the turn.
+  const lastHistoryTurn = transcriptTurns.history.at(-1);
+  const handoffInLatestActivity =
+    !interview.questionTurnProps &&
+    !interview.isFailed &&
+    !(
+      interview.isBlocked &&
+      customerActions.canSubmitBlockedAction &&
+      customerActions.availableBlockedActions.length > 0
+    ) &&
+    (lastHistoryTurn?.followUpActivity.length ?? 0) > 0;
 
   return (
     <main
@@ -547,34 +777,76 @@ function AssessmentInterviewFlow({
     >
       <AssessmentTranscript autoScrollKey={autoScrollKey}>
         {scanner}
-        <AgentStreamTimeline
-          events={liveTimeline.agentStreamEvents ?? []}
-          history={liveTimeline.agentStreamHistory}
-          onLoadOlder={() => {
-            void workspaceRuntime.loadMoreAgentStreamHistory(assessmentId);
-          }}
-        />
+        {scannerTurnEvents.length > 0 || scannerHistoryAction ? (
+          <AgentStreamTurn
+            // A retried scan is a new run: remount so its disclosures start
+            // collapsed instead of inheriting the previous run's DOM state.
+            key={`scanner:${activeScanRunId ?? scannerTurnEvents[0]?.runId ?? ""}`}
+            stages={[ASSESSMENT_AGENT_STREAM_STAGES.scanner]}
+            runId={activeScanRunId ?? scannerTurnEvents[0]?.runId ?? ""}
+            events={scannerTurnEvents}
+            stageEvents={{
+              [ASSESSMENT_AGENT_STREAM_STAGES.scanner]: scannerTurnEvents,
+            }}
+            outcomeOverride={
+              scannerActive
+                ? undefined
+                : scanFailed
+                  ? AGENT_STREAM_RUN_OUTCOMES.failed
+                  : AGENT_STREAM_RUN_OUTCOMES.completed
+            }
+            history={liveTimeline.agentStreamHistory}
+            onLoadOlder={onLoadOlderScannerActivity}
+          />
+        ) : null}
 
         {interviewEnabled ? (
           <>
-            {answerHistory.map((answer) => (
-              <InterviewAnswerHistory
-                key={`${answer.questionId}:${answer.answeredAt}`}
-                answer={answer}
+            {transcriptTurns.currentActivity.map((segment) => (
+              <AgentStreamDispatchTurns
+                key={`activity:${segment.turnKey}`}
+                segment={segment}
               />
             ))}
 
-            {runtimeThinkingItems.map((item) => (
-              <RuntimeThinkingActivity key={item.id} item={item} />
-            ))}
+            {transcriptTurns.history.map((turn, turnIndex) => {
+              const lastSegment = turn.followUpActivity.length - 1;
+              const ownsHandoff =
+                handoffInLatestActivity &&
+                turnIndex === transcriptTurns.history.length - 1;
+              return (
+                <InterviewCycleTurn
+                  key={`answer:${turn.answer.questionId}:${turn.answer.answeredAt}`}
+                  cycle={turn}
+                  activityOwnsOutput={lastSegment >= 0}
+                  activity={turn.followUpActivity.map((segment, index) => (
+                    <AgentStreamDispatchTurns
+                      key={`activity:${segment.turnKey}`}
+                      segment={segment}
+                      outputs={
+                        // The answer's result belongs to the dispatch that
+                        // processed it, not to later retries appended after it.
+                        index === 0 ? (
+                          <>
+                            <InterviewCycleOutput
+                              answer={turn.answer}
+                              question={turn.question}
+                            />
+                            {ownsHandoff ? handoffPanel : null}
+                          </>
+                        ) : undefined
+                      }
+                    />
+                  ))}
+                />
+              );
+            })}
 
             {interview.questionTurnProps ? (
               <AgentTurn
                 content={
                   <AgentMessage>
-                    <ThoughtLine
-                      label={t("pages.assessmentFlow.interview.thought")}
-                    />
+                    <ThoughtLine label={interviewThinkingLabel} />
                     <p className="mt-2">
                       {t("pages.assessmentFlow.interview.readyDescription")}
                     </p>
@@ -587,6 +859,7 @@ function AssessmentInterviewFlow({
                 }
                 terminalAction={
                   <AssessmentQuestionTurn
+                    assessmentId={assessmentId}
                     question={interview.questionTurnProps.question}
                     answerHistoryVisible={answerHistory.length > 0}
                     selectedChoiceIds={activeDraft.selectedChoiceIds}
@@ -616,9 +889,7 @@ function AssessmentInterviewFlow({
               <AgentTurn
                 content={
                   <AgentMessage>
-                    <ThoughtLine
-                      label={t("pages.assessmentFlow.interview.thought")}
-                    />
+                    <ThoughtLine label={interviewThinkingLabel} />
                     <p className="mt-2">
                       {t("pages.assessmentFlow.interview.readyDescription")}
                     </p>
@@ -674,7 +945,7 @@ function AssessmentInterviewFlow({
                   {t("pages.appShell.chatActivityStatuses.failed")}
                 </AgentMessage>
               </AgentTurn>
-            ) : (
+            ) : handoffInLatestActivity ? null : (
               <AgentTurn
                 footer={
                   interviewTurnTimestamp ? (
@@ -682,22 +953,17 @@ function AssessmentInterviewFlow({
                   ) : null
                 }
               >
-                <AgentMessage>
-                  <p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">
-                    {interview.assistantMessage ??
-                      t(interviewHandoff.messageKey)}
-                  </p>
-                </AgentMessage>
+                <AgentMessage>{handoffPanel}</AgentMessage>
               </AgentTurn>
             )}
+
+            <AgentStreamTimeline events={stageEvents.unstaged} />
 
             {postFinding ? (
               <AgentTurn
                 content={
                   <AgentMessage>
-                    <ThoughtLine
-                      label={t("pages.assessmentFlow.postFinding.thought")}
-                    />
+                    <ThoughtLine label={agentThinkingLabel(false, [])} />
                     <p className="mt-2">
                       {t("pages.assessmentFlow.postFinding.description")}
                     </p>
@@ -731,7 +997,9 @@ function AssessmentInterviewFlow({
               </AgentTurn>
             ) : null}
           </>
-        ) : null}
+        ) : (
+          <AgentStreamTimeline events={stageEvents.unstaged} />
+        )}
       </AssessmentTranscript>
 
       <AssessmentComposer
@@ -739,13 +1007,36 @@ function AssessmentInterviewFlow({
         disabled={composerDisabled}
         submitReady={isSubmitReady}
         submitting={submitAnswer.isPending || recordBlockedAction.isPending}
-        resuming={resumeAssessmentPipeline.isPending}
-        resumeAvailable={canResumeAssessmentPipeline}
+        resuming={continuePipeline.isPending}
+        resumeAvailable={canContinuePipeline || continuePipeline.isPending}
         resumeLabel={t("pages.assessment.resumePipeline")}
         placeholder={t(composerPlaceholderKey)}
         onValueChange={handleComposerValueChange}
         onSubmit={handleSubmit}
-        onResume={handleResumeAssessmentPipeline}
+        onResume={handleContinuePipeline}
+        turnRunning={anyAgentTurnRunning}
+        turnPaused={
+          boundaryPaused ||
+          interviewTurnState === "paused" ||
+          downstreamTurnPaused
+        }
+        // One stop covers the Interview turn and the rule-analysis run.
+        onInterruptTurn={
+          anyAgentTurnRunning
+            ? () => interruptInterviewTurn.mutate()
+            : undefined
+        }
+        onResumeTurn={
+          downstreamTurnPaused
+            ? handleResumeStoppedPipeline
+            : () => resumeInterviewTurn.mutate()
+        }
+        interruptingTurn={interruptInterviewTurn.isPending}
+        resumingTurn={
+          downstreamTurnPaused
+            ? continuePipeline.isPending
+            : resumeInterviewTurn.isPending
+        }
       />
     </main>
   );

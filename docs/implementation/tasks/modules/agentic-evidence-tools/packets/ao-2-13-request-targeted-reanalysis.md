@@ -1,3 +1,5 @@
+> **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.** The Planner/Investigator/Scanner-pipeline description below is historical.
+
 ---
 template: agentic-tool-implementation-task
 template_version: 2.0.0
@@ -33,7 +35,7 @@ AO-3 invokes after an authorized missing-evidence resolver. Direct model access 
       "enum": [
         "RUN_SEMGREP_RULES",
         "RUN_PYTHON_SEMANTIC_ANALYSIS",
-        "RUN_TS_JS_SEMANTIC_ANALYSIS",
+        "DEEP_AGENT_REPOSITORY_ANALYSIS",
         "RUN_STRUCTURAL_AUGMENTATION"
       ]
     },
@@ -101,7 +103,7 @@ AO-3 invokes after an authorized missing-evidence resolver. Direct model access 
     "reanalysisRequestId": "reanalysis:rr_01J",
     "state": "QUEUED",
     "inputArtifactVersion": "ter_01J",
-    "requestedAnalyzer": "RUN_TS_JS_SEMANTIC_ANALYSIS",
+    "requestedAnalyzer": "DEEP_AGENT_REPOSITORY_ANALYSIS",
     "scopeRef": "scope:sc_01J",
     "checkpointRef": "checkpoint:cp_01J",
     "auditRef": "audit:au_01J"

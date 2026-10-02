@@ -13,6 +13,14 @@ The persisted Scanner projection is `evidence_payload.ai_discovery` with evidenc
 `UNRESOLVED_DYNAMIC`, and gate states `AI_CONFIRMED`, `AI_UNKNOWN`, and
 `AI_ABSENT_CONFIRMED`. Provider/package/config presence alone is not model invocation.
 
+## Producer and failure
+
+`ai_discovery` is produced by ONE bounded AI-discovery Deep Agent task in the scan job
+(Repository Analyst runtime, 2026-09-30; see `deepagents/FLOW.md`). It is an independent
+prerequisite persisted with the technical evidence. A model/provider failure yields gate
+`AI_UNKNOWN` with limitation `AI_DISCOVERY_FAILED`; the scan still completes, accepted rule
+evidence is never destroyed, and rules gated on `aiDetected` become `UPSTREAM_FACT_PENDING`.
+
 ## Gate
 
 `AI_CONFIRMED` requires governed invocation/API evidence. A model invocation whose runtime
@@ -26,7 +34,12 @@ or possible AI call, provider reference requiring clarification, or material AI 
 frontier. A missing signal under `PARTIAL`/`UNAVAILABLE` coverage is never absence proof.
 
 Technical/resolvable uncertainty routes to targeted reanalysis. Customer-owned runtime or
-business uncertainty becomes one bounded Interview question. Confirmed invocation skips
+business uncertainty becomes one bounded Interview question. When the deterministic absence
+backstop contradicts a model-asserted `AI_ABSENT_CONFIRMED` with an AI SDK import or
+dependency in product code, the full repository pass has already failed to trace a call, so
+the reference is Customer-owned `OUTBOUND_AI_CONFIRMATION` (does the product use this SDK in
+production?) rather than another technical pass; only a failed deterministic search stays a
+technical frontier. Confirmed invocation skips
 the redundant “is this AI?” question and asks purpose + Web/Mobile/API feature/module and
 workflow context. An unresolved custom outbound candidate uses `Yes / No / Unsure`; a Yes
 answer may provide the customer-hosted/provider identity as free text.

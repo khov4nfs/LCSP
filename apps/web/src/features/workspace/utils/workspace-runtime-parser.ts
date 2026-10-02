@@ -1,6 +1,7 @@
 import {
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   isAssessmentAgentStreamEventType,
+  isAssessmentAgentStreamStage,
   FINAL_ASSESSMENT_RESULT_STATUSES,
   isPostFindingRuntimePhase,
   isRemediationDecision,
@@ -9,6 +10,7 @@ import {
   type AssessmentAgentStreamEvent,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
+  type AssessmentStageLifecycleProjection,
   type AssessmentRuntimeEngineeringProgress,
 } from "@lcsp/contracts/evidence";
 
@@ -50,6 +52,8 @@ export function parseAgentStreamEvent(
     runId: item.run_id,
     correlationId: item.correlation_id,
     eventType: item.event_type,
+    stage: isAssessmentAgentStreamStage(item.stage) ? item.stage : null,
+    engineeringRuleId: optionalString(item.engineering_rule_id),
     source: optionalString(item.source),
     agentName: optionalString(item.agent_name),
     subagentName: optionalString(item.subagent_name),
@@ -101,6 +105,14 @@ export function parseRuntimeEvent(
   const postFindingStates = Array.isArray(payload.post_finding)
     ? payload.post_finding.map(parsePostFindingState).filter(isDefined)
     : [];
+  // Stage status the API derived from durable artifacts (scan job, accepted
+  // evidence, confirmed context, plan, claims) rather than the activity log.
+  const stageLifecycleByAssessmentId = Object.fromEntries(
+    (Array.isArray(payload.stage_lifecycles) ? payload.stage_lifecycles : [])
+      .map(parseStageLifecycle)
+      .filter(isDefined)
+      .map((lifecycle) => [lifecycle.assessmentId, lifecycle]),
+  );
 
   const runsByAssessmentId = groupRunsByAssessmentId(runs);
   const recentActivityByAssessmentId =
@@ -129,6 +141,7 @@ export function parseRuntimeEvent(
     agentStreamHistoryByAssessmentId: {},
     latestRunIdByAssessmentId,
     postFindingByAssessmentId,
+    stageLifecycleByAssessmentId,
     getAssessmentRuntime: (assessmentId: string) => ({
       currentRun: runsByAssessmentId[assessmentId]?.[0] ?? null,
       recentActivity: recentActivityByAssessmentId[assessmentId] ?? [],
@@ -147,10 +160,44 @@ export function parseRuntimeEvent(
       connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
       lastEmittedAt: payload.emitted_at as string,
       postFinding: postFindingByAssessmentId[assessmentId] ?? null,
+      stageLifecycle: stageLifecycleByAssessmentId[assessmentId] ?? null,
     }),
     subscribeAssessmentRuntime: () => () => undefined,
     loadMoreAgentStreamHistory: () => Promise.resolve(false),
   };
+}
+
+// `satisfies` keeps these keys in lockstep with the contract projection: a stale or
+// unknown stage key is a type error instead of a parser that silently returns null.
+const STAGE_LIFECYCLE_STAGES = [
+  "scanner",
+  "interview",
+  "ruleAnalysis",
+  "gate",
+] as const satisfies readonly Exclude<
+  keyof AssessmentStageLifecycleProjection,
+  "assessmentId"
+>[];
+
+function parseStageLifecycle(
+  value: unknown,
+): AssessmentStageLifecycleProjection | null {
+  const item = parseObject(value);
+  if (item === null || typeof item.assessmentId !== "string") return null;
+  const entries: Record<string, unknown> = {};
+  for (const stage of STAGE_LIFECYCLE_STAGES) {
+    const entry = parseObject(item[stage]);
+    if (entry === null || typeof entry.state !== "string") return null;
+    entries[stage] = {
+      state: entry.state,
+      source: typeof entry.source === "string" ? entry.source : "unknown",
+      detail: typeof entry.detail === "string" ? entry.detail : null,
+    };
+  }
+  return {
+    assessmentId: item.assessmentId,
+    ...entries,
+  } as AssessmentStageLifecycleProjection;
 }
 
 function parsePostFindingState(
@@ -497,48 +544,24 @@ function parseEngineeringProgress(
   value: unknown,
 ): AssessmentRuntimeEngineeringProgress | null {
   const item = parseObject(value);
-  const planner = parseObject(item?.planner);
-  const investigator = parseObject(item?.investigator);
   if (
     item === null ||
-    planner === null ||
-    investigator === null ||
     typeof item.assessment_id !== "string" ||
-    typeof item.run_id !== "string" ||
-    typeof item.planning_batch_id !== "string" ||
-    typeof item.targeted !== "boolean" ||
-    typeof item.approximate !== "boolean"
+    typeof item.run_id !== "string"
   ) {
     return null;
   }
   return {
     assessmentId: item.assessment_id,
     runId: item.run_id,
-    planningBatchId: item.planning_batch_id,
-    contextRevisionUsed:
-      typeof item.context_revision_used === "number"
-        ? item.context_revision_used
-        : null,
-    targeted: item.targeted,
-    approximate: item.approximate,
-    planner: {
-      candidateCount: nonNegativeNumber(planner.candidate_count),
-      selectedCount: nonNegativeNumber(planner.selected_count),
-      skippedCount: nonNegativeNumber(planner.skipped_count),
-    },
-    investigator: {
-      selectedCount: nonNegativeNumber(investigator.selected_count),
-      completedCount: nonNegativeNumber(investigator.completed_count),
-      domainLimitedCount: nonNegativeNumber(investigator.domain_limited_count),
-      limitedOrFailedCount: nonNegativeNumber(
-        investigator.limited_or_failed_count,
-      ),
-      waitingForInputCount: nonNegativeNumber(
-        investigator.waiting_for_input_count,
-      ),
-      runtimeFailedCount: nonNegativeNumber(investigator.runtime_failed_count),
-      pendingCount: nonNegativeNumber(investigator.pending_count),
-    },
+    contextRevision:
+      typeof item.context_revision === "number" ? item.context_revision : null,
+    engineeringRuleCount: nonNegativeNumber(item.engineering_rule_count),
+    eligibleCount: nonNegativeNumber(item.eligible_count),
+    completed: nonNegativeNumber(item.completed),
+    needsContext: nonNegativeNumber(item.needs_context),
+    unresolved: nonNegativeNumber(item.unresolved),
+    failed: nonNegativeNumber(item.failed),
   };
 }
 
@@ -684,18 +707,13 @@ export function runtimeFingerprint(runtime: {
     engineeringProgress: runtime.engineeringProgress.map((progress) => [
       progress.assessmentId,
       progress.runId,
-      progress.planningBatchId,
-      progress.contextRevisionUsed,
-      progress.targeted,
-      progress.approximate,
-      progress.planner.candidateCount,
-      progress.planner.selectedCount,
-      progress.planner.skippedCount,
-      progress.investigator.completedCount,
-      progress.investigator.domainLimitedCount,
-      progress.investigator.waitingForInputCount,
-      progress.investigator.runtimeFailedCount,
-      progress.investigator.pendingCount,
+      progress.contextRevision,
+      progress.engineeringRuleCount,
+      progress.eligibleCount,
+      progress.completed,
+      progress.needsContext,
+      progress.unresolved,
+      progress.failed,
     ]),
     repositorySnapshots: runtime.repositorySnapshots.map((snapshot) => [
       snapshot.id,

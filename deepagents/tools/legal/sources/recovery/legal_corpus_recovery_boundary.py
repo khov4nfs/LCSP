@@ -10,7 +10,7 @@ from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
     LegalCorpusRecoveryDriver,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 
 
 class LegalCorpusRecoveryBoundary(AgentBoundaryBase):
@@ -30,7 +30,7 @@ class LegalCorpusRecoveryBoundary(AgentBoundaryBase):
         """Create the boundary with injectable API client and recovery driver.
 
         Args:
-            config: Managed Agent runtime configuration.
+            config: Agent Runtime configuration.
             rbac_client: Optional base-boundary RBAC dependency; unused for system events.
             api_client: Optional internal API client override.
             driver: Optional corpus recovery driver override.

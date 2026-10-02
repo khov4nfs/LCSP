@@ -667,12 +667,7 @@ function AppShellPreview() {
       true,
     ],
     [
-      "pages.marketing.home.showcaseWorkflowPlanner",
-      "pages.marketing.home.showcaseStatusPassed",
-      true,
-    ],
-    [
-      "pages.marketing.home.showcaseWorkflowInvestigate",
+      "pages.marketing.home.showcaseWorkflowRepositoryAnalyst",
       "pages.marketing.home.showcaseStatusRunning",
       true,
     ],

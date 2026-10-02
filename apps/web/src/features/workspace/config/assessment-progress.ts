@@ -7,6 +7,7 @@ const progressByStatus: Record<AssessmentStatus, number> = {
   SCAN_IN_PROGRESS: 60,
   CLASSIFICATION_LOCKED: 75,
   READY_FOR_REVIEW: 100,
+  AI_NOT_DETECTED: 100,
 };
 
 export function getAssessmentProgress(status: AssessmentStatus): number {

@@ -140,7 +140,7 @@ export type InterviewRuntimeEventCorrelation = {
   modelId?: string;
   currentStage: string;
   /** Originating investigation ref when targeted clarification is triggered. */
-  originatingInvestigationReference?: string | null;
+  originatingRuleAnalysisReference?: string | null;
   downstreamImpact?: boolean;
   rerunScope?: string[];
   sourceSnapshot?: InterviewSourceSnapshotRef;
@@ -193,7 +193,7 @@ export type InterviewAuditTrailItem = {
   outcome?: AssessmentInterviewOutcome;
   interpretation?: string;
   evidenceRefs: string[];
-  originatingInvestigationReference?: string | null;
+  originatingRuleAnalysisReference?: string | null;
   downstreamImpact?: boolean;
   affectedActivities: string[];
   rerunScope: string[];

@@ -20,6 +20,7 @@ test("shared contracts expose canonical workflow value sets", () => {
     "SCAN_IN_PROGRESS",
     "CLASSIFICATION_LOCKED",
     "READY_FOR_REVIEW",
+    "AI_NOT_DETECTED",
   ]);
   assert.deepEqual(Object.values(OUTBOX_STATUSES), [
     "PENDING",

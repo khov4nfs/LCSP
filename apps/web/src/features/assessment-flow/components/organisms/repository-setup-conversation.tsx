@@ -25,7 +25,7 @@ export function RepositorySetupConversation({
       <AgentTurn
         content={
           <AgentMessage>
-            <ThoughtLine label={t("pages.assessmentFlow.thought")} />
+            <ThoughtLine label={t("pages.assessmentFlow.thinking.completedWithoutDuration")} />
             <p className="mt-2">
               {t("pages.assessmentFlow.repositorySetupDescription")}
             </p>

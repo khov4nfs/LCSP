@@ -59,7 +59,7 @@ export const ARTIFACT_TABS = {
 
 export type ArtifactTab = (typeof ARTIFACT_TABS)[keyof typeof ARTIFACT_TABS];
 
-export type ArtifactAssessmentSummary = {
+type ArtifactAssessmentSummary = {
   id: string;
   name: string;
   status: AssessmentStatus;

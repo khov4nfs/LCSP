@@ -7,28 +7,23 @@ legal-intelligence specialist and is intentionally not an assessment pipeline no
 
 from subagents.interview.definition import SUBAGENT as INTERVIEW_SUBAGENT
 from subagents.interview.definition import TOOLS as INTERVIEW_TOOLS
-from subagents.investigator.definition import SUBAGENT as INVESTIGATOR_SUBAGENT
-from subagents.investigator.definition import TOOLS as INVESTIGATOR_TOOLS
-from subagents.planner.definition import SUBAGENT as PLANNER_SUBAGENT
-from subagents.planner.definition import TOOLS as PLANNER_TOOLS
+from subagents.repository_analyst.definition import SUBAGENT as REPOSITORY_ANALYST_SUBAGENT
+from subagents.repository_analyst.definition import TOOLS as REPOSITORY_ANALYST_TOOLS
 from subagents.triage.definition import SUBAGENT as TRIAGE_SUBAGENT
 from subagents.triage.definition import TOOLS as TRIAGE_TOOLS
 
 FLOW_SUBAGENTS = [
     TRIAGE_SUBAGENT,
     INTERVIEW_SUBAGENT,
-    PLANNER_SUBAGENT,
-    INVESTIGATOR_SUBAGENT,
+    REPOSITORY_ANALYST_SUBAGENT,
 ]
 
 __all__ = [
     "FLOW_SUBAGENTS",
     "INTERVIEW_SUBAGENT",
     "INTERVIEW_TOOLS",
-    "INVESTIGATOR_SUBAGENT",
-    "INVESTIGATOR_TOOLS",
-    "PLANNER_SUBAGENT",
-    "PLANNER_TOOLS",
+    "REPOSITORY_ANALYST_SUBAGENT",
+    "REPOSITORY_ANALYST_TOOLS",
     "TRIAGE_SUBAGENT",
     "TRIAGE_TOOLS",
 ]

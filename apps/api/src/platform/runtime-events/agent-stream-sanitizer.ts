@@ -86,10 +86,16 @@ export function sanitizeAgentStreamIdentifier(value: unknown): string | null {
   return trimmed.length > 0 ? truncate(trimmed, 512) : null;
 }
 
+const USAGE_METRIC_KEY = /^[a-z][a-z0-9_]{0,47}$/;
+
 /** Recursively redact structured live-stream payloads without collapsing useful tool output. */
 export function sanitizeAgentStreamValue(
   value: unknown,
   depth = 0,
+  inUsage = false,
+  // Provider usage counters are trusted only on the model-call completion event; any
+  // other event's `usage` key is graph/tool-authored data and stays fully redacted.
+  allowUsage = true,
 ): AssessmentRuntimeSummaryValue | null {
   if (
     value === null ||
@@ -120,6 +126,12 @@ export function sanitizeAgentStreamValue(
     0,
     MAX_AGENT_STREAM_ITEMS,
   )) {
+    // Provider usage counters (reasoning_tokens, cached_tokens, ...) are plain
+    // numbers: they cannot carry a secret or reasoning text, so keep them.
+    if (inUsage && typeof nested === "number" && USAGE_METRIC_KEY.test(key)) {
+      output[key] = nested;
+      continue;
+    }
     if (PRIVATE_RUNTIME_KEY_NAMES.has(normalizeKey(key))) {
       output[key] = PRIVATE_RUNTIME_VALUE;
       continue;
@@ -131,7 +143,11 @@ export function sanitizeAgentStreamValue(
       output[key] = REDACTED_VALUE;
       continue;
     }
-    const sanitized = sanitizeAgentStreamValue(nested, depth + 1);
+    const sanitized = sanitizeAgentStreamValue(
+      nested,
+      depth + 1,
+      inUsage || (allowUsage && depth === 0 && key === "usage"),
+    );
     if (sanitized !== null) output[key] = sanitized;
   }
   return output;

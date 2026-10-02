@@ -712,6 +712,59 @@ test("CONFIRM_ADJUST: Confirm submits directly, Adjust routes through composer a
   });
 });
 
+test("CONFIRM_ADJUST: the live active question still shows Confirm/Adjust once prior answer history exists", async () => {
+  // answerHistoryVisible is also true for the LIVE active question whenever
+  // any prior answer exists in the transcript (assessment-overview.tsx passes
+  // answerHistoryVisible={answerHistory.length > 0}) — it must not be reused
+  // to decide whether THIS particular question is historical/resolved.
+  const question: AssessmentInterviewQuestion = {
+    control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+    id: "q-confirm-live",
+    intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+    prompt: "Confirm that payment overrides require two-party authorization?",
+  };
+
+  const { container } = await renderElement(
+    React.createElement(AssessmentQuestionTurn, {
+      answerHistoryVisible: true,
+      historical: false,
+      question,
+    }),
+  );
+
+  const actionContainer = container.querySelector(
+    "[data-slot='confirm-adjust-actions']",
+  );
+  assert.ok(
+    actionContainer,
+    "a live (non-historical) confirmAdjust question must still offer Confirm/Adjust even when answerHistoryVisible is true",
+  );
+  assert.equal(actionContainer.querySelectorAll("button").length, 2);
+});
+
+test("CONFIRM_ADJUST: a historical answer hides the Confirm/Adjust actions", async () => {
+  const question: AssessmentInterviewQuestion = {
+    control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+    id: "q-confirm-past",
+    intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+    prompt: "Confirm that payment overrides require two-party authorization?",
+  };
+
+  const { container } = await renderElement(
+    React.createElement(AssessmentQuestionTurn, {
+      answerHistoryVisible: true,
+      historical: true,
+      question,
+    }),
+  );
+
+  assert.equal(
+    container.querySelector("[data-slot='confirm-adjust-actions']"),
+    null,
+    "a resolved historical turn has nothing left to act on",
+  );
+});
+
 test("ASK vs CLARIFY: preserves semantic data-intent attribute without rewrite", async () => {
   const askQuestion: AssessmentInterviewQuestion = {
     control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,

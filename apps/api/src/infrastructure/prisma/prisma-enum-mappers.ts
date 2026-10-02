@@ -6,7 +6,6 @@ import {
   AuthDecision as PrismaAuthDecision,
   AuthPrimaryEmailAddressPolicy as PrismaAuthPrimaryEmailAddressPolicy,
   AuthUserRole as PrismaAuthUserRole,
-  AuthorizationReasonCode as PrismaAuthorizationReasonCode,
   ClassificationGuardrailStatus as PrismaClassificationGuardrailStatus,
   ConflictRecordStatus as PrismaConflictRecordStatus,
   DocumentRequestStatus as PrismaDocumentRequestStatus,
@@ -14,18 +13,22 @@ import {
   EngineeringEvidenceClaimType as PrismaEngineeringEvidenceClaimType,
   EngineeringRuleEvaluationStatus as PrismaEngineeringRuleEvaluationStatus,
   EvidenceAcceptanceStatus as PrismaEvidenceAcceptanceStatus,
-  LegalRuleMatchGuardrailStatus as PrismaLegalRuleMatchGuardrailStatus,
   LegalRuleLifecycleStatus as PrismaLegalRuleLifecycleStatus,
   OverallCoverageStatus as PrismaOverallCoverageStatus,
   OutboxAggregateType as PrismaOutboxAggregateType,
   OutboxStatus as PrismaOutboxStatus,
   CredentialProvider as PrismaCredentialProvider,
   RepositoryConnectionStatus as PrismaRepositoryConnectionStatus,
+  RuleAnalysisStatus as PrismaRuleAnalysisStatus,
   RepositoryScanTriggerSource as PrismaRepositoryScanTriggerSource,
   RepositoryScanJobStatus as PrismaRepositoryScanJobStatus,
   RepositorySnapshotStatus as PrismaRepositorySnapshotStatus,
   VerifiedProfileStatus as PrismaVerifiedProfileStatus,
 } from "@prisma/client";
+import {
+  RULE_ANALYSIS_STATUSES,
+  type RuleAnalysisStatus,
+} from "@lcsp/contracts/evidence";
 import {
   ASSESSMENT_STATUS_CODES,
   type AssessmentStatusCode,
@@ -40,11 +43,9 @@ import {
 } from "@lcsp/contracts/audit";
 import {
   AUTH_BACKUP_EMAIL_POLICIES,
-  AUTH_ERROR_CODES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
   AUTH_USER_ROLES,
   type AuthBackupEmailPolicy,
-  type AuthErrorCode,
   type AuthPrimaryEmailAddressPolicy,
   type AuthUserRole,
 } from "@lcsp/contracts/auth";
@@ -74,13 +75,11 @@ import {
   OUTBOX_STATUSES,
   type OutboxStatus,
 } from "@lcsp/contracts/outbox";
-import { RBAC_REASON_CODES, type RbacReasonCode } from "@lcsp/contracts/rbac";
 import {
   CONFLICT_RECORD_STATUSES,
   CLASSIFICATION_GUARDRAIL_STATUSES,
   ENGINEERING_EVIDENCE_CLAIM_TYPES,
   ENGINEERING_RULE_EVALUATION_STATUSES,
-  LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   OVERALL_COVERAGE_STATUSES,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
   VERIFIED_PROFILE_STATUSES,
@@ -90,7 +89,6 @@ import {
   type ConflictRecordStatus,
   type EngineeringEvidenceClaimType,
   type EngineeringRuleEvaluationStatus,
-  type LegalRuleMatchGuardrailStatus,
   type LegalRuleMatchStatus,
   type OverallCoverageStatus,
   type TechnicalEvidenceReportStatus,
@@ -98,7 +96,6 @@ import {
   type VerifiedProfileStatus,
 } from "@lcsp/contracts/scan";
 
-type AuthorizationReasonCode = AuthErrorCode | RbacReasonCode;
 type EvidenceAcceptanceContractStatus =
   | TechnicalEvidenceReportStatus
   | TechnicalProfileStatus
@@ -163,6 +160,8 @@ const ASSESSMENT_STATUS_TO_PRISMA = {
     PrismaAssessmentStatus.CLASSIFICATION_LOCKED,
   [ASSESSMENT_STATUS_CODES.readyForReview]:
     PrismaAssessmentStatus.READY_FOR_REVIEW,
+  [ASSESSMENT_STATUS_CODES.aiNotDetected]:
+    PrismaAssessmentStatus.AI_NOT_DETECTED,
 } as const satisfies Record<AssessmentStatusCode, PrismaAssessmentStatus>;
 
 const PRISMA_ASSESSMENT_STATUS_TO_CONTRACT = {
@@ -178,6 +177,8 @@ const PRISMA_ASSESSMENT_STATUS_TO_CONTRACT = {
     ASSESSMENT_STATUS_CODES.classificationLocked,
   [PrismaAssessmentStatus.READY_FOR_REVIEW]:
     ASSESSMENT_STATUS_CODES.readyForReview,
+  [PrismaAssessmentStatus.AI_NOT_DETECTED]:
+    ASSESSMENT_STATUS_CODES.aiNotDetected,
 } as const satisfies Record<PrismaAssessmentStatus, AssessmentStatusCode>;
 
 const ENGINEERING_RULE_EVALUATION_STATUS_TO_PRISMA = {
@@ -207,6 +208,20 @@ const PRISMA_ENGINEERING_RULE_EVALUATION_STATUS_TO_CONTRACT = {
   PrismaEngineeringRuleEvaluationStatus,
   EngineeringRuleEvaluationStatus
 >;
+
+const RULE_ANALYSIS_STATUS_TO_PRISMA = {
+  [RULE_ANALYSIS_STATUSES.completed]: PrismaRuleAnalysisStatus.COMPLETED,
+  [RULE_ANALYSIS_STATUSES.needsContext]: PrismaRuleAnalysisStatus.NEEDS_CONTEXT,
+  [RULE_ANALYSIS_STATUSES.unresolved]: PrismaRuleAnalysisStatus.UNRESOLVED,
+  [RULE_ANALYSIS_STATUSES.failed]: PrismaRuleAnalysisStatus.FAILED,
+} as const satisfies Record<RuleAnalysisStatus, PrismaRuleAnalysisStatus>;
+
+const PRISMA_RULE_ANALYSIS_STATUS_TO_CONTRACT = {
+  [PrismaRuleAnalysisStatus.COMPLETED]: RULE_ANALYSIS_STATUSES.completed,
+  [PrismaRuleAnalysisStatus.NEEDS_CONTEXT]: RULE_ANALYSIS_STATUSES.needsContext,
+  [PrismaRuleAnalysisStatus.UNRESOLVED]: RULE_ANALYSIS_STATUSES.unresolved,
+  [PrismaRuleAnalysisStatus.FAILED]: RULE_ANALYSIS_STATUSES.failed,
+} as const satisfies Record<PrismaRuleAnalysisStatus, RuleAnalysisStatus>;
 
 const ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_PRISMA = {
   [ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementMet]:
@@ -243,13 +258,6 @@ const AUDIT_EXPORT_STATUS_TO_PRISMA = {
   [AUDIT_EXPORT_STATUSES.failed]: PrismaAuditExportStatus.FAILED,
 } as const satisfies Record<AuditExportStatus, PrismaAuditExportStatus>;
 
-const PRISMA_AUDIT_EXPORT_STATUS_TO_CONTRACT = {
-  [PrismaAuditExportStatus.QUEUED]: AUDIT_EXPORT_STATUSES.queued,
-  [PrismaAuditExportStatus.GENERATING]: AUDIT_EXPORT_STATUSES.generating,
-  [PrismaAuditExportStatus.READY]: AUDIT_EXPORT_STATUSES.ready,
-  [PrismaAuditExportStatus.FAILED]: AUDIT_EXPORT_STATUSES.failed,
-} as const satisfies Record<PrismaAuditExportStatus, AuditExportStatus>;
-
 const AUTH_USER_ROLE_TO_PRISMA = {
   [AUTH_USER_ROLES.admin]: PrismaAuthUserRole.ADMIN,
   [AUTH_USER_ROLES.customer]: PrismaAuthUserRole.CUSTOMER,
@@ -259,107 +267,6 @@ const PRISMA_AUTH_USER_ROLE_TO_CONTRACT = {
   [PrismaAuthUserRole.ADMIN]: AUTH_USER_ROLES.admin,
   [PrismaAuthUserRole.CUSTOMER]: AUTH_USER_ROLES.customer,
 } as const satisfies Record<PrismaAuthUserRole, AuthUserRole>;
-
-const AUTHORIZATION_REASON_CODE_TO_PRISMA = {
-  [AUTH_ERROR_CODES.accountSuspended]:
-    PrismaAuthorizationReasonCode.ACCOUNT_SUSPENDED,
-  [AUTH_ERROR_CODES.accountNotFound]:
-    PrismaAuthorizationReasonCode.ACCOUNT_NOT_FOUND,
-  [RBAC_REASON_CODES.authorized]: PrismaAuthorizationReasonCode.AUTHORIZED,
-  [AUTH_ERROR_CODES.authzEvaluatorFailure]:
-    PrismaAuthorizationReasonCode.AUTHZ_EVALUATOR_FAILURE,
-  [AUTH_ERROR_CODES.authzStateGateBlocked]:
-    PrismaAuthorizationReasonCode.AUTHZ_STATE_GATE_BLOCKED,
-  [AUTH_ERROR_CODES.authRequired]: PrismaAuthorizationReasonCode.AUTH_REQUIRED,
-  [AUTH_ERROR_CODES.emailVerificationRequired]:
-    PrismaAuthorizationReasonCode.EMAIL_VERIFICATION_REQUIRED,
-  [AUTH_ERROR_CODES.invalidCredentials]:
-    PrismaAuthorizationReasonCode.INVALID_CREDENTIALS,
-  [AUTH_ERROR_CODES.invalidInviteState]:
-    PrismaAuthorizationReasonCode.INVALID_INVITE_STATE,
-  [AUTH_ERROR_CODES.invalidRedirectUri]:
-    PrismaAuthorizationReasonCode.INVALID_REDIRECT_URI,
-  [RBAC_REASON_CODES.loadError]: PrismaAuthorizationReasonCode.LOAD_ERROR,
-  [AUTH_ERROR_CODES.mfaRequired]: PrismaAuthorizationReasonCode.MFA_REQUIRED,
-  [AUTH_ERROR_CODES.mfaInvalid]: PrismaAuthorizationReasonCode.MFA_INVALID,
-  [AUTH_ERROR_CODES.mfaRateLimited]:
-    PrismaAuthorizationReasonCode.MFA_RATE_LIMITED,
-  [AUTH_ERROR_CODES.oauthCallbackInvalid]:
-    PrismaAuthorizationReasonCode.OAUTH_CALLBACK_INVALID,
-  [AUTH_ERROR_CODES.oauthStateInvalid]:
-    PrismaAuthorizationReasonCode.OAUTH_STATE_INVALID,
-  [RBAC_REASON_CODES.denied]: PrismaAuthorizationReasonCode.RBAC_DENIED,
-  [RBAC_REASON_CODES.metadataMissing]:
-    PrismaAuthorizationReasonCode.RBAC_METADATA_MISSING,
-  [AUTH_ERROR_CODES.reauthRequired]:
-    PrismaAuthorizationReasonCode.REAUTH_REQUIRED,
-  [AUTH_ERROR_CODES.recoveryInvalid]:
-    PrismaAuthorizationReasonCode.RECOVERY_INVALID,
-  [RBAC_REASON_CODES.sessionInvalid]:
-    PrismaAuthorizationReasonCode.SESSION_INVALID,
-  [AUTH_ERROR_CODES.temporaryLock]:
-    PrismaAuthorizationReasonCode.TEMPORARY_LOCKED,
-  [AUTH_ERROR_CODES.unsupportedProvider]:
-    PrismaAuthorizationReasonCode.UNSUPPORTED_PROVIDER,
-  [AUTH_ERROR_CODES.validationFailed]:
-    PrismaAuthorizationReasonCode.VALIDATION_FAILED,
-} as const satisfies Record<
-  AuthorizationReasonCode,
-  PrismaAuthorizationReasonCode
->;
-
-const PRISMA_AUTHORIZATION_REASON_CODE_TO_CONTRACT = {
-  [PrismaAuthorizationReasonCode.ACCOUNT_SUSPENDED]:
-    AUTH_ERROR_CODES.accountSuspended,
-  [PrismaAuthorizationReasonCode.ACTION_NOT_GRANTED]: RBAC_REASON_CODES.denied,
-  [PrismaAuthorizationReasonCode.ACCOUNT_NOT_FOUND]:
-    AUTH_ERROR_CODES.accountNotFound,
-  [PrismaAuthorizationReasonCode.AUTHORIZED]: RBAC_REASON_CODES.authorized,
-  [PrismaAuthorizationReasonCode.AUTHZ_EVALUATOR_FAILURE]:
-    AUTH_ERROR_CODES.authzEvaluatorFailure,
-  [PrismaAuthorizationReasonCode.AUTHZ_STATE_GATE_BLOCKED]:
-    AUTH_ERROR_CODES.authzStateGateBlocked,
-  [PrismaAuthorizationReasonCode.AUTH_REQUIRED]: AUTH_ERROR_CODES.authRequired,
-  [PrismaAuthorizationReasonCode.EMAIL_VERIFICATION_REQUIRED]:
-    AUTH_ERROR_CODES.emailVerificationRequired,
-  [PrismaAuthorizationReasonCode.EVALUATOR_ERROR]: RBAC_REASON_CODES.loadError,
-  [PrismaAuthorizationReasonCode.INVALID_CREDENTIALS]:
-    AUTH_ERROR_CODES.invalidCredentials,
-  [PrismaAuthorizationReasonCode.INVALID_INVITE_STATE]:
-    AUTH_ERROR_CODES.invalidInviteState,
-  [PrismaAuthorizationReasonCode.INVALID_REDIRECT_URI]:
-    AUTH_ERROR_CODES.invalidRedirectUri,
-  [PrismaAuthorizationReasonCode.LOAD_ERROR]: RBAC_REASON_CODES.loadError,
-  [PrismaAuthorizationReasonCode.MFA_REQUIRED]: AUTH_ERROR_CODES.mfaRequired,
-  [PrismaAuthorizationReasonCode.MFA_INVALID]: AUTH_ERROR_CODES.mfaInvalid,
-  [PrismaAuthorizationReasonCode.MFA_RATE_LIMITED]:
-    AUTH_ERROR_CODES.mfaRateLimited,
-  [PrismaAuthorizationReasonCode.OAUTH_CALLBACK_INVALID]:
-    AUTH_ERROR_CODES.oauthCallbackInvalid,
-  [PrismaAuthorizationReasonCode.OAUTH_STATE_INVALID]:
-    AUTH_ERROR_CODES.oauthStateInvalid,
-  [PrismaAuthorizationReasonCode.RBAC_DENIED]: RBAC_REASON_CODES.denied,
-  [PrismaAuthorizationReasonCode.RBAC_METADATA_MISSING]:
-    RBAC_REASON_CODES.metadataMissing,
-  [PrismaAuthorizationReasonCode.REAUTH_REQUIRED]:
-    AUTH_ERROR_CODES.reauthRequired,
-  [PrismaAuthorizationReasonCode.RECOVERY_INVALID]:
-    AUTH_ERROR_CODES.recoveryInvalid,
-  [PrismaAuthorizationReasonCode.SESSION_INVALID]:
-    RBAC_REASON_CODES.sessionInvalid,
-  [PrismaAuthorizationReasonCode.STATE_GATE_FAILED]: RBAC_REASON_CODES.denied,
-  [PrismaAuthorizationReasonCode.SUBJECT_ROLE_MISMATCH]:
-    RBAC_REASON_CODES.denied,
-  [PrismaAuthorizationReasonCode.TEMPORARY_LOCKED]:
-    AUTH_ERROR_CODES.temporaryLock,
-  [PrismaAuthorizationReasonCode.UNSUPPORTED_PROVIDER]:
-    AUTH_ERROR_CODES.unsupportedProvider,
-  [PrismaAuthorizationReasonCode.VALIDATION_FAILED]:
-    AUTH_ERROR_CODES.validationFailed,
-} as const satisfies Record<
-  PrismaAuthorizationReasonCode,
-  AuthorizationReasonCode
->;
 
 const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
   [AUDIT_RESOURCE_TYPES.aiUsageFlow]: PrismaAuditResourceType.AI_USAGE_FLOW,
@@ -408,56 +315,6 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
   [AUDIT_RESOURCE_TYPES.workerTask]: PrismaAuditResourceType.WORKER_TASK,
   [AUDIT_RESOURCE_TYPES.workspace]: PrismaAuditResourceType.WORKSPACE,
 } as const satisfies Record<AuditResourceType, PrismaAuditResourceType>;
-
-const PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT = {
-  [PrismaAuditResourceType.AI_USAGE_FLOW]: AUDIT_RESOURCE_TYPES.aiUsageFlow,
-  [PrismaAuditResourceType.ASSESSMENT]: AUDIT_RESOURCE_TYPES.assessment,
-  [PrismaAuditResourceType.ASSESSMENT_RECORD]:
-    AUDIT_RESOURCE_TYPES.assessmentRecord,
-  [PrismaAuditResourceType.AUDIT_EXPORT_REQUEST]:
-    AUDIT_RESOURCE_TYPES.auditExportRequest,
-  [PrismaAuditResourceType.AUTH_ACCOUNT]: AUDIT_RESOURCE_TYPES.authAccount,
-  [PrismaAuditResourceType.AUTH_INVITATION]:
-    AUDIT_RESOURCE_TYPES.authInvitation,
-  [PrismaAuditResourceType.AUTH_MFA_RECOVERY_CODE]:
-    AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
-  [PrismaAuditResourceType.AUTH_SESSION]: AUDIT_RESOURCE_TYPES.authSession,
-  [PrismaAuditResourceType.CLASSIFICATION_REVIEW_REQUEST]:
-    AUDIT_RESOURCE_TYPES.classificationReviewRequest,
-  [PrismaAuditResourceType.CLASSIFICATION_RESULT]:
-    AUDIT_RESOURCE_TYPES.classificationResult,
-  [PrismaAuditResourceType.CONFLICT_RECORD]:
-    AUDIT_RESOURCE_TYPES.conflictRecord,
-  [PrismaAuditResourceType.DOCUMENT_REQUEST]:
-    AUDIT_RESOURCE_TYPES.documentRequest,
-  [PrismaAuditResourceType.GITHUB_APP_INSTALL_STATE]:
-    AUDIT_RESOURCE_TYPES.githubAppInstallState,
-  [PrismaAuditResourceType.HTTP_ROUTE]: AUDIT_RESOURCE_TYPES.httpRoute,
-  [PrismaAuditResourceType.LEGAL_RULE]: AUDIT_RESOURCE_TYPES.legalRule,
-  [PrismaAuditResourceType.LEGAL_RULE_CATALOG_VERSION]:
-    AUDIT_RESOURCE_TYPES.legalRuleCatalogVersion,
-  [PrismaAuditResourceType.LEGAL_RULE_MATCH]:
-    AUDIT_RESOURCE_TYPES.legalRuleMatch,
-  [PrismaAuditResourceType.OUTBOX]: AUDIT_RESOURCE_TYPES.outbox,
-  [PrismaAuditResourceType.READINESS_EXPORT]:
-    AUDIT_RESOURCE_TYPES.readinessExport,
-  [PrismaAuditResourceType.REPOSITORY_CONNECTION]:
-    AUDIT_RESOURCE_TYPES.repositoryConnection,
-  [PrismaAuditResourceType.REPOSITORY_SCAN_JOB]:
-    AUDIT_RESOURCE_TYPES.repositoryScanJob,
-  [PrismaAuditResourceType.REPOSITORY_SNAPSHOT]:
-    AUDIT_RESOURCE_TYPES.repositorySnapshot,
-  [PrismaAuditResourceType.TECHNICAL_EVIDENCE_REPORT]:
-    AUDIT_RESOURCE_TYPES.technicalEvidenceReport,
-  [PrismaAuditResourceType.TECHNICAL_PROFILE]:
-    AUDIT_RESOURCE_TYPES.technicalProfile,
-  [PrismaAuditResourceType.VERIFIED_PROFILE]:
-    AUDIT_RESOURCE_TYPES.verifiedProfile,
-  [PrismaAuditResourceType.WORKER_TASK]: AUDIT_RESOURCE_TYPES.workerTask,
-  [PrismaAuditResourceType.WORKSPACE]: AUDIT_RESOURCE_TYPES.workspace,
-} as const satisfies Partial<
-  Record<PrismaAuditResourceType, AuditResourceType>
->;
 
 const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
   [OUTBOX_AGGREGATE_TYPES.billingPayment]:
@@ -562,13 +419,6 @@ const REPOSITORY_SNAPSHOT_STATUS_TO_PRISMA = {
   PrismaRepositorySnapshotStatus
 >;
 
-const PRISMA_REPOSITORY_SNAPSHOT_STATUS_TO_CONTRACT = {
-  [PrismaRepositorySnapshotStatus.READY]: REPOSITORY_SNAPSHOT_STATUSES.ready,
-} as const satisfies Record<
-  PrismaRepositorySnapshotStatus,
-  RepositorySnapshotStatus
->;
-
 const REPOSITORY_SCAN_TRIGGER_SOURCE_TO_PRISMA = {
   [REPOSITORY_SCAN_TRIGGER_SOURCES.manual]:
     PrismaRepositoryScanTriggerSource.MANUAL,
@@ -633,26 +483,6 @@ const PRISMA_CLASSIFICATION_GUARDRAIL_STATUS_TO_CONTRACT = {
   ClassificationGuardrailStatus
 >;
 
-const LEGAL_RULE_MATCH_GUARDRAIL_STATUS_TO_PRISMA = {
-  [LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed]:
-    PrismaLegalRuleMatchGuardrailStatus.PASSED,
-  [LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.blocked]:
-    PrismaLegalRuleMatchGuardrailStatus.BLOCKED,
-} as const satisfies Record<
-  LegalRuleMatchGuardrailStatus,
-  PrismaLegalRuleMatchGuardrailStatus
->;
-
-const PRISMA_LEGAL_RULE_MATCH_GUARDRAIL_STATUS_TO_CONTRACT = {
-  [PrismaLegalRuleMatchGuardrailStatus.PASSED]:
-    LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
-  [PrismaLegalRuleMatchGuardrailStatus.BLOCKED]:
-    LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.blocked,
-} as const satisfies Record<
-  PrismaLegalRuleMatchGuardrailStatus,
-  LegalRuleMatchGuardrailStatus
->;
-
 const REPOSITORY_SCAN_JOB_STATUS_TO_PRISMA = {
   [REPOSITORY_SCAN_JOB_STATUSES.queued]: PrismaRepositoryScanJobStatus.QUEUED,
   [REPOSITORY_SCAN_JOB_STATUSES.running]: PrismaRepositoryScanJobStatus.RUNNING,
@@ -666,6 +496,8 @@ const REPOSITORY_SCAN_JOB_STATUS_TO_PRISMA = {
     PrismaRepositoryScanJobStatus.BLOCKED_MAPPING,
   [REPOSITORY_SCAN_JOB_STATUSES.waitingForContext]:
     PrismaRepositoryScanJobStatus.WAITING_FOR_CONTEXT,
+  [REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits]:
+    PrismaRepositoryScanJobStatus.WAITING_FOR_CREDITS,
   [REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot]:
     PrismaRepositoryScanJobStatus.READY_TO_SNAPSHOT,
 } as const satisfies Record<
@@ -686,6 +518,8 @@ const PRISMA_REPOSITORY_SCAN_JOB_STATUS_TO_CONTRACT = {
     REPOSITORY_SCAN_JOB_STATUSES.blockedMapping,
   [PrismaRepositoryScanJobStatus.WAITING_FOR_CONTEXT]:
     REPOSITORY_SCAN_JOB_STATUSES.waitingForContext,
+  [PrismaRepositoryScanJobStatus.WAITING_FOR_CREDITS]:
+    REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits,
   [PrismaRepositoryScanJobStatus.READY_TO_SNAPSHOT]:
     REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot,
 } as const satisfies Record<
@@ -762,15 +596,6 @@ const OVERALL_COVERAGE_STATUS_TO_PRISMA = {
     PrismaOverallCoverageStatus.COMPLETE_CITATION,
 } as const satisfies Record<OverallCoverageStatus, PrismaOverallCoverageStatus>;
 
-const PRISMA_OVERALL_COVERAGE_STATUS_TO_CONTRACT = {
-  [PrismaOverallCoverageStatus.NO_CITATION]:
-    OVERALL_COVERAGE_STATUSES.noCitation,
-  [PrismaOverallCoverageStatus.PARTIAL_CITATION]:
-    OVERALL_COVERAGE_STATUSES.partialCitation,
-  [PrismaOverallCoverageStatus.COMPLETE_CITATION]:
-    OVERALL_COVERAGE_STATUSES.completeCitation,
-} as const satisfies Record<PrismaOverallCoverageStatus, OverallCoverageStatus>;
-
 const LEGAL_RULE_LIFECYCLE_STATUS_TO_PRISMA = {
   [LEGAL_RULE_LIFECYCLE_STATUSES.draft]: PrismaLegalRuleLifecycleStatus.DRAFT,
   [LEGAL_RULE_LIFECYCLE_STATUSES.approved]:
@@ -832,13 +657,6 @@ export function toPrismaOverallCoverageStatus(
   return OVERALL_COVERAGE_STATUS_TO_PRISMA[status];
 }
 
-/** Maps overall evidence coverage status from Prisma to the contract layer. @param status - Prisma coverage status. @returns Contract coverage status. */
-export function fromPrismaOverallCoverageStatus(
-  status: PrismaOverallCoverageStatus,
-): OverallCoverageStatus {
-  return PRISMA_OVERALL_COVERAGE_STATUS_TO_CONTRACT[status];
-}
-
 /** Maps legal-rule lifecycle status from the contract layer to Prisma. @param status - Contract lifecycle status. @returns Prisma lifecycle status. */
 export function toPrismaLegalRuleLifecycleStatus(
   status: LegalRuleLifecycleStatus,
@@ -863,6 +681,18 @@ export function fromPrismaEngineeringRuleEvaluationStatus(
   status: PrismaEngineeringRuleEvaluationStatus,
 ): EngineeringRuleEvaluationStatus {
   return PRISMA_ENGINEERING_RULE_EVALUATION_STATUS_TO_CONTRACT[status];
+}
+
+export function toPrismaRuleAnalysisStatus(
+  status: RuleAnalysisStatus,
+): PrismaRuleAnalysisStatus {
+  return RULE_ANALYSIS_STATUS_TO_PRISMA[status];
+}
+
+export function fromPrismaRuleAnalysisStatus(
+  status: PrismaRuleAnalysisStatus,
+): RuleAnalysisStatus {
+  return PRISMA_RULE_ANALYSIS_STATUS_TO_CONTRACT[status];
 }
 
 export function toPrismaEngineeringEvidenceClaimType(
@@ -898,27 +728,6 @@ export function toPrismaAuditExportStatus(
   return AUDIT_EXPORT_STATUS_TO_PRISMA[status];
 }
 
-/** Maps audit-export status from Prisma to the contract layer. @param status - Prisma audit-export status. @returns Contract audit-export status. */
-export function fromPrismaAuditExportStatus(
-  status: PrismaAuditExportStatus,
-): AuditExportStatus {
-  return PRISMA_AUDIT_EXPORT_STATUS_TO_CONTRACT[status];
-}
-
-/** Maps an authorization reason code from the contract layer to Prisma. @param reasonCode - Contract auth/RBAC reason code. @returns Prisma authorization reason code. */
-export function toPrismaAuthorizationReasonCode(
-  reasonCode: AuthorizationReasonCode,
-): PrismaAuthorizationReasonCode {
-  return AUTHORIZATION_REASON_CODE_TO_PRISMA[reasonCode];
-}
-
-/** Maps an authorization reason code from Prisma to the contract layer. @param reasonCode - Prisma authorization reason code. @returns Contract auth/RBAC reason code. */
-export function fromPrismaAuthorizationReasonCode(
-  reasonCode: PrismaAuthorizationReasonCode,
-): AuthorizationReasonCode {
-  return PRISMA_AUTHORIZATION_REASON_CODE_TO_CONTRACT[reasonCode];
-}
-
 export function toPrismaAuthUserRole(role: AuthUserRole): PrismaAuthUserRole {
   return AUTH_USER_ROLE_TO_PRISMA[role];
 }
@@ -932,17 +741,6 @@ export function toPrismaAuditResourceType(
   resourceType: AuditResourceType,
 ): PrismaAuditResourceType {
   return AUDIT_RESOURCE_TYPE_TO_PRISMA[resourceType];
-}
-
-/** Maps an audit resource type from Prisma to the contract layer. @param resourceType - Prisma audit resource type. @returns Contract audit resource type. */
-export function fromPrismaAuditResourceType(
-  resourceType: PrismaAuditResourceType,
-): AuditResourceType {
-  const mapped = PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT[resourceType];
-  if (!mapped) {
-    throw new Error(`Unsupported legacy audit resource type: ${resourceType}`);
-  }
-  return mapped;
 }
 
 /** Maps an outbox aggregate type from the contract layer to Prisma. @param aggregateType - Contract outbox aggregate type. @returns Prisma aggregate type. */
@@ -1082,13 +880,6 @@ export function toPrismaRepositorySnapshotStatus(
   return REPOSITORY_SNAPSHOT_STATUS_TO_PRISMA[status];
 }
 
-/** Maps repository-snapshot status from Prisma to the contract layer. @param status - Prisma repository-snapshot status. @returns Contract repository-snapshot status. */
-export function fromPrismaRepositorySnapshotStatus(
-  status: PrismaRepositorySnapshotStatus,
-): RepositorySnapshotStatus {
-  return PRISMA_REPOSITORY_SNAPSHOT_STATUS_TO_CONTRACT[status];
-}
-
 /** Maps scan trigger source from the contract layer to Prisma. @param source - Contract scan trigger source. @returns Prisma scan trigger source. */
 export function toPrismaRepositoryScanTriggerSource(
   source: RepositoryScanTriggerSource,
@@ -1129,20 +920,6 @@ export function fromPrismaClassificationGuardrailStatus(
   status: PrismaClassificationGuardrailStatus,
 ): ClassificationGuardrailStatus {
   return PRISMA_CLASSIFICATION_GUARDRAIL_STATUS_TO_CONTRACT[status];
-}
-
-/** Maps legal-rule-match guardrail status from the contract layer to Prisma. @param status - Contract legal-rule guardrail status. @returns Prisma guardrail status. */
-export function toPrismaLegalRuleMatchGuardrailStatus(
-  status: LegalRuleMatchGuardrailStatus,
-): PrismaLegalRuleMatchGuardrailStatus {
-  return LEGAL_RULE_MATCH_GUARDRAIL_STATUS_TO_PRISMA[status];
-}
-
-/** Maps legal-rule-match guardrail status from Prisma to the contract layer. @param status - Prisma legal-rule guardrail status. @returns Contract guardrail status. */
-export function fromPrismaLegalRuleMatchGuardrailStatus(
-  status: PrismaLegalRuleMatchGuardrailStatus,
-): LegalRuleMatchGuardrailStatus {
-  return PRISMA_LEGAL_RULE_MATCH_GUARDRAIL_STATUS_TO_CONTRACT[status];
 }
 
 /** Maps credential provider from the contract layer to Prisma. @param provider - Contract credential provider. @returns Prisma credential provider. */

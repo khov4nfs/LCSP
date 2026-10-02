@@ -9,10 +9,7 @@ import {
   type RepositoryAuthenticationMode,
 } from "@lcsp/contracts/github-integration";
 
-import {
-  fromPrismaRepositoryConnectionStatus,
-  toPrismaRepositoryConnectionStatus,
-} from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { fromPrismaRepositoryConnectionStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { RepositoryConnectionRepository } from "../../application/ports/persistence/repository-connection.repository.js";
 import { RepositoryConnection } from "../../domain/entities/repository-connection.entity.js";
@@ -28,65 +25,6 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
    * @param prisma - Prisma service used for repository-connection persistence and linking.
    */
   constructor(private readonly prisma: PrismaService) {}
-
-  /**
-   * Upserts a GitHub repository connection by installation/repository identity.
-   *
-   * @param connection - Repository connection aggregate to create or refresh.
-   * @returns A promise that resolves after persistence completes.
-   */
-  async save(connection: RepositoryConnection): Promise<void> {
-    await this.prisma.repositoryConnection.upsert({
-      where: {
-        installationId_repositoryId: {
-          installationId: connection.installationId,
-          repositoryId: connection.repositoryId,
-        },
-      },
-      create: {
-        id: connection.id,
-        assessmentId: connection.assessmentId,
-        userId: connection.userId,
-        provider: PrismaCredentialProvider.GITHUB,
-        installationId: connection.installationId,
-        authenticationMode: PrismaRepositoryAuthenticationMode.GITHUB_APP,
-        providerCredentialId: connection.providerCredentialId,
-        credentialVersion: connection.credentialVersion,
-        credentialAuthorizedByUserId: connection.credentialAuthorizedByUserId,
-        credentialAuthorizationStatus: connection.credentialAuthorizationStatus
-          ? (connection.credentialAuthorizationStatus as never)
-          : null,
-        credentialValidatedAt: connection.credentialValidatedAt,
-        repositoryId: connection.repositoryId,
-        repositoryName: connection.repositoryName,
-        repositoryFullName: connection.repositoryFullName,
-        defaultBranch: connection.defaultBranch,
-        permissions: connection.permissions,
-        status: toPrismaRepositoryConnectionStatus(connection.status),
-        connectedAt: connection.connectedAt,
-        credentialRevokedAt: connection.credentialRevokedAt,
-        revokedAt: connection.revokedAt,
-      },
-      update: {
-        assessmentId: connection.assessmentId,
-        userId: connection.userId,
-        repositoryName: connection.repositoryName,
-        repositoryFullName: connection.repositoryFullName,
-        defaultBranch: connection.defaultBranch,
-        permissions: connection.permissions,
-        status: toPrismaRepositoryConnectionStatus(connection.status),
-        providerCredentialId: connection.providerCredentialId,
-        credentialVersion: connection.credentialVersion,
-        credentialAuthorizedByUserId: connection.credentialAuthorizedByUserId,
-        credentialAuthorizationStatus: connection.credentialAuthorizationStatus
-          ? (connection.credentialAuthorizationStatus as never)
-          : null,
-        credentialValidatedAt: connection.credentialValidatedAt,
-        credentialRevokedAt: connection.credentialRevokedAt,
-        revokedAt: connection.revokedAt,
-      },
-    });
-  }
 
   /**
    * Finds one repository connection by identifier and rehydrates the domain aggregate.

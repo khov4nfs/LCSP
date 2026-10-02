@@ -14,7 +14,7 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
 
 ## Technology Stack & Runtime Boundaries
 
-- Web frontend là `Next.js` trong topology retained `apps/web`. Không tự phát minh frontend runtime khác nếu chưa có authority mới. [Source: docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md]
+- Web frontend là `Next.js` trong topology retained `apps/web`. Không tự phát minh frontend runtime khác nếu chưa có authority mới. [Source: docs/architecture/architecture.md]
 - API synchronous control plane là `NestJS` trong `apps/api`. Auth, RBAC enforcement boundary, state validation, audit emission, trusted trigger creation và query surfaces đều thuộc API. [Source: docs/architecture/architecture.md] [Source: docs/implementation/backend-implementation.md]
 - Tất cả asynchronous domain workloads thuộc `Python Worker Platform`, không thuộc Node.js downstream workers. [Source: docs/architecture/architecture.md] [Source: docs/implementation/python-worker-platform-implementation.md]
 - Legal retrieval dùng `ChromaDB structure-first vectorless legal retrieval`; không quay lại pgvector/dense embedding legal path. [Source: docs/architecture/architecture.md] [Source: docs/architecture/adr/adr-026-chromadb-vectorless-legal-retriever.md]
@@ -57,7 +57,7 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
 - Raw source code không được gửi vào LLM.
 - Raw source không được lưu dài hạn.
 - Secrets phải redacted trước logs, findings, reports, prompts, audit records.
-- Scanner workspace là ephemeral và cleanup phải verified trước success event. [Source: docs/architecture/architecture.md] [Source: docs/product/business-rules.md]
+- Repository source chỉ nằm trong assessment-scoped LCSP Docker sandbox; LCSP persistence không được giữ raw source ngoài sandbox. [Source: docs/architecture/architecture.md] [Source: docs/product/business-rules.md]
 
 ### 7. State Machine and Output Gates Cannot Be Bypassed
 
@@ -85,7 +85,7 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
   - `apps/api`
   - `packages/*`
 - Không tạo top-level thư mục ad hoc như `backend/`, `frontend/`, `service/`, `scanner/` nếu chưa được authority layout cho phép.
-- Python worker workstream theo monorepo `deepagents`; không nhét worker code vào runtime web/api. [Source: docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md] [Source: docs/implementation/scanner-worker-implementation.md]
+- Python worker workstream theo monorepo `deepagents`; không nhét worker code vào runtime web/api. [Source: docs/architecture/architecture.md] [Source: docs/architecture/repository-deep-agent-analysis.md]
 
 ### 11. Testing and Validation Expectations
 

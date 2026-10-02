@@ -16,8 +16,8 @@ const themeTypesPath = new URL(
   import.meta.url,
 );
 const globalsPath = new URL("../src/app/globals.css", import.meta.url);
-const settingsAppearancePath = new URL(
-  "../src/features/settings/components/organisms/appearance-settings-section.tsx",
+const settingsPagePath = new URL(
+  "../src/features/settings/components/organisms/settings-page.tsx",
   import.meta.url,
 );
 const toasterPath = new URL("../src/components/ui/sonner.tsx", import.meta.url);
@@ -86,10 +86,10 @@ test("theme preferences support light dark and system without a parallel store",
 });
 
 test("settings owns the reusable theme preference control", async () => {
-  const settingsSource = await readFile(settingsAppearancePath, "utf8");
+  const settingsSource = await readFile(settingsPagePath, "utf8");
 
   assert.match(settingsSource, /ThemePreferenceControl/);
-  assert.match(settingsSource, /pages\.workspace\.settingsHub\.appearance/);
+  assert.match(settingsSource, /pages\.workspace\.settingsHub\.general\.appearance/);
 });
 
 test("semantic tokens define light and dark palettes plus brand role", async () => {

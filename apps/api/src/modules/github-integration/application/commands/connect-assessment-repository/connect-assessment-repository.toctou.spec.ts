@@ -75,7 +75,7 @@ describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
       },
     };
     const config = {
-      get: () => ({ enabled: true, snapshotPinningEnabled: true }),
+      get: () => ({}),
     };
     const handler = new ConnectAssessmentRepositoryHandler(
       prisma as never,

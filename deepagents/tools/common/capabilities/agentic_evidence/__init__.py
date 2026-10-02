@@ -14,7 +14,6 @@ from .governance.catalog import (
 )
 from .dispatch.dispatcher import (
     ALL_TOOL_BINDINGS,
-    SCANNER_TOOL_BINDINGS,
     LEGAL_CORPUS_TOOL_BINDINGS,
     NEST_CQRS_DISCOVERY_BINDINGS,
     PROTECTED_COMMAND_BINDINGS,
@@ -23,7 +22,6 @@ from .dispatch.dispatcher import (
     AgenticToolRuntimeTarget,
     LegalToolDispatcher,
     ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS,
-    ScannerToolDispatcher,
     ToolBinding,
     ToolRuntimeTarget,
     runtime_binding,
@@ -44,12 +42,10 @@ from .governance.resolver import (
     AgenticToolResolver,
 )
 from .dispatch.runtime_binding import bind_runtime_handlers
-from .entrypoints.scanner_tool_entrypoints import ScannerToolExecutionContext
 from .entrypoints.tool_entrypoints import AgenticToolExecutionContext
 
 __all__ = [
     "ALL_TOOL_BINDINGS",
-    "SCANNER_TOOL_BINDINGS",
     "LEGAL_CORPUS_TOOL_BINDINGS",
     "NEST_CQRS_DISCOVERY_BINDINGS",
     "PROTECTED_COMMAND_BINDINGS",
@@ -73,8 +69,6 @@ __all__ = [
     "LegalToolExecutionContext",
     "ENGINEERING_RULE_AGENTIC_CAPABILITIES",
     "ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS",
-    "ScannerToolDispatcher",
-    "ScannerToolExecutionContext",
     "TOOL_RBAC_ROLES",
     "ToolBinding",
     "ToolRuntimeTarget",

@@ -6,11 +6,11 @@ import { apiRequest } from "./api-request.ts";
 import { API_OUTCOME_KINDS, API_VALIDATION_REASONS } from "./outcome-kinds.ts";
 import { getMfaRedirectLocation, getProblemCode } from "./problem-envelope.ts";
 
-export type ConflictStatus =
+type ConflictStatus =
   | (typeof CONFLICT_RECORD_STATUSES)[keyof typeof CONFLICT_RECORD_STATUSES]
   | (string & {});
 
-export type ConflictSummary = {
+type ConflictSummary = {
   conflict_id: string;
   conflict_type: string;
   conflict_score: number;
@@ -21,7 +21,7 @@ export type ConflictSummary = {
   created_at: string;
 };
 
-export type ConflictExplanationBasis = {
+type ConflictExplanationBasis = {
   affected_field: string;
   confidence: string;
   materiality_reason: string;
@@ -31,12 +31,12 @@ export type ConflictExplanationBasis = {
   evidence_context: ConflictEvidenceContext[];
 };
 
-export type ConflictSourceValues = {
+type ConflictSourceValues = {
   manager_answer: string | null;
   technical_evidence: string | null;
 };
 
-export type ConflictEvidenceContext = {
+type ConflictEvidenceContext = {
   evidence_ref: string;
   redacted_context: string;
   coverage_limitations: string;

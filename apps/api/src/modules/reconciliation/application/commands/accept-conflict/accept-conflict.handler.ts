@@ -28,7 +28,7 @@ import {
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
-import { isRecord } from "@lcsp/contracts/shared";
+import { cleanString as clean, isRecord } from "@lcsp/contracts/shared";
 
 import {
   toPrismaAuditResourceType,
@@ -338,10 +338,6 @@ function isConflictType(value: unknown): value is ConflictType {
 
 function isValidScore(value: number): boolean {
   return value >= 0 && value <= 1;
-}
-
-function clean(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function buildConflictExplanationBasis(

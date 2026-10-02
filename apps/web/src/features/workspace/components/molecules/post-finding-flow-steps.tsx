@@ -119,7 +119,7 @@ export function PostFindingFlowSteps({
   );
 }
 
-export function CodeReviewStep({
+function CodeReviewStep({
   activities,
   remediationPatch,
 }: {
@@ -147,7 +147,7 @@ export function CodeReviewStep({
   );
 }
 
-export function RemediationDecisionGroup({
+function RemediationDecisionGroup({
   availableDecisions,
   selectedDecision,
   disabled,
@@ -195,7 +195,7 @@ export function RemediationDecisionGroup({
   );
 }
 
-export function ExistingPRBranch({
+function ExistingPRBranch({
   pullRequest,
 }: {
   pullRequest: NormalizedAssessmentPostFinding["detectedPullRequest"];
@@ -210,7 +210,7 @@ export function ExistingPRBranch({
   );
 }
 
-export function CreatePRBranch({
+function CreatePRBranch({
   pullRequest,
 }: {
   pullRequest: NormalizedAssessmentPostFinding["createdPullRequest"];
@@ -225,7 +225,7 @@ export function CreatePRBranch({
   );
 }
 
-export function VerificationStep({
+function VerificationStep({
   activities,
   status,
   verificationReport,
@@ -256,7 +256,7 @@ export function VerificationStep({
   );
 }
 
-export function FinalAssessmentStep({
+function FinalAssessmentStep({
   result,
   remediationPatch,
   verificationReport,

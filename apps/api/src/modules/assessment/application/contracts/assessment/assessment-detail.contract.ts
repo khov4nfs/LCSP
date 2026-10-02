@@ -1,6 +1,5 @@
 export { ASSESSMENT_ERROR_CODES as ASSESSMENT_DETAIL_ERROR_CODES } from "@lcsp/contracts/assessment";
 import {
-  ASSESSMENT_ERROR_CODES as ASSESSMENT_DETAIL_ERROR_CODES,
   type AssessmentLockReason,
   type AssessmentMissingEvidenceCode,
   type AssessmentNextActionKey,
@@ -10,9 +9,6 @@ import type {
   ClassificationGuardrailStatus,
   EngineeringRuleEvaluationStatus,
 } from "@lcsp/contracts/scan";
-
-export type AssessmentDetailErrorCode =
-  (typeof ASSESSMENT_DETAIL_ERROR_CODES)[keyof typeof ASSESSMENT_DETAIL_ERROR_CODES];
 
 export interface ReadinessState {
   classification_locked: boolean;

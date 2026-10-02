@@ -1,16 +1,5 @@
 export { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
-import {
-  ASSESSMENT_ERROR_CODES,
-  type AssessmentStatusCode,
-} from "@lcsp/contracts/assessment";
-
-export type AssessmentErrorCode =
-  (typeof ASSESSMENT_ERROR_CODES)[keyof typeof ASSESSMENT_ERROR_CODES];
-
-export interface CreateAssessmentPayload {
-  name?: string;
-  description?: string;
-}
+import { type AssessmentStatusCode } from "@lcsp/contracts/assessment";
 
 export interface CreateAssessmentDto {
   assessment_id: string;

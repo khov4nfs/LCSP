@@ -1,66 +1,162 @@
+"""Per-rule EngineeringRule assessment runtime coverage.
+
+The Scanner/Planner/Investigator pipeline was deleted and replaced by a
+per-EngineeringRule runtime (``rule_assessment/run.py`` + ``result.py`` + the
+applicability/completion gates). These tests pin the new runtime's invariants:
+
+- EVIDENCE_FOUND with positive evidence decides via the deterministic evaluator
+  (SUPPORTS_REQUIREMENT -> COMPLIANT; DEMONSTRATES_VIOLATION -> NON_COMPLIANT).
+- NOT_OBSERVED is epistemic only: it always maps to an unresolved claim and can
+  never yield NON_COMPLIANT.
+- FINAL_ABSENCE stays disabled: absence never finalizes a rule.
+- The completion gate downgrades terminal conclusions until every required
+  criterion is ready; stale/failed rule results are deferred, never concluded.
+- One rule's failure never aborts the other rules (per-rule failure isolation).
+"""
+
 from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from tools.common.capabilities.assessment.evaluation.engineering_rule.rule_completion_gate import (
+    apply_rule_completion_gate,
+)
+from tools.common.capabilities.assessment.evaluation.engineering_rule.rule_evaluator import (
+    EngineeringRuleEvaluator,
+)
+from tools.common.capabilities.assessment.investigation.engineering_rule.result import (
+    EngineeringInvestigationResult,
+)
+from tools.common.capabilities.assessment.investigation.engineering_rule.rule_sources import (
+    resolve_engineering_rules,
+)
+from tools.common.capabilities.assessment.rule_assessment.absence_policy import (
+    absence_may_finalize,
+)
+from tools.common.capabilities.assessment.rule_assessment.run import (
+    analyze_rule,
+    finalize_rule_results,
+    rule_runtime_version,
+    technical_evidence_display,
+    usable_rule_result,
+)
+from tools.common.capabilities.assessment.rule_assessment.values import (
+    RULE_ANALYSIS_STATUSES,
+    RULE_ASSESSMENT_VALIDATOR_ID,
+    RULE_CRITERION_STATUSES,
+    RULE_EVIDENCE_KINDS,
+)
 from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     ENGINEERING_LIMITATION_CODES,
     EvidenceClaim,
-    InvestigationPacket,
 )
-from tools.common.capabilities.assessment.investigation.engineering_rule import pipeline
-from tools.common.capabilities.assessment.investigation.engineering_rule.pipeline import EngineeringInvestigationPipeline
-from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
+from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
+
+_COMMIT_SHA = "abc123"
+_ASSESSMENT_ID = "assessment-1"
 
 
-def _evidence_report() -> dict:
+def _rule(rule_id: str = "eng-1", required: tuple[str, ...] = ("HUMAN_OVERSIGHT",)):
+    return EngineeringRule(
+        engineering_rule_id=rule_id,
+        legal_rule_id="legal-1",
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v1",
+        concept="HUMAN_OVERSIGHT",
+        legal_intent={},
+        investigation_goals=("Find review controls",),
+        starting_node_types=(),
+        target_node_types=(),
+        edge_strategies=(),
+        graph_queries=(),
+        required_evidence=required,
+        source_chunk_ids=("LAW:A1",),
+        source_locators=("art-1::cl-1",),
+    )
+
+
+def _evidence_entry(
+    *,
+    rule_id: str = "eng-1",
+    criterion: str = "HUMAN_OVERSIGHT",
+    ref: str = "ref:review-control",
+    path: str = "src/review.py",
+) -> dict:
     return {
-        "id": "ter-1",
-        "evidence_payload": {
-            "evidence_graph": {
-                "graph_id": "graph-1",
-                "snapshot_id": "snapshot-1",
-                "commit_sha": "abc123",
-                "node_count": 1,
-                "edge_count": 0,
-                "nodes": [
-                    {
-                        "node_id": "node:review-control",
-                        "node_type": "CONTROL",
-                        "label": "human oversight review controls",
-                        "source": {
-                            "file_path": "app/review.py",
-                            "start_line": 10,
-                            "end_line": 20,
-                            "symbol_ref": "review_control",
-                            "source_hash": "sha256:source",
-                        },
-                        "evidence_refs": ["evidence:finding-1"],
-                    }
-                ],
-                "edges": [],
-                "source_anchors": [],
-                "indexes": {},
-                "unresolved_frontiers": [],
-                "coverage_state": "SUFFICIENT",
-                "coverage_notes": [],
-                "provenance": {"scan_job_id": "scan-1"},
-                "evidence_refs": ["evidence:finding-1"],
-                "graph_hash": "sha256:graph",
-                "schema_version": "2.0.0",
-            }
+        "ref": ref,
+        "path": path,
+        "startLine": 10,
+        "endLine": 20,
+        "symbol": "review_control",
+        "provenance": {
+            "assessmentId": _ASSESSMENT_ID,
+            "repositoryVersion": _COMMIT_SHA,
+            "engineeringRuleId": rule_id,
+            "criterionId": criterion,
+            "validator": RULE_ASSESSMENT_VALIDATOR_ID,
         },
     }
 
 
-def _rule(rule_id: str = "eng-1"):
-    return SimpleNamespace(
-        engineering_rule_id=rule_id,
-        legal_rule_id="legal-1",
-        concept="HUMAN_OVERSIGHT",
-        source_chunk_ids=("LAW:A1",),
-        source_locators=("art-1::cl-1",),
+def _found_criterion(
+    *,
+    rule_id: str = "eng-1",
+    criterion: str = "HUMAN_OVERSIGHT",
+    kind: str | None = None,
+) -> dict:
+    entry = _evidence_entry(rule_id=rule_id, criterion=criterion)
+    return {
+        "criterionId": criterion,
+        "status": RULE_CRITERION_STATUSES["evidenceFound"],
+        "evidenceKind": kind or RULE_EVIDENCE_KINDS["supportsRequirement"],
+        "evidenceRefs": [entry["ref"]],
+        "evidence": [entry],
+        "technicalFacts": [],
+        "limitations": [],
+    }
+
+
+def _assessment(rule, *, criteria: list[dict] | None = None, status: str | None = None) -> dict:
+    if criteria is None:
+        default_criterion = next(iter(rule.required_evidence), "HUMAN_OVERSIGHT")
+        criteria = [
+            _found_criterion(
+                rule_id=rule.engineering_rule_id, criterion=default_criterion
+            )
+        ]
+    return {
+        "resultId": f"rar-{rule.engineering_rule_id}",
+        "assessmentId": _ASSESSMENT_ID,
+        "engineeringRuleId": rule.engineering_rule_id,
+        "engineeringRuleVersion": rule_runtime_version(rule),
+        "repositoryVersion": _COMMIT_SHA,
+        "contextRevision": 1,
+        "status": status or RULE_ANALYSIS_STATUSES["completed"],
+        "criteria": criteria,
+        "limitations": [],
+        "execution": {"attempt": 1},
+    }
+
+
+def _finalize(rules, assessments, applicability) -> list:
+    return finalize_rule_results(
+        assessment_id=_ASSESSMENT_ID,
+        rules=rules,
+        api=MagicMock(),
+        applicability_facts={},
+        context_revision=1,
+        assessments=assessments,
+        applicability=applicability,
+        commit_sha=_COMMIT_SHA,
     )
+
+
+class _NoRecovery:
+    """Legal preparation is deferred to Triage; the assessment loop never recovers."""
+
+    def run(self, payload, correlation_id):
+        raise RuntimeError("legal preparation is deferred to Triage")
 
 
 def _api_client(rules=None):
@@ -78,51 +174,27 @@ def _api_client(rules=None):
     return api_client
 
 
-def test_pipeline_returns_direct_compliant_rule_evaluation() -> None:
-    api_client = _api_client()
-    retriever = MagicMock()
-    engineering_rule = _rule()
-    rule_service = MagicMock()
-    rule_service.get_or_compile.return_value = ([engineering_rule], True)
-    packet = InvestigationPacket(
-        engineering_rule_id="eng-1",
-        concept="HUMAN_OVERSIGHT",
-        investigation_goals=("Find review controls",),
-        initial_results=(),
-    )
-    query_executor = MagicMock()
-    query_executor.execute.return_value = packet
-    claim = EvidenceClaim(
-        claim_id="claim-1",
-        engineering_rule_id="eng-1",
-        claim_type="RULE_REQUIREMENT_MET",
-        value=True,
-        evidence_refs=("evidence:finding-1",),
-        confidence=0.95,
-        criterion="HUMAN_OVERSIGHT",
-    )
-    investigator = MagicMock()
-    investigator.investigate.return_value = [claim]
+def test_finalize_returns_direct_compliant_rule_evaluation() -> None:
+    rule = _rule()
+    assessment = _assessment(rule)
 
-    result = EngineeringInvestigationPipeline(
-        api_client=api_client,
-        model="test:model",
-        retriever=retriever,
-        rule_service=rule_service,
-        query_executor=query_executor,
-        investigator=investigator,
-    ).run(
-        evidence_report=_evidence_report(),
-        workflow_run_id="workflow-1",
-        correlation_id="corr-1",
-    )
+    assert usable_rule_result(
+        rule, assessment, commit_sha=_COMMIT_SHA, applicability_status="MATCHED"
+    ) is True
+    evaluations = _finalize([rule], [assessment], {"eng-1": {"status": "MATCHED"}})
 
-    assert result.status == "COMPLETE"
-    assert result.engineering_rules_executed == 1
-    assert result.engineering_rule_cache_hits == 1
-    assert result.claims == (claim,)
-    assert result.evaluations[0].status == "COMPLIANT"
-    assert result.evaluations[0].source_chunk_ids == ("LAW:A1",)
+    assert len(evaluations) == 1
+    assert evaluations[0].status == "COMPLIANT"
+    assert evaluations[0].source_chunk_ids == ("LAW:A1",)
+    result = EngineeringInvestigationResult(
+        status="COMPLETE",
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v1",
+        rules_considered=1,
+        engineering_rules_executed=1,
+        engineering_rule_cache_hits=1,
+        evaluations=tuple(evaluations),
+    )
     assert result.to_assessment_data()["summary"] == {
         "compliant": 1,
         "non_compliant": 0,
@@ -132,317 +204,240 @@ def test_pipeline_returns_direct_compliant_rule_evaluation() -> None:
     }
 
 
-def test_pipeline_captures_verified_episode_after_deterministic_evaluation(
-    monkeypatch,
-) -> None:
-    captured = []
-    monkeypatch.setattr(
-        pipeline,
-        "capture_verified_episode",
-        lambda **kwargs: captured.append(kwargs),
+def test_finalize_violation_evidence_yields_non_compliant() -> None:
+    rule = _rule()
+    assessment = _assessment(
+        rule,
+        criteria=[
+            _found_criterion(kind=RULE_EVIDENCE_KINDS["demonstratesViolation"])
+        ],
     )
-    api_client = _api_client()
-    engineering_rule = _rule()
-    rule_service = MagicMock()
-    rule_service.get_or_compile.return_value = ([engineering_rule], True)
-    query_executor = MagicMock()
-    query_executor.execute.return_value = InvestigationPacket(
-        engineering_rule_id="eng-1",
-        concept="HUMAN_OVERSIGHT",
-        investigation_goals=("Find review controls",),
-        initial_results=(),
-    )
-    claim = EvidenceClaim(
-        claim_id="claim-1",
-        engineering_rule_id="eng-1",
-        claim_type="RULE_REQUIREMENT_MET",
-        value=True,
-        evidence_refs=("evidence:finding-1",),
-        confidence=0.95,
-        criterion="HUMAN_OVERSIGHT",
-    )
-    invalid_claim = EvidenceClaim(
-        claim_id="claim-invalid-ref",
-        engineering_rule_id="eng-1",
-        claim_type="RULE_REQUIREMENT_NOT_MET",
-        value=False,
-        evidence_refs=("evidence:invented",),
-        confidence=0.99,
-        criterion="HUMAN_OVERSIGHT",
-    )
-    investigator = MagicMock()
-    investigator.investigate.return_value = [claim, invalid_claim]
 
-    result = EngineeringInvestigationPipeline(
-        api_client=api_client,
-        model="test:model",
-        retriever=MagicMock(),
-        rule_service=rule_service,
-        query_executor=query_executor,
-        investigator=investigator,
-    ).run(
-        evidence_report=_evidence_report(),
-        workflow_run_id="workflow-1",
-        assessment_id="assessment-1",
+    evaluations = _finalize([rule], [assessment], {"eng-1": {"status": "MATCHED"}})
+
+    # Positive violation evidence (DEMONSTRATES_VIOLATION) may yield NON_COMPLIANT
+    # via the deterministic evaluator; absence never does (see below).
+    assert evaluations[0].status == "NON_COMPLIANT"
+
+
+def test_not_observed_maps_to_unknown_never_non_compliant() -> None:
+    rule = _rule()
+    assessment = _assessment(
+        rule,
+        criteria=[
+            {
+                "criterionId": "HUMAN_OVERSIGHT",
+                "status": RULE_CRITERION_STATUSES["notObserved"],
+                "evidenceRefs": [],
+                "evidence": [],
+                "technicalFacts": [],
+                "limitations": (
+                    ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"],
+                ),
+            }
+        ],
+        status=RULE_ANALYSIS_STATUSES["unresolved"],
+    )
+
+    evaluations = _finalize([rule], [assessment], {"eng-1": {"status": "MATCHED"}})
+
+    # NOT_OBSERVED is epistemic only ("not established by this investigation") and
+    # always maps to an unresolved claim -> UNKNOWN, never NON_COMPLIANT.
+    assert evaluations[0].status == "UNKNOWN"
+
+
+def test_final_absence_stays_disabled() -> None:
+    assert absence_may_finalize(None) is False
+    assert absence_may_finalize({}) is False
+    assert (
+        absence_may_finalize(
+            {
+                "graphQueryExhausted": True,
+                "coverageComplete": True,
+                "criterionSpecific": True,
+            }
+        )
+        is False
+    )
+
+
+def test_completion_gate_withholds_terminal_conclusion_until_ready() -> None:
+    rule = _rule(required=("CRIT_A", "CRIT_B"))
+    assessment = _assessment(
+        rule,
+        criteria=[_found_criterion(criterion="CRIT_A")],
+    )
+
+    evaluations = _finalize([rule], [assessment], {"eng-1": {"status": "MATCHED"}})
+
+    assert evaluations[0].status == "UNKNOWN"
+    assert (
+        ENGINEERING_LIMITATION_CODES["rule_conclusion_withheld"]
+        in evaluations[0].limitations
+    )
+
+    # A ready terminal conclusion for one criterion must still be downgraded while
+    # another required criterion is unresolved.
+    ready_rule = _rule(required=("CRIT_A",))
+    ready_assessment = _assessment(
+        ready_rule, criteria=[_found_criterion(criterion="CRIT_A")]
+    )
+    (ready_evaluation,) = _finalize(
+        [ready_rule], [ready_assessment], {"eng-1": {"status": "MATCHED"}}
+    )
+    assert ready_evaluation.status == "COMPLIANT"
+    gated, provenance = apply_rule_completion_gate(
+        ready_evaluation,
+        {
+            "ruleId": "eng-1",
+            "ruleConclusionReady": False,
+            "unresolvedCriterionIds": ["CRIT_B"],
+            "activeNeedIds": [],
+            "applicability": "MATCHED",
+            "contextRevision": 1,
+        },
+    )
+    assert gated.status == "UNKNOWN"
+    assert provenance is not None and provenance["withheldStatus"] == "COMPLIANT"
+
+
+def test_failed_rule_is_isolated_from_healthy_rule() -> None:
+    from orchestration.context import LCSPRunContext
+
+    good = _rule("eng-good", required=("HUMAN_OVERSIGHT",))
+    bad = _rule("eng-bad", required=("HUMAN_OVERSIGHT",))
+    confirmed = SimpleNamespace(context_revision=1, to_prompt_dict=lambda: {})
+
+    class _FailingDispatcher:
+        def dispatch(self, **kwargs):
+            raise RuntimeError("model failed")
+
+    class _MemoryApi:
+        def __init__(self):
+            self.rows: list[dict] = []
+
+        def list_rule_assessments(self, assessment_id):
+            return [row for row in self.rows if row.get("assessmentId") == assessment_id]
+
+        def put_rule_assessment(self, assessment_id, rule_id, payload):
+            self.rows.append(payload)
+            return payload
+
+    api = _MemoryApi()
+    context = LCSPRunContext(
+        assessment_id=_ASSESSMENT_ID,
         user_id="user-1",
-    )
-
-    assert result.claims == (claim,)
-    assert result.evaluations[0].status == "COMPLIANT"
-    assert result.evaluations[0].evidence_refs == ("evidence:finding-1",)
-    assert len(captured) == 1
-    assert captured[0]["owner_agent"] == "investigator"
-    assert captured[0]["assessment_id"] == "assessment-1"
-    assert captured[0]["user_id"] == "user-1"
-    assert captured[0]["engineering_rule_ids"] == ("eng-1",)
-    assert captured[0]["artifact_versions"] == {
-        "technicalEvidenceReportId": "ter-1",
-        "legalRuleCatalogVersionId": "catalog-v1",
-        "legalCorpusVersionId": "corpus-v1",
-    }
-    assert captured[0]["handoff"]["status"] == "DETERMINISTIC_OUTCOME_READY"
-    assert [item["claim_id"] for item in captured[0]["handoff"]["claims"]] == [
-        "claim-1"
-    ]
-    assert captured[0]["handoff"]["omitted_unvalidated_claim_count"] == 1
-    assert captured[0]["handoff"]["evaluation"]["status"] == "COMPLIANT"
-    assert captured[0]["handoff"]["evaluation"]["evidence_refs"] == (
-        "evidence:finding-1",
-    )
-    assert "evidence:invented" not in str(captured[0])
-    assert captured[0]["prompt_version"] == "engineering-rule-investigation.v1"
-    assert captured[0]["model_id"] == "test:model"
-    assert captured[0]["successful_strategy_summary"] == (
-        "validated engineering investigation rule=eng-1 outcome=COMPLIANT "
-        "validated_claims=1 evidence_refs=1"
-    )
-    assert captured[0]["evidence_refs"] == ("evidence:finding-1",)
-
-
-def test_pipeline_does_not_capture_episode_after_investigator_failure(
-    monkeypatch,
-) -> None:
-    captured = []
-    monkeypatch.setattr(
-        pipeline,
-        "capture_verified_episode",
-        lambda **kwargs: captured.append(kwargs),
-    )
-    api_client = _api_client()
-    engineering_rule = _rule()
-    rule_service = MagicMock()
-    rule_service.get_or_compile.return_value = ([engineering_rule], True)
-    query_executor = MagicMock()
-    query_executor.execute.return_value = InvestigationPacket(
-        engineering_rule_id="eng-1",
-        concept="HUMAN_OVERSIGHT",
-        investigation_goals=("Find review controls",),
-        initial_results=(),
-    )
-    investigator = MagicMock()
-    investigator.investigate.side_effect = RuntimeError("model failed")
-    evaluator = MagicMock()
-    evaluator.evaluate.return_value = SimpleNamespace(
-        engineering_rule_id="eng-1",
-        status="UNKNOWN",
-        evidence_refs=(),
-    )
-
-    result = EngineeringInvestigationPipeline(
-        api_client=api_client,
-        model="test:model",
-        retriever=MagicMock(),
-        rule_service=rule_service,
-        query_executor=query_executor,
-        investigator=investigator,
-        evaluator=evaluator,
-    ).run(
-        evidence_report=_evidence_report(),
         workflow_run_id="workflow-1",
-        assessment_id="assessment-1",
-        user_id="user-1",
+        commit_sha=_COMMIT_SHA,
+        artifact_versions={},
+    )
+    failed = analyze_rule(
+        rule=bad,
+        context=context,
+        dispatcher=_FailingDispatcher(),
+        api=api,
+        confirmed_context=confirmed,
     )
 
-    assert result.status == "PARTIAL"
-    assert result.claims == ()
-    assert result.limitations == (
+    # One rule's failure writes a FAILED row for that rule only; the loop continues.
+    assert failed["status"] == RULE_ANALYSIS_STATUSES["failed"]
+    assert tuple(failed["limitations"]) == (
         ENGINEERING_LIMITATION_CODES["engineering_investigation_runtime_error"],
     )
-    assert captured == []
+    assert usable_rule_result(
+        bad, failed, commit_sha=_COMMIT_SHA, applicability_status="MATCHED"
+    ) is False
 
-
-def test_pipeline_does_not_capture_episode_without_validated_claim_provenance(
-    monkeypatch,
-) -> None:
-    captured = []
-    monkeypatch.setattr(
-        pipeline,
-        "capture_verified_episode",
-        lambda **kwargs: captured.append(kwargs),
+    healthy = _assessment(good)
+    evaluations = _finalize(
+        [good, bad],
+        [healthy, failed],
+        {"eng-good": {"status": "MATCHED"}, "eng-bad": {"status": "MATCHED"}},
     )
-    api_client = _api_client()
-    engineering_rule = _rule()
-    rule_service = MagicMock()
-    rule_service.get_or_compile.return_value = ([engineering_rule], True)
-    query_executor = MagicMock()
-    query_executor.execute.return_value = InvestigationPacket(
-        engineering_rule_id="eng-1",
-        concept="HUMAN_OVERSIGHT",
-        investigation_goals=("Find review controls",),
-        initial_results=(),
-    )
-    investigator = MagicMock()
-    investigator.investigate.return_value = [
-        EvidenceClaim(
-            claim_id="claim-unresolved",
-            engineering_rule_id="eng-1",
-            claim_type="UNRESOLVED_ENGINEERING_FACT",
-            value=None,
-            evidence_refs=(),
-            graph_path_refs=(),
-            source_anchor_refs=(),
-            confidence=0.0,
-        )
-    ]
+    by_rule = {item.engineering_rule_id: item for item in evaluations}
+    assert by_rule["eng-good"].status == "COMPLIANT"
+    # A failed persisted result is deferred (explicit UNKNOWN), never concluded from.
+    assert by_rule["eng-bad"].status == "UNKNOWN"
 
-    result = EngineeringInvestigationPipeline(
-        api_client=api_client,
-        model="test:model",
-        retriever=MagicMock(),
-        rule_service=rule_service,
-        query_executor=query_executor,
-        investigator=investigator,
-    ).run(
-        evidence_report=_evidence_report(),
-        workflow_run_id="workflow-1",
-        assessment_id="assessment-1",
-        user_id="user-1",
+
+def test_stale_rule_version_is_deferred_not_concluded() -> None:
+    rule = _rule()
+    assessment = _assessment(rule)
+    assessment["engineeringRuleVersion"] = "sha256:stale-version"
+
+    assert usable_rule_result(
+        rule, assessment, commit_sha=_COMMIT_SHA, applicability_status="MATCHED"
+    ) is False
+    (evaluation,) = _finalize([rule], [assessment], {"eng-1": {"status": "MATCHED"}})
+
+    assert evaluation.status == "UNKNOWN"
+
+
+def test_not_applicable_rules_never_reach_analysis() -> None:
+    rule = _rule()
+
+    (evaluation,) = _finalize(
+        [rule], [], {"eng-1": {"status": "NOT_APPLICABLE"}}
     )
 
-    assert result.status == "COMPLETE"
-    assert result.evaluations[0].status == "UNKNOWN"
-    assert captured == []
+    assert evaluation.status == "NOT_APPLICABLE"
+    assert evaluation.evidence_refs == ()
 
 
-def test_pipeline_treats_unknown_as_valid_complete_evaluation() -> None:
-    api_client = _api_client()
-    engineering_rule = _rule()
-    rule_service = MagicMock()
-    rule_service.get_or_compile.return_value = ([engineering_rule], True)
-    query_executor = MagicMock()
-    query_executor.execute.return_value = InvestigationPacket(
-        engineering_rule_id="eng-1",
-        concept="HUMAN_OVERSIGHT",
-        investigation_goals=("Find review controls",),
-        initial_results=(),
-    )
-    investigator = MagicMock()
-    investigator.investigate.return_value = [
-        EvidenceClaim(
-            claim_id="claim-unknown",
-            engineering_rule_id="eng-1",
-            claim_type="UNRESOLVED_ENGINEERING_FACT",
-            value=None,
-            evidence_refs=("evidence:finding-1",),
-            confidence=0.5,
-            limitations=(
-                ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"],
-            ),
-        )
-    ]
-
-    result = EngineeringInvestigationPipeline(
-        api_client=api_client,
-        model="test:model",
-        retriever=MagicMock(),
-        rule_service=rule_service,
-        query_executor=query_executor,
-        investigator=investigator,
-    ).run(evidence_report=_evidence_report(), workflow_run_id="workflow-1")
-
-    assert result.status == "COMPLETE"
-    assert result.evaluations[0].status == "UNKNOWN"
-    assert result.limitations == ()
-    assert result.to_assessment_data()["summary"] == {
-        "compliant": 0,
-        "non_compliant": 0,
-        "unknown": 1,
-        "not_applicable": 0,
-        "total": 1,
-    }
-
-
-def test_pipeline_keeps_other_rules_when_one_compilation_fails() -> None:
+def test_resolve_keeps_healthy_rules_when_one_compilation_fails() -> None:
     api_client = _api_client(
         [
             {"legalRuleId": "rule-bad", "status": "APPROVED"},
             {"legalRuleId": "rule-good", "status": "APPROVED"},
         ]
     )
+    good = _rule("eng-good")
     rule_service = MagicMock()
     rule_service.get_or_compile.side_effect = [
         ValueError("unresolvable"),
-        ([_rule("eng-good")], False),
+        ([good], False),
     ]
-    query_executor = MagicMock()
-    query_executor.execute.return_value = InvestigationPacket(
-        engineering_rule_id="eng-good",
-        concept="DATA_PROCESSING",
-        investigation_goals=(),
-        initial_results=(),
-    )
-    investigator = MagicMock()
-    investigator.investigate.return_value = [
-        EvidenceClaim(
-            claim_id="claim-good",
-                engineering_rule_id="eng-good",
-                claim_type="RULE_REQUIREMENT_NOT_MET",
-                value=False,
-                evidence_refs=("evidence:finding-1",),
-                confidence=0.9,
-                criterion="HUMAN_OVERSIGHT",
-            )
-        ]
 
-    result = EngineeringInvestigationPipeline(
+    resolution = resolve_engineering_rules(
         api_client=api_client,
-        model="test:model",
         retriever=MagicMock(),
         rule_service=rule_service,
-        query_executor=query_executor,
-        investigator=investigator,
-    ).run(evidence_report=_evidence_report(), workflow_run_id="workflow-1")
+        recovery_driver=_NoRecovery(),
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+    )
 
-    assert result.status == "PARTIAL"
-    assert result.engineering_rules_executed == 1
-    assert result.evaluations[0].status == "NON_COMPLIANT"
-    assert result.limitations == (
-        ENGINEERING_LIMITATION_CODES["engineering_rule_compilation_failed"],
+    assert resolution.status == "READY"
+    assert resolution.rules == (good,)
+    assert (
+        ENGINEERING_LIMITATION_CODES["engineering_rule_compilation_failed"]
+        in resolution.limitations
     )
 
 
-def test_pipeline_blocks_when_no_approved_source_rules_exist() -> None:
+def test_resolve_waits_when_no_approved_source_rules_exist() -> None:
     api_client = _api_client([{"legalRuleId": "rule-1", "status": "DRAFT"}])
     rule_service = MagicMock()
 
-    result = EngineeringInvestigationPipeline(
+    resolution = resolve_engineering_rules(
         api_client=api_client,
-        model="test:model",
         retriever=MagicMock(),
         rule_service=rule_service,
-        query_executor=MagicMock(),
-        investigator=MagicMock(),
-    ).run(evidence_report=_evidence_report(), workflow_run_id="workflow-1")
+        recovery_driver=_NoRecovery(),
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+    )
 
-    assert result.status == "BLOCKED"
-    assert result.rules_considered == 0
-    assert result.limitations == (
+    # No approved legal rules means Triage has work pending: WAIT, don't fail.
+    assert resolution.status == "WAITING"
+    assert resolution.rules == ()
+    assert resolution.limitations == (
         ENGINEERING_LIMITATION_CODES["no_engineering_rule_source_rules"],
     )
     rule_service.get_or_compile.assert_not_called()
 
 
-def test_pipeline_deduplicates_compilation_failure_to_machine_code() -> None:
+def test_resolve_deduplicates_compilation_failure_to_machine_code() -> None:
     api_client = _api_client(
         [
             {"legalRuleId": "rule-1", "status": "APPROVED"},
@@ -452,74 +447,38 @@ def test_pipeline_deduplicates_compilation_failure_to_machine_code() -> None:
     rule_service = MagicMock()
     rule_service.get_or_compile.side_effect = RuntimeError("provider failure detail")
 
-    result = EngineeringInvestigationPipeline(
+    resolution = resolve_engineering_rules(
         api_client=api_client,
-        model="test:model",
         retriever=MagicMock(),
         rule_service=rule_service,
-        query_executor=MagicMock(),
-        investigator=MagicMock(),
-    ).run(evidence_report=_evidence_report(), workflow_run_id="workflow-1")
+        recovery_driver=_NoRecovery(),
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+    )
 
-    assert result.status == "BLOCKED"
-    assert result.engineering_rules_executed == 0
-    assert result.evaluations == ()
-    assert result.limitations == (
+    assert resolution.status == "BLOCKED"
+    assert resolution.rules == ()
+    assert resolution.limitations == (
         ENGINEERING_LIMITATION_CODES["engineering_rule_compilation_failed"],
+        ENGINEERING_LIMITATION_CODES["no_engineering_rule_candidates"],
     )
     assert rule_service.get_or_compile.call_count == 2
 
 
-def test_safe_technical_evidence_projection_keeps_source_location_without_source_body() -> None:
-    graph = ProgramEvidenceGraph.from_dict(
-        {
-            "graph_id": "graph-1",
-            "snapshot_id": "snapshot-1",
-            "commit_sha": "abc123",
-            "node_count": 1,
-            "edge_count": 0,
-            "nodes": [
-                {
-                    "node_id": "node-1",
-                    "node_type": "HUMAN_REVIEW",
-                    "label": "approveRequest",
-                    "source": {
-                        "file_path": "repo-abc1234/apps/api/src/review.ts",
-                        "symbol_ref": "approveRequest",
-                        "start_line": 42,
-                        "end_line": 48,
-                        "source_hash": "sha256:source",
-                    },
-                    "semantic_types": ["HUMAN_OVERSIGHT"],
-                    "evidence_refs": ["evidence:review"],
-                }
-            ],
-            "edges": [],
-            "source_anchors": [],
-            "indexes": {},
-            "unresolved_frontiers": [],
-            "coverage_state": "SUFFICIENT",
-            "coverage_notes": [],
-            "provenance": {"scan_job_id": "scan-1"},
-            "evidence_refs": ["evidence:review"],
-            "graph_hash": "sha256:graph",
-            "schema_version": "2.0.0",
-        }
-    )
+def test_technical_evidence_display_keeps_source_location_without_source_body() -> None:
+    rule = _rule()
+    assessment = _assessment(rule)
 
-    displays = EngineeringInvestigationPipeline._technical_evidence_displays(
-        graph,
-        ("evidence:review",),
-    )
+    displays = technical_evidence_display(assessment)
 
     assert displays == [
         {
-            "kind": "HUMAN_REVIEW",
-            "label": "approveRequest",
-            "file_path": "repo-abc1234/apps/api/src/review.ts",
-            "symbol_ref": "approveRequest",
-            "start_line": 42,
-            "end_line": 48,
+            "kind": "SOURCE_LOCATION",
+            "label": "review_control",
+            "file_path": "src/review.py",
+            "symbol_ref": "review_control",
+            "start_line": 10,
+            "end_line": 20,
         }
     ]
     assert "code" not in displays[0]
@@ -527,10 +486,6 @@ def test_safe_technical_evidence_projection_keeps_source_location_without_source
 
 
 def test_rule_evaluator_treats_scope_claim_as_not_applicable() -> None:
-    from tools.common.capabilities.assessment.evaluation.engineering_rule.rule_evaluator import (
-        EngineeringRuleEvaluator,
-    )
-
     claim = EvidenceClaim(
         claim_id="claim-scope-1",
         engineering_rule_id="eng-1",

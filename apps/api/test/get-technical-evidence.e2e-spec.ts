@@ -32,7 +32,7 @@ const ASSESSMENT_ID = "assessment-evidence-1";
 const MANAGER_PASSWORD = "CorrectHorseBatteryStaple!";
 const SAFE_FINDING = {
   finding_id: "finding-1",
-  tool: "semgrep",
+  tool: "repository-analysis",
   finding_type: "AI_MODEL_INVOCATION",
   severity: "HIGH",
   description: "Model invocation detected",
@@ -96,8 +96,10 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     assert.equal(body.evidence_report_id, "report-new");
     assert.equal(body.assessment_id, ASSESSMENT_ID);
     assert.equal(body.schema_version, "1.0.0");
-    assert.deepEqual(body.tools_version, { semgrep: "1.80.0" });
-    assert.deepEqual(body.config_hash, { semgrep: "sha256:rules" });
+    assert.deepEqual(body.tools_version, { "repository-analysis": "1.80.0" });
+    assert.deepEqual(body.config_hash, {
+      "repository-analysis": "sha256:rules",
+    });
     assert.deepEqual(body.findings, [SAFE_FINDING]);
     assert.deepEqual(body.privacy_flags, {
       containsSourceCode: false,
@@ -179,7 +181,7 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
 
     await prisma.technicalEvidenceReport.deleteMany();
     await createReport({
-      configHash: { semgrep: "Bearer abc.def-ghi_1234567890" },
+      configHash: { "repository-analysis": "Bearer abc.def-ghi_1234567890" },
     });
     const unsafeProvenance = await getEvidence(
       managerToken,
@@ -236,8 +238,10 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
         scanJobId: `scan-job-${id}`,
         assessmentId: ASSESSMENT_ID,
         snapshotId: `snapshot-${id}`,
-        toolsVersion: { semgrep: "1.80.0" },
-        configHash: overrides.configHash ?? { semgrep: "sha256:rules" },
+        toolsVersion: { "repository-analysis": "1.80.0" },
+        configHash: overrides.configHash ?? {
+          "repository-analysis": "sha256:rules",
+        },
         evidencePayload: overrides.evidencePayload ?? {
           findings: [SAFE_FINDING],
         },

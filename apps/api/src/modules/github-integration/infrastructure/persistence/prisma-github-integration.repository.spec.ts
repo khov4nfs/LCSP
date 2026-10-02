@@ -3,41 +3,13 @@ import {
   RepositoryAuthenticationMode,
   RepositoryConnectionStatus,
 } from "@prisma/client";
+import { REPOSITORY_AUTHENTICATION_MODES } from "@lcsp/contracts/github-integration";
 
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { RepositoryConnection } from "../../domain/entities/repository-connection.entity.js";
 import { PrismaRepositoryConnectionRepository } from "./prisma-github-integration.repository.js";
 
 describe("PrismaRepositoryConnectionRepository authentication mode", () => {
-  it("continues saving App connections with installation identity", async () => {
-    const upsert = jest.fn<(input: unknown) => Promise<object>>(() =>
-      Promise.resolve({}),
-    );
-    const repository = new PrismaRepositoryConnectionRepository({
-      repositoryConnection: { upsert },
-    } as unknown as PrismaService);
-    const connection = RepositoryConnection.create({
-      assessmentId: null,
-      userId: "manager-1",
-      installationId: "installation-1",
-      repositoryId: "100",
-      repositoryName: "repo",
-      repositoryFullName: "owner/repo",
-      defaultBranch: "main",
-      permissions: { contents: "read" },
-    });
-    await repository.save(connection);
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({
-          installationId: "installation-1",
-          authenticationMode: RepositoryAuthenticationMode.GITHUB_APP,
-        }),
-      }),
-    );
-  });
-
-  it("rehydrates backfilled App rows without changing installation behavior", async () => {
+  it("rehydrates legacy GitHub App rows so callers can fail them explicitly", async () => {
     const findUnique = jest.fn(() =>
       Promise.resolve({
         id: "connection-1",
@@ -59,6 +31,8 @@ describe("PrismaRepositoryConnectionRepository authentication mode", () => {
       repositoryConnection: { findUnique },
     } as unknown as PrismaService);
     const connection = await repository.findById("connection-1");
-    expect(connection?.installationId).toBe("installation-1");
+    expect(connection?.authenticationMode).toBe(
+      REPOSITORY_AUTHENTICATION_MODES.githubApp,
+    );
   });
 });

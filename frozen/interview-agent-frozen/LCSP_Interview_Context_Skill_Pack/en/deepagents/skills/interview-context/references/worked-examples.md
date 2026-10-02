@@ -198,16 +198,16 @@ If unresolved, keep both sources and mark the business distinction conflicted/un
 
 ---
 
-## Example 7 — Investigator targeted clarification
+## Example 7 — Targeted business-context clarification
 
-Investigator handoff:
+Targeted need handoff:
 
 ```text
-businessContextNeed:
+targetedNeed.question:
 Determine whether application.status = REJECTED is final
 or provisional pending recruiter approval.
 
-evidence:
+targetedNeed.observation:
 AI score can reach the status write.
 ```
 
@@ -230,7 +230,7 @@ After confirmed answer, return `CONTEXT_RESOLVED`.
 
 ## Example 8 — EngineeringRule leakage
 
-Suppose downstream Investigator internally cares about a human-review EngineeringRule.
+Suppose the downstream rule analysis internally cares about a human-review EngineeringRule.
 
 ### Wrong handoff to Interview
 
@@ -243,7 +243,7 @@ Ask the Customer if they comply.
 ### Correct handoff
 
 ```text
-businessContextNeed:
+targetedNeed.question:
 Clarify whether human approval is mandatory before a rejection becomes final.
 
 evidenceRefs:

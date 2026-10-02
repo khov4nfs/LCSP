@@ -88,11 +88,17 @@ def test_t08_safe_metadata_field_names_survive_key_redaction() -> None:
         "statusCode": 200,
         "errorCode": "NONE",
         "countryCode": "VN",
+        "credential_fingerprint": "a1b2c3d4e5f6",
+        "credential_slot": 2,
+        "credential_source": "GOOGLE_API_KEY",
         "sourceCode": "SRC-1",
         "encoded": "abc123",
         "decoded": "abc123",
         "keyword": "planner",
         "messageKey": "ENGINEERING_RULE_PLANNER_DECISION",
+        "estimated_input_tokens": 2048,
+        "estimated_input_bytes": 8192,
+        "provider_context_limit": 1_000_000,
         "reasonCode": "SOURCE_SCOPE_MATCH",
         "finish_reason": "stop",
         "usage_metadata": {"total_tokens": 321},
@@ -222,7 +228,22 @@ def test_t13_settled_usage_counters_survive_redaction_intact() -> None:
     assert redact_dict(payload) == payload
 
 
-def test_t14_counter_exemptions_do_not_weaken_credential_redaction() -> None:
+def test_t14_billing_invocation_authorization_metrics_survive_redaction_intact() -> None:
+    payload = {
+        "assessmentId": "4b9b3224-f70a-4b22-8b92-09683b9d1d6b",
+        "invocationId": "invocation-1",
+        "provider": "LLM7",
+        "model": "minimax-m2.7",
+        "estimatedInputTokens": "10670",
+        "estimatedInputBytes": "32008",
+        "maxOutputTokens": "4096",
+        "maxReasoningTokens": "0",
+    }
+
+    assert redact_dict(payload) == payload
+
+
+def test_t15_counter_exemptions_do_not_weaken_credential_redaction() -> None:
     payload = {
         "maxInputTokens": "4096",
         "apiToken": "abcd1234",

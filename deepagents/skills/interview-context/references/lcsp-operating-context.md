@@ -55,7 +55,7 @@ An Assessment has:
 - current repository/source identity;
 - scan/PGE artifact versions;
 - structured business context;
-- downstream legal/EngineeringRule/investigation state;
+- downstream legal/EngineeringRule/analysis state;
 - checkpoint/resume state;
 - audit history.
 
@@ -184,7 +184,7 @@ Keep history when a value is corrected or superseded.
 
 ## 8. EngineeringRule
 
-An **EngineeringRule** is a reusable technical investigation contract prepared from governed legal material.
+An **EngineeringRule** is a reusable technical assessment contract prepared from governed legal material.
 
 It translates a legal/operational obligation into bounded technical questions and evidence targets.
 
@@ -213,27 +213,21 @@ Treat this as a downstream boundary.
 
 Interview hands off business context; it does not participate in rule selection.
 
-## 10. Planner
+## 10. Rule analysis
 
-The **Planner** is a downstream technical specialist.
+A **rule analysis** assesses one applicable/pinned EngineeringRule against the repository and establishes provenance-backed technical facts per criterion.
 
-It receives the applicable/pinned EngineeringRule work and relevant assessment/PGE context, then produces the smallest bounded technical investigation plan.
+It does not own customer Interview.
 
-Planner does not own customer Interview.
+## 11. Business context need
 
-## 11. Investigator
-
-The **Investigator** executes the Planner's bounded technical investigation using governed PGE/evidence tools.
-
-Its job is to establish provenance-backed technical facts.
-
-When one necessary fact is not technical but business-operational and cannot be established from evidence, Investigator may return:
+When one necessary fact is not technical but business-operational and cannot be established from evidence, the rule analysis reports the criterion as:
 
 ```text
-NEEDS_BUSINESS_CONTEXT
+BUSINESS_CONTEXT_REQUIRED
 ```
 
-The originating side converts that into a bounded customer clarification request.
+The runtime stores it as a bounded need (`needId`) and converts it into a customer clarification request. After the Customer answers, the runtime deterministically reassesses the same rule.
 
 Interview Agent receives the business need, not the EngineeringRule itself.
 
@@ -244,7 +238,7 @@ The **Assessment Orchestrator** owns workflow mechanics, including:
 - which stage runs;
 - checkpointing;
 - waiting/resume;
-- exact investigation reference;
+- originating rule-analysis reference;
 - stale-context/evidence checks;
 - downstream invalidation/re-run routing;
 - audit correlation.
@@ -277,8 +271,8 @@ Interview Agent + Customer
     authority for customer-confirmed business context
             │
             ▼
-EngineeringRule / Planner / Investigator
-    authority for downstream technical investigation work
+EngineeringRule analysis
+    authority for downstream technical assessment work
             │
             ▼
 Governed evaluator
@@ -316,16 +310,16 @@ Optional flag:
 DOWNSTREAM_IMPACT
 ```
 
-### Investigator clarification
+### Business context resolution
 
 Input conceptually includes:
 
 ```text
-businessContextNeed
+targetedNeed (needId, question, observation, resolutionCriterionIds)
 relevant evidence refs/context
 current confirmed business context
 Interview history
-originating investigation reference
+originating rule-analysis reference
 ```
 
 Output outcome:

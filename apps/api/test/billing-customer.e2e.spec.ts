@@ -13,10 +13,11 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { AppModule } from "../src/app.module.js";
+import { RabbitMqClient } from "../src/platform/outbox/rabbitmq.client.js";
 import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
+import { RABBITMQ_STUB } from "./support/rabbitmq-stub.js";
 import { createAuthSessionRecord } from "./support/auth-record-test-helpers.js";
 import {
-  ensureTestMfaEncryptionKey,
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   TEST_DATABASE_URL,
@@ -51,13 +52,15 @@ describe("LCSP-312 customer billing HTTP API (e2e)", () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
-    ensureTestMfaEncryptionKey();
     pushPrismaSchema();
     prisma = new PrismaClient({ adapter: new PrismaPg(TEST_DATABASE_URL) });
     await prisma.$connect();
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(RabbitMqClient)
+      .useValue(RABBITMQ_STUB)
+      .compile();
     app = moduleFixture.createNestApplication();
     await app.init();
   }, 30_000);

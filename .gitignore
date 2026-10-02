@@ -41,6 +41,7 @@ _bmad/
 **/.codex/
 .venv
 *.env.*
+!.env.example
 # fogewise-dev-launchers/
 **/__pycache__/
 tmp/
@@ -53,3 +54,11 @@ test-results/
 playwright-report/
 .pnpm-store/
 .billing/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/
+
+# graphify's local graph output — regenerable, not committed.
+graphify-out/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

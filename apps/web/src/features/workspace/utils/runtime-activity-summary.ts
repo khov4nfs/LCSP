@@ -5,6 +5,7 @@ import {
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 
 import { appLocale } from "../../../lib/locale";
+import { RULE_ANALYSIS_ACTIVITY_KEYS } from "../config/rule-analysis-activity-keys";
 
 import type {
   WorkspaceRuntimeActivityItem,
@@ -15,8 +16,6 @@ const SUMMARY_MESSAGE_KEY_TO_I18N_KEY: Record<
   AssessmentRuntimeSummaryMessageKey,
   MessageKey
 > = {
-  [ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision]:
-    "pages.assessmentFlow.technicalEvidence.plannerDecision",
   [ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRuleInvestigationFailed]:
     "pages.assessmentFlow.technicalEvidence.investigationFailed",
   [ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRuleInvestigated]:
@@ -32,6 +31,20 @@ const KNOWN_SUMMARY_MESSAGE_KEYS = new Set<string>(
 export function runtimeActivityDisplaySummary(
   activity: WorkspaceRuntimeActivityItem,
 ): string {
+  const ruleActivity = isRuntimeSummaryRecord(activity.outputSummary)
+    ? activity.outputSummary.activity
+    : null;
+  if (
+    typeof ruleActivity === "string" &&
+    Object.prototype.hasOwnProperty.call(RULE_ANALYSIS_ACTIVITY_KEYS, ruleActivity)
+  ) {
+    return resolveMessage(
+      appLocale,
+      RULE_ANALYSIS_ACTIVITY_KEYS[
+        ruleActivity as keyof typeof RULE_ANALYSIS_ACTIVITY_KEYS
+      ] as MessageKey,
+    );
+  }
   const messageKey =
     runtimeSummaryMessageKey(activity.outputSummary) ??
     runtimeSummaryMessageKey(activity.summary);

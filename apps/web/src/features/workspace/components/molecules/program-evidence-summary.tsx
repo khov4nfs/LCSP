@@ -24,7 +24,7 @@ import type { ProgramEvidenceGraphOverview } from "@/lib/api/evidence-graph-deta
 import type {
   ProgramEvidenceMetric,
   ProgramEvidenceSummary as ProgramEvidenceSummaryData,
-} from "../../types/structured-results.types";
+} from "@/features/assessment-flow/types/assessment-flow.types";
 import { ChatResultContainer } from "./chat-result-container";
 
 export type ProgramEvidenceSummaryProps = {

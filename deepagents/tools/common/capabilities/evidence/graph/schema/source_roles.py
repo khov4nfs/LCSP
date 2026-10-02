@@ -9,7 +9,6 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from .models import ProgramEvidenceGraph
-from .semantic_ir import SemanticProgram
 
 SOURCE_ROLE_PRODUCTION = "PRODUCTION"
 SOURCE_ROLE_TEST = "TEST"
@@ -84,66 +83,12 @@ def is_material_source_path(value: str | None) -> bool:
     return source_role(value) == SOURCE_ROLE_PRODUCTION
 
 
-def exclude_test_sources_from_semantic_program(program: SemanticProgram) -> int:
-    """Remove test-backed semantic nodes and finalize production framework boundaries.
-
-    Framework resolution happens before this policy so resolvers can inspect complete
-    repository wiring. Removing test/spec nodes can invalidate a formerly concrete
-    boundary/provider edge, therefore the post-filter finalizer runs before graph IDs
-    are built and converts any newly exposed production dead-end into an explicit
-    unresolved frontier.
-    """
-    removed = {
-        node.key
-        for node in program.nodes
-        if node.file_path and is_test_source_path(node.file_path)
-    }
-    if removed:
-        program.nodes = [node for node in program.nodes if node.key not in removed]
-        program.edges = [
-            edge
-            for edge in program.edges
-            if edge.source_key not in removed and edge.target_key not in removed
-        ]
-
-    incident = {
-        key
-        for edge in program.edges
-        for key in (edge.source_key, edge.target_key)
-    }
-    orphans = {
-        node.key
-        for node in program.nodes
-        if node.node_type in _ORPHANABLE_FRAMEWORK_TYPES
-        and not node.file_path
-        and node.key not in incident
-    }
-    if orphans:
-        program.nodes = [node for node in program.nodes if node.key not in orphans]
-
-    existing_keys = {node.key for node in program.nodes}
-    known_before = existing_keys | removed | orphans
-    program.unresolved_frontiers = [
-        value
-        for value in program.unresolved_frontiers
-        if value not in known_before or value in existing_keys
-    ]
-
-    from tools.common.capabilities.evidence.graph.resolution.framework.framework_boundary_finalizer import (
-        FrameworkBoundaryFinalizer,
-    )
-
-    FrameworkBoundaryFinalizer().enrich(program)
-    return len(removed) + len(orphans)
-
-
 def filter_program_evidence_graph(graph: ProgramEvidenceGraph) -> ProgramEvidenceGraph:
     """Return an ephemeral/test-free graph for planning and investigation.
 
-    Newly scanned graphs are already filtered in the semantic assembler. This second
-    boundary also protects reruns over older persisted graph artifacts that may still
-    contain test/spec nodes. v3 origin/resolution/support-ref indexes are retained when
-    the compatibility filter has to rebuild the graph body.
+    Repository Deep Agent output is filtered again at this deterministic boundary
+    so persisted/legacy artifacts cannot reintroduce test/spec source into governed
+    planning or claim validation.
     """
     original_node_ids = {
         str(node.get("node_id")) for node in graph.nodes if node.get("node_id")

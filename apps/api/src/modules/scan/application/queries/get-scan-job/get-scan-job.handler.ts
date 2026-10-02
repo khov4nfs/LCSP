@@ -97,6 +97,8 @@ function nextActionFor(status: RepositoryScanJobStatus): string | null {
       return SCAN_JOB_GUIDANCE.queuedNextAction;
     case REPOSITORY_SCAN_JOB_STATUSES.running:
       return SCAN_JOB_GUIDANCE.runningNextAction;
+    case REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits:
+      return SCAN_JOB_GUIDANCE.waitingForCreditsNextAction;
     case REPOSITORY_SCAN_JOB_STATUSES.failed:
       return SCAN_JOB_GUIDANCE.failedNextAction;
     case REPOSITORY_SCAN_JOB_STATUSES.blocked:

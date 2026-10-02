@@ -28,7 +28,6 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
   function fixture(
     options: {
       cacheHit?: boolean;
-      enabled?: boolean;
       transportError?: GitHubArchiveTransportError;
     } = {},
   ) {
@@ -111,25 +110,17 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
           }),
         ),
     } as unknown as SnapshotArchiveCache;
-    const appDownload = jest.fn();
     const handler = new StreamSnapshotArchiveHandler(
       prisma,
-      { downloadRepositoryArchive: appDownload } as never,
       cache,
       { resolveForConnection, markInvalid } as never,
       { downloadArchive },
-      {
-        get: jest.fn(() => ({
-          archiveRetrievalEnabled: options.enabled ?? true,
-        })),
-      } as never,
     );
     return {
       handler,
       resolveForConnection,
       markInvalid,
       downloadArchive,
-      appDownload,
       dispose,
     };
   }
@@ -139,7 +130,6 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
     const result = await f.handler.execute(
       new StreamSnapshotArchiveQuery("snapshot-1", "job-1", "corr-1"),
     );
-    expect(f.appDownload).not.toHaveBeenCalled();
     expect(f.resolveForConnection).toHaveBeenCalledWith(
       expect.objectContaining({
         assessmentId: "assessment-1",
@@ -157,22 +147,11 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
     expect(f.dispose).toHaveBeenCalledTimes(1);
   });
 
-  it("serves a verified cache hit while disabled without resolving a credential", async () => {
-    const f = fixture({ cacheHit: true, enabled: false });
+  it("serves a verified cache hit without resolving a credential", async () => {
+    const f = fixture({ cacheHit: true });
     await f.handler.execute(
       new StreamSnapshotArchiveQuery("snapshot-1", "job-1", "corr-cache"),
     );
-    expect(f.resolveForConnection).not.toHaveBeenCalled();
-    expect(f.downloadArchive).not.toHaveBeenCalled();
-  });
-
-  it("fails a CLI cache miss closed when the archive gate is disabled", async () => {
-    const f = fixture({ enabled: false });
-    await expect(
-      f.handler.execute(
-        new StreamSnapshotArchiveQuery("snapshot-1", "job-1", "corr-disabled"),
-      ),
-    ).rejects.toBeDefined();
     expect(f.resolveForConnection).not.toHaveBeenCalled();
     expect(f.downloadArchive).not.toHaveBeenCalled();
   });

@@ -22,7 +22,7 @@ import { AssessmentArtifactProjectionService } from "./assessment-artifact-proje
 
 const ASSESSMENT_ID = "assessment-1";
 const RUN_ID = "scan-1";
-const PLANNER_AT = "2026-09-15T01:00:00.000Z";
+const SUMMARY_AT = "2026-09-15T01:00:00.000Z";
 
 function asyncUnknownMock() {
   return jest.fn<(...args: unknown[]) => Promise<unknown>>(() =>
@@ -82,31 +82,28 @@ function confirmedContext(revision = 3): ConfirmedStructuredBusinessContext {
   };
 }
 
-function plannerEvent(): AssessmentRuntimeActivityEvent {
+function summaryEvent(): AssessmentRuntimeActivityEvent {
   return {
-    eventId: "planner-summary",
+    eventId: "rule-analysis-summary",
     sequence: 10,
-    emittedAt: PLANNER_AT,
+    emittedAt: SUMMARY_AT,
     assessmentId: ASSESSMENT_ID,
     runId: RUN_ID,
     correlationId: "corr-1",
     eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
     runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
     stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-    toolName: "engineering_rule_plan_summary",
-    summary: "Planning summary",
+    toolName: "rule_analysis_summary",
+    summary: "RULE_ANALYSIS_SUMMARY",
     inputSummary: null,
     outputSummary: {
-      planningBatchId: "batch-1",
-      contextRevisionUsed: 3,
-      candidateCount: 2,
-      selectedCount: 2,
-      skippedCount: 0,
-      targeted: false,
+      engineeringRuleCount: 2,
+      eligibleCount: 2,
+      contextRevision: 3,
     },
     errorSummary: null,
     startedAt: null,
-    completedAt: PLANNER_AT,
+    completedAt: SUMMARY_AT,
     durationMs: null,
     attempt: null,
     waitingReason: null,
@@ -120,37 +117,30 @@ function investigatorEvent(
   outputSummary: AssessmentRuntimeActivityEvent["outputSummary"] = null,
 ): AssessmentRuntimeActivityEvent {
   return {
-    ...plannerEvent(),
+    ...summaryEvent(),
     eventId: `event-${ruleId}-${sequence}`,
     sequence,
     emittedAt: `2026-09-15T01:${String(sequence).padStart(2, "0")}:00.000Z`,
     eventType,
-    toolName: `engineering_rule_investigation:${ruleId}`,
+    toolName: `rule_analysis:${ruleId}`,
     outputSummary,
   };
 }
 
 function progress(
-  overrides: Partial<AssessmentRuntimeEngineeringProgress["investigator"]> = {},
+  overrides: Partial<AssessmentRuntimeEngineeringProgress> = {},
 ): AssessmentRuntimeEngineeringProgress {
   return {
     assessmentId: ASSESSMENT_ID,
     runId: RUN_ID,
-    planningBatchId: "batch-1",
-    contextRevisionUsed: 3,
-    targeted: false,
-    approximate: false,
-    planner: { candidateCount: 2, selectedCount: 2, skippedCount: 0 },
-    investigator: {
-      selectedCount: 2,
-      completedCount: 2,
-      domainLimitedCount: 0,
-      limitedOrFailedCount: 0,
-      waitingForInputCount: 0,
-      runtimeFailedCount: 0,
-      pendingCount: 0,
-      ...overrides,
-    },
+    contextRevision: 3,
+    engineeringRuleCount: 2,
+    eligibleCount: 2,
+    completed: 2,
+    needsContext: 0,
+    unresolved: 0,
+    failed: 0,
+    ...overrides,
   };
 }
 
@@ -171,8 +161,8 @@ function primeInvestigation(
   ];
   fixture.runtimeEvents.getLatestDurableEngineeringState.mockResolvedValue({
     progress: options.progress ?? progress(),
-    plannerEvent: plannerEvent(),
-    investigationEvents: events,
+    summaryEvent: summaryEvent(),
+    ruleEvents: events,
   });
   fixture.runtimeEvents.getLatestAssessmentRunStart.mockResolvedValue({
     runId: options.latestRunId ?? RUN_ID,
@@ -301,7 +291,7 @@ describe("AssessmentArtifactProjectionService", () => {
   it("uses durable engineering progress for an in-progress Investigation Notes projection", async () => {
     const fixture = buildService();
     primeInvestigation(fixture, {
-      progress: progress({ completedCount: 1, pendingCount: 1 }),
+      progress: progress({ completed: 1 }),
       events: [investigatorEvent("rule-1", 11)],
     });
 
@@ -325,22 +315,17 @@ describe("AssessmentArtifactProjectionService", () => {
         "rule-1",
         11,
         ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed,
-        { failureKind: "DOMAIN_LIMITATION" },
+        { activity: "RULE_ANALYSIS_UNRESOLVED" },
       ),
       investigatorEvent(
         "rule-2",
         12,
         ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed,
-        { failureKind: "RUNTIME_ERROR" },
+        { activity: "RULE_ANALYSIS_FAILED" },
       ),
     ];
     primeInvestigation(fixture, {
-      progress: progress({
-        completedCount: 0,
-        domainLimitedCount: 1,
-        runtimeFailedCount: 1,
-        limitedOrFailedCount: 2,
-      }),
+      progress: progress({ completed: 0, unresolved: 1, failed: 1 }),
       events,
     });
 
@@ -450,7 +435,7 @@ describe("AssessmentArtifactProjectionService", () => {
       "CONTEXT_READY",
       "CONTEXT_RESOLVED",
       "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY",
-      "INVESTIGATOR_RESOLUTION",
+      "BUSINESS_CONTEXT_RESOLUTION",
       "TARGETED_EXACT_RESUME_PIN",
       "resolutionCriteria",
     ]) {

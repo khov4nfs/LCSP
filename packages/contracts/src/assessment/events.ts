@@ -5,6 +5,9 @@ export const ASSESSMENT_EVENT_TYPES = {
   deleted: "ASSESSMENT_DELETED",
   repositorySetupCompleted: "ASSESSMENT_REPOSITORY_SETUP_COMPLETED",
   interviewAnswerSubmitted: "ASSESSMENT_INTERVIEW_ANSWER_SUBMITTED",
+  aiNotDetected: "ASSESSMENT_AI_NOT_DETECTED",
   interviewAgentResumeRequestedOutbox:
     "command.assessment-interview.resume-agent.v1",
+  interviewAgentPauseRequestedOutbox:
+    "command.assessment-interview.pause-agent.v1",
 } as const;

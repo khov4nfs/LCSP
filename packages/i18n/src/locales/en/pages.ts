@@ -150,8 +150,12 @@ export const enPages = {
     connectors: "Connectors",
     accountMenu: "Account menu",
     chatTranscriptLabel: "Assessment conversation",
+    chatNewActivity: "New activity · Jump to latest",
+    chatJumpToLatest: "Jump to latest activity",
     chatComposerPlaceholder: "Message LCSP",
     chatSend: "Send message",
+    chatStopTurn: "Stop",
+    chatResumeTurn: "Resume",
     chatExpand: "Expand editor",
     chatCollapse: "Collapse editor",
     chatShowMore: "Show more",
@@ -173,8 +177,8 @@ export const enPages = {
       flow: "Flow",
       reasoning: "Reasoning summary",
       output: "Output",
-      toolCall: "Tool call",
-      toolOutput: "Tool output",
+      toolCall: "Input",
+      toolOutput: "Output",
       log: "Log",
       runtime: "Runtime",
       progress: "Progress",
@@ -187,6 +191,141 @@ export const enPages = {
       skill: "Skill",
       model: "Model",
       provenance: "Provenance",
+    },
+    agentStreamTechnicalDetails: "Technical details",
+    agentStreamActivities: {
+      repositoryScanStarted: "Started repository scan",
+      repositoryAnalysisStarted: "Started repository analysis",
+      repositoryAnalysisCompleted: "Completed repository analysis",
+      repositoryAnalysisFailed: "Repository analysis failed",
+      scanWorkflowStarted: "Started repository scan workflow",
+      scanWorkflowCompleted: "Completed repository scan workflow",
+      scanWorkflowFailed: "Repository scan workflow failed",
+      repositoryAnalysisQueued: "Queued repository analysis",
+      repositoryAnalysisRunning: "Repository analysis is running",
+      repositorySourceDownloading: "Downloading repository source",
+      repositorySourceDownloaded: "Downloaded repository source",
+      repositoryWorkspacePreparing: "Preparing isolated repository workspace",
+      repositoryWorkspaceReady: "Prepared isolated repository workspace",
+      repositoryDeepAnalysis: "Analyzing repository structure and behavior",
+      runtimeProgressConnected: "Connected live repository analysis progress",
+      runtimeProgress: "Updated repository analysis runtime",
+      analysisProgressUpdated: "Updated analysis progress",
+      reasoningReviewed: "Reviewed analysis reasoning",
+      modelOutputReviewed: "Reviewed AI analysis output",
+      aiAnalysisRunning: "Analyzing repository with AI",
+      aiAnalysisCompleted: "Completed an AI analysis step",
+      aiAnalysisFailed: "AI provider could not complete this analysis step",
+      providerFallback: "Switched to a backup AI provider",
+      credentialRotation: "Tried another provider credential",
+      repositoryEvidenceInspected: "Inspected repository evidence",
+      engineeringRuleEvaluated: "Evaluated technical evidence rules",
+      analysisSkillApplied: "Applied repository analysis skills",
+      evidenceProvenanceLinked: "Linked evidence to source provenance",
+      repositoryFilesInspected: "Inspected repository files",
+      repositorySourceSearched: "Searched repository source",
+      codebaseGraphQueried: "Queried Codebase Memory graph",
+      sourceFilesReviewed: "Reviewed source files",
+      relevantFilesLocated: "Located relevant repository files",
+      repositoryChangesReviewed: "Reviewed repository changes",
+      implementationUpdated: "Updated implementation",
+      targetedTestsRan: "Ran targeted tests",
+      codeQualityValidated: "Validated code quality",
+      typeSafetyValidated: "Validated type safety",
+      changesCommitted: "Committed implementation changes",
+      changesPushed: "Pushed changes to remote repository",
+      repositoryToolRan: "Ran a repository analysis tool",
+      subagentSelected: "Selected a specialized analysis agent",
+      agentReasoning: "Agent reasoning",
+      agentStepOutput: "Agent output",
+      agentBudgetReached:
+        "Step budget reached, finishing with the evidence already inspected",
+      agentBudgetExhausted: "Agent did not finish within its step budget",
+      boundaryPaused: "Paused. Continue when you are ready.",
+      agentContextTrimmed:
+        "Trimmed older tool results to stay within the context budget",
+    },
+    agentStreamRule: {
+      activity: {
+        ruleAnalysisStarted: "Analysis of this rule started",
+        ruleAnalysisCompleted: "Analysis of this rule finished",
+        ruleAnalysisNeedsContext: "Analysis needs more business context",
+        ruleAnalysisUnresolved: "Analysis could not establish every requirement",
+        ruleAnalysisFailed: "Analysis of this rule failed",
+        businessContextRequested: "Asked for business context",
+        businessContextResolved: "Business context received",
+        ruleAnalysisResumed: "Analysis resumed with the new context",
+        ruleApplicabilityEvaluated: "Checked whether this rule applies",
+        ruleCompletionGated: "Completion check applied",
+      },
+      investigating: "Investigating rule",
+      investigated: "Investigated rule",
+      investigationFailed: "Rule investigation failed",
+      waitingForInput: "Rule is waiting for customer input",
+      result: "Reasoning result",
+      decision: "Decision",
+      reason: "Reason",
+      confidence: "Confidence",
+      sources: "Sources",
+      limitations: "Limitations",
+    },
+    agentStreamTurn: {
+      scannerActor: "LCSP Scanner",
+      interviewActor: "LCSP",
+      ruleAnalysisActor: "LCSP Rule analysis",
+      gateActor: "LCSP Reviewer",
+      scannerRunning: "Preparing repository evidence…",
+      scannerCompleted: "Repository evidence is ready.",
+      scannerFailed: "Could not finish preparing repository evidence.",
+      interviewRunning: "Reviewing your answer…",
+      interviewCompleted: "Finished reviewing your answer.",
+      interviewFailed: "Ran into a problem processing your answer.",
+      investigateRunning: "Investigating the selected engineering rules…",
+      investigateCompleted:
+        "Finished investigating the selected engineering rules.",
+      investigateFailed:
+        "Could not finish investigating the selected engineering rules.",
+      gateRunning: "Reviewing the investigation results…",
+      gateCompleted: "Finished the compliance review.",
+      gateFailed: "Could not finish the compliance review.",
+      ruleInvestigating: "Investigating…",
+      ruleInvestigated: "Investigated",
+      ruleFailed: "Investigation stopped",
+      ruleWaiting: "Waiting for more context",
+      ruleQueued: "Waiting its turn",
+      ruleFallback: "Rule {index}",
+    },
+    agentStreamTechnicalSummary: {
+      planning: "Planning summary",
+      investigation: "Investigation summary",
+      sourceFiles: "Source files read",
+      analysis: "AI analysis steps",
+      tools: "Tool calls/searches",
+      failures: "Provider/model failures",
+      rawEvents: "Raw events",
+    },
+    agentStreamUsage: {
+      input: "{value} in",
+      output: "{value} out",
+      total: "{value} tokens",
+      lines: "{value} lines",
+      items: "{value} results",
+      truncated: "truncated",
+      metrics: {
+        reasoning_tokens: "{value} reasoning",
+        thinking_tokens: "{value} thinking",
+        cached_input_tokens: "{value} cached",
+        cache_read_tokens: "{value} cache read",
+        cache_creation_input_tokens: "{value} cache write",
+        audio_tokens: "{value} audio",
+      },
+    },
+    agentStreamRuleAnalysisOutput: {
+      aggregatedFailed: "Investigations could not be completed",
+      aggregatedWaiting: "Investigations need more information",
+      completed: "Investigation completed.",
+      failed: "Could not complete this investigation.",
+      waiting: "Needs more information before this can be confirmed.",
     },
     agentStreamSelected: "Selected",
     agentStreamLoadOlder: "Load earlier activity",
@@ -287,8 +426,7 @@ export const enPages = {
         scanner: "Scanner",
         interview: "Interview",
         rules: "Rules",
-        planner: "Planner",
-        investigate: "Investigate",
+        ruleAnalysis: "Rule analysis",
         gate: "Gate",
       },
       statuses: {
@@ -535,8 +673,7 @@ export const enPages = {
       showcaseWorkflowScanner: "Scanner",
       showcaseWorkflowInterview: "Interview",
       showcaseWorkflowRules: "Rules",
-      showcaseWorkflowPlanner: "Planner",
-      showcaseWorkflowInvestigate: "Investigate",
+      showcaseWorkflowRepositoryAnalyst: "Repository Analyst",
       showcaseWorkflowGate: "Gate",
       showcaseStatusPassed: "Passed",
       showcaseStatusRunning: "Running",
@@ -612,9 +749,9 @@ export const enPages = {
         "LCSP keeps orchestration, external access, and usage controls visible alongside the assessment instead of hiding them in separate tooling.",
       capabilityOneTitle: "Orchestrated assessment",
       capabilityOneDescription:
-        "Scanner, Interview, Rules, Planner, Investigate, and Gate work as one visible assessment flow.",
+        "Scan, Interview, Rule analysis, and a deterministic Gate work as one visible assessment flow.",
       capabilityOneMeta:
-        "Scanner · Interview · Rules · Planner · Investigate · Gate",
+        "Scan · Interview · Rule analysis · Gate",
       capabilityTwoTitle: "Controlled connectors",
       capabilityTwoDescription:
         "Connect GitHub, Bitbucket, or Azure DevOps while keeping repository and workspace scope explicit.",
@@ -952,6 +1089,7 @@ export const enPages = {
       SCAN_IN_PROGRESS: "Scan Running",
       CLASSIFICATION_LOCKED: "Classification Locked",
       READY_FOR_REVIEW: "Ready for Review",
+      AI_NOT_DETECTED: "AI not detected",
     },
     nextActions: {
       workflowRun:
@@ -1122,7 +1260,7 @@ export const enPages = {
       billing: {
         title: "Billing",
         description:
-          "Add prepaid VND balance and use it for authoritative usage charges. Payment is settled by bank transfer.",
+          "Add prepaid VND balance by bank transfer. Assessments run independently of your balance.",
         loading: "Loading billing",
         errorTitle: "Billing is unavailable",
         errorDescription: "We could not load your wallet or billing history.",
@@ -1151,19 +1289,15 @@ export const enPages = {
         openExistingOrder: "Open existing order",
         confirmCreateAnotherOrder: "Confirm another order",
         cancelAdditionalOrder: "Don't create another order",
-        estimateTitle: "Usage estimate",
+        estimateTitle: "Top-up quote",
         estimateDescription:
-          "Informational guidance only. Actual usage charges are calculated from authoritative billable usage.",
-        estimatePrompt: "Enter a top-up amount to view the current estimate.",
-        estimateLoading: "Calculating estimate",
-        estimateError: "The estimate could not be loaded.",
-        effectiveProvider: "Effective provider",
-        effectiveModel: "Effective model",
-        estimatedUsageCharge: "Informational usage charge",
+          "Credits you receive for the amount you pay. Model usage does not debit your wallet.",
+        estimatePrompt: "Enter a top-up amount to view the quote.",
+        estimateLoading: "Calculating quote",
+        estimateAmount: "You pay",
+        estimateCredits: "Credits received",
+        estimateError: "The quote could not be loaded.",
         unavailable: "Unavailable",
-        insufficientPricingTitle: "Estimate unavailable",
-        insufficientPricingDescription:
-          "Pricing configuration is incomplete, so no usage estimate is shown. Your payment order can still be created.",
         activeOrderTitle: "Payment order",
         noActiveOrder: "No active payment order.",
         paymentTitle: "Bank transfer payment",
@@ -1513,6 +1647,10 @@ export const enPages = {
     targetedClarificationAfterDecision: "After final AI decision",
     confirm: "Confirm",
     adjust: "Adjust",
+    customerConfirmedAnswer: "I confirm.",
+    confirmedContextOutput: "Confirmed the prior context.",
+    adjustedContextOutput: "Updated the context.",
+    noMoreQuestionsOutput: "No more questions needed.",
     otherDescribe: "Other / describe",
     booleanYes: "Yes",
     booleanNo: "No",
@@ -1529,6 +1667,9 @@ export const enPages = {
     adjustPlaceholder: "Enter your adjustment or correction...",
     composerChooseConfirmAdjust: "Choose Confirm or Adjust above...",
     submitAnswer: "Send answer",
+    sourceCode: "Referenced source code",
+    sourceCodeLoading: "Loading referenced source code",
+    sourceCodeUnavailable: "The referenced source code is unavailable.",
     resumePipeline: "Resume",
     resumeQueued: "Resume queued for this assessment.",
     answerSavedForRuntime:
@@ -1556,6 +1697,11 @@ export const enPages = {
     resumeSetupDescription: "Continue from the last saved setup step.",
     retrySetupState: "Reload setup status",
     thought: "Thought for 2s",
+    thinking: {
+      running: "Thinking...",
+      completed: "Thought for {seconds}s",
+      completedWithoutDuration: "Thought",
+    },
     repositorySetupDescription:
       "Before the assessment can start, connect the repository I should scan. I will analyze the pinned source first, then begin the interview.",
     providerQuestion: "Choose Git provider",
@@ -1710,13 +1856,26 @@ export const enPages = {
       pendingDescription:
         "Evidence is ready. Waiting for Interview orchestration to provide the first question.",
       pendingPlaceholder: "Waiting for Interview...",
+      investigatePlaceholder: "Investigating the selected rules...",
+      gatePlaceholder: "Reviewing the investigation results...",
+      aiNotDetectedDescription:
+        "AI not detected. The technical evidence confirms this repository does not use AI, so the assessment has ended without an Interview.",
+      aiNotDetectedPlaceholder: "Assessment ended: AI not detected",
       progressQueued: "Your answer is queued for evaluation.",
       progressRunning: "Evaluating your answer.",
       progressTool: "Checking supporting information.",
       progressCompleted:
         "Interview evaluation completed. The result has been saved.",
       progressFailed:
-        "This evaluation attempt failed. Your answer remains saved.",
+        "This evaluation attempt failed. Your answer remains saved. Press Resume to evaluate it again.",
+      resumeFailedPlaceholder:
+        "Press Resume to evaluate your saved answer again",
+      resumeTurnQueued:
+        "Evaluation resumed. Your saved answer is queued again.",
+      resumeTurnLimitReached:
+        "This answer could not be evaluated after several attempts. Please try again later or contact support.",
+      resumeTurnFailed:
+        "The evaluation could not be resumed right now. Please try again.",
       contextReadyHandoff:
         "The baseline business context has been confirmed. The assessment can now continue to planning and investigation. Additional rule-specific questions may still be asked if needed.",
       contextResolvedHandoff:
@@ -1725,28 +1884,34 @@ export const enPages = {
         "Your answer has been saved. Waiting for the evaluation result or the next question.",
       placeholder: "Describe the project or system...",
     },
+    pipeline: {
+      continueQueued:
+        "Continuing the assessment from the step where it stopped.",
+      continueAlreadyRunning:
+        "The assessment is still running. If it stops, press Resume again.",
+      continueWaitingForCustomer:
+        "The assessment is waiting for your answer to the current question.",
+      continueCompleted:
+        "This assessment has finished; there is no step left to continue.",
+      continueFailed:
+        "The assessment could not be continued right now. Please try again.",
+    },
     technicalEvidence: {
       progress: "Assessment progress",
-      plannerProgress: "Planner progress",
-      plannerFailed: "Planner limitation",
-      investigatorProgress: "Investigator progress",
-      investigatorFailed: "Investigator limitation",
-      plannerDecision:
-        "Planner {decision} EngineeringRule {engineeringRuleId} ({reasonCode})",
+      ruleAnalysisProgress: "Requirement analysis progress",
+      ruleAnalysisLimited: "Requirement analysis limitation",
+      ruleAnalysisSummary:
+        "Requirements analysed: {completed} of {eligible} in scope ({total} total). Pending: {pending}.",
+      ruleAnalysisNeedsContextSummary:
+        "Requirements waiting for your answer: {count}.",
+      ruleAnalysisUnresolvedSummary:
+        "Requirements the analysis could not establish from the repository: {count}.",
+      ruleAnalysisFailedSummary:
+        "Requirement analyses interrupted by a runtime error: {count}.",
       investigationFailed:
         "Investigation failed for EngineeringRule {engineeringRuleId}",
       investigated:
         "Investigated EngineeringRule {engineeringRuleId}: {evaluationStatus}",
-      plannerTargetedSummary:
-        "Requirements re-evaluated for the new answer: {selected}. Unrelated requirements skipped: {skipped}.",
-      plannerSummary:
-        "Requirements selected for investigation: {selected} of {total}. Out of scope for now: {skipped}.",
-      investigatorSummary:
-        "Requirements investigated: {investigated} of {selected}. Pending: {pending}.",
-      investigatorLimitedSummary:
-        "Requirement investigations that hit a limitation and stay unresolved: {failed}.",
-      investigatorRuntimeFailedSummary:
-        "Requirement investigations interrupted by a runtime error: {failed}.",
       readinessWaiting:
         "Assessment is waiting for READY EngineeringRules; automatic Legal Rule Triage was requested.",
     },
@@ -2004,7 +2169,6 @@ export const enPages = {
       inspectDataPath: "Inspect data path",
       findSimilarSymbols: "Find similar symbols",
       inspectDeploymentContext: "Inspect deployment context",
-      requestTargetedReanalysis: "Request targeted reanalysis",
       getAssessmentContext: "Read assessment context",
       getArtifactChain: "Read artifact chain",
       proposeMissingTargets: "Propose missing targets",
@@ -2168,20 +2332,15 @@ export const enPages = {
     referencesLabel: "Applicable legal references",
     generateFinalReport: "Generate Final Report",
     generateGapAnalysis: "Generate Gap Analysis",
-    rerunClassification: "Retry classification",
-    rerunSubmitting: "Queueing classification",
     errorTitle: "Unable to load classification status",
     errorDetail: "Please try again in a moment.",
     observability: {
       title: "Runtime diagnostics",
       description:
-        "Review the planner and investigator signals that affected this classification run.",
-      openWikiStatus: "OpenWiki",
+        "Review the rule-analysis signals that affected this classification run.",
       compileFailed: "Compile failed",
       candidates: "Candidates",
       claimsWithEvidence: "Claims with evidence",
-      openWikiError: "OpenWiki error",
-      fallback: "Fallback",
       failedLegalRuleIds: "Failed legal rule IDs",
       sourceHitBuckets: "Candidate source hits",
       sourceEvidenceBuckets: "Candidate evidence refs",
@@ -2189,9 +2348,6 @@ export const enPages = {
       sourceNodeTypes: "Source node types",
       evaluationsWithEvidence: "Evaluations with evidence",
       displayableTechnicalEvidence: "Displayable technical evidence",
-      available: "Available",
-      unavailable: "Unavailable",
-      unknown: "Unknown",
       bucket0: "0 hits",
       bucket1: "1 hit",
       bucket2To5: "2-5 hits",
@@ -2285,10 +2441,6 @@ export const enPages = {
         "Technical evidence is still required before classification can proceed.",
       lockedNextSteps:
         "Add the missing technical evidence so the classification can continue and the next step can be prepared.",
-      waitingLegalReadinessTitle: "Preparing legal basis",
-      waitingLegalReadinessBadge: "Preparing legal data",
-      waitingLegalReadinessDescription:
-        "The evidence profile is approved. Orchestration will continue automatically after the official legal corpus, retrieval index, and approved rule catalog are ready.",
       processingTitle: "Classification is in progress",
       processingBadge: "Processing",
       processingDescription: "The classification is still being prepared.",
@@ -2308,12 +2460,6 @@ export const enPages = {
         "The classification could not be completed because the citation basis was missing.",
       blockedSummary:
         "A valid citation basis is required before the next step can proceed.",
-      legalMatchBlockedTitle: "No applicable legal rules found",
-      legalMatchBlockedBadge: "No match",
-      legalMatchBlockedDescription:
-        "The legal matching step completed but found no rules that apply to the verified evidence profile. Classification cannot proceed without an applicable legal basis.",
-      legalMatchBlockedSummary:
-        "Contact your compliance administrator to review the rule catalog or evidence profile before retrying.",
     },
     finalReportRequestedTitle: "Final report request submitted",
     finalReportRequestedDetail:
@@ -2445,7 +2591,7 @@ export const enPages = {
       navBilling: "Billing & Revenue",
       administrationLabel: "Administration",
       administrationDescription:
-        "System-level billing, payments, prepaid credits, usage revenue, and reconciliation.",
+        "System-level billing, payments, prepaid credits, and reconciliation.",
       roleAdminLabel: "Administrator",
       navigationAria: "Admin navigation",
       sectionsAria: "Admin sections",
@@ -2543,7 +2689,7 @@ export const enPages = {
     billing: {
       title: "Billing & Revenue",
       description:
-        "Track SePay payments, prepaid top-ups, usage charges, webhook reconciliation, and platform revenue by customer account.",
+        "Track SePay payments, prepaid top-ups, and webhook reconciliation by customer account.",
       periodAria: "Select billing reporting period",
       statusAria: "Filter payments by reconciliation status",
       gatewayAria: "Filter payments by gateway",
@@ -2564,28 +2710,16 @@ export const enPages = {
       },
       metrics: {
         settledTopUps: "Settled top-ups",
-        usageRevenue: "Usage revenue",
         pendingReconciliation: "Pending reconciliation",
         duplicates: "Duplicate blocked",
         topUpSubtitle: "Confirmed incoming SePay transfers",
-        usageSubtitle: "Charges settled from metered model usage",
         eventSuffix: "events",
       },
       trend: {
         title: "Settled top-up trend",
         description:
-          "Confirmed incoming transfers by day • usage revenue is ledger-derived",
+          "Confirmed incoming transfers by day",
         dayAria: "Settled top-up amount for {day}",
-      },
-      pricing: {
-        title: "Usage pricing policy",
-        providerCost:
-          "Provider cost = metered usage × effective provider/model pricing snapshot",
-        customerCharge: "Customer charge = provider cost × configured markup",
-        prepaidCredits:
-          "Prepaid credits carry monetary value. Token estimates are informational only.",
-        missingSnapshot:
-          "Missing pricing snapshot → fail closed; never guess a charge.",
       },
       columns: {
         order: "Order",

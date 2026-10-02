@@ -70,10 +70,7 @@ export class BillingCustomerController {
     try {
       return resultEnvelope(
         await this.queryBus.execute(
-          new EstimateBillingQuery(
-            request.rbacContext.userId,
-            parseAmount(amount),
-          ),
+          new EstimateBillingQuery(parseAmount(amount)),
         ),
       );
     } catch (error) {

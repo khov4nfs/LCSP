@@ -82,8 +82,8 @@ function payload(
 ): ScanCallbackRequest {
   return {
     scan_job_id: "job-1",
-    tools_version: { semgrep: "1.0.0" },
-    config_hash: { semgrep: "sha256:abc" },
+    tools_version: { "repository-analysis": "1.0.0" },
+    config_hash: { "repository-analysis": "sha256:abc" },
     evidence_payload: { findings: [] },
     privacy_flags: {
       containsSourceCode: false,

@@ -5,6 +5,24 @@ do not rewrite older entries unless correcting a factual error.
 
 ## Unreleased
 
+### 2026-10-02 - Runtime configuration simplification
+
+#### Changed
+
+- Model routing (provider, model, inference options, role bindings, fallback chains) now lives only in `deepagents/config/model_routes.yaml` (optional path override `LCSP_MODEL_ROUTES_FILE`). Model ids are opaque and case-preserved; provider ids are exact transport adapters (`openai`, `anthropic`, `google_genai`, `llm7`, `inception`) with no aliases.
+- Model invocations no longer touch the customer wallet. Provider-reported token usage is posted to `POST /internal/billing/usage` (no reservation id, price or charge) and recovered durably by a usage-only retry store (`USAGE_RECOVERY_STORE_PATH` optional override). The runtime model audit identity is derived automatically (`cfg-<hash>`) with no bootstrap or migration.
+- `.env.example` is now secrets and deployment addresses only. `MFA_SECRET_ENCRYPTION_KEY` is the single MFA key. `INTERVIEW_GUIDANCE_VERSION` is a code constant. The scan inactivity threshold is a 5-minute code default.
+
+#### Removed
+
+- GitHub App authentication, `GITHUB_APP_*` configuration, and the `GITHUB_CLI_*_ENABLED`, `*_PROVIDER_ENABLED`, `OUTBOX_ENABLED` and `PIPELINE_RECONCILIATION_ENABLED` flags. Per-user encrypted repository credentials and the KEK keyring remain.
+- The model-price billing chain: pricing preflight, wallet reservation/claim/settlement, the insufficient-credit (HTTP 402) assessment preflight, billing pause/resume, model-cost estimate and `bootstrap:model-pricing`. Wallet, top-up, payment history and SePay are unchanged.
+- Dead configuration: `AGENTIC_RUNTIME_*` (except a fixed tool-call default in code), `JWT_SECRET`, `AUTH_BCRYPT_COST`, `AUTH_SESSION_TTL_SECONDS`, `MFA_ENCRYPTION_KEY`, `REPOSITORY_SCAN_STALE_AFTER_MS`, legacy `LLM_*`/`BILLING_*` model, limit and metering variables, and the MDA, Redis and worker-version variables.
+
+#### Notes
+
+- No database migration was added. Unused schema left in place for a separate decision: `ModelPricingSnapshot`, `BillingReservation*`, `WorkflowBillingPause`, `GitHubAppInstallState`, `RepositoryScanJobStatus.WAITING_FOR_CREDITS`, `GITHUB_APP` authentication mode, and the unused money columns on `LlmUsageEvent`. Legacy `RESERVED` reservations still reduce available balance until released.
+
 ### 2026-08-28 - Optimized Authentication ERD
 
 #### Changed

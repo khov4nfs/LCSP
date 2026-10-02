@@ -2,18 +2,26 @@
 
 from __future__ import annotations
 
-from orchestration.agent_stream import invoke_with_stream
+from orchestration.agent_stream import (
+    AGENT_STREAM_STAGES,
+    agent_stream_rule_scope,
+    agent_stream_stage,
+)
 
 import hashlib
 import json
 import logging
 import re
 import unicodedata
-from typing import Any, Callable
+from functools import partial
+from typing import Any
 
 from contracts.handoffs import InterviewResult
 from orchestration.result_validation import SpecialistHandoffValidationError
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.boundary import (
+    AgentBoundaryBase,
+    NonRetryableAgentBoundaryError,
+)
 from tools.common.capabilities.platform.api_client import (
     InterviewDecisionRepairableCallbackError,
 )
@@ -23,16 +31,6 @@ from tools.common.capabilities.workflow.recovery.post_guard_continuation import 
 from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
     ConfirmedStructuredBusinessContext,
     normalize_confirmed_structured_business_context,
-)
-from tools.common.capabilities.assessment.claims.evidence_claim.models import (
-    ENGINEERING_EVIDENCE_CLAIM_TYPES,
-)
-from tools.common.capabilities.assessment.planning.engineering_rule.engineering_rule_planner import (
-    ENGINEERING_RULE_PLAN_REASON_CODES,
-)
-from tools.legal.retrieval.legal_basis.rule_applicability_evaluator import (
-    RuleApplicabilityEvaluator,
-    RULE_APPLICABILITY_STATUSES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -243,7 +241,7 @@ _AUTHORITY_REPAIR_GUIDANCE = {
         "instructionKey": _MINIMUM_CONTEXT_INSTRUCTION_KEY,
         "instruction": (
             "CONTEXT_READY requires enough customer-confirmed planning context for "
-            "the Planner. Resolve only the missing dimensions listed in "
+            "the downstream analysis. Resolve only the missing dimensions listed in "
             "missingDimensions. Do not ask rule-specific governance questions yet; "
             "ask one adaptive follow-up that can cover multiple missing dimensions "
             "when possible. UNKNOWN or UNAVAILABLE is acceptable only when the "
@@ -267,6 +265,56 @@ def _violated_rule_names(error: BaseException) -> str:
         if (match := _VIOLATED_RULE_PATTERN.search(segment))
     ]
     return "; ".join(names) if names else "unknown"
+
+
+def _turn_version_ref_aliases(source_version: str, pge_version: str) -> dict[str, str]:
+    """Map this turn's own raw artifact identifiers to their governed evidence refs.
+
+    The private input shows the specialist `sourceVersion`/`pgeVersion` but never the
+    ledger's canonical ref names, so a model can cite the report it was handed as the raw
+    `<reportId>:<version>` string (assessment 7976a135). Only exact identifiers of this
+    turn's artifacts are aliased; every other unknown ref still fails closed.
+    """
+    aliases: dict[str, str] = {}
+    for raw, prefix in ((source_version, "repositorySnapshot"), (pge_version, "technicalEvidenceReport")):
+        raw = raw.strip()
+        artifact_id = raw.split(":", 1)[0].strip()
+        if not artifact_id:
+            continue
+        canonical = f"{prefix}:{artifact_id}"
+        aliases[raw] = canonical
+        aliases[artifact_id] = canonical
+    return aliases
+
+
+def _canonicalize_ref_list(container: Any, key: str, aliases: dict[str, str]) -> None:
+    if not isinstance(container, dict):
+        return
+    refs = container.get(key)
+    if not isinstance(refs, list):
+        return
+    canonical: list[Any] = []
+    for ref in refs:
+        value = aliases.get(ref.strip(), ref) if isinstance(ref, str) else ref
+        if value not in canonical:
+            canonical.append(value)
+    container[key] = canonical
+
+
+def _canonicalize_handoff_version_refs(handoff: dict[str, Any], aliases: dict[str, str]) -> None:
+    question = handoff.get("activeQuestion")
+    if isinstance(question, dict):
+        for key in ("whyEvidenceRefs", "governedEvidenceRefs"):
+            _canonicalize_ref_list(question, key, aliases)
+        frontier = question.get("frontier")
+        for key in ("evidenceRefs", "evidence_refs"):
+            _canonicalize_ref_list(frontier, key, aliases)
+    confirmed_context = handoff.get("confirmedContext")
+    statements = confirmed_context.get("statements") if isinstance(confirmed_context, dict) else None
+    if isinstance(statements, list):
+        for statement in statements:
+            for key in ("evidenceRefs", "evidence_refs"):
+                _canonicalize_ref_list(statement, key, aliases)
 
 
 def _decision_feedback(error_code: str, rejected_decision: dict[str, Any]) -> dict[str, Any]:
@@ -357,10 +405,10 @@ def _missing_initial_planning_context_dimensions(
     decision: dict[str, Any],
     context: dict[str, Any] | None = None,
 ) -> list[str]:
-    # Targeted INVESTIGATOR_RESOLUTION turns resolve one rule-specific need; the
+    # Targeted BUSINESS_CONTEXT_RESOLUTION turns resolve one rule-specific need; the
     # initial minimum planning context gate must never be re-applied to them. Mirror
     # the API's mode derivation: a registered targeted need makes the turn targeted.
-    if str(decision.get("mode") or "").upper() == "INVESTIGATOR_RESOLUTION" or (
+    if str(decision.get("mode") or "").upper() == "BUSINESS_CONTEXT_RESOLUTION" or (
         isinstance(context, dict) and isinstance(context.get("targetedNeed"), dict)
     ):
         return []
@@ -574,18 +622,15 @@ STALE_CONTEXT = "STALE"
 STALE_PROVENANCE_CONTEXT = "STALE_PROVENANCE"
 _TERMINAL_GUARDED_OUTCOMES = {"CONTEXT_READY", "CONTEXT_RESOLVED"}
 _DOWNSTREAM_IMPACT_FLAG = "DOWNSTREAM_IMPACT"
-_LEGAL_RULE_NOT_APPLICABLE_STATUS = RULE_APPLICABILITY_STATUSES["not_applicable"]
 
-# Targeted Interview resolution criteria are authored as customer-facing snake_case
-# keys, while LegalRule.requiredFacts fields remain catalog-owned facts. Keep this
-# bridge explicit and narrow so administrative customer facts can exclude only the
-# parent legal rule fact they were requested to resolve.
-_TARGETED_RESOLUTION_FACT_FIELDS = {
-    "national_data_source_reuse": (
-        "nationalDataSourceReuse",
-        "national_data_source_reuse",
-    ),
-}
+
+
+class InterviewRevalidationRequired(NonRetryableAgentBoundaryError):
+    """Persisted Interview context is stale against current source/PGE provenance."""
+
+
+class InterviewTechnicalCoverageRecoveryRequired(NonRetryableAgentBoundaryError):
+    """Technical coverage cannot support Interview; an explicit rescan must restore it."""
 
 
 class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
@@ -600,23 +645,15 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         self,
         config,
         rbac_client=None,
-        root_agent=None,
         api_client=None,
         dispatcher=None,
         downstream_handler=None,
-        investigator_resumer: Callable[..., dict[str, Any]] | None = None,
-        investigation_completer: Callable[..., None] | None = None,
-        downstream_impact_handler: Callable[..., None] | None = None,
         continuation_store=None,
     ) -> None:
         super().__init__(config, rbac_client)
-        self._root_agent = root_agent
         self._api_client = api_client
         self._dispatcher = dispatcher
         self._downstream_handler = downstream_handler
-        self._investigator_resumer = investigator_resumer
-        self._investigation_completer = investigation_completer
-        self._downstream_impact_handler = downstream_impact_handler
         self._continuation_store = continuation_store or PostGuardContinuationStore.from_config(
             config
         )
@@ -646,15 +683,11 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             )
         status = str(context.get("status") or "")
         if status == STALE_PROVENANCE_CONTEXT:
-            self._reenter_root_for_revalidation(
-                assessment_id=assessment_id,
-                thread_id=thread_id,
-                question_id=question_id,
-                context_revision=context_revision,
-                correlationId=correlationId,
-                root=self._root_agent or self._load_root_agent(),
+            # Fail closed: no Interview turn, no rule resume, no model decision.
+            raise InterviewRevalidationRequired(
+                "ASSESSMENT_INTERVIEW_REVALIDATION_REQUIRED: persisted Interview context is stale "
+                f"(assessment {assessment_id}, thread {thread_id}, revision {context_revision})"
             )
-            return
 
         coverage_state = str(context.get("technicalCoverageState") or "UNAVAILABLE").upper()
         coverage_limitations = context.get("coverageLimitations")
@@ -662,16 +695,11 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             coverage_state == "PARTIAL"
             and (not isinstance(coverage_limitations, list) or not coverage_limitations)
         ):
-            self._reenter_root_for_coverage_recovery(
-                assessment_id=assessment_id,
-                thread_id=thread_id,
-                question_id=question_id,
-                context_revision=context_revision,
-                coverage_state=coverage_state,
-                correlationId=correlationId,
-                root=self._root_agent or self._load_root_agent(),
+            raise InterviewTechnicalCoverageRecoveryRequired(
+                "TECHNICAL_COVERAGE_RECOVERY_REQUIRED: technical coverage "
+                f"{coverage_state} cannot support Interview (assessment {assessment_id}); "
+                "an explicit rescan is required"
             )
-            return
 
         server_workflow_run_id = _required_text(context, "workflowRunId")
         root_workflow_run_id = context.get("rootWorkflowRunId")
@@ -720,7 +748,9 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
 
         targeted_need = context.get("targetedNeed")
         targeted_mode = isinstance(targeted_need, dict)
-        same_revision_resume = resume_reason == "PROVIDE_MORE_CONTEXT" or targeted_mode
+        same_revision_resume = (
+            resume_reason in _SAME_REVISION_RESUME_REASONS or targeted_mode
+        )
         if not same_revision_resume:
             if status in {DUPLICATE_CONTEXT, STALE_CONTEXT}:
                 return
@@ -757,48 +787,16 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
     def _run_and_persist_decision(self, api_client, assessment_id, thread_id, question_id,
                                   context_revision, resume_reason, context, correlationId,
                                   source_version, pge_version):
-        try:
-            decision = self._run_interview(
-                assessment_id=assessment_id,
-                thread_id=thread_id,
-                question_id=question_id,
-                context_revision=context_revision,
-                resume_reason=resume_reason,
-                context=context,
-                correlationId=correlationId,
-            )
-        except SpecialistHandoffValidationError as exc:
-            # The specialist's candidate violated one of the conditional InterviewResult /
-            # InterviewQuestionResult constraints a provider schema cannot express (e.g. a
-            # malformed CONFIRM_ADJUST choice shape, a missing frontier). None of those
-            # validators are relaxed; give the specialist one bounded chance to see the
-            # exact rule it broke and self-correct instead of crashing the whole turn.
-            rule_names = _violated_rule_names(exc)
-            _LOGGER.warning(
-                "%s assessment_id=%s question_id=%s context_revision=%s rule=%s",
-                _INTERVIEW_HANDOFF_VALIDATION_REPAIRED,
-                assessment_id,
-                question_id,
-                context_revision,
-                rule_names,
-            )
-            repair_context = {
-                **context,
-                "decisionValidationFeedback": {
-                    "code": "INTERVIEW_HANDOFF_SCHEMA_VIOLATION",
-                    "rejectedReason": str(exc),
-                },
-            }
-            # A second violation propagates to terminal delivery settlement.
-            decision = self._run_interview(
-                assessment_id=assessment_id,
-                thread_id=thread_id,
-                question_id=question_id,
-                context_revision=context_revision,
-                resume_reason=resume_reason,
-                context=repair_context,
-                correlationId=correlationId,
-            )
+        run = partial(
+            self._run_interview_with_schema_repair,
+            assessment_id=assessment_id,
+            thread_id=thread_id,
+            question_id=question_id,
+            context_revision=context_revision,
+            resume_reason=resume_reason,
+            correlationId=correlationId,
+        )
+        decision = run(context=context)
         decision, authority_feedback = _apply_authority_preflight(decision, context)
         if authority_feedback is not None:
             _LOGGER.warning(
@@ -814,15 +812,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 **context,
                 "decisionValidationFeedback": authority_feedback,
             }
-            decision = self._run_interview(
-                assessment_id=assessment_id,
-                thread_id=thread_id,
-                question_id=question_id,
-                context_revision=context_revision,
-                resume_reason=resume_reason,
-                context=repair_context,
-                correlationId=correlationId,
-            )
+            decision = run(context=repair_context)
             decision = _confirmation_or_original(decision, context)
 
         try:
@@ -849,6 +839,11 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             missing = getattr(exc, "missing", None)
             if isinstance(missing, str):
                 decision_feedback["missingCriteria"] = missing
+            unauthorized_ref = (getattr(exc, "meta", None) or {}).get("unauthorizedRef")
+            if isinstance(unauthorized_ref, str) and unauthorized_ref.strip():
+                # The exact ref the API refused; the specialist must replace or remove
+                # it with an allowed ref itself. The platform never substitutes refs.
+                decision_feedback["unauthorizedEvidenceRef"] = unauthorized_ref.strip()
             missing_dimensions = (getattr(exc, "meta", None) or {}).get("missingDimensions")
             if isinstance(missing_dimensions, str) and missing_dimensions.strip():
                 decision_feedback["missingDimensions"] = [
@@ -858,15 +853,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 **context,
                 "decisionValidationFeedback": decision_feedback,
             }
-            corrected = self._run_interview(
-                assessment_id=assessment_id,
-                thread_id=thread_id,
-                question_id=question_id,
-                context_revision=context_revision,
-                resume_reason=resume_reason,
-                context=repair_context,
-                correlationId=correlationId,
-            )
+            corrected = run(context=repair_context)
             corrected = _confirmation_or_original(corrected, context)
             # A second rejection propagates to terminal delivery settlement.
             guarded_state = api_client.post_interview_agent_decision(
@@ -883,6 +870,45 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             correlationId=correlationId,
             root_workflow_run_id=context.get("rootWorkflowRunId"),
         )
+
+    def _run_interview_with_schema_repair(self, *, context, **kwargs):
+        """Run one Interview candidate, allowing one bounded schema self-correction.
+
+        The specialist's candidate can violate a conditional InterviewResult /
+        InterviewQuestionResult constraint a provider schema cannot express (e.g. a
+        select control without choices, a malformed CONFIRM_ADJUST choice shape, a
+        missing frontier) or return no structured handoff at all. None of those
+        validators are relaxed; every candidate run, including the platform-guard
+        corrections, gets one chance to see the exact rule it broke instead of
+        crashing the whole turn. A second violation propagates to terminal delivery
+        settlement.
+        """
+        try:
+            return self._run_interview(context=context, **kwargs)
+        except SpecialistHandoffValidationError as exc:
+            _LOGGER.warning(
+                "%s assessment_id=%s question_id=%s context_revision=%s rule=%s",
+                _INTERVIEW_HANDOFF_VALIDATION_REPAIRED,
+                kwargs.get("assessment_id"),
+                kwargs.get("question_id"),
+                kwargs.get("context_revision"),
+                _violated_rule_names(exc),
+            )
+            schema_feedback = {
+                "code": "INTERVIEW_HANDOFF_SCHEMA_VIOLATION",
+                "rejectedReason": str(exc),
+            }
+            prior_feedback = context.get("decisionValidationFeedback")
+            feedback = (
+                # Keep the guard correction being answered; add the structural rule.
+                {**prior_feedback, "schemaViolation": schema_feedback}
+                if isinstance(prior_feedback, dict) and prior_feedback
+                else schema_feedback
+            )
+            return self._run_interview(
+                context={**context, "decisionValidationFeedback": feedback},
+                **kwargs,
+            )
 
     def _run_interview(
         self,
@@ -901,10 +927,12 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             TurnEvidenceLedger,
             build_why_are_we_asking_explanation,
             evaluate_question_eligibility,
+            evidence_ref_correction_reason,
             extract_governed_evidence_refs,
             reset_active_turn_evidence_ledger,
             sanitize_customer_facing_text,
             set_active_turn_evidence_ledger,
+            unauthorized_candidate_refs,
             validate_evidence_refs,
         )
 
@@ -950,8 +978,11 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         invocation_key = (
             f"assessment-interview:{assessment_id}:{context_revision}:{resume_reason}"
         )
-        if context.get("decisionValidationFeedback"):
+        feedback = context.get("decisionValidationFeedback")
+        if feedback:
             invocation_key += ":resolution-correction:1"
+            if isinstance(feedback, dict) and feedback.get("schemaViolation"):
+                invocation_key += ":schema-correction:1"
 
         run_context = LCSPRunContext(
             assessment_id=assessment_id,
@@ -991,6 +1022,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 question_id=question_id,
                 context_revision=context_revision,
                 resume_reason=resume_reason,
+                # The server-owned context stays exactly as the API returned it.
                 context=context,
             )
             result = dispatcher.dispatch(
@@ -1009,7 +1041,6 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 },
                 thread_id=thread_id,
                 context=run_context,
-                reenter_root=False,
             )
         finally:
             reset_active_turn_evidence_ledger(ledger_token)
@@ -1018,11 +1049,14 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         if not isinstance(handoff, dict):
             raise ValueError("Interview specialist did not return a validated handoff")
         handoff["expectedContextRevision"] = context_revision
+        _canonicalize_handoff_version_refs(
+            handoff, _turn_version_ref_aliases(source_version, pge_version),
+        )
         targeted_need = context.get("targetedNeed")
         if isinstance(targeted_need, dict):
-            if handoff.get("mode") != "INVESTIGATOR_RESOLUTION":
+            if handoff.get("mode") != "BUSINESS_CONTEXT_RESOLUTION":
                 raise ValueError(
-                    "Targeted Interview specialist must return INVESTIGATOR_RESOLUTION mode"
+                    "Targeted Interview specialist must return BUSINESS_CONTEXT_RESOLUTION mode"
                 )
             question = handoff.get("activeQuestion")
             if isinstance(question, dict) and question.get("needId") not in {
@@ -1030,6 +1064,18 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 targeted_need.get("needId"),
             }:
                 raise ValueError("Targeted Interview question escaped its registered need")
+
+        # Evidence refs must be exact: an unauthorized ref is a repairable candidate
+        # violation (one bounded specialist correction listing the allowed refs),
+        # never something the platform drops or substitutes.
+        rejected_refs = unauthorized_candidate_refs(
+            [handoff.get("activeQuestion"), handoff.get("confirmedContext")],
+            ledger.authorized_refs,
+        )
+        if rejected_refs:
+            raise SpecialistHandoffValidationError(
+                evidence_ref_correction_reason(rejected_refs, ledger.authorized_refs)
+            )
 
         # Validate candidate question and evidence refs emitted by the Interview specialist
         question = handoff.get("activeQuestion")
@@ -1173,14 +1219,8 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                     raise RuntimeError(
                         "duplicate resolved continuation is missing targeted need provenance"
                     )
-                from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
-                    reconstruct_managed_investigator_continuation,
-                )
-
-                continuation = reconstruct_managed_investigator_continuation(
-                    config=self._config,
-                    assessment_id=assessment_id,
-                    targeted_need=targeted_need,
+                continuation = _continuation_from_need(
+                    targeted_need,
                     source_version=source_version,
                     pge_version=pge_version,
                 )
@@ -1230,6 +1270,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             InterviewGatedEngineeringAssessmentBoundary(
                 self._config,
                 api_client=self._api_client,
+                interview_dispatcher=self._dispatcher,
             ).handle(
                 {
                     "assessmentId": assessment_id,
@@ -1274,277 +1315,68 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             guarded_state,
             assessment_id=assessment_id,
         )
-        if _has_downstream_impact(guarded_state):
-            self._route_downstream_impact_to_orchestration(
-                assessment_id=assessment_id,
-                thread_id=thread_id,
-                context_revision=context_revision,
-                continuation=continuation,
-                confirmed_context=typed_confirmed_context,
-                correlationId=correlationId,
-            )
-            return
-
-        self._resume_exact_investigator(
+        need = guarded_state.get("targetedNeed")
+        if isinstance(need, dict) and not continuation.get("resolutionCriterionIds"):
+            continuation = {
+                **continuation,
+                "resolutionCriterionIds": list(need.get("resolutionCriterionIds") or []),
+            }
+        rule_id = _bind_answer_to_need(continuation, typed_confirmed_context)
+        self._resume_rule(
             assessment_id=assessment_id,
+            thread_id=thread_id,
             context_revision=context_revision,
-            continuation=continuation,
+            pge_version=pge_version,
+            rule_id=rule_id,
+            # A DOWNSTREAM_IMPACT answer may affect other rules: run the deterministic loop
+            # unscoped so every rule whose Customer answer landed is resumed. Otherwise
+            # only the rule the need names is resumed.
+            rule_scope=None if _has_downstream_impact(guarded_state) else (rule_id,),
             confirmed_context=typed_confirmed_context,
             correlationId=correlationId,
         )
 
-    def _route_downstream_impact_to_orchestration(
+    def _resume_rule(
         self,
         *,
         assessment_id: str,
         thread_id: str,
         context_revision: int,
-        continuation: dict[str, Any],
+        pge_version: str,
+        rule_id: str,
+        rule_scope: tuple[str, ...] | None,
         confirmed_context: ConfirmedStructuredBusinessContext,
         correlationId: str,
     ) -> None:
-        if self._downstream_impact_handler is not None:
-            self._downstream_impact_handler(
-                assessment_id=assessment_id,
-                thread_id=thread_id,
-                context_revision=context_revision,
-                continuation=continuation,
+        """Resume the SAME rule with its prior result: no rescan, no rehydrate, no reindex.
+
+        Legal applicability is re-evaluated with the new confirmed statements inside the
+        loop, so an answer that makes the rule NOT_APPLICABLE stops analysis.
+        """
+        from tools.common.capabilities.assessment.investigation.engineering_rule.engineering_assessment_boundary import (
+            EngineeringAssessmentBoundary,
+        )
+
+        report_id = pge_version.split(":", 1)[0].strip()
+        if not report_id:
+            raise ValueError("rule resume is missing technical evidence report provenance")
+        with agent_stream_stage(AGENT_STREAM_STAGES["rule_analysis"]), agent_stream_rule_scope(
+            rule_id
+        ):
+            EngineeringAssessmentBoundary(
+                self._config,
+                api_client=self._api_client or self._load_api_client(),
+                dispatcher=self._dispatcher or self._load_dispatcher(),
+            ).run_assessment(
+                {
+                    "assessmentId": assessment_id,
+                    "evidenceReportId": report_id,
+                    "workflowRunId": f"{thread_id}:resume:{context_revision}",
+                },
+                correlationId,
                 confirmed_context=confirmed_context,
-                correlation_id=correlationId,
+                rule_scope=rule_scope,
             )
-            return
-        from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
-            assert_managed_investigator_artifact_pins,
-        )
-
-        api_client = self._api_client or self._load_api_client()
-        assert_managed_investigator_artifact_pins(api_client, continuation)
-        affected_rule_ids = continuation.get("affectedRuleIds")
-        artifact_versions = continuation.get("artifactVersions")
-        if not isinstance(affected_rule_ids, list) or not affected_rule_ids:
-            raise RuntimeError("downstream impact re-evaluation requires affectedRuleIds")
-        if not isinstance(artifact_versions, dict) or not artifact_versions:
-            raise RuntimeError("downstream impact re-evaluation requires artifact pins")
-        root = self._root_agent or self._load_root_agent()
-        invoke_with_stream(root,
-            {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": (
-                            "A guarded Targeted Interview resolved the requested Customer context "
-                            "and flagged DOWNSTREAM_IMPACT. Do not exact-resume the old Investigator. "
-                            "Root Orchestration must choose the bounded selective rerun/rescope path "
-                            "for the affected EngineeringRule scope while preserving the pinned legal, "
-                            "technical-evidence, and repository artifacts below. Interview has only "
-                            "raised the flag; this orchestration step owns the downstream decision.\n"
-                            + json.dumps(
-                                {
-                                    "assessmentId": assessment_id,
-                                    "contextRevision": context_revision,
-                                    "affectedRuleIds": affected_rule_ids,
-                                    "artifactVersions": artifact_versions,
-                                    "confirmedContext": (
-                                        confirmed_context.to_prompt_dict()
-                                    ),
-                                },
-                                ensure_ascii=False,
-                                sort_keys=True,
-                            )
-                        ),
-                    }
-                ]
-            },
-            config={
-                "configurable": {
-                    "thread_id": f"{thread_id}:downstream-impact:{context_revision}"
-                },
-                "metadata": {
-                    "lcsp_thread_id": thread_id,
-                    "assessment_id": assessment_id,
-                    "context_revision": context_revision,
-                    "affected_rule_ids": list(affected_rule_ids),
-                    "artifact_versions": dict(artifact_versions),
-                    "correlationId": correlationId,
-                    "trigger": "INTERVIEW_DOWNSTREAM_IMPACT_REEVALUATION",
-                },
-            },
-        )
-
-    def _resume_exact_investigator(
-        self,
-        *,
-        assessment_id: str,
-        context_revision: int,
-        continuation: dict[str, Any],
-        confirmed_context: ConfirmedStructuredBusinessContext,
-        correlationId: str,
-    ) -> None:
-        api_client = self._api_client or self._load_api_client()
-        scope_excluded_handoff = _deterministic_not_applicable_handoff(
-            api_client=api_client,
-            continuation=continuation,
-            confirmed_context=confirmed_context,
-        )
-        if scope_excluded_handoff is not None:
-            self._complete_exact_investigator_resume(
-                api_client=api_client,
-                assessment_id=assessment_id,
-                context_revision=context_revision,
-                continuation=continuation,
-                confirmed_context=confirmed_context,
-                handoff=scope_excluded_handoff,
-                correlationId=correlationId,
-            )
-            return
-
-        resumer = self._investigator_resumer
-        if resumer is None:
-            from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
-                resume_managed_investigator,
-            )
-
-            resumer = resume_managed_investigator
-
-        result = resumer(
-            config=self._config,
-            api_client=api_client,
-            assessment_id=assessment_id,
-            context_revision=context_revision,
-            continuation=continuation,
-            confirmed_context=confirmed_context,
-            correlation_id=correlationId,
-        )
-        if not isinstance(result, dict):
-            raise RuntimeError("exact Investigator resume returned an invalid result")
-        if result.get("executionId") != continuation.get("investigatorExecutionId"):
-            raise RuntimeError("exact Investigator resume execution identity drifted")
-        if result.get("threadId") != continuation.get("workflowRunId"):
-            raise RuntimeError("exact Investigator resume thread identity drifted")
-        if result.get("fromCheckpointId") != continuation.get("checkpointId"):
-            raise RuntimeError("exact Investigator resume checkpoint identity drifted")
-        handoff = result.get("handoff")
-        if not isinstance(handoff, dict):
-            raise RuntimeError("exact Investigator resume did not return a typed handoff")
-        if handoff.get("status") != "READY":
-            raise RuntimeError(
-                "exact Investigator resume must complete the original bounded investigation"
-            )
-
-        self._complete_exact_investigator_resume(
-            api_client=api_client,
-            assessment_id=assessment_id,
-            context_revision=context_revision,
-            continuation=continuation,
-            confirmed_context=confirmed_context,
-            handoff=handoff,
-            correlationId=correlationId,
-        )
-
-    def _complete_exact_investigator_resume(
-        self,
-        *,
-        api_client: Any,
-        assessment_id: str,
-        context_revision: int,
-        continuation: dict[str, Any],
-        confirmed_context: ConfirmedStructuredBusinessContext,
-        handoff: dict[str, Any],
-        correlationId: str,
-    ) -> None:
-        completer = self._investigation_completer
-        if completer is None:
-            from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
-                complete_resumed_investigation,
-            )
-
-            completer = complete_resumed_investigation
-        completer(
-            config=self._config,
-            api_client=api_client,
-            assessment_id=assessment_id,
-            context_revision=context_revision,
-            continuation=continuation,
-            confirmed_context=confirmed_context,
-            resumed_handoff=handoff,
-            correlation_id=correlationId,
-        )
-
-    def _reenter_root_for_revalidation(
-        self,
-        *,
-        assessment_id: str,
-        thread_id: str,
-        question_id: str,
-        context_revision: int,
-        correlationId: str,
-        root: Any,
-    ) -> None:
-        invoke_with_stream(root,
-            {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": (
-                            "Persisted Customer Interview context was stale against current "
-                            "source/PGE provenance. Revalidate via Root Orchestration before "
-                            "any Interview Agent sufficiency or downstream resume. "
-                            f"Assessment: {assessment_id}. Thread: {thread_id}. "
-                            f"Question: {question_id}. Requested revision: {context_revision}."
-                        ),
-                    }
-                ]
-            },
-            config={
-                "configurable": {"thread_id": thread_id},
-                "metadata": {
-                    "lcsp_thread_id": thread_id,
-                    "assessment_id": assessment_id,
-                    "question_id": question_id,
-                    "context_revision": context_revision,
-                    "correlationId": correlationId,
-                    "trigger": "ASSESSMENT_INTERVIEW_REVALIDATION_REQUIRED",
-                },
-            },
-        )
-
-    def _reenter_root_for_coverage_recovery(
-        self,
-        *,
-        assessment_id: str,
-        thread_id: str,
-        question_id: str,
-        context_revision: int,
-        coverage_state: str,
-        correlationId: str,
-        root: Any,
-    ) -> None:
-        invoke_with_stream(root,
-            {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": (
-                            "Technical coverage cannot enter Interview reasoning. "
-                            "Run Root Orchestration recovery or revalidation before any "
-                            "Interview Agent turn or downstream continuation. "
-                            f"Assessment: {assessment_id}. Coverage state: {coverage_state}."
-                        ),
-                    }
-                ]
-            },
-            config={
-                "configurable": {"thread_id": thread_id},
-                "metadata": {
-                    "lcsp_thread_id": thread_id,
-                    "assessment_id": assessment_id,
-                    "question_id": question_id,
-                    "context_revision": context_revision,
-                    "correlationId": correlationId,
-                    "trigger": "ASSESSMENT_INTERVIEW_COVERAGE_RECOVERY_REQUIRED",
-                },
-            },
-        )
 
     def _load_api_client(self):
         from tools.common.capabilities.platform.api_client import WorkerApiClient
@@ -1559,152 +1391,13 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
 
         return RootSubagentDispatcher()
 
-    @staticmethod
-    def _load_root_agent():
-        from agent import agent
 
-        return agent
+# Resumes that author a follow-up question at the current revision instead of
+# processing a new Customer answer.
+_SAME_REVISION_RESUME_REASONS = frozenset(
+    {"PROVIDE_MORE_CONTEXT"}
+)
 
-
-
-def _deterministic_not_applicable_handoff(
-    *,
-    api_client: Any,
-    continuation: dict[str, Any],
-    confirmed_context: ConfirmedStructuredBusinessContext,
-) -> dict[str, Any] | None:
-    rules = _active_legal_rules(api_client)
-    if not rules:
-        return None
-    affected_rule_ids = [
-        str(value)
-        for value in continuation.get("affectedRuleIds") or []
-        if str(value or "").strip()
-    ]
-    for affected_rule_id in affected_rule_ids:
-        legal_rule = _parent_legal_rule_for_engineering_rule(rules, affected_rule_id)
-        if legal_rule is None:
-            continue
-        profile = _profile_with_confirmed_context_facts(
-            _base_verified_profile(legal_rule),
-            legal_rule=legal_rule,
-            confirmed_context=confirmed_context,
-        )
-        outcome = RuleApplicabilityEvaluator().evaluate_rule(
-            rule=legal_rule,
-            verified_profile=profile,
-        )
-        if outcome.status != _LEGAL_RULE_NOT_APPLICABLE_STATUS:
-            continue
-        statement_refs = tuple(
-            ref for refs in profile.get("factEvidenceRefs", {}).values() for ref in refs
-        )
-        if not statement_refs:
-            continue
-        return {
-            "status": "READY",
-            "artifact_versions": dict(continuation.get("artifactVersions") or {}),
-            "claims": [
-                {
-                    "claim_id": f"claim:targeted-scope-excluded:{affected_rule_id}",
-                    "engineering_rule_id": affected_rule_id,
-                    "claim_type": ENGINEERING_EVIDENCE_CLAIM_TYPES[
-                        "rule_scope_not_applicable"
-                    ],
-                    "value": None,
-                    "evidence_refs": [],
-                    "graph_path_refs": [],
-                    "source_anchor_refs": [],
-                    "customer_context_refs": list(dict.fromkeys(statement_refs)),
-                    "confidence": outcome.confidence,
-                    "limitations": [],
-                    "criterion": ENGINEERING_RULE_PLAN_REASON_CODES[
-                        "targeted_scope_excluded"
-                    ],
-                }
-            ],
-            "limitations": [],
-            "missing_input": None,
-            "next_step": "GATE",
-        }
-    return None
-
-
-def _active_legal_rules(api_client: Any) -> list[dict[str, Any]]:
-    try:
-        catalog = api_client.get_active_legal_rule_catalog()
-    except Exception:
-        return []
-    if not isinstance(catalog, dict):
-        return []
-    return [rule for rule in catalog.get("rules") or [] if isinstance(rule, dict)]
-
-
-def _parent_legal_rule_for_engineering_rule(
-    rules: list[dict[str, Any]],
-    engineering_rule_id: str,
-) -> dict[str, Any] | None:
-    for rule in rules:
-        legal_rule_id = str(rule.get("legalRuleId") or rule.get("legal_rule_id") or "")
-        if engineering_rule_id.startswith(f"{legal_rule_id}::PRECOMPILED::"):
-            return rule
-        if engineering_rule_id in _legal_rule_engineering_rule_ids(rule):
-            return rule
-    return None
-
-
-def _legal_rule_engineering_rule_ids(rule: dict[str, Any]) -> set[str]:
-    values: set[str] = set()
-    for key in ("engineeringRuleIds", "engineering_rule_ids"):
-        raw = rule.get(key)
-        if isinstance(raw, list):
-            values.update(str(item) for item in raw if str(item or "").strip())
-    raw_rules = rule.get("engineeringRules") or rule.get("engineering_rules")
-    if isinstance(raw_rules, list):
-        for item in raw_rules:
-            if isinstance(item, dict):
-                value = item.get("engineeringRuleId") or item.get("engineering_rule_id")
-                if str(value or "").strip():
-                    values.add(str(value))
-    return values
-
-
-def _base_verified_profile(rule: dict[str, Any]) -> dict[str, Any]:
-    raw = rule.get("verifiedProfile") or rule.get("verified_profile") or {}
-    if not isinstance(raw, dict):
-        raw = {}
-    merged = raw.get("mergedProfile") or raw.get("merged_profile") or {}
-    refs = raw.get("factEvidenceRefs") or raw.get("fact_evidence_refs") or {}
-    return {
-        "mergedProfile": dict(merged) if isinstance(merged, dict) else {},
-        "factEvidenceRefs": dict(refs) if isinstance(refs, dict) else {},
-    }
-
-
-def _profile_with_confirmed_context_facts(
-    profile: dict[str, Any],
-    *,
-    legal_rule: dict[str, Any],
-    confirmed_context: ConfirmedStructuredBusinessContext,
-) -> dict[str, Any]:
-    merged = dict(profile.get("mergedProfile") or {})
-    fact_refs = dict(profile.get("factEvidenceRefs") or {})
-    required_fields = {
-        str(fact.get("field"))
-        for fact in legal_rule.get("requiredFacts") or []
-        if isinstance(fact, dict) and str(fact.get("field") or "").strip()
-    }
-    for statement in confirmed_context.statements:
-        candidate_fields = _TARGETED_RESOLUTION_FACT_FIELDS.get(statement.topic, ())
-        target_field = next(
-            (field for field in candidate_fields if field in required_fields),
-            None,
-        )
-        if target_field is None:
-            continue
-        merged[target_field] = statement.normalized_value
-        fact_refs[target_field] = [statement.statement_id]
-    return {"mergedProfile": merged, "factEvidenceRefs": fact_refs}
 
 def _terminal_guarded_state(context: dict[str, Any]) -> bool:
     state = context.get("publicState")
@@ -1738,14 +1431,60 @@ def _validate_guarded_continuation_pins(
         raise RuntimeError("guarded continuation source version is stale")
     if str(continuation.get("pgeVersion") or "") != pge_version:
         raise RuntimeError("guarded continuation PGE version is stale")
-    if not str(continuation.get("originatingInvestigationReference") or "").strip():
-        raise RuntimeError("guarded continuation is missing origin")
-    affected_rule_ids = continuation.get("affectedRuleIds")
-    if not isinstance(affected_rule_ids, list) or not affected_rule_ids:
-        raise RuntimeError("guarded continuation is missing affectedRuleIds")
-    artifact_versions = continuation.get("artifactVersions")
-    if not isinstance(artifact_versions, dict) or not artifact_versions:
-        raise RuntimeError("guarded continuation is missing artifactVersions")
+    if not str(continuation.get("needId") or "").strip():
+        raise RuntimeError("guarded continuation is missing needId")
+
+
+def _continuation_from_need(
+    targeted_need: dict[str, Any], *, source_version: str, pge_version: str
+) -> dict[str, Any]:
+    """Rebuild the resume identity from the persisted BusinessContextNeed."""
+    return {
+        "needId": targeted_need.get("needId"),
+        "engineeringRuleId": targeted_need.get("engineeringRuleId"),
+        "criterionId": targeted_need.get("criterionId"),
+        "resolutionCriterionIds": list(targeted_need.get("resolutionCriterionIds") or []),
+        "sourceVersion": source_version,
+        "pgeVersion": pge_version,
+    }
+
+
+def _bind_answer_to_need(
+    continuation: dict[str, Any], confirmed_context: ConfirmedStructuredBusinessContext
+) -> str:
+    """A governed answer resumes only the rule/criteria its needId names; else fail closed.
+
+    Identity is server-owned: the need id comes from the persisted BusinessContextNeed and
+    each confirmed statement's ``source_need_id`` / ``resolved_criterion_ids`` are stamped by
+    the API, never by the model. An unknown need or criterion is rejected, not ignored.
+    """
+    need_id = str(continuation.get("needId") or "").strip()
+    rule_id = str(continuation.get("engineeringRuleId") or "").strip()
+    if not need_id or not rule_id:
+        raise RuntimeError("guarded continuation does not identify one need and rule")
+    allowed = {
+        str(item)
+        for item in (
+            continuation.get("resolutionCriterionIds")
+            or [continuation.get("criterionId")]
+        )
+        if item
+    }
+    # Fail closed: without the need's criterion identity the answer cannot be proven to
+    # belong to it (mirrors the API's INTERVIEW_ANSWER_CRITERION_UNKNOWN / coverage rules).
+    if not allowed:
+        raise RuntimeError("guarded continuation does not carry the need's criterion identity")
+    bound = [s for s in confirmed_context.statements if s.source_need_id == need_id]
+    if not bound:
+        raise RuntimeError("confirmed answer does not resolve the pending need")
+    resolved = {c for s in bound for c in s.resolved_criterion_ids}
+    if not resolved:
+        raise RuntimeError("confirmed answer resolves no criterion of its need")
+    if resolved - allowed:
+        raise RuntimeError("confirmed answer resolves criteria outside its need")
+    if allowed - resolved:
+        raise RuntimeError("confirmed answer leaves criteria of its need unresolved")
+    return rule_id
 
 
 def _continuation_store_payload(state: dict[str, Any]) -> dict[str, Any]:
@@ -1776,7 +1515,7 @@ def _interview_instruction(
         }
         private_revision["governedEvidenceRefCount"] = len(refs) if isinstance(refs, list) else 0
     mode = (
-        "INVESTIGATOR_RESOLUTION"
+        "BUSINESS_CONTEXT_RESOLUTION"
         if isinstance(targeted_need, dict)
         else "INITIAL_INTERVIEW"
     )
@@ -1833,7 +1572,20 @@ def _interview_instruction(
         "return only the typed InterviewResult candidate. HTTP persistence is not proof "
         "of sufficiency. PROVIDE_MORE_CONTEXT means author the next bounded question from "
         "the existing thread; do not restart a targeted Interview. "
-        "Never return outcome=CONTEXT_READY while publicThreadState.contextAuthority is "
+        + (
+            "targetedNeed is ONE material Customer-owned distinction (its observation is a "
+            "plain-language note for context only). Ask only the smallest question that "
+            "settles it, in the customer's terms, without mentioning code, files, rules or "
+            "laws. resolutionCriterionIds lists the criteria it may settle. When the "
+            "customer's answer settles a criterion, record the confirmed statement that "
+            "answers it with statement.resolvesCriterionId set to that criterion's exact id "
+            "from resolutionCriterionIds (one statement per criterion; never invent an id, "
+            "and never write a needId - the platform stamps it itself). statement.topic stays "
+            "a short human-readable description. "
+            if isinstance(targeted_need, dict)
+            else ""
+        )
+        + "Never return outcome=CONTEXT_READY while publicThreadState.contextAuthority is "
         "CUSTOMER_STATED; the platform requires CUSTOMER_CONFIRMED authority for "
         "CONTEXT_READY and rejects an unauthoritative CONTEXT_READY with no automatic "
         "recovery beyond one bounded correction. Provenance rule: CUSTOMER_CONFIRMED "
@@ -1852,14 +1604,16 @@ def _interview_instruction(
         "If decisionValidationFeedback is present, the prior candidate was rejected by the "
         "platform guard; re-evaluate rather than resubmit it unchanged. When its code is "
         "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED, the candidate did not resolve the "
-        "targeted need: re-evaluate against the private customer revision and use the exact "
-        "resolutionCriteria text as statement.topic. When its code is "
+        "targeted need: re-evaluate against the private customer revision and record one "
+        "statement per criterion with statement.resolvesCriterionId set to an exact id from "
+        "resolutionCriterionIds. When its code is "
         "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY, the candidate asserted CONTEXT_READY "
         "without CUSTOMER_CONFIRMED authority: return WAITING_FOR_CUSTOMER with a bounded "
         "confirming question instead. When its code is INTERVIEW_HANDOFF_SCHEMA_VIOLATION, "
         "rejectedReason names the exact structural rule the prior candidate broke (for "
         "example a malformed CONFIRM_ADJUST choice shape or an invalid outcome/mode "
         "combination): fix only that violation, changing nothing else about the candidate. "
+        "If it also has schemaViolation, fix that rejectedReason rule too. "
         "Do not invent confirmation or treat validation feedback as customer evidence. "
         "If evidence is missing, return WAITING_FOR_CUSTOMER with a bounded clarification, "
         "or BLOCKED_OR_UNRESOLVED when the customer cannot supply it. Because provider "

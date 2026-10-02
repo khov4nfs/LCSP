@@ -4,12 +4,10 @@ import {
   Inject,
   Optional,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
   Post,
-  Query,
   Req,
   Res,
   UseGuards,
@@ -26,8 +24,6 @@ import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
-import { GitHubAppCallbackCommand } from "../../application/commands/github-app-callback/github-app-callback.command.js";
-import { GitHubAppStartCommand } from "../../application/commands/github-app-start/github-app-start.command.js";
 import { PinSnapshotCommand } from "../../application/commands/pin-snapshot/pin-snapshot.command.js";
 import { TriggerScanCommand } from "../../application/commands/trigger-scan/trigger-scan.command.js";
 import type { PinSnapshotDto } from "../../application/contracts/github-integration/pin-snapshot.contract.js";
@@ -235,77 +231,6 @@ export class GitHubIntegrationController {
           context.role,
           body.repositoryUrl,
           request.correlationId as string,
-        ),
-      ),
-    );
-  }
-
-  /**
-   * Starts or resumes the sensitive GitHub App installation flow for the authenticated organization/user.
-   *
-   * @param redirectUri - Allowlisted client redirect URI to restore after GitHub callback.
-   * @param assessmentId - Optional assessment to bind to the resulting repository connection.
-   * @param installationId - Optional existing installation identifier for reconnect/resume flows.
-   * @param request - RBAC-authenticated request containing user, session, and correlation context.
-   * @returns Standard result envelope containing the GitHub installation URL.
-   */
-  @Get("github/app/start")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer)
-  @ReAuthForSensitiveRoute({
-    routeId: SENSITIVE_ROUTE_IDS.githubAppStart,
-    method: "GET",
-    pathTemplate: "/github/app/start",
-    aliases: [{ method: "GET", pathTemplate: "/api/github/app/start" }],
-  })
-  async startAppInstallation(
-    @Query("redirect_uri") redirectUri: string | undefined,
-    @Query("assessment_id") assessmentId: string | undefined,
-    @Query("installation_id") installationId: string | undefined,
-    @Req() request: GitHubIntegrationRequest,
-  ) {
-    const rbacContext = request.rbacContext as RbacRequestContext;
-
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new GitHubAppStartCommand(
-          rbacContext.userId,
-          redirectUri,
-          assessmentId,
-          request.correlationId as string,
-          rbacContext.sessionId,
-          installationId,
-        ),
-      ),
-    );
-  }
-
-  /**
-   * Completes the public GitHub App callback using the opaque state created by the installation-start flow.
-   *
-   * @param installationId - GitHub App installation identifier returned by GitHub.
-   * @param code - GitHub callback authorization code.
-   * @param state - Opaque installation state binding the callback to the original request.
-   * @param repositoryId - Optional repository selected during the installation flow.
-   * @param correlationId - Optional upstream correlation identifier; generated when absent.
-   * @returns Standard result envelope containing the established repository connection.
-   */
-  @Get("github/app/callback")
-  async handleAppCallback(
-    @Query("installation_id") installationId: string,
-    @Query("code") code: string,
-    @Query("state") state: string,
-    @Query("repository_id") repositoryId: string | undefined,
-    @Headers("x-correlation-id") correlationId: string | undefined,
-  ) {
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new GitHubAppCallbackCommand(
-          installationId,
-          code,
-          state,
-          correlationId ?? createCorrelationId(),
-          repositoryId,
         ),
       ),
     );

@@ -2,33 +2,37 @@
 
 from __future__ import annotations
 
-from orchestration.agent_stream import invoke_with_stream
-
 import hashlib
 import json
+import logging
 import re
 from typing import Any
 
 from orchestration.dispatcher import RootSubagentDispatcher
+from orchestration.result_validation import SpecialistHandoffValidationError
+from subagents.interview.customer_safe_projection import MAX_LISTED_ALLOWED_REFS
 from decision.shadow import InterviewRoutingPacket, observer_from_api_client
 from tools.common.capabilities.platform.api_client import InterviewCoverageCallbackError
 
 from .engineering_assessment_boundary import EngineeringAssessmentBoundary
-from .managed_targeted_investigator import (
-    ManagedTargetedInvestigatorPipeline,
-    TargetedInterviewPending,
-)
 from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
     ConfirmedStructuredBusinessContext,
     normalize_confirmed_structured_business_context,
 )
 
 
+_LOGGER = logging.getLogger(__name__)
+
 _TERMINAL_WAITING_OUTCOMES = {
     "WAITING_FOR_CUSTOMER",
     "BLOCKED_OR_UNRESOLVED",
     "FAILED",
 }
+
+# Typed runtime activities for a technical gap. Recovery is an explicit rescan through the
+# scan rerun API (customer/operator action), never a model decision.
+AI_DISCOVERY_UNRESOLVED = "AI_DISCOVERY_UNRESOLVED"
+TECHNICAL_COVERAGE_RECOVERY_REQUIRED = "TECHNICAL_COVERAGE_RECOVERY_REQUIRED"
 
 _CANONICAL_COVERAGE_STATES = {
     "READY": "READY",
@@ -39,25 +43,6 @@ _CANONICAL_COVERAGE_STATES = {
 }
 
 
-class _ConfirmedContextPipeline:
-    """Inject only server-guarded confirmed Customer context into the existing pipeline."""
-
-    def __init__(
-        self,
-        delegate: Any,
-        confirmed_context: ConfirmedStructuredBusinessContext,
-    ) -> None:
-        self._delegate = delegate
-        self._confirmed_context = confirmed_context
-
-    def run(self, *args: Any, **kwargs: Any) -> Any:
-        kwargs["confirmed_customer_context"] = self._confirmed_context
-        return self._delegate.run(*args, **kwargs)
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._delegate, name)
-
-
 class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary):
     """Production accepted-evidence boundary with decision-before-downstream Interview gating."""
 
@@ -65,19 +50,12 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         self,
         *args: Any,
         interview_dispatcher: Any | None = None,
-        recovery_root: Any | None = None,
         **kwargs: Any,
     ) -> None:
-        injected_pipeline = kwargs.get("investigation_pipeline")
+        # One dispatcher serves both the Interview gate and the per-rule analyst tasks.
+        kwargs.setdefault("dispatcher", interview_dispatcher)
         super().__init__(*args, **kwargs)
         self._interview_dispatcher = interview_dispatcher
-        self._recovery_root = recovery_root
-        if injected_pipeline is None:
-            self._pipeline = ManagedTargetedInvestigatorPipeline(
-                delegate=self._pipeline,
-                config=self._config,
-                api_client=self._api_client,
-            )
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         evidence_report_id = self._evidence_report_id(message)
@@ -106,20 +84,13 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         )
         if confirmed_context is None:
             return
-
-        original_pipeline = self._pipeline
-        self._pipeline = _ConfirmedContextPipeline(original_pipeline, confirmed_context)
-        try:
-            try:
-                super().handle(message, correlationId)
-            except TargetedInterviewPending:
-                # The managed Investigator already persisted the exact child
-                # execution/checkpoint and queued Targeted Interview. Do not emit a
-                # classification callback or continue deterministic evaluation until
-                # that exact execution is resumed with guarded Customer context.
-                return
-        finally:
-            self._pipeline = original_pipeline
+        rule_scope = message.get("ruleScope")
+        self.run_assessment(
+            message,
+            correlationId,
+            confirmed_context=confirmed_context,
+            rule_scope=tuple(str(item) for item in rule_scope) if isinstance(rule_scope, list) else None,
+        )
 
     def _prepare_interview(
         self,
@@ -148,37 +119,25 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         if ai_discovery and ai_discovery.get("gate") == "AI_ABSENT_CONFIRMED":
             if coverage_state == "READY" and ai_discovery.get("coverage_state") == "READY":
                 if not authoritative_customer_ai:
+                    # Terminal outcome: without it the assessment waits forever for an
+                    # Initial Interview question that is never asked.
+                    self._api_client.post_assessment_ai_not_detected(
+                        assessment_id,
+                        {"technicalEvidenceReportId": evidence_report_id},
+                    )
                     return None
-            else:
-                self._route_ai_discovery_to_recovery(
-                    assessment_id=assessment_id,
-                    evidence_report_id=evidence_report_id,
-                    ai_discovery=ai_discovery,
-                    correlation_id=correlation_id,
-                )
-                return None
 
         if not _can_start_initial_interview(coverage_state, coverage_notes, evidence_report):
-            self._route_coverage_to_recovery(
-                assessment_id=assessment_id,
-                evidence_report_id=evidence_report_id,
-                coverage_state=coverage_state,
-                coverage_notes=coverage_notes,
-                correlation_id=correlation_id,
+            self._emit_technical_limitation(
+                evidence_report, TECHNICAL_COVERAGE_RECOVERY_REQUIRED, coverageState=coverage_state
             )
             return None
 
-        # Scanner/PGE-owned uncertainty is independent of Customer-owned clarification.
-        # A Customer question may exist, but downstream assessment must not resume while
-        # material technical frontiers remain unresolved.
+        # Scanner/PGE-owned AI uncertainty is an independent upstream fact: the gate stays
+        # UNKNOWN, aiDetected stays pending (deterministic applicability marks gated rules
+        # UPSTREAM_FACT_PENDING) and ungated rules still run. No model decides recovery.
         if ai_discovery and ai_discovery.get("gate") == "AI_UNKNOWN" and _has_technical_ai_uncertainty(ai_discovery):
-            self._route_ai_discovery_to_recovery(
-                assessment_id=assessment_id,
-                evidence_report_id=evidence_report_id,
-                ai_discovery=ai_discovery,
-                correlation_id=correlation_id,
-            )
-            return None
+            self._emit_technical_limitation(evidence_report, AI_DISCOVERY_UNRESOLVED, coverageState=coverage_state)
 
         if outcome == "CONTEXT_READY":
             return normalize_confirmed_structured_business_context(
@@ -202,10 +161,12 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
             TurnEvidenceLedger,
             build_why_are_we_asking_explanation,
             evaluate_question_eligibility,
+            evidence_ref_correction_reason,
             extract_governed_evidence_refs,
             reset_active_turn_evidence_ledger,
             sanitize_customer_facing_text,
             set_active_turn_evidence_ledger,
+            unauthorized_candidate_refs,
             validate_evidence_refs,
         )
 
@@ -285,45 +246,81 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
             if ai_discovery
             else None
         )
-        if handoff is None:
-            ledger_token = set_active_turn_evidence_ledger(ledger)
-            try:
-                dispatcher = self._interview_dispatcher or RootSubagentDispatcher()
-                result = dispatcher.dispatch(
-                    subagent_type="interview",
-                    instruction=_initial_interview_instruction(
-                        assessment_id=assessment_id,
-                        evidence_report_id=evidence_report_id,
-                        evidence_report=evidence_report,
-                    ),
-                    idempotency_key=f"assessment-interview-initial:{assessment_id}:{evidence_report_id}",
-                    trigger="TECHNICAL_EVIDENCE_ACCEPTED",
-                    metadata={
-                        "assessment_id": assessment_id,
-                        "technical_evidence_report_id": evidence_report_id,
-                        "correlationId": correlation_id,
-                    },
-                    thread_id=f"interview:{assessment_id}",
-                    context=run_context,
-                    reenter_root=False,
-                )
-            finally:
-                reset_active_turn_evidence_ledger(ledger_token)
-            handoff = result.get("handoff") if isinstance(result, dict) else None
+        # The exact set the API persists and accepts (AssessmentProvenanceSnapshot
+        # .governedEvidenceRefs). Question refs must be copied verbatim from it.
+        persistable_refs = _persistable_evidence_refs(evidence_report, evidence_report_id)
 
-        if not isinstance(handoff, dict):
-            raise ValueError("Initial Interview specialist did not return a validated handoff")
-        if handoff.get("outcome") != "WAITING_FOR_CUSTOMER" or not isinstance(
-            handoff.get("activeQuestion"), dict
-        ):
-            raise ValueError(
-                "Initial Interview must persist a Customer question before EngineeringRule work"
+        def _require_persistable_question(candidate: Any) -> dict[str, Any]:
+            if not isinstance(candidate, dict):
+                raise ValueError("Initial Interview specialist did not return a validated handoff")
+            if candidate.get("outcome") != "WAITING_FOR_CUSTOMER" or not isinstance(
+                candidate.get("activeQuestion"), dict
+            ):
+                raise ValueError(
+                    "Initial Interview must persist a Customer question before EngineeringRule work"
+                )
+            if not isinstance(candidate["activeQuestion"].get("frontier"), dict):
+                raise ValueError("Initial Interview question candidate requires frontier metadata")
+            rejected = unauthorized_candidate_refs(candidate["activeQuestion"], persistable_refs)
+            if rejected:
+                raise SpecialistHandoffValidationError(
+                    evidence_ref_correction_reason(rejected, persistable_refs)
+                )
+            return candidate
+
+        if handoff is None:
+            instruction = _initial_interview_instruction(
+                assessment_id=assessment_id,
+                evidence_report_id=evidence_report_id,
+                evidence_report=evidence_report,
+                allowed_evidence_refs=persistable_refs,
             )
+            idempotency_key = f"assessment-interview-initial:{assessment_id}:{evidence_report_id}"
+            dispatcher = self._interview_dispatcher or RootSubagentDispatcher()
+
+            def _dispatch_initial(instruction: str, idempotency_key: str) -> dict[str, Any]:
+                ledger_token = set_active_turn_evidence_ledger(ledger)
+                try:
+                    result = dispatcher.dispatch(
+                        subagent_type="interview",
+                        instruction=instruction,
+                        idempotency_key=idempotency_key,
+                        trigger="TECHNICAL_EVIDENCE_ACCEPTED",
+                        metadata={
+                            "assessment_id": assessment_id,
+                            "technical_evidence_report_id": evidence_report_id,
+                            "correlationId": correlation_id,
+                        },
+                        thread_id=f"interview:{assessment_id}",
+                        context=run_context,
+                    )
+                finally:
+                    reset_active_turn_evidence_ledger(ledger_token)
+                return _require_persistable_question(
+                    result.get("handoff") if isinstance(result, dict) else None
+                )
+
+            try:
+                handoff = _dispatch_initial(instruction, idempotency_key)
+            except SpecialistHandoffValidationError as exc:
+                # A missing/malformed handoff or an inexact evidence ref is a
+                # candidate-shape failure. Give the specialist one bounded correction
+                # naming the exact rule it broke (as the resume boundary does); a
+                # second failure propagates. Refs are never dropped or substituted.
+                _LOGGER.warning(
+                    "INTERVIEW_INITIAL_HANDOFF_VALIDATION_REPAIRED assessment_id=%s reason=%s",
+                    assessment_id,
+                    str(exc)[:300],
+                )
+                handoff = _dispatch_initial(
+                    _initial_schema_correction_instruction(instruction, exc),
+                    f"{idempotency_key}:schema-correction:1",
+                )
+        else:
+            handoff = _require_persistable_question(handoff)
 
         question = handoff["activeQuestion"]
-        frontier = question.get("frontier")
-        if not isinstance(frontier, dict):
-            raise ValueError("Initial Interview question candidate requires frontier metadata")
+        frontier = question["frontier"]
         eligible, reason = evaluate_question_eligibility(frontier, ledger)
         if not eligible:
             raise ValueError(f"Initial Interview question candidate is not eligible: {reason}")
@@ -385,108 +382,34 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         try:
             self._api_client.post_interview_initial_question(assessment_id, handoff)
         except InterviewCoverageCallbackError:
-            self._route_coverage_to_recovery(
-                assessment_id=assessment_id,
-                evidence_report_id=evidence_report_id,
-                coverage_state=coverage_state,
-                coverage_notes=coverage_notes,
-                correlation_id=correlation_id,
+            self._emit_technical_limitation(
+                evidence_report, TECHNICAL_COVERAGE_RECOVERY_REQUIRED, coverageState=coverage_state
             )
         return None
 
-    def _route_ai_discovery_to_recovery(
-        self,
-        *,
-        assessment_id: str,
-        evidence_report_id: str,
-        ai_discovery: dict[str, Any],
-        correlation_id: str,
+    def _emit_technical_limitation(
+        self, evidence_report: dict[str, Any], code: str, **details: Any
     ) -> None:
-        root = self._recovery_root
-        if root is None:
-            from agent import agent
-
-            root = agent
-        bounded = {
-            "gate": ai_discovery.get("gate"),
-            "coverageState": ai_discovery.get("coverage_state"),
-            "technicalFindingKinds": sorted(
+        """Best-effort typed runtime activity for a technical gap (no root/model prompt)."""
+        scan_job_id = self._scan_job_id(evidence_report)
+        post = getattr(self._api_client, "post_scan_runtime_event", None)
+        if not scan_job_id or post is None:
+            return
+        try:
+            post(
+                scan_job_id,
                 {
-                    str(item.get("clarification_kind") or "")
-                    for item in ai_discovery.get("findings", [])
-                    if isinstance(item, dict)
-                    and item.get("clarification_owner") == "TECHNICAL"
-                }
-            )[:16],
-            "materialUnresolvedFrontiers": list(
-                ai_discovery.get("material_unresolved_frontiers") or []
-            )[:16],
-        }
-        invoke_with_stream(root,
-            {"messages": [{"role": "user", "content": (
-                "AI discovery is technically unresolved. Do not ask the Customer to solve a "
-                "scanner/static-analysis gap and do not enter EngineeringRule, Planner, or "
-                "Investigator. Run targeted Scanner/PGE reanalysis for the pinned evidence, "
-                "then re-enter from newly accepted technical evidence. Do not infer a provider "
-                "or model from an unknown/custom endpoint. "
-                f"Assessment: {assessment_id}. Evidence report: {evidence_report_id}. "
-                f"Bounded AI discovery: {json.dumps(bounded, ensure_ascii=False, sort_keys=True)}"
-            )}]},
-            config={"configurable": {"thread_id": f"assessment:{assessment_id}:ai-discovery-recovery"},
-                    "metadata": {"assessment_id": assessment_id,
-                                 "technical_evidence_report_id": evidence_report_id,
-                                 "correlationId": correlation_id,
-                                 "trigger": "AI_DISCOVERY_REANALYSIS_REQUIRED"}},
-        )
-
-    def _route_coverage_to_recovery(
-        self,
-        *,
-        assessment_id: str,
-        evidence_report_id: str,
-        coverage_state: str,
-        coverage_notes: list[str],
-        correlation_id: str,
-    ) -> None:
-        root = self._recovery_root
-        if root is None:
-            from agent import agent
-
-            root = agent
-        invoke_with_stream(root,
-            {
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": (
-                            "Technical evidence coverage cannot start Initial Interview. Do not enter "
-                            "Initial Interview, "
-                            "EngineeringRule, Planner, or Investigator. Run Root Orchestration recovery "
-                            "for the pinned technical evidence first (for example targeted re-analysis or "
-                            "a governed re-scan), then re-enter the assessment only from newly accepted "
-                            "technical evidence. "
-                            "PARTIAL coverage requires a persisted policy with permittedForInterview=true, "
-                            "policyDecisionRef, policyVersion, and non-empty limitations. Coverage notes "
-                            "alone do not authorize Interview. Do not manufacture a policy approval. "
-                            f"Assessment: {assessment_id}. Evidence report: {evidence_report_id}. "
-                            f"Coverage state: {coverage_state}. "
-                            f"Bounded coverage notes: {json.dumps(coverage_notes, ensure_ascii=False)}"
-                        ),
-                    }
-                ]
-            },
-            config={
-                "configurable": {
-                    "thread_id": f"assessment:{assessment_id}:coverage-recovery"
+                    "event_type": "TOOL_WAITING_INPUT",
+                    "run_status": "WAITING",
+                    "stage": "TECHNICAL_EVIDENCE",
+                    "tool_name": f"technical_limitation:{code}",
+                    "summary": code,
+                    "waiting_reason": code,
+                    "output_summary": {"activity": code, **details},
                 },
-                "metadata": {
-                    "assessment_id": assessment_id,
-                    "technical_evidence_report_id": evidence_report_id,
-                    "correlationId": correlation_id,
-                    "trigger": "TECHNICAL_COVERAGE_RECOVERY_REQUIRED",
-                },
-            },
-        )
+            )
+        except Exception:  # noqa: BLE001 - progress must never fail an assessment
+            _LOGGER.warning("technical limitation activity not delivered: %s", code)
 
 
 def _technical_coverage(evidence_report: dict[str, Any]) -> tuple[str, list[str]]:
@@ -567,11 +490,16 @@ def _ai_discovery(evidence_report: dict[str, Any]) -> dict[str, Any] | None:
     gate = str(value.get("gate") or "")
     if gate not in {"AI_CONFIRMED", "AI_ABSENT_CONFIRMED", "AI_UNKNOWN"}:
         return None
+    coverage_state = str(value.get("coverage_state") or value.get("coverageState") or "UNAVAILABLE")
+    if gate == "AI_ABSENT_CONFIRMED" and (
+        coverage_state != "READY" or _technical_coverage(evidence_report)[0] != "READY"
+    ):
+        gate = "AI_UNKNOWN"  # absence is governed only with READY coverage; otherwise unknown
     findings = value.get("findings")
     return {
         "schema_version": str(value.get("schema_version") or value.get("schemaVersion") or "1.0.0"),
         "gate": gate,
-        "coverage_state": str(value.get("coverage_state") or value.get("coverageState") or "UNAVAILABLE"),
+        "coverage_state": coverage_state,
         "findings": [item for item in findings if isinstance(item, dict)][:64]
         if isinstance(findings, list)
         else [],
@@ -704,6 +632,21 @@ def _ai_discovery_handoff(
             {"id": "UNSURE", "label": "Unsure"},
         ]
         description = f"Runtime reachability of the AI path evidenced at {location}"
+    elif kind == "OUTBOUND_AI_CONFIRMATION" and finding.get("kind") == "PROVIDER_REFERENCE":
+        provider_text = f"the {provider} AI SDK" if provider else "an AI SDK"
+        prompt = (
+            f"LCSP found {provider_text} declared or imported at {location}, but could not "
+            "trace a model call from the assessed product code. Does the assessed product use "
+            "it to call an AI/LLM service in production? If Yes, name the feature or workflow "
+            "that uses it."
+        )
+        control = "SINGLE_SELECT"
+        choices = [
+            {"id": "YES", "label": "Yes", "requiresFreeText": True},
+            {"id": "NO", "label": "No"},
+            {"id": "UNSURE", "label": "Unsure"},
+        ]
+        description = f"Production use of the AI SDK referenced at {location}"
     elif kind == "OUTBOUND_AI_CONFIRMATION":
         prompt = (
             f"LCSP found an outbound API call at {location} with AI-compatible request evidence, "
@@ -771,11 +714,68 @@ def _ai_discovery_handoff(
     }
 
 
+_INTERVIEW_RUNTIME_EVIDENCE_REF = "interviewRuntime:assessment-interview-runtime-v1"
+_EVIDENCE_GRAPH_KEYS = (
+    "evidence_graph",
+    "evidenceGraph",
+    "programEvidenceGraph",
+    "program_evidence_graph",
+)
+
+
+def _ref_strings(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item.strip()]
+
+
+def _record_refs(record: Any) -> list[str]:
+    if not isinstance(record, dict):
+        return []
+    refs = record.get("evidence_refs")
+    return _ref_strings(refs if refs is not None else record.get("evidenceRefs"))
+
+
+def _persistable_evidence_refs(
+    evidence_report: dict[str, Any],
+    evidence_report_id: str,
+) -> set[str]:
+    """Exact evidence refs the API accepts for this report's Interview question.
+
+    Mirrors ``AssessmentProvenanceSnapshot.governedEvidenceRefs`` in
+    ``assessment-interview-runtime.service.ts``: the report, its snapshot, the
+    Interview runtime, and the evidence refs of the graph, its nodes and edges, and
+    the payload. Refs are kept verbatim; a ref outside this set is rejected there.
+    """
+    refs = {f"technicalEvidenceReport:{evidence_report_id}", _INTERVIEW_RUNTIME_EVIDENCE_REF}
+    snapshot_id = str(
+        evidence_report.get("snapshot_id") or evidence_report.get("snapshotId") or ""
+    ).strip()
+    if snapshot_id:
+        refs.add(f"repositorySnapshot:{snapshot_id}")
+    payload = evidence_report.get("evidence_payload")
+    if payload is None:
+        payload = evidence_report.get("evidencePayload")
+    if not isinstance(payload, dict):
+        return refs
+    graph = next((payload[key] for key in _EVIDENCE_GRAPH_KEYS if payload.get(key) is not None), None)
+    if isinstance(graph, dict):
+        refs.update(_record_refs(graph))
+        for collection in ("nodes", "edges"):
+            items = graph.get(collection)
+            if isinstance(items, list):
+                for item in items:
+                    refs.update(_record_refs(item))
+    refs.update(_record_refs(payload))
+    return refs
+
+
 def _initial_interview_instruction(
     *,
     assessment_id: str,
     evidence_report_id: str,
     evidence_report: dict[str, Any],
+    allowed_evidence_refs: set[str] | None = None,
 ) -> str:
     coverage_state, coverage_notes = _technical_coverage(evidence_report)
     safe_context = {
@@ -796,9 +796,14 @@ def _initial_interview_instruction(
         "schemaVersion": evidence_report.get("schema_version")
         or evidence_report.get("schemaVersion"),
         "aiDiscovery": _ai_discovery(evidence_report),
+        "allowedEvidenceRefs": sorted(
+            allowed_evidence_refs
+            if allowed_evidence_refs is not None
+            else _persistable_evidence_refs(evidence_report, evidence_report_id)
+        )[:MAX_LISTED_ALLOWED_REFS],
     }
     return (
-        "Run INITIAL_INTERVIEW before any EngineeringRule, Planner or Investigator work. "
+        "Run INITIAL_INTERVIEW before any EngineeringRule analysis. "
         "Use only this bounded technical coverage/provenance and governed AI-discovery summary to decide the first Customer question. "
         "Missing technical evidence is not proof that a business behavior does not exist. "
         "Do not infer Customer confirmation from PGE/documentary evidence. "
@@ -807,8 +812,29 @@ def _initial_interview_instruction(
         "confirmed AI invocation is already present, do not ask whether it is AI; ask only the "
         "unresolved purpose/feature/workflow/output-role context. For an unresolved custom outbound "
         "candidate, use Yes/No/Unsure and do not name a provider unless evidence or the Customer does. "
-        "Return WAITING_FOR_CUSTOMER with exactly one bounded activeQuestion.\n"
+        "Return WAITING_FOR_CUSTOMER with exactly one bounded activeQuestion. Every "
+        "whyEvidenceRefs/frontier.evidenceRefs entry must be copied verbatim from "
+        "allowedEvidenceRefs; never invent, shorten or rename a ref, and use [] when none applies.\n"
         f"Bounded initial context: {json.dumps(safe_context, ensure_ascii=False, sort_keys=True)}"
+    )
+
+
+def _initial_schema_correction_instruction(
+    instruction: str,
+    error: SpecialistHandoffValidationError,
+) -> str:
+    feedback = {
+        "code": "INTERVIEW_HANDOFF_SCHEMA_VIOLATION",
+        "rejectedReason": str(error)[:2000],
+    }
+    return (
+        f"{instruction}\n"
+        "Your previous candidate was rejected before persistence. Return the final answer "
+        "as the structured InterviewResult handoff (not prose), fixing only the rule named "
+        "in rejectedReason: outcome WAITING_FOR_CUSTOMER with exactly one activeQuestion "
+        "whose frontier has owner=CUSTOMER, materiality=MATERIAL, a non-empty description "
+        "and evidenceRefs limited to governed refs from the bounded context ([] when none).\n"
+        f"decisionValidationFeedback: {json.dumps(feedback, ensure_ascii=False, sort_keys=True)}"
     )
 
 

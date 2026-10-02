@@ -9,7 +9,6 @@ Web UI
 -> ChromaDB legal index
 -> RabbitMQ + Outbox
 -> Python Worker Platform
--> bounded Node.js TS/JS analyzer CLI
 -> S3-compatible object storage
 -> LLM Gateway
 ```
@@ -24,17 +23,13 @@ Giao diện cho Manager. UX phải thể hiện đầy đủ trạng thái bình
 
 NestJS API chịu trách nhiệm HTTP, authentication, PBAC enforcement boundary, tenant scope, tạo trusted trigger/job, kiểm tra state guard, query result, download và audit export. API không trực tiếp thực hiện repository scan hoặc tác vụ dài.
 
-### `deepagents/scanner`
+### `deepagents` repository analysis
 
-Python Scanner Worker là consumer duy nhất của scan command và sở hữu toàn bộ scan lifecycle. Worker chạy Syft, Knip, deptry, Python `ast`/`libcst`, bounded Node `ts-morph`, tree-sitter/custom parser và Semgrep custom rules.
+LCSP Agent Runtime sở hữu repository-analysis lifecycle trên local LangGraph Agent Server. Repository Deep Agent dùng native Deep Agents filesystem/search/shell/subagent tools trong Docker sandbox; Codebase Memory MCP 0.11.0 hỗ trợ graph/search/trace/coverage và source trực tiếp vẫn là authority.
 
 ### Python Worker Platform
 
 Python Worker Platform xử lý toàn bộ asynchronous domain workloads: scan trigger, Repository Scan, TechnicalProfile, AIUsageFlow, reconciliation, legal ingestion/index, legal matching, classification, gap analysis và document generation. Audit export là synchronous Backend API operation trong MVP. Đây là nhiều bounded consumers/modules, không phải một Python monolith.
-
-### `tools/ts-js-analyzer`
-
-Node CLI dùng `ts-morph`, nhận request JSON từ Python Scanner Worker và trả normalized facts qua stdout. Công cụ này không đọc queue, không tự ghi DB và không phát event.
 
 ### PostgreSQL
 
@@ -66,7 +61,7 @@ Lưu immutable legal source snapshots và generated document artifacts. Database
 - Không raw source sang LLM hoặc lưu dài hạn.
 - Deterministic orchestration thay vì autonomous multi-agent control.
 - Python Worker Platform thay thế Node.js downstream domain workers.
-- Python Scanner Worker thay thế TypeScript-first scanner lifecycle.
+- LCSP Agent Runtime Repository Deep Agent thay thế static scanner lifecycle.
 - Real LLM provider thay thế mock happy path.
 - Official-source legal corpus thay thế local JSONL seed.
 - ChromaDB structure-first vectorless legal retriever là retriever chuẩn.

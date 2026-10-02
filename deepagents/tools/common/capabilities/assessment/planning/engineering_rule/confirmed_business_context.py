@@ -1,4 +1,4 @@
-"""Confirmed structured business context accepted by EngineeringRule Planner."""
+"""Confirmed structured business context accepted from the Interview agent."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,6 +29,12 @@ class ConfirmedBusinessContextStatement:
     supersedes_statement_id: str | None
     source: Literal["CUSTOMER_CONFIRMED"] = CONFIRMED_CONTEXT_SOURCE
     resolution_state: Literal["CONFIRMED"] = CONFIRMED_CONTEXT_RESOLUTION_STATE
+    # Server-owned identity of the targeted need this answer resolves (Wave D). Stamped by
+    # the API from the need that was pending, never chosen by the model; empty for an
+    # ordinary statement.
+    source_need_id: str | None = None
+    condition_id: str | None = None
+    resolved_criterion_ids: tuple[str, ...] = ()
 
     def to_prompt_dict(self) -> dict[str, Any]:
         return {
@@ -43,12 +49,21 @@ class ConfirmedBusinessContextStatement:
             "supersedesStatementId": self.supersedes_statement_id,
             "source": self.source,
             "resolutionState": self.resolution_state,
+            **(
+                {
+                    "sourceNeedId": self.source_need_id,
+                    "conditionId": self.condition_id,
+                    "resolvedCriterionIds": list(self.resolved_criterion_ids),
+                }
+                if self.condition_id
+                else {}
+            ),
         }
 
 
 @dataclass(frozen=True)
 class ConfirmedStructuredBusinessContext:
-    """Planner input envelope for authoritative business context."""
+    """Deterministic input envelope for authoritative business context."""
 
     assessment_id: str
     context_revision: int
@@ -92,7 +107,7 @@ class ConfirmedStructuredBusinessContext:
         }
 
     def to_legacy_customer_context(self) -> dict[str, Any]:
-        """Return a bounded compatibility view for non-Planner deterministic code."""
+        """Return a bounded compatibility view for deterministic consumers."""
         answers = {
             statement.topic: statement.normalized_value
             if statement.normalized_value is not None
@@ -118,9 +133,9 @@ def normalize_confirmed_structured_business_context(
     *,
     assessment_id: str,
 ) -> ConfirmedStructuredBusinessContext:
-    """Convert guarded Interview state into Planner's confirmed-only envelope."""
+    """Convert guarded Interview state into the confirmed-only envelope."""
     if str(state.get("outcome") or "") not in {"CONTEXT_READY", "CONTEXT_RESOLVED"}:
-        raise ValueError("Planner requires guarded confirmed Interview context")
+        raise ValueError("Rule analysis requires guarded confirmed Interview context")
     raw = (
         state.get("confirmedStructuredBusinessContext")
         or state.get("currentConfirmedBusinessContext")
@@ -209,7 +224,7 @@ def coerce_confirmed_structured_business_context(
             },
             assessment_id=assessment_id,
         )
-    raise ValueError("Planner requires confirmed structured business context")
+    raise ValueError("Rule analysis requires confirmed structured business context")
 
 
 def _normalize_statement(
@@ -245,6 +260,11 @@ def _normalize_statement(
         created_at=_required_string(item.get("createdAt") or item.get("created_at"), "createdAt"),
         supersedes_statement_id=_optional_string(
             item.get("supersedesStatementId") or item.get("supersedes_statement_id")
+        ),
+        source_need_id=_optional_string(item.get("sourceNeedId") or item.get("source_need_id")),
+        condition_id=_optional_string(item.get("conditionId") or item.get("condition_id")),
+        resolved_criterion_ids=_string_tuple(
+            item.get("resolvedCriterionIds") or item.get("resolved_criterion_ids")
         ),
     )
 

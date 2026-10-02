@@ -6,7 +6,7 @@
 - **[02-yeu-cau-va-nghiem-thu.md](./02-yeu-cau-va-nghiem-thu.md)** - Yeu cau va nghiem thu
 - **[03-luong-nghiep-vu-a-z.md](./03-luong-nghiep-vu-a-z.md)** - Luong nghiep vu A-to-Z
 - **[04-kien-truc-he-thong.md](./04-kien-truc-he-thong.md)** - Kien truc he thong
-- **[05-python-scanner.md](./05-python-scanner.md)** - Python Scanner tom luoc
+- **[../docs/architecture/repository-deep-agent-analysis.md](./../docs/architecture/repository-deep-agent-analysis.md)** - Managed Repository Deep Agent tom luoc
 - **[06-phap-ly-rag-va-llm.md](./06-phap-ly-rag-va-llm.md)** - Phap ly, RAG va LLM
 - **[07-du-lieu-su-kien-va-bao-mat.md](./07-du-lieu-su-kien-va-bao-mat.md)** - Du lieu, su kien va bao mat
 - **[08-ke-hoach-trien-khai.md](./08-ke-hoach-trien-khai.md)** - Ke hoach trien khai

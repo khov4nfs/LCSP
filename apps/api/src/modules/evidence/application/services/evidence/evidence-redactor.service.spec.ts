@@ -2,7 +2,7 @@ import { EvidenceRedactorService } from "./evidence-redactor.service.js";
 
 const finding = {
   finding_id: "finding-1",
-  tool: "semgrep",
+  tool: "repository-analysis",
   finding_type: "AI_MODEL_INVOCATION",
   severity: "HIGH",
   description: "Model invocation detected",

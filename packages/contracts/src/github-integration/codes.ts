@@ -1,8 +1,5 @@
 export const GITHUB_INTEGRATION_ERROR_CODES = {
   connectionNotFound: "CONNECTION_NOT_FOUND",
-  invalidRedirectUri: "INVALID_REDIRECT_URI",
-  githubStateInvalid: "GITHUB_STATE_INVALID",
-  githubCallbackInvalid: "GITHUB_CALLBACK_INVALID",
   permissionsInsufficient: "PERMISSIONS_INSUFFICIENT",
   refNotResolvable: "REF_NOT_RESOLVABLE",
   refOutOfScope: "REF_OUT_OF_SCOPE",
@@ -17,8 +14,9 @@ export const GITHUB_INTEGRATION_ERROR_CODES = {
   cliConnectDisabled: "GITHUB_CLI_CONNECT_DISABLED",
   connectionAlreadyExists: "REPOSITORY_CONNECTION_ALREADY_EXISTS",
   credentialRequestInvalid: "GITHUB_CREDENTIAL_REQUEST_INVALID",
-  cliSnapshotPinningDisabled: "GITHUB_CLI_SNAPSHOT_PINNING_DISABLED",
-  cliArchiveRetrievalDisabled: "GITHUB_CLI_ARCHIVE_RETRIEVAL_DISABLED",
+  /** Legacy retired modes (for example GITHUB_APP) can no longer be resolved. */
+  repositoryAuthenticationModeUnsupported:
+    "REPOSITORY_AUTHENTICATION_MODE_UNSUPPORTED",
 } as const;
 
 /** Safe categories emitted by credential and GitHub CLI infrastructure. */

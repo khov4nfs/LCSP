@@ -67,4 +67,45 @@ describe("agent stream sanitizer", () => {
       model: "gpt-test",
     });
   });
+
+  it("keeps numeric provider usage details but still redacts secrets outside usage", () => {
+    expect(
+      sanitizeAgentStreamValue({
+        usage: {
+          input_tokens: 3,
+          details: { reasoning_tokens: 7, thinking_tokens: 2, reasoning: 1 },
+        },
+        api_key: "x",
+        reasoning_tokens: 9,
+      }),
+    ).toEqual({
+      usage: {
+        input_tokens: 3,
+        details: { reasoning_tokens: 7, thinking_tokens: 2, reasoning: 1 },
+      },
+      api_key: "[REDACTED]",
+      reasoning_tokens: "[REDACTED]",
+    });
+  });
+
+  it("does not exempt a nested model-authored usage object from redaction", () => {
+    expect(
+      sanitizeAgentStreamValue({
+        parameters: { usage: { password: 123456, api_key: 99 } },
+      }),
+    ).toEqual({
+      parameters: { usage: { password: "[REDACTED]", api_key: "[REDACTED]" } },
+    });
+  });
+
+  it("only exempts top-level usage when the event is allowed to carry provider usage", () => {
+    expect(
+      sanitizeAgentStreamValue(
+        { usage: { reasoning_tokens: 7 } },
+        0,
+        false,
+        false,
+      ),
+    ).toEqual({ usage: { reasoning_tokens: "[REDACTED]" } });
+  });
 });

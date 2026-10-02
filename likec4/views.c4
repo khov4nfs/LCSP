@@ -13,19 +13,19 @@ views {
 
   view pythonWorkersView of lcsp.pythonWorkers {
     title 'Python Worker Platform Architecture'
-    description 'Bounded asynchronous worker services for scanning, reconciliation, legal ingestion, ChromaDB vectorless RAG, and document generation.'
+    description 'Bounded asynchronous services for managed repository analysis, reconciliation, legal ingestion, ChromaDB vectorless RAG, and document generation.'
     include *
   }
 
   view evidenceScanFlow {
-    title 'Evidence Scan to Verified Profile Flow'
-    description 'Workflow from GitHub App repository trigger to Scanner Worker evidence collection and Reconciliation Worker VerifiedProfile.'
+    title 'Repository Analysis to Verified Profile Flow'
+    description 'Workflow from GitHub App repository trigger to Repository Analysis Agent evidence derivation and Reconciliation Worker VerifiedProfile.'
     include
       githubApp,
       lcsp.web,
       lcsp.api,
       lcsp.queue,
-      lcsp.pythonWorkers.scannerWorker,
+      lcsp.pythonWorkers.repositoryAnalysisWorker,
       lcsp.pythonWorkers.aiUsageWorker,
       lcsp.pythonWorkers.reconciliationWorker,
       lcsp.database

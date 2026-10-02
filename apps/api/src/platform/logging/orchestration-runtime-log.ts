@@ -1,5 +1,3 @@
-import type { AppConfig } from "../../config/config.types.js";
-
 export const ORCHESTRATION_RUNTIME_LOG_EVENTS = {
   dispatchReceived: "ORCH_RUNTIME_DISPATCH_RECEIVED",
   workerRequest: "ORCH_RUNTIME_WORKER_REQUEST",
@@ -14,18 +12,6 @@ type OrchestrationCoreFields = {
   toolName?: string | null;
   assessmentId?: string | null;
 };
-
-/**
- * Checks whether verbose orchestration runtime logging is enabled.
- *
- * @param config - Application configuration containing orchestration settings.
- * @returns True when orchestration debug logging is enabled.
- */
-export function isOrchestrationDebugEnabled(
-  config: Pick<AppConfig, "orchestration">,
-): boolean {
-  return config.orchestration.debug;
-}
 
 /**
  * Serializes an orchestration runtime event and its contextual fields as JSON.

@@ -25,7 +25,7 @@ Manager tạo assessment, hoàn thành WizardProfile, kết nối GitHub App ch�
 
 ### Scanner và evidence
 
-Python Scanner Worker chạy Syft, Knip, deptry, `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser và Semgrep custom rules để tạo dependency facts, SourceFile metadata, graph, EvidenceReference, TechnicalFinding và TechnicalEvidenceReport. Chỉ report đạt schema, privacy và quality gate mới được dùng tiếp.
+Repository Deep Agent chạy trong LCSP Docker sandbox theo durable LangGraph thread, dùng native filesystem/search/shell/subagent harness và Codebase Memory MCP 0.11.0 tùy chọn để tạo source-grounded evidence graph, EvidenceReference, TechnicalFinding và TechnicalEvidenceReport. Chỉ report đạt schema, privacy, provenance và quality gate mới được dùng tiếp.
 
 ### Intelligence và reconciliation
 

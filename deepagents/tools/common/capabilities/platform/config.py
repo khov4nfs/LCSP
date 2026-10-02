@@ -1,4 +1,4 @@
-"""Load and validate Managed Deep Agent, agentic, RBAC, and checkpoint configuration."""
+"""Load and validate Agent Runtime, RBAC, and checkpoint configuration."""
 
 import os
 from dataclasses import dataclass
@@ -6,19 +6,6 @@ from pathlib import Path
 
 from tools.common.capabilities.platform.env import load_runtime_env
 from tools.common.capabilities.platform.logging_path import get_repo_root
-
-
-@dataclass(frozen=True)
-class AgenticRuntimeConfig:
-    """Limits and dispatch settings for model-callable read-only agentic tools."""
-
-    enabled: bool = False
-    max_tool_calls: int = 8
-    default_max_items: int = 25
-    default_max_depth: int = 5
-    default_max_bytes: int = 131_072
-    default_timeout_ms: int = 4_000
-    dispatch_path: str = "/internal/evidence/agentic-tools/dispatch"
 
 
 @dataclass(frozen=True)
@@ -39,7 +26,7 @@ class TracingConfig:
 
 @dataclass(frozen=True)
 class WorkerConfig:
-    """Complete immutable runtime configuration shared by Managed Agent tools."""
+    """Complete immutable runtime configuration shared by Agent Runtime tools."""
 
     nestjs_api_base_url: str
     worker_api_key: str
@@ -47,10 +34,8 @@ class WorkerConfig:
     max_retries: int
     legal_source_storage_root: str | None = None
     langgraph_checkpoint_database_url: str | None = None
-    agentic_runtime: AgenticRuntimeConfig = AgenticRuntimeConfig()
     rbac_preflight: RbacPreflightConfig = RbacPreflightConfig()
     tracing: TracingConfig = TracingConfig()
-    billing_recovery_store_path: str | None = None
 
 
 def default_legal_source_storage_root() -> str:
@@ -74,17 +59,16 @@ def resolve_legal_source_storage_root(configured: str | None = None) -> str:
     return str(path if path.is_absolute() else Path(get_repo_root()) / path)
 
 
-def resolve_billing_recovery_store_path(configured: str | None = None) -> str:
-    raw = (
-        configured
-        if configured is not None
-        else os.getenv("BILLING_RECOVERY_STORE_PATH")
-    )
-    path = (
-        Path(raw.strip())
-        if raw and raw.strip()
-        else Path(".billing") / "callback-recovery.sqlite3"
-    )
+def resolve_usage_recovery_store_path() -> str:
+    """SQLite store for usage telemetry that could not be delivered to the API.
+
+    `USAGE_RECOVERY_STORE_PATH` is an optional override (relative paths anchor to the
+    repository); the default sits beside the other runtime artifacts.
+    """
+    raw = os.getenv("USAGE_RECOVERY_STORE_PATH")
+    if raw is None or not raw.strip():
+        return str(Path(get_repo_root()) / "tmp" / "lcsp-storage" / "usage-recovery.sqlite3")
+    path = Path(raw.strip())
     return str(path if path.is_absolute() else Path(get_repo_root()) / path)
 
 
@@ -115,30 +99,14 @@ def load_config() -> WorkerConfig:
         legal_source_storage_root=resolve_legal_source_storage_root(),
         langgraph_checkpoint_database_url=os.getenv(
             "LANGGRAPH_CHECKPOINT_DATABASE_URL"
-        ),
-        agentic_runtime=AgenticRuntimeConfig(
-            enabled=_read_bool("AGENTIC_RUNTIME_ENABLED", False),
-            max_tool_calls=_read_int("AGENTIC_RUNTIME_MAX_TOOL_CALLS", 8),
-            default_max_items=_read_int("AGENTIC_RUNTIME_DEFAULT_MAX_ITEMS", 25),
-            default_max_depth=_read_int("AGENTIC_RUNTIME_DEFAULT_MAX_DEPTH", 5),
-            default_max_bytes=_read_int(
-                "AGENTIC_RUNTIME_DEFAULT_MAX_BYTES", 131_072
-            ),
-            default_timeout_ms=_read_int(
-                "AGENTIC_RUNTIME_DEFAULT_TIMEOUT_MS", 4_000
-            ),
-            dispatch_path=os.getenv(
-                "AGENTIC_RUNTIME_DISPATCH_PATH",
-                "/internal/evidence/agentic-tools/dispatch",
-            ),
-        ),
+        )
+        or os.getenv("DATABASE_URL"),
         rbac_preflight=RbacPreflightConfig(
             timeout_seconds=float(
                 os.getenv("RBAC_PREFLIGHT_TIMEOUT_SECONDS", "5.0")
             )
         ),
         tracing=_load_tracing_config(),
-        billing_recovery_store_path=resolve_billing_recovery_store_path(),
     )
 
 
@@ -171,17 +139,6 @@ def _read_bool(name: str, default: bool) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise RuntimeError(f"Invalid boolean env var: {name}")
-
-
-def _read_int(name: str, default: int) -> int:
-    """Parse an integer environment variable with a typed configuration error."""
-    value = os.getenv(name)
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except ValueError as exc:
-        raise RuntimeError(f"Invalid integer env var: {name}") from exc
 
 
 def _optional_text(name: str) -> str | None:

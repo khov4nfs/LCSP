@@ -1,1 +1,1 @@
-"""Shared platform adapters used by LCSP Managed Deep Agent tools and workflows."""
+"""Shared platform adapters used by LCSP Deep Agent tools and workflows."""

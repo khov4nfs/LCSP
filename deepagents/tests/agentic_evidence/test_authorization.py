@@ -44,7 +44,7 @@ def test_technical_tool_authorizes_customer_role() -> None:
     )
 
     result = authorizer.authorize(
-        tool_name="get_scan_coverage",
+        tool_name="get_gap_evidence_trace",
         user_id="user-1",
         correlationId=uuid4(),
     )
@@ -122,7 +122,7 @@ def test_rbac_network_failure_does_not_dispatch_as_allow() -> None:
         match="AGENTIC_TOOL_RBAC_PREFLIGHT_FAILED",
     ):
         authorizer.authorize(
-            tool_name="get_scan_coverage",
+            tool_name="get_gap_evidence_trace",
             user_id="user-1",
             correlationId=uuid4(),
         )

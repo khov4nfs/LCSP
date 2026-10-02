@@ -7,17 +7,17 @@ from langchain.messages import SystemMessage
 
 from middleware.runtime_context import inject_lcsp_runtime_context
 from orchestration.context import LCSPRunContext
-from subagents.investigator.definition import SYSTEM_PROMPT
+from subagents.repository_analyst.definition import SYSTEM_PROMPT
 
 
 @pytest.mark.parametrize("as_mapping", [False, True])
-@pytest.mark.parametrize("key", ["investigator:execution-1", "resume:execution-1:3"])
-def test_investigator_idempotency_does_not_inject_legal_maintenance_routing(
+@pytest.mark.parametrize("key", ["rule-analysis:assessment-1:ENG-1:1:ab12", "resume:execution-1:3"])
+def test_repository_analyst_idempotency_does_not_inject_legal_maintenance_routing(
     key, as_mapping,
 ):
     context = LCSPRunContext(
         assessment_id="assessment-1",
-        workflow_run_id="investigator:execution-1",
+        workflow_run_id="assessment-1:rule:ENG-1:1:ab12",
         engineering_rule_ids=("ENG-1",),
         artifact_versions={"technicalEvidenceReportId": "ter-1"},
         idempotency_key=key,

@@ -28,14 +28,6 @@ from subagents.interview.customer_safe_projection import (
     validate_evidence_refs,
 )
 from subagents.interview.definition import SUBAGENT, TOOLS
-from tools.common.capabilities.agentic_evidence.entrypoints.program_graph_tool_entrypoints import (
-    EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING,
-    get_scan_coverage as entry_get_scan_coverage,
-    inspect_data_path as entry_inspect_data_path,
-    inspect_decision_path as entry_inspect_decision_path,
-    inspect_human_review_path as entry_inspect_human_review_path,
-    search_evidence as entry_search_evidence,
-)
 from tools.common.capabilities.agentic_evidence.governance.registry import (
     AgenticToolBudget,
     AgenticToolRequest,
@@ -57,10 +49,6 @@ from tools.common.runtime_envelope import (
     set_agentic_tool_api_client,
     trusted_request_from_model_input,
 )
-from tools.common.search_program_graph.code import (
-    SearchProgramGraphRequest,
-    search_program_graph,
-)
 
 
 def test_interview_contract_rejects_compatibility_only_and_legacy_modes() -> None:
@@ -81,7 +69,7 @@ def test_interview_contract_rejects_compatibility_only_and_legacy_modes() -> Non
 def test_interview_contract_requires_canonical_confirm_adjust_shape() -> None:
     result = InterviewResult(
         expectedContextRevision=0,
-        mode="INVESTIGATOR_RESOLUTION",
+        mode="BUSINESS_CONTEXT_RESOLUTION",
         outcome="WAITING_FOR_CUSTOMER",
         activeQuestion={
             "id": "confirm-approval",
@@ -109,7 +97,7 @@ def test_interview_contract_requires_canonical_confirm_adjust_shape() -> None:
     with pytest.raises(ValueError):
         InterviewResult(
             expectedContextRevision=0,
-            mode="INVESTIGATOR_RESOLUTION",
+            mode="BUSINESS_CONTEXT_RESOLUTION",
             outcome="WAITING_FOR_CUSTOMER",
             activeQuestion={
                 "id": "invalid-confirm",
@@ -123,22 +111,6 @@ def test_interview_contract_requires_canonical_confirm_adjust_shape() -> None:
                 },
             },
         )
-from tools.investigator.inspect_data_path.code import (
-    InspectDataPathRequest,
-    inspect_data_path,
-)
-from tools.investigator.inspect_decision_path.code import (
-    InspectDecisionPathRequest,
-    inspect_decision_path,
-)
-from tools.investigator.inspect_human_review_path.code import (
-    InspectHumanReviewPathRequest,
-    inspect_human_review_path,
-)
-from tools.planner.get_scan_coverage.code import (
-    ScanCoverageRequest,
-    get_scan_coverage,
-)
 
 
 def _mock_graph(
@@ -370,59 +342,9 @@ def test_resume_interview_boundary_dispatches_with_distinct_thread_and_workflow_
 # Group C — Runtime Routing (Canonical Binding vs Env Vars) Tests
 # ============================================================================
 
-def test_pge_tools_execute_locally_even_when_nestjs_env_is_set(monkeypatch) -> None:
-    """PGE graph tools execute locally via canonical PYTHON_LOCAL binding even with NESTJS_API_BASE_URL set."""
-    asmt_id = str(uuid4())
-    wf_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-    mock_api.rbac_client.check.return_value = "allow"
-    set_agentic_tool_api_client(mock_api)
-
-    monkeypatch.setenv("NESTJS_API_BASE_URL", "http://api.production.internal:3000")
-    monkeypatch.setenv("WORKER_API_KEY", "worker-secret-key")
-
-    run_context = LCSPRunContext(
-        assessment_id=asmt_id,
-        user_id="user-1",
-        workflow_run_id=wf_id,
-        artifact_versions={"technicalEvidenceReportId": "ter-1", "repositorySnapshotId": "snap-1"},
-    )
-    runtime = SimpleNamespace(context=run_context)
-
-    # All 5 tools execute Python-locally without attempting HTTP POST to mock URL
-    cov = get_scan_coverage.func(runtime, maxResults=10)
-    assert cov["coverageState"] == "READY"
-
-    search = search_program_graph.func(runtime, query="AI Loan", maxResults=5)
-    assert "nodes" in search
-
-    dec = inspect_decision_path.func(runtime, subjectRef="node:node-rec-101", maxHops=3)
-    assert "decisionNodes" in dec or "paths" in dec or "nodes" in dec
-
-    data = inspect_data_path.func(runtime, subjectRef="node:node-rec-101", maxHops=3)
-    assert "nodes" in data or "paths" in data
-
-    hr = inspect_human_review_path.func(runtime, subjectRef="node:node-dec-101", maxHops=3)
-    assert "reviewNodes" in hr or "overridePaths" in hr or "unresolvedFrontiers" in hr
-
-    set_agentic_tool_api_client(None)
-
-
 # ============================================================================
 # Group D — Governance (Schema, Budget, RBAC, Safe Output) Tests
 # ============================================================================
-
-def test_tool_fails_without_trusted_runtime_context() -> None:
-    """Tool execution must fail closed when runtime context is absent."""
-    with pytest.raises(AgenticToolInvocationError, match="requires ToolRuntime context"):
-        search_program_graph.func(runtime=None, query="loan")
-
 
 def test_trusted_request_overlays_runtime_context_and_forbids_model_override() -> None:
     """Model input cannot provide or mutate assessmentId, userId, or artifactVersions."""
@@ -472,123 +394,9 @@ def test_invalid_workflow_run_id_format_fails_validation() -> None:
 # Group F — Tool Schema & Argument Mapping Tests
 # ============================================================================
 
-def test_missing_start_ref_raises_deterministic_validation_error() -> None:
-    """Traversal tools must fail deterministically when subject/start ref is empty."""
-    asmt_id = str(uuid4())
-    wf_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-    set_agentic_tool_api_client(mock_api)
-
-    req = AgenticToolRequest.model_validate({
-        "toolName": "inspect_decision_path",
-        "requestId": str(uuid4()),
-        "assessmentId": asmt_id,
-        "workflowRunId": wf_id,
-        "artifactVersions": {"technicalEvidenceReportId": "ter-1", "repositorySnapshotId": "snap-1"},
-        "correlationId": str(uuid4()),
-        "budget": {"maxItems": 10, "maxDepth": 5, "maxBytes": 16384, "maxDurationMs": 1000},
-        "input": {"maxResults": 10},  # startRef missing
-    })
-    ctx = AgenticToolExecutionContext(mock_api, "user-1")
-
-    with pytest.raises(ValueError, match="startRef or subjectRef is required"):
-        entry_inspect_decision_path(req, ctx)
-
-    set_agentic_tool_api_client(None)
-
-
 # ============================================================================
 # Group G — Artifact Ownership & Provenance Pinning Tests
 # ============================================================================
-
-def test_report_assessment_mismatch_fails_closed() -> None:
-    """Report belonging to a different assessment must be rejected."""
-    asmt_id = str(uuid4())
-    other_asmt_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": other_asmt_id,
-        "snapshotId": "snap-1",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-
-    req = AgenticToolRequest.model_validate({
-        "toolName": "get_scan_coverage",
-        "requestId": str(uuid4()),
-        "assessmentId": asmt_id,
-        "workflowRunId": str(uuid4()),
-        "artifactVersions": {"technicalEvidenceReportId": "ter-1"},
-        "correlationId": str(uuid4()),
-        "budget": {"maxItems": 10, "maxDepth": 5, "maxBytes": 16384, "maxDurationMs": 1000},
-        "input": {},
-    })
-    ctx = AgenticToolExecutionContext(mock_api, "user-1")
-
-    with pytest.raises(ValueError, match="EVIDENCE_REPORT_ASSESSMENT_MISMATCH"):
-        entry_get_scan_coverage(req, ctx)
-
-
-def test_stale_snapshot_report_mismatch_fails_closed() -> None:
-    """Report generated from snapshot V1 when assessment is pinned to V2 must be rejected."""
-    asmt_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-v1",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-
-    req = AgenticToolRequest.model_validate({
-        "toolName": "get_scan_coverage",
-        "requestId": str(uuid4()),
-        "assessmentId": asmt_id,
-        "workflowRunId": str(uuid4()),
-        "artifactVersions": {
-            "technicalEvidenceReportId": "ter-1",
-            "repositorySnapshotId": "snap-v2-CURRENT",
-        },
-        "correlationId": str(uuid4()),
-        "budget": {"maxItems": 10, "maxDepth": 5, "maxBytes": 16384, "maxDurationMs": 1000},
-        "input": {},
-    })
-    ctx = AgenticToolExecutionContext(mock_api, "user-1")
-
-    with pytest.raises(ValueError, match="EVIDENCE_REPORT_SNAPSHOT_MISMATCH"):
-        entry_get_scan_coverage(req, ctx)
-
-
-def test_rejected_report_status_fails_closed() -> None:
-    """Report marked as REJECTED fails closed."""
-    asmt_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "REJECTED",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-
-    req = AgenticToolRequest.model_validate({
-        "toolName": "get_scan_coverage",
-        "requestId": str(uuid4()),
-        "assessmentId": asmt_id,
-        "workflowRunId": str(uuid4()),
-        "artifactVersions": {"technicalEvidenceReportId": "ter-1"},
-        "correlationId": str(uuid4()),
-        "budget": {"maxItems": 10, "maxDepth": 5, "maxBytes": 16384, "maxDurationMs": 1000},
-        "input": {},
-    })
-    ctx = AgenticToolExecutionContext(mock_api, "user-1")
-
-    with pytest.raises(ValueError, match="EVIDENCE_REPORT_REJECTED"):
-        entry_get_scan_coverage(req, ctx)
-
 
 # ============================================================================
 # Group H — Coverage Normalization & Limitations Preservation Tests
@@ -792,7 +600,7 @@ def test_sanitize_customer_facing_text_strips_internal_orchestration_tokens() ->
         "by the customer through preceding confirmation turns, establishing sufficient "
         "and confirmed business context with CUSTOMER_CONFIRMED authority to proceed "
         "to CONTEXT_READY. The targeted loop uses resolutionCriteria before "
-        "CONTEXT_RESOLVED via INVESTIGATOR_RESOLUTION and TARGETED_EXACT_RESUME_PIN, "
+        "CONTEXT_RESOLVED via BUSINESS_CONTEXT_RESOLUTION and TARGETED_EXACT_RESUME_PIN, "
         "or WAITING_FOR_CUSTOMER / NEEDS_INPUT."
     )
     sanitized = sanitize_customer_facing_text(raw_text)
@@ -801,7 +609,7 @@ def test_sanitize_customer_facing_text_strips_internal_orchestration_tokens() ->
         "CUSTOMER_CONFIRMED",
         "CONTEXT_READY",
         "CONTEXT_RESOLVED",
-        "INVESTIGATOR_RESOLUTION",
+        "BUSINESS_CONTEXT_RESOLUTION",
         "TARGETED_EXACT_RESUME_PIN",
         "WAITING_FOR_CUSTOMER",
         "NEEDS_INPUT",
@@ -826,16 +634,10 @@ def test_customer_safe_projection_excludes_internal_node_ids_and_attributes() ->
 # Minimal Tool Surface Verification
 # ============================================================================
 
-def test_interview_has_no_engineering_or_raw_repository_tools() -> None:
-    """Interview specialist tool list contains only governed evidence query tools."""
+def test_interview_has_no_authored_repository_query_wrappers() -> None:
+    """Repository exploration is supplied by Deep Agents/MCP, not authored PGE tools."""
     tool_names = tuple(getattr(t, "name") for t in TOOLS)
-    assert tool_names == (
-        "search_program_graph",
-        "get_scan_coverage",
-        "inspect_decision_path",
-        "inspect_data_path",
-        "inspect_human_review_path",
-    )
+    assert tool_names == ()
 
     disallowed_tools = {
         "get_finding_detail",
@@ -854,140 +656,6 @@ def test_interview_has_no_engineering_or_raw_repository_tools() -> None:
 # ============================================================================
 # Regression Suite — P0-1 to P0-8 & P1 Failure Modes
 # ============================================================================
-
-def test_unauthorized_rbac_fails_closed() -> None:
-    """When RBAC check evaluates to non-allow (deny), tool dispatch fails closed with AGENTIC_TOOL_RBAC_BLOCKED."""
-    asmt_id = str(uuid4())
-    wf_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-    # RBAC returns deny
-    mock_api.rbac_client.check.return_value = "deny"
-    set_agentic_tool_api_client(mock_api)
-
-    run_context = LCSPRunContext(
-        assessment_id=asmt_id,
-        user_id="unauthorized-actor-attacker",
-        workflow_run_id=wf_id,
-        artifact_versions={"technicalEvidenceReportId": "ter-1", "repositorySnapshotId": "snap-1"},
-    )
-    runtime = SimpleNamespace(context=run_context)
-
-    with pytest.raises((AgenticToolInvocationError, AgenticToolValidationError), match="AGENTIC_TOOL_RBAC_BLOCKED"):
-        search_program_graph.func(runtime, query="Loan", maxResults=5)
-
-    set_agentic_tool_api_client(None)
-
-
-def test_rbac_client_missing_fails_closed() -> None:
-    """When api_client does not have rbac_client, tool dispatch fails closed with AGENTIC_TOOL_RBAC_UNAVAILABLE."""
-    asmt_id = str(uuid4())
-    wf_id = str(uuid4())
-    mock_api = MagicMock(spec=["get_accepted_technical_evidence_report"])
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-    set_agentic_tool_api_client(mock_api)
-
-    run_context = LCSPRunContext(
-        assessment_id=asmt_id,
-        user_id="unauthorized-actor-attacker",
-        workflow_run_id=wf_id,
-        artifact_versions={"technicalEvidenceReportId": "ter-1", "repositorySnapshotId": "snap-1"},
-    )
-    runtime = SimpleNamespace(context=run_context)
-
-    with pytest.raises((AgenticToolInvocationError, AgenticToolValidationError), match="AGENTIC_TOOL_RBAC_UNAVAILABLE"):
-        search_program_graph.func(runtime, query="Loan", maxResults=5)
-
-    set_agentic_tool_api_client(None)
-
-
-def test_secrets_in_attributes_are_stripped_from_agent_nodes() -> None:
-    """Nodes returned by PGE tools must not leak nested attributes, internal secrets, or source paths."""
-    asmt_id = str(uuid4())
-    wf_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-    mock_api.rbac_client.check.return_value = "allow"
-    set_agentic_tool_api_client(mock_api)
-
-    run_context = LCSPRunContext(
-        assessment_id=asmt_id,
-        user_id="user-1",
-        workflow_run_id=wf_id,
-        artifact_versions={"technicalEvidenceReportId": "ter-1", "repositorySnapshotId": "snap-1"},
-    )
-    runtime = SimpleNamespace(context=run_context)
-
-    result = search_program_graph.func(runtime, query="AI Loan", maxResults=5)
-    nodes = result["nodes"]
-    assert len(nodes) > 0
-
-    for node in nodes:
-        assert "attributes" not in node
-        assert "source" not in node
-        assert "internal_secret" not in str(node)
-        assert "sk_test_secret_123" not in str(node)
-        assert "file_path" not in str(node)
-
-    set_agentic_tool_api_client(None)
-
-
-def test_search_program_graph_with_query_filters_nodes() -> None:
-    """search_program_graph text query must filter nodes and not return unmatched nodes."""
-    asmt_id = str(uuid4())
-    wf_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-    mock_api.rbac_client.check.return_value = "allow"
-    set_agentic_tool_api_client(mock_api)
-
-    run_context = LCSPRunContext(
-        assessment_id=asmt_id,
-        user_id="user-1",
-        workflow_run_id=wf_id,
-        artifact_versions={"technicalEvidenceReportId": "ter-1", "repositorySnapshotId": "snap-1"},
-    )
-    runtime = SimpleNamespace(context=run_context)
-
-    # Query matching only "Approval"
-    result_approval = search_program_graph.func(runtime, query="Approval", maxResults=5)
-    labels = [n["label"] for n in result_approval["nodes"]]
-    assert "Automated Approval" in labels
-    assert "AI Loan Recommendation" not in labels
-
-    # Query matching nothing
-    result_none = search_program_graph.func(runtime, query="THIS QUERY SHOULD FILTER OUT EVERYTHING", maxResults=5)
-    assert len(result_none["nodes"]) == 0
-    assert result_none["matchMode"] == EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING
-    assert result_none["absenceProven"] is False
-
-    result_tokenized = search_program_graph.func(runtime, query="AI_Loan", maxResults=5)
-    assert [node["label"] for node in result_tokenized["nodes"]] == [
-        "AI Loan Recommendation"
-    ]
-
-    set_agentic_tool_api_client(None)
-
 
 def test_missing_materiality_fails_closed() -> None:
     """Missing, None, or unknown materiality must fail closed (not assume MATERIAL)."""
@@ -1010,51 +678,6 @@ def test_missing_materiality_fails_closed() -> None:
     ok, reason = evaluate_question_eligibility(frontier_unknown_mat, ledger)
     assert ok is False
     assert "not MATERIAL" in reason
-
-
-def test_turn_ledger_authorizes_runtime_retrieved_refs() -> None:
-    """TurnEvidenceLedger accumulates refs returned during tool dispatch in the current turn."""
-    asmt_id = str(uuid4())
-    wf_id = str(uuid4())
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": _mock_graph()},
-    }
-    mock_api.rbac_client.check.return_value = "allow"
-    set_agentic_tool_api_client(mock_api)
-
-    from subagents.interview.customer_safe_projection import (
-        set_active_turn_evidence_ledger,
-    )
-
-    ledger = TurnEvidenceLedger(initial_authorized_refs=["repositorySnapshot:snap-1"])
-    set_active_turn_evidence_ledger(ledger)
-
-    run_context = LCSPRunContext(
-        assessment_id=asmt_id,
-        user_id="user-1",
-        workflow_run_id=wf_id,
-        artifact_versions={"technicalEvidenceReportId": "ter-1", "repositorySnapshotId": "snap-1"},
-    )
-    runtime = SimpleNamespace(context=run_context)
-
-    try:
-        # Before tool call, evidence:symbol:loan_rec is not in ledger
-        assert ledger.is_authorized("evidence:symbol:loan_rec") is False
-
-        # Run search tool that returns evidence:symbol:loan_rec
-        search_program_graph.func(runtime, query="AI Loan", maxResults=5)
-
-        # After tool call, ledger dynamically records returned evidenceRefs
-        assert ledger.is_authorized("evidence:symbol:loan_rec") is True
-        # Unreturned/fabricated ref remains blocked
-        assert ledger.is_authorized("evidence:fabricated:fake") is False
-    finally:
-        set_active_turn_evidence_ledger(None)
-        set_agentic_tool_api_client(None)
 
 
 def test_initial_interview_fails_closed_without_actor_id() -> None:
@@ -1137,83 +760,6 @@ def test_turn_evidence_ledger_concurrency_isolation() -> None:
     assert results["a_sees_b"] is False
     assert results["b_sees_b"] is True
     assert results["b_sees_a"] is False
-
-
-def test_secrets_in_edge_attributes_are_stripped_from_traversal_tools() -> None:
-    """Traversing edges with secret bearer tokens or internal debug attributes never leaks to agent."""
-    asmt_id = str(uuid4())
-    wf_id = str(uuid4())
-
-    graph_with_secret_edge = _mock_graph()
-    # Inject sensitive debug credentials into edge attributes
-    graph_with_secret_edge["edges"] = [
-        {
-            "edge_id": "edge:flow-1",
-            "source_node_id": "node:node-rec-101",
-            "target_node_id": "node:node-dec-101",
-            "source_id": "node:node-rec-101",
-            "target_id": "node:node-dec-101",
-            "edge_type": "CALLS",
-            "resolution_state": "OBSERVED",
-            "evidence_refs": ["evidence:flow:rec_to_dec"],
-            "attributes": {
-                "debug": "Authorization: Bearer TOP_SECRET_BEARER_TOKEN_999",
-                "secret": "db_password_12345",
-                "raw_source": "function evaluateLoan() { secret(); }",
-            },
-        }
-    ]
-
-    mock_api = MagicMock()
-    mock_api.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_id,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": graph_with_secret_edge},
-    }
-    mock_api.rbac_client.check.return_value = "allow"
-    set_agentic_tool_api_client(mock_api)
-
-    run_context = LCSPRunContext(
-        assessment_id=asmt_id,
-        user_id="user-1",
-        workflow_run_id=wf_id,
-        artifact_versions={"technicalEvidenceReportId": "ter-1", "repositorySnapshotId": "snap-1"},
-    )
-    runtime = SimpleNamespace(context=run_context)
-
-    try:
-        # 1. inspect_data_path
-        data_res = inspect_data_path.func(runtime, startRef="node:node-rec-101", maxHops=3)
-        str_data = str(data_res)
-        assert "TOP_SECRET" not in str_data
-        assert "Bearer" not in str_data
-        assert "db_password" not in str_data
-        assert "attributes" not in str_data
-        assert "debug" not in str_data
-        assert "raw_source" not in str_data
-        assert data_res["edges"][0]["source_node_id"] == "node:node-rec-101"
-        assert data_res["edges"][0]["edge_type"] == "CALLS"
-
-        # 2. inspect_decision_path
-        dec_res = inspect_decision_path.func(runtime, startRef="node:node-rec-101", maxHops=3)
-        str_dec = str(dec_res)
-        assert "TOP_SECRET" not in str_dec
-        assert "Bearer" not in str_dec
-        assert "db_password" not in str_dec
-        assert "attributes" not in str_dec
-        assert "debug" not in str_dec
-
-        # 3. inspect_human_review_path
-        hr_res = inspect_human_review_path.func(runtime, startRef="node:node-rec-101", maxHops=3)
-        str_hr = str(hr_res)
-        assert "TOP_SECRET" not in str_hr
-        assert "Bearer" not in str_hr
-        assert "db_password" not in str_hr
-        assert "attributes" not in str_hr
-        assert "debug" not in str_hr
-    finally:
-        set_agentic_tool_api_client(None)
 
 
 def test_waiting_question_requires_customer_material_frontier() -> None:
@@ -1543,78 +1089,6 @@ def test_turn_evidence_ledger_concurrent_metadata_isolation() -> None:
 # Group M — P0-1..P0-5 & P1 Coverage, Certainty, and Schema Mapping Regressions
 # ============================================================================
 
-def test_every_pge_tool_propagates_coverage_and_limitations() -> None:
-    """All 5 Interview tools return canonical coverageState and coverageLimitations from the pinned graph."""
-    graph_dict = _mock_graph()
-    graph_dict["coverage_state"] = "LIMITED"
-    graph_dict["coverage_notes"] = ["Partial AST index for Python runtime"]
-    asmt_uuid = str(uuid4())
-    report_dict = {
-        "assessmentId": asmt_uuid,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": graph_dict},
-    }
-
-    mock_client = MagicMock()
-    mock_client.get_accepted_technical_evidence_report.return_value = report_dict
-
-    from tools.common.capabilities.agentic_evidence.entrypoints.program_graph_tool_entrypoints import (
-        EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING,
-        get_scan_coverage,
-        inspect_data_path,
-        inspect_decision_path,
-        inspect_human_review_path,
-        search_evidence,
-    )
-    from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolBudget, AgenticToolRequest
-
-    base_req = {
-        "toolName": "test",
-        "requestId": str(uuid4()),
-        "assessmentId": asmt_uuid,
-        "workflowRunId": str(uuid4()),
-        "artifactVersions": {
-            "technicalEvidenceReportId": "report-1",
-            "repositorySnapshotId": "snap-1",
-        },
-        "correlationId": str(uuid4()),
-        "budget": {"maxItems": 50, "maxDepth": 5, "maxBytes": 65536, "maxDurationMs": 5000},
-        "input": {"startRef": "node:n1", "query": "auth"},
-    }
-
-    class Ctx:
-        api_client = mock_client
-
-    # 1. get_scan_coverage
-    cov_res = get_scan_coverage(AgenticToolRequest.model_validate(base_req), Ctx())
-    assert cov_res["coverageState"] == "PARTIAL"
-    assert "Partial AST index for Python runtime" in cov_res["coverageLimitations"]
-
-    # 2. search_evidence
-    search_res = search_evidence(AgenticToolRequest.model_validate(base_req), Ctx())
-    assert search_res["coverageState"] == "PARTIAL"
-    assert "Partial AST index for Python runtime" in search_res["coverageLimitations"]
-    assert search_res["nodes"] == []
-    assert search_res["matchMode"] == EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING
-    assert search_res["absenceProven"] is False
-
-    # 3. inspect_data_path
-    data_res = inspect_data_path(AgenticToolRequest.model_validate(base_req), Ctx())
-    assert data_res["coverageState"] == "PARTIAL"
-    assert "Partial AST index for Python runtime" in data_res["coverageLimitations"]
-
-    # 4. inspect_decision_path
-    dec_res = inspect_decision_path(AgenticToolRequest.model_validate(base_req), Ctx())
-    assert dec_res["coverageState"] == "PARTIAL"
-    assert "Partial AST index for Python runtime" in dec_res["coverageLimitations"]
-
-    # 5. inspect_human_review_path
-    rev_res = inspect_human_review_path(AgenticToolRequest.model_validate(base_req), Ctx())
-    assert rev_res["coverageState"] == "PARTIAL"
-    assert "Partial AST index for Python runtime" in rev_res["coverageLimitations"]
-
-
 def test_seeded_provenance_refs_preserve_partial_coverage_in_initial_and_resume() -> None:
     """TurnEvidenceLedger initialized with PARTIAL coverage preserves limitations when frontier cites report/snapshot."""
     report_id = "ter-partial-1"
@@ -1652,108 +1126,6 @@ def test_seeded_provenance_refs_preserve_partial_coverage_in_initial_and_resume(
         evidence_refs=[f"technicalEvidenceReport:{report_id}"],
     )
     assert "Dynamic imports unanalyzed in worker module" in why
-
-
-def test_missing_resolution_defaults_to_unresolved_universally() -> None:
-    """Missing, unknown, or malformed resolution state defaults to UNRESOLVED everywhere, never OBSERVED."""
-    from tools.common.capabilities.agentic_evidence.entrypoints.program_graph_tool_entrypoints import (
-        _project_safe_edge,
-        _project_safe_node,
-    )
-
-    # Incomplete legacy node with no resolution_state
-    raw_node = {"node_id": "n-legacy", "node_type": "SERVICE", "label": "LegacyService"}
-    projected_node = _project_safe_node(raw_node)
-    assert projected_node["resolution_state"] == "UNRESOLVED"
-
-    # Node with invalid resolution_state
-    raw_node_bad = {"node_id": "n-bad", "label": "BadRes", "resolution_state": "SOMETHING_RANDOM"}
-    assert _project_safe_node(raw_node_bad)["resolution_state"] == "UNRESOLVED"
-
-    # Edge with missing resolution_state
-    raw_edge = {"source_node_id": "n1", "target_node_id": "n2", "edge_type": "CALLS"}
-    projected_edge = _project_safe_edge(raw_edge)
-    assert projected_edge["resolution_state"] == "UNRESOLVED"
-
-    # Customer-safe evidence projection
-    raw_graph = {"nodes": [raw_node], "edges": [raw_edge]}
-    safe_graph = project_customer_safe_evidence(raw_graph)
-    assert safe_graph["resolutionState"] == "UNRESOLVED"
-    assert safe_graph["nodes"][0]["resolutionState"] == "UNRESOLVED"
-
-    # Why explanation uses uncertainty language
-    why = build_why_are_we_asking_explanation(
-        topic="payment gateway routing",
-        resolution_state="",  # missing resolution
-    )
-    assert "The available technical evidence does not establish whether" in why
-
-
-def test_get_scan_coverage_strict_allowlisted_dto_and_secret_redaction() -> None:
-    """get_scan_coverage strips raw scanner provenance, file paths, and secret tokens."""
-    leaked_secret = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.t-kJ"
-    leaked_db_url = "postgres://admin:supersecretpassword@10.0.0.1:5432/production"
-    leaked_path = "src/internal/scanner/scanner_config.py:42"
-
-    graph_dict = _mock_graph()
-    graph_dict["coverage_notes"] = [
-        f"Scanner failed on {leaked_path} with token {leaked_secret}",
-        f"Database connection: {leaked_db_url}",
-    ]
-    graph_dict["unresolved_frontiers"] = [
-        {"owner": "TECHNICAL", "materiality": "MATERIAL", "description": f"Frontier on {leaked_path}"},
-        f"Raw frontier with secret {leaked_secret}",
-    ]
-    graph_dict["provenance"] = {
-        "internal_config": "scanner_v3_internal",
-        "db_secret": leaked_db_url,
-        "note": f"Internal note with {leaked_secret}",
-    }
-
-    asmt_uuid = str(uuid4())
-    mock_client = MagicMock()
-    mock_client.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_uuid,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": graph_dict},
-    }
-
-    from tools.common.capabilities.agentic_evidence.entrypoints.program_graph_tool_entrypoints import get_scan_coverage
-    from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolBudget, AgenticToolRequest
-
-    req = AgenticToolRequest.model_validate({
-        "toolName": "get_scan_coverage",
-        "requestId": str(uuid4()),
-        "assessmentId": asmt_uuid,
-        "workflowRunId": str(uuid4()),
-        "artifactVersions": {
-            "technicalEvidenceReportId": "report-1",
-            "repositorySnapshotId": "snap-1",
-        },
-        "correlationId": str(uuid4()),
-        "budget": {"maxItems": 50, "maxDepth": 5, "maxBytes": 65536, "maxDurationMs": 5000},
-        "input": {},
-    })
-
-    class Ctx:
-        api_client = mock_client
-
-    coverage_dto = get_scan_coverage(req, Ctx())
-
-    # Verify strict allowlisted keys only
-    allowed_keys = {"coverageState", "coverageLimitations", "unresolvedFrontiers", "nodeCount", "edgeCount", "truncated"}
-    assert set(coverage_dto.keys()) == allowed_keys
-
-    # Verify provenance dictionary is omitted
-    assert "provenance" not in coverage_dto
-
-    # Verify no secrets leak into limitations or frontiers
-    dto_str = json.dumps(coverage_dto)
-    assert "supersecretpassword" not in dto_str
-    assert "eyJhbGciOiJIUzI1Ni" not in dto_str
-    assert "src/internal/scanner" not in dto_str
-    assert "[redacted secret]" in dto_str or "[redacted token]" in dto_str or "[file reference]" in dto_str or "[redacted url]" in dto_str
 
 
 def test_workflow_identity_separation_in_initial_interview() -> None:
@@ -1829,53 +1201,6 @@ def test_workflow_identity_separation_in_initial_interview() -> None:
 # Final closure regressions — cross-boundary safety semantics
 # ============================================================================
 
-def test_all_interview_pge_tools_sanitize_coverage_metadata() -> None:
-    """Coverage notes are safe regardless of which of the five Interview tools returns them."""
-    graph_dict = _mock_graph()
-    graph_dict["coverage_notes"] = [
-        "src/private/config.ts Authorization: Bearer TOP_SECRET_TOKEN_123456789 postgres://u:pass@db.internal/prod"
-    ]
-    asmt_uuid = str(uuid4())
-    client = MagicMock()
-    client.get_accepted_technical_evidence_report.return_value = {
-        "assessmentId": asmt_uuid,
-        "snapshotId": "snap-1",
-        "status": "ACCEPTED",
-        "evidence_payload": {"evidence_graph": graph_dict},
-    }
-
-    class Ctx:
-        api_client = client
-
-    base = {
-        "toolName": "test",
-        "requestId": str(uuid4()),
-        "assessmentId": asmt_uuid,
-        "workflowRunId": str(uuid4()),
-        "artifactVersions": {
-            "technicalEvidenceReportId": "report-1",
-            "repositorySnapshotId": "snap-1",
-        },
-        "correlationId": str(uuid4()),
-        "budget": {"maxItems": 20, "maxDepth": 5, "maxBytes": 65536, "maxDurationMs": 5000},
-        "input": {"startRef": "node:node-rec-101", "query": "AI Loan", "maxResults": 20},
-    }
-    request = AgenticToolRequest.model_validate(base)
-    results = [
-        entry_get_scan_coverage(request, Ctx()),
-        entry_search_evidence(request, Ctx()),
-        entry_inspect_data_path(request, Ctx()),
-        entry_inspect_decision_path(request, Ctx()),
-        entry_inspect_human_review_path(request, Ctx()),
-    ]
-    for result in results:
-        text = json.dumps(result)
-        assert "TOP_SECRET_TOKEN" not in text
-        assert "postgres://u:pass" not in text
-        assert "src/private/config.ts" not in text
-        assert "u:pass@db.internal" not in text
-
-
 def test_same_ref_conflicting_resolution_merges_conservatively() -> None:
     """A later unresolved observation can never remain silently OBSERVED."""
     ledger = TurnEvidenceLedger(initial_authorized_refs=["evidence:flow:shared"])
@@ -1901,20 +1226,6 @@ def test_same_ref_conflicting_resolution_merges_conservatively() -> None:
     assert "dynamic target unresolved" in metadata.coverage_limitations
 
 
-def test_removed_unsupported_tool_arguments_fail_at_model_schema() -> None:
-    """Previously ignored scoped/search arguments are rejected instead of silently dropped."""
-    from pydantic import ValidationError
-
-    with pytest.raises(ValidationError):
-        SearchProgramGraphRequest.model_validate({"subjectRef": "node:node-rec-101"})
-    with pytest.raises(ValidationError):
-        SearchProgramGraphRequest.model_validate({"nodeTypes": ["BUSINESS_DECISION"]})
-    with pytest.raises(ValidationError):
-        ScanCoverageRequest.model_validate({"pathPrefixes": ["src/"]})
-    with pytest.raises(ValidationError):
-        ScanCoverageRequest.model_validate({"languages": ["PYTHON"]})
-
-
 def test_resume_interview_never_uses_correlation_id_as_workflow_run_id() -> None:
     """Normal resume fails closed when server-owned workflowRunId is missing."""
     boundary = AssessmentInterviewResumeBoundary(
@@ -1936,3 +1247,88 @@ def test_resume_interview_never_uses_correlation_id_as_workflow_run_id() -> None
             },
             correlationId=str(uuid4()),
         )
+
+
+def _raw_version_ref_boundary(frontier_refs: list[str]):
+    mock_dispatcher = MagicMock()
+    mock_dispatcher.dispatch.return_value = {
+        "handoff": {
+            "outcome": "WAITING_FOR_CUSTOMER",
+            "activeQuestion": {
+                "id": "q-1",
+                "prompt": "Is the AI feature used in production?",
+                "whyEvidenceRefs": list(frontier_refs),
+                "frontier": {
+                    "owner": "CUSTOMER",
+                    "materiality": "MATERIAL",
+                    "description": "Production use of the AI feature",
+                    "evidenceRefs": list(frontier_refs),
+                },
+            },
+        }
+    }
+    boundary = AssessmentInterviewResumeBoundary(
+        config=MagicMock(), api_client=MagicMock(), dispatcher=mock_dispatcher,
+    )
+    asmt_id = str(uuid4())
+
+    def run() -> dict:
+        return boundary._run_interview(
+            assessment_id=asmt_id,
+            thread_id=f"interview:{asmt_id}",
+            question_id="q-1",
+            context_revision=7,
+            resume_reason="INTERVIEW_AGENT_DECISION_REQUIRED",
+            context={
+                "workflowRunId": str(uuid4()),
+                "authenticatedActorId": "customer-1",
+                "sourceVersion": "snap-1:commit1",
+                "pgeVersion": "ter-1:1.0.0",
+                "privateRevision": {"actorId": "customer-1", "governedEvidenceRefs": []},
+            },
+            correlationId=str(uuid4()),
+        )
+
+    return run
+
+
+def test_interview_canonicalizes_raw_turn_version_refs() -> None:
+    """Assessment 7976a135 regression: the specialist cited pgeVersion verbatim as a ref.
+
+    `ter-1:1.0.0` is this turn's own report under its raw version string; the run used to
+    fail with 'unauthorized or fabricated refs'. It is now rewritten to the ledger's
+    canonical `technicalEvidenceReport:ter-1` ref (and the snapshot likewise).
+    """
+    decision = _raw_version_ref_boundary(["ter-1:1.0.0", "snap-1:commit1", "ter-1"])()
+
+    question = decision["activeQuestion"]
+    expected = ["technicalEvidenceReport:ter-1", "repositorySnapshot:snap-1"]
+    assert question["frontier"]["evidenceRefs"] == expected
+    assert question["whyEvidenceRefs"] == expected
+
+
+def test_interview_still_rejects_refs_to_other_artifacts() -> None:
+    """Only this turn's exact identifiers are aliased; another report stays fabricated.
+
+    The rejection is a repairable handoff violation listing the allowed refs, so the
+    specialist gets one correction; the ref is never dropped or substituted.
+    """
+    from orchestration.result_validation import SpecialistHandoffValidationError
+
+    with pytest.raises(SpecialistHandoffValidationError, match="not authorized") as caught:
+        _raw_version_ref_boundary(["ter-2:1.0.0"])()
+    assert "ter-2:1.0.0" in str(caught.value)
+    assert "technicalEvidenceReport:ter-1" in str(caught.value)
+
+
+def test_unauthorized_candidate_refs_compare_verbatim() -> None:
+    from subagents.interview.customer_safe_projection import unauthorized_candidate_refs
+
+    candidate = {
+        "whyEvidenceRefs": ["node:a", " node:a"],
+        "frontier": {"evidenceRefs": ["node:A", "node:a"]},
+        "statements": [{"evidenceRefs": ["ev-x"]}],
+    }
+
+    assert unauthorized_candidate_refs(candidate, {"node:a"}) == [" node:a", "node:A", "ev-x"]
+    assert unauthorized_candidate_refs(None, {"node:a"}) == []

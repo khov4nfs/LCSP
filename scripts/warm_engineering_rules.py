@@ -116,7 +116,6 @@ def main() -> int:
             "trigger": WARM_TRIGGER,
         },
         thread_id=f"triage:{idempotency_key}",
-        reenter_root=False,
     )
 
     print(json.dumps(result, ensure_ascii=False, indent=2, default=str))

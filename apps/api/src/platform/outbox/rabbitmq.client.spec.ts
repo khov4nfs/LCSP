@@ -1,4 +1,5 @@
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
+import { SCAN_EVENT_TYPES } from "@lcsp/contracts/scan/callback";
 import { jest } from "@jest/globals";
 
 interface FakeChannel {
@@ -13,15 +14,22 @@ interface FakeChannel {
         exchange: string,
         routingKey: string,
         content: Buffer,
-        options?: unknown,
+        options: Record<string, unknown>,
+        callback: (error: Error | null) => void,
       ) => boolean
     >
   >;
+  on: ReturnType<
+    typeof jest.fn<
+      (event: string, handler: (...args: unknown[]) => void) => void
+    >
+  >;
+  emit(event: string, ...args: unknown[]): void;
   close: ReturnType<typeof jest.fn<() => Promise<void>>>;
 }
 
 interface FakeConnection {
-  createChannel: ReturnType<typeof jest.fn<() => Promise<FakeChannel>>>;
+  createConfirmChannel: ReturnType<typeof jest.fn<() => Promise<FakeChannel>>>;
   close: ReturnType<typeof jest.fn<() => Promise<void>>>;
   on: ReturnType<
     typeof jest.fn<
@@ -37,10 +45,12 @@ jest.unstable_mockModule("amqplib", () => ({
   connect,
 }));
 
-const { RabbitMqClient } = await import("./rabbitmq.client.js");
+const { RabbitMqClient, requiresRoutableDelivery } =
+  await import("./rabbitmq.client.js");
 const expectedExchange = process.env.RABBITMQ_EXCHANGE ?? "lcsp.events";
 
 function makeChannel(): FakeChannel {
+  const handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
   return {
     assertExchange: jest.fn<
       (exchange: string, type: string, options?: unknown) => Promise<void>
@@ -50,9 +60,24 @@ function makeChannel(): FakeChannel {
         exchange: string,
         routingKey: string,
         content: Buffer,
-        options?: unknown,
+        options: Record<string, unknown>,
+        callback: (error: Error | null) => void,
       ) => boolean
-    >(() => true),
+    >((_exchange, _routingKey, _content, _options, callback) => {
+      callback(null);
+      return true;
+    }),
+    on: jest.fn<(event: string, handler: (...args: unknown[]) => void) => void>(
+      (event, handler) => {
+        handlers[event] ??= [];
+        handlers[event].push(handler);
+      },
+    ),
+    emit(event: string, ...args: unknown[]) {
+      for (const handler of handlers[event] ?? []) {
+        handler(...args);
+      }
+    },
     close: jest.fn<() => Promise<void>>(() => Promise.resolve()),
   };
 }
@@ -60,7 +85,7 @@ function makeChannel(): FakeChannel {
 function makeConnection(channel: FakeChannel): FakeConnection {
   const handlers: Record<string, ((...args: unknown[]) => void)[]> = {};
   return {
-    createChannel: jest.fn<() => Promise<FakeChannel>>(() =>
+    createConfirmChannel: jest.fn<() => Promise<FakeChannel>>(() =>
       Promise.resolve(channel),
     ),
     close: jest.fn<() => Promise<void>>(() => Promise.resolve()),
@@ -95,7 +120,7 @@ describe("RabbitMqClient", () => {
     });
 
     expect(connect).toHaveBeenCalledTimes(1);
-    expect(connection.createChannel).toHaveBeenCalledTimes(1);
+    expect(connection.createConfirmChannel).toHaveBeenCalledTimes(1);
     expect(channel.assertExchange).toHaveBeenCalledWith(
       expectedExchange,
       "topic",
@@ -119,7 +144,13 @@ describe("RabbitMqClient", () => {
       "lcsp.events",
       ASSESSMENT_EVENT_TYPES.createdOutbox,
       Buffer.from(JSON.stringify({ foo: "bar" })),
-      { contentType: "application/json", persistent: true },
+      expect.objectContaining({
+        contentType: "application/json",
+        persistent: true,
+        mandatory: false,
+        messageId: expect.any(String) as unknown,
+      }),
+      expect.any(Function),
     );
   });
 
@@ -139,14 +170,17 @@ describe("RabbitMqClient", () => {
       "lcsp.events",
       ASSESSMENT_EVENT_TYPES.createdOutbox,
       Buffer.from(JSON.stringify({ foo: "bar" })),
-      {
+      expect.objectContaining({
         contentType: "application/json",
         persistent: true,
+        mandatory: false,
+        messageId: expect.any(String) as unknown,
         headers: {
           user_id: "user-1",
           action: "scan:trigger",
         },
-      },
+      }),
+      expect.any(Function),
     );
   });
 
@@ -161,6 +195,45 @@ describe("RabbitMqClient", () => {
     await expect(
       client.publish("lcsp.events", ASSESSMENT_EVENT_TYPES.createdOutbox, {}),
     ).rejects.toThrow(/backpressure/i);
+  });
+
+  it("requires routing only for delivery-critical boundary messages", () => {
+    expect(requiresRoutableDelivery(ASSESSMENT_EVENT_TYPES.createdOutbox)).toBe(
+      false,
+    );
+    expect(
+      requiresRoutableDelivery("event.repository-snapshot.created.v1"),
+    ).toBe(false);
+    expect(requiresRoutableDelivery("command.scan.requested.v1")).toBe(true);
+    expect(
+      requiresRoutableDelivery("command.scan.targeted-reanalysis.v1"),
+    ).toBe(true);
+    expect(requiresRoutableDelivery(SCAN_EVENT_TYPES.evidenceAccepted)).toBe(
+      true,
+    );
+    expect(
+      requiresRoutableDelivery("cron.legal-catalog.check-updates.v1"),
+    ).toBe(true);
+  });
+
+  it("throws when RabbitMQ returns an unroutable mandatory publication", async () => {
+    const channel = makeChannel();
+    channel.publish.mockImplementation(
+      (_exchange, routingKey, _content, options, callback) => {
+        channel.emit("return", {
+          fields: { routingKey },
+          properties: { messageId: options.messageId },
+        });
+        callback(null);
+        return true;
+      },
+    );
+    connect.mockResolvedValue(makeConnection(channel));
+    const client = new RabbitMqClient("amqp://fake");
+
+    await expect(
+      client.publish("lcsp.events", "command.scan.requested.v1", {}),
+    ).rejects.toThrow(/unroutable/i);
   });
 
   it("reconnects after the connection emits close", async () => {

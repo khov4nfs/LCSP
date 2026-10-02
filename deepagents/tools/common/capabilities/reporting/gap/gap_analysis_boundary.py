@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from tools.common.capabilities.platform.logging import get_logger
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 
 from tools.common.capabilities.reporting.report.projection.classification_data_projection import (
     document_classification_context,

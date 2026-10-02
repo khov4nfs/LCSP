@@ -130,6 +130,6 @@ As a developer, I want authentication and workspace-facing shared modules to use
 - [Source: docs/implementation-artifacts/typescript-i18n-migration-plan-2026-07-02.md]
 - [Source: docs/implementation-artifacts/typescript-i18n-migration-plan-2026-07-02.md]
 - [Source: docs/planning-artifacts/research/technical-migrate-apps-api-apps-web-packages-tests-tu-javascript-sang-typescript-research-2026-07-02.md]
-- [Source: docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md]
+- [Source: docs/architecture/architecture.md]
 - [Source: docs/implementation/backend-implementation.md]
 - [Source: docs/product/prd.md]

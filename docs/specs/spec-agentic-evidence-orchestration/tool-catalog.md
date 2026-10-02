@@ -1,48 +1,43 @@
 # Tool Catalog
 
+> **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.**
+
 All tools are worker-owned, schema-validated capabilities. They return references and sanitized metadata; raw repository source, secrets, full prompts, and full AST bodies are forbidden.
 
 ## Shared invocation contract
 
 Every tool request carries `assessmentId`, `workflowRunId`, `artifactVersions`, `correlationId`, `budget`, and a bounded `scope`. Every response carries `status`, `toolVersion`, `configHash`, `provenanceRef`, `coverageState`, `evidenceRefs`, and `limitations`.
 
-## Mandatory baseline tools
+## Repository-analysis capabilities
 
-Implementation tasks: [baseline scanner tools](../../implementation/tasks/modules/agentic-evidence-tools/baseline-scanner-tools.md).
+Repository analysis is not exposed as a bag of language-specific model-callable
+scanner tools. The Repository Deep Agent uses its native repository harness and may
+invoke Codebase Memory MCP as an optional structural-memory layer.
 
-| Tool | Purpose |
+| Capability | Purpose |
 | --- | --- |
-| `materialize_snapshot` | Create the restricted commit-pinned scanner workspace. |
-| `classify_workspace_languages` | Inventory every file and assign support level or explicit skip limitation. |
-| `run_syft_inventory` | Produce SBOM and dependency inventory. |
-| `run_semgrep_rules` | Run versioned AI/security pattern rules. |
-| `run_knip_usage_analysis` | Analyze JS/TS dependency usage. |
-| `run_deptry_usage_analysis` | Analyze Python dependency usage. |
-| `run_python_semantic_analysis` | Produce Python AST/CST imports, calls, parameters, prompts, and bounded L1-L3 paths. |
-| `run_ts_js_semantic_analysis` | Produce TS/JS symbol, call, prompt-variable, and bounded flow facts. |
-| `run_structural_augmentation` | Process every eligible file and emit route/controller/class/function structural facts. |
-| `build_evidence_graph` | Normalize findings, facts, nodes, edges, coverage, and tool provenance. |
-| `validate_evidence_report` | Enforce schema, privacy, quality, and cleanup gates. |
+| Deep Agents filesystem/search | Direct repository discovery and source verification. |
+| Deep Agents execute | Bounded repository-local shell inspection in the LCSP Docker sandbox. |
+| Deep Agents task/subagents | Parallel bounded exploration of packages, languages, and architecture paths. |
+| Codebase Memory index_repository | Build structural memory for the current assessment repository. |
+| Codebase Memory architecture/search tools | Accelerate architecture and symbol discovery. |
+| Codebase Memory trace/query/change tools | Relationship and impact analysis. |
+| Codebase Memory check_index_coverage | Best-effort coverage diagnostics used together with direct source inspection. |
+| RepositoryAnalysisResult | Emit source anchors, compatibility evidence graph, coverage state, unresolved frontiers, and AI gate. |
 
-## Technical evidence query and verification tools
+## Repository evidence investigation and targeted reanalysis
 
-Implementation tasks: [technical evidence query tools](../../implementation/tasks/modules/agentic-evidence-tools/technical-evidence-query-tools.md).
+The active repository-analysis surface is the Deep Agents native harness, not the retired custom scanner/query-tool catalog. The agent uses direct filesystem/search/shell/subagent capabilities, optional Codebase Memory MCP graph/search/trace/coverage support, and repository source verification before closing claims.
 
-| Tool | Purpose |
+| Capability | Purpose |
 | --- | --- |
-| `get_scan_coverage` | Return analyzed/skipped/limited files, tool outcomes, and unresolved dynamic boundaries. |
-| `search_evidence` | Search normalized findings by type, provider, framework, data/action category, confidence, or location metadata. |
-| `get_finding_detail` | Return finding metadata, evidence refs, provenance, and limitations. |
-| `get_symbol_context` | Return sanitized symbol metadata: imports, decorators, parameter/output categories, callers/callees, and finding refs. |
-| `get_evidence_subgraph` | Return a bounded upstream/downstream graph slice for a finding or symbol. |
-| `trace_static_flow` | Trace bounded input → invocation → output → action/review paths and stop explicitly at dynamic edges. |
-| `find_similar_symbols` | Find analogous symbols by normalized call shape, provider/framework, data/action category, and graph neighborhood. |
-| `find_provider_invocations` | Distinguish package/config presence from evidence of an actual model invocation. |
-| `inspect_data_path` | Map evidence-backed ingress/schema/field metadata to data categories. |
-| `inspect_decision_path` | Detect bounded score/rank/recommend/approve/reject/status-update paths. |
-| `inspect_human_review_path` | Detect evidence of review queues, approvals, assignments, and state gates. |
-| `inspect_deployment_context` | Read sanitized deployment/manifest/config metadata without secret values. |
-| `request_targeted_reanalysis` | Run an allow-listed deterministic analyzer on a validated scope; never execute source. |
+| Native filesystem/search | Locate and verify repository source directly. |
+| Native execute | Run bounded repository-inspection commands inside the LCSP Docker sandbox. |
+| Native task/subagents | Split bounded codebase exploration across packages or technical frontiers. |
+| Codebase Memory MCP | Optional architecture, symbol, relationship, change, and index-coverage memory. |
+| RepositoryAnalysisResult | Persist source anchors, compatibility graph, coverage state, unresolved frontiers, and AI discovery gate. |
+| `request_targeted_reanalysis` | Re-enter the same Repository Deep Agent analysis boundary with a validated target scope; it does not invoke a retired language-specific analyzer. |
+
 
 ## Artifact, Wizard, and conflict tools
 
@@ -75,7 +70,7 @@ Implementation tasks: [legal classification and gap tools](../../implementation/
 | `validate_citation_set` | Deterministically reject absent, repealed, out-of-allowlist, or version-mismatched citations. |
 | `get_gap_requirements` | Return the versioned requirement matrix applicable to the classification. |
 | `evaluate_gap_matrix` | Return `SATISFIED`, `MISSING`, `CONTRADICTED`, `UNKNOWN`, or `OUT_OF_COVERAGE` per requirement. |
-| `get_gap_evidence_trace` | Identify whether a gap originates in Wizard, scanner, profile, legal basis, citation, or conflict resolution. |
+| `get_gap_evidence_trace` | Identify whether a gap originates in Wizard, repository analysis, profile, legal basis, citation, or conflict resolution. |
 | `propose_gap_remediation` | Produce structured remediation candidates; it cannot close a gap. |
 
 ## Admin-managed corpus recovery tools
@@ -101,7 +96,7 @@ Implementation tasks: [legal corpus recovery tools](../../implementation/tasks/m
 
 | Missing requirement | Resolver sequence | Terminal outcome when unresolved |
 | --- | --- | --- |
-| Technical signal | `search_evidence` → `trace_static_flow` → `request_targeted_reanalysis` | `UNKNOWN` or `OUT_OF_COVERAGE` |
+| Technical signal | native repository search/source inspection → optional Codebase Memory trace/search → `request_targeted_reanalysis` when scope must be refreshed | `UNKNOWN` or `OUT_OF_COVERAGE` |
 | Wizard contradiction | `compare_wizard_claim` → `get_reconciliation_context` | `CONFLICT` |
 | Legal basis/citation | `retrieve_legal_basis` → `get_legal_rule_match` → `validate_citation_set` | `BLOCKED` |
 | Corpus unavailable | corpus recovery tools in order | `BLOCKED` |

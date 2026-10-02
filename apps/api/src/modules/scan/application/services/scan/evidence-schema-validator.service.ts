@@ -6,7 +6,7 @@ import {
 } from "@lcsp/contracts/scan";
 
 import type { ScanCallbackRequest } from "../../contracts/scan/scan-callback.contract.js";
-import { isRecord } from "@lcsp/contracts/shared";
+import { cleanString as clean, isRecord } from "@lcsp/contracts/shared";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 const FORBIDDEN_EVIDENCE_KEYS = new Set([
@@ -120,9 +120,6 @@ function isStringRecord(value: unknown): value is Record<string, string> {
  * @param value - Unknown value to normalize.
  * @returns Trimmed string value, or null when empty/non-string.
  */
-function clean(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
 
 /**
  * Recursively detects forbidden raw/source/prompt/secret keys, recognizable secrets, or source-code body strings in evidence JSON.
