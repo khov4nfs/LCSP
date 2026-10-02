@@ -77,6 +77,10 @@ test("new assessment opens repository setup and removes the legacy details form"
   assert.match(setup, /startAssessmentRepositoryAnalysis/);
   assert.match(setup, /AssessmentComposer/);
   assert.match(setup, /RepositoryReviewTurn/);
+  assert.match(setup, /REPOSITORY_SETUP_STEPS/);
+  assert.match(setup, /REPOSITORY_ENTRY_INTENTS/);
+  assert.match(setup, /refreshedRepositories\.length > 1/);
+  assert.match(setup, /REPOSITORY_SETUP_STEPS\.repositoryMap/);
 });
 
 test("review and map stay inside the Agent transcript with explicit terminal actions", async () => {
@@ -91,6 +95,10 @@ test("review and map stay inside the Agent transcript with explicit terminal act
   assert.match(map, /<select/);
   assert.match(map, /removeConfirm/);
   assert.match(map, /<AgentTurn>/);
+  assert.match(map, /independentAcknowledged\] = useState\(false\)/);
+  assert.match(map, /autoFocus/);
+  assert.match(review, /onAddRepository/);
+  assert.match(review, /onEditMap/);
 });
 
 test("aggregate runtime waits for every repository and the aggregate graph", () => {

@@ -42,12 +42,16 @@ export function RepositoryMapTurn({
   relations,
   onChanged,
   onEditRepository,
+  onAddRepository,
+  onReviewScope,
 }: {
   assessmentId: string;
   repositories: AssessmentRepositorySetupRepository[];
   relations: Relation[];
   onChanged: () => void;
   onEditRepository?: (repository: AssessmentRepositorySetupRepository) => void;
+  onAddRepository?: () => void;
+  onReviewScope?: () => void;
 }) {
   const pinnableRepositories = repositories.filter(
     (repository) => repository.snapshot !== null,
@@ -57,9 +61,8 @@ export function RepositoryMapTurn({
   const [confirmingRemoval, setConfirmingRemoval] = useState<string | null>(
     null,
   );
-  const [independentAcknowledged, setIndependentAcknowledged] = useState(
-    relations.length === 0,
-  );
+  const [independentAcknowledged, setIndependentAcknowledged] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
   const form = useForm<RepositoryRelationFormValues>({
     resolver: zodResolver(repositoryRelationSchema),
     defaultValues: {
@@ -75,6 +78,7 @@ export function RepositoryMapTurn({
       : id;
   };
   const beginEdit = (relation?: Relation) => {
+    setSubmitError(false);
     setEditing(relation ?? null);
     setEditorOpen(true);
     form.reset(
@@ -92,16 +96,31 @@ export function RepositoryMapTurn({
     );
   };
   const submit = form.handleSubmit(async (values) => {
-    await saveAssessmentRepositoryRelation(assessmentId, {
-      ...values,
-      relationId: editing?.id,
-    });
-    setIndependentAcknowledged(false);
-    setEditing(null);
-    setEditorOpen(false);
-    form.reset();
-    onChanged();
+    try {
+      await saveAssessmentRepositoryRelation(assessmentId, {
+        ...values,
+        relationId: editing?.id,
+      });
+      setIndependentAcknowledged(false);
+      setEditing(null);
+      setEditorOpen(false);
+      form.reset();
+      onChanged();
+    } catch {
+      setSubmitError(true);
+    }
   });
+  const affectedRelationCount = confirmingRemoval
+    ? relations.filter((relation) => {
+        const repository = repositories.find(
+          (item) => item.connectionId === confirmingRemoval,
+        );
+        return (
+          relation.fromSnapshotId === repository?.snapshot?.id ||
+          relation.toSnapshotId === repository?.snapshot?.id
+        );
+      }).length
+    : 0;
 
   return (
     <AgentTurn>
@@ -115,7 +134,7 @@ export function RepositoryMapTurn({
       </AgentMessage>
       <div className="mt-3 overflow-x-auto rounded-md border">
         <table
-          className="w-full min-w-[34rem] text-left text-xs"
+          className="w-full min-w-136 text-left text-xs"
           aria-label={t("pages.assessmentFlow.multiRepository.tableLabel")}
         >
           <caption className="sr-only">
@@ -127,7 +146,7 @@ export function RepositoryMapTurn({
                 {t("pages.assessmentFlow.multiRepository.repository")}
               </th>
               <th className="p-2">
-                {t("pages.assessmentFlow.multiRepository.relations")} ·{" "}
+                {t("pages.assessmentFlow.multiRepository.relations")} &middot;{" "}
                 {relations.length}
               </th>
             </tr>
@@ -141,7 +160,7 @@ export function RepositoryMapTurn({
                 <th scope="row" className="p-2 font-medium">
                   {repository.repositoryFullName}
                   <span className="block font-normal text-muted-foreground">
-                    {formatProvider(repository.provider)} ·{" "}
+                    {formatProvider(repository.provider)} &middot;{" "}
                     {repository.snapshot?.commitSha.slice(0, 12) ??
                       t("pages.assessmentFlow.repository.pending")}
                   </span>
@@ -185,8 +204,8 @@ export function RepositoryMapTurn({
                         className="mr-2 rounded-sm underline"
                         onClick={() => beginEdit(relation)}
                       >
-                        {snapshotLabel(relation.fromSnapshotId)} →{" "}
-                        {snapshotLabel(relation.toSnapshotId)} ·{" "}
+                        {snapshotLabel(relation.fromSnapshotId)} &rarr;{" "}
+                        {snapshotLabel(relation.toSnapshotId)} &middot;{" "}
                         {relationTypeLabel(relation.type)}
                       </button>
                     ))}
@@ -211,19 +230,29 @@ export function RepositoryMapTurn({
             <p className="text-sm">
               {t("pages.assessmentFlow.multiRepository.removeConfirm")}
             </p>
+            {affectedRelationCount > 0 ? (
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t(
+                  "pages.assessmentFlow.multiRepository.relationCount",
+                ).replace("{count}", String(affectedRelationCount))}
+              </p>
+            ) : null}
           </AgentMessage>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               type="button"
               variant="destructive"
-              autoFocus
               onClick={async () => {
-                await removeAssessmentRepository(
-                  assessmentId,
-                  confirmingRemoval,
-                );
-                setConfirmingRemoval(null);
-                onChanged();
+                try {
+                  await removeAssessmentRepository(
+                    assessmentId,
+                    confirmingRemoval,
+                  );
+                  setConfirmingRemoval(null);
+                  onChanged();
+                } catch {
+                  setSubmitError(true);
+                }
               }}
             >
               {t("pages.assessmentFlow.multiRepository.removeRepository")}
@@ -231,6 +260,7 @@ export function RepositoryMapTurn({
             <Button
               type="button"
               variant="outline"
+              autoFocus
               onClick={() => setConfirmingRemoval(null)}
             >
               {t("pages.assessmentFlow.multiRepository.cancel")}
@@ -253,6 +283,17 @@ export function RepositoryMapTurn({
               {t("pages.assessmentFlow.multiRepository.keepIndependent")}
             </Button>
           ) : null}
+          {onAddRepository ? (
+            <Button type="button" variant="outline" onClick={onAddRepository}>
+              {t("pages.assessmentFlow.multiRepository.addRepository")}
+            </Button>
+          ) : null}
+          {onReviewScope &&
+          (relations.length > 0 || independentAcknowledged) ? (
+            <Button type="button" onClick={onReviewScope}>
+              {t("pages.assessmentFlow.multiRepository.reviewTitle")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
       {pinnableRepositories.length > 1 &&
@@ -260,6 +301,11 @@ export function RepositoryMapTurn({
       independentAcknowledged ? (
         <p className="mt-2 text-xs text-muted-foreground" role="status">
           {t("pages.assessmentFlow.multiRepository.independentState")}
+        </p>
+      ) : null}
+      {submitError ? (
+        <p className="mt-2 text-sm text-destructive" role="alert">
+          {t("pages.assessmentFlow.errors.repositorySetup")}
         </p>
       ) : null}
       {editorOpen ? (

@@ -8,6 +8,7 @@ import {
   ASSESSMENT_NEXT_ACTION_KEYS,
   ASSESSMENT_GRAPH_STATES,
   ASSESSMENT_SETUP_CONFIRMATION_STATUSES,
+  ASSESSMENT_REPOSITORY_PROVIDERS,
   READINESS_MODES,
 } from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
@@ -55,6 +56,20 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
         },
       );
     }
+    const persistedSetup =
+      typeof this.prisma.assessment?.findUnique === "function"
+        ? await this.prisma.assessment.findUnique({
+            where: { id: assessment.id },
+            select: {
+              repositorySetupVersion: true,
+              repositorySetupManifest: true,
+              repositorySetupConfirmedAt: true,
+            },
+          })
+        : null;
+    const confirmedManifestSnapshotIds = manifestSnapshotIds(
+      persistedSetup?.repositorySetupManifest,
+    );
 
     const [connections, acceptedEvidence, relations] = await Promise.all([
       typeof this.prisma.repositoryConnection.findMany === "function"
@@ -263,20 +278,35 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
       },
       { total: 0, completed: 0, failed: 0, pending: 0 },
     );
-    const providerCapabilities = [
-      ...new Set(connections.map((item) => String(item.provider))),
-    ].map((provider) => ({
+    // This is a runtime capability projection, not a list inferred from the
+    // repositories already connected to the assessment. The provider registry
+    // currently wires GitHub and GitLab adapters; the other prototype choices
+    // remain visible but unavailable until an adapter is registered.
+    const providerCapabilities = Object.values(
+      ASSESSMENT_REPOSITORY_PROVIDERS,
+    ).map((provider) => ({
       provider,
-      canConnect: true,
-      canPinSnapshot: true,
+      canConnect:
+        provider === ASSESSMENT_REPOSITORY_PROVIDERS.github ||
+        provider === ASSESSMENT_REPOSITORY_PROVIDERS.gitlab,
+      canPinSnapshot:
+        provider === ASSESSMENT_REPOSITORY_PROVIDERS.github ||
+        provider === ASSESSMENT_REPOSITORY_PROVIDERS.gitlab,
     }));
     const acceptedSnapshotIds = new Set(
       acceptedEvidence.map((report) => report.snapshotId),
     );
+    const scopedSnapshotIds =
+      confirmedManifestSnapshotIds.length > 0
+        ? confirmedManifestSnapshotIds
+        : snapshotIds;
 
     return {
       repository_setup: {
         assessmentId: assessment.id,
+        setupVersion:
+          persistedSetup?.repositorySetupVersion ??
+          assessment.repositorySetupVersion,
         assessmentStatus: assessment.status,
         connection: connection
           ? {
@@ -330,7 +360,10 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
           confirmedAt:
             assessment.status === ASSESSMENT_STATUS_CODES.wizardInProgress
               ? null
-              : assessment.updatedAt.toISOString(),
+              : (
+                  persistedSetup?.repositorySetupConfirmedAt ??
+                  assessment.updatedAt
+                ).toISOString(),
         },
         scanProgress,
         relationAggregate: {
@@ -339,14 +372,13 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
         },
         programEvidenceGraph: {
           state:
-            snapshotIds.length > 0 &&
-            snapshotIds.every((snapshotId) =>
+            scopedSnapshotIds.length > 0 &&
+            scopedSnapshotIds.every((snapshotId) =>
               acceptedSnapshotIds.has(snapshotId),
             ) &&
-            repositories.length > 0 &&
-            repositories.every(
-              (repository) =>
-                repository.scanJob?.status ===
+            scopedSnapshotIds.every(
+              (snapshotId) =>
+                latestJobBySnapshot.get(snapshotId)?.status ===
                 REPOSITORY_SCAN_JOB_STATUSES.completed,
             )
               ? ASSESSMENT_GRAPH_STATES.ready
@@ -384,4 +416,20 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
         : null,
     };
   }
+}
+
+function manifestSnapshotIds(value: unknown): string[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  const snapshots = (value as { snapshots?: unknown }).snapshots;
+  if (!Array.isArray(snapshots)) return [];
+  return snapshots.flatMap((snapshot) => {
+    if (
+      !snapshot ||
+      typeof snapshot !== "object" ||
+      Array.isArray(snapshot) ||
+      typeof (snapshot as { snapshotId?: unknown }).snapshotId !== "string"
+    )
+      return [];
+    return [(snapshot as { snapshotId: string }).snapshotId];
+  });
 }

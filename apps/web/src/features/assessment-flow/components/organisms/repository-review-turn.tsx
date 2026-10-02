@@ -29,12 +29,16 @@ export function RepositoryReviewTurn({
   confirming,
   onConfirm,
   onBack,
+  onEditMap,
+  onAddRepository,
 }: {
   repositories: AssessmentRepositorySetupRepository[];
   relations: ReviewRelation[];
   confirming?: boolean;
   onConfirm: () => void;
   onBack: () => void;
+  onEditMap?: () => void;
+  onAddRepository?: () => void;
 }) {
   const repositoryBySnapshot = new Map(
     repositories
@@ -58,7 +62,7 @@ export function RepositoryReviewTurn({
 
       <div className="mt-3 overflow-x-auto rounded-md border">
         <table
-          className="w-full min-w-[34rem] text-left text-xs"
+          className="w-full min-w-136 text-left text-xs"
           aria-label={t("pages.assessmentFlow.multiRepository.tableLabel")}
         >
           <caption className="sr-only">
@@ -70,7 +74,7 @@ export function RepositoryReviewTurn({
                 {t("pages.assessmentFlow.multiRepository.repository")}
               </th>
               <th scope="col" className="p-2">
-                {t("pages.assessmentFlow.multiRepository.relations")} ·{" "}
+                {t("pages.assessmentFlow.multiRepository.relations")} &middot;{" "}
                 {t(
                   "pages.assessmentFlow.multiRepository.relationCount",
                 ).replace("{count}", String(relations.length))}
@@ -96,7 +100,10 @@ export function RepositoryReviewTurn({
                     </span>
                     <span className="mt-1 block font-normal text-muted-foreground">
                       {t("pages.assessmentFlow.multiRepository.pinnedRevision")
-                        .replace("{provider}", formatProvider(repository.provider))
+                        .replace(
+                          "{provider}",
+                          formatProvider(repository.provider),
+                        )
                         .replace(
                           "{branch}",
                           repository.snapshot?.branch ??
@@ -110,7 +117,25 @@ export function RepositoryReviewTurn({
                     </span>
                   </th>
                   <td className="p-2 align-top text-muted-foreground">
-                    {repositoryRelations.length}
+                    {repositoryRelations.length === 0
+                      ? t("pages.assessmentFlow.multiRepository.noRelation")
+                      : repositoryRelations.map((relation) => {
+                          const from = repositoryBySnapshot.get(
+                            relation.fromSnapshotId,
+                          );
+                          const to = repositoryBySnapshot.get(
+                            relation.toSnapshotId,
+                          );
+                          return (
+                            <span className="mb-1 block" key={relation.id}>
+                              {from?.repositoryFullName ??
+                                relation.fromSnapshotId}{" "}
+                              &rarr;{" "}
+                              {to?.repositoryFullName ?? relation.toSnapshotId}{" "}
+                              &middot; {relationTypeLabel(relation.type)}
+                            </span>
+                          );
+                        })}
                   </td>
                 </tr>
               );
@@ -138,8 +163,8 @@ export function RepositoryReviewTurn({
             const to = repositoryBySnapshot.get(relation.toSnapshotId);
             return (
               <li key={relation.id}>
-                {from?.repositoryFullName ?? relation.fromSnapshotId} →{" "}
-                {to?.repositoryFullName ?? relation.toSnapshotId} ·{" "}
+                {from?.repositoryFullName ?? relation.fromSnapshotId} &rarr;{" "}
+                {to?.repositoryFullName ?? relation.toSnapshotId} &middot;{" "}
                 {relationTypeLabel(relation.type)}
               </li>
             );
@@ -163,6 +188,26 @@ export function RepositoryReviewTurn({
         >
           {t("pages.assessmentFlow.multiRepository.backToSetup")}
         </Button>
+        {onEditMap ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={confirming}
+            onClick={onEditMap}
+          >
+            {t("pages.assessmentFlow.multiRepository.edit")}
+          </Button>
+        ) : null}
+        {onAddRepository ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={confirming}
+            onClick={onAddRepository}
+          >
+            {t("pages.assessmentFlow.multiRepository.addRepository")}
+          </Button>
+        ) : null}
       </div>
     </AgentTurn>
   );

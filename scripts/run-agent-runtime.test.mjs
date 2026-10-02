@@ -3,6 +3,10 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 const source = await readFile(new URL("./run.mjs", import.meta.url), "utf8");
+const developmentDockerfile = await readFile(
+  new URL("../deepagents/Dockerfile.dev", import.meta.url),
+  "utf8",
+);
 
 test("agent-runtime startup does not rely on generated managed build state", () => {
   const retiredCli = ["m", "d", "a"].join("");
@@ -55,6 +59,10 @@ test("agent runtime sets explicit local LangGraph concurrency", () => {
   assert.match(source, /"1"/u);
 });
 
+test("development worker image installs the LangGraph CLI used by its entrypoint", () => {
+  assert.match(developmentDockerfile, /uv sync --frozen --extra dev/u);
+  assert.doesNotMatch(developmentDockerfile, /uv sync --frozen --no-dev/u);
+});
 
 test("optional observability failure does not stop Agent Runtime services", () => {
   assert.match(source, /optional: target\.optional === true/u);
@@ -62,10 +70,7 @@ test("optional observability failure does not stop Agent Runtime services", () =
     source,
     /if \(optional\) \{[\s\S]*core dev services remain running\.[\s\S]*return;/u,
   );
-  assert.match(
-    source,
-    /phoenix: \{[\s\S]*optional: true,/u,
-  );
+  assert.match(source, /phoenix: \{[\s\S]*optional: true,/u);
 });
 
 test("docker worker env forwards every provider credential pool the worker rotates", async () => {
@@ -87,7 +92,11 @@ test("docker worker env forwards every provider credential pool the worker rotat
   assert.ok(start >= 0 && end > start);
   const workerEnv = source.slice(start, end);
   for (const name of keyEnvNames) {
-    assert.match(workerEnv, new RegExp(`"${name}"`, "u"), `${name} is not forwarded`);
+    assert.match(
+      workerEnv,
+      new RegExp(`"${name}"`, "u"),
+      `${name} is not forwarded`,
+    );
   }
   assert.match(workerEnv, /"INCEPTION_BASE_URL"/u);
   assert.match(workerEnv, /"LLM_PROVIDER_TIMEOUT_SECONDS"/u);

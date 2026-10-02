@@ -55,6 +55,11 @@ function buildHandler(input?: {
     .fn<AuditWriterService["writeInTx"]>()
     .mockResolvedValue(undefined);
   const tx = { id: "repository-setup-tx" } as Record<string, unknown>;
+  tx.assessment = {
+    updateMany: jest
+      .fn<(input: unknown) => Promise<{ count: number }>>()
+      .mockResolvedValue({ count: 1 }),
+  };
   const scanJobCreate = jest
     .fn<(input: { data: Record<string, unknown> }) => Promise<unknown>>()
     .mockResolvedValue({});
@@ -147,10 +152,12 @@ describe("CompleteRepositorySetupHandler", () => {
 
     expect(result).toMatchObject({
       assessment_id: "assessment-1",
+      setup_version: 1,
       status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
       repository_connection_id: "connection-1",
       snapshot_id: "snapshot-1",
       commit_sha: commitSha,
+      scan_jobs: [],
     });
     expect(context.connectionFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -200,6 +207,22 @@ describe("CompleteRepositorySetupHandler", () => {
         },
       });
     }
+    expect(context.transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects confirmation from a stale repository setup version", async () => {
+    const context = buildHandler();
+
+    await expect(
+      context.handler.execute(
+        new CompleteRepositorySetupCommand(
+          "assessment-1",
+          "user-1",
+          "correlation-1",
+          1,
+        ),
+      ),
+    ).rejects.toThrow(ConflictException);
     expect(context.transaction).not.toHaveBeenCalled();
   });
 

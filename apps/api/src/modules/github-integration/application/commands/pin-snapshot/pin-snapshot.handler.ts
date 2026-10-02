@@ -8,6 +8,7 @@ import {
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
@@ -93,7 +94,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
     const connectionId = clean(command.connectionId);
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: command.assessmentId },
-      select: { id: true, ownerId: true },
+      select: { id: true, ownerId: true, status: true },
     });
     if (!assessment) {
       await this.auditDenied(
@@ -118,6 +119,17 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
         {
           status: HttpStatus.FORBIDDEN,
         },
+      );
+    }
+    if (assessment.status !== ASSESSMENT_STATUS_CODES.wizardInProgress) {
+      await this.auditDenied(
+        command,
+        GITHUB_INTEGRATION_ERROR_CODES.assessmentStateInvalid,
+      );
+      throw problemException(
+        GITHUB_INTEGRATION_ERROR_CODES.assessmentStateInvalid,
+        command.correlationId,
+        { status: HttpStatus.CONFLICT },
       );
     }
 
@@ -222,6 +234,14 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
         },
       }),
     );
+    await this.prisma.assessment.updateMany({
+      where: {
+        id: command.assessmentId,
+        ownerId: command.actorId,
+        status: ASSESSMENT_STATUS_CODES.wizardInProgress,
+      },
+      data: { repositorySetupVersion: { increment: 1 } },
+    });
 
     await this.auditWriter.write({
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreatedAudit,

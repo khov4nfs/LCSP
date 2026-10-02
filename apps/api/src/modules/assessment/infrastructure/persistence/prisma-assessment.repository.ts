@@ -20,6 +20,7 @@ type AssessmentRecord = {
   name: string;
   description: string | null;
   status: PrismaAssessmentStatus;
+  repositorySetupVersion?: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -79,6 +80,7 @@ export class PrismaAssessmentRepository implements AssessmentRepository {
         name: assessment.name,
         description: assessment.description,
         status: toPrismaAssessmentStatus(assessment.status),
+        repositorySetupVersion: assessment.repositorySetupVersion,
         createdAt: assessment.createdAt,
         updatedAt: assessment.updatedAt,
       },
@@ -148,6 +150,7 @@ export class PrismaAssessmentRepository implements AssessmentRepository {
       name: record.name,
       description: record.description,
       status: fromPrismaAssessmentStatus(record.status),
+      repositorySetupVersion: record.repositorySetupVersion ?? 0,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     });

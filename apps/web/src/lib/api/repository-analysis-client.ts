@@ -190,9 +190,16 @@ type ScanPayload = {
 
 type RepositorySetupPayload = {
   assessment_id: string;
+  setup_version: number;
   repository_connection_id: string;
   snapshot_id: string;
   commit_sha: string;
+  scan_jobs?: Array<{
+    snapshot_id: string;
+    commit_sha: string;
+    scan_job_id: string;
+    status: string;
+  }>;
 };
 
 export type RerunRepositoryScanInput = {
@@ -254,33 +261,31 @@ export function startRepositoryAnalysis(
 /** Confirms the assessment scope and starts one idempotent scan per pinned repository. */
 export async function startAssessmentRepositoryAnalysis(
   assessmentId: string,
+  setupVersion: number,
 ): Promise<StartRepositoryAnalysisResult[]> {
-  const state = await getRepositorySetupState(assessmentId);
-  const repositories =
-    state.repositories ??
-    (state.connection
-      ? [
-          {
-            ...state.connection,
-            snapshot: state.snapshot,
-            scanJob: state.scanJob,
-          },
-        ]
-      : []);
-  if (repositories.length === 0)
-    throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
-  const results: StartRepositoryAnalysisResult[] = [];
-  for (const repository of repositories) {
-    if (!repository.snapshot)
-      throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
-    results.push(
-      await resumeRepositoryAnalysis(assessmentId, {
-        connectionId: repository.connectionId,
-        branch: repository.snapshot.branch ?? repository.defaultBranch,
-      }),
-    );
+  // Confirmation is the single server-authoritative transition. The command
+  // seals the pinned scope and creates every scan job in its transaction; the
+  // browser must never re-create those jobs one repository at a time.
+  const response = await apiRequest(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/repository-setup/complete`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ setup_version: setupVersion }),
+    },
+  );
+  if (!response.ok || !isRepositorySetupPayload(response.payload)) {
+    throw new Error(response.problemCode ?? "repository-setup-complete-failed");
   }
-  return results;
+  if (response.payload.assessment_id !== assessmentId) {
+    throw new Error(GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch);
+  }
+  return (response.payload.scan_jobs ?? []).map((scanJob) => ({
+    snapshotId: scanJob.snapshot_id,
+    commitSha: scanJob.commit_sha,
+    scanJobId: scanJob.scan_job_id,
+    scanStatus: scanJob.status,
+  }));
 }
 
 async function resumeRepositoryAnalysis(
@@ -413,9 +418,21 @@ function isRepositorySetupPayload(
   return (
     isRecord(payload) &&
     isString(payload.assessment_id) &&
+    typeof payload.setup_version === "number" &&
+    Number.isInteger(payload.setup_version) &&
     isString(payload.repository_connection_id) &&
     isString(payload.snapshot_id) &&
-    isString(payload.commit_sha)
+    isString(payload.commit_sha) &&
+    (payload.scan_jobs === undefined ||
+      (Array.isArray(payload.scan_jobs) &&
+        payload.scan_jobs.every(
+          (scanJob) =>
+            isRecord(scanJob) &&
+            isString(scanJob.snapshot_id) &&
+            isString(scanJob.commit_sha) &&
+            isString(scanJob.scan_job_id) &&
+            isString(scanJob.status),
+        )))
   );
 }
 

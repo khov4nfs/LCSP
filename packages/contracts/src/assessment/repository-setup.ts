@@ -45,6 +45,8 @@ export type AssessmentRepositoryRelation = {
 /** Persisted setup checkpoints. A GET of this state must never start work. */
 export type AssessmentRepositorySetupState = {
   assessmentId: string;
+  /** Optional only for compatibility with checkpoints written before versioning. */
+  setupVersion?: number;
   assessmentStatus: (typeof ASSESSMENT_STATUS_CODES)[keyof typeof ASSESSMENT_STATUS_CODES];
   connection: {
     connectionId: string;
@@ -107,7 +109,15 @@ export type AssessmentRepositorySetupState = {
 export function isAssessmentRepositorySetupState(
   value: unknown,
 ): value is AssessmentRepositorySetupState {
-  if (!isRecord(value) || !nonempty(value.assessmentId)) return false;
+  if (
+    !isRecord(value) ||
+    !nonempty(value.assessmentId) ||
+    (value.setupVersion !== undefined &&
+      (typeof value.setupVersion !== "number" ||
+        !Number.isInteger(value.setupVersion) ||
+        value.setupVersion < 0))
+  )
+    return false;
   if (
     !Object.values(ASSESSMENT_STATUS_CODES).some(
       (status) => status === value.assessmentStatus,

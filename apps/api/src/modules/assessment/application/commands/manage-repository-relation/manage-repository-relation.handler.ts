@@ -52,6 +52,7 @@ export class ManageRepositoryRelationHandler implements ICommandHandler<ManageRe
           command.correlationId,
           { status: HttpStatus.NOT_FOUND },
         );
+      await this.bumpSetupVersion(command);
       return { id: null };
     }
     if (
@@ -99,6 +100,7 @@ export class ManageRepositoryRelationHandler implements ICommandHandler<ManageRe
         update: {},
         select: { id: true },
       });
+      await this.bumpSetupVersion(command);
       return created;
     }
     const updated = await this.prisma.assessmentRepositoryRelation.updateMany({
@@ -118,6 +120,20 @@ export class ManageRepositoryRelationHandler implements ICommandHandler<ManageRe
         command.correlationId,
         { status: HttpStatus.NOT_FOUND },
       );
+    await this.bumpSetupVersion(command);
     return { id: command.relationId };
+  }
+
+  private async bumpSetupVersion(
+    command: ManageRepositoryRelationCommand,
+  ): Promise<void> {
+    await this.prisma.assessment.updateMany({
+      where: {
+        id: command.assessmentId,
+        ownerId: command.actorId,
+        status: ASSESSMENT_STATUS_CODES.wizardInProgress,
+      },
+      data: { repositorySetupVersion: { increment: 1 } },
+    });
   }
 }

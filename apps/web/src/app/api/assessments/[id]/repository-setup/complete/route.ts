@@ -11,12 +11,15 @@ export async function POST(
   if (!session.ok) return session.response;
 
   const { id } = await params;
+  const body = await request.json().catch(() => null);
   return upstreamJson(
     await upstreamRequest(
       `/assessments/${encodeURIComponent(id)}/repository-setup/complete`,
       {
         method: "POST",
         bearerToken: session.token,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
       },
     ),
   );

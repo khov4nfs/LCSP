@@ -32,19 +32,47 @@ export class RemoveAssessmentRepositoryHandler implements ICommandHandler<Remove
         command.correlationId,
         { status: HttpStatus.CONFLICT },
       );
-    const result = await this.prisma.repositoryConnection.deleteMany({
+    const connection = await this.prisma.repositoryConnection.findFirst({
       where: {
         id: command.connectionId,
         assessmentId: command.assessmentId,
         userId: command.actorId,
       },
+      select: { id: true },
     });
-    if (result.count !== 1)
+    if (!connection)
       throw problemException(
         ASSESSMENT_ERROR_CODES.notFound,
         command.correlationId,
         { status: HttpStatus.NOT_FOUND },
       );
+
+    // A remove action only detaches this Assessment's setup. The underlying
+    // provider connection and account credential remain available to the user.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.repositorySnapshot.deleteMany({
+        where: {
+          assessmentId: command.assessmentId,
+          connectionId: connection.id,
+        },
+      });
+      await tx.repositoryConnection.updateMany({
+        where: {
+          id: connection.id,
+          assessmentId: command.assessmentId,
+          userId: command.actorId,
+        },
+        data: { assessmentId: null },
+      });
+      await tx.assessment.updateMany({
+        where: {
+          id: command.assessmentId,
+          ownerId: command.actorId,
+          status: ASSESSMENT_STATUS_CODES.wizardInProgress,
+        },
+        data: { repositorySetupVersion: { increment: 1 } },
+      });
+    });
     return { removed: true };
   }
 }

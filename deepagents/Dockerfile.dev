@@ -20,7 +20,7 @@ COPY --from=uv /uv /uvx /bin/
 # copied so dependency layers retain a stable cache key.
 COPY deepagents/pyproject.toml deepagents/uv.lock /app/deepagents/
 RUN cd /app/deepagents \
-    && uv sync --frozen --no-dev --no-install-project
+    && uv sync --frozen --extra dev --no-install-project
 
 COPY deepagents/sandbox/setup.sh /tmp/lcsp-sandbox-setup.sh
 RUN bash /tmp/lcsp-sandbox-setup.sh \
@@ -31,7 +31,7 @@ RUN bash /tmp/lcsp-sandbox-setup.sh \
 COPY deepagents /app/deepagents
 
 RUN cd /app/deepagents \
-    && uv sync --frozen --no-dev
+    && uv sync --frozen --extra dev
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1

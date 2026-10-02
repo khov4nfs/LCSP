@@ -65,10 +65,7 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
       );
     }
     const assessmentStatus = fromPrismaAssessmentStatus(assessment.status);
-    if (
-      assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardInProgress &&
-      assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardSubmitted
-    ) {
+    if (assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardInProgress) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.assessmentStateInvalid,
         command.correlationId,
@@ -159,6 +156,14 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
           permissions: {},
           status: RepositoryConnectionStatus.ACTIVE,
           connectedAt: now,
+        });
+        await transaction.database.assessment.updateMany({
+          where: {
+            id: command.assessmentId,
+            ownerId: command.userId,
+            status: assessment.status,
+          },
+          data: { repositorySetupVersion: { increment: 1 } },
         });
       });
       return {

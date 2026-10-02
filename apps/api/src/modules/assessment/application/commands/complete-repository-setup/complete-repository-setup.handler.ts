@@ -74,6 +74,16 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
         { status: HttpStatus.CONFLICT },
       );
     }
+    if (
+      assessment.status === ASSESSMENT_STATUS_CODES.wizardInProgress &&
+      command.expectedSetupVersion !== assessment.repositorySetupVersion
+    ) {
+      throw problemException(
+        ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
+        command.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
 
     const connections = await this.prisma.repositoryConnection.findMany({
       where: {
@@ -123,6 +133,47 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
 
     if (!wasCompleted) {
       await this.prisma.$transaction(async (tx) => {
+        const relations = tx.assessmentRepositoryRelation
+          ? await tx.assessmentRepositoryRelation.findMany({
+              where: { assessmentId: command.assessmentId },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+              select: {
+                fromSnapshotId: true,
+                toSnapshotId: true,
+                type: true,
+              },
+            })
+          : [];
+        const confirmed = await tx.assessment.updateMany({
+          where: {
+            id: assessment.id,
+            ownerId: command.actorId,
+            repositorySetupVersion: command.expectedSetupVersion,
+          },
+          data: {
+            repositorySetupVersion: { increment: 1 },
+            repositorySetupConfirmedAt: new Date(),
+            repositorySetupManifest: {
+              setupVersion: command.expectedSetupVersion + 1,
+              snapshots: selectedSnapshots.map((item) => ({
+                connectionId: item.connectionId,
+                snapshotId: item.id,
+                commitSha: item.commitSha,
+              })),
+              relations: relations.map((relation) => ({
+                fromSnapshotId: relation.fromSnapshotId,
+                toSnapshotId: relation.toSnapshotId,
+                type: String(relation.type),
+              })),
+            },
+          },
+        });
+        if (confirmed.count !== 1)
+          throw problemException(
+            ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
+            command.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
         await this.assessments.saveInTx(assessment, tx);
         await this.auditWriter.writeInTx(
           {
@@ -147,16 +198,46 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
           },
           tx,
         );
-        await this.enqueueScanJobsInTx(tx, command, selectedSnapshots);
+        await this.enqueueScanJobsInTx(
+          tx,
+          command,
+          selectedSnapshots,
+          relations,
+        );
       });
     }
 
+    const scanJobs =
+      this.prisma.repositoryScanJob &&
+      typeof this.prisma.repositoryScanJob.findMany === "function"
+        ? await this.prisma.repositoryScanJob.findMany({
+            where: {
+              assessmentId: command.assessmentId,
+              snapshotId: { in: selectedSnapshots.map((item) => item.id) },
+            },
+            select: { id: true, snapshotId: true, status: true },
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          })
+        : [];
+
     return {
       assessment_id: assessment.id,
+      setup_version: wasCompleted
+        ? assessment.repositorySetupVersion
+        : command.expectedSetupVersion + 1,
       status: assessment.status,
       repository_connection_id: snapshot!.connectionId,
       snapshot_id: snapshot!.id,
       commit_sha: snapshot!.commitSha,
+      scan_jobs: scanJobs.map((scanJob) => ({
+        snapshot_id: scanJob.snapshotId,
+        commit_sha:
+          selectedSnapshots.find(
+            (snapshot) => snapshot.id === scanJob.snapshotId,
+          )?.commitSha ?? "",
+        scan_job_id: scanJob.id,
+        status: String(scanJob.status),
+      })),
     };
   }
 
@@ -168,20 +249,14 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
     tx: Prisma.TransactionClient,
     command: CompleteRepositorySetupCommand,
     snapshots: Array<{ id: string; commitSha: string }>,
+    relations: Array<{
+      fromSnapshotId: string;
+      toSnapshotId: string;
+      type: string;
+    }>,
   ): Promise<void> {
     if (!this.outbox || !tx.repositoryScanJob) return;
 
-    const relations = tx.assessmentRepositoryRelation
-      ? await tx.assessmentRepositoryRelation.findMany({
-          where: { assessmentId: command.assessmentId },
-          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          select: {
-            fromSnapshotId: true,
-            toSnapshotId: true,
-            type: true,
-          },
-        })
-      : [];
     const triggerSource = REPOSITORY_SCAN_TRIGGER_SOURCES.manual;
 
     for (const snapshot of snapshots) {

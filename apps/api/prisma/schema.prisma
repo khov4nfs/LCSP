@@ -152,6 +152,9 @@ model Assessment {
   name                       String
   description                String?
   status                     AssessmentStatus               @default(WIZARD_IN_PROGRESS)
+  repositorySetupVersion     Int                            @default(0)
+  repositorySetupManifest    Json?
+  repositorySetupConfirmedAt DateTime?
   createdAt                  DateTime                       @default(now())
   updatedAt                  DateTime                       @updatedAt
   aiUsageFlows               AIUsageFlow[]

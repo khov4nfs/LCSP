@@ -14,6 +14,7 @@ type AssessmentProps = {
   name: string;
   description: string | null;
   status: AssessmentStatus;
+  repositorySetupVersion: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -53,6 +54,7 @@ export class Assessment {
       name: input.name.trim(),
       description: input.description?.trim() || null,
       status: ASSESSMENT_STATUS_CODES.wizardInProgress,
+      repositorySetupVersion: 0,
       createdAt: now,
       updatedAt: now,
     });
@@ -64,9 +66,17 @@ export class Assessment {
    * @param props - Fully populated persisted assessment properties.
    * @returns A rehydrated assessment aggregate.
    */
-  static rehydrate(props: AssessmentProps): Assessment {
-    const entity = new Assessment(props);
-    entity.props = props;
+  static rehydrate(
+    props: Omit<AssessmentProps, "repositorySetupVersion"> & {
+      repositorySetupVersion?: number;
+    },
+  ): Assessment {
+    const hydratedProps = {
+      ...props,
+      repositorySetupVersion: props.repositorySetupVersion ?? 0,
+    };
+    const entity = new Assessment(hydratedProps);
+    entity.props = hydratedProps;
     return entity;
   }
 
@@ -93,6 +103,11 @@ export class Assessment {
   /** @returns The current assessment lifecycle status. */
   get status(): AssessmentStatus {
     return this.props.status;
+  }
+
+  /** Version of mutable repository setup state, used for optimistic confirmation. */
+  get repositorySetupVersion(): number {
+    return this.props.repositorySetupVersion;
   }
 
   /** @returns The assessment creation timestamp. */

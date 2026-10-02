@@ -19,6 +19,7 @@ import {
 import {
   connectAssessmentRepository,
   getRepositorySetupState,
+  startAssessmentRepositoryAnalysis,
   startRepositoryAnalysis,
 } from "../src/lib/api/repository-analysis-client";
 
@@ -133,6 +134,7 @@ function server(t: TestContext, initial: AssessmentRepositorySetupState) {
         maybeLoseResponse("completion-response");
         return response({
           assessment_id: assessmentId,
+          setup_version: 1,
           repository_connection_id: connection.connectionId,
           snapshot_id: api.completionMismatch
             ? "different-snapshot"
@@ -255,6 +257,17 @@ test("a submitted Assessment with a scan job opens scanner", () => {
     scanJob: makeJob(),
   });
   assert.equal(needsRepositorySetupResume(setupState), false);
+});
+
+test("scope confirmation delegates all scan creation to one server transition", async (t) => {
+  const api = server(t, state());
+
+  await startAssessmentRepositoryAnalysis(assessmentId, 0);
+
+  assert.deepEqual(
+    writes(api).map((request) => request.path.split("/").slice(-2).join("/")),
+    ["repository-setup/complete"],
+  );
 });
 
 test("resume completes a saved snapshot then starts its scan without repinning", async (t) => {
@@ -413,7 +426,7 @@ test("completion with a different snapshot never starts a scan", async (t) => {
   );
 });
 
-test("setup UI has an explicit resume action and no automatic destructive cleanup", async () => {
+test("setup UI restores persisted setup state without destructive cleanup", async () => {
   const source = await readFile(
     new URL(
       "../src/features/assessment-flow/components/organisms/repository-setup-step.tsx",
@@ -425,6 +438,6 @@ test("setup UI has an explicit resume action and no automatic destructive cleanu
     source,
     /useDeleteAssessmentMutation|deleteAssessment\.mutateAsync/,
   );
-  assert.match(source, /pages\.assessmentFlow\.resumeSetup/);
+  assert.match(source, /REPOSITORY_SETUP_STEPS/);
   assert.match(source, /getRepositorySetupState/);
 });

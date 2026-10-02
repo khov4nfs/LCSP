@@ -13,6 +13,8 @@ function resolveComponent(comp: unknown) {
 }
 
 const ImageComponent = resolveComponent(Image) as React.ElementType;
+const imageOptimizationProps =
+  ImageComponent === "img" ? {} : { unoptimized: true };
 
 
 import {
@@ -80,7 +82,7 @@ export function LCSPLogo({
         height={asset.height}
         alt=""
         aria-hidden="true"
-        unoptimized
+        {...imageOptimizationProps}
         className="absolute inset-0 block size-full dark:hidden"
       />
       <ImageComponent
@@ -89,7 +91,7 @@ export function LCSPLogo({
         height={asset.height}
         alt=""
         aria-hidden="true"
-        unoptimized
+        {...imageOptimizationProps}
         className="absolute inset-0 hidden size-full dark:block"
       />
     </span>

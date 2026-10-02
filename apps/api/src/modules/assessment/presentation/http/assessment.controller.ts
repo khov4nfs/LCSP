@@ -96,14 +96,17 @@ export class AssessmentController {
   @RequireRoles(AUTH_USER_ROLES.customer)
   async completeRepositorySetup(
     @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
     @Req() request: AuthenticatedRequest,
   ) {
+    const expectedSetupVersion = repositorySetupVersion(body);
     return resultEnvelope(
       await this.commandBus.execute(
         new CompleteRepositorySetupCommand(
           assessmentId,
           request.rbacContext.userId,
           request.correlationId ?? "repository-setup-complete",
+          expectedSetupVersion,
         ),
       ),
     );
@@ -467,6 +470,19 @@ export class AssessmentController {
       ),
     );
   }
+}
+
+function repositorySetupVersion(body: unknown): number {
+  if (
+    typeof body === "object" &&
+    body !== null &&
+    "setup_version" in body &&
+    typeof body.setup_version === "number" &&
+    Number.isInteger(body.setup_version) &&
+    body.setup_version >= 0
+  )
+    return body.setup_version;
+  return 0;
 }
 
 @Controller("internal/assessment-interviews")
