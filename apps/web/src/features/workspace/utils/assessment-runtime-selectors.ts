@@ -1,3 +1,4 @@
+import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_INTERVIEW_OUTCOMES,
   INTERVIEW_PROGRESS_PHASES,
@@ -28,6 +29,7 @@ import {
   type NormalizedAssessmentRuntime,
 } from "../types/assessment-runtime-adapter.types";
 import { projectRuntimeThinking } from "./runtime-thinking-projection";
+import type { AssessmentStatus } from "../types/workspace.types";
 import type {
   RuntimeThinkingItem,
   WorkspaceRuntimeRepositorySnapshot,
@@ -191,13 +193,8 @@ export function selectAssessmentRuntimeSidebarPresentation(
       ASSESSMENT_SIDEBAR_STATUSES.queued,
     ),
     sidebarWorkflowItem(
-      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner,
-      "pages.appShell.assessmentSidebar.workflow.planner",
-      ASSESSMENT_SIDEBAR_STATUSES.queued,
-    ),
-    sidebarWorkflowItem(
-      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate,
-      "pages.appShell.assessmentSidebar.workflow.investigate",
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
+      "pages.appShell.assessmentSidebar.workflow.ruleAnalysis",
       ASSESSMENT_SIDEBAR_STATUSES.queued,
     ),
     sidebarWorkflowItem(
@@ -336,9 +333,7 @@ export function selectComposerAvailability(
   normalized: NormalizedAssessmentRuntime,
 ) {
   const actions = normalized.customerActions;
-  const isEnabled =
-    actions.canUseComposer &&
-    normalized.availability === ASSESSMENT_RUNTIME_AVAILABILITIES.ready;
+  const isEnabled = actions.canUseComposer;
   const placeholderKey = actions.canAnswerQuestion
     ? "pages.appShell.chatComposerPlaceholder"
     : "pages.assessment.noActiveInterviewQuestion";
@@ -352,7 +347,18 @@ export function selectComposerAvailability(
 
 export function selectInterviewHandoffPresentation(
   normalized: NormalizedAssessmentRuntime,
+  assessmentStatus: AssessmentStatus | null = null,
 ) {
+  if (assessmentStatus === ASSESSMENT_STATUS_CODES.aiNotDetected) {
+    // Terminal: governed evidence proved no AI use, so no Interview question follows.
+    return {
+      isStartupPending: false,
+      canResumeFailedTurn: false,
+      isGenuinelyPending: false,
+      messageKey: "pages.assessmentFlow.interview.aiNotDetectedDescription",
+      placeholderKey: "pages.assessmentFlow.interview.aiNotDetectedPlaceholder",
+    } as const;
+  }
   const interview = selectInterviewPresentation(normalized);
   const hasCustomerVisibleTurn =
     Boolean(interview.questionTurnProps) || interview.isBlocked;
@@ -404,12 +410,29 @@ export function selectInterviewHandoffPresentation(
                 ? "pages.assessmentFlow.interview.startingDescription"
                 : "pages.assessmentFlow.interview.pendingDescription";
 
+  // The answer is saved but the Interview Agent turn failed: offer Resume.
+  const canResumeFailedTurn =
+    isStartupPending &&
+    progress?.phase === INTERVIEW_PROGRESS_PHASES.failed &&
+    messageKey === progressKey;
+
+  // True only in the freshest possible state: nothing has ever run for this
+  // Interview yet (no orchestration requested, no progress event, no answer
+  // on record). There is nothing to continue here, so Pipeline Continue must
+  // stay hidden instead of offering to restart a pipeline that simply hasn't
+  // been dispatched yet.
+  const isGenuinelyPending = messageKey === "pages.assessmentFlow.interview.pendingDescription";
+
   return {
     isStartupPending,
+    canResumeFailedTurn,
+    isGenuinelyPending,
     messageKey,
-    placeholderKey: interview.orchestrationRequested
-      ? "pages.assessmentFlow.interview.startingPlaceholder"
-      : "pages.assessmentFlow.interview.pendingPlaceholder",
+    placeholderKey: canResumeFailedTurn
+      ? "pages.assessmentFlow.interview.resumeFailedPlaceholder"
+      : interview.orchestrationRequested
+        ? "pages.assessmentFlow.interview.startingPlaceholder"
+        : "pages.assessmentFlow.interview.pendingPlaceholder",
   };
 }
 
@@ -422,7 +445,7 @@ export function selectAssessmentScreenProjection(
     return postFindingScreenProjection(normalized.postFinding.phase);
   }
 
-  // Targeted loop: Investigator paused + Interview running
+  // Targeted loop: Rule analysis paused + Interview running
   if (workflow.isTargetedClarificationLoop) {
     return ASSESSMENT_SCREEN_PROJECTIONS.f09;
   }
@@ -471,8 +494,6 @@ export function selectAssessmentScreenProjection(
 
   // Stage-based projections
   if (
-    workflow.stage === "INVESTIGATE" ||
-    workflow.stage === "investigate" ||
     workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification
   ) {
     return ASSESSMENT_SCREEN_PROJECTIONS.f10;

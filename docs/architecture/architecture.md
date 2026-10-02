@@ -1,5 +1,7 @@
 # LCSP System Architecture
 
+> **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.**
+
 ## Status
 
 AUTHORITATIVE SYSTEM ARCHITECTURE
@@ -27,8 +29,7 @@ LCSP is a modular, evidence-first compliance platform. The system is intentional
 | Backend API                          | Auth, RBAC enforcement boundary, assessment state, synchronous user actions, trusted trigger creation, async work creation; emits safe auth/workspace error contracts with stable keys instead of relying on hardcoded user-facing prose.                             | Web Frontend, shared contracts packages, Persistence, Queue boundary, GitHub App. |
 | Repository Integration               | Authorizes read-only repository access separately from OAuth/OIDC login.                                                                                                                                                                                              | Backend API, GitHub.                                                              |
 | Python Worker Platform               | Owns all asynchronous domain workloads through bounded consumers/modules, not a monolithic Python process.                                                                                                                                                            | Queue boundary, Persistence, Object Storage, LLM Gateway, Repository Integration. |
-| Python Scanner Worker                | Owns Repository Scan lifecycle and produces static-analysis technical evidence from commit-pinned repository snapshots using Syft, Knip, deptry, `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules.                             | Queue boundary, Persistence, Repository Integration, TS/JS analyzer CLI.          |
-| Python AIUsageFlow Worker            | Converts technical evidence and WizardProfile into business usage claims through a bounded LangGraph runtime that mixes deterministic evidence transforms with controlled LLM-assisted reasoning nodes.                                                               | Persistence, Reconciliation, LLM Gateway.                                         |
+| Repository Analyst runtime (Deep Agents) | Runs one bounded `repository-analyst` Deep Agent task per EngineeringRule over the commit-pinned repository in the LCSP Docker sandbox, using native Deep Agents filesystem/shell tools plus Codebase Memory MCP as an agent tool; direct source remains authoritative. Finishes through the governed `submit_rule_assessment` tool; deterministic code validates evidence and gates completion. See `deepagents/FLOW.md`. | Queue boundary, Persistence, Repository Integration, Docker sandbox, Codebase Memory MCP. |
 | Python Reconciliation Worker         | Compares Manager declarations and technical evidence; pauses for Manager resolution when needed; creates VerifiedProfile.                                                                                                                                             | Backend API, Persistence.                                                         |
 | Python Legal Source Ingestion Worker | Fetches official legal sources, snapshots raw PDF/HTML into S3-compatible storage, normalizes legal structure, and stages corpus versions for review.                                                                                                                 | Queue boundary, Object Storage, Persistence.                                      |
 | Corpus Review / Approval             | Internal Legal Operator gate that approves corpus versions before retrieval or classification can use them. This is an internal control function, not a new customer-facing product role.                                                                             | Backend API, Persistence, Audit, ChromaDB Legal Indexer.                          |
@@ -109,8 +110,8 @@ Runtime rules:
 - `FR-052` delegated technical clarification is Deferred/Post-MVP.
 - Developer invitation/task collaboration is retired from the active MVP; Manager can complete the A-to-Z golden path without external collaborator participation.
 - Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
-- Scanner is static-analysis only.
-- Scanner toolchain outputs are evidence only and never legal truth, classification truth, proof of active AI use, or proof of automated decision-making.
+- Repository analysis is source-grounded agent analysis inside the LCSP Docker sandbox, not a fixed static-scanner pipeline.
+- Repository-analysis outputs are technical evidence only and never legal truth, classification truth, or proof beyond the inspected source and declared coverage.
 - Raw source, full prompts, secrets, and full AST bodies must not enter LLM, ordinary audit logs, or long-term persistence.
 - Classification requires VerifiedProfile.
 - Missing citation, unresolved conflict, insufficient evidence, or unknown critical usage blocks or degrades output.
@@ -133,4 +134,4 @@ Runtime rules:
 
 - RBAC engine, policy storage, cache, invalidation, evaluation topology and failure behavior: resolved for implementation planning by `docs/implementation/decisions/rbac-runtime-decision.md`.
 - Automatic trusted scan trigger idempotency, retry/DLQ, replay authority and operator recovery: resolved for implementation planning by `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`.
-- Scanner toolchain failure severity table and tool version/config/ruleset hash policy: resolved for implementation planning by `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`.
+- Repository-analysis failure, coverage, provenance, and retry policy is defined by the active Agent Runtime and repository-analysis architecture; the archived scanner severity decision is historical only.

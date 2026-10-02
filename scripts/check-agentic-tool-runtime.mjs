@@ -1,3 +1,4 @@
+
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -8,8 +9,10 @@ const fail = (message) => {
   process.exitCode = 1;
 };
 const expectContains = (content, needle, label) => {
-  if (!content.includes(needle))
-    fail(`${label} missing ${JSON.stringify(needle)}`);
+  if (!content.includes(needle)) fail(`${label} missing ${JSON.stringify(needle)}`);
+};
+const expectNotContains = (content, needle, label) => {
+  if (content.includes(needle)) fail(`${label} must not contain ${JSON.stringify(needle)}`);
 };
 const expectMissing = (path, label) => {
   if (existsSync(join(ROOT, path))) fail(`${label} must be removed: ${path}`);
@@ -17,9 +20,6 @@ const expectMissing = (path, label) => {
 
 const pythonDispatcher = read(
   "deepagents/tools/common/capabilities/agentic_evidence/dispatch/dispatcher.py",
-);
-const programTools = read(
-  "deepagents/tools/common/capabilities/agentic_evidence/entrypoints/program_graph_tool_entrypoints.py",
 );
 const remediationTools = read(
   "deepagents/tools/common/capabilities/agentic_evidence/entrypoints/remediation_tool_entrypoints.py",
@@ -31,8 +31,16 @@ const internalCommandDispatcher = read(
   "apps/api/src/modules/evidence/presentation/http/agentic-tool-internal-dispatcher.ts",
 );
 
-const technicalTools = [
-  "propose_missing_targets",
+expectMissing(
+  "deepagents/tools/common/capabilities/agentic_evidence/entrypoints/program_graph_tool_entrypoints.py",
+  "retired ProgramGraph entrypoints",
+);
+expectMissing(
+  "deepagents/tools/common/capabilities/agentic_evidence/entrypoints/scanner_tool_entrypoints.py",
+  "retired scanner entrypoints",
+);
+
+const retiredRepositoryGraphTools = [
   "inspect_deployment_context",
   "inspect_decision_path",
   "find_similar_symbols",
@@ -46,19 +54,14 @@ const technicalTools = [
   "get_evidence_subgraph",
   "trace_static_flow",
 ];
-
-for (const tool of technicalTools) {
-  expectContains(
-    programTools,
-    `def ${tool}(`,
-    "Python ProgramGraph entrypoints",
-  );
-  expectContains(
+for (const tool of retiredRepositoryGraphTools) {
+  expectNotContains(
     pythonDispatcher,
-    `\"${tool}\", ToolRuntimeTarget.PYTHON_LOCAL`,
+    `"${tool}", ToolRuntimeTarget.`,
     "Python runtime binding",
   );
 }
+
 expectContains(
   remediationTools,
   "def propose_gap_remediation(",
@@ -66,7 +69,7 @@ expectContains(
 );
 expectContains(
   pythonDispatcher,
-  `\"propose_gap_remediation\", ToolRuntimeTarget.PYTHON_LOCAL`,
+  `"propose_gap_remediation", ToolRuntimeTarget.PYTHON_LOCAL`,
   "Python remediation binding",
 );
 expectContains(
@@ -83,8 +86,8 @@ expectContains(
 const cqrsTools = [
   "get_artifact_chain",
   "get_reconciliation_context",
-  "get_gap_requirements",
   "get_gap_evidence_trace",
+  "get_gap_requirements",
   "evaluate_gap_matrix",
   "get_admin_source_catalog",
   "get_legal_corpus_readiness",
@@ -99,25 +102,24 @@ for (const tool of cqrsTools) {
   );
   expectContains(
     pythonDispatcher,
-    `\"${tool}\", ToolRuntimeTarget.NEST_CQRS`,
+    `"${tool}", ToolRuntimeTarget.NEST_CQRS`,
     "Nest CQRS runtime binding",
   );
 }
 
-const managedAgentCommandTools = [
-  "request_targeted_reanalysis",
+const agentRuntimeCommandTools = [
   "resume_waiting_runs",
 ];
-for (const tool of managedAgentCommandTools) {
+for (const tool of agentRuntimeCommandTools) {
   expectContains(
     internalCommandDispatcher,
     `export function ${tool}(`,
-    "Managed Agent command dispatcher",
+    "Agent Runtime command dispatcher",
   );
   expectContains(
     pythonDispatcher,
-    `\"${tool}\", ToolRuntimeTarget.MANAGED_AGENT_COMMAND`,
-    "Managed Agent command binding",
+    `"${tool}", ToolRuntimeTarget.AGENT_RUNTIME_COMMAND`,
+    "Agent Runtime command binding",
   );
 }
 
@@ -142,9 +144,9 @@ for (const directory of obsoleteNestQueries) {
   );
 }
 
-for (const tool of technicalTools) {
+for (const tool of retiredRepositoryGraphTools) {
   if (nestDispatcher.includes(`export function ${tool}(`)) {
-    fail(`technical tool ${tool} still has a Nest processing entrypoint`);
+    fail(`retired repository graph tool ${tool} still has a Nest processing entrypoint`);
   }
 }
 if (nestDispatcher.includes("propose_gap_remediation")) {
@@ -153,5 +155,5 @@ if (nestDispatcher.includes("propose_gap_remediation")) {
 
 if (process.exitCode) process.exit(process.exitCode);
 console.log(
-  `[engineering-rule-runtime] OK: ${technicalTools.length + 1} Python processing tools, ${cqrsTools.length} Nest CQRS tools`,
+  `[engineering-rule-runtime] OK: repository graph tools retired from custom runtime; 1 Python remediation tool, ${cqrsTools.length} Nest CQRS tools, ${agentRuntimeCommandTools.length} agent-runtime commands`,
 );

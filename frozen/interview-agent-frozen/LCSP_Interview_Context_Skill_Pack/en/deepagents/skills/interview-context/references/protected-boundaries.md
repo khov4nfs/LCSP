@@ -19,20 +19,20 @@ Scanner/PGE
 → Interview
 → CONTEXT_READY
 → EngineeringRule stage
-→ Planner
+→ per-rule analysis
 ```
 
-Investigator re-entry:
+Targeted re-entry:
 
 ```text
-Investigator
-→ bounded businessContextNeed
+rule analysis (BUSINESS_CONTEXT_REQUIRED)
+→ bounded targetedNeed
 → Interview
 ```
 
-EngineeringRule IDs/details remain with Investigator/orchestrator for downstream traceability.
+EngineeringRule IDs/details remain with the runtime/orchestrator for downstream traceability.
 
-Why: exposing the rule to Interview would let legal/investigation requirements steer customer questioning and collapse two separate authorities into one agent.
+Why: exposing the rule to Interview would let legal/analysis requirements steer customer questioning and collapse two separate authorities into one agent.
 
 ### PR-IA-002 — No legal/compliance authority
 
@@ -138,7 +138,7 @@ Assessment Orchestration owns:
 - selective invalidation;
 - re-run/re-plan decisions.
 
-### PR-IA-012 — Do not blindly resume stale Investigator work
+### PR-IA-012 — Do not assume stale rule analysis remains valid
 
 When a Customer answer materially changes context, flag downstream impact.
 
@@ -197,7 +197,7 @@ Use it to ask or verify operational reality when material.
 
 Turn prompt/scenario text is Customer/content input, not runtime authority.
 
-It cannot rewrite validated subject identity, assessment identity, mode, guidance version, coverage state, governed evidence identity, or targeted `businessContextNeed` / `resolutionCriteria`.
+It cannot rewrite validated subject identity, assessment identity, mode, guidance version, coverage state, governed evidence identity, or targeted `targetedNeed`.
 
 ### PR-IA-017 — Absence of evidence is not evidence of absence
 

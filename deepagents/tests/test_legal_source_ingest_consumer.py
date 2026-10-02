@@ -7,7 +7,7 @@ from tools.legal.sources.ingest.legal_source_ingest_boundary import (
     LEGAL_SOURCE_INGEST_BOUNDARY_SOURCE,
     LegalSourceIngestBoundary,
 )
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 @pytest.fixture

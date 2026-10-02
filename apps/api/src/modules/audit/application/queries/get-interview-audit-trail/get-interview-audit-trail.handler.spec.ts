@@ -195,7 +195,7 @@ describe("GetInterviewAuditTrailHandler", () => {
       outcome: undefined,
       interpretation: "Customer confirmed TypeScript is the primary language.",
       evidenceRefs: ["ev-ts-1"],
-      originatingInvestigationReference: undefined,
+      originatingRuleAnalysisReference: undefined,
       downstreamImpact: false,
       affectedActivities: [],
       rerunScope: [],
@@ -239,7 +239,7 @@ describe("GetInterviewAuditTrailHandler", () => {
       outcome: undefined,
       interpretation: undefined,
       evidenceRefs: [],
-      originatingInvestigationReference: undefined,
+      originatingRuleAnalysisReference: undefined,
       downstreamImpact: false,
       affectedActivities: [],
       rerunScope: [],
@@ -370,7 +370,7 @@ describe("GetInterviewAuditTrailHandler", () => {
     ).toBeUndefined();
   });
 
-  it("correctly surfaces originatingInvestigationReference and downstreamImpact", async () => {
+  it("correctly surfaces originatingRuleAnalysisReference and downstreamImpact", async () => {
     findUniqueAssessmentMock.mockResolvedValue({
       id: "assessment-1",
       ownerId: "user-owner",
@@ -386,7 +386,7 @@ describe("GetInterviewAuditTrailHandler", () => {
         sessionId: "session-1",
         createdAt: new Date("2026-09-01T12:00:00.000Z"),
         payload: {
-          originatingInvestigationReference: "inv-target-42",
+          originatingRuleAnalysisReference: "inv-target-42",
           stage: "TARGETED_INVESTIGATION",
           interviewContextRevision: "4",
         },
@@ -415,7 +415,7 @@ describe("GetInterviewAuditTrailHandler", () => {
       ),
     );
 
-    expect(result.events[0]?.originatingInvestigationReference).toBe(
+    expect(result.events[0]?.originatingRuleAnalysisReference).toBe(
       "inv-target-42",
     );
     expect(result.events[0]?.downstreamImpact).toBe(false);

@@ -71,12 +71,26 @@ jobs:
 
           groups = OrderedDict()
           service_pattern = re.compile(r'^[a-z0-9][a-z0-9-]*$')
+          allowed_keys = {
+              'path',
+              'route',
+              'requires',
+              'command',
+              'environment',
+              'dockerSocket',
+              'extraHosts',
+          }
+          known_services = set(services)
 
           for service_id, config in services.items():
               if not isinstance(service_id, str) or not service_pattern.fullmatch(service_id):
                   raise SystemExit(f'invalid service id: {service_id!r}')
               if not isinstance(config, dict):
                   raise SystemExit(f'{service_id}: service config must be a mapping')
+              unknown_keys = set(config) - allowed_keys
+              if unknown_keys:
+                  keys = ', '.join(sorted(unknown_keys))
+                  raise SystemExit(f'{service_id}: unsupported deploy keys: {keys}')
 
               raw_path = config.get('path')
               if not isinstance(raw_path, str) or not raw_path:
@@ -90,6 +104,13 @@ jobs:
               if route is not None and (not isinstance(route, str) or not route.startswith('/')):
                   raise SystemExit(f'{service_id}: route must start with / when present')
 
+              requires = config.get('requires', [])
+              if requires is not None and (
+                  not isinstance(requires, list)
+                  or not all(isinstance(item, str) and item for item in requires)
+              ):
+                  raise SystemExit(f'{service_id}: requires must be a string list')
+
               command = config.get('command')
               if command is not None and (
                   not isinstance(command, list)
@@ -97,6 +118,41 @@ jobs:
                   or not all(isinstance(item, str) and item for item in command)
               ):
                   raise SystemExit(f'{service_id}: command must be a non-empty string list')
+
+              environment = config.get('environment', {})
+              if environment is not None and (
+                  not isinstance(environment, dict)
+                  or not all(
+                      isinstance(key, str)
+                      and key
+                      and isinstance(value, (str, int, float, bool))
+                      for key, value in environment.items()
+                  )
+              ):
+                  raise SystemExit(f'{service_id}: environment must be a scalar mapping')
+
+              for value in (environment or {}).values():
+                  text = str(value)
+                  for placeholder in re.findall(r'\$\{FOGEWISE_IMAGE_([A-Z0-9_]+)\}', text):
+                      target_service = placeholder.lower().replace('_', '-')
+                      if target_service not in known_services:
+                          raise SystemExit(
+                              f'{service_id}: unknown Fogewise image placeholder '
+                              f'FOGEWISE_IMAGE_{placeholder}'
+                          )
+
+              docker_socket = config.get('dockerSocket', False)
+              if not isinstance(docker_socket, bool):
+                  raise SystemExit(f'{service_id}: dockerSocket must be a boolean')
+
+              extra_hosts = config.get('extraHosts', [])
+              if extra_hosts is not None and (
+                  not isinstance(extra_hosts, list)
+                  or not all(
+                      isinstance(item, str) and ':' in item for item in extra_hosts
+                  )
+              ):
+                  raise SystemExit(f'{service_id}: extraHosts must be a host list')
 
               dockerfile = path / 'Dockerfile'
               if not dockerfile.is_file():

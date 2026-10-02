@@ -24,7 +24,7 @@ def _node(node_id: str, node_type: str, label: str) -> dict:
         "attributes": {},
         "semantic_types": [],
         "evidence_refs": [],
-        "origin": "STATIC_ANALYSIS",
+        "origin": "DEEP_AGENT",
         "resolution_state": "CORROBORATED",
         "support_refs": [],
     }

@@ -14,16 +14,12 @@ import { PUBLIC_ENTRY_ROUTES } from "../../auth-entry.ts";
 import { apiRequest } from "./api-request.ts";
 import { getProblemCode } from "./problem-envelope.ts";
 
-export const CLASSIFICATION_STATUS_STATES = {
+const CLASSIFICATION_STATUS_STATES = {
   locked: "locked",
   processing: "processing",
   passed: "passed",
   degraded: "degraded",
   blocked: "blocked",
-  // Retained only as stable legacy values for old links/tests; canonical runtime
-  // no longer enters these states.
-  waitingLegalReadiness: "waiting_legal_readiness",
-  legalMatchBlocked: "legal_match_blocked",
 } as const;
 
 /**
@@ -55,19 +51,19 @@ const CLASSIFICATION_STATUS_OUTCOME_KINDS = {
   error: "error",
 } as const;
 
-export type ClassificationStatusState =
+type ClassificationStatusState =
   (typeof CLASSIFICATION_STATUS_STATES)[keyof typeof CLASSIFICATION_STATUS_STATES];
 
-export type ClassificationExecutionState =
+type ClassificationExecutionState =
   (typeof CLASSIFICATION_EXECUTION_STATES)[keyof typeof CLASSIFICATION_EXECUTION_STATES];
 
-export type ClassificationAssessmentOutcome =
+type ClassificationAssessmentOutcome =
   (typeof CLASSIFICATION_ASSESSMENT_OUTCOMES)[keyof typeof CLASSIFICATION_ASSESSMENT_OUTCOMES];
 
-export type ClassificationEvidenceQuality =
+type ClassificationEvidenceQuality =
   (typeof CLASSIFICATION_EVIDENCE_QUALITIES)[keyof typeof CLASSIFICATION_EVIDENCE_QUALITIES];
 
-export type TechnicalEvidenceViewModel = {
+type TechnicalEvidenceViewModel = {
   kind: string;
   label: string;
   filePath: string | null;
@@ -76,7 +72,7 @@ export type TechnicalEvidenceViewModel = {
   endLine: number | null;
 };
 
-export type LegalProvisionViewModel = {
+type LegalProvisionViewModel = {
   documentId: string;
   locator: string;
   articleNumber: string | null;
@@ -85,7 +81,7 @@ export type LegalProvisionViewModel = {
   content: string;
 };
 
-export type EngineeringRuleEvaluationViewModel = {
+type EngineeringRuleEvaluationViewModel = {
   engineeringRuleId: string;
   concept: string;
   status: "COMPLIANT" | "NON_COMPLIANT" | "UNKNOWN";
@@ -97,14 +93,7 @@ export type EngineeringRuleEvaluationViewModel = {
   limitations: string[];
 };
 
-export type ClassificationObservabilityViewModel = {
-  openWiki: {
-    available: boolean | null;
-    error: string | null;
-    fallback: string | null;
-    hintCount: number | null;
-    authority: string | null;
-  } | null;
+type ClassificationObservabilityViewModel = {
   engineeringRulePreparation: {
     legalRulesSeen: number;
     candidateCount: number;
@@ -153,7 +142,6 @@ export type ClassificationStatusViewModel = {
 export type ClassificationActionVisibility = {
   showFinalReport: boolean;
   showGapAnalysis: boolean;
-  showRerunClassification: boolean;
 };
 
 type ClassificationStatusOutcome =
@@ -180,11 +168,9 @@ export function getClassificationActionVisibility(
   return {
     showFinalReport: publishable && viewModel.hasClassification,
     showGapAnalysis: publishable && viewModel.hasClassification,
-    showRerunClassification: false,
   };
 }
 
-/** Legacy endpoint wrapper retained outside the canonical runtime. */
 export async function rerunClassification(assessmentId: string): Promise<void> {
   const response = await apiRequest(
     `/api/assessments/${encodeURIComponent(assessmentId)}/classification/rerun`,
@@ -517,7 +503,6 @@ type ClassificationResultPayload = {
 };
 
 type ClassificationObservabilityPayload = {
-  openwiki?: Record<string, unknown>;
   engineering_rule_preparation?: Record<string, unknown>;
   candidate_source_hit_distribution?: Record<string, unknown>;
   provenance?: Record<string, unknown>;
@@ -572,7 +557,6 @@ function sanitizeObservability(
 ): ClassificationObservabilityPayload | null {
   if (!recordValue(value)) return null;
   const payload = {
-    openwiki: recordValue(value.openwiki) ? value.openwiki : undefined,
     engineering_rule_preparation: recordValue(value.engineering_rule_preparation)
       ? value.engineering_rule_preparation
       : undefined,
@@ -665,21 +649,10 @@ function sanitizeLegalProvision(value: unknown): LegalProvisionPayload | null {
 function toObservabilityViewModel(
   value: ClassificationObservabilityPayload,
 ): ClassificationObservabilityViewModel {
-  const openWiki = value.openwiki;
   const preparation = value.engineering_rule_preparation;
   const sourceHits = value.candidate_source_hit_distribution;
   const provenance = value.provenance;
   return {
-    openWiki: openWiki
-      ? {
-          available:
-            typeof openWiki.available === "boolean" ? openWiki.available : null,
-          error: nullableString(openWiki.error) ?? null,
-          fallback: nullableString(openWiki.fallback) ?? null,
-          hintCount: nullableInteger(openWiki.hint_count),
-          authority: nullableString(openWiki.authority) ?? null,
-        }
-      : null,
     engineeringRulePreparation: preparation
       ? {
           legalRulesSeen: nonNegativeNumber(preparation.legal_rules_seen),

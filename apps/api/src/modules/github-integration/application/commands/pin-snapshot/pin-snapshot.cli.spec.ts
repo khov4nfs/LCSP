@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { HttpException, HttpStatus } from "@nestjs/common";
+import { HttpException } from "@nestjs/common";
 import {
   GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
@@ -11,7 +11,6 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { RepositoryConnection } from "../../../domain/entities/repository-connection.entity.js";
-import type { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
 import { GitHubCliProviderError } from "../../../infrastructure/github/github-cli-repository.provider.js";
 import type { GitHubRepositoryProviderPort } from "../../ports/github-repository-provider.port.js";
 import type { RepositoryConnectionRepository } from "../../ports/persistence/repository-connection.repository.js";
@@ -61,7 +60,6 @@ function command(overrides: Partial<PinSnapshotCommand> = {}) {
 function build(
   options: {
     connection?: RepositoryConnection;
-    enabled?: boolean;
     providerError?: Error;
   } = {},
 ) {
@@ -97,8 +95,6 @@ function build(
   const provider = {
     resolveCommit: cliResolve,
   } as unknown as GitHubRepositoryProviderPort;
-  const appResolve = jest.fn<GitHubAppClient["resolveCommit"]>();
-  const app = { resolveCommit: appResolve } as unknown as GitHubAppClient;
   const save = jest
     .fn<RepositorySnapshotRepository["saveWithCreatedEvent"]>()
     .mockResolvedValue(undefined);
@@ -128,12 +124,8 @@ function build(
   const handler = new PinSnapshotHandler(
     connections,
     snapshots,
-    app,
     resolver,
     provider,
-    {
-      get: jest.fn(() => ({ snapshotPinningEnabled: options.enabled ?? true })),
-    } as never,
     prisma,
     audit,
   );
@@ -143,7 +135,6 @@ function build(
     resolveForConnection,
     markInvalid,
     cliResolve,
-    appResolve,
     save,
   };
 }
@@ -154,7 +145,6 @@ describe("PinSnapshotHandler CLI routing", () => {
     const result = await fixture.handler.execute(
       command({ ref: "refs/heads/main" }),
     );
-    expect(fixture.appResolve).not.toHaveBeenCalled();
     expect(fixture.resolveForConnection).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: "manager-1",
@@ -239,18 +229,6 @@ describe("PinSnapshotHandler CLI routing", () => {
     expect(fixture.resolveForConnection).not.toHaveBeenCalled();
   });
 
-  it("fails safely when CLI pinning is disabled", async () => {
-    const fixture = build({ enabled: false });
-    const error = await fixture.handler
-      .execute(command())
-      .catch((value: unknown) => value);
-    expect(error).toBeInstanceOf(HttpException);
-    expect((error as HttpException).getStatus()).toBe(
-      HttpStatus.SERVICE_UNAVAILABLE,
-    );
-    expect(fixture.resolveForConnection).not.toHaveBeenCalled();
-  });
-
   it("marks only the lease version invalid for an authoritative credential failure", async () => {
     const fixture = build({
       providerError: new GitHubCliProviderError(
@@ -278,7 +256,6 @@ describe("PinSnapshotHandler CLI routing", () => {
       HttpException,
     );
     expect(fixture.markInvalid).not.toHaveBeenCalled();
-    expect(fixture.appResolve).not.toHaveBeenCalled();
   });
 
   it("fails closed for an inconsistent CLI authentication shape", async () => {
@@ -325,6 +302,5 @@ describe("PinSnapshotHandler CLI routing", () => {
       HttpException,
     );
     expect(fixture.resolveForConnection).not.toHaveBeenCalled();
-    expect(fixture.appResolve).not.toHaveBeenCalled();
   });
 });

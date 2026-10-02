@@ -57,7 +57,6 @@ Every task file contains:
 | `platform/outbox/` | nestjs-api | 2.1 | 3 (01–03) |
 | `platform/rbac/` | nestjs-api | 1.6–1.7 | 4 (01–04) |
 | `python-workers/platform/` | deepagents | cross-worker | 4 (01–04) |
-| `python-workers/scanner/` | deepagents | 3.4–3.5 | 15 (01–15) |
 | `python-workers/intelligence/` | deepagents | 3.6, 4.2, 5.1, 5.4 | 4 (01–04) |
 | `python-workers/legal/` | deepagents | 6.1 | 1 (01) |
 | `python-workers/llm/` | deepagents | 4.1 | 1 (01) |
@@ -75,7 +74,7 @@ auth-workspace (sign-in, mfa, oauth, org, invitation) ← rbac
                                                        ↘
 assessment → wizard → github-integration → scan
                                          ↘
-python-workers/platform → python-workers/scanner → python-workers/intelligence
+python-workers/platform → LCSP Agent Runtime repository analysis → python-workers/intelligence
                                                  ↘
 python-workers/legal → python-workers/llm → python-workers/classification → python-workers/reporting
                                                                            ↘

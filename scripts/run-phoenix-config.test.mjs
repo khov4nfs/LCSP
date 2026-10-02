@@ -10,4 +10,6 @@ test("Phoenix dev server defaults to loopback and remains explicitly configurabl
     /const defaultPhoenixHost =\s*process\.env\.PHOENIX_HOST \?\? rootEnv\.PHOENIX_HOST \?\? "127\.0\.0\.1";/,
   );
   assert.match(source, /"--host",\s*defaultPhoenixHost,\s*"--port",\s*"6006"/);
+  assert.match(source, /"--with",\s*"sqlalchemy<2\.1",\s*"arize-phoenix"/);
+  assert.match(source, /description: "Start Arize Phoenix trace UI",\s*healthPort: 6006,\s*optional: true,/);
 });

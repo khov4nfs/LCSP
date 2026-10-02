@@ -71,8 +71,8 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
         scanJobId: "scan-runtime-1",
         assessmentId: "assessment-runtime-1",
         snapshotId: "snapshot-runtime-1",
-        toolsVersion: { semgrep: "1.0" },
-        configHash: { semgrep: "sha256:test" },
+        toolsVersion: { "repository-analysis": "1.0" },
+        configHash: { "repository-analysis": "sha256:test" },
         evidencePayload: {
           ai_usage_signals: [
             {

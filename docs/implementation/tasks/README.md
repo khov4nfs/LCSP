@@ -48,14 +48,12 @@ Recounted 2026-07-05 directly from `docs/implementation/tasks/modules/**` frontm
 | `python-workers/llm` | deepagents | 1 | 0 | 0 | 1 | 1 |
 | `python-workers/platform` | deepagents | 3 | 1 | 0 | 4 | 4 |
 | `python-workers/reporting` | deepagents | 0 | 3 | 0 | 3 | 3 |
-| `python-workers/scanner` | deepagents | 14 | 1 | 0 | 15 | 15 |
 | `qa` | nestjs-api<br>deepagents<br>all | 2 | 1 | 0 | 3 | 3 |
 | `reconciliation` | nestjs-api | 4 | 0 | 0 | 4 | 4 |
 | `scan` | nestjs-api | 2 | 1 | 0 | 3 | 3 |
 | `web` | nextjs | 4 | 2 | 0 | 6 | 6 |
 | `wizard` | nestjs-api | 3 | 1 | 0 | 4 | 4 |
 
-`legal-rule-catalog` is new (Phase 5.2M, `MW-lrc-001`). `python-workers/scanner` corrected from 12 to 15 task files (already existed at 15; the prior count predates this audit).
 
 ## Story Coverage
 
@@ -76,15 +74,15 @@ Recounted 2026-07-05 directly from `docs/implementation/tasks/modules/**` frontm
 | `3.1` | Story 3.1: Connect Read-Only GitHub Repository | 2 | 0 | 0 | 2 |
 | `3.2` | Story 3.2: Pin Commit and Create RepositorySnapshot | 1 | 0 | 0 | 1 |
 | `3.3` | Story 3.3: Trusted Scan Trigger and Scan Job Orchestration | 3 | 1 | 0 | 4 |
-| `3.4` | Story 3.4: Static Scanner Workspace and Sandbox | 1 | 0 | 0 | 1 |
-| `3.5` | Story 3.5: Static Scanner Toolchain Execution | 15 | 1 | 0 | 16 |
+| `3.4` | Story 3.4: Managed Repository Workspace and Sandbox | 1 | 0 | 0 | 1 |
+| `3.5` | Story 3.5: Repository Deep Agent Evidence Analysis | 15 | 1 | 0 | 16 |
 | `3.6` | Story 3.6: Scan Failure Severity and Evidence Acceptance Policy | 2 | 0 | 0 | 2 |
 | `4.1` | Story 4.1: Build AIUsageFlow From Wizard and Technical Evidence | 1 | 0 | 0 | 1 |
 | `4.2` | Story 4.2: Preserve TechnicalProfile and AIUsageFlow Separation | 2 | 0 | 0 | 2 |
 | `5.1` | Story 5.1: Detect Material Profile Conflicts | 2 | 0 | 0 | 2 |
 | `5.2` | Story 5.2: Explain Conflict Score and Evidence Basis | 1 | 0 | 0 | 1 |
 | `5.3` | Story 5.3: Manager Conflict Resolution | 2 | 0 | 0 | 2 |
-| `5.4` | Story 5.4: Preserve Scanner Evidence During Resolution | 2 | 0 | 0 | 2 |
+| `5.4` | Story 5.4: Preserve Repository Evidence During Resolution | 2 | 0 | 0 | 2 |
 | `6.1` | Story 6.1: Ingest Official Legal Source Snapshot | 1 | 0 | 0 | 1 |
 | `6.2` | Story 6.2: Parse Legal Structure and Stable Hierarchical IDs | 1 | 0 | 0 | 1 |
 | `6.3` | Story 6.3: Legal Rule Catalog Authoring and Approval Governance | 0 | 1 | 0 | 1 |

@@ -39,11 +39,15 @@ def _assert_alias(legacy: str, canonical: str) -> None:
     ).resolve()
 
 
-def test_sandbox_is_owned_by_managed_sandbox_package() -> None:
-    module = importlib.import_module("sandbox")
+def test_sandbox_is_owned_by_lcsp_docker_backend() -> None:
+    module = importlib.import_module(
+        "tools.common.capabilities.platform.docker_sandbox"
+    )
 
-    assert Path(str(module.__file__)).resolve() == PROJECT_ROOT / "sandbox" / "__init__.py"
-    assert module.sandbox.kind == "sandbox"
+    assert Path(str(module.__file__)).resolve() == (
+        PROJECT_ROOT / "tools" / "common" / "capabilities" / "platform" / "docker_sandbox.py"
+    )
+    assert module.DEFAULT_IMAGE == "lcsp-agent-runtime:dev"
 
 
 def test_legacy_model_runtime_is_removed() -> None:

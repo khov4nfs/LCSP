@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react";
 import type { Locale } from "@lcsp/contracts/shared/locale";
 
-export const MarketingLocaleContext = createContext<Locale>("en");
+const MarketingLocaleContext = createContext<Locale>("en");
 
 export function MarketingLocaleProvider({
   locale,

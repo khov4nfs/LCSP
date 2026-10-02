@@ -9,11 +9,11 @@ import { describe, expect, it, jest } from "@jest/globals";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { RepositoryConnection } from "../../../domain/entities/repository-connection.entity.js";
-import type { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
 import type { RepositoryConnectionRepository } from "../../ports/persistence/repository-connection.repository.js";
 import type { RepositorySnapshotRepository } from "../../ports/persistence/repository-snapshot.repository.js";
 import type { CredentialAuthorizationResolverPort } from "../../ports/security/credential-authorization-resolver.port.js";
 import type { GitHubRepositoryProviderPort } from "../../ports/github-repository-provider.port.js";
+import { CredentialLease } from "../../security/credential-lease.js";
 import { PinSnapshotCommand } from "./pin-snapshot.command.js";
 import { PinSnapshotHandler } from "./pin-snapshot.handler.js";
 
@@ -23,8 +23,11 @@ describe("PinSnapshotHandler repository reuse", () => {
       id: "connection-1",
       assessmentId: null,
       userId: "manager-1",
-      installationId: "installation-1",
-      authenticationMode: REPOSITORY_AUTHENTICATION_MODES.githubApp,
+      installationId: null,
+      authenticationMode: REPOSITORY_AUTHENTICATION_MODES.githubCliCredential,
+      providerCredentialId: "credential-1",
+      credentialVersion: 1,
+      credentialAuthorizationStatus: "ACTIVE",
       repositoryId: "repo-1",
       repositoryName: "example-repo",
       repositoryFullName: "acme/example-repo",
@@ -44,9 +47,6 @@ describe("PinSnapshotHandler repository reuse", () => {
     const connectionRepository = {
       findById,
       linkToAssessment,
-      save: jest
-        .fn<RepositoryConnectionRepository["save"]>()
-        .mockResolvedValue(undefined),
     } as RepositoryConnectionRepository;
 
     const saveWithCreatedEvent = jest
@@ -56,8 +56,14 @@ describe("PinSnapshotHandler repository reuse", () => {
       saveWithCreatedEvent,
     } as RepositorySnapshotRepository;
 
+    const lease = new CredentialLease("github_pat_test_lease_secret", {
+      internalCredentialId: "credential-1",
+      credentialVersion: 1,
+      repositoryFullName: "acme/example-repo",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
     const resolveCommit = jest
-      .fn<GitHubAppClient["resolveCommit"]>()
+      .fn<GitHubRepositoryProviderPort["resolveCommit"]>()
       .mockResolvedValue({
         sha: "a".repeat(40),
         repositoryFullName: "acme/example-repo",
@@ -65,7 +71,6 @@ describe("PinSnapshotHandler repository reuse", () => {
         authorDate: "2026-08-09T00:00:00.000Z",
         committerDate: "2026-08-09T00:00:01.000Z",
       });
-    const githubAppClient = { resolveCommit } as unknown as GitHubAppClient;
 
     const prisma = {
       assessment: {
@@ -92,13 +97,11 @@ describe("PinSnapshotHandler repository reuse", () => {
     const handler = new PinSnapshotHandler(
       connectionRepository,
       snapshotRepository,
-      githubAppClient,
       {
-        resolveForConnection: jest.fn(),
-        markInvalid: jest.fn(),
+        resolveForConnection: jest.fn(() => Promise.resolve(lease)),
+        markInvalid: jest.fn(() => Promise.resolve()),
       } as unknown as CredentialAuthorizationResolverPort,
-      { resolveCommit: jest.fn() } as unknown as GitHubRepositoryProviderPort,
-      { get: jest.fn(() => ({ snapshotPinningEnabled: false })) } as never,
+      { resolveCommit } as unknown as GitHubRepositoryProviderPort,
       prisma,
       auditWriter,
     );

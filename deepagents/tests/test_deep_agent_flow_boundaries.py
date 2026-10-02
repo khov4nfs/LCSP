@@ -18,8 +18,7 @@ from harness import (
 from subagents import (
     FLOW_SUBAGENTS,
     INTERVIEW_TOOLS,
-    INVESTIGATOR_TOOLS,
-    PLANNER_TOOLS,
+    REPOSITORY_ANALYST_TOOLS,
     TRIAGE_TOOLS,
 )
 
@@ -30,13 +29,7 @@ TRIAGE_TOOL_NAMES: tuple[str, ...] = (
     "persist_legal_rule_triage_result",
     "finish_legal_rule_triage_execution",
 )
-INTERVIEW_TOOL_NAMES: tuple[str, ...] = (
-    "search_program_graph",
-    "get_scan_coverage",
-    "inspect_decision_path",
-    "inspect_data_path",
-    "inspect_human_review_path",
-)
+INTERVIEW_TOOL_NAMES: tuple[str, ...] = ()
 TRIAGE_TOOL_PACKAGES: set[str] = {
     "maintain_legal_catalog",
     "legal_rule_triage",
@@ -45,23 +38,26 @@ COMMON_TOOL_NAMES: tuple[str, ...] = (
     "get_legal_corpus_readiness",
     "retrieve_verified_episodes",
     "retrieve_legal_basis",
-    "search_program_graph",
+    "submit_rule_assessment",
 )
-ORCHESTRATION_TOOL_NAMES: tuple[str, ...] = ("request_targeted_reanalysis",)
+# Typed queries over the repository's Codebase Memory graph (indexed per dispatch).
+CODEBASE_MEMORY_GRAPH_TOOL_NAMES: tuple[str, ...] = (
+    "search_code_graph",
+    "trace_call_path",
+    "get_code_snippet",
+    "search_code_text",
+    "get_repository_architecture",
+)
 EXPECTED_ROLE_TOOL_NAMES: dict[str, tuple[str, ...]] = {
-    "interview": INTERVIEW_TOOL_NAMES,
-    "planner": ("retrieve_verified_episodes", "search_program_graph", "get_scan_coverage"),
-    "investigator": (
+    "interview": (),
+    "repository-analyst": (
+        *CODEBASE_MEMORY_GRAPH_TOOL_NAMES,
+        "cite_repository_source",
+        "submit_rule_assessment",
         "retrieve_verified_episodes",
-        "search_program_graph",
-        "trace_static_flow",
-        "inspect_data_path",
-        "inspect_decision_path",
-        "inspect_human_review_path",
-        "get_symbol_context",
-        "find_provider_invocations",
     ),
 }
+
 
 
 def _names(tools: list[object]) -> tuple[str, ...]:
@@ -72,7 +68,7 @@ def _directory_names(path: Path) -> set[str]:
     return {
         entry.name
         for entry in path.iterdir()
-        if entry.is_dir() and entry.name != "__pycache__"
+        if entry.is_dir() and entry.name != "__pycache__" and not entry.name.startswith(".")
     }
 
 
@@ -85,34 +81,21 @@ def _implementation_files(path: Path) -> set[str]:
 
 
 def _assessment_authored_tool_layout() -> dict[str, tuple[str, ...]]:
-    return {
-        "common": COMMON_TOOL_NAMES,
-        "planner": ("get_scan_coverage",),
-        "investigator": (
-            "trace_static_flow",
-            "inspect_data_path",
-            "inspect_decision_path",
-            "inspect_human_review_path",
-            "get_symbol_context",
-            "find_provider_invocations",
-        ),
-        "orchestration": ORCHESTRATION_TOOL_NAMES,
-    }
+    return {"common": COMMON_TOOL_NAMES}
 
 
 def test_specialist_tools_are_strictly_isolated() -> None:
     expected = {
         "triage": TRIAGE_TOOL_NAMES,
         "interview": INTERVIEW_TOOL_NAMES,
-        "planner": EXPECTED_ROLE_TOOL_NAMES["planner"],
-        "investigator": EXPECTED_ROLE_TOOL_NAMES["investigator"],
+        "repository-analyst": EXPECTED_ROLE_TOOL_NAMES["repository-analyst"],
     }
     for role, tool_names in expected.items():
         assert len(tool_names) == len(set(tool_names))
-    for tool_name in EXPECTED_ROLE_TOOL_NAMES["planner"]:
+    for tool_name in EXPECTED_ROLE_TOOL_NAMES["repository-analyst"]:
         assert tool_name not in TRIAGE_TOOL_NAMES
-    for tool_name in EXPECTED_ROLE_TOOL_NAMES["investigator"]:
-        assert tool_name not in TRIAGE_TOOL_NAMES
+    # The analyst reports through the governed submit tool only; Interview never sees it.
+    assert "submit_rule_assessment" not in INTERVIEW_TOOL_NAMES
     # LCSP-285: Interview must not have EngineeringRule retrieval or verified episode tools
     for disallowed in ("get_finding_detail", "retrieve_verified_episodes", "retrieve_legal_basis"):
         assert disallowed not in INTERVIEW_TOOL_NAMES
@@ -121,20 +104,13 @@ def test_specialist_tools_are_strictly_isolated() -> None:
 def test_subagents_receive_fixed_minimal_tool_surfaces() -> None:
     assert _names(TRIAGE_TOOLS) == TRIAGE_TOOL_NAMES
     assert _names(INTERVIEW_TOOLS) == INTERVIEW_TOOL_NAMES
-    assert _names(PLANNER_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["planner"]
-    assert _names(INVESTIGATOR_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["investigator"]
+    assert _names(REPOSITORY_ANALYST_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["repository-analyst"]
 
     by_name = {item["name"]: item for item in FLOW_SUBAGENTS}
-    assert tuple(by_name) == (
-        "triage",
-        "interview",
-        "planner",
-        "investigator",
-    )
+    assert tuple(by_name) == ("triage", "interview", "repository-analyst")
     assert _names(by_name["triage"]["tools"]) == TRIAGE_TOOL_NAMES
     assert _names(by_name["interview"]["tools"]) == INTERVIEW_TOOL_NAMES
-    for role in ("planner", "investigator"):
-        assert _names(by_name[role]["tools"]) == EXPECTED_ROLE_TOOL_NAMES[role]
+    assert _names(by_name["repository-analyst"]["tools"]) == EXPECTED_ROLE_TOOL_NAMES["repository-analyst"]
 
 
 def test_triage_is_specialist_not_assessment_pipeline_node() -> None:
@@ -153,31 +129,23 @@ def test_subagent_definitions_are_owned_by_role_directories() -> None:
     assert _directory_names(subagents_root) == {
         "triage",
         "interview",
-        "planner",
-        "investigator",
+        "repository_analyst",
     }
     assert not (PROJECT_ROOT / "subagents.py").exists()
-    for role in ("triage", "interview", "planner", "investigator"):
+    for role in ("triage", "interview", "repository_analyst"):
         assert (subagents_root / role / "definition.py").is_file()
 
 
-def test_common_and_orchestration_tools_are_classified_explicitly() -> None:
-    assert COMMON_TOOL_NAMES == (
-        "get_legal_corpus_readiness",
-        "retrieve_verified_episodes",
-        "retrieve_legal_basis",
-        "search_program_graph",
-    )
-    assert ORCHESTRATION_TOOL_NAMES == ("request_targeted_reanalysis",)
-    for tool_name in ORCHESTRATION_TOOL_NAMES:
-        assert all(tool_name not in names for names in EXPECTED_ROLE_TOOL_NAMES.values())
+def test_root_and_analyst_have_no_targeted_reanalysis_or_planner_tools() -> None:
+    # Retry is an explicit API-driven ruleScope rerun, never a model-callable root tool.
+    assert not (PROJECT_ROOT / "tools" / "orchestration").exists()
+    for names in EXPECTED_ROLE_TOOL_NAMES.values():
+        assert "request_targeted_reanalysis" not in names
 
 
-def test_legal_hydration_stops_before_planner_and_investigator() -> None:
-    assert "retrieve_legal_basis" not in EXPECTED_ROLE_TOOL_NAMES["planner"]
-    assert "retrieve_legal_basis" not in EXPECTED_ROLE_TOOL_NAMES["investigator"]
-    assert "get_assessment_context" not in EXPECTED_ROLE_TOOL_NAMES["planner"]
-    assert "get_assessment_context" not in EXPECTED_ROLE_TOOL_NAMES["investigator"]
+def test_legal_hydration_stops_before_the_repository_analyst() -> None:
+    assert "retrieve_legal_basis" not in EXPECTED_ROLE_TOOL_NAMES["repository-analyst"]
+    assert "get_assessment_context" not in EXPECTED_ROLE_TOOL_NAMES["repository-analyst"]
     assert not (PROJECT_ROOT / "tools" / "common" / "get_assessment_context").exists()
 
 
@@ -202,6 +170,14 @@ def test_assessment_authored_tool_modules_own_their_agentic_port_calls() -> None
             assert "dispatch_lcsp_tool" not in source
             assert "from runtime" not in source
             assert "AgenticToolPort" not in source
+            if tool_name == "submit_rule_assessment":
+                # Governed provenance tool: persists through the worker API client, never
+                # through the agentic tool dispatcher.
+                assert "put_rule_assessment" in source
+                assert "dispatch_agentic_tool" not in source
+                module = importlib.import_module(f"tools.{node}.{tool_name}.code")
+                assert getattr(getattr(module, tool_name), "name") == tool_name
+                continue
             if tool_name == "retrieve_verified_episodes":
                 assert "retrieve_verified_episodes_from_gateway" in source
                 assert "episode_retrieval_enabled" in source
@@ -269,38 +245,23 @@ def test_tools_tree_contains_only_authored_agent_capabilities() -> None:
     assert _directory_names(PROJECT_ROOT / "tools") == {
         "common",
         "legal",
-        "planner",
-        "investigator",
-        "orchestration",
         "triage",
     }
     assert _directory_names(PROJECT_ROOT / "tools" / "common") == set(
         COMMON_TOOL_NAMES
-    ) | {"capabilities"}
+    ) | {"capabilities", "codebase_memory_graph"}
     assert _directory_names(PROJECT_ROOT / "tools" / "common" / "capabilities") == {
         "agentic_evidence",
         "assessment",
         "evidence",
-        "managed",
+            "agent_runtime",
         "package",
         "platform",
         "reporting",
         "scripts",
         "workflow",
     }
-    assert _directory_names(PROJECT_ROOT / "tools" / "planner") == {"get_scan_coverage"}
-    assert _directory_names(PROJECT_ROOT / "tools" / "investigator") == {
-        "trace_static_flow",
-        "inspect_data_path",
-        "inspect_decision_path",
-        "inspect_human_review_path",
-        "get_symbol_context",
-        "find_provider_invocations",
-    }
     assert not (PROJECT_ROOT / "tools" / "resolver").exists()
-    assert _directory_names(PROJECT_ROOT / "tools" / "orchestration") == set(
-        ORCHESTRATION_TOOL_NAMES
-    )
     assert _directory_names(PROJECT_ROOT / "tools" / "triage") == TRIAGE_TOOL_PACKAGES
 
 
@@ -316,12 +277,13 @@ def test_common_tools_own_non_model_callable_implementation_domains() -> None:
         "retrieval",
         "sources",
     }
-    assert _directory_names(evidence) == {"graph", "scanner"}
+    assert _directory_names(evidence) == {"graph", "repository_analysis"}
     assert _directory_names(assessment) == {
         "planning",
         "investigation",
         "claims",
         "evaluation",
+        "rule_assessment",
     }
     assert _directory_names(common / "workflow") == {
         "recovery",
@@ -332,7 +294,6 @@ def test_common_tools_own_non_model_callable_implementation_domains() -> None:
         "ai_usage_flow",
         "conflict_detection",
         "evidence_claim",
-        "technical_profile",
         "verified_profile",
     }
     assert _directory_names(assessment / "evaluation") == {
@@ -354,17 +315,19 @@ def test_common_tools_own_non_model_callable_implementation_domains() -> None:
     ):
         assert _implementation_files(category) == set()
 
-    assert (evidence / "graph" / "query" / "query_engine.py").is_file()
+    # No LCSP-owned graph query engine or rule planner: analysis is the agent's job.
+    assert not (evidence / "graph" / "query").exists()
+    assert (assessment / "rule_assessment" / "run.py").is_file()
     assert (
-        evidence / "scanner" / "scanning" / "scan_boundary.py"
+        evidence / "repository_analysis" / "boundary.py"
     ).is_file()
     assert not (evidence / "scanner" / "program_graph").exists()
-    assert (
+    assert not (
         assessment
         / "planning"
         / "engineering_rule"
         / "engineering_rule_planner.py"
-    ).is_file()
+    ).exists()
     assert (
         assessment
         / "evaluation"
@@ -457,36 +420,44 @@ def test_generic_boundary_invocation_is_not_root_agent_surface() -> None:
     assert "resume_waiting_runs" not in agent_source
 
 
-def test_default_general_purpose_subagent_is_disabled() -> None:
-    assert LCSP_HARNESS_PROFILE.general_purpose_subagent is not None
-    assert LCSP_HARNESS_PROFILE.general_purpose_subagent.enabled is False
+def test_default_general_purpose_subagent_uses_deepagents_default() -> None:
+    assert LCSP_HARNESS_PROFILE.general_purpose_subagent is None
 
 
-def test_harness_hides_non_skill_filesystem_and_execute_tools() -> None:
-    assert HIDDEN_BUILTIN_TOOLS == frozenset(
-        {
-            "ls",
-            "write_file",
-            "edit_file",
-            "delete",
-            "glob",
-            "grep",
-            "execute",
-        }
-    )
-    assert "read_file" not in HIDDEN_BUILTIN_TOOLS
-    assert "task" not in HIDDEN_BUILTIN_TOOLS
-    assert "write_todos" not in HIDDEN_BUILTIN_TOOLS
+def test_harness_exposes_complete_deepagents_builtin_tool_surface() -> None:
+    assert HIDDEN_BUILTIN_TOOLS == frozenset()
 
 
-def test_filesystem_permissions_only_allow_reading_managed_skills() -> None:
-    assert len(LCSP_FILESYSTEM_PERMISSIONS) == 2
+def test_harness_does_not_replace_deepagents_filesystem_permissions() -> None:
+    assert LCSP_FILESYSTEM_PERMISSIONS == []
 
-    skill_read, deny_all = LCSP_FILESYSTEM_PERMISSIONS
-    assert skill_read.operations == ["read"]
-    assert skill_read.paths == ["/skills/**"]
-    assert skill_read.mode == "allow"
 
-    assert deny_all.operations == ["read", "write"]
-    assert deny_all.paths == ["/**"]
-    assert deny_all.mode == "deny"
+def test_root_agent_task_subagents_run_under_model_governance(monkeypatch) -> None:
+    """Every `task` subagent of the root agent, general-purpose included, is governed."""
+    from deepagents.middleware import subagents as deep_subagents
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("LLM7_API_KEY", "test-llm7-key")
+    root_agent_module = importlib.import_module("agent")
+    compiled: dict[str, set[str]] = {}
+    real_create_agent = deep_subagents.create_agent
+
+    def recording_create_agent(model, **kwargs):
+        compiled[kwargs["name"]] = {type(item).__name__ for item in kwargs["middleware"]}
+        return real_create_agent(model, **kwargs)
+
+    monkeypatch.setattr(deep_subagents, "create_agent", recording_create_agent)
+
+    root_agent_module.create_root_agent()
+
+    assert "general-purpose" in compiled
+    governance = {
+        "AgentRoleMiddleware",
+        "ModelRetryMiddleware",
+        "ProviderFallbackMiddleware",
+        "TokenFallbackMiddleware",
+        "UsageMeteringMiddleware",
+    }
+    for name, middleware in compiled.items():
+        missing = governance - middleware
+        assert not missing, f"subagent {name} runs without {sorted(missing)}"

@@ -1,3 +1,4 @@
+import { asRecord } from "@lcsp/contracts/shared";
 import { createHash } from "node:crypto";
 
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
@@ -302,12 +303,6 @@ function provenanceRef(correlationId: string): string {
 
 function safeHash(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 function firstPresentString(...values: unknown[]): string | null {

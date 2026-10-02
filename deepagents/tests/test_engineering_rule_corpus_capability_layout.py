@@ -33,6 +33,7 @@ def test_engineering_rule_corpus_is_grouped_by_lifecycle() -> None:
     assert _py(rules / "contract") == {
         "models.py",
         "legal_reasoning_contract.py",
+        "runtime_projection.py",
         "validator.py",
     }
     assert _py(rules / "compilation") == {

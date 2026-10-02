@@ -10,10 +10,15 @@ import { CreateAssessmentHandler } from "./application/commands/create-assessmen
 import { CompleteRepositorySetupHandler } from "./application/commands/complete-repository-setup/complete-repository-setup.handler.js";
 import { DeleteAssessmentHandler } from "./application/commands/delete-assessment/delete-assessment.handler.js";
 import { RenameAssessmentHandler } from "./application/commands/rename-assessment/rename-assessment.handler.js";
+import { MarkAiNotDetectedHandler } from "./application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.js";
+import { PutRuleAssessmentHandler } from "./application/commands/put-rule-assessment/put-rule-assessment.handler.js";
+import { ListRuleAssessmentsHandler } from "./application/queries/list-rule-assessments/list-rule-assessments.handler.js";
 import { GetAssessmentHandler } from "./application/queries/get-assessment/get-assessment.handler.js";
 import { GetAssessmentReadinessHandler } from "./application/queries/get-assessment-readiness/get-assessment-readiness.handler.js";
 import { AssessmentInterviewRuntimeService } from "./application/services/assessment-interview-runtime.service.js";
 import { AssessmentInterviewSnippetService } from "./application/services/assessment-interview-snippet.service.js";
+import { AssessmentPipelineContinuationService } from "./application/services/assessment-pipeline-continuation.service.js";
+import { AssessmentPipelineReconciliationService } from "./application/services/assessment-pipeline-reconciliation.service.js";
 import { ListAssessmentsHandler } from "./application/queries/list-assessments/list-assessments.handler.js";
 import { ASSESSMENT_BILLING_RETENTION } from "./application/ports/billing/assessment-billing-retention.port.js";
 import { ASSESSMENT_REPOSITORY } from "./application/ports/persistence/assessment.repository.js";
@@ -22,6 +27,7 @@ import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-
 import {
   AssessmentController,
   InternalAssessmentInterviewController,
+  InternalRuleAssessmentController,
 } from "./presentation/http/assessment.controller.js";
 
 /**
@@ -29,16 +35,25 @@ import {
  */
 @Module({
   imports: [CqrsModule, RbacModule, AuditModule, BillingModule],
-  controllers: [AssessmentController, InternalAssessmentInterviewController],
+  controllers: [
+    AssessmentController,
+    InternalAssessmentInterviewController,
+    InternalRuleAssessmentController,
+  ],
   providers: [
     AssessmentInterviewRuntimeService,
     AssessmentInterviewSnippetService,
+    AssessmentPipelineContinuationService,
+    AssessmentPipelineReconciliationService,
     AssessmentRuntimeEventService,
     WorkerApiKeyGuard,
     CreateAssessmentHandler,
     CompleteRepositorySetupHandler,
     DeleteAssessmentHandler,
     RenameAssessmentHandler,
+    MarkAiNotDetectedHandler,
+    PutRuleAssessmentHandler,
+    ListRuleAssessmentsHandler,
     GetAssessmentHandler,
     GetAssessmentReadinessHandler,
     ListAssessmentsHandler,

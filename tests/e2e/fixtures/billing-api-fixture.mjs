@@ -3,10 +3,7 @@ import { readFile } from "node:fs/promises";
 
 const fixture = JSON.parse(
   await readFile(
-    new URL(
-      "../../../apps/web/src/public/assets/mocks/billing-release-gate.json",
-      import.meta.url,
-    ),
+    new URL("./billing-release-gate.json", import.meta.url),
     "utf8",
   ),
 );

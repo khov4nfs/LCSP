@@ -193,7 +193,7 @@ export type RecordCrossRespondentConflictAuditInput = {
 export type RecordTargetedClarificationAuditInput = {
   assessmentId: string;
   respondentRef?: InterviewAuditActorRef | null;
-  originatingInvestigationReference: string;
+  originatingRuleAnalysisReference: string;
   interviewContextRevision: string;
   sessionId: string;
   threadId: string;
@@ -547,7 +547,7 @@ export class InterviewAuditService {
   }
 
   /**
-   * Records the initiation of a targeted clarification loop triggered by the Investigator.
+   * Records the initiation of a targeted clarification loop triggered by the Repository Analyst.
    */
   async recordTargetedClarification(
     input: RecordTargetedClarificationAuditInput,
@@ -565,8 +565,8 @@ export class InterviewAuditService {
       causationId: input.causationId,
       sessionId: input.sessionId,
       payload: {
-        originatingInvestigationReference:
-          input.originatingInvestigationReference,
+        originatingRuleAnalysisReference:
+          input.originatingRuleAnalysisReference,
         interviewContextRevision: input.interviewContextRevision,
         threadId: input.threadId,
         runId: input.runId,

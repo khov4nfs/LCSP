@@ -56,6 +56,13 @@ export const AI_DISCOVERY_FINDING_KINDS = {
 export type AiDiscoveryFindingKind =
   (typeof AI_DISCOVERY_FINDING_KINDS)[keyof typeof AI_DISCOVERY_FINDING_KINDS];
 
+export const AI_DISCOVERY_SNIPPET_POLICIES = {
+  pinnedSnapshotBoundedRedacted: "PINNED_SNAPSHOT_BOUNDED_REDACTED_V1",
+} as const;
+
+export type AiDiscoverySnippetPolicy =
+  (typeof AI_DISCOVERY_SNIPPET_POLICIES)[keyof typeof AI_DISCOVERY_SNIPPET_POLICIES];
+
 /**
  * Reference used by the UI to request source later from the exact pinned snapshot.
  * Raw source is intentionally not part of Scanner/PGE persistence.
@@ -68,7 +75,7 @@ export type AiDiscoverySnippetRef = {
   start_line: number;
   end_line: number;
   evidence_hash: string;
-  snippet_policy: "PINNED_SNAPSHOT_BOUNDED_REDACTED_V1";
+  snippet_policy: AiDiscoverySnippetPolicy;
 };
 
 export type AiDiscoveryFinding = {
@@ -95,4 +102,16 @@ export type AiDiscoverySummary = {
   coverage_state: "READY" | "PARTIAL" | "UNAVAILABLE";
   findings: AiDiscoveryFinding[];
   material_unresolved_frontiers: string[];
+  limitations?: AiDiscoveryLimitationCode[];
 };
+
+/**
+ * AI discovery is bounded and independently durable: a model/provider failure yields
+ * gate AI_UNKNOWN carrying this limitation; the scan callback still completes.
+ */
+export const AI_DISCOVERY_LIMITATION_CODES = {
+  discoveryFailed: "AI_DISCOVERY_FAILED",
+} as const;
+
+export type AiDiscoveryLimitationCode =
+  (typeof AI_DISCOVERY_LIMITATION_CODES)[keyof typeof AI_DISCOVERY_LIMITATION_CODES];

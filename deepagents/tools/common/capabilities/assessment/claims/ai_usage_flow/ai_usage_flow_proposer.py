@@ -10,8 +10,11 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from langchain.agents.middleware import ToolCallLimitMiddleware
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from middleware.billing_metering import BillingMeteringError
-from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
+from middleware.usage_metering import AgentRoleMiddleware
+from deepagents import create_deep_agent
+from middleware.agent_run_budget import AgentRunBudgetMiddleware
+from tools.common.capabilities.platform.repository_sandbox import current_repository_backend
+from model_policy import resolve_agent_model
 from tools.common.capabilities.agentic_evidence import AgenticInvocationContext, AgenticToolResolver
 
 
@@ -29,11 +32,11 @@ class AIUsageFlowModelAssistedProposer:
     def __init__(
         self,
         agentic_tool_resolver: AgenticToolResolver | None = None,
-        model: str = NARRATOR_MODEL_SPEC,
+        role: str = "narrator",
     ):
         """Create the proposer with optional read-only agentic evidence tools."""
         self.agentic_tool_resolver = agentic_tool_resolver
-        self._model = model
+        self._role = role
 
     def generate_summary_proposal(
         self,
@@ -192,18 +195,23 @@ class AIUsageFlowModelAssistedProposer:
                     correlationId=correlationId,
                 ))
                 middleware.append(ToolCallLimitMiddleware(run_limit=self.agentic_tool_resolver.max_tool_calls, exit_behavior="error"))
-            agent = create_agent(
-                agent_name="lcsp-ai-usage-flow-proposer",
-                model=self._model, tools=tools,
+            agent = create_deep_agent(
+                name="lcsp-ai-usage-flow-proposer",
+                model=resolve_agent_model(self._role),
+                backend=current_repository_backend(),
+                tools=tools,
                 system_prompt="Propose bounded AIUsageFlow summary fields only. Use governed read tools only when necessary.",
-                response_format=_summary_proposal_response_schema(), middleware=middleware,
+                response_format=_summary_proposal_response_schema(),
+                middleware=[
+                    AgentRunBudgetMiddleware(),
+                    AgentRoleMiddleware("narrator"),
+                    *middleware,
+                ],
             )
             return invoke_with_stream(agent,
                 {"messages": [{"role": "user", "content": prompt}]},
                 config={"metadata": {"workflow_run_id": workflow_run_id, "node_name": node_name, "correlationId": correlationId}, "configurable": {"thread_id": workflow_run_id}},
             )
-        except BillingMeteringError:
-            raise
         except Exception:
             return None
 

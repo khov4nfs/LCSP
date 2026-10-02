@@ -4,8 +4,6 @@ import { describe, expect, it } from "@jest/globals";
 
 import { DevelopmentStaticKeyEncryptionKeyProvider } from "./development-static-key-encryption-key.provider.js";
 import { ProductionConfiguredKeyEncryptionKeyProvider } from "./production-configured-key-encryption-key.provider.js";
-import { createCredentialKeyEncryptionKeyProvider } from "./credential-key-encryption-key-provider.factory.js";
-import { KEY_ENCRYPTION_KEY_PROVIDER_HEALTH_STATUSES } from "../../application/ports/security/key-encryption-key-provider.port.js";
 
 const AAD = Buffer.from("safe-aad", "utf8");
 
@@ -21,22 +19,6 @@ function keyring(entries: Record<string, Buffer>): string {
 }
 
 describe("ProductionConfiguredKeyEncryptionKeyProvider", () => {
-  it("returns a fail-closed provider while credential persistence is disabled", async () => {
-    const provider = createCredentialKeyEncryptionKeyProvider({
-      enabled: false,
-      snapshotPinningEnabled: false,
-      archiveRetrievalEnabled: false,
-      activeKekVersion: "",
-      encodedKekKeyring: "{}",
-    });
-    await expect(provider.wrapKey(Buffer.alloc(32))).rejects.toThrow(
-      "credential_storage_disabled",
-    );
-    await expect(provider.health()).resolves.toEqual({
-      status: KEY_ENCRYPTION_KEY_PROVIDER_HEALTH_STATUSES.unavailable,
-      activeKeyVersion: null,
-    });
-  });
   it("redacts inspection and serialization", () => {
     const recognizable = Buffer.alloc(32, 7);
     const provider = new ProductionConfiguredKeyEncryptionKeyProvider(

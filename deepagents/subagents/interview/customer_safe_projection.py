@@ -12,31 +12,26 @@ from __future__ import annotations
 
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
+import json
 from typing import Any, Iterable, Mapping
 import re
 
 from middleware.redaction import redact_string
+from tools.common.capabilities.assessment.rule_assessment.neutral_text import (
+    IDENTIFIER_LEAK_PATTERNS,
+)
 
+# Structured `key: "value"` forms run first so the value is stripped with the key;
+# the shared identifier patterns then cover the bare tokens.
 INTERNAL_DISALLOWED_PATTERNS = [
-    re.compile(r"\b(?:ENG|ER|LR)-\d+\b", re.IGNORECASE),
-    re.compile(r"\b(?:EngineeringRule|LegalRule)\b", re.IGNORECASE),
     re.compile(r"\bcheckpoint(?:Id)?\s*[:=]\s*['\"][^'\"]+['\"]", re.IGNORECASE),
     re.compile(r"\bthread(?:Id)?\s*[:=]\s*['\"][^'\"]+['\"]", re.IGNORECASE),
     re.compile(r"\bcontinuation(?:Token)?\s*[:=]\s*['\"][^'\"]+['\"]", re.IGNORECASE),
     re.compile(r"\bcp-[A-Za-z0-9_-]+\b", re.IGNORECASE),
-    re.compile(r"\bcheckpoint(?:Id)?\b", re.IGNORECASE),
-    re.compile(r"\bcontinuation(?: token)?\b", re.IGNORECASE),
-    re.compile(r"\bLangGraph\b", re.IGNORECASE),
-    re.compile(r"\bthread(?:Id)?\b", re.IGNORECASE),
     re.compile(r"\bnode:[0-9a-fA-F-]{8,}\b", re.IGNORECASE),
     re.compile(r"\bsymbol:[a-zA-Z0-9_.:/-]+\b", re.IGNORECASE),
-    re.compile(
-        r"\b(?:CUSTOMER_CONFIRMED|CUSTOMER_STATED|CONTEXT_READY|CONTEXT_RESOLVED"
-        r"|INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY|INVESTIGATOR_RESOLUTION"
-        r"|TARGETED_EXACT_RESUME_PIN|WAITING_FOR_CUSTOMER|BLOCKED_OR_UNRESOLVED"
-        r"|NEEDS_INPUT|PRE_PLANNER|DECISION_PATH_UNRESOLVED)\b"
-    ),
-    re.compile(r"\bresolutionCriteria\b"),
+    re.compile(r"\b(?:resolutionCriterionIds|resolvesCriterionId)\b"),
+    *IDENTIFIER_LEAK_PATTERNS,
 ]
 
 SECRET_CONFIG_PATTERNS = [
@@ -386,6 +381,59 @@ def evaluate_question_eligibility(
             raise ValueError(f"Question references unauthorized or fabricated refs: {rejected}")
 
     return True, "ELIGIBLE"
+
+
+_CANDIDATE_REF_LIST_KEYS = frozenset({
+    "evidenceRefs",
+    "evidence_refs",
+    "governedEvidenceRefs",
+    "governed_evidence_refs",
+    "whyEvidenceRefs",
+})
+# Bounds the allowed-ref list echoed back to the specialist in a correction.
+MAX_LISTED_ALLOWED_REFS = 200
+
+
+def unauthorized_candidate_refs(candidate: Any, authorized_refs: Iterable[str]) -> list[str]:
+    """Return every ref a model candidate cites that is not exactly in ``authorized_refs``.
+
+    Refs are compared verbatim: no normalization, substitution or dropping happens here.
+    """
+    allowed = {str(ref) for ref in authorized_refs}
+    rejected: list[str] = []
+
+    def _walk(item: Any) -> None:
+        if isinstance(item, dict):
+            for key, value in item.items():
+                if key in _CANDIDATE_REF_LIST_KEYS and isinstance(value, list):
+                    rejected.extend(
+                        str(ref) for ref in value if not isinstance(ref, str) or ref not in allowed
+                    )
+                else:
+                    _walk(value)
+        elif isinstance(item, list):
+            for entry in item:
+                _walk(entry)
+
+    _walk(candidate)
+    return list(dict.fromkeys(rejected))
+
+
+def evidence_ref_correction_reason(
+    rejected_refs: Iterable[str],
+    authorized_refs: Iterable[str],
+) -> str:
+    """Explain an evidence-ref violation with the exact refs the specialist may cite."""
+    allowed = sorted({str(ref) for ref in authorized_refs})
+    listed = allowed[:MAX_LISTED_ALLOWED_REFS]
+    return (
+        "interview handoff cites evidence refs that are not authorized for this turn: "
+        f"{json.dumps(sorted(set(rejected_refs)), ensure_ascii=False)}. "
+        "Every evidence ref must be copied verbatim from allowedEvidenceRefs; never invent, "
+        "shorten or rename a ref, and use [] when no allowed ref supports the item. "
+        f"allowedEvidenceRefs: {json.dumps(listed, ensure_ascii=False)}"
+        + (f" (+{len(allowed) - len(listed)} more)" if len(allowed) > len(listed) else "")
+    )
 
 
 def extract_governed_evidence_refs(*sources: Any) -> set[str]:

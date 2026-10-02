@@ -1,35 +1,61 @@
+"""Production vertical: interview-gated engineering assessment against live services.
+
+Migrated from the deleted pipeline architecture
+(``ManagedTargetedInvestigatorPipeline``, ``ManagedInvestigatorExecutionStore``,
+``EngineeringRulePlanner``) to the per-``EngineeringRule`` runtime:
+
+- one rule dispatches one Repository Analyst task (``analyze_rule``); the
+  fake analyst below persists ledger rows through the live
+  ``put_rule_assessment`` API instead of driving a durable investigator graph,
+- resume-registry assertions now read the per-rule ledger
+  (``list_rule_assessments``): a failed resume never erases a prior accepted
+  result and one failed rule never invalidates completed siblings,
+- planner assertions now use the deterministic applicability gate
+  (``evaluate_applicability``): the seeded legal rule authors no facts, so the
+  gate reports ``NOT_GATED`` and the rule is eligible for analysis,
+- the stale-provenance replay now fails closed with
+  ``InterviewRevalidationRequired`` (the deleted Root recovery branch is
+  gone).
+
+No absence semantics: ``FINAL_ABSENCE`` stays disabled and ``NOT_OBSERVED``
+never yields ``NON_COMPLIANT``. The deleted ``planner``/``planner_decisions``
+classification keys are gone with the planner; the ported assertions read the
+deterministic ``evaluations`` instead.
+"""
+
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from types import SimpleNamespace
-from typing import Annotated, Any, TypedDict
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
 import psycopg
 import pytest
-from langgraph.graph import END, START, StateGraph
-from langgraph.graph.message import add_messages
 from psycopg.rows import dict_row
 
 from orchestration.dispatcher import RootSubagentDispatcher
-from tools.common.capabilities.assessment.investigation.engineering_rule import (
-    managed_targeted_investigator as managed,
+from tools.common.capabilities.assessment.planning.engineering_rule.rule_applicability_gate import (
+    APPLICABILITY_STATUSES,
+    evaluate_applicability,
+    legal_rule_id_index,
 )
-from tools.common.capabilities.assessment.investigation.engineering_rule.interview_gated_boundary import (
-    InterviewGatedEngineeringAssessmentBoundary,
-)
-from tools.common.capabilities.assessment.investigation.engineering_rule.managed_investigator_execution_store import (
-    ManagedInvestigatorExecutionStore,
-)
-from tools.common.capabilities.assessment.planning.engineering_rule.engineering_rule_planner import (
-    EngineeringRulePlanner,
+from tools.common.capabilities.assessment.rule_assessment.values import (
+    RULE_ANALYSIS_STATUSES,
+    RULE_CRITERION_STATUSES,
+    RULE_EVIDENCE_KINDS,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.callback_schemas import ScanCallbackPayload
 from tools.common.capabilities.workflow.recovery.interview_boundary import (
     AssessmentInterviewResumeBoundary,
+    InterviewRevalidationRequired,
+)
+from tools.common.capabilities.assessment.investigation.engineering_rule.interview_gated_boundary import (
+    InterviewGatedEngineeringAssessmentBoundary,
 )
 from tools.legal.corpus.engineering_rules.contract.models import (
     EngineeringRule,
@@ -86,10 +112,12 @@ BLOCKED_SNAPSHOT_ID = "snapshot-lcsp-278-blocked"
 CORPUS_ID = "corpus-lcsp-278-release"
 CATALOG_ID = "catalog-lcsp-278-release"
 LEGAL_RULE_ID = "LEGAL-LCSP-278-RELEASE"
-ENGINEERING_RULE_ID = "ENG-LCSP-278-RELEASE"
+# Precompiled ids embed their legal rule so the deterministic applicability
+# gate (``legal_rule_id_index``) routes them to the parent LegalRule.
+ENGINEERING_RULE_ID = f"{LEGAL_RULE_ID}::PRECOMPILED::lcsp-278-release"
 EVIDENCE_REF = "EV-LCSP-278-RELEASE"
-NEED_ID = "need-lcsp-278-approval-authority"
-BLOCKED_NEED_ID = "need-lcsp-278-blocked-approval-authority"
+ANALYST_QUESTION = "Who approves the AI recommendation before action?"
+ANALYST_OBSERVATION = "Approval owner is unclear from the repository."
 
 
 # Initial CONTEXT_READY must resolve the minimum planning context in one confirmed answer.
@@ -107,6 +135,7 @@ def _confirmed_context(
     statement: str,
     *,
     revision: int,
+    resolves_criterion_id: str | None = None,
 ) -> dict[str, Any]:
     return {
         "assessmentId": assessment_id,
@@ -124,6 +153,11 @@ def _confirmed_context(
                 "createdAt": "2026-09-05T00:00:00Z",
                 "source": "CUSTOMER_CONFIRMED",
                 "resolutionState": "CONFIRMED",
+                **(
+                    {"resolvesCriterionId": resolves_criterion_id}
+                    if resolves_criterion_id
+                    else {}
+                ),
             }
         ],
         "limitations": ["customer-confirmed current statements only"],
@@ -131,11 +165,6 @@ def _confirmed_context(
         "pgeVersion": "production-pge:v1",
         "guidanceVersion": "guidance-production-1",
     }
-
-
-class _DurableState(TypedDict, total=False):
-    messages: Annotated[list[Any], add_messages]
-    structured_response: dict[str, Any]
 
 
 class _ScriptedSpecialistFactory:
@@ -157,97 +186,170 @@ class _ScriptedSpecialistFactory:
         return _Agent()
 
 
-class _RootRecorder:
-    def __init__(self) -> None:
-        self.calls: list[dict[str, Any]] = []
+class _LedgerAnalystAgent:
+    """Fake repository-analyst: persists per-rule ledger rows via the live API.
 
-    def invoke(self, payload: dict[str, Any], *, config=None):
-        self.calls.append({"payload": payload, "config": config or {}})
+    ``mode`` is ``"needs_then_completed"`` (first dispatch pauses on the
+    customer-owned criterion, later dispatches conclude) or
+    ``"always_needs"`` (the blocked vertical never resolves).
+    """
+
+    def __init__(self, api: WorkerApiClient, mode: str) -> None:
+        self._api = api
+        self._mode = mode
+        self.calls = 0
+        self.instructions: list[str] = []
+
+    def invoke(self, payload: dict[str, Any], *, config=None, context=None):
+        _ = config
+        messages = payload.get("messages") if isinstance(payload, dict) else []
+        instruction = ""
+        if messages:
+            last = messages[-1]
+            content = last.get("content") if isinstance(last, dict) else getattr(last, "content", None)
+            if isinstance(content, str):
+                instruction = content
+            elif isinstance(content, list):
+                instruction = "".join(
+                    block.get("text", "") if isinstance(block, dict) else str(block)
+                    for block in content
+                )
+        self.calls += 1
+        self.instructions.append(instruction)
+        assert context is not None and len(context.engineering_rule_ids) == 1
+        if self._mode == "needs_then_completed" and self.calls > 1:
+            row = _completed_ledger_row(context)
+        else:
+            row = _needs_context_ledger_row(context)
+        self._api.put_rule_assessment(
+            context.assessment_id, context.engineering_rule_ids[0], row
+        )
         return {"messages": []}
 
 
-def _durable_create_agent_factory(
-    run_counter: list[int],
-    *,
-    snapshot_id: str = SNAPSHOT_ID,
-    need_id: str = NEED_ID,
-    instructions: list[str] | None = None,
-):
-    def create_agent(**kwargs: Any):
-        checkpointer = kwargs["checkpointer"]
-        builder = StateGraph(_DurableState)
+class _BranchingSpecialistFactory:
+    """Serve Interview turns from the script and analyst tasks from the ledger fake."""
 
-        def investigator(state: _DurableState):
-            run_counter.append(1)
-            if instructions is not None:
-                messages = state.get("messages") or []
-                if messages:
-                    content = getattr(messages[-1], "content", None)
-                    if isinstance(content, str):
-                        instructions.append(content)
-            if len(state.get("messages") or []) <= 1:
-                structured = {
-                    "status": "NEEDS_INPUT",
-                    "artifact_versions": {
-                        "technicalEvidenceReportId": kwargs["_lcsp_report_id"],
-                        "repositorySnapshotId": snapshot_id,
-                        "legalRuleCatalogVersionId": CATALOG_ID,
-                        "legalCorpusVersionId": CORPUS_ID,
-                    },
-                    "claims": [],
-                    "limitations": [],
-                    "missing_input": "Customer approval authority is required.",
-                    "business_context_need": {
-                        "need_id": need_id,
-                        "business_context_need": (
-                            "Who approves the AI recommendation before action?"
-                        ),
-                        "resolution_criteria": ["decision_authority"],
-                    },
-                    "next_step": "RESOLVE",
-                }
-            else:
-                structured = {
-                    "status": "READY",
-                    "artifact_versions": {
-                        "technicalEvidenceReportId": kwargs["_lcsp_report_id"],
-                        "repositorySnapshotId": snapshot_id,
-                        "legalRuleCatalogVersionId": CATALOG_ID,
-                        "legalCorpusVersionId": CORPUS_ID,
-                    },
-                    "claims": [
-                        {
-                            "claim_id": "claim-lcsp-278-release",
-                            "engineering_rule_id": ENGINEERING_RULE_ID,
-                            "claim_type": "RULE_REQUIREMENT_MET",
-                            "value": True,
-                            "evidence_refs": [EVIDENCE_REF],
-                            "graph_path_refs": [],
-                            "source_anchor_refs": [],
-                            "confidence": 0.95,
-                            "limitations": [],
-                            "criterion": "CONTROL",
-                        }
-                    ],
-                    "limitations": [],
-                    "missing_input": None,
-                    "business_context_need": None,
-                    "next_step": "GATE",
-                }
-            return {"structured_response": structured}
+    def __init__(self, interview_factory: _ScriptedSpecialistFactory, analyst: _LedgerAnalystAgent) -> None:
+        self._interview_factory = interview_factory
+        self._analyst = analyst
 
-        builder.add_node("investigator", investigator)
-        builder.add_edge(START, "investigator")
-        builder.add_edge("investigator", END)
-        return builder.compile(checkpointer=checkpointer)
+    @property
+    def invoke_count(self) -> int:
+        return self._interview_factory.invoke_count
 
-    return create_agent
+    def __call__(self, **kwargs: Any) -> Any:
+        name = str(kwargs.get("name") or "")
+        if "interview" in name:
+            return self._interview_factory(**kwargs)
+        if "repository-analyst" in name:
+            analyst = self._analyst
+
+            class _Agent:
+                def invoke(self, payload: dict[str, Any], *, config=None, context=None):
+                    return analyst.invoke(payload, config=config, context=context)
+
+            return _Agent()
+        raise AssertionError(f"unexpected specialist dispatch: {name!r}")
+
+
+def _needs_context_ledger_row(context: Any) -> dict[str, Any]:
+    rule_id = context.engineering_rule_ids[0]
+    digest = hashlib.sha256(ANALYST_QUESTION.encode("utf-8")).hexdigest()[:12]
+    return {
+        "resultId": f"rar_prod_needs_{_call_id(context)}",
+        "assessmentId": context.assessment_id,
+        "engineeringRuleId": rule_id,
+        "engineeringRuleVersion": context.engineering_rule_version,
+        "repositoryVersion": context.commit_sha,
+        "contextRevision": context.context_revision,
+        "status": RULE_ANALYSIS_STATUSES["needsContext"],
+        "criteria": [
+            {
+                "criterionId": criterion_id,
+                "status": RULE_CRITERION_STATUSES["businessContextRequired"],
+                "evidenceRefs": [],
+                "evidence": [],
+                "technicalFacts": [],
+                "limitations": [],
+                "businessContextNeed": {
+                    "needId": f"need:{rule_id}:{criterion_id}:{digest}",
+                    "question": ANALYST_QUESTION,
+                    "observation": ANALYST_OBSERVATION,
+                    "resolutionCriterionIds": [criterion_id],
+                },
+            }
+            for criterion_id in context.criterion_ids
+        ],
+        "limitations": [],
+        "execution": {"attempt": 1, "runId": context.workflow_run_id},
+    }
+
+
+def _completed_ledger_row(context: Any) -> dict[str, Any]:
+    rule_id = context.engineering_rule_ids[0]
+    criteria = []
+    for criterion_id in context.criterion_ids:
+        evidence_ref = f"source:{context.commit_sha}:src/recommendation_service.py#L12-L24"
+        criteria.append(
+            {
+                "criterionId": criterion_id,
+                "status": RULE_CRITERION_STATUSES["evidenceFound"],
+                "evidenceKind": RULE_EVIDENCE_KINDS["supportsRequirement"],
+                "evidenceRefs": [evidence_ref],
+                "evidence": [
+                    {
+                        "ref": evidence_ref,
+                        "path": "src/recommendation_service.py",
+                        "startLine": 12,
+                        "endLine": 24,
+                        "provenance": {
+                            "assessmentId": context.assessment_id,
+                            "repositoryVersion": context.commit_sha,
+                            "engineeringRuleId": rule_id,
+                            "criterionId": criterion_id,
+                            "validator": "lcsp.rule_assessment.v1",
+                        },
+                    }
+                ],
+                "technicalFacts": ["A human manager approves before action."],
+                "limitations": [],
+            }
+        )
+    return {
+        "resultId": f"rar_prod_completed_{_call_id(context)}",
+        "assessmentId": context.assessment_id,
+        "engineeringRuleId": rule_id,
+        "engineeringRuleVersion": context.engineering_rule_version,
+        "repositoryVersion": context.commit_sha,
+        "contextRevision": context.context_revision,
+        "status": RULE_ANALYSIS_STATUSES["completed"],
+        "criteria": criteria,
+        "limitations": [],
+        "execution": {"attempt": 1, "runId": context.workflow_run_id},
+    }
+
+
+def _call_id(context: Any) -> str:
+    return hashlib.sha256(str(context.workflow_run_id).encode("utf-8")).hexdigest()[:12]
+
+
+def _ledger_rows(api: WorkerApiClient, assessment_id: str) -> list[dict[str, Any]]:
+    return api.list_rule_assessments(assessment_id)
 
 
 def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
+    """Root cause: the old test drove deleted durable-investigator internals.
+
+    Fix: the same live release gate now runs the per-rule loop. The fake
+    analyst persists NEEDS_CONTEXT then COMPLETED ledger rows through the
+    live rule-assessment API; resume-registry assertions read
+    ``list_rule_assessments`` and planner assertions use the deterministic
+    applicability gate. Stale provenance fails closed with
+    ``InterviewRevalidationRequired`` (the Root recovery branch is gone).
+    """
     assert API_BASE_URL and API_DATABASE_URL and CHECKPOINT_URL and WORKER_KEY
     os.environ["LEGAL_CHROMA_PATH"] = str(tmp_path / "chroma")
 
@@ -337,14 +439,13 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
             },
             {
                 "expectedContextRevision": 2,
-                "mode": "INVESTIGATOR_RESOLUTION",
+                "mode": "BUSINESS_CONTEXT_RESOLUTION",
                 "outcome": "WAITING_FOR_CUSTOMER",
                 "activeQuestion": {
                     "id": "question-lcsp-278-targeted",
                     "intent": "CLARIFY",
                     "control": "FREE_TEXT",
                     "prompt": "Who must approve the recommendation before action?",
-                    "needId": NEED_ID,
                     "frontier": {
                         "owner": "CUSTOMER",
                         "materiality": "MATERIAL",
@@ -359,7 +460,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
             },
             {
                 "expectedContextRevision": 3,
-                "mode": "INVESTIGATOR_RESOLUTION",
+                "mode": "BUSINESS_CONTEXT_RESOLUTION",
                 "outcome": "CONTEXT_RESOLVED",
                 "contextAuthority": "CUSTOMER_CONFIRMED",
                 "confirmedContext": _confirmed_context(
@@ -367,6 +468,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                     "decision_authority",
                     "A human manager must approve before action",
                     revision=3,
+                    resolves_criterion_id="CONTROL",
                 ),
                 "flags": [],
                 "blockedActions": [],
@@ -374,7 +476,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
             },
             {
                 "expectedContextRevision": 3,
-                "mode": "INVESTIGATOR_RESOLUTION",
+                "mode": "BUSINESS_CONTEXT_RESOLUTION",
                 "outcome": "CONTEXT_RESOLVED",
                 "contextAuthority": "CUSTOMER_CONFIRMED",
                 "confirmedContext": _confirmed_context(
@@ -382,6 +484,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                     "decision_authority",
                     "A human manager must approve before action",
                     revision=3,
+                    resolves_criterion_id="CONTROL",
                 ),
                 "flags": [],
                 "blockedActions": [],
@@ -389,7 +492,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
             },
             {
                 "expectedContextRevision": 4,
-                "mode": "INVESTIGATOR_RESOLUTION",
+                "mode": "BUSINESS_CONTEXT_RESOLUTION",
                 "outcome": "CONTEXT_RESOLVED",
                 "contextAuthority": "CUSTOMER_CONFIRMED",
                 "confirmedContext": _confirmed_context(
@@ -397,6 +500,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                     "decision_authority",
                     "A human manager must approve before action",
                     revision=4,
+                    resolves_criterion_id="CONTROL",
                 ),
                 "flags": [],
                 "blockedActions": [],
@@ -404,18 +508,9 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
             },
         ]
     )
-    dispatcher = RootSubagentDispatcher(agent_factory=interview_factory)
-    run_counter: list[int] = []
-    investigator_instructions: list[str] = []
-
-    def create_agent_with_report(**kwargs: Any):
-        kwargs["_lcsp_report_id"] = report_id
-        return _durable_create_agent_factory(
-            run_counter,
-            instructions=investigator_instructions,
-        )(**kwargs)
-
-    monkeypatch.setattr(managed, "create_agent", create_agent_with_report)
+    analyst = _LedgerAnalystAgent(api, "needs_then_completed")
+    factory = _BranchingSpecialistFactory(interview_factory, analyst)
+    dispatcher = RootSubagentDispatcher(agent_factory=factory)
 
     boundary = InterviewGatedEngineeringAssessmentBoundary(
         config,
@@ -427,6 +522,8 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
     public_initial = _public_interview_state()
     assert public_initial["activeQuestion"]["id"] == "question-lcsp-278-initial"
     assert _classification_count() == 0
+    # No rule analysis runs before the initial Interview guard resolves.
+    assert analyst.calls == 0
 
     _submit_answer(
         "question-lcsp-278-initial",
@@ -452,21 +549,18 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
 
     ready_state = _thread_state()
     assert ready_state["state"]["outcome"] == "WAITING_FOR_CUSTOMER"
-    assert ready_state["private"]["targetedNeed"]["needId"] == NEED_ID
-    continuation = ready_state["private"]["targetedContinuation"]
-    assert continuation["investigatorExecutionId"]
-    assert continuation["checkpointId"]
-    assert "checkpointId" not in json.dumps(ready_state["private"]["targetedNeed"])
-    assert run_counter == [1]
-    assert _classification_count() == 0
-
-    registry_record = ManagedInvestigatorExecutionStore(CHECKPOINT_URL).get(
-        continuation["investigatorExecutionId"]
+    assert ready_state["private"]["targetedNeed"]["needId"].startswith(
+        f"need:{ENGINEERING_RULE_ID}:CONTROL:"
     )
-    assert registry_record is not None
-    assert registry_record.status == "WAITING"
-    assert registry_record.thread_id == continuation["workflowRunId"]
-    assert registry_record.checkpoint_id == continuation["checkpointId"]
+    assert ready_state["private"]["targetedNeed"]["question"] == ANALYST_QUESTION
+    # The ledger replaces the investigator execution registry: one
+    # NEEDS_CONTEXT row pauses the rule on the customer-owned criterion.
+    rows = _ledger_rows(api, ASSESSMENT_ID)
+    assert len(rows) == 1
+    assert rows[0]["engineeringRuleId"] == ENGINEERING_RULE_ID
+    assert rows[0]["status"] == RULE_ANALYSIS_STATUSES["needsContext"]
+    assert analyst.calls == 1
+    assert _classification_count() == 0
 
     targeted_resume = _latest_resume_payload()
     targeted_resume_boundary = AssessmentInterviewResumeBoundary(
@@ -478,7 +572,9 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
         targeted_resume,
         "corr-lcsp-278-targeted-question",
     )
-    assert _public_interview_state()["activeQuestion"]["needId"] == NEED_ID
+    assert _public_interview_state()["activeQuestion"]["prompt"] == (
+        "Who must approve the recommendation before action?"
+    )
     targeted_resume_boundary.handle(
         targeted_resume,
         "corr-lcsp-278-targeted-question-replay",
@@ -507,9 +603,12 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
         "corr-lcsp-278-targeted-resolved",
     )
 
-    assert run_counter == [1, 1]
-    assert len(investigator_instructions) == 2
-    resumed_instruction = investigator_instructions[-1]
+    # The resumed rule re-analyzes with the confirmed answer: the Interview
+    # owns customer-context reasoning, so its stamped statements travel
+    # verbatim into the analyst task and no stated/uncertain text leaks in.
+    assert analyst.calls == 2
+    assert len(analyst.instructions) == 2
+    resumed_instruction = analyst.instructions[-1]
     assert "ConfirmedStructuredBusinessContext(" not in resumed_instruction
     assert '"authority": "CUSTOMER_CONFIRMED_CONFIRMED_ONLY"' in resumed_instruction
     assert '"contextRevision": 4' in resumed_instruction
@@ -520,6 +619,15 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
     assert "UNCERTAIN" not in resumed_instruction
     assert "CONFLICTED" not in resumed_instruction
     assert "SUPERSEDED" not in resumed_instruction
+    rows = _ledger_rows(api, ASSESSMENT_ID)
+    assert any(
+        row["engineeringRuleId"] == ENGINEERING_RULE_ID
+        and row["status"] == RULE_ANALYSIS_STATUSES["completed"]
+        for row in rows
+    )
+    assert not any(
+        row["status"] == RULE_ANALYSIS_STATUSES["failed"] for row in rows
+    )
     result = _classification_result()
     data = result["classificationData"]
     assert result["assessmentId"] == ASSESSMENT_ID
@@ -527,34 +635,38 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
     assert data["snapshot_id"] == SNAPSHOT_ID
     assert data["summary"]["total"] == 1
     assert data["summary"]["compliant"] == 1
-    assert data["planner"]["candidate_count"] == 1
-    assert data["planner_decisions"][0]["final_decision"] == "SELECT"
+    assert data["evaluations"][0]["engineering_rule_id"] == ENGINEERING_RULE_ID
+    assert data["evaluations"][0]["status"] == "COMPLIANT"
 
     targeted_resume_boundary.handle(
         resolved_resume,
         "corr-lcsp-278-targeted-resolved-replay",
     )
-    assert run_counter == [1, 1]
+    assert analyst.calls == 2
     assert _classification_count() == 1
 
-    root = _RootRecorder()
     _mutate_snapshot_provenance()
     stale_resume = AssessmentInterviewResumeBoundary(
         config,
         api_client=api,
         dispatcher=dispatcher,
-        root_agent=root,
     )
-    stale_resume.handle(initial_resume, "corr-lcsp-278-stale-replay")
-    assert root.calls
+    # Stale provenance fails closed: no Interview turn, no rule resume.
+    with pytest.raises(InterviewRevalidationRequired):
+        stale_resume.handle(initial_resume, "corr-lcsp-278-stale-replay")
     assert interview_factory.invoke_count == 8
-    assert run_counter == [1, 1]
+    assert analyst.calls == 2
 
 
 def test_release_gate_blocks_unresolved_targeted_context_without_resume(
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
+    """Root cause: the old test asserted deleted registry/planner internals.
+
+    Fix: the blocked vertical keeps its Interview gating (BLOCKED_OR_UNRESOLVED
+    with bounded actions) while the paused rule stays a NEEDS_CONTEXT ledger
+    row; nothing concludes and nothing is classified.
+    """
     assert API_BASE_URL and API_DATABASE_URL and CHECKPOINT_URL and WORKER_KEY
     os.environ["LEGAL_CHROMA_PATH"] = str(tmp_path / "blocked-chroma")
 
@@ -646,14 +758,13 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
             },
             {
                 "expectedContextRevision": 2,
-                "mode": "INVESTIGATOR_RESOLUTION",
+                "mode": "BUSINESS_CONTEXT_RESOLUTION",
                 "outcome": "WAITING_FOR_CUSTOMER",
                 "activeQuestion": {
                     "id": "question-lcsp-278-blocked-targeted",
                     "intent": "CLARIFY",
                     "control": "FREE_TEXT",
                     "prompt": "Who must approve the recommendation before action?",
-                    "needId": BLOCKED_NEED_ID,
                     "frontier": {
                         "owner": "CUSTOMER",
                         "materiality": "MATERIAL",
@@ -668,7 +779,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
             },
             {
                 "expectedContextRevision": 3,
-                "mode": "INVESTIGATOR_RESOLUTION",
+                "mode": "BUSINESS_CONTEXT_RESOLUTION",
                 "outcome": "BLOCKED_OR_UNRESOLVED",
                 "contextAuthority": "CUSTOMER_STATED",
                 "confirmedContext": {},
@@ -682,18 +793,9 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
             },
         ]
     )
-    dispatcher = RootSubagentDispatcher(agent_factory=interview_factory)
-    run_counter: list[int] = []
-
-    def create_agent_with_report(**kwargs: Any):
-        kwargs["_lcsp_report_id"] = report_id
-        return _durable_create_agent_factory(
-            run_counter,
-            snapshot_id=BLOCKED_SNAPSHOT_ID,
-            need_id=BLOCKED_NEED_ID,
-        )(**kwargs)
-
-    monkeypatch.setattr(managed, "create_agent", create_agent_with_report)
+    analyst = _LedgerAnalystAgent(api, "always_needs")
+    factory = _BranchingSpecialistFactory(interview_factory, analyst)
+    dispatcher = RootSubagentDispatcher(agent_factory=factory)
 
     boundary = InterviewGatedEngineeringAssessmentBoundary(
         config,
@@ -705,6 +807,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
         _public_interview_state(BLOCKED_ASSESSMENT_ID)["activeQuestion"]["id"]
         == "question-lcsp-278-blocked-initial"
     )
+    assert analyst.calls == 0
 
     _submit_answer(
         "question-lcsp-278-blocked-initial",
@@ -734,23 +837,25 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
         "corr-lcsp-278-blocked-initial-confirmed",
     )
     state = _thread_state(BLOCKED_ASSESSMENT_ID)
-    continuation = state["private"]["targetedContinuation"]
-    assert state["private"]["targetedNeed"]["needId"] == BLOCKED_NEED_ID
-    assert run_counter == [1]
-
-    registry_record = ManagedInvestigatorExecutionStore(CHECKPOINT_URL).get(
-        continuation["investigatorExecutionId"]
+    assert state["private"]["targetedNeed"]["needId"].startswith(
+        f"need:{ENGINEERING_RULE_ID}:CONTROL:"
     )
-    assert registry_record is not None
-    assert registry_record.status == "WAITING"
+    assert analyst.calls == 1
+
+    # The ledger replaces the investigator execution registry: the rule waits
+    # on its customer-owned criterion instead of holding a WAITING execution.
+    rows = _ledger_rows(api, BLOCKED_ASSESSMENT_ID)
+    assert len(rows) == 1
+    assert rows[0]["engineeringRuleId"] == ENGINEERING_RULE_ID
+    assert rows[0]["status"] == RULE_ANALYSIS_STATUSES["needsContext"]
 
     resume_boundary.handle(
         _latest_resume_payload(BLOCKED_ASSESSMENT_ID),
         "corr-lcsp-278-blocked-targeted-question",
     )
     assert (
-        _public_interview_state(BLOCKED_ASSESSMENT_ID)["activeQuestion"]["needId"]
-        == BLOCKED_NEED_ID
+        _public_interview_state(BLOCKED_ASSESSMENT_ID)["activeQuestion"]["prompt"]
+        == "Who must approve the recommendation before action?"
     )
 
     _submit_answer(
@@ -771,7 +876,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
         "SAVE_AND_EXIT",
     ]
     assert blocked_state.get("activeQuestion") is None
-    assert run_counter == [1]
+    assert analyst.calls == 1
     assert interview_factory.invoke_count == 6
     assert _classification_count(BLOCKED_ASSESSMENT_ID) == 0
 
@@ -787,8 +892,8 @@ def _post_scan_callback(
         ScanCallbackPayload(
             scan_job_id=scan_job_id,
             status="SUCCESS",
-            tools_version={"scanner": "lcsp-278-release"},
-            config_hash={"scanner": "sha256:lcsp-278-release"},
+            tools_version={"deepagents": "0.7.17", "repository-analysis": "1.0.0"},
+            config_hash={"repository-analysis": "sha256:lcsp-278-release"},
             evidence_payload={"evidence_graph": _program_graph(snapshot_id)},
             privacy_flags={
                 "containsSourceCode": False,
@@ -856,7 +961,15 @@ def _seed_engineering_rule_cache(api: WorkerApiClient, report_id: str) -> None:
         prompt_version="lcsp-278-release-seed",
     )
     cache.put(fingerprint, [rule])
-    assert isinstance(EngineeringRulePlanner(), EngineeringRulePlanner)
+    # The deterministic applicability gate replaces EngineeringRulePlanner: a
+    # legal rule authoring no facts is NOT_GATED, so the rule is eligible.
+    gate = evaluate_applicability(
+        [{"legalRuleId": LEGAL_RULE_ID}],
+        ai_discovery=None,
+        confirmed_statements=(),
+        engineering_rule_ids_by_legal=legal_rule_id_index([ENGINEERING_RULE_ID]),
+    )
+    assert gate[LEGAL_RULE_ID]["status"] == APPLICABILITY_STATUSES["not_gated"]
 
 
 def _program_graph(snapshot_id: str = SNAPSHOT_ID) -> dict[str, Any]:
@@ -888,7 +1001,7 @@ def _program_graph(snapshot_id: str = SNAPSHOT_ID) -> dict[str, Any]:
                 "attributes": {"purpose": "recommendation approval authority"},
                 "semantic_types": ["approval_authority", "recommendation"],
                 "evidence_refs": [EVIDENCE_REF],
-                "origin": "STATIC_ANALYSIS",
+                "origin": "DEEP_AGENT",
                 "resolution_state": "OBSERVED",
                 "support_refs": [],
             }

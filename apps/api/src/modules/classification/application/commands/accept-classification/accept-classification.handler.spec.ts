@@ -196,11 +196,6 @@ describe("AcceptClassificationHandler", () => {
           ENGINEERING_LIMITATION_CODES.engineeringRuleCompilationFailed,
         ],
         observability: {
-          openwiki: {
-            available: false,
-            error: "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
-            fallback: "OPENWIKI_REQUIRED_FALLBACK_ALL",
-          },
           engineering_rule_preparation: {
             compile_failed_count: 1,
             compile_failed_legal_rule_ids: ["legal-broken"],
@@ -231,9 +226,6 @@ describe("AcceptClassificationHandler", () => {
             ENGINEERING_LIMITATION_CODES.engineeringRuleCompilationFailed,
           ],
           observability: expect.objectContaining({
-            openwiki: expect.objectContaining({
-              error: "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
-            }),
             engineering_rule_preparation: expect.objectContaining({
               compile_failed_count: 1,
               compile_failed_legal_rule_ids: ["legal-broken"],

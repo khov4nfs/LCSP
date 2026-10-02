@@ -14,7 +14,7 @@ depends_on:
 
 ## Outcome
 
-Receive scan results from the Python scanner worker. Worker-authenticated (API key). Validate evidence schema and provenance metadata. Transition `RepositoryScanJob` status. Create `TechnicalEvidenceReport` artifact. Trigger downstream evidence evaluation. Secrets and raw source must not appear in evidence payload.
+Receive scan results from the repository-analysis LCSP Agent Runtime. Worker-authenticated (API key). Validate evidence schema and provenance metadata. Transition `RepositoryScanJob` status. Create `TechnicalEvidenceReport` artifact. Trigger downstream evidence evaluation. Secrets and raw source must not appear in evidence payload.
 
 ## Module Files
 
@@ -35,8 +35,8 @@ model TechnicalEvidenceReport {
   assessmentId     String
   organizationId   String
   snapshotId       String
-  toolsVersion     Json                             // { syft: 'x.y.z', knip: ... }
-  configHash       Json                             // { syft: 'sha256:...', semgrep: ... }
+  toolsVersion     Json                             // { deepagents: 'x.y.z', 'langgraph': 'x.y.z', 'repository-analysis': '1.0.0' }
+  configHash       Json                             // { 'repository-analysis': 'sha256:...' }
   evidencePayload  Json                             // Validated + redacted findings
   privacyFlags     Json                             // { containsSourceCode: false, ... }
   schemaVersion    String
@@ -95,7 +95,7 @@ model TechnicalEvidenceReport {
 6. If all checks pass: create `TechnicalEvidenceReport` with `status = accepted`.
 7. Transition `RepositoryScanJob.status = COMPLETED`.
 8. Emit outbox message `scan.evidence-accepted` for intelligence worker.
-9. If scanner reports `status = failed`: create `TechnicalEvidenceReport` with `status = rejected`, transition job to `FAILED`.
+9. If repository analysis reports `status = failed`: create `TechnicalEvidenceReport` with `status = rejected`, transition job to `FAILED`.
 10. Audit event `SCAN_EVIDENCE_ACCEPTED` or `SCAN_EVIDENCE_REJECTED`.
 
 ## Commands / Events
@@ -116,7 +116,7 @@ model TechnicalEvidenceReport {
 | T04 | Unknown `schema_version`             | 422 `EVIDENCE_SCHEMA_INVALID`                                            |
 | T05 | Invalid API key                      | 401                                                                      |
 | T06 | Job not in `RUNNING` state           | 409 `SCAN_JOB_WRONG_STATE`                                               |
-| T07 | Scanner reports `status = failed`    | Job transitions to `FAILED`, `TechnicalEvidenceReport.status = rejected` |
+| T07 | Repository analysis reports `status = failed`    | Job transitions to `FAILED`, `TechnicalEvidenceReport.status = rejected` |
 | T08 | Outbox message created on accept     | `event.scan.evidence-accepted` in DB                                     |
 | T09 | `evidencePayload` has no raw source  | Verified by schema validation                                            |
 
@@ -125,7 +125,7 @@ model TechnicalEvidenceReport {
 - Evidence accepted only when `containsSourceCode = false` AND `secretsRedacted = true`.
 - `TechnicalEvidenceReport` created with schema version, tool versions, config hashes.
 - Outbox message `scan.evidence-accepted` triggers downstream.
-- Failed scanner reports create rejected evidence record and transition job to `FAILED`.
+- Failed repository-analysis results create a rejected evidence record and transition job to `FAILED`.
 
 ## Implementation Evidence
 
@@ -133,5 +133,5 @@ model TechnicalEvidenceReport {
 - Added schema/provenance validation for supported callback status, schema version, tool versions, config hashes, failed-job error code, and path/body job identity.
 - Privacy validation rejects source/raw-content keys, known secret patterns, `containsSourceCode != false`, and `secretsRedacted != true` before evidence persistence.
 - Added the `TechnicalEvidenceReport` Prisma model and migration. Report creation, guarded job transition, accepted-evidence outbox event, and audit event persist in one transaction.
-- Successful and partial evidence complete the job; scanner failures create a rejected report and transition the job to `FAILED` without emitting the accepted-evidence event.
+- Successful and partial evidence complete the job; repository-analysis runtime failures create a rejected report and transition the job to `FAILED` without emitting the accepted-evidence event.
 - Verification passes 19 scan unit tests, 8 callback E2E tests covering T01-T09, ESLint, TypeScript, contract/import policies, and `git diff --check`.

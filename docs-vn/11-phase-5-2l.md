@@ -20,8 +20,8 @@ POSTGRESQL_PGVECTOR_LEGAL_RETRIEVAL_SUPERSEDED
 - Compliance certification, formal legal opinion, direct regulator submission và manual evidence JSON bị loại khỏi product direction.
 - `FR-050` không còn là upload Local/CI report; thay bằng Automatic Trusted Scan Initiation.
 - Tất cả asynchronous domain workloads chuyển sang Python Worker Platform.
-- Node.js chỉ còn cho NestJS/Web và bounded TS/JS analyzer CLI.
-- Scanner bổ sung Syft, Knip, deptry, Semgrep custom rules và tree-sitter/custom parser bên cạnh `ast`, `libcst` và `ts-morph`.
+- Node.js chỉ còn cho NestJS/Web/tooling; không còn analyzer CLI riêng theo ngôn ngữ.
+- Thiết kế scanner toolchain theo ngôn ngữ đã được supersede. Repository analysis hiện dùng LangGraph + native Deep Agents harness trên repository commit-pinned trong LCSP Docker sandbox; Codebase Memory là structural memory tùy chọn.
 
 ## Phần đã được propagate rộng
 
@@ -29,7 +29,7 @@ POSTGRESQL_PGVECTOR_LEGAL_RETRIEVAL_SUPERSEDED
 - canonical FR/NFR direction;
 - automatic trigger states, commands và events;
 - Python worker ownership trong code maps và queue docs;
-- scanner toolchain trong scanner specs/implementation;
+- repository-analysis architecture và archive boundary cho scanner specs cũ;
 - delivery plan và readiness report;
 - phần lớn tài liệu tóm lược tiếng Việt.
 
@@ -45,8 +45,8 @@ POSTGRESQL_PGVECTOR_LEGAL_RETRIEVAL_SUPERSEDED
 ## Phần carry forward trước stories/readiness
 
 - UX rebase/regeneration vẫn cần hoàn tất trước stories/readiness.
-- Chưa có dedicated Phase 5.2L ADRs cho PBAC, automatic trigger, Python Worker Platform và expanded scanner toolchain.
-- PBAC engine/topology, trigger retry/DLQ/idempotency và tool failure severity vẫn là technical decisions mở trước stories/readiness.
+- Chưa có dedicated Phase 5.2L ADRs cho PBAC, automatic trigger, Python Worker Platform và LCSP Agent Runtime repository-analysis runtime.
+- PBAC engine/topology, trigger retry/DLQ/idempotency và repository-analysis failure/coverage policy vẫn là technical decisions mở trước stories/readiness.
 
 ## Kiến trúc mục tiêu
 
@@ -54,23 +54,23 @@ POSTGRESQL_PGVECTOR_LEGAL_RETRIEVAL_SUPERSEDED
 NestJS API = synchronous control plane
 Web = product UI
 Python Worker Platform = all asynchronous domain workloads
-Node.js CLI = bounded TS/JS analyzer adapter
+LCSP Agent Runtime = durable LangGraph thread + Docker repository working database
 ```
 
 Python Worker Platform gồm nhiều consumer/module độc lập cho trigger resolution, scan, profile, AIUsageFlow, reconciliation, legal pipeline, classification, gap analysis và document generation. Audit export là synchronous Backend API operation trong MVP.
 
-## Scanner toolchain mục tiêu
+## Repository analysis mục tiêu
 
 ```text
-snapshot
--> Syft SBOM/dependency inventory
--> Knip và deptry dependency usage
--> ast/libcst và ts-morph semantic analysis
--> tree-sitter/custom parser augmentation
--> Semgrep custom AI rules
--> graph/evidence fusion
--> TechnicalEvidenceReport gates
+commit-pinned snapshot
+-> hydrate repository vào LCSP Docker sandbox
+-> Repository Deep Agent dùng native filesystem/search/execute/planning/subagents
+-> Codebase Memory index/search khi hữu ích
+-> agent tự xác định evidence graph + unresolved frontiers + coverage + AI discovery gate
+-> source-anchor/hash + privacy/schema gates
+-> TechnicalEvidenceReport
 ```
+
 
 ## Bước closure trước UX
 

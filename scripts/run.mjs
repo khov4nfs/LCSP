@@ -1,12 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  readlinkSync,
-  statSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readlinkSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,49 +10,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const workerRoot = path.join(repoRoot, "deepagents");
-const dockerGraphStorageRoot = path.join(repoRoot, "tmp", "managed-agent");
+const dockerGraphStorageRoot = path.join(repoRoot, "tmp", "agent-runtime");
 const isWindows = process.platform === "win32";
 const workerPython =
   process.platform === "win32"
     ? path.join(workerRoot, ".venv", "Scripts", "python.exe")
     : path.join(workerRoot, ".venv", "bin", "python");
-const workerMda =
+const workerLangGraph =
   process.platform === "win32"
-    ? path.join(workerRoot, ".venv", "Scripts", "mda.exe")
-    : path.join(workerRoot, ".venv", "bin", "mda");
-const tsJsAnalyzerRoot = path.join(
-  workerRoot,
-  "tools",
-  "common",
-  "capabilities",
-  "evidence",
-  "scanner",
-  "ts_js_bridge",
-  "ts-js-analyzer",
-);
-const tsJsAnalyzerCli = path.join(
-  tsJsAnalyzerRoot,
-  "dist",
-  "tools",
-  "ts-js-analyzer",
-  "cli.js",
-);
-const tsJsAnalyzerNodeModules = path.join(tsJsAnalyzerRoot, "node_modules");
-const tsJsAnalyzerPackageJson = path.join(tsJsAnalyzerRoot, "package.json");
-const tsJsAnalyzerTsMorphPackage = path.join(
-  tsJsAnalyzerNodeModules,
-  "ts-morph",
-  "package.json",
-);
-const tsJsAnalyzerNpmCache = path.join(tsJsAnalyzerNodeModules, ".npm-cache");
-const openWikiRuntimeScript = path.join(
-  repoRoot,
-  "scripts",
-  "openwiki_runtime.py",
-);
+    ? path.join(workerRoot, ".venv", "Scripts", "langgraph.exe")
+    : path.join(workerRoot, ".venv", "bin", "langgraph");
 const rootEnv = loadDotEnv(path.join(repoRoot, ".env"));
-const defaultOrchestrationDebug =
-  process.env.ORCHESTRATION_DEBUG ?? rootEnv.ORCHESTRATION_DEBUG ?? "false";
 const defaultPhoenixTracing =
   process.env.PHOENIX_TRACING ?? rootEnv.PHOENIX_TRACING ?? "true";
 const defaultDockerPhoenixTracing =
@@ -75,27 +36,25 @@ const defaultPhoenixProject =
 const defaultDockerWorkerImage =
   process.env.LCSP_WORKER_DOCKER_IMAGE ??
   rootEnv.LCSP_WORKER_DOCKER_IMAGE ??
-  "deepagents:scanner-tools";
-const defaultOpenWikiRuntimeCommand =
-  process.env.OPENWIKI_RUNTIME_COMMAND ??
-  rootEnv.OPENWIKI_RUNTIME_COMMAND ??
-  `${shellQuote(workerPython)} ${shellQuote(openWikiRuntimeScript)}`;
-const defaultOpenWikiRuntimeTimeoutSeconds =
-  process.env.OPENWIKI_RUNTIME_TIMEOUT_SECONDS ??
-  rootEnv.OPENWIKI_RUNTIME_TIMEOUT_SECONDS ??
-  "180";
-const managedAgentPythonPath = ".";
-const dockerManagedAgentPythonPath = "/app/deepagents";
-const managedAgentEventsModule =
-  "tools.common.capabilities.managed.rabbitmq_consumer";
-const managedAgentPersistenceDir = path.join(
-  workerRoot,
-  ".mda",
-  "build",
-  ".langgraph_api",
+  "lcsp-agent-runtime:dev";
+const agentRuntimePythonPath = ".";
+const dockerAgentRuntimePythonPath = "/app/deepagents";
+const agentRuntimeEventsModule =
+  "tools.common.capabilities.agent_runtime.rabbitmq_consumer";
+const agentRuntimeJobsPerWorker = resolvePositiveInteger(
+  process.env.LCSP_AGENT_RUNTIME_JOBS_PER_WORKER ??
+    rootEnv.LCSP_AGENT_RUNTIME_JOBS_PER_WORKER ??
+    "1",
+  "LCSP_AGENT_RUNTIME_JOBS_PER_WORKER",
 );
-
 const isDarwin = process.platform === "darwin";
+const devMemoryLimits = {
+  dev: "2400M",
+  dev_app: "2800M",
+  dev_docker: "1500M",
+  agent_runtime: "2400M",
+};
+const devSandboxMemory = "512m";
 
 const targets = {
   proxy: {
@@ -211,6 +170,8 @@ const targets = {
     args: [
       "--python",
       "3.13",
+      "--with",
+      "sqlalchemy<2.1",
       "arize-phoenix",
       "serve",
       "--host",
@@ -221,52 +182,68 @@ const targets = {
     env: rootEnv,
     description: "Start Arize Phoenix trace UI",
     healthPort: 6006,
+    optional: true,
   },
-  managed_agent: {
+  agent_runtime: {
     cwd: workerRoot,
-    // On Windows, invoke the managed CLI through uv so its Python runtime is
-    // on PATH.  Calling the venv-installed mda.exe directly makes mda dev
-    // probe for a `python3` executable that Windows does not provide.
-    cmd: existsSync(workerMda) && !isWindows ? workerMda : "uv",
+    cmd: existsSync(workerLangGraph) && !isWindows ? workerLangGraph : "uv",
     args:
-      existsSync(workerMda) && !isWindows
-        ? ["dev", "--no-reload", "."]
-        : ["run", "mda", "dev", "--no-reload", "."],
+      existsSync(workerLangGraph) && !isWindows
+        ? [
+            "dev",
+            "--no-browser",
+            "--no-reload",
+            "--allow-blocking",
+            "--n-jobs-per-worker",
+            String(agentRuntimeJobsPerWorker),
+          ]
+        : [
+            "run",
+            "--extra",
+            "dev",
+            "langgraph",
+            "dev",
+            "--no-browser",
+            "--no-reload",
+            "--allow-blocking",
+            "--n-jobs-per-worker",
+            String(agentRuntimeJobsPerWorker),
+          ],
     env: {
       ...rootEnv,
-      PYTHONPATH: managedAgentPythonPath,
+      PYTHONPATH: agentRuntimePythonPath,
       UV_CACHE_DIR: rootEnv.UV_CACHE_DIR ?? "/tmp/uv-cache",
       UV_LINK_MODE: rootEnv.UV_LINK_MODE ?? "copy",
-      ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
+      LCSP_LOCAL_GRAPH_DEV: "1",
+      LCSP_AGENT_RUNTIME_JOBS_PER_WORKER: String(agentRuntimeJobsPerWorker),
+      LCSP_REPOSITORY_SANDBOX_MEMORY:
+        process.env.LCSP_REPOSITORY_SANDBOX_MEMORY ??
+        rootEnv.LCSP_REPOSITORY_SANDBOX_MEMORY ??
+        devSandboxMemory,
       PHOENIX_TRACING: defaultPhoenixTracing,
       PHOENIX_COLLECTOR_ENDPOINT: defaultPhoenixCollectorEndpoint,
       PHOENIX_PROJECT: defaultPhoenixProject,
-      OPENWIKI_RUNTIME_COMMAND: defaultOpenWikiRuntimeCommand,
-      OPENWIKI_RUNTIME_TIMEOUT_SECONDS: defaultOpenWikiRuntimeTimeoutSeconds,
     },
     scrubVirtualEnv: true,
-    description: "Start LCSP Managed Deep Agent in local dev mode",
+    description: "Start LCSP LangGraph Deep Agent runtime",
   },
-  managed_agent_events: {
+  agent_runtime_events: {
     cwd: workerRoot,
     cmd: existsSync(workerPython) ? workerPython : "uv",
     args: existsSync(workerPython)
-      ? ["-m", managedAgentEventsModule]
-      : ["run", "python", "-m", managedAgentEventsModule],
+      ? ["-m", agentRuntimeEventsModule]
+      : ["run", "python", "-m", agentRuntimeEventsModule],
     env: {
       ...rootEnv,
-      PYTHONPATH: managedAgentPythonPath,
+      PYTHONPATH: agentRuntimePythonPath,
       UV_CACHE_DIR: rootEnv.UV_CACHE_DIR ?? "/tmp/uv-cache",
       UV_LINK_MODE: rootEnv.UV_LINK_MODE ?? "copy",
-      ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
       PHOENIX_TRACING: defaultPhoenixTracing,
       PHOENIX_COLLECTOR_ENDPOINT: defaultPhoenixCollectorEndpoint,
       PHOENIX_PROJECT: defaultPhoenixProject,
-      OPENWIKI_RUNTIME_COMMAND: defaultOpenWikiRuntimeCommand,
-      OPENWIKI_RUNTIME_TIMEOUT_SECONDS: defaultOpenWikiRuntimeTimeoutSeconds,
     },
     scrubVirtualEnv: true,
-    description: "Start LCSP Managed Deep Agent RabbitMQ event bridge",
+    description: "Start LCSP Agent Runtime RabbitMQ event bridge",
   },
   docker_worker_build: {
     cwd: repoRoot,
@@ -279,22 +256,41 @@ const targets = {
       defaultDockerWorkerImage,
       ".",
     ],
-    description: `Build Managed Deep Agent development Docker image (${defaultDockerWorkerImage})`,
+    description: `Build LCSP Agent Runtime development Docker image (${defaultDockerWorkerImage})`,
     oneshot: true,
     shell: false,
   },
-  managed_agent_docker: dockerManagedAgentTarget(),
+  agent_runtime_docker: dockerAgentRuntimeTarget(),
 };
 
 const groups = {
   fogewise: ["proxy", "infra"],
   fogewise_reset: ["proxy_reset", "infra_reset"],
   dev_app: ["api", "web"],
-  dev_docker: ["api_docker_workers", "web", "managed_agent_docker"],
-  dev: ["api", "web", "managed_agent", "managed_agent_events", "phoenix"],
+  dev_docker: ["api_docker_workers", "web", "agent_runtime_docker"],
+  dev: ["api", "web", "agent_runtime", "agent_runtime_events", "phoenix"],
 };
 
 const selection = process.argv[2] ?? "help";
+if (process.platform === "linux" && devMemoryLimits[selection] && !process.env.LCSP_DEV_MEMORY_SCOPE) {
+  const result = spawnSync(
+    "systemd-run",
+    [
+      "--user",
+      "--scope",
+      "--collect",
+      "-p",
+      `MemoryMax=${devMemoryLimits[selection]}`,
+      "--setenv=LCSP_DEV_MEMORY_SCOPE=1",
+      process.execPath,
+      __filename,
+      selection,
+    ],
+    { cwd: repoRoot, env: process.env, stdio: "inherit", shell: false },
+  );
+  if (result.error) console.error(`[run] Cannot enforce development memory limit: ${result.error.message}`);
+  process.exit(result.status ?? 1);
+}
 await main();
 
 async function main() {
@@ -313,14 +309,6 @@ async function main() {
     process.exit(0);
   }
 
-  if (
-    selection === "dev" ||
-    selection === "managed_agent" ||
-    selection === "managed_agent_events"
-  ) {
-    prepareTsJsAnalyzer();
-  }
-
   if (selection in groups) {
     await runGroup(selection);
     return;
@@ -336,95 +324,11 @@ async function main() {
   process.exit(1);
 }
 
-function prepareTsJsAnalyzer() {
-  const dependenciesReady = isTsJsAnalyzerDependenciesReady();
-  const outputFresh = isTsJsAnalyzerOutputFresh();
-  if (dependenciesReady && outputFresh) {
-    return;
-  }
-
-  console.log("[run] Building TypeScript/JavaScript analyzer...");
-  if (!dependenciesReady) {
-    rmSync(tsJsAnalyzerNodeModules, { recursive: true, force: true });
-    runTsJsAnalyzerNpm([
-      "install",
-      "--include=dev",
-      "--package-lock=false",
-      "--workspaces=false",
-      "--no-audit",
-      "--no-fund",
-    ]);
-  }
-  if (!outputFresh) {
-    runTsJsAnalyzerNpm(["run", "build"]);
-  }
-
-  if (!existsSync(tsJsAnalyzerTsMorphPackage)) {
-    console.error(
-      `[run] ts-morph was not installed at ${tsJsAnalyzerTsMorphPackage}`,
-    );
-    process.exit(1);
-  }
-  if (!existsSync(tsJsAnalyzerCli)) {
-    console.error(`[run] Analyzer build did not create ${tsJsAnalyzerCli}`);
-    process.exit(1);
-  }
+function prepareAgentRuntime() {
+  stopStaleAgentRuntimeProcesses();
 }
 
-function isTsJsAnalyzerDependenciesReady() {
-  return (
-    existsSync(tsJsAnalyzerTsMorphPackage) &&
-    existsSync(tsJsAnalyzerPackageJson) &&
-    statSync(tsJsAnalyzerPackageJson).mtimeMs <=
-      statSync(tsJsAnalyzerTsMorphPackage).mtimeMs
-  );
-}
-
-function isTsJsAnalyzerOutputFresh() {
-  const inputs = ["analyzer.ts", "cli.ts", "package.json", "tsconfig.json"].map(
-    (file) => path.join(tsJsAnalyzerRoot, file),
-  );
-  const outputMtime = existsSync(tsJsAnalyzerCli)
-    ? statSync(tsJsAnalyzerCli).mtimeMs
-    : 0;
-  return (
-    outputMtime > 0 &&
-    inputs.every(
-      (input) => existsSync(input) && statSync(input).mtimeMs <= outputMtime,
-    )
-  );
-}
-
-function runTsJsAnalyzerNpm(args) {
-  const npm = isWindows ? "npm.cmd" : "npm";
-  const result = spawnSync(npm, [...args, "--cache", tsJsAnalyzerNpmCache], {
-    cwd: tsJsAnalyzerRoot,
-    env: buildTsJsAnalyzerNpmEnv(),
-    stdio: "inherit",
-    shell: isWindows,
-  });
-  if (result.error) {
-    console.error(`[run] failed to execute npm: ${result.error.message}`);
-    process.exit(1);
-  }
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
-}
-
-function buildTsJsAnalyzerNpmEnv() {
-  const env = { ...process.env, NPM_CONFIG_CACHE: tsJsAnalyzerNpmCache };
-  delete env.npm_config_manage_package_manager_versions;
-  delete env.NPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS;
-  return env;
-}
-
-function prepareManagedAgentRuntime() {
-  stopStaleManagedAgentProcesses();
-  mkdirSync(managedAgentPersistenceDir, { recursive: true });
-}
-
-function stopStaleManagedAgentProcesses() {
+function stopStaleAgentRuntimeProcesses() {
   if (process.platform !== "linux") return;
   const result = spawnSync("ps", ["-eo", "pid=,args="], {
     cwd: repoRoot,
@@ -440,11 +344,7 @@ function stopStaleManagedAgentProcesses() {
     const pid = Number.parseInt(match[1], 10);
     const command = match[2];
     if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue;
-    if (
-      !/(?:mda|langgraph)(?:\.exe)?\s+dev\b|langgraph-cli\[inmem\]/u.test(
-        command,
-      )
-    ) {
+    if (!/langgraph(?:\.exe)?\s+dev\b|langgraph-cli\[inmem\]/u.test(command)) {
       continue;
     }
 
@@ -465,7 +365,7 @@ function stopStaleManagedAgentProcesses() {
 
   if (candidates.length === 0) return;
   console.log(
-    `[run] Stopping stale LCSP Managed Agent processes: ${candidates.join(", ")}`,
+    `[run] Stopping stale LCSP Agent Runtime processes: ${candidates.join(", ")}`,
   );
   for (const signal of ["SIGTERM", "SIGKILL"]) {
     for (const pid of candidates) {
@@ -483,24 +383,24 @@ function stopDevProcesses() {
   const patterns = [
     "node scripts/run.mjs dev",
     "node scripts/run.mjs dev_app",
-    ".venv/bin/mda dev --no-reload .",
-    ".venv/Scripts/mda.exe dev --no-reload .",
-    "uv run mda dev --no-reload .",
-    "uv run mda dev .",
-    `python -m ${managedAgentEventsModule}`,
-    `uv run python -m ${managedAgentEventsModule}`,
-    "mda dev --no-reload .",
-    "mda dev .",
+    ".venv/bin/langgraph dev --no-browser --no-reload --allow-blocking",
+    ".venv/Scripts/langgraph.exe dev --no-browser --no-reload --allow-blocking",
+    "uv run --extra dev langgraph dev --no-browser --no-reload --allow-blocking",
+    "uv run --extra dev langgraph dev",
+    "uv run langgraph dev --no-browser --no-reload --allow-blocking",
+    "uv run langgraph dev",
+    `python -m ${agentRuntimeEventsModule}`,
+    `uv run python -m ${agentRuntimeEventsModule}`,
+    "langgraph dev --no-browser --no-reload --allow-blocking",
+    "langgraph dev",
     "python entrypoint.py",
     "uv run --with langgraph-cli[inmem]",
-    ".mda/build/.venv/bin/langgraph dev",
     "pnpm --dir apps/api start:dev",
     "nest start --watch",
     "apps/api/dist/src/main",
     "pnpm --dir apps/web dev",
     "next dev",
-    "uvx --python 3.13 arize-phoenix serve --port 6006",
-    "arize-phoenix serve --port 6006",
+    "arize-phoenix serve",
   ];
   const protectedPids = new Set([
     process.pid,
@@ -655,6 +555,22 @@ function sleepMs(durationMs) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, durationMs);
 }
 
+function resolvePositiveInteger(value, name) {
+  const normalized = String(value ?? "").trim();
+  if (!/^[1-9]\d*$/u.test(normalized)) {
+    throw new Error(
+      `[run] ${name} must be a positive integer; received "${normalized}".`,
+    );
+  }
+  const parsed = Number.parseInt(normalized, 10);
+  if (!Number.isSafeInteger(parsed) || parsed > 64) {
+    throw new Error(
+      `[run] ${name} must be between 1 and 64; received "${normalized}".`,
+    );
+  }
+  return parsed;
+}
+
 function loadDotEnv(filePath) {
   if (!existsSync(filePath)) return {};
   const parsed = parse(readFileSync(filePath));
@@ -663,7 +579,7 @@ function loadDotEnv(filePath) {
 
 function runTarget(name) {
   const target = targets[name];
-  if (name === "managed_agent") prepareManagedAgentRuntime();
+  if (name === "agent_runtime") prepareAgentRuntime();
   cleanupDockerWorkerContainer(target);
   console.log(`[run] Starting ${name}: ${target.description}`);
   const child = spawnTarget(target);
@@ -699,8 +615,8 @@ async function runGroup(name) {
     }
   }
 
-  if (longRunningMembers.includes("managed_agent")) {
-    prepareManagedAgentRuntime();
+  if (longRunningMembers.includes("agent_runtime")) {
+    prepareAgentRuntime();
   }
 
   assertPortsAvailable(longRunningMembers);
@@ -709,21 +625,38 @@ async function runGroup(name) {
     const target = targets[member];
     cleanupDockerWorkerContainer(target);
     console.log(`[run] Starting ${member}: ${target.description}`);
-    children.push(spawnTarget(target));
+    children.push({
+      name: member,
+      child: spawnTarget(target),
+      optional: target.optional === true,
+    });
   }
 
-  forwardSignals(children);
+  forwardSignals(children.map(({ child }) => child));
   let exiting = false;
-  for (const child of children) {
+  for (const { name: member, child, optional } of children) {
     child.on("exit", (code, signal) => {
       if (exiting) return;
+      if (optional) {
+        const detail = signal ? `signal ${signal}` : `code ${code ?? 0}`;
+        console.warn(
+          `[run] Optional ${member} exited with ${detail}; core dev services remain running.`,
+        );
+        return;
+      }
       exiting = true;
       if ((code ?? 0) !== 0) {
         console.error(
-          `[run] A process exited with code ${code}. Stopping remaining processes.`,
+          `[run] ${member} exited with code ${code}. Stopping remaining processes.`,
         );
+        if (member === "agent_runtime") {
+          console.error(
+            "[run] Agent Runtime failed. Check the labelled process output above. " +
+              "For API + web only, run `pnpm dev:app`.",
+          );
+        }
       }
-      shutdown(children);
+      shutdown(children.map(({ child: runningChild }) => runningChild));
       if (signal) process.kill(process.pid, signal);
       else process.exit(code ?? 0);
     });
@@ -746,6 +679,7 @@ function buildSpawnEnv(target) {
       ([, value]) => value !== undefined && value !== null,
     ),
   );
+  hardenLangSmithEnv(env);
 
   if (target.scrubVirtualEnv) {
     const virtualEnv = env.VIRTUAL_ENV;
@@ -763,6 +697,29 @@ function buildSpawnEnv(target) {
   }
 
   return env;
+}
+
+function hardenLangSmithEnv(env) {
+  const tracingEnabled = String(env.LCSP_LANGSMITH_TRACING ?? "")
+    .trim()
+    .toLowerCase();
+  if (["1", "true", "yes", "on"].includes(tracingEnabled)) return;
+
+  for (const key of Object.keys(env)) {
+    if (
+      key.startsWith("LANGSMITH_") ||
+      key === "LANGSMITH_API_KEY" ||
+      key === "LANGGRAPH_CLOUD_LICENSE_KEY" ||
+      key === "LANGGRAPH_ENTERPRISE_LICENSE_KEY" ||
+      key === "LANGCHAIN_API_KEY" ||
+      key === "LANGCHAIN_ENDPOINT" ||
+      key === "LANGCHAIN_PROJECT"
+    ) {
+      delete env[key];
+    }
+  }
+  env.LANGSMITH_TRACING = "false";
+  env.LANGCHAIN_TRACING_V2 = "false";
 }
 
 function cleanupDockerWorkerContainer(target) {
@@ -793,8 +750,18 @@ function cleanupDockerWorkerContainer(target) {
   }
 }
 
-function dockerManagedAgentTarget() {
-  const containerName = "lcsp-managed-agent";
+// Model routes ship in the worker image (deepagents/config/model_routes.yaml). Only an
+// operator override file (LCSP_MODEL_ROUTES_FILE) is bind-mounted, read-only; the worker
+// validates it fail-closed.
+const dockerModelRoutesTarget = "/app/deepagents/config/model_routes.override.yaml";
+
+function dockerModelRoutesFile() {
+  const file = process.env.LCSP_MODEL_ROUTES_FILE ?? rootEnv.LCSP_MODEL_ROUTES_FILE;
+  return file ? path.resolve(repoRoot, file) : "";
+}
+
+function dockerAgentRuntimeTarget() {
+  const containerName = "lcsp-agent-runtime";
   mkdirSync(dockerGraphStorageRoot, { recursive: true });
   return {
     cwd: repoRoot,
@@ -804,16 +771,24 @@ function dockerManagedAgentTarget() {
       "--rm",
       "--name",
       containerName,
+      "--memory",
+      "768m",
       "--add-host",
       "host.docker.internal:host-gateway",
       "--mount",
       `type=bind,source=${dockerGraphStorageRoot},target=/app/deepagents/tmp`,
+      ...(dockerModelRoutesFile()
+        ? [
+            "--mount",
+            `type=bind,source=${dockerModelRoutesFile()},target=${dockerModelRoutesTarget},readonly`,
+          ]
+        : []),
       ...dockerEnvArgs(dockerWorkerEnv()),
       defaultDockerWorkerImage,
     ],
     kind: "docker_worker",
     containerName,
-    description: "Start LCSP Managed Deep Agent in Docker",
+    description: "Start LCSP Agent Runtime in Docker",
     shell: false,
   };
 }
@@ -825,53 +800,37 @@ function dockerWorkerEnv() {
       rootEnv.LCSP_API_BASE_URL ??
       "http://127.0.0.1:4000",
   );
-  const fallbackProviderKeys = Array.from(
-    new Set(
-      [...Object.keys(rootEnv), ...Object.keys(process.env)].filter((key) =>
-        /^LLM_FALLBACK_PROVIDER_\d+$/.test(key),
-      ),
-    ),
-  ).sort(
-    (left, right) =>
-      Number(left.slice("LLM_FALLBACK_PROVIDER_".length)) -
-      Number(right.slice("LLM_FALLBACK_PROVIDER_".length)),
-  );
+  // One request timeout (LLM_PROVIDER_TIMEOUT_SECONDS) is shared by every
+  // provider; forward it only when the operator configured it.
+  const providerTimeoutKeys = [
+    ...Object.keys(rootEnv),
+    ...Object.keys(process.env),
+  ].includes("LLM_PROVIDER_TIMEOUT_SECONDS")
+    ? ["LLM_PROVIDER_TIMEOUT_SECONDS"]
+    : [];
   const selectedKeys = [
     "LOG_LEVEL",
     "NODE_ENV",
     "ORCHESTRATION_DEBUG",
     "LCSP_DEV_UNSAFE_TRACE",
-    "AGENTIC_RUNTIME_ENABLED",
-    "AGENTIC_RUNTIME_MAX_TOOL_CALLS",
-    "AGENTIC_RUNTIME_DEFAULT_MAX_ITEMS",
-    "AGENTIC_RUNTIME_DEFAULT_MAX_DEPTH",
-    "AGENTIC_RUNTIME_DEFAULT_MAX_BYTES",
-    "AGENTIC_RUNTIME_DEFAULT_TIMEOUT_MS",
-    "AGENTIC_RUNTIME_DISPATCH_PATH",
-    "PBAC_PREFLIGHT_TIMEOUT_SECONDS",
-    "LCSP_MODEL_PROVIDER",
+    "RBAC_PREFLIGHT_TIMEOUT_SECONDS",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "GEMINI_API_KEY",
     "GOOGLE_API_KEY",
+    // Every provider key list is forwarded whole: the worker rotates across the
+    // comma-separated slots, so each configured provider needs its own variable.
     "LLM7_API_KEY",
     "LLM7_BASE_URL",
-    ...fallbackProviderKeys,
-    "LCSP_ROOT_AGENT_MODEL",
-    "LCSP_TRIAGE_MODEL",
-    "LCSP_PLANNER_MODEL",
-    "LCSP_INTERVIEW_MODEL",
-    "LCSP_INVESTIGATOR_MODEL",
-    "LCSP_NARRATOR_MODEL",
-    "LCSP_REASONING_EFFORT",
+    "INCEPTION_API_KEY",
+    "INCEPTION_BASE_URL",
+    ...providerTimeoutKeys,
     "LCSP_LANGSMITH_TRACING",
-    "WORKER_RUNTIME_VERSION",
-    "WORKER_RUNTIME_BUILD_REF",
+    "LCSP_AGENT_RUNTIME_JOBS_PER_WORKER",
+    "LCSP_REPOSITORY_SANDBOX_MEMORY",
     "PHOENIX_TRACING",
     "PHOENIX_COLLECTOR_ENDPOINT",
     "PHOENIX_PROJECT",
-    "OPENWIKI_RUNTIME_COMMAND",
-    "OPENWIKI_RUNTIME_TIMEOUT_SECONDS",
     "LEGAL_CHROMA_PATH",
     "LEGAL_SOURCE_STORAGE_ROOT",
   ];
@@ -901,7 +860,7 @@ function dockerWorkerEnv() {
     ),
     PHOENIX_PROJECT: defaultPhoenixProject,
     HEALTH_PORT: "8080",
-    PYTHONPATH: dockerManagedAgentPythonPath,
+    PYTHONPATH: dockerAgentRuntimePythonPath,
     LANGSMITH_TRACING:
       process.env.LCSP_LANGSMITH_TRACING ??
       rootEnv.LCSP_LANGSMITH_TRACING ??
@@ -910,8 +869,14 @@ function dockerWorkerEnv() {
       process.env.LCSP_LANGSMITH_TRACING ??
       rootEnv.LCSP_LANGSMITH_TRACING ??
       "false",
-    KNIP_BINARY: "/usr/local/bin/knip",
     LCSP_GRAPH_STORAGE_PATH: "/app/deepagents/tmp",
+    ...(dockerModelRoutesFile()
+      ? { LCSP_MODEL_ROUTES_FILE: dockerModelRoutesTarget }
+      : {}),
+    LCSP_REPOSITORY_SANDBOX_MEMORY:
+      process.env.LCSP_REPOSITORY_SANDBOX_MEMORY ??
+      rootEnv.LCSP_REPOSITORY_SANDBOX_MEMORY ??
+      devSandboxMemory,
   };
 }
 
@@ -968,7 +933,7 @@ function describeListeningPort(port) {
 function spawnSyncCompatible(target) {
   const result = spawnSync(target.cmd, target.args, {
     cwd: target.cwd,
-    env: { ...process.env, ...target.env },
+    env: buildSpawnEnv(target),
     stdio: "inherit",
     shell:
       target.shell ?? (process.platform === "win32" && target.cmd === "pnpm"),
@@ -1038,6 +1003,6 @@ function printList() {
 
 function printHelp() {
   console.log(
-    `Usage:\n\n  node scripts/run.mjs <target>\n\nTargets:\n  fogewise\n  fogewise_reset\n  dev_stop\n  dev_app\n  dev_docker\n  dev\n  docker_worker_build\n  managed_agent\n  managed_agent_docker\n\nExamples:\n  pnpm run dev:fogewise\n  pnpm run dev:fogewise:reset\n  pnpm run dev:stop\n  pnpm run dev:app\n  pnpm run dev:docker\n  pnpm run dev:agent:docker:build\n  pnpm run dev:agent:docker\n  pnpm run dev\n`,
+    `Usage:\n\n  node scripts/run.mjs <target>\n\nTargets:\n  fogewise\n  fogewise_reset\n  dev_stop\n  dev_app\n  dev_docker\n  dev\n  docker_worker_build\n  agent_runtime\n  agent_runtime_docker\n\nExamples:\n  pnpm run dev:fogewise\n  pnpm run dev:fogewise:reset\n  pnpm run dev:stop\n  pnpm run dev:app\n  pnpm run dev:docker\n  pnpm run dev:agent:docker:build\n  pnpm run dev:agent:docker\n  pnpm run dev\n`,
   );
 }

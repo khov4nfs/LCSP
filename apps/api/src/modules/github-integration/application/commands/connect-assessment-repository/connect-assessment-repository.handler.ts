@@ -53,16 +53,6 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
   ) {}
 
   async execute(command: ConnectAssessmentRepositoryCommand) {
-    if (
-      !this.config.get("githubCredentialPersistence", { infer: true })
-        .snapshotPinningEnabled
-    ) {
-      throw problemException(
-        GITHUB_INTEGRATION_ERROR_CODES.cliSnapshotPinningDisabled,
-        command.correlationId,
-        { status: HttpStatus.SERVICE_UNAVAILABLE },
-      );
-    }
     const assessment = await this.prisma.assessment.findFirst({
       where: { id: command.assessmentId, ownerId: command.userId },
       select: { id: true, status: true },

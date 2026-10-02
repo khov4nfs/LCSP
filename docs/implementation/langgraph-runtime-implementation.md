@@ -89,7 +89,7 @@ The checkpoint database stores graph runtime state only. Raw source code, secret
 - Deterministic evidence-derived facts remain the authority for what was technically observed.
 - LLM-assisted reasoning, if used, is limited to mapping evidence-backed facts plus Wizard declarations into business-meaning claim proposals with explicit uncertainty handling.
 - Provider/framework/package presence alone must never become a material business claim without supporting evidence and guardrail approval.
-- The runtime must merge approved scanner evidence branches rather than silently dropping bounded `technical_findings` when Semgrep `ai_usage_signals` are also present.
+- The runtime must preserve all accepted repository-analysis evidence branches and source anchors rather than silently dropping bounded findings or AI-discovery signals from the Deep Agent structured result.
 - All canonical AIUsageFlow claim categories remain evidence-gated; unresolved dynamic output-to-action paths must abstain rather than infer automated decision-making.
 
 ## Classification Guidance

@@ -13,7 +13,7 @@ inputDocuments:
   - docs/planning-artifacts/canonical-ux-review-2026-06-25.md
   - docs/specs/functional-requirements.md
   - docs/specs/non-functional-requirements.md
-  - docs/specs/scanner-spec.md
+  - docs/architecture/repository-deep-agent-analysis.md
   - docs/specs/legal-matching-domain-spec.md
   - docs/specs/user-task-flows.md
   - docs/specs/requirements-traceability-summary.md
@@ -26,7 +26,7 @@ excludedInputDocuments:
 
 ## Overview
 
-This document provides the complete epic and story breakdown for LCSP, decomposing the requirements from the PRD, rebased UX draft, canonical UX review, architecture, scanner specification, legal matching specification, user task flows, functional requirements, and non-functional requirements into implementable stories.
+This document provides the complete epic and story breakdown for LCSP, decomposing the requirements from the PRD, rebased UX draft, canonical UX review, architecture, repository-analysis architecture, legal matching specification, user task flows, functional requirements, and non-functional requirements into implementable stories.
 
 Steps 01-03 are complete: requirements were extracted, epics were designed, and approved story sets were generated with party-review remediation applied.
 
@@ -178,7 +178,7 @@ NFR-014: Technical findings must avoid unnecessary source/code exposure.
 
 NFR-015: Secrets must be redacted before logs, findings, reports, prompts or audit records.
 
-NFR-016: Accepted evidence reports and scanner tool outputs must include provenance, version, config/ruleset hash and integrity metadata.
+NFR-016: Accepted evidence reports and repository-analysis outputs must include provenance, version, config/ruleset hash and integrity metadata.
 
 NFR-017: Legal classification outputs must trace to legal rule, citation and corpus version.
 
@@ -212,7 +212,7 @@ NFR-033: LLM API calls must be protected by monthly cost budget boundaries and t
 
 NFR-034: Pinned legal corpus snapshots must remain immutable, with updates governed by formal review and approval.
 
-NFR-035: Python Scanner Worker must operate in a restricted scanner workspace with pinned scanner tools, bounded resources, no dependency installation, no customer application execution, validated/redacted tool output and verified cleanup.
+NFR-035: Repository analysis must run inside the assessment LCSP Docker repository sandbox with the pinned repository working database, bounded resources, source-safe evidence output, explicit unresolved coverage, and no host filesystem escape.
 
 ### Additional Requirements
 
@@ -221,7 +221,7 @@ NFR-035: Python Scanner Worker must operate in a restricted scanner workspace wi
 - Backend API owns auth, RBAC enforcement boundary, assessment state, synchronous user actions, trusted trigger creation and async work creation.
 - Repository Integration must keep read-only repository authorization separate from OAuth/OIDC login.
 - Python Worker Platform owns all async domain workloads through bounded consumers/modules.
-- Python Scanner Worker owns repository scan lifecycle and must use Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser and Semgrep custom rules.
+- LCSP Agent Runtime owns repository analysis. The Repository Deep Agent uses native filesystem/search/shell/subagent capabilities; Codebase Memory MCP 0.11.0 may accelerate graph discovery, while direct repository source remains authoritative.
 - Legal Source Ingestion Worker fetches official legal sources, snapshots raw PDF/HTML into S3-compatible object storage, normalizes legal structure and stages corpus versions for review.
 - Internal Legal Operator approval creates approved immutable `LegalCorpusVersion`; this is internal operations/API/CLI scope, not customer-facing Manager/Developer UX.
 - ChromaDB Legal Indexer builds a structure-first vectorless index using document/chunk storage, stable hierarchical IDs, metadata filters, full-text records, direct ID lookup and cross-reference metadata.
@@ -242,7 +242,6 @@ NFR-035: Python Scanner Worker must operate in a restricted scanner workspace wi
 - `FR-052` delegated free-form clarification is Deferred/Post-MVP.
 - Structured attestation is superseded and must not re-enter active MVP stories.
 - Scanner is static-analysis only; it must not execute source, install dependencies, run builds/tests/scripts/Docker/CI, probe endpoints, persist raw source or send raw source to LLM.
-- Scanner tool failure severity table and tool version/config/ruleset hash policy are governed by `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`.
 - RBAC engine, policy storage, cache, invalidation, evaluation topology and failure behavior are governed by `docs/implementation/decisions/rbac-runtime-decision.md`.
 - Automatic trusted scan trigger idempotency, retry/DLQ, replay authority and operator recovery are governed by `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`.
 
@@ -529,8 +528,8 @@ FR-056: Epic 6 - Legal Corpus Retrieval and LegalRuleMatch Evidence.
 | 3.1 Connect Read-Only GitHub Repository | FR-016 |
 | 3.2 Pin Commit and Create RepositorySnapshot | FR-017 |
 | 3.3 Trusted Scan Trigger and Scan Job Orchestration | FR-018, FR-050 |
-| 3.4 Static Scanner Workspace and Sandbox | FR-019 |
-| 3.5 Static Scanner Toolchain Execution | FR-018, FR-023 |
+| 3.4 Managed Repository Workspace and Sandbox | FR-019 |
+| 3.5 Repository Deep Agent Evidence Analysis | FR-018, FR-023 |
 | 3.6 Scan Failure Severity and Evidence Acceptance Policy | FR-018, FR-019, FR-021 |
 | 3.7 TechnicalEvidenceReport Gates | FR-020, FR-021 |
 | 3.8 TechnicalProfile Generation | FR-022, FR-023 |
@@ -607,7 +606,7 @@ Manager can create an assessment, complete WizardProfile in business/legal langu
 
 ### Epic 3: Trusted Repository Evidence and TechnicalProfile
 
-Manager or a RBAC-scoped Developer can connect a read-only GitHub repository, pin a commit, trigger or resume trusted static scan, review redacted findings, and produce a TechnicalEvidenceReport plus TechnicalProfile without mutating history.
+Manager or a RBAC-scoped Developer can connect a read-only GitHub repository, pin a commit, trigger or resume trusted repository analysis, review redacted findings, and produce a TechnicalEvidenceReport plus TechnicalProfile without mutating history.
 
 **FRs covered:** FR-016, FR-017, FR-018, FR-019, FR-020, FR-021, FR-022, FR-023, FR-048, FR-049, FR-050, FR-051, FR-052.
 
@@ -960,7 +959,7 @@ So that I can share preparation gaps without implying legal classification.
 
 ## Epic 3: Trusted Repository Evidence and TechnicalProfile
 
-Manager or RBAC-scoped Developer can connect a read-only GitHub repository, pin a commit, trigger or resume trusted static scan, review redacted findings, and produce TechnicalEvidenceReport plus TechnicalProfile without mutating history.
+Manager or RBAC-scoped Developer can connect a read-only GitHub repository, pin a commit, trigger or resume trusted repository analysis, review redacted findings, and produce TechnicalEvidenceReport plus TechnicalProfile without mutating history.
 
 ### Story 3.1: Connect Read-Only GitHub Repository
 
@@ -1011,7 +1010,7 @@ So that all scan evidence is tied to an immutable repository state.
 **Given** source files are temporarily materialized for scan
 **When** the snapshot operation completes or fails
 **Then** LCSP retains only approved metadata and evidence artifacts
-**And** raw source is not persisted long-term outside the restricted scanner workspace.
+**And** raw source is not persisted long-term outside the managed assessment repository sandbox.
 
 ### Story 3.3: Trusted Scan Trigger and Scan Job Orchestration
 
@@ -1042,65 +1041,70 @@ So that duplicate, retry, out-of-order, and replay paths do not create inconsist
 **Then** LCSP applies the canonical outbox owner, retry budget, DLQ reason codes, replay authority, and operator recovery rules
 **And** no replay can mutate prior accepted TechnicalEvidenceReport or TechnicalProfile versions.
 
-### Story 3.4: Static Scanner Workspace and Sandbox
+### Story 3.4: Managed Repository Workspace and Sandbox
 
 As LCSP,
-I want the Python scanner worker to materialize snapshots in a restricted workspace,
-So that scan input is isolated and cleaned up without leaking source or secrets.
+I want each assessment to hydrate its pinned snapshot into the durable LCSP Docker repository sandbox,
+So that repository investigation is isolated, reproducible, and source-grounded.
 
 **Acceptance Criteria:**
 
 **Given** a RepositoryScanJob is ready
-**When** the Python scanner worker locks the job
-**Then** it materializes the pinned snapshot in a restricted temporary workspace
-**And** records workspace ID, snapshot ID, worker lease, start time, and cleanup policy
-**And** does not persist raw source outside the restricted workspace.
+**When** the LCSP Agent Runtime thread handles the trusted scan event
+**Then** it hydrates the pinned snapshot into /workspace/repository
+**And** exposes that repository as the Deep Agent filesystem root
+**And** reserves .git/ and .lcsp/ for runtime bookkeeping rather than customer evidence.
 
-**Given** scanner execution is in progress
-**When** project code would require install, build, test, Docker execution, endpoint probing, or arbitrary runtime execution
-**Then** the scanner does not perform that action
-**And** records the limitation as unsupported or coverage-limited evidence.
+**Given** repository analysis is in progress
+**When** the Deep Agent explores the codebase
+**Then** native filesystem, search, shell, planning, and subagent capabilities operate only inside the managed sandbox
+**And** any generated, dynamic, unreadable, or unresolved material area is recorded as a coverage limitation.
 
-**Given** scan workspace processing completes, fails, or times out
-**When** cleanup runs
-**Then** LCSP verifies temporary workspace cleanup
-**And** records cleanup status and any safe residual cleanup action.
+**Given** a later assessment event reuses the same durable thread
+**When** the repository working database is still valid for the pinned snapshot
+**Then** LCSP reuses it rather than materializing a second independent checkout.
 
-### Story 3.5: Static Scanner Toolchain Execution
+### Story 3.5: Repository Deep Agent Evidence Analysis
 
 As LCSP,
-I want the scanner worker to run the approved bounded static toolchain,
-So that technical evidence is collected with known tool versions, configuration, and coverage limits.
+I want the Repository Deep Agent to derive technical evidence directly from the assessment repository,
+So that evidence is not constrained by a predefined language-specific scanner pipeline.
 
 **Acceptance Criteria:**
 
-**Given** a RepositoryScanJob is locked in a restricted workspace
-**When** scanner execution starts
-**Then** LCSP runs approved bounded static analysis tools including Syft, Knip, deptry, Python `ast`/`libcst`, `ts-morph`, tree-sitter/custom parser, and Semgrep as applicable by repository language profile
-**And** records tool versions, config hash, ruleset hash, start/end time, language profile, and coverage limitations.
+**Given** the assessment repository is hydrated
+**When** repository analysis starts
+**Then** the Deep Agent inventories the actual languages, frameworks, build/config/runtime surfaces and investigates material source paths with native Deep Agents tools
+**And** it may use Codebase Memory MCP 0.11.0 for architecture/search/trace/coverage assistance
+**And** direct repository source remains authoritative when graph memory disagrees.
 
-**Given** a repository language profile does not support a tool
-**When** the scanner builds the execution plan
-**Then** LCSP skips the unsupported tool with an explicit coverage limitation
-**And** does not treat the skip as successful evidence for that capability.
+**Given** the Deep Agent emits evidence
+**When** a technical claim is decided
+**Then** evidence contains repository-relative bounded source locations
+**And** coverage state, unresolved frontiers, compatibility evidence graph, and AI discovery gate are emitted from the structured Deep Agent result.
+
+**Given** analysis attempts a negative or absence conclusion
+**When** graph coverage is partial or material generated/dynamic/runtime frontiers remain unresolved
+**Then** the result stays partial/unknown
+**And** LCSP does not emit AI_ABSENT_CONFIRMED.
 
 ### Story 3.6: Scan Failure Severity and Evidence Acceptance Policy
 
 As LCSP,
-I want scanner failures and partial results classified by a canonical severity policy,
+I want repository-analysis failures and partial results classified by a canonical evidence policy,
 So that downstream evidence gates know whether results are usable, insufficient, or terminal.
 
 **Acceptance Criteria:**
 
 **Given** a tool fails, times out, or returns partial results
 **When** the scan completes or terminates
-**Then** LCSP classifies the outcome as accepted-with-limitation, insufficient, retryable failure, or terminal scan failure according to the scanner severity table
+**Then** LCSP classifies the outcome as accepted-with-limitation, insufficient, retryable failure, or terminal scan failure according to the repository-analysis evidence policy
 **And** records tool failure class, retryability, severity, and downstream evidence eligibility
 **And** no raw source, secrets, full prompts, or full AST dumps are persisted in evidence artifacts.
 
-**Given** the scanner severity table, pinned tool failure policy, config hash policy, or ruleset hash policy is not approved
+**Given** repository-analysis coverage/failure policy, runtime/config provenance, or evidence eligibility rules are not approved
 **When** implementation readiness is evaluated
-**Then** scan evidence implementation remains blocked
+**Then** repository evidence implementation remains blocked
 **And** TechnicalEvidenceReport cannot be marked production-ready.
 
 ### Story 3.7: TechnicalEvidenceReport Gates
@@ -1111,9 +1115,9 @@ So that only accepted trusted evidence can feed downstream profiles.
 
 **Acceptance Criteria:**
 
-**Given** scanner outputs are available
+**Given** repository-analysis evidence is available
 **When** LCSP builds a TechnicalEvidenceReport
-**Then** the report includes required schema fields, snapshot provenance, tool versions, config hash, ruleset hash, finding references, confidence, privacy flags, coverage limitations, report hash, and generation timestamp.
+**Then** the report includes required schema fields, snapshot provenance, repository-analysis runtime/config identity, bounded source references, confidence, privacy flags, coverage state and limitations, report hash, and generation timestamp.
 
 **Given** TechnicalEvidenceReport contains raw source, secrets, full prompts, unsafe identifiers, schema-invalid data, or missing required provenance
 **When** evidence gates run
@@ -1128,7 +1132,7 @@ So that only accepted trusted evidence can feed downstream profiles.
 ### Story 3.8: TechnicalProfile Generation
 
 As LCSP,
-I want to generate TechnicalProfile from accepted scanner evidence,
+I want to generate TechnicalProfile from accepted repository evidence,
 So that downstream flows know what was technically observed without confusing it with AIUsageFlow or legal classification.
 
 **Acceptance Criteria:**
@@ -1147,7 +1151,7 @@ So that downstream flows know what was technically observed without confusing it
 **Then** TechnicalProfile remains technical evidence only
 **And** it is not treated as AIUsageFlow, VerifiedProfile, risk level, legal conclusion, or compliance status.
 
-**Handoff Contract:** Producer: scanner evidence domain. Consumer: AIUsageFlow and reconciliation domains. Artifact: `TechnicalProfile` with version, TechnicalEvidenceReport ref, assessment ID, organization ID, confidence, evidence refs, coverage limitations, validation gate status, audit event, and failure behavior for insufficient or stale evidence.
+**Handoff Contract:** Producer: repository-analysis evidence domain. Consumer: AIUsageFlow and reconciliation domains. Artifact: `TechnicalProfile` with version, TechnicalEvidenceReport ref, assessment ID, organization ID, confidence, evidence refs, coverage limitations, validation gate status, audit event, and failure behavior for insufficient or stale evidence.
 
 ### Story 3.9: Redacted Technical Findings Review and Developer Scoped View
 

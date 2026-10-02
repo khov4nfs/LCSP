@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.common.capabilities.managed.skill_loader import load_project_skill
+from tools.common.capabilities.agent_runtime.skill_loader import load_project_skill
 from tools.legal.corpus.engineering_rules.compilation.chunk_triage import (
     TRIAGE_PROMPT_VERSION,
     TRIAGE_SKILL_NAME,

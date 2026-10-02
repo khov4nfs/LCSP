@@ -8,7 +8,7 @@ from tools.common.capabilities.agentic_evidence import AgenticToolResolver
 from structlog import get_logger
 
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 
 from .ai_usage_flow_graph import AIUsageFlowGraph
 from .ai_usage_flow_rule_engine import AIUsageFlowRuleEngine
@@ -37,7 +37,7 @@ class AIUsageFlowBoundary(AgentBoundaryBase):
         """Create the boundary with deterministic rules and optional model assistance.
 
         Args:
-            config: Managed Agent runtime configuration.
+            config: Agent Runtime configuration.
             rbac_client: Optional base-boundary RBAC dependency.
             api_client: Optional internal API client override.
             rule_engine: Optional deterministic AI-usage rule engine override.

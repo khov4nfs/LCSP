@@ -1,7 +1,15 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { CommandBus, QueryBus } from "@nestjs/cqrs";
+import { RepositoryScanJobStatus as PrismaRepositoryScanJobStatus } from "@prisma/client";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
+  ASSESSMENT_AGENT_STREAM_STAGES,
+  ASSESSMENT_RUNTIME_EVENT_TYPES,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+} from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import { SCAN_ERROR_CODES } from "@lcsp/contracts/scan";
 
 import { RBAC_METADATA_KEY } from "../../../../platform/rbac/decorators/rbac-metadata.js";
 import { GetScanJobQuery } from "../../application/queries/get-scan-job/get-scan-job.query.js";
@@ -134,8 +142,14 @@ describe("ScanController role-only RBAC", () => {
       "ter_12345678",
       {
         inputArtifactVersion: "ter_12345678",
-        analyzerId: "RUN_TS_JS_SEMANTIC_ANALYSIS",
-        scope: { pathPrefixes: ["src/web/"] },
+        analyzerId: "DEEP_AGENT_REPOSITORY_ANALYSIS",
+        scope: {
+          ruleScope: {
+            engineeringRuleId: "ENG-1",
+            criterionIds: ["criterion-a"],
+            contextRevision: 1,
+          },
+        },
         reasonRequirementId: "requirement:gap_12345678",
         idempotencyKey: "request_targeted_reanalysis_0001",
       },
@@ -157,6 +171,174 @@ describe("ScanController role-only RBAC", () => {
 });
 
 describe("InternalScanController", () => {
+  it("claims a queued scan job when Agent Runtime accepts the boundary", async () => {
+    const recordRepositoryAnalysisEvent = jest
+      .fn<(args: unknown) => Promise<unknown>>()
+      .mockResolvedValue({ recorded: true });
+    const updateMany = jest
+      .fn<(args: unknown) => Promise<{ count: number }>>()
+      .mockResolvedValue({ count: 1 });
+    const findUnique = jest
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce({
+        id: "scan-1",
+        status: PrismaRepositoryScanJobStatus.QUEUED,
+        attemptCount: 0,
+      })
+      .mockResolvedValueOnce({
+        status: PrismaRepositoryScanJobStatus.RUNNING,
+        attemptCount: 1,
+      });
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      { recordRepositoryAnalysisEvent } as never,
+      { repositoryScanJob: { findUnique, updateMany } } as never,
+      { get: () => false } as never,
+    );
+
+    const result = await controller.claimScanJob("scan-1", {
+      boundary_name: "scan_requested",
+      timeout_seconds: 1800,
+    });
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "scan-1",
+        status: PrismaRepositoryScanJobStatus.QUEUED,
+      },
+      data: {
+        status: PrismaRepositoryScanJobStatus.RUNNING,
+        blockedReason: null,
+        attemptCount: { increment: 1 },
+      },
+    });
+    expect(recordRepositoryAnalysisEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scanJobId: "scan-1",
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runStarted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+        toolName: "agent_runtime",
+        attempt: 1,
+        inputSummary: expect.objectContaining({
+          boundaryName: "scan_requested",
+          timeoutSeconds: 1800,
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        claimed: true,
+        terminal: false,
+        status: REPOSITORY_SCAN_JOB_STATUSES.running,
+      },
+    });
+  });
+
+  it("terminalizes an active scan job with a safe runtime failure reason", async () => {
+    const recordRepositoryAnalysisEvent = jest
+      .fn<(args: unknown) => Promise<unknown>>()
+      .mockResolvedValue({ recorded: true });
+    const updateMany = jest
+      .fn<(args: unknown) => Promise<{ count: number }>>()
+      .mockResolvedValue({ count: 1 });
+    const findUnique = jest.fn<() => Promise<unknown>>().mockResolvedValue({
+      status: PrismaRepositoryScanJobStatus.FAILED,
+      assessmentId: "assessment-1",
+    });
+    const execute = jest
+      .fn<(command: unknown) => Promise<unknown>>()
+      .mockResolvedValue({ releasedReservationIds: ["hold-1"] });
+    const controller = new InternalScanController(
+      { execute } as unknown as CommandBus,
+      { recordRepositoryAnalysisEvent } as never,
+      { repositoryScanJob: { findUnique, updateMany } } as never,
+      { get: () => false } as never,
+    );
+
+    const result = await controller.markScanJobTerminalFailure("scan-1", {
+      boundary_name: "scan_requested",
+      reason_code: SCAN_ERROR_CODES.agentRuntimeBoundaryTimeout,
+      timeout_seconds: 1800,
+    });
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "scan-1",
+        status: {
+          in: [
+            PrismaRepositoryScanJobStatus.QUEUED,
+            PrismaRepositoryScanJobStatus.RUNNING,
+          ],
+        },
+      },
+      data: {
+        status: PrismaRepositoryScanJobStatus.FAILED,
+        blockedReason: SCAN_ERROR_CODES.agentRuntimeBoundaryTimeout,
+      },
+    });
+    expect(recordRepositoryAnalysisEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scanJobId: "scan-1",
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+        toolName: "agent_runtime",
+        errorSummary: SCAN_ERROR_CODES.agentRuntimeBoundaryTimeout,
+        outputSummary: expect.objectContaining({
+          errorCode: SCAN_ERROR_CODES.agentRuntimeBoundaryTimeout,
+          boundaryName: "scan_requested",
+          timeoutSeconds: 1800,
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        terminalized: true,
+        status: REPOSITORY_SCAN_JOB_STATUSES.failed,
+        reasonCode: SCAN_ERROR_CODES.agentRuntimeBoundaryTimeout,
+      },
+    });
+  });
+
+  it("does not expose arbitrary worker failure strings as scan failure reasons", async () => {
+    const updateMany = jest
+      .fn<(args: unknown) => Promise<{ count: number }>>()
+      .mockResolvedValue({ count: 1 });
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      { recordRepositoryAnalysisEvent: jest.fn() } as never,
+      {
+        repositoryScanJob: {
+          updateMany,
+          findUnique: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+            status: PrismaRepositoryScanJobStatus.FAILED,
+          }),
+        },
+      } as never,
+      { get: () => false } as never,
+    );
+
+    const result = await controller.markScanJobTerminalFailure("scan-1", {
+      reason_code: "raw provider exception with token sk-should-not-leak",
+    });
+
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          blockedReason: SCAN_ERROR_CODES.repositoryAnalysisFailed,
+        }),
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          reasonCode: SCAN_ERROR_CODES.repositoryAnalysisFailed,
+        }),
+      }),
+    );
+  });
+
   it("creates targeted reanalysis with a synthetic CUSTOMER worker context", async () => {
     const execute = jest.fn<(command: unknown) => Promise<unknown>>();
     execute.mockResolvedValue({ status: "READY" });
@@ -164,6 +346,7 @@ describe("InternalScanController", () => {
       { execute } as unknown as CommandBus,
       {} as never,
       {} as never,
+      { get: () => false } as never,
     );
 
     await controller.createTargetedReanalysis(
@@ -171,8 +354,14 @@ describe("InternalScanController", () => {
         assessmentId: "assessment-1",
         userId: "user-1",
         inputArtifactVersion: "ter_12345678",
-        analyzerId: "RUN_SEMGREP_RULES",
-        scope: { pathPrefixes: ["apps/api/"] },
+        analyzerId: "DEEP_AGENT_REPOSITORY_ANALYSIS",
+        scope: {
+          ruleScope: {
+            engineeringRuleId: "ENG-1",
+            criterionIds: ["criterion-a"],
+            contextRevision: 1,
+          },
+        },
         reasonRequirementId: "requirement:gap_12345678",
         idempotencyKey: "request_targeted_reanalysis_0001",
       },
@@ -203,6 +392,7 @@ describe("InternalScanController", () => {
       {} as unknown as CommandBus,
       { publishAgentStreamEvent } as never,
       {} as never,
+      { get: () => false } as never,
     );
 
     const result = await controller.recordAgentStreamEvent(
@@ -232,6 +422,103 @@ describe("InternalScanController", () => {
     });
   });
 
+  it("keeps the worker's pipeline stage so each stage streams on its own timeline", async () => {
+    const publishAgentStreamEvent = jest.fn((value: unknown) =>
+      Promise.resolve({ ...(value as object), eventId: "agent-event-stage" }),
+    );
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      { publishAgentStreamEvent } as never,
+      {} as never,
+      { get: () => false } as never,
+    );
+
+    await controller.recordAgentStreamEvent(
+      {
+        assessment_id: "assessment-1",
+        run_id: "run-1",
+        event_type: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelContentDelta,
+        stage: ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+      },
+      "corr-header",
+    );
+    await controller.recordAgentStreamEvent(
+      {
+        assessment_id: "assessment-1",
+        run_id: "run-1",
+        event_type: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelContentDelta,
+        stage: "not-a-stage",
+      },
+      "corr-header",
+    );
+
+    expect(publishAgentStreamEvent).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        stage: ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+      }),
+    );
+    expect(publishAgentStreamEvent).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ stage: null }),
+    );
+  });
+
+  it("accepts model-call telemetry events from the worker stream", async () => {
+    const publishAgentStreamEvent = jest.fn((value: unknown) =>
+      Promise.resolve({
+        ...(value as object),
+        eventId: "agent-event-model-call",
+      }),
+    );
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      { publishAgentStreamEvent } as never,
+      {} as never,
+      { get: () => false } as never,
+    );
+
+    const result = await controller.recordAgentStreamEvent(
+      {
+        assessment_id: "assessment-1",
+        run_id: "run-1",
+        event_type: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallTimeout,
+        node_name: "model",
+        status: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+        text: "model call timed out",
+        data: {
+          provider: "google_genai",
+          model: "gemini-3.5-flash-lite",
+          elapsed_seconds: 30,
+          timeout_seconds: 30,
+        },
+      },
+      "corr-header",
+    );
+
+    expect(publishAgentStreamEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assessmentId: "assessment-1",
+        runId: "run-1",
+        correlationId: "corr-header",
+        eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallTimeout,
+        nodeName: "model",
+        status: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+        text: "model call timed out",
+        data: expect.objectContaining({
+          provider: "google_genai",
+          model: "gemini-3.5-flash-lite",
+          elapsed_seconds: 30,
+          timeout_seconds: 30,
+        }),
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      data: { recorded: true, eventId: "agent-event-model-call" },
+    });
+  });
+
   it("persists bounded decision-model events by exact PR head correlation", async () => {
     const create = jest
       .fn<(args: unknown) => Promise<unknown>>()
@@ -240,6 +527,7 @@ describe("InternalScanController", () => {
       {} as unknown as CommandBus,
       {} as never,
       { decisionModelEvent: { create } } as never,
+      { get: () => false } as never,
     );
 
     await controller.recordDecisionModelEvent({
@@ -292,6 +580,7 @@ describe("InternalScanController", () => {
       {} as unknown as CommandBus,
       { publishAgentStreamEvent } as never,
       { decisionModelEvent: { create } } as never,
+      { get: () => false } as never,
     );
 
     await controller.recordDecisionModelEvent({
@@ -413,6 +702,7 @@ describe("InternalScanController", () => {
       {} as unknown as CommandBus,
       {} as never,
       { decisionModelDecision: { create } } as never,
+      { get: () => false } as never,
     );
 
     const first = await controller.claimDecisionModelRequest(
@@ -444,6 +734,7 @@ describe("InternalScanController", () => {
       {} as unknown as CommandBus,
       {} as never,
       { decisionModelDecision: { upsert } } as never,
+      { get: () => false } as never,
     );
 
     await controller.completeDecisionModelRequest(

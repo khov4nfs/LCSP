@@ -10,11 +10,11 @@ Define the common Python Worker Platform contract for all asynchronous domain wo
 
 Domain worker build details live in worker-specific implementation files:
 
-- `docs/implementation/scanner-worker-implementation.md`
+- `docs/architecture/repository-deep-agent-analysis.md`
 - `docs/implementation/legal-corpus-ingestion-implementation.md`
 - `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`
 
-This file is not the scanner runtime specification.
+Repository-analysis behavior is owned by `docs/architecture/repository-deep-agent-analysis.md`; this file defines the surrounding Python/LCSP Agent Runtime platform.
 
 ## Worker Modules
 
@@ -136,7 +136,7 @@ Raw source, secrets, full prompts, provider tokens, and unredacted tool output m
 
 - Each listed active asynchronous worker has a queue binding, command schema, idempotency behavior, terminal states, audit events, and outbox behavior.
 - Audit export is a synchronous Backend API operation for MVP; adding an Audit Export Worker requires a separate command, queue, event and retry contract.
-- Scanner-specific runtime details are owned by `scanner-worker-implementation.md`, not this platform file.
+- Repository-analysis runtime details are owned by `repository-deep-agent-analysis.md`, not this platform file.
 - Legal retrieval-specific ChromaDB behavior is owned by `chromadb-vectorless-legal-retriever-implementation.md`.
 - Duplicate command delivery does not duplicate domain artifacts.
 - Terminal success emits exactly one downstream outbox event for that terminal transition.
@@ -145,5 +145,5 @@ Raw source, secrets, full prompts, provider tokens, and unredacted tool output m
 ## Non-Claims
 
 - Not deployment authorization.
-- Not a scanner behavior specification.
+- Not the repository-analysis behavior specification.
 - Not implementation readiness certification.

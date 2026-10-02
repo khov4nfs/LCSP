@@ -39,7 +39,6 @@ import {
   type AuthFixture,
   CapturingRecoveryNotifier,
   TEST_DATABASE_URL,
-  ensureTestMfaEncryptionKey,
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
@@ -62,7 +61,6 @@ describe("Auth workspace (e2e)", () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
-    ensureTestMfaEncryptionKey();
     pushPrismaSchema();
 
     prisma = new PrismaClient({
@@ -163,7 +161,7 @@ describe("Auth workspace (e2e)", () => {
     const beforeCheck = await httpRequest(app)
       .post("/auth/sensitive-route/check")
       .set("Authorization", `Bearer ${sessionToken}`)
-      .send({ method: "GET", path: "/api/github/app/start" })
+      .send({ method: "POST", path: "/api/github/repository-discoveries" })
       .expect(200);
     assert.equal(
       (beforeCheck.body as { data?: { reauth_required?: unknown } }).data
@@ -172,7 +170,7 @@ describe("Auth workspace (e2e)", () => {
     );
     assert.equal(
       (beforeCheck.body as { data?: { route_id?: unknown } }).data?.route_id,
-      "GITHUB_APP_START",
+      "GITHUB_CLI_REPOSITORY_DISCOVERY",
     );
 
     const result = await httpRequest(app)
@@ -197,7 +195,7 @@ describe("Auth workspace (e2e)", () => {
     const afterCheck = await httpRequest(app)
       .post("/auth/sensitive-route/check")
       .set("Authorization", `Bearer ${sessionToken}`)
-      .send({ method: "GET", path: "/api/github/app/start?installation_id=1" })
+      .send({ method: "POST", path: "/api/github/repository-discoveries" })
       .expect(200);
     assert.equal(
       (afterCheck.body as { data?: { reauth_required?: unknown } }).data
@@ -206,7 +204,7 @@ describe("Auth workspace (e2e)", () => {
     );
     assert.equal(
       (afterCheck.body as { data?: { route_id?: unknown } }).data?.route_id,
-      "GITHUB_APP_START",
+      "GITHUB_CLI_REPOSITORY_DISCOVERY",
     );
   });
 
@@ -608,13 +606,13 @@ describe("Auth workspace (e2e)", () => {
   });
 
   it("undecryptable MFA secrets redirect verification back to enrollment", async () => {
-    const originalKey = process.env.MFA_ENCRYPTION_KEY;
-    process.env.MFA_ENCRYPTION_KEY = "mfa-key-before-rotation";
+    const originalKey = process.env.MFA_SECRET_ENCRYPTION_KEY;
+    process.env.MFA_SECRET_ENCRYPTION_KEY = "1".repeat(64);
     const signIn = await signInApprovedUser();
     const mfa = await seedMfaEnrollment(prisma, fixture.approvedUser.id);
     const otp = totpForTime(mfa.totpSecret, Date.now());
 
-    process.env.MFA_ENCRYPTION_KEY = "mfa-key-after-rotation";
+    process.env.MFA_SECRET_ENCRYPTION_KEY = "2".repeat(64);
 
     try {
       const result = await httpRequest(app)
@@ -625,17 +623,17 @@ describe("Auth workspace (e2e)", () => {
       const failure = expectFailure(result.body);
       assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaRequired);
     } finally {
-      process.env.MFA_ENCRYPTION_KEY = originalKey;
+      process.env.MFA_SECRET_ENCRYPTION_KEY = originalKey;
     }
   });
 
   it("MFA enrollment can replace an undecryptable stale secret", async () => {
-    const originalKey = process.env.MFA_ENCRYPTION_KEY;
-    process.env.MFA_ENCRYPTION_KEY = "mfa-key-before-rotation";
+    const originalKey = process.env.MFA_SECRET_ENCRYPTION_KEY;
+    process.env.MFA_SECRET_ENCRYPTION_KEY = "1".repeat(64);
     const signIn = await signInApprovedUser();
     await seedMfaEnrollment(prisma, fixture.approvedUser.id);
 
-    process.env.MFA_ENCRYPTION_KEY = "mfa-key-after-rotation";
+    process.env.MFA_SECRET_ENCRYPTION_KEY = "2".repeat(64);
 
     try {
       const result = await httpRequest(app)
@@ -648,7 +646,7 @@ describe("Auth workspace (e2e)", () => {
       assert.equal(body.ok, true);
       assert.match(body.totp_uri, /^otpauth:\/\/totp\//);
     } finally {
-      process.env.MFA_ENCRYPTION_KEY = originalKey;
+      process.env.MFA_SECRET_ENCRYPTION_KEY = originalKey;
     }
   });
 

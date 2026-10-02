@@ -12,7 +12,7 @@ from orchestration.result_validation import SpecialistHandoffValidationError
 from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     ENGINEERING_LIMITATION_CODES,
 )
-from tools.common.capabilities.managed.invocation import invocation_boundary_manifest
+from tools.common.capabilities.agent_runtime.invocation import invocation_boundary_manifest
 from tools.common.capabilities.platform.api_client import (
     InterviewContextReadyAuthorityCallbackError,
     InterviewDecisionRepairableCallbackError,
@@ -309,14 +309,14 @@ def test_resolution_rejection_gets_one_private_correction_before_continuation(co
     api.post_interview_progress = Mock()
     rejected = {
         **deepcopy(WAITING_HANDOFF),
-        "mode": "INVESTIGATOR_RESOLUTION",
+        "mode": "BUSINESS_CONTEXT_RESOLUTION",
         "outcome": "CONTEXT_RESOLVED",
         "activeQuestion": None,
         "contextAuthority": "CUSTOMER_CONFIRMED",
     }
     corrected = {
         **deepcopy(WAITING_HANDOFF),
-        "mode": "INVESTIGATOR_RESOLUTION",
+        "mode": "BUSINESS_CONTEXT_RESOLUTION",
         "outcome": corrected_outcome,
     }
     if corrected_outcome == "CONTEXT_RESOLVED":
@@ -1058,6 +1058,61 @@ def test_handoff_schema_violation_gets_one_correction_before_continuation(caplog
     assert all(call.args[-1] != "FAILED" for call in api.post_interview_progress.call_args_list)
 
 
+def test_schema_violation_during_guard_correction_gets_its_own_repair(caplog):
+    api = RecordingApi()
+    api.post_interview_progress = Mock()
+    rejected = {
+        **deepcopy(WAITING_HANDOFF),
+        "mode": "INITIAL_INTERVIEW",
+        "outcome": "CONTEXT_READY",
+        "contextAuthority": "CUSTOMER_STATED",
+        "activeQuestion": None,
+    }
+    corrected = {**deepcopy(WAITING_HANDOFF), "mode": "INITIAL_INTERVIEW"}
+    schema_error = SpecialistHandoffValidationError(
+        "interview handoff failed schema validation: "
+        "activeQuestion: Value error, select Interview controls require choices"
+    )
+    dispatcher = RecordingDispatcher()
+    dispatcher.dispatch = Mock(
+        side_effect=[{"handoff": rejected}, schema_error, {"handoff": corrected}]
+    )
+    api.post_interview_agent_decision = Mock(return_value={"outcome": "WAITING_FOR_CUSTOMER"})
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
+    )
+    boundary._run_guarded_continuation = Mock()
+
+    with caplog.at_level(
+        "WARNING", logger="tools.common.capabilities.workflow.recovery.interview_boundary"
+    ):
+        boundary.handle(_message(), "corr-1")
+
+    _, guard_correction, schema_correction = [
+        call.kwargs for call in dispatcher.dispatch.call_args_list
+    ]
+    feedback = json.loads(schema_correction["instruction"].split("\n\n", 1)[1])[
+        "decisionValidationFeedback"
+    ]
+    assert feedback["code"] == "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY"
+    assert feedback["schemaViolation"]["code"] == "INTERVIEW_HANDOFF_SCHEMA_VIOLATION"
+    assert "require choices" in feedback["schemaViolation"]["rejectedReason"]
+    assert schema_correction["idempotency_key"] != guard_correction["idempotency_key"]
+    assert "rule=select Interview controls require choices" in caplog.text
+    api.post_interview_agent_decision.assert_called_once()
+    boundary._run_guarded_continuation.assert_called_once()
+    assert all(call.args[-1] != "FAILED" for call in api.post_interview_progress.call_args_list)
+
+
+def test_missing_structured_response_is_a_repairable_handoff_error():
+    with pytest.raises(SpecialistHandoffValidationError, match="structured_response"):
+        RootSubagentDispatcher._validated_handoff(
+            subagent_type="interview",
+            response_format=object(),
+            invocation_result={"messages": []},
+        )
+
+
 def test_handoff_schema_violation_repair_is_bounded():
     api = RecordingApi()
     api.post_interview_progress = Mock()
@@ -1112,10 +1167,8 @@ def test_interview_resume_command_is_managed_boundary() -> None:
 def test_interview_resume_boundary_passes_private_context_only_to_interview_and_persists_waiting() -> None:
     api = RecordingApi()
     dispatcher = RecordingDispatcher()
-    root = RecordingRoot()
     boundary = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
-        root_agent=root,
         api_client=api,
         dispatcher=dispatcher,
     )
@@ -1138,7 +1191,6 @@ def test_interview_resume_boundary_passes_private_context_only_to_interview_and_
     assert "CLARIFY BOOLEAN or SINGLE_SELECT answers never grant CUSTOMER_CONFIRMED" in instruction
     assert "control=CONFIRM_ADJUST" in instruction
     assert "never use sourceVersion, pgeVersion, raw artifact ids" in instruction
-    assert root.calls == []
     assert len(api.decision_posts) == 1
     assessment_id, decision = api.decision_posts[0]
     assert assessment_id == "assessment-1"
@@ -1209,34 +1261,32 @@ def test_guard_persists_before_any_downstream_continuation() -> None:
 def test_interview_resume_boundary_duplicate_delivery_is_idempotent() -> None:
     api = RecordingApi(status="DUPLICATE")
     dispatcher = RecordingDispatcher()
-    root = RecordingRoot()
     boundary = AssessmentInterviewResumeBoundary(
-        SimpleNamespace(), root_agent=root, api_client=api, dispatcher=dispatcher
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
     )
 
     boundary.handle(_message(), "corr-1")
 
     assert dispatcher.calls == []
-    assert root.calls == []
     assert api.decision_posts == []
 
 
 def test_interview_resume_boundary_stale_provenance_reenters_root_revalidation() -> None:
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        InterviewRevalidationRequired,
+    )
+
     api = RecordingApi(status="STALE_PROVENANCE")
-    root = RecordingRoot()
     boundary = AssessmentInterviewResumeBoundary(
-        SimpleNamespace(), root_agent=root, api_client=api, dispatcher=RecordingDispatcher()
+        SimpleNamespace(), api_client=api, dispatcher=RecordingDispatcher()
     )
 
-    boundary.handle(_message(), "corr-1")
+    with pytest.raises(
+        InterviewRevalidationRequired,
+        match="ASSESSMENT_INTERVIEW_REVALIDATION_REQUIRED",
+    ):
+        boundary.handle(_message(), "corr-1")
 
-    assert len(root.calls) == 1
-    prompt = root.calls[0][0]["messages"][0]["content"]
-    assert "stale against current source/PGE provenance" in prompt
-    assert (
-        root.calls[0][1]["metadata"]["trigger"]
-        == "ASSESSMENT_INTERVIEW_REVALIDATION_REQUIRED"
-    )
     assert api.decision_posts == []
 
 
@@ -1250,10 +1300,8 @@ def test_provide_more_context_bootstrap_persists_next_interview_question_once() 
         },
     )
     dispatcher = RecordingDispatcher()
-    root = RecordingRoot()
     boundary = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
-        root_agent=root,
         api_client=api,
         dispatcher=dispatcher,
     )
@@ -1270,7 +1318,6 @@ def test_provide_more_context_bootstrap_persists_next_interview_question_once() 
     assert dispatcher.calls[0]["trigger"] == "PROVIDE_MORE_CONTEXT"
     assert len(api.decision_posts) == 1
     assert api.decision_posts[0][1]["outcome"] == "WAITING_FOR_CUSTOMER"
-    assert root.calls == []
 
 
 def test_provide_more_context_duplicate_after_question_materialized_is_noop() -> None:
@@ -1299,7 +1346,7 @@ def test_targeted_interview_missing_frontier_is_repaired_from_trusted_need(caplo
     specialist.invoke.return_value = {
         "structured_response": {
             "expectedContextRevision": 2,
-            "mode": "INVESTIGATOR_RESOLUTION",
+            "mode": "BUSINESS_CONTEXT_RESOLUTION",
             "outcome": "WAITING_FOR_CUSTOMER",
             "activeQuestion": {
                 "id": "incident-follow-up",
@@ -1347,7 +1394,6 @@ def test_targeted_interview_missing_frontier_is_repaired_from_trusted_need(caplo
                 user_id="actor-1",
                 workflow_run_id="workflow-1",
             ),
-            reenter_root=False,
         )
 
     frontier = result["handoff"]["activeQuestion"]["frontier"]
@@ -1368,7 +1414,7 @@ def test_targeted_interview_frontier_repair_reads_need_materiality(caplog) -> No
     specialist.invoke.return_value = {
         "structured_response": {
             "expectedContextRevision": 2,
-            "mode": "INVESTIGATOR_RESOLUTION",
+            "mode": "BUSINESS_CONTEXT_RESOLUTION",
             "outcome": "WAITING_FOR_CUSTOMER",
             "activeQuestion": {
                 "id": "optional-follow-up",
@@ -1414,7 +1460,6 @@ def test_targeted_interview_frontier_repair_reads_need_materiality(caplog) -> No
                 user_id="actor-1",
                 workflow_run_id="workflow-1",
             ),
-            reenter_root=False,
         )
 
     assert result["handoff"]["activeQuestion"]["frontier"]["materiality"] == "MATERIAL"
@@ -1465,7 +1510,6 @@ def test_non_targeted_missing_frontier_still_fails_closed() -> None:
                 user_id="actor-1",
                 workflow_run_id="workflow-1",
             ),
-            reenter_root=False,
         )
 
 
@@ -1477,7 +1521,7 @@ def test_targeted_duplicate_after_question_materialized_is_noop() -> None:
                 "needId": "need-1",
                 "businessContextNeed": "Who approves?",
                 "resolutionCriteria": ["decision_authority"],
-                "originatingInvestigationReference": "investigator:exec-1:need-1",
+                "originatingRuleAnalysisReference": "investigator:exec-1:need-1",
             }
             return result
 
@@ -1495,37 +1539,56 @@ def test_targeted_duplicate_after_question_materialized_is_noop() -> None:
         SimpleNamespace(), api_client=api, dispatcher=dispatcher
     )
 
-    boundary.handle(_message(reason="INVESTIGATOR_RESOLUTION_REQUIRED"), "corr-3")
+    boundary.handle(_message(reason="BUSINESS_CONTEXT_RESOLUTION_REQUIRED"), "corr-3")
 
     assert dispatcher.calls == []
     assert api.decision_posts == []
 
 
 def test_context_resolved_resumes_exact_managed_investigator_without_root() -> None:
+    # Root cause: the deleted ManagedTargetedInvestigatorPipeline resumed an
+    # investigator execution via investigator_resumer/investigation_completer.
+    # Fix: the new per-rule resume is AssessmentInterviewResumeBoundary guard +
+    # durable post-guard store + strict _bind_answer_to_need to the single
+    # registered need/rule, with analyze_rule preserving the prior accepted
+    # result on a failed resume. No root re-entry, no deleted pipeline.
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _bind_answer_to_need,
+    )
+    from tools.common.capabilities.workflow.recovery.post_guard_continuation import (
+        EphemeralPostGuardContinuationStore,
+    )
+    from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+        normalize_confirmed_structured_business_context,
+    )
+
     continuation = {
-        "originatingInvestigationReference": "investigator:investigator-exec-17:need-1",
-        "investigatorExecutionId": "investigator-exec-17",
-        "workflowRunId": "investigator:investigator-exec-17",
-        "checkpointId": "checkpoint-original",
-        "affectedRuleIds": ["ENG-1"],
-        "artifactVersions": {
-            "technicalEvidenceReportId": "ter-1",
-            "repositorySnapshotId": "snapshot-1",
-        },
+        "needId": "need-1",
+        "engineeringRuleId": "ENG-1",
+        "criterionId": "CONTROL",
+        "resolutionCriterionIds": ["CONTROL"],
         "sourceVersion": "snapshot-1:abc",
         "pgeVersion": "ter-1:v1",
     }
+
+    def _stamped_confirmed() -> dict:
+        ctx = _confirmed_context()
+        stmt = dict(ctx["statements"][0])
+        stmt["sourceNeedId"] = "need-1"
+        stmt["resolvedCriterionIds"] = ["CONTROL"]
+        ctx = dict(ctx)
+        ctx["statements"] = [stmt]
+        return ctx
 
     class TargetedApi(RecordingApi):
         def get_interview_private_context(self, *args, **kwargs):
             result = super().get_interview_private_context(*args, **kwargs)
             result["targetedNeed"] = {
                 "needId": "need-1",
+                "engineeringRuleId": "ENG-1",
+                "criterionId": "CONTROL",
+                "resolutionCriterionIds": ["CONTROL"],
                 "businessContextNeed": "Who approves?",
-                "resolutionCriteria": ["decision_authority"],
-                "originatingInvestigationReference": continuation[
-                    "originatingInvestigationReference"
-                ],
             }
             # Non-interpretive direct-ASK answer (predefined choice, no comment): this
             # test is about exact-resume continuation identity, not authority-provenance
@@ -1542,85 +1605,68 @@ def test_context_resolved_resumes_exact_managed_investigator_without_root() -> N
             super().post_interview_agent_decision(assessment_id, payload)
             return {
                 "outcome": "CONTEXT_RESOLVED",
-                "confirmedContext": _confirmed_context(),
-                "continuation": continuation,
+                "confirmedContext": _stamped_confirmed(),
+                "continuation": dict(continuation),
             }
 
     targeted_handoff = {
         "expectedContextRevision": 0,
-        "mode": "INVESTIGATOR_RESOLUTION",
+        "mode": "BUSINESS_CONTEXT_RESOLUTION",
         "outcome": "CONTEXT_RESOLVED",
         "contextAuthority": "CUSTOMER_CONFIRMED",
-        "confirmedContext": _confirmed_context(),
+        "confirmedContext": _stamped_confirmed(),
         "flags": [],
         "blockedActions": [],
         "targetedResolution": {},
     }
     api = TargetedApi()
-    root = RecordingRoot()
-    resume_calls = []
-    completion_calls = []
+    store = EphemeralPostGuardContinuationStore()
+    downstream_calls: list[tuple[dict, str]] = []
 
-    def exact_resumer(**kwargs):
-        resume_calls.append(kwargs)
-        return {
-            "executionId": "investigator-exec-17",
-            "threadId": "investigator:investigator-exec-17",
-            "fromCheckpointId": "checkpoint-original",
-            "checkpointId": "checkpoint-next",
-            "handoff": {
-                "status": "READY",
-                "artifact_versions": continuation["artifactVersions"],
-                "claims": [
-                    {
-                        "claim_id": "claim-1",
-                        "engineering_rule_id": "ENG-1",
-                        "claim_type": "UNRESOLVED_ENGINEERING_FACT",
-                        "value": None,
-                        "evidence_refs": ["evidence:1"],
-                        "confidence": 0.5,
-                        "limitations": [
-                            ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
-                        ],
-                    }
-                ],
-                "limitations": [],
-                "next_step": "GATE",
-            },
-        }
-
-    def exact_completer(**kwargs):
-        completion_calls.append(kwargs)
+    def downstream(payload, correlation_id):
+        downstream_calls.append((payload, correlation_id))
 
     boundary = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
-        root_agent=root,
         api_client=api,
         dispatcher=RecordingDispatcher(targeted_handoff),
-        investigator_resumer=exact_resumer,
-        investigation_completer=exact_completer,
+        downstream_handler=downstream,
+        continuation_store=store,
     )
 
-    boundary.handle(_message(reason="INVESTIGATOR_RESOLUTION_REQUIRED"), "corr-1")
+    boundary.handle(_message(reason="BUSINESS_CONTEXT_RESOLUTION_REQUIRED"), "corr-1")
 
-    assert root.calls == []
-    assert len(resume_calls) == 1
-    call = resume_calls[0]
-    assert call["continuation"] is continuation
-    assert call["confirmed_context"].context_revision == 2
-    assert call["confirmed_context"].to_legacy_customer_context()["answers"] == {
+    # Exact resume without root: one interview turn, one guard, one downstream.
+    assert len(api.decision_posts) == 1
+    assert len(downstream_calls) == 1
+    assert downstream_calls[0][0]["outcome"] == "CONTEXT_RESOLVED"
+    assert downstream_calls[0][0]["contextRevision"] == 2
+    record = store.get(
+        assessment_id="assessment-1", context_revision=2, outcome="CONTEXT_RESOLVED"
+    )
+    assert record is not None and record.completed
+    assert record.payload["continuation"]["needId"] == "need-1"
+
+    # Strict answer binding: the stamped answer resolves only its exact need/rule.
+    guarded_confirmed = _stamped_confirmed()
+    typed = normalize_confirmed_structured_business_context(
+        {
+            "outcome": "CONTEXT_RESOLVED",
+            "contextRevision": 2,
+            "confirmedContext": guarded_confirmed,
+        },
+        assessment_id="assessment-1",
+    )
+    assert typed.to_legacy_customer_context()["answers"] == {
         "decision_authority": "human"
     }
-    assert call["assessment_id"] == "assessment-1"
-    assert call["context_revision"] == 2
-    assert len(completion_calls) == 1
-    assert completion_calls[0]["resumed_handoff"]["status"] == "READY"
-    assert completion_calls[0]["continuation"] is continuation
-    assert completion_calls[0]["confirmed_context"].to_legacy_customer_context()[
-        "answers"
-    ] == {
-        "decision_authority": "human"
-    }
+    assert _bind_answer_to_need(dict(continuation), typed) == "ENG-1"
+    with pytest.raises(RuntimeError):
+        _bind_answer_to_need({**continuation, "needId": "need:foreign"}, typed)
+    with pytest.raises(RuntimeError):
+        _bind_answer_to_need(
+            {**continuation, "resolutionCriterionIds": ["OTHER"]}, typed
+        )
 
 
 def test_targeted_free_text_answer_converges_via_synthesis_after_extra_confirm_turn() -> None:
@@ -1629,61 +1675,55 @@ def test_targeted_free_text_answer_converges_via_synthesis_after_extra_confirm_t
     # extra CONFIRM_ADJUST turn before CONTEXT_RESOLVED can become authoritative.
     # Turn 1 must converge locally to a WAITING_FOR_CUSTOMER CONFIRM_ADJUST question
     # (never propagate/raise on INTERVIEW_CONTEXT_RESOLVED_REQUIRES_AUTHORITY, never
-    # resume the Investigator early). Turn 2, after the customer's real CONFIRM,
-    # must resume the exact Investigator exactly as the direct-choice path does.
+    # resume the rule early). Turn 2, after the customer's real CONFIRM,
+    # must resume exactly the registered need/rule via the new per-rule path.
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _bind_answer_to_need,
+    )
+    from tools.common.capabilities.workflow.recovery.post_guard_continuation import (
+        EphemeralPostGuardContinuationStore,
+    )
+    from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+        normalize_confirmed_structured_business_context,
+    )
+
     continuation = {
-        "originatingInvestigationReference": "investigator:investigator-exec-9:need-1",
-        "investigatorExecutionId": "investigator-exec-9",
-        "workflowRunId": "investigator:investigator-exec-9",
-        "checkpointId": "checkpoint-original",
-        "affectedRuleIds": ["ENG-1"],
-        "artifactVersions": {
-            "technicalEvidenceReportId": "ter-1",
-            "repositorySnapshotId": "snapshot-1",
-        },
+        "needId": "need-1",
+        "engineeringRuleId": "ENG-1",
+        "criterionId": "CONTROL",
+        "resolutionCriterionIds": ["CONTROL"],
         "sourceVersion": "snapshot-1:abc",
         "pgeVersion": "ter-1:v1",
     }
+
+    def _stamped_confirmed(revision: int = 2) -> dict:
+        ctx = _confirmed_context()
+        ctx = dict(ctx)
+        ctx["contextRevision"] = revision
+        stmt = dict(ctx["statements"][0])
+        stmt["sourceNeedId"] = "need-1"
+        stmt["resolvedCriterionIds"] = ["CONTROL"]
+        ctx["statements"] = [stmt]
+        return ctx
+
     targeted_handoff = {
         "expectedContextRevision": 0,
-        "mode": "INVESTIGATOR_RESOLUTION",
+        "mode": "BUSINESS_CONTEXT_RESOLUTION",
         "outcome": "CONTEXT_RESOLVED",
         "contextAuthority": "CUSTOMER_CONFIRMED",
-        "confirmedContext": _confirmed_context(),
+        "confirmedContext": _stamped_confirmed(2),
         "flags": [],
         "blockedActions": [],
         "targetedResolution": {},
     }
-    resume_calls: list[dict] = []
-    completion_calls: list[dict] = []
-
-    def exact_resumer(**kwargs):
-        resume_calls.append(kwargs)
-        return {
-            "executionId": "investigator-exec-9",
-            "threadId": "investigator:investigator-exec-9",
-            "fromCheckpointId": "checkpoint-original",
-            "checkpointId": "checkpoint-next",
-            "handoff": {
-                "status": "READY",
-                "artifact_versions": continuation["artifactVersions"],
-                "claims": [],
-                "limitations": [],
-                "next_step": "GATE",
-            },
-        }
-
-    def exact_completer(**kwargs):
-        completion_calls.append(kwargs)
 
     def with_targeted_need(result: dict) -> dict:
         result["targetedNeed"] = {
             "needId": "need-1",
+            "engineeringRuleId": "ENG-1",
+            "criterionId": "CONTROL",
+            "resolutionCriterionIds": ["CONTROL"],
             "businessContextNeed": "Who approves?",
-            "resolutionCriteria": ["decision_authority"],
-            "originatingInvestigationReference": continuation[
-                "originatingInvestigationReference"
-            ],
         }
         return result
 
@@ -1700,20 +1740,20 @@ def test_targeted_free_text_answer_converges_via_synthesis_after_extra_confirm_t
             return result
 
     api_turn_1 = TurnOneApi()
+    downstream_turn_1: list[tuple[dict, str]] = []
     boundary_turn_1 = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
         api_client=api_turn_1,
         dispatcher=RecordingDispatcher(targeted_handoff),
-        investigator_resumer=exact_resumer,
-        investigation_completer=exact_completer,
+        downstream_handler=lambda p, c: downstream_turn_1.append((p, c)),
+        continuation_store=EphemeralPostGuardContinuationStore(),
     )
 
     boundary_turn_1.handle(
-        _message(reason="INVESTIGATOR_RESOLUTION_REQUIRED", revision=2), "corr-1"
+        _message(reason="BUSINESS_CONTEXT_RESOLUTION_REQUIRED", revision=2), "corr-1"
     )
 
-    assert resume_calls == []
-    assert completion_calls == []
+    assert downstream_turn_1 == []
     assert len(api_turn_1.decision_posts) == 1
     posted_turn_1 = api_turn_1.decision_posts[0][1]
     assert posted_turn_1["outcome"] == "WAITING_FOR_CUSTOMER"
@@ -1737,65 +1777,116 @@ def test_targeted_free_text_answer_converges_via_synthesis_after_extra_confirm_t
             super().post_interview_agent_decision(assessment_id, payload)
             return {
                 "outcome": "CONTEXT_RESOLVED",
-                "confirmedContext": _confirmed_context(),
-                "continuation": continuation,
+                "confirmedContext": _stamped_confirmed(3),
+                "continuation": dict(continuation),
             }
 
     api_turn_2 = TurnTwoApi()
+    downstream_turn_2: list[tuple[dict, str]] = []
+    store_2 = EphemeralPostGuardContinuationStore()
     boundary_turn_2 = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
         api_client=api_turn_2,
         dispatcher=RecordingDispatcher(targeted_handoff),
-        investigator_resumer=exact_resumer,
-        investigation_completer=exact_completer,
+        downstream_handler=lambda p, c: downstream_turn_2.append((p, c)),
+        continuation_store=store_2,
     )
 
     boundary_turn_2.handle(
-        _message(reason="INVESTIGATOR_RESOLUTION_REQUIRED", revision=3), "corr-2"
+        _message(reason="BUSINESS_CONTEXT_RESOLUTION_REQUIRED", revision=3), "corr-2"
     )
 
-    assert len(resume_calls) == 1
-    assert resume_calls[0]["continuation"] is continuation
-    assert len(completion_calls) == 1
-    assert completion_calls[0]["resumed_handoff"]["status"] == "READY"
+    assert len(downstream_turn_2) == 1
+    assert downstream_turn_2[0][0]["outcome"] == "CONTEXT_RESOLVED"
+    record = store_2.get(
+        assessment_id="assessment-1", context_revision=3, outcome="CONTEXT_RESOLVED"
+    )
+    assert record is not None and record.completed
+    assert record.payload["continuation"]["needId"] == "need-1"
+    # Strict binding on the resolved turn: only the exact need binds.
+    typed = normalize_confirmed_structured_business_context(
+        {
+            "outcome": "CONTEXT_RESOLVED",
+            "contextRevision": 3,
+            "confirmedContext": _stamped_confirmed(3),
+        },
+        assessment_id="assessment-1",
+    )
+    assert _bind_answer_to_need(dict(continuation), typed) == "ENG-1"
 
 
 def test_exact_resume_rejects_wrong_investigator_execution() -> None:
-    continuation = {
-        "investigatorExecutionId": "expected-exec",
-        "workflowRunId": "investigator:expected-exec",
-        "checkpointId": "checkpoint-1",
-    }
-
-    def wrong_resumer(**_kwargs):
-        return {
-            "executionId": "different-exec",
-            "threadId": "investigator:expected-exec",
-            "fromCheckpointId": "checkpoint-1",
-            "checkpointId": "checkpoint-2",
-            "handoff": {"status": "READY"},
-        }
-
-    boundary = AssessmentInterviewResumeBoundary(
-        SimpleNamespace(),
-        api_client=RecordingApi(),
-        investigator_resumer=wrong_resumer,
+    # Root cause: the deleted _resume_exact_investigator checked
+    # investigatorExecutionId identity ("execution identity drifted").
+    # Fix: the new per-rule exact resume checks server-owned need/rule identity
+    # via _bind_answer_to_need plus artifact-pin freshness via
+    # _validate_guarded_continuation_pins. Any drift fails closed.
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _bind_answer_to_need,
+        _validate_guarded_continuation_pins,
+    )
+    from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+        normalize_confirmed_structured_business_context,
     )
 
-    with pytest.raises(RuntimeError, match="execution identity drifted"):
-        boundary._resume_exact_investigator(
-            assessment_id="assessment-1",
-            context_revision=2,
-            continuation=continuation,
-            confirmed_context=_confirmed_context(),
-            correlationId="corr-1",
+    continuation = {
+        "needId": "need-1",
+        "engineeringRuleId": "ENG-1",
+        "criterionId": "CONTROL",
+        "resolutionCriterionIds": ["CONTROL"],
+        "sourceVersion": "snapshot-1:abc",
+        "pgeVersion": "ter-1:v1",
+    }
+
+    def _stamped() -> dict:
+        ctx = _confirmed_context()
+        stmt = dict(ctx["statements"][0])
+        stmt["sourceNeedId"] = "need-1"
+        stmt["resolvedCriterionIds"] = ["CONTROL"]
+        ctx = dict(ctx)
+        ctx["statements"] = [stmt]
+        return ctx
+
+    typed = normalize_confirmed_structured_business_context(
+        {
+            "outcome": "CONTEXT_RESOLVED",
+            "contextRevision": 2,
+            "confirmedContext": _stamped(),
+        },
+        assessment_id="assessment-1",
+    )
+
+    # Exact scope: the registered need/rule binds.
+    assert _bind_answer_to_need(dict(continuation), typed) == "ENG-1"
+    # Wrong execution identity (foreign need) is rejected, not resumed.
+    with pytest.raises(RuntimeError, match="does not resolve the pending need"):
+        _bind_answer_to_need({**continuation, "needId": "need:wrong-exec"}, typed)
+    # Wrong criterion scope is rejected.
+    with pytest.raises(RuntimeError, match="outside its need"):
+        _bind_answer_to_need(
+            {**continuation, "resolutionCriterionIds": ["WRONG_CRITERION"]}, typed
         )
+    # Stale artifact pins are rejected.
+    with pytest.raises(RuntimeError, match="source version is stale"):
+        _validate_guarded_continuation_pins(
+            {**continuation, "sourceVersion": "snapshot-1:stale"},
+            source_version="snapshot-1:abc",
+            pge_version="ter-1:v1",
+        )
+    with pytest.raises(RuntimeError, match="PGE version is stale"):
+        _validate_guarded_continuation_pins(
+            {**continuation, "pgeVersion": "ter-1:stale"},
+            source_version="snapshot-1:abc",
+            pge_version="ter-1:v1",
+        )
+    # Missing need identity fails closed.
+    with pytest.raises(RuntimeError, match="does not identify one need and rule"):
+        _bind_answer_to_need({"engineeringRuleId": "ENG-1"}, typed)
 
 
 def test_interview_resume_boundary_rejects_missing_revision() -> None:
     boundary = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
-        root_agent=RecordingRoot(),
         api_client=RecordingApi(),
         dispatcher=RecordingDispatcher(),
     )
@@ -1806,20 +1897,44 @@ def test_interview_resume_boundary_rejects_missing_revision() -> None:
         boundary.handle(message, "corr-1")
 
 def test_context_resolved_targeted_scope_exclusion_closes_without_investigator() -> None:
+    # Root cause: the deleted pipeline closed scope via RULE_SCOPE_NOT_APPLICABLE
+    # claims from investigation_completer.
+    # Fix: the new deterministic applicability gate decides NOT_APPLICABLE from
+    # the customer-confirmed statement; finalize closes without any
+    # repository-analyst dispatch (no repository work), with lazy need handling
+    # and no absence semantics.
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _bind_answer_to_need,
+    )
+    from tools.common.capabilities.workflow.recovery.post_guard_continuation import (
+        EphemeralPostGuardContinuationStore,
+    )
+    from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+        normalize_confirmed_structured_business_context,
+    )
+    from tools.common.capabilities.assessment.planning.engineering_rule.rule_applicability_gate import (
+        APPLICABILITY_STATUSES,
+        evaluate_applicability,
+    )
+    from tools.common.capabilities.assessment.rule_assessment.run import (
+        finalize_rule_results,
+        register_business_needs,
+    )
+    from tools.common.capabilities.assessment.rule_assessment.values import (
+        RULE_ANALYSIS_STATUSES,
+    )
+    from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
+
     continuation = {
-        "originatingInvestigationReference": "investigator:investigator-exec-17:need-1",
-        "investigatorExecutionId": "investigator-exec-17",
-        "workflowRunId": "investigator:investigator-exec-17",
-        "checkpointId": "checkpoint-original",
-        "affectedRuleIds": ["ENG-1"],
-        "artifactVersions": {
-            "technicalEvidenceReportId": "ter-1",
-            "repositorySnapshotId": "snapshot-1",
-        },
+        "needId": "need-1",
+        "engineeringRuleId": "ENG-SCOPE-1",
+        "criterionId": "national_data_source_reuse",
+        "resolutionCriterionIds": ["national_data_source_reuse"],
         "sourceVersion": "snapshot-1:abc",
         "pgeVersion": "ter-1:v1",
     }
     confirmed_context = _confirmed_context()
+    confirmed_context["contextRevision"] = 2
     confirmed_context["statements"] = [
         {
             "statementId": "stmt-national-data",
@@ -1832,6 +1947,8 @@ def test_context_resolved_targeted_scope_exclusion_closes_without_investigator()
             "createdAt": "2026-09-05T00:00:00Z",
             "source": "CUSTOMER_CONFIRMED",
             "resolutionState": "CONFIRMED",
+            "sourceNeedId": "need-1",
+            "resolvedCriterionIds": ["national_data_source_reuse"],
         }
     ]
 
@@ -1840,11 +1957,10 @@ def test_context_resolved_targeted_scope_exclusion_closes_without_investigator()
             result = super().get_interview_private_context(*args, **kwargs)
             result["targetedNeed"] = {
                 "needId": "need-1",
+                "engineeringRuleId": "ENG-SCOPE-1",
+                "criterionId": "national_data_source_reuse",
+                "resolutionCriterionIds": ["national_data_source_reuse"],
                 "businessContextNeed": "Confirm whether the system reuses a national data repository source.",
-                "resolutionCriteria": ["national_data_source_reuse"],
-                "originatingInvestigationReference": continuation[
-                    "originatingInvestigationReference"
-                ],
             }
             # Non-interpretive direct-ASK answer (predefined choice, no comment): this
             # test is about the deterministic scope-exclusion path, not authority-
@@ -1861,66 +1977,150 @@ def test_context_resolved_targeted_scope_exclusion_closes_without_investigator()
             super().post_interview_agent_decision(assessment_id, payload)
             return {
                 "outcome": "CONTEXT_RESOLVED",
-                "confirmedContext": confirmed_context,
-                "continuation": continuation,
-            }
-
-        def get_active_legal_rule_catalog(self):
-            return {
-                "versionId": "catalog-v1",
-                "rules": [
-                    {
-                        "legalRuleId": "legal-national-data",
-                        "status": "APPROVED",
-                        "engineeringRuleIds": ["ENG-1"],
-                        "requiredFacts": [
-                            {
-                                "field": "nationalDataSourceReuse",
-                                "expectedValue": True,
-                            }
-                        ],
-                    }
-                ],
+                "confirmedContext": dict(confirmed_context),
+                "continuation": dict(continuation),
             }
 
     targeted_handoff = {
         "expectedContextRevision": 0,
-        "mode": "INVESTIGATOR_RESOLUTION",
+        "mode": "BUSINESS_CONTEXT_RESOLUTION",
         "outcome": "CONTEXT_RESOLVED",
         "contextAuthority": "CUSTOMER_CONFIRMED",
-        "confirmedContext": confirmed_context,
+        "confirmedContext": dict(confirmed_context),
         "flags": [],
         "blockedActions": [],
         "targetedResolution": {},
     }
     api = TargetedApi()
-    resume_calls = []
-    completion_calls = []
+    store = EphemeralPostGuardContinuationStore()
+    downstream_calls: list[tuple[dict, str]] = []
 
-    def exact_resumer(**kwargs):
-        resume_calls.append(kwargs)
-        raise AssertionError("Investigator must not be resumed")
+    # No repository work may happen on this path: fail if an analyst is dispatched.
+    analyst_calls: list[dict] = []
 
-    def exact_completer(**kwargs):
-        completion_calls.append(kwargs)
+    class _ForbiddenAnalyst:
+        def dispatch(self, **kwargs):
+            analyst_calls.append(kwargs)
+            raise AssertionError("scope-excluded rule must not dispatch repository work")
 
     boundary = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
         api_client=api,
         dispatcher=RecordingDispatcher(targeted_handoff),
-        investigator_resumer=exact_resumer,
-        investigation_completer=exact_completer,
+        downstream_handler=lambda p, c: downstream_calls.append((p, c)),
+        continuation_store=store,
     )
 
-    boundary.handle(_message(reason="INVESTIGATOR_RESOLUTION_REQUIRED"), "corr-1")
+    boundary.handle(_message(reason="BUSINESS_CONTEXT_RESOLUTION_REQUIRED"), "corr-1")
 
-    assert resume_calls == []
-    assert len(completion_calls) == 1
-    handoff = completion_calls[0]["resumed_handoff"]
-    assert handoff["status"] == "READY"
-    assert handoff["claims"][0]["claim_type"] == "RULE_SCOPE_NOT_APPLICABLE"
-    assert handoff["claims"][0]["customer_context_refs"] == ["stmt-national-data"]
-    assert handoff["claims"][0]["criterion"] == "TARGETED_SCOPE_EXCLUDED"
+    assert len(downstream_calls) == 1
+    assert downstream_calls[0][0]["outcome"] == "CONTEXT_RESOLVED"
+    assert analyst_calls == []
+    record = store.get(
+        assessment_id="assessment-1", context_revision=2, outcome="CONTEXT_RESOLVED"
+    )
+    assert record is not None and record.completed
+
+    # Strict binding still holds for the scope answer.
+    typed = normalize_confirmed_structured_business_context(
+        {
+            "outcome": "CONTEXT_RESOLVED",
+            "contextRevision": 2,
+            "confirmedContext": dict(confirmed_context),
+        },
+        assessment_id="assessment-1",
+    )
+    assert _bind_answer_to_need(dict(continuation), typed) == "ENG-SCOPE-1"
+
+    # Deterministic scope exclusion: the False statement makes the legal rule
+    # NOT_APPLICABLE, so finalize closes without analysis.
+    rule = EngineeringRule(
+        engineering_rule_id="ENG-SCOPE-1",
+        legal_rule_id="LEGAL-SCOPE-1",
+        legal_rule_catalog_version_id="catalog-1",
+        legal_corpus_version_id="corpus-1",
+        concept="national data reuse",
+        legal_intent={},
+        investigation_goals=("inspect national data reuse",),
+        starting_node_types=("AI_MODEL_INVOCATION",),
+        target_node_types=("AI_MODEL_INVOCATION",),
+        edge_strategies=(),
+        graph_queries=(),
+        required_evidence=("CONTROL",),
+        source_chunk_ids=("chunk-1",),
+        source_locators=("Article 1",),
+    )
+    gate = evaluate_applicability(
+        [
+            {
+                "legalRuleId": "LEGAL-SCOPE-1",
+                "requiredFacts": [
+                    {"field": "nationalDataSourceReuse", "expectedValue": True}
+                ],
+            }
+        ],
+        ai_discovery=None,
+        confirmed_statements=[
+            {
+                "topic": "national_data_source_reuse",
+                "normalizedValue": False,
+                "statementId": "stmt-national-data",
+                "statement": "No national data repository source is reused.",
+            }
+        ],
+        engineering_rule_ids_by_legal={"LEGAL-SCOPE-1": ["ENG-SCOPE-1"]},
+    )
+    assert gate["LEGAL-SCOPE-1"]["status"] == APPLICABILITY_STATUSES["not_applicable"]
+
+    class _LedgerApi:
+        def __init__(self):
+            self.rows: list[dict] = []
+
+        def list_rule_assessments(self, assessment_id):
+            assert assessment_id == "assessment-1"
+            return list(self.rows)
+
+        def put_rule_assessment(self, assessment_id, engineering_rule_id, payload):
+            raise AssertionError("NOT_APPLICABLE must not write a rule row")
+
+    evaluations = finalize_rule_results(
+        assessment_id="assessment-1",
+        rules=[rule],
+        api=_LedgerApi(),
+        applicability_facts={
+            "legal_rules": [{"legalRuleId": "ENG-SCOPE-1"}],
+            "ai_discovery": None,
+            "confirmed_statements": (),
+        },
+        context_revision=2,
+        applicability={"ENG-SCOPE-1": {"status": APPLICABILITY_STATUSES["not_applicable"]}},
+        commit_sha="abc123",
+    )
+    assert evaluations[0].status == "NOT_APPLICABLE"
+    assert analyst_calls == []
+    # Lazy needs: a decided row registers nothing.
+    assert (
+        register_business_needs(
+            rule=rule,
+            assessment={
+                "status": RULE_ANALYSIS_STATUSES["completed"],
+                "criteria": [],
+                "contextRevision": 2,
+            },
+            context=SimpleNamespace(
+                workflow_run_id="run-scope",
+                artifact_versions={},
+                assessment_id="assessment-1",
+            ),
+            api=SimpleNamespace(
+                post_interview_targeted_need=lambda *a, **k: (_ for _ in ()).throw(
+                    AssertionError("no need should register")
+                )
+            ),
+            user_id="user-test-actor",
+        )
+        == []
+    )
 
 
 def _readiness_decision(*statements: dict, mode: str = "INITIAL_INTERVIEW") -> dict:
@@ -2006,9 +2206,6 @@ def test_minimum_context_d_unknown_answer_stays_unknown_and_is_not_a_negative():
     from tools.common.capabilities.workflow.recovery.interview_boundary import (
         _missing_initial_planning_context_dimensions,
     )
-    from tools.common.capabilities.assessment.planning.engineering_rule.planning_business_scope import (
-        RulePlanningBusinessScope,
-    )
 
     unknown = _statement(
         "I am not sure whether AI output can automatically trigger a workflow gate.",
@@ -2017,15 +2214,98 @@ def test_minimum_context_d_unknown_answer_stays_unknown_and_is_not_a_negative():
     )
     missing = _missing_initial_planning_context_dimensions(_readiness_decision(unknown))
 
+    # Root cause: the deleted RulePlanningBusinessScope used to model
+    # DECISION_PATH_UNRESOLVED/UNKNOWN. The new per-rule runtime keeps the same
+    # invariant via the minimum-context gate + deterministic finalize.
+    # Fix: an explicit UNKNOWN answer resolves its own dimension (it was asked
+    # and answered) but never counts as a negative and never short-circuits
+    # readiness like an explicit "no AI" statement.
     # The customer explicitly answered the decision-effect question as unknown ...
     assert "decisionInfluence" not in missing
     # ... which does not short-circuit readiness like an explicit "no AI" statement.
     assert missing
-    # Without evidenced decision effect the planning scope stays unresolved/unknown.
-    scope = RulePlanningBusinessScope()
-    assert scope.decision_influence_state == "DECISION_PATH_UNRESOLVED"
-    assert scope.decision_influence_state != "NO_AI_DECISION_SIGNAL"
-    assert scope.human_oversight_state == "UNKNOWN"
+    # Contrast: explicit absence short-circuits; UNKNOWN must not.
+    assert (
+        _missing_initial_planning_context_dimensions(
+            _readiness_decision(_statement("We do not use AI in this product."))
+        )
+        == []
+    )
+    # Without evidenced decision effect the rule outcome stays UNKNOWN (epistemic),
+    # never a negative: NOT_OBSERVED finalizes UNKNOWN, never NON_COMPLIANT.
+    from tools.common.capabilities.assessment.rule_assessment.run import (
+        finalize_rule_results,
+    )
+    from tools.common.capabilities.assessment.rule_assessment.values import (
+        RULE_ANALYSIS_STATUSES,
+        RULE_CRITERION_STATUSES,
+    )
+    from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
+
+    rule = EngineeringRule(
+        engineering_rule_id="ENG-UNKNOWN-1",
+        legal_rule_id="LEGAL-UNKNOWN-1",
+        legal_rule_catalog_version_id="catalog-1",
+        legal_corpus_version_id="corpus-1",
+        concept="unknown decision effect",
+        legal_intent={},
+        investigation_goals=("inspect unknown",),
+        starting_node_types=("AI_MODEL_INVOCATION",),
+        target_node_types=("AI_MODEL_INVOCATION",),
+        edge_strategies=(),
+        graph_queries=(),
+        required_evidence=("CONTROL",),
+        source_chunk_ids=("chunk-1",),
+        source_locators=("Article 1",),
+    )
+
+    class _LedgerApi:
+        def __init__(self):
+            self.rows = [
+                {
+                    "resultId": "rar_unknown_1",
+                    "assessmentId": "assessment-1",
+                    "engineeringRuleId": "ENG-UNKNOWN-1",
+                    "engineeringRuleVersion": __import__(
+                        "tools.common.capabilities.assessment.rule_assessment.run",
+                        fromlist=["rule_runtime_version"],
+                    ).rule_runtime_version(rule),
+                    "repositoryVersion": "abc123",
+                    "contextRevision": 2,
+                    "status": RULE_ANALYSIS_STATUSES["unresolved"],
+                    "criteria": [
+                        {
+                            "criterionId": "CONTROL",
+                            "status": RULE_CRITERION_STATUSES["notObserved"],
+                            "evidenceRefs": [],
+                            "evidence": [],
+                            "technicalFacts": [],
+                            "limitations": ["ENGINEERING_EVIDENCE_INSUFFICIENT"],
+                        }
+                    ],
+                    "limitations": ["ENGINEERING_EVIDENCE_INSUFFICIENT"],
+                    "execution": {"attempt": 1, "runId": "run-unknown"},
+                }
+            ]
+
+        def list_rule_assessments(self, assessment_id):
+            assert assessment_id == "assessment-1"
+            return [dict(row) for row in self.rows]
+
+    evaluations = finalize_rule_results(
+        assessment_id="assessment-1",
+        rules=[rule],
+        api=_LedgerApi(),
+        applicability_facts={
+            "legal_rules": [{"legalRuleId": "ENG-UNKNOWN-1"}],
+            "ai_discovery": None,
+            "confirmed_statements": (),
+        },
+        context_revision=2,
+        commit_sha="abc123",
+    )
+    assert evaluations[0].status == "UNKNOWN"
+    assert evaluations[0].status != "NON_COMPLIANT"
 
 
 @pytest.mark.parametrize(
@@ -2067,7 +2347,7 @@ def test_minimum_context_e_targeted_resolution_is_never_gated_by_initial_readine
 
     shallow_targeted = _readiness_decision(
         _statement("External data sources are not reused.", topic="national_data_source_reuse"),
-        mode="INVESTIGATOR_RESOLUTION",
+        mode="BUSINESS_CONTEXT_RESOLUTION",
     )
     assert _missing_initial_planning_context_dimensions(shallow_targeted) == []
     # A CONTEXT_READY mislabelled on a targeted turn is also not an initial readiness check.
@@ -2103,3 +2383,86 @@ def test_empty_initial_context_ready_is_missing_every_dimension():
     assert _missing_initial_planning_context_dimensions(_readiness_decision()) == (
         _ALL_PLANNING_DIMENSIONS
     )
+
+
+
+def test_api_unauthorized_evidence_ref_is_fed_back_to_the_specialist_verbatim() -> None:
+    source_ref = "packages/api/src/features/ai/service.ts"
+    api = RecordingApi()
+    api.post_interview_progress = Mock()
+    accepted = {"outcome": "WAITING_FOR_CUSTOMER"}
+    rejected_decision = deepcopy(WAITING_HANDOFF)
+    corrected_decision = deepcopy(WAITING_HANDOFF)
+    dispatcher = RecordingDispatcher()
+    dispatcher.dispatch = Mock(side_effect=[
+        {"handoff": rejected_decision},
+        {"handoff": corrected_decision},
+    ])
+    api.post_interview_agent_decision = Mock(side_effect=[
+        InterviewDecisionRepairableCallbackError(
+            "INTERVIEW_EVIDENCE_REF_UNAUTHORIZED: client error",
+            error_code="INTERVIEW_EVIDENCE_REF_UNAUTHORIZED",
+            status_code=400,
+            meta={"unauthorizedRef": source_ref},
+        ),
+        accepted,
+    ])
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
+    )
+    boundary._run_guarded_continuation = Mock()
+
+    boundary.handle(_message(), "corr-1")
+
+    repair = dispatcher.dispatch.call_args_list[1].kwargs
+    payload = json.loads(repair["instruction"].split("\n\n", 1)[1])
+    feedback = payload["decisionValidationFeedback"]
+    assert feedback["code"] == "INTERVIEW_EVIDENCE_REF_UNAUTHORIZED"
+    assert feedback["unauthorizedEvidenceRef"] == source_ref
+    assert api.post_interview_agent_decision.call_count == 2
+    boundary._run_guarded_continuation.assert_called_once()
+
+
+def test_text_only_handoff_json_is_recovered_and_strictly_validated():
+    from langchain_core.messages import AIMessage
+
+    text = "Here is the handoff:\n```json\n" + json.dumps(WAITING_HANDOFF) + "\n```"
+    handoff = RootSubagentDispatcher._validated_handoff(
+        subagent_type="interview",
+        response_format=object(),
+        invocation_result={"messages": [AIMessage(content=text)]},
+    )
+
+    assert handoff["outcome"] == "WAITING_FOR_CUSTOMER"
+    assert handoff["activeQuestion"]["id"] == "agent-question-next"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "I will ask the customer about deployment.",
+        '{"outcome": "WAITING_FOR_CUSTOMER"',
+    ],
+)
+def test_text_without_a_json_handoff_still_fails_repairably(content):
+    from langchain_core.messages import AIMessage
+
+    with pytest.raises(SpecialistHandoffValidationError, match="structured_response"):
+        RootSubagentDispatcher._validated_handoff(
+            subagent_type="interview",
+            response_format=object(),
+            invocation_result={"messages": [AIMessage(content=content)]},
+        )
+
+
+def test_text_json_violating_the_handoff_schema_is_rejected():
+    from langchain_core.messages import AIMessage
+
+    broken = {**deepcopy(WAITING_HANDOFF), "activeQuestion": None}
+
+    with pytest.raises(SpecialistHandoffValidationError):
+        RootSubagentDispatcher._validated_handoff(
+            subagent_type="interview",
+            response_format=object(),
+            invocation_result={"messages": [AIMessage(content=json.dumps(broken))]},
+        )

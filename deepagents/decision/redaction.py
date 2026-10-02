@@ -250,7 +250,7 @@ APPROVED_QUESTION_PROMPTS_BY_DECISION_TYPE = {
         "exact_head_lifecycle_risk": "Return whether exact-head lifecycle handling needs attention.",
         "needs_deep_review": "Return whether bounded metadata suggests deep review is needed.",
         "likely_missing_regression_tests": "Return whether bounded metadata suggests missing regression tests.",
-        "requires_managed_sandbox_attention": "Return whether bounded metadata suggests managed sandbox attention.",
+        "requires_sandbox_attention": "Return whether bounded metadata suggests sandbox attention.",
         "change_complexity": "Score bounded change complexity.",
         "operational_risk": "Score bounded operational risk.",
         "review_depth": "Score bounded review depth.",

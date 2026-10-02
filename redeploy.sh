@@ -22,7 +22,7 @@ readonly LEGACY_PM2_APPS=(
 readonly EXPECTED_PM2_APPS=(
   lcsp-api
   lcsp-web
-  lcsp-managed-deep-agent
+  lcsp-agent-runtime
 )
 
 require_command() {
@@ -95,6 +95,7 @@ restart_pm2() {
 
 require_command curl
 require_command dotenv
+require_command docker
 require_command git
 require_command npm
 require_command pm2
@@ -108,16 +109,14 @@ git pull --ff-only
 echo "==> Install Node dependencies"
 pnpm install --frozen-lockfile
 
-echo "==> Install Managed Deep Agent"
+echo "==> Install LCSP Agent Runtime"
 .venv/bin/python -m pip install ./deepagents
 
-echo "==> Build scanner TS/JS analyzer"
-cd "$APP/deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer"
-npm ci
-npm run build
-npm prune --omit=dev
-
-cd "$APP"
+echo "==> Build LCSP repository sandbox image"
+docker build \
+  -f deepagents/Dockerfile \
+  -t lcsp-agent-runtime:production-sandbox \
+  .
 
 echo "==> Build API"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/api build

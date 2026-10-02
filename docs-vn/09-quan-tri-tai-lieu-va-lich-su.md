@@ -33,7 +33,7 @@ Chuẩn hóa canonical UC/FR/AC/NFR, scanner ownership, legal corpus/retrieval v
 
 ### Phase 5.2L
 
-Project Owner yêu cầu PBAC, loại structured attestation, thay Local/CI upload bằng Automatic Trusted Scan Initiation, loại manual evidence JSON khỏi product, chuyển mọi async workload sang Python Worker Platform và mở rộng scanner toolchain.
+Project Owner yêu cầu PBAC, loại structured attestation, thay Local/CI upload bằng Automatic Trusted Scan Initiation, loại manual evidence JSON khỏi product, chuyển mọi async workload sang Python Worker Platform và chuyển repository analysis sang LCSP Agent Runtime.
 
 PR #2 đã cập nhật tài liệu active theo direction này. Pass rút gọn tài liệu hiện chỉ giữ các nhóm authority đã được Project Owner yêu cầu.
 
@@ -63,7 +63,7 @@ IMPLEMENTATION_READINESS_NOT_CERTIFIED
 IMPLEMENTATION_NOT_AUTHORIZED
 ```
 
-Các technical decisions về PBAC engine/topology, scan-trigger retry/DLQ/idempotency và scanner tool failure severity có thể được carry forward qua UX dưới dạng constraint, nhưng phải được giải quyết hoặc gắn dependency rõ trước khi story/readiness được duyệt. RAG Phase 5.2L đã khóa ChromaDB vectorless và supersede pgvector legal retrieval.
+Các technical decisions về PBAC engine/topology, scan-trigger retry/DLQ/idempotency và repository-analysis coverage/failure policy có thể được carry forward qua UX dưới dạng constraint, nhưng phải được giải quyết hoặc gắn dependency rõ trước khi story/readiness được duyệt. RAG Phase 5.2L đã khóa ChromaDB vectorless và supersede pgvector legal retrieval.
 
 ## Vai trò của docs-vn
 

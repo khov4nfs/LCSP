@@ -1,9 +1,12 @@
+import { asRecord as record } from "@lcsp/contracts/shared";
 import { Injectable } from "@nestjs/common";
 import {
   ASSESSMENT_ARTIFACT_STATUSES,
   ASSESSMENT_ARTIFACT_TYPES,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
+  RULE_ANALYSIS_ACTIVITIES,
+  RULE_ANALYSIS_TOOL_PREFIX,
   BUSINESS_CONTEXT_DIMENSIONS,
   BUSINESS_CONTEXT_DIMENSION_STATUSES,
   INVESTIGATION_ASSESSMENT_OUTCOMES,
@@ -28,7 +31,6 @@ import { AssessmentRuntimeEventService } from "../../../../../platform/runtime-e
 import { sanitizePublicText } from "../../../../assessment/application/services/assessment-interview-runtime.service.js";
 import { missingInitialPlanningContextDimensions } from "../../../../assessment/application/services/interview-minimum-planning-context.js";
 
-const INVESTIGATOR_TOOL_PREFIX = "engineering_rule_investigation:";
 const PUBLIC_UNRESOLVED_EVIDENCE = "UNRESOLVED_EVIDENCE";
 const PUBLIC_RUNTIME_ERROR = "ENGINEERING_INVESTIGATION_RUNTIME_ERROR";
 
@@ -185,8 +187,8 @@ export class AssessmentArtifactProjectionService {
         ASSESSMENT_ARTIFACT_STATUSES.notAvailable,
       );
     }
-    const { progress, plannerEvent, investigationEvents } = durable;
-    const plannerAt = new Date(plannerEvent.emittedAt);
+    const { progress, summaryEvent, ruleEvents } = durable;
+    const summaryAt = new Date(summaryEvent.emittedAt);
     const [
       thread,
       latestScan,
@@ -214,7 +216,7 @@ export class AssessmentArtifactProjectionService {
         select: { id: true, snapshotId: true, createdAt: true },
       }),
       this.prisma.classificationResult.findFirst({
-        where: { assessmentId, createdAt: { gte: plannerAt } },
+        where: { assessmentId, createdAt: { gte: summaryAt } },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: { classificationData: true, createdAt: true },
       }),
@@ -224,27 +226,25 @@ export class AssessmentArtifactProjectionService {
     const identity = {
       assessmentId,
       workflowRunId: progress.runId,
-      planningBatchId: progress.planningBatchId,
-      contextRevisionUsed: progress.contextRevisionUsed,
+      contextRevisionUsed: progress.contextRevision,
       technicalEvidenceReportId: reportForRun?.id ?? null,
       snapshotId: reportForRun?.snapshotId ?? null,
     };
     const staleForNewWorkflowRun =
       latestRunStart !== null &&
       latestRunStart.runId !== progress.runId &&
-      new Date(latestRunStart.emittedAt).getTime() > plannerAt.getTime();
+      new Date(latestRunStart.emittedAt).getTime() > summaryAt.getTime();
     const staleForNewRun =
       latestScan !== null &&
       latestScan.id !== progress.runId &&
-      latestScan.updatedAt.getTime() > plannerAt.getTime();
+      latestScan.updatedAt.getTime() > summaryAt.getTime();
     const staleForNewEvidence =
       latestReport !== null &&
       latestReport.scanJobId !== progress.runId &&
-      latestReport.createdAt.getTime() > plannerAt.getTime();
+      latestReport.createdAt.getTime() > summaryAt.getTime();
     const staleForContext =
-      progress.contextRevisionUsed === null ||
-      (thread !== null &&
-        thread.contextRevision !== progress.contextRevisionUsed);
+      progress.contextRevision === null ||
+      (thread !== null && thread.contextRevision !== progress.contextRevision);
     if (
       staleForNewWorkflowRun ||
       staleForNewRun ||
@@ -255,17 +255,17 @@ export class AssessmentArtifactProjectionService {
         assessmentId,
         ASSESSMENT_ARTIFACT_STATUSES.pending,
         identity,
-        plannerEvent.emittedAt,
+        summaryEvent.emittedAt,
       );
     }
 
-    const latestEvents = latestEventsByRule(investigationEvents);
-    if (progress.planner.selectedCount > 0 && latestEvents.size === 0) {
+    const latestEvents = latestEventsByRule(ruleEvents);
+    if (progress.eligibleCount > 0 && latestEvents.size === 0) {
       return investigationUnavailable(
         assessmentId,
         ASSESSMENT_ARTIFACT_STATUSES.pending,
         identity,
-        plannerEvent.emittedAt,
+        summaryEvent.emittedAt,
       );
     }
 
@@ -275,11 +275,11 @@ export class AssessmentArtifactProjectionService {
     const evaluationByRule = new Map(
       evaluations.map((evaluation) => [evaluation.ruleId, evaluation]),
     );
-    const ruleIds = orderedRuleIds(investigationEvents, evaluations);
+    const ruleIds = orderedRuleIds(ruleEvents, evaluations);
     const rules: InvestigationRuleNote[] = ruleIds.map((ruleId, index) => {
       const latest = latestEvents.get(ruleId) ?? null;
       const evaluation = evaluationByRule.get(ruleId) ?? null;
-      const everWaited = investigationEvents.some(
+      const everWaited = ruleEvents.some(
         (event) =>
           ruleIdFromEvent(event) === ruleId &&
           event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput,
@@ -326,8 +326,8 @@ export class AssessmentArtifactProjectionService {
         value.status !== ENGINEERING_RULE_EVALUATION_STATUSES.notApplicable,
     );
     const fullyEvidenceBacked =
-      progress.planner.selectedCount > 0 &&
-      evaluations.length >= progress.planner.selectedCount &&
+      progress.eligibleCount > 0 &&
+      evaluations.length >= progress.eligibleCount &&
       substantive.length > 0 &&
       substantive.every(
         (value) =>
@@ -349,46 +349,49 @@ export class AssessmentArtifactProjectionService {
     const evidenceQuality = fullyEvidenceBacked
       ? INVESTIGATION_EVIDENCE_QUALITIES.evidenceBacked
       : INVESTIGATION_EVIDENCE_QUALITIES.insufficientEvidence;
+    const pendingRules = Math.max(
+      progress.eligibleCount -
+        progress.completed -
+        progress.needsContext -
+        progress.unresolved -
+        progress.failed,
+      0,
+    );
     const executionStatus =
-      progress.investigator.runtimeFailedCount > 0
+      progress.failed > 0
         ? INVESTIGATION_EXECUTION_STATUSES.interrupted
-        : progress.investigator.pendingCount === 0 &&
-            progress.investigator.waitingForInputCount === 0
+        : pendingRules === 0 && progress.needsContext === 0
           ? INVESTIGATION_EXECUTION_STATUSES.completed
           : INVESTIGATION_EXECUTION_STATUSES.inProgress;
     const limitations = unique([
       ...evaluations.flatMap((value) => value.limitations),
-      ...(progress.investigator.domainLimitedCount > 0
-        ? [PUBLIC_UNRESOLVED_EVIDENCE]
-        : []),
-      ...(progress.investigator.runtimeFailedCount > 0
-        ? [PUBLIC_RUNTIME_ERROR]
-        : []),
+      ...(progress.unresolved > 0 ? [PUBLIC_UNRESOLVED_EVIDENCE] : []),
+      ...(progress.failed > 0 ? [PUBLIC_RUNTIME_ERROR] : []),
     ]).map((value) => sanitizePublicText(value) ?? value);
     const updatedAt =
       [
-        plannerEvent.emittedAt,
-        ...investigationEvents.map((event) => event.emittedAt),
+        summaryEvent.emittedAt,
+        ...ruleEvents.map((event) => event.emittedAt),
         ...(classification ? [classification.createdAt.toISOString()] : []),
       ]
         .sort()
-        .at(-1) ?? plannerEvent.emittedAt;
+        .at(-1) ?? summaryEvent.emittedAt;
 
     return {
       type: ASSESSMENT_ARTIFACT_TYPES.investigationNotes,
       status: ASSESSMENT_ARTIFACT_STATUSES.ready,
       identity,
-      generatedAt: plannerEvent.emittedAt,
+      generatedAt: summaryEvent.emittedAt,
       updatedAt,
       content: {
         summary: {
-          candidateRules: progress.planner.candidateCount,
-          selectedRules: progress.planner.selectedCount,
-          investigatedRules: progress.investigator.completedCount,
-          pendingRules: progress.investigator.pendingCount,
-          waitingRules: progress.investigator.waitingForInputCount,
-          domainLimitedRules: progress.investigator.domainLimitedCount,
-          runtimeFailedRules: progress.investigator.runtimeFailedCount,
+          candidateRules: progress.engineeringRuleCount,
+          selectedRules: progress.eligibleCount,
+          investigatedRules: progress.completed,
+          pendingRules: pendingRules,
+          waitingRules: progress.needsContext,
+          domainLimitedRules: progress.unresolved,
+          runtimeFailedRules: progress.failed,
         },
         executionStatus,
         assessmentOutcome,
@@ -421,7 +424,6 @@ function investigationUnavailable(
   identity: InvestigationNotesArtifact["identity"] = {
     assessmentId,
     workflowRunId: null,
-    planningBatchId: null,
     contextRevisionUsed: null,
     technicalEvidenceReportId: null,
     snapshotId: null,
@@ -505,15 +507,27 @@ function eventRuleOutcome(
   event: AssessmentRuntimeActivityEvent | null,
 ): InvestigationRuleNote["outcome"] | null {
   if (!event) return null;
-  if (event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput) {
+  const activity = stringValue(record(event.outputSummary)?.activity);
+  if (
+    event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput ||
+    activity === RULE_ANALYSIS_ACTIVITIES.ruleAnalysisNeedsContext ||
+    activity === RULE_ANALYSIS_ACTIVITIES.businessContextRequested
+  ) {
     return INVESTIGATION_RULE_OUTCOMES.waitingForContext;
   }
-  if (event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed) {
-    return record(event.outputSummary)?.failureKind === "RUNTIME_ERROR"
-      ? INVESTIGATION_RULE_OUTCOMES.runtimeError
-      : INVESTIGATION_RULE_OUTCOMES.unresolved;
+  if (activity === RULE_ANALYSIS_ACTIVITIES.ruleAnalysisUnresolved) {
+    return INVESTIGATION_RULE_OUTCOMES.unresolved;
   }
-  if (event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted) {
+  if (
+    activity === RULE_ANALYSIS_ACTIVITIES.ruleAnalysisFailed ||
+    event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed
+  ) {
+    return INVESTIGATION_RULE_OUTCOMES.runtimeError;
+  }
+  if (
+    activity === RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted ||
+    event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted
+  ) {
     return null;
   }
   return event.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.failed
@@ -558,8 +572,8 @@ function orderedRuleIds(
 }
 
 function ruleIdFromEvent(event: AssessmentRuntimeActivityEvent): string | null {
-  if (!event.toolName?.startsWith(INVESTIGATOR_TOOL_PREFIX)) return null;
-  return event.toolName.slice(INVESTIGATOR_TOOL_PREFIX.length).trim() || null;
+  if (!event.toolName?.startsWith(RULE_ANALYSIS_TOOL_PREFIX)) return null;
+  return event.toolName.slice(RULE_ANALYSIS_TOOL_PREFIX.length).trim() || null;
 }
 
 function publicStrings(value: unknown): string[] {
@@ -604,12 +618,6 @@ function publicScopeSummary(scope: {
     .filter(([, count]) => count > 0)
     .map(([label, count]) => `${count} ${label}`);
   return parts.length > 0 ? parts.join(", ") : "Assessment scope";
-}
-
-function record(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 function stringValue(value: unknown): string | null {

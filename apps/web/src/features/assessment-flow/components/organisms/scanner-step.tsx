@@ -24,6 +24,8 @@ type ScannerStepProps = {
   repository: RepositoryHistory;
   activities: ScannerActivityItem[];
   evidenceReady: boolean;
+  /** "Thinking..." while scanning, then the measured "Thought for N seconds". */
+  thinkingLabel?: string;
   programEvidenceSummary: ProgramEvidenceSummaryType;
   canonicalOverview?: ProgramEvidenceGraphOverview | null;
   scanFailed?: boolean;
@@ -38,6 +40,7 @@ export function ScannerStep({
   repository,
   activities,
   evidenceReady,
+  thinkingLabel,
   programEvidenceSummary,
   canonicalOverview,
   scanFailed = false,
@@ -59,9 +62,10 @@ export function ScannerStep({
       <AgentTurn>
         <ThinkingLine
           label={
-            evidenceReady
-              ? t("pages.assessmentFlow.scanner.completeThinking")
-              : t("pages.assessmentFlow.scanner.runningThinking")
+            thinkingLabel ??
+            (evidenceReady
+              ? t("pages.assessmentFlow.thinking.completedWithoutDuration")
+              : t("pages.assessmentFlow.thinking.running"))
           }
         />
         <AgentMessage className="mt-2 text-muted-foreground">

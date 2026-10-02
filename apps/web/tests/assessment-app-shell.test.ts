@@ -84,14 +84,6 @@ const sidebarHeaderControlsPath = new URL(
   "../src/features/workspace/components/molecules/sidebar-header-controls.tsx",
   import.meta.url,
 );
-const workspaceSwitcherPath = new URL(
-  "../src/features/workspace/components/molecules/workspace-switcher.tsx",
-  import.meta.url,
-);
-const uiSidebarPath = new URL(
-  "../src/components/ui/sidebar.tsx",
-  import.meta.url,
-);
 const agentsPath = new URL("../../../AGENTS.md", import.meta.url);
 const recentFilterTypesPath = new URL(
   "../src/features/workspace/types/recent-filter.types.ts",
@@ -747,23 +739,17 @@ test("sidebar hover hints use shadcn tooltip primitives instead of native title 
     navItemSource,
     recentItemSource,
     headerControlsSource,
-    workspaceSwitcherSource,
-    uiSidebarSource,
   ] = await Promise.all([
     readFile(agentsPath, "utf8"),
     readFile(appSidebarPath, "utf8"),
     readFile(sidebarNavItemPath, "utf8"),
     readFile(recentAssessmentItemPath, "utf8"),
     readFile(sidebarHeaderControlsPath, "utf8"),
-    readFile(workspaceSwitcherPath, "utf8"),
-    readFile(uiSidebarPath, "utf8"),
   ]);
   const tooltipSources = [
     navItemSource,
     recentItemSource,
     headerControlsSource,
-    workspaceSwitcherSource,
-    uiSidebarSource,
   ].join("\n");
 
   assert.match(agentsSource, /Do not add HTML `title` attributes/);

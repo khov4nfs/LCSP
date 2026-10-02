@@ -1,7 +1,0 @@
-# LCSP pinned scanner configuration for Syft SBOM extraction.
-# Keep this file under source control so config hash provenance is stable.
-source:
-  name: dir
-
-output:
-  format: json

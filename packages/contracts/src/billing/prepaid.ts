@@ -1,7 +1,7 @@
 import type {
   BillingHistoryView as BillingHistoryViewSchema,
   BillingOrderView as BillingOrderViewSchema,
-  BillingUsageEstimate as BillingUsageEstimateSchema,
+  BillingPrepaidEstimate as BillingPrepaidEstimateSchema,
   BillingWalletView as BillingWalletViewSchema,
 } from "./schemas.ts";
 
@@ -19,9 +19,6 @@ export const BILLING_PAYMENT_PROVIDERS = {
   sepay: "SEPAY",
 } as const;
 
-/** The root runtime route is the customer-facing default estimate context. */
-export const BILLING_ESTIMATE_RUNTIME_ROLE = "root" as const;
-
 export type BillingPaymentProvider =
   (typeof BILLING_PAYMENT_PROVIDERS)[keyof typeof BILLING_PAYMENT_PROVIDERS];
 
@@ -36,15 +33,7 @@ export type PrepaidEstimate = {
   expiresInHours: number;
 };
 
-export const BILLING_ESTIMATE_AVAILABILITY = {
-  available: "AVAILABLE",
-  insufficientPricingConfiguration: "INSUFFICIENT_PRICING_CONFIGURATION",
-} as const;
-
-export type BillingEstimateAvailability =
-  (typeof BILLING_ESTIMATE_AVAILABILITY)[keyof typeof BILLING_ESTIMATE_AVAILABILITY];
-
-export type BillingUsageEstimate = BillingUsageEstimateSchema;
+export type BillingPrepaidEstimate = BillingPrepaidEstimateSchema;
 export type BillingWalletView = BillingWalletViewSchema;
 export type BillingOrderView = BillingOrderViewSchema;
 export type BillingHistoryView = BillingHistoryViewSchema;

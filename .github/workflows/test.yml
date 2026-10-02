@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: ["**"]
   push:
-    branches: [develop]
+    branches: [main, develop]
   workflow_dispatch:
 
 permissions:
@@ -47,9 +47,6 @@ jobs:
               - 'packages/i18n/**'
               - 'frozen/interview-agent-frozen/**'
               - 'tests/**'
-              - 'docs/operations/lcsp-333-managed-sandbox-release-gate.md'
-              - 'scripts/check-managed-sandbox-release-gate.mjs'
-              - 'scripts/check-managed-sandbox-release-gate.test.mjs'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
@@ -57,26 +54,30 @@ jobs:
             python:
               - '.github/workflows/test.yml'
               - 'deepagents/**'
+              - 'deepagents-langgraph/**'
               - 'frozen/interview-agent-frozen/**'
+              - 'scripts/dev-entry.mjs'
+              - 'scripts/dev-stop.test.mjs'
+              - 'scripts/prepare-cli.mjs'
+              - 'scripts/run*.mjs'
+              - 'package.json'
             release_gate:
               - '.github/workflows/test.yml'
-              - 'docs/operations/lcsp-333-managed-sandbox-release-gate.md'
-              - 'scripts/check-managed-sandbox-release-gate.mjs'
-              - 'scripts/check-managed-sandbox-release-gate.test.mjs'
               - 'apps/api/**'
               - 'apps/web/**'
               - 'deepagents/**'
-              - 'frozen/interview-agent-frozen/**'
+              - 'deepagents-langgraph/**'
               - 'packages/contracts/**'
               - 'packages/i18n/**'
+              - 'frozen/interview-agent-frozen/**'
+              - 'scripts/**'
               - 'tests/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'tsconfig*.json'
-
   release-gate-static:
-    name: Release gate static checks
+    name: Workspace static checks
     needs: changes
     if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
@@ -107,8 +108,8 @@ jobs:
       - name: Check billing production data sources
         run: pnpm run check:billing-release-gate
 
-      - name: Check managed sandbox release gate validator
-        run: pnpm run test:managed-sandbox-release-gate
+      - name: Test dev launcher scripts
+        run: pnpm run test:dev-scripts
 
   decision-pr-review-triage:
     name: PR review shadow triage packet
@@ -150,113 +151,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  managed-sandbox-release-gate:
-    name: Managed sandbox proof
-    needs: changes
-    if: >-
-      github.event_name == 'pull_request' &&
-      needs.changes.outputs.release_gate == 'true' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      vars.LCSP_MANAGED_SANDBOX_RUNNER_ENABLED == 'true'
-    runs-on: [self-hosted, linux, lcsp-managed-sandbox]
-    timeout-minutes: 45
-    permissions:
-      contents: read
-    steps:
-      - name: Execute trusted producer and pre-upload verifier
-        env:
-          LCSP333_PR_NUMBER: ${{ github.event.pull_request.number }}
-          LCSP333_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          LCSP333_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          LCSP333_TRIGGER_ID: ${{ github.event.pull_request.id }}:${{ github.run_id }}:${{ github.run_attempt }}
-        run: |
-          rm -rf "$RUNNER_TEMP/lcsp333-proof"
-          mkdir -p "$RUNNER_TEMP/lcsp333-proof"
-          lcsp-managed-sandbox-proof             --repository "$GITHUB_REPOSITORY"             --pr "$LCSP333_PR_NUMBER"             --base "$LCSP333_BASE_SHA"             --head "$LCSP333_HEAD_SHA"             --trigger "$LCSP333_TRIGGER_ID"             --out "$RUNNER_TEMP/lcsp333-proof/lcsp333-managed-sandbox-proof.json"
-          lcsp-managed-sandbox-verify             --proof "$RUNNER_TEMP/lcsp333-proof/lcsp333-managed-sandbox-proof.json"             --expected-pr "$LCSP333_PR_NUMBER"             --expected-base "$LCSP333_BASE_SHA"             --expected-head "$LCSP333_HEAD_SHA"             --out "$RUNNER_TEMP/lcsp333-proof/lcsp333-managed-sandbox-gate-result.json"
-
-      - name: Upload privacy-verified proof and trusted gate result
-        uses: actions/upload-artifact@v4
-        with:
-          name: lcsp333-trusted-gate-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
-          path: |
-            ${{ runner.temp }}/lcsp333-proof/lcsp333-managed-sandbox-proof.json
-            ${{ runner.temp }}/lcsp333-proof/lcsp333-managed-sandbox-gate-result.json
-          if-no-files-found: error
-          retention-days: 14
-
-  managed-sandbox-readiness:
-    name: Managed sandbox readiness diagnostic
-    needs: [changes, managed-sandbox-release-gate]
-    if: always() && github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - name: Record non-applicable readiness
-        if: needs.changes.outputs.release_gate != 'true'
-        run: |
-          echo "Managed sandbox diagnostic: NOT_APPLICABLE (release-gate surface not selected)."
-
-      - name: Require trusted managed-sandbox proof for same-repository PR
-        if: >-
-          needs.changes.outputs.release_gate == 'true' &&
-          github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          PRODUCER_RESULT: ${{ needs.managed-sandbox-release-gate.result }}
-          MANAGED_SANDBOX_RUNNER_ENABLED: ${{ vars.LCSP_MANAGED_SANDBOX_RUNNER_ENABLED }}
-        run: |
-          if [ "$PRODUCER_RESULT" = "success" ]; then
-            echo "Managed sandbox diagnostic: proof artifact is available for exact-head validation."
-            exit 0
-          fi
-
-          if [ "$PRODUCER_RESULT" = "skipped" ] && [ "$MANAGED_SANDBOX_RUNNER_ENABLED" != "true" ]; then
-            echo "::warning::Managed sandbox diagnostic: BLOCKED_NO_RUNNER. The repository variable LCSP_MANAGED_SANDBOX_RUNNER_ENABLED is not true, so the PR-owned proof job was not scheduled."
-            echo "::warning::This diagnostic is non-authoritative and cannot satisfy Managed sandbox readiness gate. A trusted external/protected control plane must publish proof, NOT_APPLICABLE, or a governed exemption."
-            exit 0
-          fi
-
-          echo "No trusted managed-sandbox proof is available for this exact head."
-          echo "A governed exemption must be supplied by a trusted external workflow/service; this PR workflow cannot mint one."
-          exit 1
-
-      - name: Download trusted proof gate result
-        if: >-
-          needs.changes.outputs.release_gate == 'true' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          needs.managed-sandbox-release-gate.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: lcsp333-trusted-gate-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
-          path: artifacts
-
-      - name: Verify immutable trusted proof outcome
-        if: >-
-          needs.changes.outputs.release_gate == 'true' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          needs.managed-sandbox-release-gate.result == 'success'
-        env:
-          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          node -e '
-            const fs = require("fs");
-            const result = JSON.parse(fs.readFileSync("artifacts/lcsp333-managed-sandbox-gate-result.json", "utf8"));
-            if (result.ok !== true) throw new Error("trusted managed-sandbox gate did not pass");
-            const head = result.summary?.headSha ?? result.headSha;
-            if (head !== process.env.EXPECTED_HEAD_SHA) throw new Error("trusted gate result is not for exact PR head");
-            if (!result.verifierVersion && !result.verifierHash) throw new Error("trusted verifier identity is missing");
-          '
-
-      - name: Fail closed for fork PR without external governed exemption
-        if: >-
-          needs.changes.outputs.release_gate == 'true' &&
-          github.event.pull_request.head.repo.full_name != github.repository
-        run: |
-          echo "::warning::Managed sandbox diagnostic: BLOCKED_FORK. Fork PRs never schedule the privileged managed-sandbox runner."
-          echo "::warning::A trusted external governance workflow/service must publish the required readiness status for proof, NOT_APPLICABLE, or an approved exemption."
-
   web-production-build:
     name: Web lint and production build
     needs: changes
@@ -292,7 +186,6 @@ jobs:
       LCSP_TEST_POSTGRES_USER: postgres
       LCSP_TEST_POSTGRES_PASSWORD: postgres
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55435/lcsp_api_test?schema=public
-      INTERVIEW_GUIDANCE_VERSION: interview-guidance-ci-v1
     steps:
       - uses: actions/checkout@v4
 
@@ -323,8 +216,6 @@ jobs:
     needs: changes
     if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
-    env:
-      INTERVIEW_GUIDANCE_VERSION: interview-guidance-ci-v1
     services:
       postgres:
         image: postgres:16
@@ -412,8 +303,66 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
 
+
+      - name: Validate LangGraph Agent Runtime config
+        env:
+          OPENAI_API_KEY: ci-import-only
+          LANGSMITH_TRACING: "false"
+          LANGCHAIN_TRACING_V2: "false"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("langgraph.json").read_text())
+          assert config["graphs"]["lcsp-agent"] == "./agent.py:agent"
+          PY
+          python - <<'PY'
+          import agent
+
+          assert agent.agent is not None
+          PY
+
       - name: Test Python workers
         run: pytest
+
+  docker-sandbox-e2e:
+    name: Docker sandbox E2E
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    env:
+      LCSP_DOCKER_SANDBOX_E2E: "1"
+      LCSP_PRODUCTION_AGENT_SERVER_IMAGE_E2E: "1"
+      LCSP_REPOSITORY_SANDBOX_IMAGE: lcsp-agent-runtime:dev
+      LCSP_PRODUCTION_AGENT_SERVER_IMAGE: lcsp-agent-runtime-server:ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: deepagents/pyproject.toml
+
+      - name: Install dependencies
+        working-directory: deepagents
+        run: python -m pip install -e ".[dev]"
+
+      - name: Build LCSP Agent Runtime Docker image
+        run: docker build -f deepagents/Dockerfile.dev -t lcsp-agent-runtime:dev .
+
+      - name: Build LCSP Agent Server production image
+        run: docker build -f deepagents-langgraph/Dockerfile -t lcsp-agent-runtime-server:ci .
+
+      - name: Run Docker sandbox E2E
+        working-directory: deepagents
+        run: >-
+          pytest -q
+          tests/integration/test_codebase_memory_runtime_e2e.py
+          tests/integration/test_docker_sandbox_e2e.py
+          tests/integration/test_local_agent_runtime_e2e.py
+          tests/integration/test_production_agent_server_image_e2e.py
 
   lcsp-278-production-vertical:
     name: Production Interview vertical
@@ -437,25 +386,20 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/lcsp_api_release_test?schema=public
       LCSP_API_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/lcsp_api_release_test?schema=public
+      LCSP_TEST_POSTGRES_PORT: 55437
+      LCSP_TEST_POSTGRES_DB: lcsp_api_release_test
       LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/lcsp_checkpoint_release_test
       LCSP_TEST_CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/lcsp_checkpoint_release_test
       LCSP_API_BASE_URL: http://127.0.0.1:3101
       WORKER_API_KEY: test-only-worker-api-key-at-least-32-chars
       PORT: 3101
       NODE_ENV: test
-      JWT_SECRET: test-only-jwt-secret-at-least-32-characters-long
-      OAUTH_ALLOWED_REDIRECT_URIS: http://localhost:3000/auth/callback
-      GITHUB_APP_SLUG: lcsp-app-test
-      GITHUB_APP_ID: 123456
-      GITHUB_APP_PRIVATE_KEY: test-only-private-key
-      GITHUB_APP_ALLOWED_REDIRECT_URIS: http://localhost:3000/github/callback
-      GITHUB_APP_CLIENT_ID: test-github-app-client-id
-      GITHUB_APP_CLIENT_SECRET: test-github-app-client-secret
       RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672
       MFA_SECRET_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: ci-kek-v1
+      GITHUB_CLI_CREDENTIAL_KEK_KEYRING: '{"ci-kek-v1":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc="}'
       LEGAL_CHROMA_PATH: /tmp/lcsp-278-release-chroma
       LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR: /tmp/lcsp-278-release-snapshot-cache
-      INTERVIEW_GUIDANCE_VERSION: interview-guidance-ci-v1
     steps:
       - uses: actions/checkout@v4
 
@@ -482,7 +426,9 @@ jobs:
         run: pnpm --filter @lcsp/api prisma:generate
 
       - name: Apply disposable API schema
-        run: pnpm --filter @lcsp/api exec prisma db push --accept-data-loss --force-reset
+        run: |
+          node apps/api/test/scripts/assert-disposable-database.mjs
+          node apps/api/test/scripts/reset-disposable-database-schema.mjs
 
       - name: Seed release vertical starting state
         run: pnpm --filter @lcsp/api exec tsx test/scripts/seed-lcsp-278-release-vertical.ts
@@ -541,3 +487,12 @@ jobs:
 
       - name: Run Billing and Admin Playwright E2E tests
         run: pnpm run test:billing:e2e
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,3 +1,4 @@
+import { asRecord } from "@lcsp/contracts/shared";
 import type { LegalProvisionDisplayDto } from "../contracts/assessment/assessment-detail.contract.js";
 
 type LegalChunkDisplaySource = {
@@ -7,8 +8,6 @@ type LegalChunkDisplaySource = {
   content: string;
   hierarchy: unknown;
 };
-
-type JsonRecord = Record<string, unknown>;
 
 export function resolveLegalProvisionDisplays(
   sourceChunkIds: string[],
@@ -77,12 +76,6 @@ function normalizeContent(value: string): string {
     .filter(Boolean)
     .join("\n")
     .trim();
-}
-
-function asRecord(value: unknown): JsonRecord | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : null;
 }
 
 function text(value: unknown): string | null {

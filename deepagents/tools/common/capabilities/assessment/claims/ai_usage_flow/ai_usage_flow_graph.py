@@ -127,7 +127,7 @@ class AIUsageFlowGraph:
         """Compile the load → rule → optional proposal → finalize → persist graph.
 
         Raises:
-            RuntimeError: If LangGraph is unavailable in the Managed Agent runtime.
+            RuntimeError: If LangGraph is unavailable in the Agent Runtime.
         """
         try:
             from langgraph.graph import END, START, StateGraph

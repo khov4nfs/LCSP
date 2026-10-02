@@ -12,8 +12,9 @@ function statusDotClass(status: NormalizedWorkflowStep["status"]) {
       return "bg-blue-500";
     case NORMALIZED_WORKFLOW_STEP_STATUSES.failed:
       return "bg-destructive";
-    case NORMALIZED_WORKFLOW_STEP_STATUSES.queued:
     case NORMALIZED_WORKFLOW_STEP_STATUSES.waiting:
+      return "bg-amber-500";
+    case NORMALIZED_WORKFLOW_STEP_STATUSES.queued:
     case NORMALIZED_WORKFLOW_STEP_STATUSES.skipped:
     case NORMALIZED_WORKFLOW_STEP_STATUSES.unknown:
     default:

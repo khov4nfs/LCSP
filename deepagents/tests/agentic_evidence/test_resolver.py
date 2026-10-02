@@ -10,7 +10,9 @@ from tools.common.capabilities.agentic_evidence import (
     AgenticToolValidationError,
     build_engineering_rule_agentic_registry,
 )
-from tools.common.capabilities.agentic_evidence.governance.authorization import AgenticAuthorizationResult
+from tools.common.capabilities.agentic_evidence.governance.authorization import (
+    AgenticAuthorizationResult,
+)
 
 
 class AllowAuthorizer:
@@ -36,40 +38,48 @@ def context() -> AgenticInvocationContext:
         workflow_run_id=uuid4(),
         correlationId=uuid4(),
         user_id="user-1",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-        scope={"pathPrefixes": ["apps/api/"]},
+        artifact_versions={"baselineId": "artifact-1", "technicalEvidenceReportId": "ter-1"},
+        scope={},
     )
 
 
-def test_resolver_exposes_exact_model_callable_catalog() -> None:
-    registry = build_engineering_rule_agentic_registry()
-    resolver = AgenticToolResolver(registry, AllowAuthorizer(), max_tool_calls=4)
+def test_resolver_exposes_only_surviving_model_callable_catalog() -> None:
+    resolver = AgenticToolResolver(
+        build_engineering_rule_agentic_registry(),
+        AllowAuthorizer(),
+        max_tool_calls=4,
+    )
     names = {item.name for item in resolver.as_langchain_tools(context=context())}
 
-    assert "resume_waiting_runs" not in names
-    assert "request_targeted_reanalysis" not in names
-    assert "get_scan_coverage" in names
-    assert "search_evidence" in names
-    assert len(names) == 17
+    assert names == {
+        "propose_gap_remediation",
+        "get_gap_evidence_trace",
+        "get_reconciliation_context",
+        "get_artifact_chain",
+    }
 
 
 def test_resolver_dispatches_validated_authorized_read_call() -> None:
     registry = build_engineering_rule_agentic_registry()
     registry.register_handler(
-        "get_scan_coverage",
+        "get_gap_evidence_trace",
         lambda request: {
             "status": "READY",
-            "result": {"maxResults": request.input["maxResults"]},
+            "result": {"rowRef": request.input["rowRef"]},
         },
     )
     authorizer = AllowAuthorizer()
     resolver = AgenticToolResolver(registry, authorizer, max_tool_calls=2)
 
-    native_tool = next(item for item in resolver.as_langchain_tools(context=context()) if item.name == "get_scan_coverage")
-    result = native_tool.invoke({"maxResults": 25})
+    native_tool = next(
+        item
+        for item in resolver.as_langchain_tools(context=context())
+        if item.name == "get_gap_evidence_trace"
+    )
+    result = native_tool.invoke({"rowRef": "gap-row:abcdef"})
 
-    assert authorizer.calls == ["get_scan_coverage"]
-    assert result["result"]["maxResults"] == 25
+    assert authorizer.calls == ["get_gap_evidence_trace"]
+    assert result["result"]["rowRef"] == "gap-row:abcdef"
 
 
 def test_resolver_rejects_schema_invalid_call_before_rbac_or_handler() -> None:
@@ -81,15 +91,20 @@ def test_resolver_rejects_schema_invalid_call_before_rbac_or_handler() -> None:
         called = True
         return {"status": "READY"}
 
-    registry.register_handler("get_scan_coverage", handler)
+    registry.register_handler("get_gap_evidence_trace", handler)
     authorizer = AllowAuthorizer()
     resolver = AgenticToolResolver(registry, authorizer, max_tool_calls=2)
+    tool = next(
+        item
+        for item in resolver.as_langchain_tools(context=context())
+        if item.name == "get_gap_evidence_trace"
+    )
 
     with pytest.raises(
         AgenticToolValidationError,
         match="AGENTIC_TOOL_INPUT_SCHEMA_INVALID",
     ):
-        next(item for item in resolver.as_langchain_tools(context=context()) if item.name == "get_scan_coverage").invoke({"maxResults": 101})
+        tool.invoke({"rowRef": "invalid"})
     assert authorizer.calls == []
     assert called is False
 
@@ -97,7 +112,7 @@ def test_resolver_rejects_schema_invalid_call_before_rbac_or_handler() -> None:
 def test_resolver_rejects_non_model_tool_before_rbac_even_if_registered() -> None:
     registry = build_engineering_rule_agentic_registry()
     registry.register_handler(
-        "request_targeted_reanalysis",
+        "resume_waiting_runs",
         lambda _request: {"status": "READY"},
     )
     authorizer = AllowAuthorizer()
@@ -107,13 +122,19 @@ def test_resolver_rejects_non_model_tool_before_rbac_even_if_registered() -> Non
         AgenticToolValidationError,
         match="AGENTIC_TOOL_NOT_MODEL_CALLABLE",
     ):
-        resolver._invoke_capability("request_targeted_reanalysis", resolver._registry.capability("request_targeted_reanalysis"), {}, context())
+        resolver._invoke_capability(
+            "resume_waiting_runs",
+            resolver._registry.capability("resume_waiting_runs"),
+            {},
+            context(),
+        )
     assert authorizer.calls == []
 
 
 def test_resolver_exposes_tool_call_budget_for_langchain_middleware() -> None:
-    registry = build_engineering_rule_agentic_registry()
-    authorizer = AllowAuthorizer()
-    resolver = AgenticToolResolver(registry, authorizer, max_tool_calls=1)
+    resolver = AgenticToolResolver(
+        build_engineering_rule_agentic_registry(),
+        AllowAuthorizer(),
+        max_tool_calls=1,
+    )
     assert resolver.max_tool_calls == 1
-    assert authorizer.calls == []

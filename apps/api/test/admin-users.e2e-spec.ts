@@ -32,7 +32,6 @@ import {
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import {
   TEST_DATABASE_URL,
-  ensureTestMfaEncryptionKey,
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
@@ -51,7 +50,6 @@ describe("Admin User Management API (e2e)", () => {
   let targetCustomer: { id: string; email: string };
 
   beforeAll(async () => {
-    ensureTestMfaEncryptionKey();
     pushPrismaSchema();
 
     prisma = new PrismaClient({

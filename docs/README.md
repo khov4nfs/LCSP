@@ -56,8 +56,7 @@ UX review should focus on product, use cases, FR/NFR, acceptance criteria, domai
 | System components                        | `architecture/architecture.md`, active ADRs                                                                                                                                                  |
 | End-to-end runtime                       | `specs/domain-state-machines.md`, `specs/event-catalog.md`, `implementation/`                                                                                                                |
 | Assessment lifecycle                     | `specs/assessment-lifecycle-spec.md`                                                                                                                                                         |
-| Scanner behavior                         | `specs/scanner-spec.md`                                                                                                                                                                      |
-| Scanner runtime                          | `implementation/scanner-implementation.md`, `implementation/scanner-worker-implementation.md`                                                                                                |
+| Repository analysis                     | architecture/repository-deep-agent-analysis.md, ../deepagents/instructions.md |
 | Build details                            | `implementation/`                                                                                                                                                                            |
 | UX-to-readiness coordination             | `implementation/phase-5-2l-ux-to-readiness-execution-plan.md`, `implementation/phase-5-2l-ux-to-readiness-task-list.md`, `implementation/phase-5-2l-ux-to-readiness-implementation-guide.md` |
 | Physical persistence                     | `implementation/persistence-implementation.md`                                                                                                                                               |
@@ -80,15 +79,15 @@ Historical material remains available through git history, not as active documen
 ```text
 apps/api                 NestJS API synchronous control plane
 apps/web                 Manager web UX
-deepagents      bounded Python Worker Platform for all async domain workloads
-tools/ts-js-analyzer     bounded Node.js CLI used only by Python Scanner Worker
+deepagents      native Deep Agents / LangGraph runtime for async workloads
+LCSP Docker sandbox      durable repository-backed assessment runtime
 PostgreSQL + ChromaDB legal index
 RabbitMQ
 S3-compatible object storage
 real LLM provider for A-to-Z acceptance
 ```
 
-Node.js downstream domain workers are `SUPERSEDED_FOR_ACTIVE_MVP`. Node.js remains valid for the NestJS API, web/tooling, and the bounded `ts-morph` analyzer CLI only.
+Node.js downstream domain workers are `SUPERSEDED_FOR_ACTIVE_MVP`. Node.js remains valid for the NestJS API, web, tooling, and shared runtime packages; repository analysis is owned by the LCSP Repository Deep Agent.
 
 ## Phase 5.2L Locked Corrections
 
@@ -97,24 +96,18 @@ Node.js downstream domain workers are `SUPERSEDED_FOR_ACTIVE_MVP`. Node.js remai
 - Compliance certification, formal legal opinion, direct regulator submission, and `FR-051` manual technical evidence JSON upload are `REMOVED_FROM_PRODUCT`.
 - `FR-050` no longer means Local/CI scanner report upload. It is redefined as `AUTOMATIC_TRUSTED_SCAN_INITIATION`.
 - All asynchronous domain workloads belong to the Python Worker Platform.
-- Scanner toolchain includes Syft, Knip, deptry, Semgrep custom rules, tree-sitter/custom parser, Python `ast` + `libcst`, and bounded `ts-morph`.
+- Repository analysis uses the full Deep Agents filesystem/shell/subagent harness. Codebase Memory MCP is optional structural memory; direct repository source is authoritative.
 
-## Scanner Ownership
+## Repository Analysis Ownership
 
-| Concern                                | Owner                                                                               |
-| -------------------------------------- | ----------------------------------------------------------------------------------- |
-| Trusted scan trigger/job query         | NestJS API synchronous control plane                                                |
-| Scan lifecycle                         | Python Scanner Worker                                                               |
-| Python AST/CST                         | Python Scanner Worker                                                               |
-| SBOM/dependency inventory              | Python Scanner Worker invoking Syft                                                 |
-| JS/TS dependency usage                 | Python Scanner Worker invoking Knip                                                 |
-| Python dependency usage                | Python Scanner Worker invoking deptry                                               |
-| AI pattern rules                       | Python Scanner Worker invoking Semgrep custom rules                                 |
-| Cross-language structural augmentation | Python Scanner Worker using tree-sitter/custom parser                               |
-| TS/JS semantic analysis                | Node CLI subprocess controlled by Python Scanner Worker                             |
-| Findings/taxonomy                      | `specs/scanner-spec.md`                                                             |
-| Runtime object journey                 | `specs/domain-state-machines.md`, `implementation/scanner-worker-implementation.md` |
-| Persistence/queues                     | implementation docs                                                                 |
+| Concern | Owner |
+| --- | --- |
+| Trusted scan trigger/job query | NestJS API synchronous control plane |
+| Assessment repository working database | LCSP Docker sandbox keyed by durable LangGraph thread |
+| Repository exploration and evidence derivation | Repository Deep Agent |
+| Structural graph/index assistance | Codebase Memory MCP 0.11.0 |
+| Evidence graph / source anchors / coverage / AI gate | Repository Deep Agent structured result |
+| Persistence and downstream compatibility | Existing scan/evidence APIs |
 
 ## Legal Corpus UX Boundary
 
@@ -132,17 +125,17 @@ npm run db:migrate
 npm run dev:api
 npm run dev:web
 
-# Python Worker Platform
+# Native Deep Agents / LangGraph local runtime
 cd deepagents
-poetry install
-poetry run pytest
-poetry run python -m tools.graph.scanner.main
+uv sync --frozen
+uv run --extra dev langgraph dev --no-browser --no-reload --allow-blocking
+uv run pytest
 
-# TS/JS analyzer
-cd ../tools/ts-js-analyzer
-npm install
-npm run build
-npm test
+# Node runtime
+cd ..
+pnpm install --frozen-lockfile
+pnpm run build:runtime-packages
+pnpm run typecheck
 
 # integrated validation after implementation
 npm run test

@@ -54,8 +54,8 @@ LCSP Sprint 1,LCSP-147,Task,MW-wiz-004,MW-wiz-004: Wizard Readiness Export Endpo
 LCSP Sprint 2,LCSP-38,Story,,Story 3.1: Connect Read-Only GitHub Repository,,3.1,2026-07-19,2026-07-21,8,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-38
 LCSP Sprint 2,LCSP-39,Story,,Story 3.2: Pin Commit and Create RepositorySnapshot,,3.2,2026-07-19,2026-07-21,3,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-39
 LCSP Sprint 2,LCSP-40,Story,,Story 3.3: Trusted Scan Trigger and Scan Job Orchestration,,3.3,2026-07-19,2026-07-21,13,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-40
-LCSP Sprint 2,LCSP-41,Story,,Story 3.4: Static Scanner Workspace and Sandbox,,3.4,2026-07-20,2026-07-22,2,High,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-41
-LCSP Sprint 2,LCSP-42,Story,,Story 3.5: Static Scanner Toolchain Execution,,3.5,2026-07-20,2026-07-22,13,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-42
+LCSP Sprint 2,LCSP-41,Story,,Story 3.4: Managed Repository Workspace and Sandbox,,3.4,2026-07-20,2026-07-22,2,High,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-41
+LCSP Sprint 2,LCSP-42,Story,,Story 3.5: Repository Deep Agent Evidence Analysis,,3.5,2026-07-20,2026-07-22,13,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-42
 LCSP Sprint 2,LCSP-43,Story,,Story 3.6: Scan Failure Severity and Evidence Acceptance Policy,,3.6,2026-07-21,2026-07-23,5,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-43
 LCSP Sprint 2,LCSP-85,Task,MW-gh-001,MW-gh-001: GitHub App OAuth Start Endpoint,Khovan,3.1,2026-07-21,2026-07-23,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-85
 LCSP Sprint 2,LCSP-86,Task,MW-gh-002,MW-gh-002: GitHub App Callback Endpoint,Khovan,3.1,2026-07-22,2026-07-24,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-86
@@ -64,22 +64,7 @@ LCSP Sprint 2,LCSP-88,Task,MW-gh-004,MW-gh-004: Scan Trigger Endpoint,Khovan,3.3
 LCSP Sprint 2,LCSP-135,Task,MW-scan-001,MW-scan-001: Scan Job Status Endpoint,Khovan,3.3,2026-07-23,2026-07-25,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-135
 LCSP Sprint 2,LCSP-136,Task,MW-scan-002,MW-scan-002: Scan Job Callback Endpoint,Khovan,3.3,2026-07-23,2026-07-25,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-136
 LCSP Sprint 2,LCSP-137,Task,MW-scan-003,MW-scan-003: Re-Run Scan Endpoint,anhtunguyen05,3.3,2026-07-24,2026-07-26,1,Medium,P1,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-137
-LCSP Sprint 2,LCSP-113,Task,MW-scan-py-001,MW-scan-py-001: Scanner Workspace Setup and Materialization,DthuyInk,3.4,2026-07-24,2026-07-26,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-113
 LCSP Sprint 2,LCSP-83,Task,MW-evid-001,MW-evid-001: Get Technical Evidence Report Endpoint,Khovan,3.5,2026-07-25,2026-07-27,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-83
-LCSP Sprint 2,LCSP-114,Task,MW-scan-py-002,MW-scan-py-002: Syft SBOM Tool Wrapper,DthuyInk,3.5,2026-07-25,2026-07-27,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-114
-LCSP Sprint 2,LCSP-115,Task,MW-scan-py-003,MW-scan-py-003: Semgrep AI Usage Rules Tool,DthuyInk,3.5,2026-07-26,2026-07-28,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-115
-LCSP Sprint 2,LCSP-116,Task,MW-scan-py-004,MW-scan-py-004: Evidence Report Assembly and Callback,nhibao08,3.5,2026-07-26,2026-07-28,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-116
-LCSP Sprint 2,LCSP-117,Task,MW-scan-py-005,MW-scan-py-005: Knip + deptry Dependency Usage Analysis Tool,nhibao08,3.5,2026-07-26,2026-07-28,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-117
-LCSP Sprint 2,LCSP-118,Task,MW-scan-py-006,MW-scan-py-006: Python AST/CST Analyzer (Bounded L0–L3),nhibao08,3.5,2026-07-27,2026-07-29,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-118
-LCSP Sprint 2,LCSP-119,Task,MW-scan-py-007,MW-scan-py-007: TS/JS Subprocess Bridge (ts-morph),Nta1210,3.5,2026-07-27,2026-07-29,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-119
-LCSP Sprint 2,LCSP-120,Task,MW-scan-py-008,MW-scan-py-008: Semgrep Full AI Ruleset,Nta1210,3.5,2026-07-28,2026-07-30,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-120
-LCSP Sprint 2,LCSP-121,Task,MW-scan-py-009,MW-scan-py-009: AI Invocation Detector (Signal Fusion + 20 Finding Types + Confidence),Nta1210,3.5,2026-07-28,2026-07-30,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-121
-LCSP Sprint 2,LCSP-122,Task,MW-scan-py-010,MW-scan-py-010: Decision Flow Tracer,anhtunguyen05,3.5,2026-07-29,2026-07-31,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-122
-LCSP Sprint 2,LCSP-123,Task,MW-scan-py-011,MW-scan-py-011: Evidence Graph Assembler,anhtunguyen05,3.5,2026-07-29,2026-07-31,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-123
-LCSP Sprint 2,LCSP-124,Task,MW-scan-py-012,"MW-scan-py-012: Schema, Privacy, and Quality Gates",anhtunguyen05,3.5,2026-07-29,2026-07-31,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-124
-LCSP Sprint 2,LCSP-125,Task,MW-scan-py-013,MW-scan-py-013: Manifest and Configuration Parser (Pipeline Step 5),DthuyInk,3.5,2026-07-30,2026-08-01,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-125
-LCSP Sprint 2,LCSP-126,Task,MW-scan-py-014,MW-scan-py-014: Language Classifier and Analyzer Router (Pipeline Step 8),DthuyInk,3.5,2026-07-30,2026-08-01,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-126
-LCSP Sprint 2,LCSP-127,Task,MW-scan-py-015,MW-scan-py-015: Tree-sitter Structural Augmentation (Pipeline Step 11),DthuyInk,3.5,2026-07-31,2026-08-02,1,Medium,P1,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-127
 LCSP Sprint 2,LCSP-129,Task,MW-qa-002,MW-qa-002: Python Scanner Unit Tests,nhibao08,3.5,2026-07-31,2026-08-02,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-129
 LCSP Sprint 2,LCSP-84,Task,MW-evid-002,MW-evid-002: TechnicalProfile Callback Endpoint,Khovan,3.6,2026-08-01,2026-08-02,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-84
 LCSP Sprint 2,LCSP-100,Task,MW-intel-001,MW-intel-001: TechnicalProfile Worker,nhibao08,3.6,2026-08-01,2026-08-02,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-100
@@ -140,7 +125,6 @@ Backlog,LCSP-16,Epic,,Module: python-workers/legal,,,2026-07-04,2026-09-16,8,Hig
 Backlog,LCSP-17,Epic,,Module: python-workers/llm,,,2026-07-04,2026-09-16,8,High,P0,false,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-17
 Backlog,LCSP-18,Epic,,Module: python-workers/platform,,,2026-07-04,2026-09-16,13,High,P0,false,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-18
 Backlog,LCSP-19,Epic,,Module: python-workers/reporting,,,2026-07-04,2026-09-16,8,Medium,P1,false,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-19
-Backlog,LCSP-20,Epic,,Module: python-workers/scanner,,,2026-07-04,2026-09-16,13,High,P0,false,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-20
 Backlog,LCSP-21,Epic,,Module: qa,,,2026-07-04,2026-09-16,8,Highest,P0,true,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-21
 Backlog,LCSP-22,Epic,,Module: reconciliation,,,2026-07-04,2026-09-16,13,Highest,P0,true,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-22
 Backlog,LCSP-23,Epic,,Module: scan,,,2026-07-04,2026-09-16,8,Highest,P0,true,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-23

@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
 
 import { CredentialLease } from "../../application/security/credential-lease.js";
@@ -10,6 +10,9 @@ const executablePath =
 
 describe("AzureDevOpsCliRepositoryProvider", () => {
   it("validates identity correctly via devops user show", async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("network disabled in unit test"));
     const spawnImpl = (() => {
       const child = new EventEmitter() as EventEmitter & {
         stdout: EventEmitter & { setEncoding(encoding: string): void };
@@ -59,9 +62,10 @@ describe("AzureDevOpsCliRepositoryProvider", () => {
       expect(identity.login).toBe("azuser@example.com");
       expect(identity.id).toBe("00000000-0000-0000-0000-000000000001");
     } finally {
+      fetchSpy.mockRestore();
       lease.dispose();
     }
-  });
+  }, 15_000);
 
   it("handles repository not found errors gracefully", async () => {
     const spawnImpl = (() => {

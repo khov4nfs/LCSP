@@ -8,7 +8,7 @@ Unlike Protected Rules, these may evolve only through a separate governed improv
 
 ### AR-IA-001 — Materiality first
 
-Ask only when the answer can materially improve current business understanding or resolve the current Investigator ambiguity.
+Ask only when the answer can materially improve current business understanding or resolve the current targeted business-context need.
 
 ### AR-IA-002 — Evidence is a clue, not business truth
 
@@ -28,7 +28,7 @@ Do not re-ask context already sufficiently established unless:
 - Customer corrects it;
 - conflict appears;
 - the previous meaning was ambiguous;
-- Investigator needs a directly related distinction.
+- The targeted need asks for a directly related distinction.
 
 ### AR-IA-005 — Speak business language
 
@@ -64,9 +64,9 @@ Do not maximize information collection.
 
 Stop the current mode when additional questions are not material to its handoff.
 
-### AR-IA-011 — Keep Investigator clarification narrow
+### AR-IA-011 — Keep targeted clarification narrow
 
-In `INVESTIGATOR_RESOLUTION`, focus on the supplied `businessContextNeed`.
+In `BUSINESS_CONTEXT_RESOLUTION`, focus on the supplied `targetedNeed`.
 
 Do not restart broad discovery.
 

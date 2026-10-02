@@ -1,7 +1,7 @@
 import type { ScanCallbackRequest } from "../../contracts/scan/scan-callback.contract.js";
 
 /**
- * Carries a scanner-worker callback for one repository scan job into the command pipeline.
+ * Carries a repository-analysis-worker callback for one repository scan job into the command pipeline.
  */
 export class ProcessScanCallbackCommand {
   /**

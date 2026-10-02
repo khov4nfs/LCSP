@@ -16,20 +16,7 @@ TOOL_RBAC_ROLES: dict[str, tuple[str, ...]] = {
     "propose_gap_remediation": ("CUSTOMER",),
     "get_gap_evidence_trace": ("CUSTOMER",),
     "get_reconciliation_context": ("CUSTOMER",),
-    "propose_missing_targets": ("CUSTOMER",),
     "get_artifact_chain": ("CUSTOMER",),
-    "inspect_deployment_context": ("CUSTOMER",),
-    "inspect_decision_path": ("CUSTOMER",),
-    "find_similar_symbols": ("CUSTOMER",),
-    "inspect_human_review_path": ("CUSTOMER",),
-    "inspect_data_path": ("CUSTOMER",),
-    "find_provider_invocations": ("CUSTOMER",),
-    "get_finding_detail": ("CUSTOMER",),
-    "get_symbol_context": ("CUSTOMER",),
-    "get_scan_coverage": ("CUSTOMER",),
-    "search_evidence": ("CUSTOMER",),
-    "get_evidence_subgraph": ("CUSTOMER",),
-    "trace_static_flow": ("CUSTOMER",),
 }
 
 

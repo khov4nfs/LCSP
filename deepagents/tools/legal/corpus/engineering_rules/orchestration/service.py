@@ -5,7 +5,7 @@ from typing import Any
 
 from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
 from tools.common.capabilities.platform.logging import get_logger
-from tools.legal.corpus.artifact_store import write_recovery_artifact
+from tools.legal.sources.recovery.artifact_store import write_recovery_artifact
 
 from ..registry.cache import EngineeringRuleCache
 from ..registry.precompiled_registry import PrecompiledEngineeringRuleRegistry

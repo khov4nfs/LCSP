@@ -1,5 +1,5 @@
 [project]
-name = "lcsp-managed-deepagents"
+name = "lcsp-agent-runtime"
 version = "0.1.0"
 requires-python = ">=3.11,<3.14"
 
@@ -9,43 +9,31 @@ dependencies = [
   "pika==1.3.2",
   "certifi>=2025.0.0",
   "structlog==24.4.0",
-  "python-dotenv>=1.0.1",
+  "python-dotenv>=1.1.0,<2.0.0",
   "pydantic>=2.0.0",
   "jsonschema>=4.23.0,<5.0.0",
   "boto3>=1.34.144",
-  "deepagents>=0.7.0",
-  "managed-deepagents>=0.4.0",
-  "langchain[openai,anthropic,google-genai]>=1.0.0",
+  "deepagents>=0.7.16,<0.8.0",
+  "langchain[openai,anthropic,google-genai,mcp]>=1.0.0",
+  "langchain-core>=1.0.0",
   "langgraph>=0.2.0",
-  "langgraph-api>=0.13.0,<0.14.0",
+  "langgraph-sdk>=0.4.2,<0.5.0",
   "langgraph-checkpoint-postgres==3.1.0",
-  "langgraph-cli[inmem]>=0.4.31",
   "starlette>=1.3.1,<2.0.0",
   "arize-phoenix-otel>=0.17.0",
   "opentelemetry-api>=1.0.0",
   "psycopg[binary]==3.3.4",
   "urllib3>=2.2.0,<3.0.0",
-  "libcst==1.8.6",
-  "tree-sitter==0.26.0",
-  "tree-sitter-ruby==0.23.1",
   "chromadb==1.5.5",
-  "tree-sitter-c-sharp==0.23.1",
-  "tree-sitter-java==0.23.5",
-  "tree-sitter-kotlin==1.1.0",
-  "tree-sitter-php==0.24.1",
-  "tree-sitter-go==0.25.0",
-  "tree-sitter-rust==0.24.2",
-  "tree-sitter-swift>=0.7.3",
-  "tree-sitter-objc>=3.0.2",
-  "tree-sitter-dart>=0.1.0",
+  "pyyaml>=6.0,<7.0",
 ]
 
 [project.optional-dependencies]
 dev = [
+  "langgraph-cli[inmem]>=0.4.31",
   "pytest==8.4.2",
   "pytest-asyncio==1.4.0",
   "pytest-mock==3.14.0",
-  "deptry==0.25.1",
 ]
 
 [build-system]
@@ -54,17 +42,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
-
-[tool.deptry]
-optional_dependencies_dev_groups = ["dev"]
-extend_exclude = ["tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer"]
-
-[tool.deptry.per_rule_ignores]
-# Runtime executables, compatibility pins, and dynamically imported drivers.
-DEP002 = ["langgraph-api", "langgraph-cli", "starlette", "psycopg"]
-# Optional integrations are imported behind fail-open guards.
-DEP001 = ["sentence_transformers"]
-DEP003 = ["openinference"]
 
 [tool.hatch.build.targets.wheel]
 packages = [

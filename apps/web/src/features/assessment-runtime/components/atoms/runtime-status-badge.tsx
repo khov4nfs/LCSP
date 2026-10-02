@@ -37,6 +37,7 @@ export function RuntimeStatusBadge({
   const isFailed = status === NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
   const isCompleted = status === NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
   const isRunning = status === NORMALIZED_WORKFLOW_STEP_STATUSES.running;
+  const isWaiting = status === NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
   return (
     <span
       className={
@@ -46,7 +47,9 @@ export function RuntimeStatusBadge({
             ? "rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.6875rem] font-medium text-emerald-700 dark:text-emerald-300"
             : isRunning
               ? "rounded-full bg-blue-500 px-2 py-0.5 text-[0.6875rem] font-medium text-white"
-              : "rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground"
+              : isWaiting
+                ? "rounded-full bg-amber-500/15 px-2 py-0.5 text-[0.6875rem] font-medium text-amber-700 dark:text-amber-300"
+                : "rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-medium text-muted-foreground"
       }
     >
       {statusLabels[status]}

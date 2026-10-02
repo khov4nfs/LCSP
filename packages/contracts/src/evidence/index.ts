@@ -24,3 +24,4 @@ export * from "./validate-chunk-integrity.ts";
 export * from "./build-legal-retrieval-index.ts";
 export * from "./gap-requirements-agentic-evidence.ts";
 export * from "./verified-agent-episode.ts";
+export * from "./rule-assessment.ts";

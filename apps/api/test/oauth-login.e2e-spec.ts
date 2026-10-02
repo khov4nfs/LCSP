@@ -17,7 +17,6 @@ import type {
 import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import {
   TEST_DATABASE_URL,
-  ensureTestMfaEncryptionKey,
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
 } from "./support/auth-workspace-test-helpers.js";
@@ -50,7 +49,6 @@ describe("OAuth login (e2e)", () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
-    ensureTestMfaEncryptionKey();
     pushPrismaSchema();
 
     prisma = new PrismaClient({

@@ -9,6 +9,10 @@ export const SCAN_ERROR_CODES = {
     "TARGETED_REANALYSIS_OUTBOX_DELIVERY_EXHAUSTED",
   targetedReanalysisWorkerDeliveryExhausted:
     "TARGETED_REANALYSIS_WORKER_DELIVERY_EXHAUSTED",
+  agentRuntimeBoundaryTimeout: "AGENT_RUNTIME_BOUNDARY_TIMEOUT",
+  providerTimeout: "PROVIDER_TIMEOUT",
+  repositorySandboxFailure: "REPOSITORY_SANDBOX_FAILURE",
+  repositoryAnalysisFailed: "REPOSITORY_ANALYSIS_FAILED",
   jobNotFound: "SCAN_JOB_NOT_FOUND",
   jobWrongState: "SCAN_JOB_WRONG_STATE",
   evidenceSchemaInvalid: "EVIDENCE_SCHEMA_INVALID",

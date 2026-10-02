@@ -56,6 +56,19 @@ CONTEXT = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _offline_agent_models(monkeypatch):
+    """Agents are built with create_deep_agent; keep model construction offline."""
+    monkeypatch.setattr(
+        "tools.legal.corpus.engineering_rules.compilation.compiler.resolve_agent_model",
+        lambda role: f"model:{role}",
+    )
+    monkeypatch.setattr(
+        "tools.legal.corpus.engineering_rules.compilation.chunk_triage.resolve_agent_model",
+        lambda role: f"model:{role}",
+    )
+
+
 class FakeLlm:
     def __init__(self) -> None:
         self.calls = 0
@@ -157,12 +170,12 @@ def native_agent(monkeypatch):
     llm = FakeLlm()
     monkeypatch.setattr(
         sys.modules[EngineeringRuleCompiler.__module__],
-        "create_agent",
+        "create_deep_agent",
         lambda **_kwargs: FakeAgent(llm),
     )
     monkeypatch.setattr(
         sys.modules[LegalChunkEngineeringRuleTriage.__module__],
-        "create_agent",
+        "create_deep_agent",
         lambda **_kwargs: FakeAgent(llm),
     )
     return llm

@@ -162,6 +162,8 @@ test("initial agent stream history failures release the retry gate", () => {
 
 test("workspace runtime provider opens and cleans up scoped semantic replay streams", () => {
   class FakeEventSource {
+    onopen: ((event: Event) => void) | null = null;
+    onerror: ((event: Event) => void) | null = null;
     closeCount = 0;
     readonly listeners = new Map<
       string,
@@ -228,6 +230,79 @@ test("workspace runtime provider opens and cleans up scoped semantic replay stre
   assert.equal(opened[1]?.closeCount, 1);
 });
 
+test("workspace runtime provider reconnects scoped streams after replaying history", async () => {
+  class FakeEventSource {
+    onopen: ((event: Event) => void) | null = null;
+    onerror: ((event: Event) => void) | null = null;
+    closeCount = 0;
+    readonly listeners = new Map<
+      string,
+      Array<(event: MessageEvent<string>) => void>
+    >();
+
+    constructor(readonly url: string) {}
+
+    addEventListener(
+      type: "workspace.agent-stream",
+      listener: (event: MessageEvent<string>) => void,
+    ) {
+      this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+    }
+
+    removeEventListener(
+      type: "workspace.agent-stream",
+      listener: (event: MessageEvent<string>) => void,
+    ) {
+      this.listeners.set(
+        type,
+        (this.listeners.get(type) ?? []).filter((item) => item !== listener),
+      );
+    }
+
+    close() {
+      this.closeCount += 1;
+    }
+  }
+  const opened: FakeEventSource[] = [];
+  const order: string[] = [];
+  const scopedAgentStreams = new Map<string, ScopedAgentStreamEntry>();
+
+  const unsubscribe = subscribeScopedAssessmentRuntimeStream({
+    assessmentId: "assessment-101",
+    appendAgentStreamEvent: () => true,
+    scopedAgentStreams,
+    replayAgentStreamHistory: async (assessmentId) => {
+      order.push(`replay:${assessmentId}`);
+    },
+    reconnectDelayMs: () => 0,
+    createEventSource: (url) => {
+      order.push(`connect:${url}`);
+      const source = new FakeEventSource(url);
+      opened.push(source);
+      return source;
+    },
+  });
+
+  opened[0]?.onerror?.({} as Event);
+  await waitForTimers();
+  await waitForTimers();
+
+  assert.deepEqual(order, [
+    "connect:/api/workspace/runtime-events?assessment_id=assessment-101&agent_stream_only=1",
+    "replay:assessment-101",
+    "connect:/api/workspace/runtime-events?assessment_id=assessment-101&agent_stream_only=1",
+  ]);
+  assert.equal(opened[0]?.closeCount, 1);
+  assert.equal(opened.length, 2);
+
+  unsubscribe();
+  assert.equal(opened[1]?.closeCount, 1);
+  opened[1]?.onerror?.({} as Event);
+  await waitForTimers();
+  assert.equal(opened.length, 2);
+  assert.equal(scopedAgentStreams.size, 0);
+});
+
 test("agent stream parser preserves streamed whitespace and structured metadata", () => {
   const parsed = parseAgentStreamEvent(
     JSON.stringify({
@@ -257,6 +332,46 @@ test("agent stream parser preserves streamed whitespace and structured metadata"
   assert.equal(parsed?.agentName, "planner");
   assert.deepEqual(parsed?.namespace, ["task:planner"]);
   assert.deepEqual(parsed?.data, { provider: "openai" });
+});
+
+test("agent stream parser accepts model call heartbeat events", () => {
+  const parsed = parseAgentStreamEvent(
+    JSON.stringify({
+      event_id: "agent-event-model-call",
+      sequence: 9,
+      client_sequence: 5,
+      emitted_at: "2026-09-16T00:00:02.000Z",
+      assessment_id: "assessment-1",
+      run_id: "run-1",
+      correlation_id: "corr-1",
+      event_type: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallHeartbeat,
+      source: "engineering",
+      agent_name: "planner",
+      namespace: ["task:planner"],
+      node_name: "model",
+      message_id: "message-3",
+      tool_name: null,
+      tool_call_id: null,
+      status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+      text: "model call waiting",
+      data: {
+        provider: "google_genai",
+        model: "gemini-3.5-flash-lite",
+        elapsed_seconds: 10,
+      },
+    }),
+  );
+
+  assert.ok(parsed);
+  assert.equal(
+    parsed?.eventType,
+    ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallHeartbeat,
+  );
+  assert.deepEqual(parsed?.data, {
+    provider: "google_genai",
+    model: "gemini-3.5-flash-lite",
+    elapsed_seconds: 10,
+  });
 });
 
 test("agent stream parser preserves semantic runtime payloads", () => {
@@ -309,6 +424,12 @@ test("agent stream parser preserves semantic runtime payloads", () => {
     evidenceRefs: ["evidence:ai:1"],
   });
 });
+
+function waitForTimers(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
 
 test("workspace runtime parser groups runs and activity by assessment", () => {
   const parsed = parseRuntimeEvent(
@@ -471,8 +592,8 @@ test("runtime console model sorts scan steps and expands active or failed steps"
       eventType: "TOOL_COMPLETED",
       runStatus: "RUNNING",
       sequence: 2,
-      toolName: "syft",
-      summary: "Completed syft",
+      toolName: "deepagents",
+      summary: "Completed Deep Agents repository inventory",
     }),
     runtimeActivity({
       eventId: "tool-started",
@@ -487,8 +608,8 @@ test("runtime console model sorts scan steps and expands active or failed steps"
       eventType: "TOOL_FAILED",
       runStatus: "RUNNING",
       sequence: 3,
-      toolName: "deptry",
-      summary: "deptry completed with a non-blocking failure",
+      toolName: "codebase-memory-graph",
+      summary: "Codebase Memory completed with a non-blocking failure",
     }),
   ]);
 
@@ -529,12 +650,12 @@ test("runtime console model keeps waiting steps out of completed fallback", () =
 test("runtime console model closes orphaned tool starts after the run completes", () => {
   const model = buildRuntimeConsoleModel([
     runtimeActivity({
-      eventId: "semgrep-started",
+      eventId: "repository-analysis-started",
       eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
       runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
       sequence: 1,
-      toolName: "semgrep",
-      summary: "Running semgrep analysis",
+      toolName: "repository-analysis",
+      summary: "Running repository analysis",
     }),
     runtimeActivity({
       eventId: "run-completed",
@@ -654,6 +775,8 @@ function agentStreamEvent(sequence: number): AssessmentAgentStreamEvent {
     runId: "run-101",
     correlationId: "corr-101",
     eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelContentDelta,
+    stage: null,
+    engineeringRuleId: null,
     source: "engineering",
     agentName: "investigator",
     subagentName: null,
@@ -681,3 +804,27 @@ function agentStreamHistoryState(
     ...override,
   };
 }
+
+test("agent stream merge orders a newer retry run after an older run even when sequence restarts", () => {
+  const oldRun = {
+    ...agentStreamEvent(120),
+    eventId: "old-run-event",
+    runId: "scan-old",
+    sequence: 120,
+    emittedAt: "2026-09-25T00:00:00.000Z",
+  };
+  const retryRun = {
+    ...agentStreamEvent(1),
+    eventId: "retry-run-event",
+    runId: "scan-retry",
+    sequence: 1,
+    emittedAt: "2026-09-25T00:01:00.000Z",
+  };
+
+  const merged = mergeAgentStreamEvents([oldRun], [retryRun]);
+
+  assert.deepEqual(
+    merged.map((item) => item.eventId),
+    ["old-run-event", "retry-run-event"],
+  );
+});

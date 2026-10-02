@@ -1,3 +1,5 @@
+> **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.** The Planner/Investigator/Scanner-pipeline description below is historical.
+
 ---
 task_id: MW-intel-001
 module: python-workers/intelligence
@@ -6,7 +8,7 @@ priority: P0
 status: DONE
 epic_story: 3.6
 depends_on:
-  - python-workers/scanner/04-evidence-report-assembly.md
+  - ../../../../../../architecture/repository-deep-agent-analysis.md
   - python-workers/platform/01-worker-platform-bootstrap.md
 ---
 
@@ -47,12 +49,12 @@ class TechnicalProfile:
     # Evidence quality
     evidence_quality: str                     # 'high' | 'medium' | 'low' | 'insufficient'
     coverage_notes: list[str]                 # Business-language limitations
-    tool_coverage: dict[str, bool]            # { 'syft': True, 'semgrep': False, ... }
+    tool_coverage: dict[str, bool]            # deepagents / repository-analysis coverage
 
     # AI usage signals summary
     ai_usage_signal_count: int
     signal_types_detected: list[str]          # ['provider_integration', 'model_call', ...]
-    dependency_ai_packages: list[str]         # Package names only (from SBOM)
+    dependency_ai_packages: list[str]         # Source-grounded package/dependency signals
 
     # Privacy flags
     privacy_flags: PrivacyFlags
@@ -61,8 +63,8 @@ class TechnicalProfile:
 ## Business Rules
 
 1. Listen on `scan.evidence-accepted`. Fetch `TechnicalEvidenceReport` from NestJS API.
-2. Evaluate evidence quality: `high` if all tools succeeded and AI signals found; `medium` if partial coverage; `low` if no AI signals; `insufficient` if critical tools all failed.
-3. `dependency_ai_packages` extracted from SBOM entries where package name matches AI package list (e.g., `openai`, `anthropic`, `langchain`, `autogen`, `llama-index`).
+2. Evaluate evidence quality from repository-analysis coverage, source grounding, unresolved frontiers, and accepted AI-discovery state; absence of an AI signal alone is not sufficient for a high-confidence negative conclusion.
+3. `dependency_ai_packages` is derived only from accepted source-grounded package/dependency signals in the repository-analysis payload.
 4. `signal_types_detected` deduplicated list from `ai_usage_signals`.
 5. No LLM calls in this worker.
 6. `privacy_flags.contains_source_code = False` asserted before callback.
@@ -75,17 +77,17 @@ class TechnicalProfile:
 |---|---|---|
 | T01 | Evidence with AI signals | `evidence_quality = high`, signals populated |
 | T02 | Evidence with no AI signals | `evidence_quality = low` |
-| T03 | Syft failed, Semgrep passed | `evidence_quality = medium`, tool_coverage noted |
-| T04 | All tools failed | `evidence_quality = insufficient` |
-| T05 | SBOM has `openai` package | `dependency_ai_packages` includes `openai` |
+| T03 | Repository analysis is PARTIAL | `evidence_quality` is degraded and coverage limitation retained |
+| T04 | Repository analysis unavailable or materially unresolved | `evidence_quality = insufficient` |
+| T05 | Accepted package signal contains `openai` | `dependency_ai_packages` includes `openai` |
 | T06 | Privacy flags asserted | `contains_source_code = False` verified |
 | T07 | No LLM calls made | No LLM provider API calls in network trace |
 
 ## Definition of Done
 
 - `TechnicalProfile` built from evidence without LLM calls.
-- Evidence quality evaluated from tool coverage and signal presence.
-- `dependency_ai_packages` from SBOM (names only, no versions in signal list).
+- Evidence quality evaluated from repository-analysis coverage, source grounding, and unresolved-frontier state.
+- `dependency_ai_packages` comes from accepted source-grounded package/dependency signals.
 - `contains_source_code = False` asserted before callback.
 
 ## Implementation Evidence

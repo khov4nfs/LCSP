@@ -168,7 +168,6 @@ test("direct EngineeringRule result exposes readable evidence and legal provisio
     assert.deepEqual(getClassificationActionVisibility(result.data), {
       showFinalReport: true,
       showGapAnalysis: true,
-      showRerunClassification: false,
     });
   }
 });

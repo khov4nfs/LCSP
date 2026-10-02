@@ -1,29 +1,32 @@
 import type { EffectiveRuntimeModel } from "./runtime-model.ts";
 
-/** Provider adapters must emit disjoint billable dimensions; totalTokens is informational. */
-export type CanonicalBillableUsageDimensions = {
+/** Provider-reported token dimensions; omitted when the provider reported nothing. */
+export type ProviderReportedTokenDimensions = {
   inputTokens?: string;
   cachedInputTokens?: string;
   cacheWriteTokens?: string;
   outputTokens?: string;
   reasoningTokens?: string;
+  totalTokens?: string;
 };
 
-/** Worker-to-API accounting payload. Estimates must never use this settled shape. */
-export type SettledUsageInput = CanonicalBillableUsageDimensions & {
+/** Worker-to-API telemetry payload. It carries no price, charge or reservation. */
+export type LlmUsageReport = ProviderReportedTokenDimensions & {
   assessmentId: string;
   runId: string;
-  reservationId: string;
   agentRole: string;
   provider: string;
   model: string;
   effectiveRuntimeModel?: EffectiveRuntimeModel;
   invocationId: string;
   providerResponseId?: string;
-  totalTokens?: string;
   occurredAt: string;
 };
 
+/**
+ * Persistence status of a telemetry row. SETTLED only means "recorded with
+ * provider-reported tokens"; no wallet movement is attached to any status.
+ */
 export const LLM_USAGE_STATUSES = {
   SETTLED: "SETTLED",
   UNAVAILABLE: "UNAVAILABLE",
@@ -35,9 +38,6 @@ export type LlmUsageStatus =
 
 export const LLM_USAGE_AVAILABILITY_REASONS = {
   providerUsageMetadataMissing: "PROVIDER_USAGE_METADATA_MISSING",
-  pricingSnapshotMissing: "PRICING_SNAPSHOT_MISSING",
-  pricingSnapshotInvalid: "PRICING_SNAPSHOT_INVALID",
-  runtimePolicySnapshotMissing: "RUNTIME_POLICY_SNAPSHOT_MISSING",
 } as const;
 
 export type LlmUsageAvailabilityReason =

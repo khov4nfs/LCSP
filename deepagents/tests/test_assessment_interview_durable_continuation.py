@@ -27,6 +27,8 @@ def _confirmed_context() -> dict:
                 "createdAt": "2026-09-05T00:00:00Z",
                 "source": "CUSTOMER_CONFIRMED",
                 "resolutionState": "CONFIRMED",
+                "sourceNeedId": "need-1",
+                "resolvedCriterionIds": ["CONTROL"],
             }
         ],
         "limitations": ["customer-confirmed current statements only"],
@@ -62,7 +64,7 @@ READY_HANDOFF = {
 }
 
 TARGETED_RESOLVED_HANDOFF = {
-    "mode": "INVESTIGATOR_RESOLUTION",
+    "mode": "BUSINESS_CONTEXT_RESOLUTION",
     "outcome": "CONTEXT_RESOLVED",
     "contextAuthority": "CONFIRMED",
     "confirmedContext": _confirmed_context(),
@@ -72,17 +74,10 @@ TARGETED_RESOLVED_HANDOFF = {
 }
 
 CONTINUATION = {
-    "originatingInvestigationReference": "investigator:exec-17:need-1",
-    "investigatorExecutionId": "exec-17",
-    "workflowRunId": "investigator:exec-17",
-    "checkpointId": "checkpoint-original",
-    "affectedRuleIds": ["ENG-1"],
-    "artifactVersions": {
-        "technicalEvidenceReportId": "ter-1",
-        "repositorySnapshotId": "snapshot-1",
-        "legalRuleCatalogVersionId": "catalog-1",
-        "legalCorpusVersionId": "corpus-1",
-    },
+    "needId": "need-1",
+    "engineeringRuleId": "ENG-1",
+    "criterionId": "CONTROL",
+    "resolutionCriterionIds": ["CONTROL"],
     "sourceVersion": "snapshot-1:abc",
     "pgeVersion": "ter-1:v1",
 }
@@ -98,7 +93,7 @@ def _message(*, targeted: bool = False) -> dict:
         "sourceVersion": "snapshot-1:abc",
         "pgeVersion": "ter-1:v1",
         "resumeReason": (
-            "INVESTIGATOR_RESOLUTION_REQUIRED"
+            "BUSINESS_CONTEXT_RESOLUTION_REQUIRED"
             if targeted
             else "INTERVIEW_AGENT_DECISION_REQUIRED"
         ),
@@ -158,12 +153,11 @@ class MutableApi:
         if self.targeted:
             result["targetedNeed"] = {
                 "needId": "need-1",
+                "engineeringRuleId": "ENG-1",
+                "criterionId": "CONTROL",
+                "resolutionCriterionIds": ["CONTROL"],
                 "actorId": "user-actor-test",
                 "businessContextNeed": "Who approves this decision?",
-                "resolutionCriteria": ["decision_authority"],
-                "originatingInvestigationReference": CONTINUATION[
-                    "originatingInvestigationReference"
-                ],
             }
         return result
 
@@ -240,6 +234,12 @@ def test_context_ready_crash_after_guard_retries_without_interview_model() -> No
 
 
 def test_context_resolved_crash_retries_exact_continuation_without_interview_model() -> None:
+    # Root cause: the old test retried an investigator exact-resume
+    # (investigator_resumer/investigation_completer) for a deleted pipeline.
+    # Fix: the new durable path is guard + EphemeralPostGuardContinuationStore +
+    # downstream_handler. A crash after the guard leaves PENDING with the
+    # server-owned continuation; the DUPLICATE retry reuses the stored
+    # continuation without a new Interview model turn, then COMPLETES.
     store = EphemeralPostGuardContinuationStore()
     api = MutableApi(targeted=True)
     api.decision_result = {
@@ -249,30 +249,17 @@ def test_context_resolved_crash_retries_exact_continuation_without_interview_mod
         "flags": [],
     }
     dispatcher = RecordingDispatcher(TARGETED_RESOLVED_HANDOFF)
-    resume_calls: list[str] = []
-    completion_calls: list[str] = []
+    downstream_calls: list[str] = []
 
-    def exact_resumer(**_kwargs):
-        assert _kwargs["continuation"]["rootWorkflowRunId"] == "c0000000-0000-0000-0000-000000000001"
-        resume_calls.append("resume")
-        return {
-            "executionId": "exec-17",
-            "threadId": "investigator:exec-17",
-            "fromCheckpointId": "checkpoint-original",
-            "checkpointId": f"checkpoint-{len(resume_calls)}",
-            "handoff": {"status": "READY"},
-        }
-
-    def crashing_completer(**_kwargs):
-        completion_calls.append("crash")
+    def crashing_downstream(_payload, _correlation_id):
+        downstream_calls.append("crash")
         raise RuntimeError("crash before continuation ACK")
 
     first = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
         api_client=api,
         dispatcher=dispatcher,
-        investigator_resumer=exact_resumer,
-        investigation_completer=crashing_completer,
+        downstream_handler=crashing_downstream,
         continuation_store=store,
     )
 
@@ -285,7 +272,8 @@ def test_context_resolved_crash_retries_exact_continuation_without_interview_mod
         outcome="CONTEXT_RESOLVED",
     )
     assert pending is not None and not pending.completed
-    assert pending.payload["continuation"]["investigatorExecutionId"] == "exec-17"
+    assert pending.payload["continuation"]["needId"] == "need-1"
+    assert pending.payload["continuation"]["engineeringRuleId"] == "ENG-1"
     assert len(dispatcher.calls) == 1
 
     api.status = "DUPLICATE"
@@ -297,15 +285,14 @@ def test_context_resolved_crash_retries_exact_continuation_without_interview_mod
     }
     api.confirmed_context = _confirmed_context()
 
-    def successful_completer(**_kwargs):
-        completion_calls.append("success")
+    def successful_downstream(_payload, _correlation_id):
+        downstream_calls.append("success")
 
     retry = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
         api_client=api,
         dispatcher=dispatcher,
-        investigator_resumer=exact_resumer,
-        investigation_completer=successful_completer,
+        downstream_handler=successful_downstream,
         continuation_store=store,
     )
     retry.handle(_message(targeted=True), "corr-2")
@@ -316,13 +303,27 @@ def test_context_resolved_crash_retries_exact_continuation_without_interview_mod
         outcome="CONTEXT_RESOLVED",
     )
     assert completed is not None and completed.completed
-    assert completion_calls == ["crash", "success"]
-    assert resume_calls == ["resume", "resume"]
+    assert downstream_calls == ["crash", "success"]
     assert len(dispatcher.calls) == 1
     assert len(api.decision_posts) == 1
 
 
 def test_downstream_impact_is_orchestration_owned_and_skips_exact_resume() -> None:
+    # Root cause: the old test asserted a deleted downstream_impact_handler vs
+    # investigator_resumer split for the deleted investigator pipeline.
+    # Fix: DOWNSTREAM_IMPACT is now an orchestration-owned flag on the guarded
+    # CONTEXT_RESOLVED state. The boundary forwards it via downstream_handler
+    # (no exact investigator resume exists); the per-rule loop would resume
+    # unscoped (rule_scope=None) so every landed answer is resumed, otherwise
+    # only the bound rule. Strict binding still applies.
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _bind_answer_to_need,
+        _has_downstream_impact,
+    )
+    from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+        normalize_confirmed_structured_business_context,
+    )
+
     store = EphemeralPostGuardContinuationStore()
     api = MutableApi(targeted=True)
     api.decision_result = {
@@ -334,30 +335,43 @@ def test_downstream_impact_is_orchestration_owned_and_skips_exact_resume() -> No
     dispatcher = RecordingDispatcher(
         {**TARGETED_RESOLVED_HANDOFF, "flags": ["DOWNSTREAM_IMPACT"]}
     )
-    impact_calls: list[dict] = []
+    downstream_calls: list[tuple[dict, str]] = []
 
-    def forbidden_exact_resume(**_kwargs):
-        raise AssertionError("DOWNSTREAM_IMPACT must not exact-resume the old Investigator")
-
-    def impact_handler(**kwargs):
-        impact_calls.append(kwargs)
+    def downstream(payload, correlation_id):
+        downstream_calls.append((payload, correlation_id))
 
     boundary = AssessmentInterviewResumeBoundary(
         SimpleNamespace(),
         api_client=api,
         dispatcher=dispatcher,
-        investigator_resumer=forbidden_exact_resume,
-        downstream_impact_handler=impact_handler,
+        downstream_handler=downstream,
         continuation_store=store,
     )
     boundary.handle(_message(targeted=True), "corr-impact")
 
-    assert len(impact_calls) == 1
-    assert impact_calls[0]["continuation"]["affectedRuleIds"] == ["ENG-1"]
-    assert impact_calls[0]["confirmed_context"].context_revision == 2
-    assert impact_calls[0]["confirmed_context"].to_legacy_customer_context()[
-        "answers"
-    ] == {"decision_authority": "human"}
+    assert len(downstream_calls) == 1
+    payload, _corr = downstream_calls[0]
+    assert payload["outcome"] == "CONTEXT_RESOLVED"
+    assert "DOWNSTREAM_IMPACT" in payload["flags"]
+    assert _has_downstream_impact({"flags": ["DOWNSTREAM_IMPACT"]}) is True
+    assert _has_downstream_impact({"flags": []}) is False
+    # Orchestration-owned: unscoped resume when impacted, else scoped to the
+    # single bound rule.
+    assert (None if _has_downstream_impact({"flags": payload["flags"]}) else ("ENG-1",)) is None
+    assert (None if _has_downstream_impact({"flags": []}) else ("ENG-1",)) == ("ENG-1",)
+    # Strict binding still holds for the impacted answer.
+    typed = normalize_confirmed_structured_business_context(
+        {
+            "outcome": "CONTEXT_RESOLVED",
+            "contextRevision": 2,
+            "confirmedContext": _confirmed_context(),
+        },
+        assessment_id="assessment-1",
+    )
+    assert typed.to_legacy_customer_context()["answers"] == {
+        "decision_authority": "human"
+    }
+    assert _bind_answer_to_need(dict(CONTINUATION), typed) == "ENG-1"
     completed = store.get(
         assessment_id="assessment-1",
         context_revision=2,

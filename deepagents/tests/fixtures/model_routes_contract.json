@@ -1,0 +1,1251 @@
+[
+  {
+    "name": "minimal",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "case-preserved-model",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: llm7\n    model: Future-Model-X9\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "provider-openai",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: Any-Model-Name\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "provider-anthropic",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: anthropic\n    model: Any-Model-Name\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "provider-google_genai",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: google_genai\n    model: Any-Model-Name\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "provider-llm7",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: llm7\n    model: Any-Model-Name\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "provider-inception",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: inception\n    model: Any-Model-Name\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "model-with-padding-rejected",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: \"  odd model  \"\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "options-inference-keys",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m1\n    options:\n      temperature: 0.2\n      max_output_tokens: 4096\n      context_window_tokens: 128000\n      reasoning: {effort: low}\n      thinking_level: minimal\n      effort: high\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "options-absent",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m1\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "options-empty",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m1\n    options: {}\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "options-list-of-mappings",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m1\n    options:\n      stop_sequences: [a, b]\n      tags:\n        - {name: x}\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "fallback-chain",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n  third: {provider: openai, model: m3}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup, third]\n  backup: [third]\n",
+    "valid": true
+  },
+  {
+    "name": "multiple-roles",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  narrator: backup\n  root: primary\n  legal-compiler: backup\n",
+    "valid": true
+  },
+  {
+    "name": "fallbacks-empty-chain",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: []\n",
+    "valid": true
+  },
+  {
+    "name": "fallbacks-absent",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": true
+  },
+  {
+    "name": "comments-and-flow-style",
+    "yaml": "# comment\nversion: 1  # inline\nroutes: {primary: {provider: openai, model: m}}\nroles: {default: primary}\n",
+    "valid": true
+  },
+  {
+    "name": "missing-version",
+    "yaml": "routes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "version"
+  },
+  {
+    "name": "bad-version-2",
+    "yaml": "version: 2\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "version"
+  },
+  {
+    "name": "bad-version-0",
+    "yaml": "version: 0\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "version"
+  },
+  {
+    "name": "bad-version-\"1\"",
+    "yaml": "version: \"1\"\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "version"
+  },
+  {
+    "name": "bad-version-1.0",
+    "yaml": "version: 1.0\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "version"
+  },
+  {
+    "name": "bad-version-true",
+    "yaml": "version: true\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "version"
+  },
+  {
+    "name": "bad-version-null",
+    "yaml": "version: null\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "version"
+  },
+  {
+    "name": "unknown-top-level-key",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nextras: {}\n",
+    "valid": false,
+    "errorContains": "unknown top-level key"
+  },
+  {
+    "name": "top-level-not-mapping",
+    "yaml": "- a\n- b\n",
+    "valid": false,
+    "errorContains": "top-level"
+  },
+  {
+    "name": "empty-document",
+    "yaml": "",
+    "valid": false,
+    "errorContains": "top-level"
+  },
+  {
+    "name": "routes-missing",
+    "yaml": "version: 1\nroles: {default: primary}\n",
+    "valid": false,
+    "errorContains": "routes"
+  },
+  {
+    "name": "routes-empty",
+    "yaml": "version: 1\nroutes: {}\nroles: {default: primary}\n",
+    "valid": false,
+    "errorContains": "routes"
+  },
+  {
+    "name": "routes-not-mapping",
+    "yaml": "version: 1\nroutes: [a]\nroles: {default: primary}\n",
+    "valid": false,
+    "errorContains": "routes"
+  },
+  {
+    "name": "roles-missing",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n",
+    "valid": false,
+    "errorContains": "roles"
+  },
+  {
+    "name": "roles-not-mapping",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles: [primary]\n",
+    "valid": false,
+    "errorContains": "roles"
+  },
+  {
+    "name": "roles-default-missing",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  narrator: primary\n",
+    "valid": false,
+    "errorContains": "roles.default"
+  },
+  {
+    "name": "role-unknown-route",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  narrator: ghost\n",
+    "valid": false,
+    "errorContains": "roles.narrator references unknown route"
+  },
+  {
+    "name": "role-default-unknown-route",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: ghost\n",
+    "valid": false,
+    "errorContains": "roles.default references unknown route"
+  },
+  {
+    "name": "role-route-not-string",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: 5\n",
+    "valid": false,
+    "errorContains": "roles.default references unknown route"
+  },
+  {
+    "name": "fallbacks-not-mapping",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks: [a]\n",
+    "valid": false,
+    "errorContains": "fallbacks"
+  },
+  {
+    "name": "fallback-unknown-key-route",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  ghost: [primary]\n",
+    "valid": false,
+    "errorContains": "fallbacks.ghost references unknown route"
+  },
+  {
+    "name": "fallback-unknown-item",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [ghost]\n",
+    "valid": false,
+    "errorContains": "fallbacks.primary references unknown route"
+  },
+  {
+    "name": "fallback-item-not-string",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [5]\n",
+    "valid": false,
+    "errorContains": "fallbacks.primary must be a list"
+  },
+  {
+    "name": "fallback-not-list",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: backup\n",
+    "valid": false,
+    "errorContains": "fallbacks.primary must be a list"
+  },
+  {
+    "name": "fallback-self-reference",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [primary]\n",
+    "valid": false,
+    "errorContains": "fallback cycle"
+  },
+  {
+    "name": "fallback-cycle-two",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  backup: [primary]\n",
+    "valid": false,
+    "errorContains": "fallback cycle"
+  },
+  {
+    "name": "fallback-cycle-three",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n  third: {provider: openai, model: m3}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  backup: [third]\n  third: [primary]\n",
+    "valid": false,
+    "errorContains": "fallback cycle"
+  },
+  {
+    "name": "route-id-numeric",
+    "yaml": "version: 1\nroutes:\n  5: {provider: openai, model: m}\nroles:\n  default: '5'\n",
+    "valid": false,
+    "errorContains": "route id"
+  },
+  {
+    "name": "route-not-mapping",
+    "yaml": "version: 1\nroutes:\n  primary: openai\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary must be a mapping"
+  },
+  {
+    "name": "route-unknown-key",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    template: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "unknown key"
+  },
+  {
+    "name": "route-fallback-key-inside-route",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    fallbacks: [x]\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "unknown key"
+  },
+  {
+    "name": "provider-missing",
+    "yaml": "version: 1\nroutes:\n  primary:\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-google-6",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"google\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-gemini-6",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"gemini\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-google_ai-9",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"google_ai\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-googleai-8",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"googleai\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-LLM7-4",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"LLM7\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-OpenAI-6",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"OpenAI\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-openai-7",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"openai \"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-Google_GenAI-12",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"Google_GenAI\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-google-genai-12",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"google-genai\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-rejected-nope-4",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"nope\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-blank",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"\"\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-number",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: 5\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "provider-null",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: null\n    model: m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.provider"
+  },
+  {
+    "name": "model-missing",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.model"
+  },
+  {
+    "name": "model-number",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: 5\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.model"
+  },
+  {
+    "name": "model-float",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: 1.5\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.model"
+  },
+  {
+    "name": "model-boolean",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: true\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.model"
+  },
+  {
+    "name": "model-null",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: null\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.model"
+  },
+  {
+    "name": "model-empty-value",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model:\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.model"
+  },
+  {
+    "name": "model-blank-string",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: \"   \"\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.model"
+  },
+  {
+    "name": "model-list",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: [a]\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.model"
+  },
+  {
+    "name": "options-list",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options: [1]\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.options must be a mapping"
+  },
+  {
+    "name": "options-string",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options: fast\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.options must be a mapping"
+  },
+  {
+    "name": "options-null",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "routes.primary.options must be a mapping"
+  },
+  {
+    "name": "protected-key-api_key",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      api_key: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-api-key",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      api-key: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-API_KEY",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      API_KEY: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-apiKey",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      apiKey: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-ApiKey",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      ApiKey: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-base_url",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      base_url: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-base-url",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      base-url: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-baseUrl",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      baseUrl: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-BASE_URL",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      BASE_URL: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-Authorization",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      Authorization: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-authorization",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      authorization: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-headers",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      headers: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-Header",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      Header: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-endpoint",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      endpoint: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-transport",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      transport: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-client",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      client: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-secret",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      secret: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-client_secret",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      client_secret: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-password",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      password: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-db_password",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      db_password: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-credentials",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      credentials: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-credential",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      credential: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-auth",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      auth: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-openai_api_key",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      openai_api_key: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-key-secrets",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      secrets: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-nested-mapping",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      reasoning:\n        deeper:\n          api_key: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-nested-in-list",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      extra:\n        - {Authorization: x}\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "option-key-numeric",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      5: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "option keys"
+  },
+  {
+    "name": "duplicate-top-level-key",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nversion: 1\n",
+    "valid": false,
+    "errorContains": "duplicate key"
+  },
+  {
+    "name": "duplicate-route-id",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: openai, model: a}\n  primary: {provider: openai, model: b}\nroles: {default: primary}\n",
+    "valid": false,
+    "errorContains": "duplicate key"
+  },
+  {
+    "name": "duplicate-role-key",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  default: backup\n",
+    "valid": false,
+    "errorContains": "duplicate key"
+  },
+  {
+    "name": "duplicate-route-field",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: a\n    model: b\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "duplicate key"
+  },
+  {
+    "name": "duplicate-option-key",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      temperature: 0.1\n      temperature: 0.2\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "duplicate key"
+  },
+  {
+    "name": "duplicate-fallback-key",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  primary: [backup]\n",
+    "valid": false,
+    "errorContains": "duplicate key"
+  },
+  {
+    "name": "yaml-custom-tag",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: !custom m\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "invalid YAML"
+  },
+  {
+    "name": "yaml-python-object-tag",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: !!python/object/apply:os.getcwd []\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "invalid YAML"
+  },
+  {
+    "name": "yaml-python-name-tag",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nx: !!python/name:os.system\n",
+    "valid": false,
+    "errorContains": "invalid YAML"
+  },
+  {
+    "name": "yaml-syntax-error",
+    "yaml": "version: 1\nroutes: [unclosed\n",
+    "valid": false,
+    "errorContains": "invalid YAML"
+  },
+  {
+    "name": "yaml12-model-string-yes",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: yes\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-no",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: no\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-on",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: on\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-off",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: off\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-y",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: y\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: n\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-1_000",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1_000\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-1:30",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1:30\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-2026-01-01",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 2026-01-01\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-<<",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: <<\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-=",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: =\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-0o7",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: '0o7'\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-string-1e3",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: '1e3'\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-model-not-string-1e3",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1e3\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-1E3",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1E3\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-0o7",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 0o7\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-0x1F",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 0x1F\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-010",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 010\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-+1",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: +1\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-.5",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: .5\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-1.",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1.\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-1.0",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1.0\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-.inf",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: .inf\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string--.inf",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: -.inf\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-.nan",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: .nan\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-true",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: true\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-True",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: True\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-~",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: ~\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-not-string-Null",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: Null\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "yaml12-model-string-0b11",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 0b11\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-version-int-01",
+    "yaml": "version: 01\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-version-int-0x1",
+    "yaml": "version: 0x1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-version-int-0o1",
+    "yaml": "version: 0o1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-version-int-+1",
+    "yaml": "version: +1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "yaml12-version-not-int-1_0",
+    "yaml": "version: 1_0\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "version must be"
+  },
+  {
+    "name": "yaml12-version-not-int-'1'",
+    "yaml": "version: '1'\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "version must be"
+  },
+  {
+    "name": "yaml12-version-not-int-1e0",
+    "yaml": "version: 1e0\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "version must be"
+  },
+  {
+    "name": "yaml12-version-not-int-1.0",
+    "yaml": "version: 1.0\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "version must be"
+  },
+  {
+    "name": "yaml12-version-not-int-0b1",
+    "yaml": "version: 0b1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "version must be"
+  },
+  {
+    "name": "yaml12-version-not-int-1:0",
+    "yaml": "version: 1:0\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "version must be"
+  },
+  {
+    "name": "yaml12-version-not-int-yes",
+    "yaml": "version: yes\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "version must be"
+  },
+  {
+    "name": "date-as-option-value",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {note: 2026-01-01, t: 1:30, b: yes}\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "float-inf-option-value",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {x: .inf}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "finite"
+  },
+  {
+    "name": "float-overflow-option-value",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {x: 1e999}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "finite"
+  },
+  {
+    "name": "float-nan-option-value-nested",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {x: [.nan]}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "finite"
+  },
+  {
+    "name": "merge-key-is-plain-option-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {\"<<\": 1}\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "merge-key-is-plain-route-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    <<: {model: z}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "unknown key"
+  },
+  {
+    "name": "anchor-and-alias-merge",
+    "yaml": "version: 1\nroutes:\n  a: &r\n    provider: llm7\n    model: m\n  b:\n    <<: *r\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "anchors and aliases"
+  },
+  {
+    "name": "anchor-alone",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: &m x\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "anchors and aliases"
+  },
+  {
+    "name": "alias-reuse-options",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: &o {t: 1}\n  b:\n    provider: llm7\n    model: m\n    options: *o\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "anchors and aliases"
+  },
+  {
+    "name": "explicit-str-tag",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: !!str 5\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "invalid YAML"
+  },
+  {
+    "name": "explicit-int-tag",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: !!int '5'\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "invalid YAML"
+  },
+  {
+    "name": "explicit-bang-tag",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: ! x\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "invalid YAML"
+  },
+  {
+    "name": "blank-route-id",
+    "yaml": "version: 1\nroutes:\n  ' ':\n    provider: llm7\n    model: m\nroles:\n  default: ' '\n",
+    "valid": false,
+    "errorContains": "route id"
+  },
+  {
+    "name": "empty-route-id",
+    "yaml": "version: 1\nroutes:\n  '':\n    provider: llm7\n    model: m\nroles:\n  default: ''\n",
+    "valid": false,
+    "errorContains": "route id"
+  },
+  {
+    "name": "bool-route-id",
+    "yaml": "version: 1\nroutes:\n  true:\n    provider: llm7\n    model: m\nroles:\n  default: 'true'\n",
+    "valid": false,
+    "errorContains": "string"
+  },
+  {
+    "name": "blank-role-name",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n  ' ': a\n",
+    "valid": false,
+    "errorContains": "role name"
+  },
+  {
+    "name": "empty-role-name",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n  '': a\n",
+    "valid": false,
+    "errorContains": "role name"
+  },
+  {
+    "name": "numeric-role-name",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n  5: a\n",
+    "valid": false,
+    "errorContains": "string"
+  },
+  {
+    "name": "blank-option-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {' ': 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "option keys"
+  },
+  {
+    "name": "empty-option-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {'': 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "option keys"
+  },
+  {
+    "name": "null-option-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {? : 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "string"
+  },
+  {
+    "name": "bool-option-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {true: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "string"
+  },
+  {
+    "name": "complex-sequence-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {? [a]: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "string"
+  },
+  {
+    "name": "complex-mapping-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {? {a: 1}: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "string"
+  },
+  {
+    "name": "numeric-fallback-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\nfallbacks:\n  1: []\n",
+    "valid": false,
+    "errorContains": "route"
+  },
+  {
+    "name": "fallbacks-null",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\nfallbacks:\n",
+    "valid": false,
+    "errorContains": "fallbacks must be a mapping"
+  },
+  {
+    "name": "fallbacks-tilde",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\nfallbacks: ~\n",
+    "valid": false,
+    "errorContains": "fallbacks must be a mapping"
+  },
+  {
+    "name": "roles-null",
+    "yaml": "version: 1\nroutes:\n  a: {provider: llm7, model: m}\nroles:\n",
+    "valid": false,
+    "errorContains": "roles must be a mapping"
+  },
+  {
+    "name": "routes-null",
+    "yaml": "version: 1\nroutes:\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "routes must be a non-empty mapping"
+  },
+  {
+    "name": "fallback-chain-null",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\nfallbacks:\n  a:\n",
+    "valid": false,
+    "errorContains": "fallbacks.a must be a list"
+  },
+  {
+    "name": "route-null",
+    "yaml": "version: 1\nroutes:\n  a:\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "must be a mapping"
+  },
+  {
+    "name": "non-ascii-letters-are-stripped-not-protected",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {'Σecret': 1, 'ａpi_key': 2}\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "non-ascii-in-protected-key",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {'apiékey': 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "non-ascii-cyrillic-stripped-not-protected",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {'api_кey': 1}\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "transport-option-key-openai_api_base",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {openai_api_base: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-api_base",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {api_base: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-azure_endpoint",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {azure_endpoint: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-http_client",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {http_client: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-default_headers",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {default_headers: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-extra_headers",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {extra_headers: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-anthropic_api_url",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {anthropic_api_url: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-openai_proxy",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {openai_proxy: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-apiUrl",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {apiUrl: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-BASE-URL",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {BASE-URL: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-x-auth-token-secret",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {x-auth-token-secret: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-auth",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {auth: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-client_id",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {client_id: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-transport",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {transport: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "transport-option-key-HTTP_PROXY",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {HTTP_PROXY: 1}\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "oauth-like-key-is-not-protected",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {oauth_scope: x, author: y}\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "inference-option-keys-incl-max-retries",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {max_retries: 3, temperature: 0.2, thinking_level: low, effort: high, reasoning: {effort: low}}\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "padded-model-leading",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: ' m'\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "padded-model-trailing",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 'm '\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "padded-model-newline",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: \"m\\n\"\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "model must be a non-blank string"
+  },
+  {
+    "name": "tab-trailing",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n\t",
+    "valid": false,
+    "errorContains": "tab characters"
+  },
+  {
+    "name": "tab-after-value",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\t\nroles:\n  default: a\n",
+    "valid": false,
+    "errorContains": "tab characters"
+  },
+  {
+    "name": "tab-in-flow",
+    "yaml": "version: 1\nroutes: {a: {provider: llm7,\tmodel: m}}\nroles: {default: a}\n",
+    "valid": false,
+    "errorContains": "tab characters"
+  },
+  {
+    "name": "multi-document",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n---\nfoo: 1\n",
+    "valid": false,
+    "errorContains": "invalid YAML"
+  },
+  {
+    "name": "bom-prefix",
+    "yaml": "﻿version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "valid": true
+  },
+  {
+    "name": "protected-option-access_token",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      access_token: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-option-bearer",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      bearer: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-option-private_key",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      private_key: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  },
+  {
+    "name": "protected-option-bearer_token",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: openai\n    model: m\n    options:\n      Bearer-Token: x\nroles:\n  default: primary\n",
+    "valid": false,
+    "errorContains": "protected option key"
+  }
+]

@@ -18,9 +18,9 @@ Tài liệu này không thay thế authority gốc. Khi có mâu thuẫn, luôn 
 ## Executive Summary
 
 - Task catalog vẫn giữ nhãn `IMPLEMENTATION_NOT_AUTHORIZED` ở lớp planning artifact, nhưng story-level execution artifacts hiện đã mở execution surface cho toàn bộ MVP.
-- Runtime shape đã khóa: `apps/web` là Next.js, `apps/api` là NestJS synchronous control plane, mọi async domain workload thuộc monorepo `deepagents`.
+- Runtime shape đã khóa: `apps/web` là Next.js, `apps/api` là NestJS synchronous control plane, mọi async domain workload thuộc monorepo `deepagents`; repository analysis chạy qua LCSP Agent Runtime tự host trên LangGraph + Deep Agents + Docker sandbox.
 - RBAC là authorization source of truth. Role label như `Manager` và `Developer` chỉ là attribute hoặc policy template.
-- Scanner lifecycle do Python Scanner Worker sở hữu; Node.js chỉ còn là bounded TS/JS analyzer subprocess.
+- Repository analysis do LCSP Agent Runtime sở hữu trên assessment repository sandbox; Node.js không còn là semantic scanner subprocess.
 - Legal retrieval dùng ChromaDB structure-first vectorless retrieval; không dùng dense embedding hoặc pgvector cho legal MVP.
 - `implementation-artifacts/` hiện phản ánh Epic `1-8` đều đang `in-progress`; Story `1.1` đã `done` và các story còn lại hiện `ready-for-dev`.
 
@@ -47,7 +47,7 @@ PLANNING_GATE_AND_EXECUTION_GATE_ARE_SEPARATE
 |---|---|---|
 | Web UX | `apps/web` | Next.js frontend, chỉ gọi API |
 | Sync control plane | `apps/api` | NestJS API, auth, RBAC boundary, state validation, audit, outbox creation |
-| Async domain workloads | `deepagents` | toàn bộ scanner, profile, legal, classification, document pipeline |
+| Async domain workloads | `deepagents` | repository analysis, profile, legal, classification, document pipeline |
 | Queue choreography | RabbitMQ + outbox | không publish trực tiếp trong domain transaction |
 | Relational metadata | PostgreSQL | domain state, audit, outbox, workflow metadata |
 | Legal retrieval store | ChromaDB | structure-first vectorless retrieval |
@@ -84,7 +84,7 @@ flowchart LR
 ### 3. Privacy and evidence handling
 
 - Raw source code không được đi vào LLM, audit, queue payload, hoặc persistent store thông thường.
-- Scanner workspace phải ephemeral và phải verify cleanup trước khi job thành công.
+- Managed repository workspace phải scoped theo assessment, commit-pinned và không được persist raw source ngoài sandbox.
 - Historical artifact chain là immutable; rerun phải tạo chain mới.
 
 ## How To Read This Documentation Set
@@ -108,18 +108,14 @@ flowchart LR
 5. `tasks/MW-rbac-002-rbac-policy-model-evaluator-integration.md`
 6. `implementation-artifacts/1-1-approved-account-entry-and-workspace-access.md`
 
-### Nếu bạn làm scanner và evidence pipeline
+### Nếu bạn làm repository analysis và evidence pipeline
 
-1. `scanner-implementation.md`
-2. `scanner-worker-implementation.md`
-3. `python-worker-platform-implementation.md`
-4. `decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`
-5. `decisions/scanner-severity-tool-provenance-decision.md`
-6. `tasks/MW-scan-001-scan-request-status-api.md`
-7. `tasks/MW-pyp-001-python-worker-bootstrap-queue-idempotency.md`
-8. `tasks/MW-scan-py-001-scanner-workspace-snapshot-cleanup-security.md`
-9. `tasks/MW-scan-py-004-technical-evidence-report-gates.md`
-10. `tasks/MW-intel-001-python-technical-profile-worker.md`
+1. ../architecture/repository-deep-agent-analysis.md
+2. python-worker-platform-implementation.md
+3. decisions/trusted-scan-trigger-retry-dlq-replay-decision.md
+4. tasks/MW-scan-001-scan-request-status-api.md
+5. tasks/MW-pyp-001-python-worker-bootstrap-queue-idempotency.md
+6. tasks/MW-intel-001-python-technical-profile-worker.md
 
 ### Nếu bạn làm legal retrieval, classification, reporting
 
@@ -135,7 +131,7 @@ flowchart LR
 |---|---|---|
 | Auth / Session / RBAC | `backend-implementation.md`, `persistence-implementation.md`, `decisions/rbac-runtime-decision.md` | MW-rbac-002, Story 1.1 |
 | Assessment / Wizard / scan trigger | `backend-implementation.md`, `queue-implementation.md`, `readiness/state-transition-authority.md` | module task catalog range |
-| Scanner runtime | `scanner-implementation.md`, `scanner-worker-implementation.md`, `python-worker-platform-implementation.md` | module task catalog range |
+| Repository analysis runtime | `../architecture/repository-deep-agent-analysis.md`, `python-worker-platform-implementation.md` | LCSP Agent Runtime repository-analysis flow |
 | Technical profile / AI usage / reconciliation | `python-worker-platform-implementation.md`, handoffs, state-transition authority | module task catalog range |
 | Legal corpus / retrieval | `legal-corpus-ingestion-implementation.md`, `chromadb-vectorless-legal-retriever-implementation.md` | module task catalog range |
 | LLM / classification / document | `llm-gateway-implementation.md`, backend, queue, persistence | module task catalog range |
@@ -166,7 +162,7 @@ module task catalog range
 Chuỗi execution có độ ưu tiên cao nhất trong task catalog là:
 
 ```text
-MW-scan-001 -> MW-pyp-001 -> MW-scan-py-001 -> MW-scan-py-004 -> MW-intel-001 -> MW-intel-002 -> MW-intel-004
+MW-scan-001 -> MW-pyp-001 -> Repository Deep Agent -> TechnicalEvidenceReport -> MW-intel-001 -> MW-intel-002 -> MW-intel-004
 ```
 
 Mục tiêu của chuỗi này là đưa pipeline từ scan request sang `TechnicalEvidenceReport`, `TechnicalProfile`, `AIUsageFlow`, và cuối cùng là `VerifiedProfile` mà không làm mờ boundary giữa artifact kỹ thuật và artifact nghiệp vụ.
@@ -190,7 +186,7 @@ Theo `docs/implementation-artifacts/sprint-status.yaml` cập nhật lần cuố
 Story `1-1-approved-account-entry-and-workspace-access.md` hiện là foundation story đã hoàn tất. Trạng thái hiện tại khóa các điểm sau:
 
 - Story `1.1` là baseline đã xong cho approved account entry, authenticated session, membership gate, workspace protection, deny-by-default, và audit nền.
-- Các story `1.2+` và downstream epics giờ đã có official execution artifact để dev đi tiếp theo flow auth, assessment, scanner, profile, legal, classification, reporting, và audit.
+- Các story `1.2+` và downstream epics giờ đã có official execution artifact để dev đi tiếp theo flow auth, assessment, repository analysis, profile, legal, classification, reporting, và audit.
 - Việc chọn story tiếp theo không dựa vào handbook snapshot cũ mà dựa vào `docs/implementation-artifacts/sprint-status.yaml` cộng với artifact riêng của từng story.
 
 Nếu bạn chuẩn bị code bootstrap đầu tiên cho repo, `module task catalog` vẫn là bootstrap authority kỹ thuật; còn khi nhận implementation theo story thì phải đọc execution artifact của story đó trước, rồi mới map về `backend-implementation.md`, `persistence-implementation.md`, `queue-implementation.md`, hoặc runtime spec phù hợp.
@@ -201,7 +197,6 @@ Nếu bạn chuẩn bị code bootstrap đầu tiên cho repo, `module task cata
 |---|---|
 | `DEC-RBAC-RUNTIME-001` | khóa evaluator topology, fail-closed behavior, audit fields, cache boundary |
 | `DEC-TRUSTED-SCAN-TRIGGER-001` | khóa idempotency key, retry, DLQ, replay behavior cho scan orchestration |
-| `DEC-SCANNER-SEVERITY-001` | khóa downstream eligibility của evidence và các privacy/provenance gate |
 
 Ba decision này là phần tài liệu dev thường bị bỏ qua nhưng lại quyết định behavior thật khi code guard, worker, outbox, và status handling.
 
@@ -221,12 +216,13 @@ Ba decision này là phần tài liệu dev thường bị bỏ qua nhưng lại
 - persist output trước khi emit downstream event;
 - outbox publisher mới là thành phần publish RabbitMQ ra ngoài transaction.
 
-### Scanner Worker
+### Repository Deep Agent
 
-- runtime Python 3.11+ với Poetry;
-- dùng Syft, Knip, deptry, `ast` + `libcst`, Semgrep custom rules, tree-sitter/custom parser;
-- gọi TS/JS analyzer bằng subprocess cố định, không qua shell;
-- cleanup failure là terminal security failure.
+- mỗi assessment dùng durable LangGraph thread với LCSP Docker repository working database;
+- native Deep Agents filesystem/search/shell/subagent tools là execution harness;
+- Codebase Memory MCP 0.11.0 là structural index/memory tùy chọn, không phải evidence authority;
+- direct repository source và bounded source locations là nguồn bằng chứng cuối cùng;
+- generated/dynamic/unreadable/partial coverage phải giữ trạng thái unresolved thay vì suy diễn absence.
 
 ### Legal Retrieval
 
@@ -267,8 +263,8 @@ Ba decision này là phần tài liệu dev thường bị bỏ qua nhưng lại
 - `docs/implementation/backend-implementation.md`
 - `docs/implementation/persistence-implementation.md`
 - `docs/implementation/queue-implementation.md`
-- `docs/implementation/scanner-implementation.md`
-- `docs/implementation/scanner-worker-implementation.md`
+- docs/architecture/repository-deep-agent-analysis.md
+- `docs/architecture/repository-deep-agent-analysis.md`
 - `docs/implementation/python-worker-platform-implementation.md`
 - `docs/implementation/legal-corpus-ingestion-implementation.md`
 - `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`
@@ -276,7 +272,6 @@ Ba decision này là phần tài liệu dev thường bị bỏ qua nhưng lại
 - `docs/implementation/readiness/state-transition-authority.md`
 - `docs/implementation/decisions/rbac-runtime-decision.md`
 - `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`
-- `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`
 - `docs/implementation/tasks/README.md`
 - `docs/implementation/handoffs/README.md`
 - `docs/implementation-artifacts/sprint-status.yaml`

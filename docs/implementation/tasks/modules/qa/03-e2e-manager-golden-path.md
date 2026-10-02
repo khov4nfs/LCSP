@@ -31,7 +31,7 @@ End-to-end test covering the complete Manager workflow from registration to fina
 4. Manager completes Wizard → submits
 5. Manager connects GitHub repository (mock GitHub API responses)
 6. Manager pins commit snapshot
-7. Manager triggers scan (mock scanner worker callback)
+7. Manager triggers scan (mock repository-analysis callback)
 8. Manager views evidence findings
 9. Manager reviews conflict list (mock conflict detection callback)
 10. Manager resolves all conflicts

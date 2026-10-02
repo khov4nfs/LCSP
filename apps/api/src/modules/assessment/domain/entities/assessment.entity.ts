@@ -111,6 +111,24 @@ export class Assessment {
     this.props.updatedAt = new Date();
   }
 
+  /**
+   * Ends the assessment as "AI not detected" once governed evidence proves absence.
+   * Terminal and idempotent; a locked classification is never overridden.
+   */
+  markAiNotDetected(): void {
+    if (this.props.status === ASSESSMENT_STATUS_CODES.aiNotDetected) {
+      return;
+    }
+    if (
+      this.props.status === ASSESSMENT_STATUS_CODES.wizardInProgress ||
+      this.props.status === ASSESSMENT_STATUS_CODES.classificationLocked
+    ) {
+      throw new Error(ASSESSMENT_ERROR_CODES.aiNotDetectedStateInvalid);
+    }
+    this.props.status = ASSESSMENT_STATUS_CODES.aiNotDetected;
+    this.props.updatedAt = new Date();
+  }
+
   /** Marks the legacy wizard boundary complete after repository prerequisites are verified. */
   completeRepositorySetup(): void {
     if (this.props.status === ASSESSMENT_STATUS_CODES.wizardSubmitted) {

@@ -14,7 +14,7 @@
         "exact_head_lifecycle_risk": {"value": false, "reason_code": "NO"},
         "needs_deep_review": {"value": true, "reason_code": "YES"},
         "likely_missing_regression_tests": {"value": false, "reason_code": "NO"},
-        "requires_managed_sandbox_attention": {"value": true, "reason_code": "YES"},
+        "requires_sandbox_attention": {"value": true, "reason_code": "YES"},
         "change_complexity": 0.7,
         "operational_risk": 0.6,
         "review_depth": 0.9
@@ -110,9 +110,9 @@
             }
           },
           {
-            "question_id": "requires_managed_sandbox_attention",
+            "question_id": "requires_sandbox_attention",
             "question_type": "NOUL",
-            "prompt": "Return whether bounded metadata suggests managed sandbox attention.",
+            "prompt": "Return whether bounded metadata suggests sandbox attention.",
             "noul_schema": {
               "type": "object",
               "required": ["value", "reason_code"],
@@ -195,7 +195,7 @@
             "confidence": 0.79
           },
           {
-            "questionId": "requires_managed_sandbox_attention",
+            "questionId": "requires_sandbox_attention",
             "noul": {"value": true, "reason_code": "YES"},
             "probability": 0.83,
             "confidence": 0.83

@@ -13,15 +13,15 @@ This folder contains domain and wave handoff packets for implementation planning
 
 | Handoff | Status | Scope | Included tasks |
 |---|---|---|---|
-| [HANDOFF-scanner-evidence-to-technical-profile.md](HANDOFF-scanner-evidence-to-technical-profile.md) | `READY_FOR_PLANNING_REVIEW` | repository scan, evidence gates, TechnicalProfile | MW-scan-001, MW-pyp-001, MW-scan-py-001, MW-scan-py-004, MW-intel-001 |
+| [Repository Deep Agent architecture](../../architecture/repository-deep-agent-analysis.md) | `ACTIVE` | repository analysis, evidence gates, TechnicalProfile | LCSP Agent Runtime repository-analysis flow |
 | [HANDOFF-ai-usage-flow-and-reconciliation.md](HANDOFF-ai-usage-flow-and-reconciliation.md) | `READY_FOR_PLANNING_REVIEW` | AIUsageFlow, conflict candidates, reconciliation, VerifiedProfile | MW-intel-002, MW-intel-004 |
 
 ## Rules
 
 - Handoffs do not authorize implementation before readiness and sprint planning.
-- Handoffs must cite active authority docs only.
+- Active handoffs must cite active authority docs only; archived handoffs are historical evidence only.
 - Handoffs must preserve artifact boundaries:
-  - `TechnicalEvidenceReport` is scanner evidence.
+  - `TechnicalEvidenceReport` is repository-analysis evidence.
   - `TechnicalProfile` is technical observation.
   - `AIUsageFlow` is business usage claim set.
   - `VerifiedProfile` is post-reconciliation final profile for legal matching.

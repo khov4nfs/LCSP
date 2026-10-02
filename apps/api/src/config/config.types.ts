@@ -2,26 +2,10 @@ export interface DatabaseConfig {
   url: string;
 }
 
-export interface AuthConfig {
-  bcryptCost: number;
-  sessionTtlSeconds: number;
-  jwtSecret: string;
-}
-
 export interface OAuthConfig {
   googleClientId: string;
   googleClientSecret: string;
   allowedRedirectOrigins: string[];
-  allowedRedirectUris: string[];
-}
-
-export interface GithubConfig {
-  appId: string;
-  appSlug: string;
-  allowedRedirectUris: string[];
-  clientId: string;
-  clientSecret: string;
-  privateKey: string;
 }
 
 export interface GithubCliConfig {
@@ -38,30 +22,24 @@ export interface GithubCliConfig {
 }
 
 export interface GitlabCliConfig {
-  enabled: boolean;
   executablePath: string;
   timeoutMs: number;
   maxJsonOutputBytes: number;
 }
 
 export interface BitbucketCliConfig {
-  enabled: boolean;
   executablePath: string;
   timeoutMs: number;
   maxJsonOutputBytes: number;
 }
 
 export interface AzureDevOpsCliConfig {
-  enabled: boolean;
   executablePath: string;
   timeoutMs: number;
   maxJsonOutputBytes: number;
 }
 
 export interface GithubCredentialPersistenceConfig {
-  enabled: boolean;
-  snapshotPinningEnabled: boolean;
-  archiveRetrievalEnabled: boolean;
   activeKekVersion: string;
   encodedKekKeyring: string;
 }
@@ -72,9 +50,14 @@ export interface RabbitMqConfig {
 }
 
 export interface OutboxConfig {
-  enabled: boolean;
   pollIntervalMs: number;
   batchSize: number;
+  maxAttempts: number;
+}
+
+export interface PipelineReconciliationConfig {
+  pollIntervalMs: number;
+  quietPeriodMs: number;
   maxAttempts: number;
 }
 
@@ -83,16 +66,8 @@ export interface SePayConfig {
   timestampSkewSeconds: number;
 }
 
-export interface CryptoConfig {
-  mfaSecretEncryptionKey: string;
-}
-
 export interface WorkerConfig {
   apiKey: string;
-}
-
-export interface InternalConfig {
-  apiToken: string;
 }
 
 export interface EmailConfig {
@@ -117,17 +92,6 @@ export interface BillingConfig {
   sePayBankAccountNumber: string;
   sePayAccountHolder: string;
   sePayQrUrlTemplate: string;
-  meteringEnabled: boolean;
-  reservationCredits: string;
-  maxInvocationChargeCredits: string;
-  runtimeProvider: string;
-  runtimeModel: string;
-  maxInputTokens: string;
-  maxInputBytes: string;
-  maxOutputTokens: string;
-  maxReasoningTokens: string;
-  maxInvocationsPerGroup: string;
-  authorizedRuntimeModels: string;
 }
 
 export const NODE_ENVS = {
@@ -141,9 +105,7 @@ export type NodeEnv = (typeof NODE_ENVS)[keyof typeof NODE_ENVS];
 export interface AppConfig {
   nodeEnv: NodeEnv;
   database: DatabaseConfig;
-  auth: AuthConfig;
   oauth: OAuthConfig;
-  github: GithubConfig;
   githubCli: GithubCliConfig;
   gitlabCli: GitlabCliConfig;
   bitbucketCli: BitbucketCliConfig;
@@ -151,17 +113,11 @@ export interface AppConfig {
   githubCredentialPersistence: GithubCredentialPersistenceConfig;
   rabbitmq: RabbitMqConfig;
   outbox: OutboxConfig;
+  pipelineReconciliation: PipelineReconciliationConfig;
   sepay: SePayConfig;
-  crypto: CryptoConfig;
   worker: WorkerConfig;
-  internal: InternalConfig;
   email: EmailConfig;
   orchestration: OrchestrationConfig;
   verifiedEpisodes: VerifiedEpisodesConfig;
   billing: BillingConfig;
-  interview: InterviewConfig;
-}
-
-export interface InterviewConfig {
-  guidanceVersion: string;
 }

@@ -1,6 +1,8 @@
 """Typed persisted contracts for Program Evidence Graph artifacts."""
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -28,7 +30,7 @@ class ProgramNode:
     coverage_state: str = "SUFFICIENT"
     source_anchor_ref: str | None = None
     # v3 trust/provenance metadata. Defaults preserve v2 construction call sites.
-    origin: str = "STATIC_ANALYSIS"
+    origin: str = "DEEP_AGENT"
     resolution_state: str = "OBSERVED"
     support_refs: list[str] = field(default_factory=list)
 
@@ -46,7 +48,7 @@ class ProgramEdge:
     attributes: dict[str, Any] = field(default_factory=dict)
     evidence_refs: list[str] = field(default_factory=list)
     coverage_state: str = "SUFFICIENT"
-    origin: str = "STATIC_ANALYSIS"
+    origin: str = "DEEP_AGENT"
     resolution_state: str = "OBSERVED"
     support_refs: list[str] = field(default_factory=list)
 
@@ -65,6 +67,14 @@ class SourceEvidenceAnchor:
     end_line: int | None
     source_hash: str
     graph_node_id: str
+
+
+def program_graph_content_hash(graph: dict[str, Any]) -> str:
+    """Content-address one Program Evidence Graph payload (excluding its own hash)."""
+    body = {key: value for key, value in graph.items() if key not in {"graph_hash", "graphHash"}}
+    return "sha256:" + hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":"), default=str).encode()
+    ).hexdigest()
 
 
 @dataclass

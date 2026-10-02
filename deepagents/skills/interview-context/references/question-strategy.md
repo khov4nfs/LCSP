@@ -34,7 +34,7 @@ Use this tie-breaker only after every candidate has already passed the materiali
 
 Within the same level, prefer the smallest question with the strongest current evidence grounding and highest expected reduction of material uncertainty.
 
-This is a default prioritization heuristic, not a required-fact catalog. A dependency/branching blocker wins when resolving it determines whether another frontier is relevant at all. Do not force category ordering when the assessment context makes another uncertainty truly more consequential. In `INVESTIGATOR_RESOLUTION`, the supplied `businessContextNeed` always takes priority.
+This is a default prioritization heuristic, not a required-fact catalog. A dependency/branching blocker wins when resolving it determines whether another frontier is relevant at all. Do not force category ordering when the assessment context makes another uncertainty truly more consequential. In `BUSINESS_CONTEXT_RESOLUTION`, the supplied `targetedNeed` always takes priority.
 
 ## Internal vocabulary must not leak
 
@@ -46,7 +46,7 @@ This is a default prioritization heuristic, not a required-fact catalog. A depen
 | affected subject | “Who are the affected subjects?” | “Who can be affected by this decision or action?” |
 | human oversight | “Is there human oversight?” | “Does someone need to review or approve it before it takes effect?” |
 | deployment context | “What is your deployment context?” | “Who uses this system in practice—only your organization, separate customer organizations, or both?” |
-| businessContextNeed | “Please resolve the businessContextNeed.” | Ask the actual operational distinction. |
+| targetedNeed | “Please resolve the targetedNeed.” | Ask the actual operational distinction. |
 | material | “Is this material?” | Ask the underlying real-world fact, never the internal label. |
 
 ## Response modes

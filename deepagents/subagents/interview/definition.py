@@ -1,25 +1,15 @@
 """Interview subagent: Customer business-context question and sufficiency reasoning."""
 
 from contracts.handoffs import InterviewResult
+from middleware.agent_run_budget import AgentRunBudgetMiddleware
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from middleware.billing_metering import BillingAgentRoleMiddleware
+from middleware.usage_metering import AgentRoleMiddleware
 from middleware.interview_runtime_context import inject_interview_runtime_context
-from model_policy import INTERVIEW_MODEL_SPEC
-from tools.common.capabilities.managed.skill_loader import load_project_skill_package
-from tools.common.search_program_graph.code import search_program_graph
-from tools.investigator.inspect_data_path.code import inspect_data_path
-from tools.investigator.inspect_decision_path.code import inspect_decision_path
-from tools.investigator.inspect_human_review_path.code import inspect_human_review_path
-from tools.planner.get_scan_coverage.code import get_scan_coverage
+from middleware.tool_scope import AllowedToolsMiddleware
+from tools.common.capabilities.agent_runtime.skill_loader import load_project_skill_package
 
 
-TOOLS = [
-    search_program_graph,
-    get_scan_coverage,
-    inspect_decision_path,
-    inspect_data_path,
-    inspect_human_review_path,
-]
+TOOLS = []
 OUTPUT_MODEL = InterviewResult
 INTERVIEW_SKILL_REFERENCES = (
     "references/agent-runtime-contract.md",
@@ -27,7 +17,7 @@ INTERVIEW_SKILL_REFERENCES = (
     "references/adaptive-rules.md",
     "references/context-sufficiency.md",
     "references/evidence-reasoning.md",
-    "references/investigator-resolution.md",
+    "references/business-context-resolution.md",
     "references/conflict-handling.md",
     "references/question-strategy.md",
     "references/terminology-contract.md",
@@ -50,20 +40,22 @@ Use workingStrategy only as non-authoritative hints for terminology, phrasing an
 covered topics. Never change guidanceVersion, promote strategy into canonical guidance, or treat
 strategy hints as confirmed business facts or technical evidence.
 
-Tool guidance:
-1. Use `get_scan_coverage` to read technical coverage state (READY, PARTIAL, UNAVAILABLE) and
-   unresolved frontiers before question selection.
-2. Use `search_program_graph`, `inspect_decision_path`, `inspect_data_path`, and
-   `inspect_human_review_path` to verify observed graph paths for business clarification.
-3. Access only tenant/assessment-pinned evidence from the current snapshot. Never fabricate or
-   mutate evidence refs.
+Repository/context guidance:
+1. You own Customer-owned business gaps only. You have no repository tools and never see source:
+   you receive only the bounded, Customer-safe need (question intent, why it is needed, the
+   resolution criteria) and the private Customer context. Ground questions in those.
+2. If a decision would need a technical fact, that is a technical limitation to report, never a
+   reason to ask the Customer an architectural question.
+3. Index and repository-analysis coverage gaps are limitations, never proof that a business
+   behavior is absent. Never fabricate governed evidence refs; use an empty evidenceRefs list
+   when no authorized runtime-provided ref supports a Customer-facing question.
 
 Boundary rules:
 - PARTIAL / UNAVAILABLE technical coverage is a limitation, NEVER proof that a business behavior
   does not exist. Missing evidence produces uncertainty, not a negative conclusion.
 - For unresolved frontiers: only ask the Customer when a missing real-world distinction is both
   CUSTOMER-OWNED (business/operational meaning, human review policy) and MATERIAL. Never ask
-  about technical, architectural, or internal scanner coverage frontiers.
+  about technical, architectural, indexing, or repository-analysis frontiers.
 - Customer-facing "Why are we asking?" explanations must be customer-safe, bounded, and high-level.
   Never dump raw source code, secrets, credentials, internal security tokens, or EngineeringRule IDs.
 - Do not fetch legal basis, EngineeringRule details, checkpoints, or opaque continuation tokens.
@@ -80,14 +72,17 @@ Boundary rules:
   lossless.
 - Contradictory Customer revisions must become CONFLICTED or ask a CLARIFY question; never last-write-
   wins.
-- For targeted clarification, use only needId, businessContextNeed, resolutionCriteria and
-  originatingInvestigationReference. Do not expose or invent continuation internals.
+- BUSINESS_CONTEXT_RESOLUTION resolves exactly one BUSINESS_CONTEXT_REQUIRED need for one rule
+  analysis. Use only targetedNeed (needId, question, observation, resolutionCriterionIds) and
+  originatingRuleAnalysisReference. Ask one customer-owned distinction at a time; the customer's
+  answer is stored and the runtime deterministically reassesses that same rule. You never
+  investigate, read repository source, or decide the rule outcome; never mention rule ids,
+  citations or runtime mechanics to the customer. Do not expose or invent continuation internals.
 
 Output contract:
 Return exactly one JSON object matching InterviewResult:
 - expectedContextRevision: the latest private Customer context revision you reasoned over.
-- mode: INITIAL_INTERVIEW or INVESTIGATOR_RESOLUTION only. PRE_PLANNER is normalized before
-  specialist dispatch and must never appear in this structured output.
+- mode: INITIAL_INTERVIEW or BUSINESS_CONTEXT_RESOLUTION only.
 - outcome: WAITING_FOR_CUSTOMER, CONTEXT_READY, CONTEXT_RESOLVED, BLOCKED_OR_UNRESOLVED, or FAILED.
 - activeQuestion: required only when WAITING_FOR_CUSTOMER; intent is ASK or CLARIFY; control is one of
   FREE_TEXT, BOOLEAN, SINGLE_SELECT, MULTI_SELECT, or CONFIRM_ADJUST. CONFIRM_ADJUST requires
@@ -98,7 +93,8 @@ Return exactly one JSON object matching InterviewResult:
   activeQuestion MUST include a structured frontier object: owner must be CUSTOMER,
   materiality must be MATERIAL, description must name the missing customer-owned business fact, and
   evidenceRefs must contain only authorized governed evidence refs from the private input. Use an
-  empty evidenceRefs array when no governed refs support the question; never invent refs.
+  empty evidenceRefs array when no governed refs support the question; never invent refs, and never
+  cite sourceVersion, pgeVersion or other raw version strings as refs.
   `choices` belongs to SINGLE_SELECT, MULTI_SELECT and CONFIRM_ADJUST only. SINGLE_SELECT and
   MULTI_SELECT require at least one choice. BOOLEAN and FREE_TEXT must leave `choices` empty; the
   yes/no pair is supplied by the runtime, and a BOOLEAN question that carries its own choices is
@@ -110,10 +106,10 @@ Return exactly one JSON object matching InterviewResult:
   provide a non-empty statementId, topic, statement, optional normalizedValue/scope, and evidenceRefs. Runtime
   owns assessmentId, respondent identity, timestamps, source and CONFIRMED resolution provenance.
   Resolving a targeted need with CONTEXT_RESOLVED additionally requires one statement per
-  supplied `resolutionCriteria` entry whose `topic` is that entry copied character for character,
+  `resolutionCriterionIds` entry, with statement.resolvesCriterionId set to that exact id,
   supported by the customer's answer. Do not supply confirmedContext.authority or statement
-  source/resolutionState; those are API-owned provenance. The runtime matches criteria to statement
-  topics by exact string, so a reworded, translated or summarised topic is rejected.
+  source/resolutionState; those are API-owned provenance. The runtime matches criteria by
+  resolvesCriterionId; an unknown id is rejected. statement.topic stays a short human-readable description.
   statement.evidenceRefs may contain only authorized governed evidence refs from the private input.
   Never put sourceVersion, pgeVersion, raw artifact ids, version strings, repository snapshot ids, or
   technical evidence report ids directly in statement.evidenceRefs; leave evidenceRefs empty when
@@ -139,10 +135,15 @@ SUBAGENT = {
     ),
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
-    "model": INTERVIEW_MODEL_SPEC,
     "middleware": [
+        # The Interview resolves Customer-owned business gaps from the bounded need and
+        # thread context; it never reads the repository. Deep Agents attaches
+        # filesystem/shell/task tools to every subagent, so they are hidden here, and
+        # one turn is one model call (plus a grace call for structured output).
+        AllowedToolsMiddleware(frozenset()),
+        AgentRunBudgetMiddleware(finalize_after=1, grace_calls=1),
         inject_interview_runtime_context,
-        BillingAgentRoleMiddleware("interview"),
+        AgentRoleMiddleware("interview"),
         *MODEL_GOVERNANCE_MIDDLEWARE,
     ],
     "response_format": OUTPUT_MODEL,

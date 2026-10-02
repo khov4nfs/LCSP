@@ -10,7 +10,7 @@ export type AssessmentSummaryCardProps = {
   openAssessmentLabel?: string;
 };
 
-export type AssessmentModuleLinkProps = {
+type AssessmentModuleLinkProps = {
   href: string;
   labelKey: Parameters<typeof import("@lcsp/i18n").resolveMessage>[1];
   icon: LucideIcon;

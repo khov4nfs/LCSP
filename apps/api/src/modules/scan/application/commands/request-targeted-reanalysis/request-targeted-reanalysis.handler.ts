@@ -14,6 +14,7 @@ import {
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
 import {
+  REQUEST_TARGETED_REANALYSIS_RULE_SCOPE,
   REQUEST_TARGETED_REANALYSIS_TOOL,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
@@ -22,6 +23,7 @@ import {
   TARGETED_REANALYSIS_REQUEST_STATES,
   TARGETED_REANALYSIS_RESPONSE_STATES,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
+  type TargetedReanalysisRuleScope,
 } from "@lcsp/contracts/scan";
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -39,12 +41,7 @@ import { problemException } from "../../../../../platform/http/filters/error.fac
 import type { RequestTargetedReanalysisResponse } from "../../contracts/scan/targeted-reanalysis.contract.js";
 import { RequestTargetedReanalysisCommand } from "./request-targeted-reanalysis.command.js";
 
-const ALLOWED_ANALYZERS = new Set([
-  "RUN_SEMGREP_RULES",
-  "RUN_PYTHON_SEMANTIC_ANALYSIS",
-  "RUN_TS_JS_SEMANTIC_ANALYSIS",
-  "RUN_STRUCTURAL_AUGMENTATION",
-]);
+const ALLOWED_ANALYZERS = new Set(["DEEP_AGENT_REPOSITORY_ANALYSIS"]);
 
 /**
  * Queues bounded targeted reanalysis requests against accepted evidence while enforcing idempotency, organization capacity, and deterministic scope resolution.
@@ -112,7 +109,7 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
         assessmentId: input.assessmentId,
         status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
       },
-      select: { id: true, evidencePayload: true, snapshotId: true },
+      select: { id: true, snapshotId: true },
     });
     const snapshot = report
       ? await this.prisma.repositorySnapshot.findFirst({
@@ -130,11 +127,7 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
         { status: HttpStatus.NOT_FOUND },
       );
     }
-    const normalizedScope = this.resolveScope(
-      input,
-      report.evidencePayload,
-      correlationId,
-    );
+    const normalizedScope = this.resolveScope(input);
     const scopeRef = `scope:${requestId}`;
     const auditRef = `audit:${requestId}`;
     const created = await this.prisma.$transaction(async (tx) => {
@@ -303,26 +296,20 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
     input: RequestTargetedReanalysisCommand["input"],
     correlationId: string,
   ): void {
-    const pathPrefixes =
-      "pathPrefixes" in input.scope ? input.scope.pathPrefixes : undefined;
-    const subjectRefs =
-      "subjectRefs" in input.scope ? input.scope.subjectRefs : undefined;
-    const exactlyOneScope =
-      Number(Boolean(pathPrefixes?.length)) +
-        Number(Boolean(subjectRefs?.length)) ===
-      1;
     if (!ALLOWED_ANALYZERS.has(input.analyzerId))
       throw problemException(
         SCAN_ERROR_CODES.targetedReanalysisInvalidAnalyzer,
         correlationId,
         { status: HttpStatus.BAD_REQUEST },
       );
+    const ruleScope = input.scope?.ruleScope;
     if (
-      !exactlyOneScope ||
-      (pathPrefixes?.length ?? 0) >
-        REQUEST_TARGETED_REANALYSIS_TOOL.maxPathPrefixes ||
-      (subjectRefs?.length ?? 0) >
-        REQUEST_TARGETED_REANALYSIS_TOOL.maxSubjectRefs
+      !ruleScope ||
+      Object.keys(input.scope).length !== 1 ||
+      !ruleScope.engineeringRuleId ||
+      ruleScope.criterionIds.length === 0 ||
+      ruleScope.criterionIds.length >
+        REQUEST_TARGETED_REANALYSIS_TOOL.maxCriterionIds
     )
       throw problemException(
         SCAN_ERROR_CODES.targetedReanalysisInvalidScope,
@@ -332,35 +319,23 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
   }
 
   /**
-   * Normalizes an explicit path scope or resolves subject references to containing directory prefixes from the input evidence artifact.
-   *
-   * @param input - Targeted-reanalysis input containing one supported scope representation.
-   * @param evidencePayload - Persisted technical-evidence payload used to resolve subject references.
-   * @param correlationId - Correlation identifier attached to scope-resolution problems.
-   * @returns Sorted path-prefix scope that can be consumed by the worker.
-   * @throws An invalid-scope problem when subject references cannot resolve to safe repository paths.
+   * Normalizes the rule scope. The worker re-runs exactly this EngineeringRule and its
+   * criteria; the API bounds and orders the ids but never interprets them.
    */
-  private resolveScope(
-    input: RequestTargetedReanalysisCommand["input"],
-    evidencePayload: unknown,
-    correlationId: string,
-  ): { pathPrefixes: string[] } {
-    if ("pathPrefixes" in input.scope) {
-      return { pathPrefixes: [...input.scope.pathPrefixes].sort() };
-    }
-
-    const pathPrefixes = resolveSubjectRefPathPrefixes(
-      evidencePayload,
-      input.scope.subjectRefs,
-    );
-    if (pathPrefixes.length === 0) {
-      throw problemException(
-        SCAN_ERROR_CODES.targetedReanalysisInvalidScope,
-        correlationId,
-        { status: HttpStatus.BAD_REQUEST },
-      );
-    }
-    return { pathPrefixes };
+  private resolveScope(input: RequestTargetedReanalysisCommand["input"]): {
+    ruleScope: TargetedReanalysisRuleScope;
+  } {
+    const { ruleScope } = input.scope;
+    return {
+      ruleScope: {
+        engineeringRuleId: ruleScope.engineeringRuleId,
+        criterionIds: [...ruleScope.criterionIds].sort(),
+        contextRevision: ruleScope.contextRevision,
+        ...(ruleScope.priorResultId
+          ? { priorResultId: ruleScope.priorResultId }
+          : {}),
+      },
+    };
   }
 
   /**
@@ -382,7 +357,7 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
     return {
       status: AGENTIC_TOOL_STATUSES.ready,
       toolName: REQUEST_TARGETED_REANALYSIS_TOOL.name,
-      toolVersion: REQUEST_TARGETED_REANALYSIS_TOOL.version,
+      toolVersion: REQUEST_TARGETED_REANALYSIS_RULE_SCOPE.version,
       configHash: REQUEST_TARGETED_REANALYSIS_TOOL.configHash,
       correlationId: input.correlationId,
       artifactVersions: {
@@ -403,138 +378,4 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
       },
     };
   }
-}
-
-const SUBJECT_REF_KINDS = {
-  finding: "finding",
-  node: "node",
-  symbol: "symbol",
-} as const;
-
-type SubjectRefKind =
-  (typeof SUBJECT_REF_KINDS)[keyof typeof SUBJECT_REF_KINDS];
-
-type EvidenceRecord = Record<string, unknown>;
-
-/**
- * Resolves finding/node/symbol references to unique sorted directory prefixes found in the recursive evidence payload.
- *
- * @param evidencePayload - Persisted technical-evidence payload to search.
- * @param subjectRefs - Stable subject references requested by the caller.
- * @returns Safe repository directory prefixes containing matching evidence subjects.
- */
-function resolveSubjectRefPathPrefixes(
-  evidencePayload: unknown,
-  subjectRefs: string[],
-): string[] {
-  const records = collectEvidenceRecords(evidencePayload);
-  const prefixes = new Set<string>();
-  for (const subjectRef of subjectRefs) {
-    const parsed = parseSubjectRef(subjectRef);
-    if (!parsed) continue;
-    for (const record of records) {
-      if (!matchesSubjectRef(record, parsed.kind, parsed.id)) continue;
-      const pathPrefix = toPathPrefix(readFilePath(record));
-      if (pathPrefix) prefixes.add(pathPrefix);
-    }
-  }
-  return [...prefixes].sort();
-}
-
-/**
- * Recursively flattens record-like objects from nested evidence JSON so subject-reference lookup can inspect all evidence nodes.
- *
- * @param value - Arbitrary evidence payload subtree.
- * @returns All record nodes reachable from the subtree.
- */
-function collectEvidenceRecords(value: unknown): EvidenceRecord[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => collectEvidenceRecords(item));
-  }
-  if (!isEvidenceRecord(value)) return [];
-  return [
-    value,
-    ...Object.values(value).flatMap((item) => collectEvidenceRecords(item)),
-  ];
-}
-
-/**
- * Checks whether an unknown evidence value is a non-array object record.
- *
- * @param value - Unknown value to inspect.
- * @returns True when the value is record-like.
- */
-function isEvidenceRecord(value: unknown): value is EvidenceRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * Parses a supported `finding:`, `node:`, or `symbol:` subject reference.
- *
- * @param value - Subject reference string to parse.
- * @returns Parsed kind/id pair, or null when the reference is malformed or unsupported.
- */
-function parseSubjectRef(
-  value: string,
-): { kind: SubjectRefKind; id: string } | null {
-  const [kind, id, ...rest] = value.split(":");
-  if (rest.length > 0 || !id || !(kind in SUBJECT_REF_KINDS)) return null;
-  return { kind: kind as SubjectRefKind, id };
-}
-
-/**
- * Determines whether an evidence record identifies the requested finding, node, or symbol.
- *
- * @param record - Evidence record to inspect.
- * @param kind - Subject reference category.
- * @param id - Subject identifier to match.
- * @returns True when the record directly or collectively references the requested subject.
- */
-function matchesSubjectRef(
-  record: EvidenceRecord,
-  kind: SubjectRefKind,
-  id: string,
-): boolean {
-  if (kind === SUBJECT_REF_KINDS.finding) {
-    return (
-      record.finding_id === id ||
-      record.findingId === id ||
-      (Array.isArray(record.finding_ids) && record.finding_ids.includes(id)) ||
-      (Array.isArray(record.findingIds) && record.findingIds.includes(id))
-    );
-  }
-  if (kind === SUBJECT_REF_KINDS.node) {
-    return record.node_id === id || record.nodeId === id;
-  }
-  return record.symbol_id === id || record.symbolId === id;
-}
-
-/**
- * Reads a snake_case or camelCase file-path field from an evidence record.
- *
- * @param record - Evidence record that may contain a file path.
- * @returns File path string, or null when absent/non-string.
- */
-function readFilePath(record: EvidenceRecord): string | null {
-  const value = record.file_path ?? record.filePath;
-  return typeof value === "string" ? value : null;
-}
-
-/**
- * Converts a safe relative file path into its containing directory prefix for bounded reanalysis.
- *
- * @param filePath - Relative repository file path to normalize.
- * @returns Directory prefix ending in `/`, or null for absolute/traversal/root-level paths.
- */
-function toPathPrefix(filePath: string | null): string | null {
-  if (
-    !filePath ||
-    filePath.startsWith("/") ||
-    filePath.split("/").includes("..")
-  ) {
-    return null;
-  }
-  const separatorIndex = filePath.lastIndexOf("/");
-  if (separatorIndex <= 0) return null;
-  return `${filePath.slice(0, separatorIndex + 1)}`;
 }

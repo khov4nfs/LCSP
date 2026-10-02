@@ -111,8 +111,8 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
       .set("X-Worker-Api-Key", WORKER_KEY)
       .send({
         scan_job_id: scanJobId,
-        tools_version: { semgrep: "1.0.0", programGraph: "2.0.0" },
-        config_hash: { semgrep: "sha256:golden", programGraph: "sha256:graph" },
+        tools_version: { deepagents: "0.7.17", "repository-analysis": "1.0.0" },
+        config_hash: { "repository-analysis": "sha256:golden" },
         evidence_payload: {
           findings: [{ finding_id: "golden-finding" }],
           evidence_graph: {

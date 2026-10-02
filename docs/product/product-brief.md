@@ -30,7 +30,7 @@ Manager creates assessment
 -> Manager completes WizardProfile
 -> Manager connects repository
 -> Automatic Trusted Scan Initiation creates or resumes Repository Scan
--> Python Scanner Worker produces TechnicalEvidenceReport
+-> Managed Repository Analysis Agent produces TechnicalEvidenceReport
 -> Python Worker Platform builds TechnicalProfile and AIUsageFlow
 -> Manager resolves material conflicts when required
 -> Direct EngineeringRule assessment compiles/investigates citation-backed legal rules
