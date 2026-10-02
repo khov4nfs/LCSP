@@ -8,14 +8,13 @@ Every packet also inherits the executable [shared tool contract](shared-tool-con
 
 - Tools are worker-owned schema-validated capabilities. API code owns RBAC, audit, trusted trigger, and artifact-persistence boundaries; it does not reimplement tool logic.
 - A tool is not complete until its typed request/response contract, safe failure behavior, provenance/coverage/evidence refs, result bounds, and task-specific tests pass.
-- A tool task may reuse existing scanner task documentation. Do not create a duplicate implementation path for the same analyzer.
+- Repository analysis must not recreate retired language-specific scanner tools. Use the native Deep Agents repository harness and optional Codebase Memory MCP; retired scanner task docs are not active authority.
 
 ## Catalog-to-Task Map
 
 | Catalog family | Task guide | Story |
 |---|---|---|
-| Mandatory baseline | [baseline-scanner-tools.md](baseline-scanner-tools.md) | AO-1 |
-| Technical evidence queries | [technical-evidence-query-tools.md](technical-evidence-query-tools.md) | AO-2 |
+| Repository analysis | [Repository Deep Agent architecture](../../../../architecture/repository-deep-agent-analysis.md) | AO-1 superseded by native Deep Agents harness |
 | Artifact, Wizard, conflict | [artifact-wizard-conflict-tools.md](artifact-wizard-conflict-tools.md) | AO-3, AO-4 |
 | Legal classification and gap | [legal-classification-gap-tools.md](legal-classification-gap-tools.md) | AO-3, AO-5 |
 | Admin-managed corpus recovery | [legal-corpus-recovery-tools.md](legal-corpus-recovery-tools.md) | AO-3, AO-6 |
@@ -26,7 +25,7 @@ The family guides are discovery/migration maps. Canonical build artifacts are th
 
 | Story / family | Packet range |
 |---|---|
-| AO-1 mandatory scanner baseline | `ao-1-01` through `ao-1-11` |
+| AO-1 repository analysis | Native Deep Agents repository harness; legacy packets archived |
 | AO-2 evidence query and reanalysis | `ao-2-01` through `ao-2-13` |
 | AO-4 Artifact, Wizard, and conflict | `ao-4-01` through `ao-4-06` |
 | AO-5 legal classification and gap | `ao-5-01` through `ao-5-10` |

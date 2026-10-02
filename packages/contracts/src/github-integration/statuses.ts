@@ -90,6 +90,7 @@ export const REPOSITORY_SCAN_JOB_STATUSES = {
   pendingMapping: "PENDING_MAPPING",
   blockedMapping: "BLOCKED_MAPPING",
   waitingForContext: "WAITING_FOR_CONTEXT",
+  waitingForCredits: "WAITING_FOR_CREDITS",
   readyToSnapshot: "READY_TO_SNAPSHOT",
 } as const;
 

@@ -1,3 +1,4 @@
+import { asRecord as record } from "@lcsp/contracts/shared";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   AGENTIC_TOOL_NAMES,
@@ -165,11 +166,6 @@ export function retrieve_verified_episodes(args: AgenticToolQueryDispatchArgs) {
   );
 }
 
-function record(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
 function optionalRecord(value: unknown): Record<string, unknown> | null {
   return record(value);
 }

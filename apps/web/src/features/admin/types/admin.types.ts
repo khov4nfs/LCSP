@@ -5,7 +5,7 @@ import type {
   UserAccessStatus,
 } from "@lcsp/contracts/auth";
 
-export type AdminUserFiltersState = {
+type AdminUserFiltersState = {
   searchQuery: string;
   statusFilter: UserAccessStatus | "ALL";
   roleFilter: AuthUserRole | "ALL";

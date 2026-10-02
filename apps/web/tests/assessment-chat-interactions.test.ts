@@ -10,9 +10,9 @@ import type { Root } from "react-dom/client";
 import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
-  ASSESSMENT_RUNTIME_PLAN_REASON_CODES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
-  ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS,
+  RULE_ANALYSIS_ACTIVITIES,
+  RULE_ANALYSIS_SUMMARY_TOOL,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
 } from "@lcsp/contracts/evidence";
@@ -90,12 +90,18 @@ Object.defineProperty(testWindow.HTMLElement.prototype, "scrollTo", {
   configurable: true,
   value: () => undefined,
 });
-Object.defineProperty(testWindow.HTMLTextAreaElement.prototype, "scrollHeight", {
-  configurable: true,
-  get() {
-    return Math.max(1, this.value.split("\n").length) * 20;
+Object.defineProperty(
+  testWindow.HTMLTextAreaElement.prototype,
+  "scrollHeight",
+  {
+    configurable: true,
+    get() {
+      // jsdom does not lay out Tailwind padding, so model the textarea's vertical
+      // chrome explicitly to keep row-growth assertions aligned with browsers.
+      return Math.max(1, this.value.split("\n").length) * 20 + 32;
+    },
   },
-});
+);
 
 const actEnvironment = globalThis as typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -105,8 +111,8 @@ actEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
 const { createRoot } = await import("react-dom/client");
 const { ChatSingleSelect } =
   await import("../src/features/workspace/components/molecules/chat-single-select");
-const { InterviewAnswerHistory } =
-  await import("../src/features/workspace/components/molecules/interview-answer-history");
+const { InterviewCycleTurn } =
+  await import("../src/features/workspace/components/molecules/interview-cycle-turn");
 
 const { SelectionHistoryRow } =
   await import("../src/features/workspace/components/molecules/selection-history-row");
@@ -322,31 +328,73 @@ test("assessment composer swaps Resume back to Send after typing", async () => {
   assert.equal(sendButton.disabled, false);
 });
 
-test("assessment composer keeps five visible rows before showing resize", async () => {
+test("assessment composer grows from one to three rows before scrolling and offering expand", async () => {
   const { container, rerender } = await renderElement(
     React.createElement(AssessmentComposer, {
-      value: "https://github.com/khovan123/LCSP",
+      value: "One line",
       onValueChange: () => undefined,
       onSubmit: () => undefined,
     }),
   );
   const textarea = getTextarea(container);
 
-  assert.equal(textarea.getAttribute("rows"), "5");
-  const collapsedHeight = textarea.style.height;
-  assert.ok(Number.parseInt(collapsedHeight, 10) >= 100);
+  assert.equal(textarea.getAttribute("rows"), "1");
+  const oneRowHeight = Number.parseInt(textarea.style.height, 10);
+  assert.ok(oneRowHeight > 0);
+  assert.equal(textarea.style.overflowY, "hidden");
   assert.equal(container.querySelector("button[aria-expanded]"), null);
 
   await rerender(
     React.createElement(AssessmentComposer, {
-      value: "Line\n".repeat(6),
+      value: "One\nTwo\nThree",
       onValueChange: () => undefined,
       onSubmit: () => undefined,
     }),
   );
+  const threeRowHeight = Number.parseInt(
+    getTextarea(container).style.height,
+    10,
+  );
+  assert.ok(threeRowHeight > oneRowHeight);
+  assert.equal(getTextarea(container).style.overflowY, "hidden");
+  assert.equal(container.querySelector("button[aria-expanded]"), null);
 
-  assert.equal(getTextarea(container).style.height, collapsedHeight);
-  assert.ok(container.querySelector("button[aria-expanded]"));
+  await rerender(
+    React.createElement(AssessmentComposer, {
+      value: "One\nTwo\nThree\nFour",
+      onValueChange: () => undefined,
+      onSubmit: () => undefined,
+    }),
+  );
+  const collapsed = getTextarea(container);
+  assert.equal(Number.parseInt(collapsed.style.height, 10), threeRowHeight);
+  assert.equal(collapsed.style.overflowY, "auto");
+  const toggle = container.querySelector<HTMLButtonElement>(
+    "button[aria-expanded]",
+  );
+  assert.ok(toggle);
+
+  await click(toggle);
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  assert.ok(
+    Number.parseInt(getTextarea(container).style.height, 10) > threeRowHeight,
+  );
+  assert.equal(getTextarea(container).style.overflowY, "hidden");
+
+  await rerender(
+    React.createElement(AssessmentComposer, {
+      value: "Line\n".repeat(30),
+      onValueChange: () => undefined,
+      onSubmit: () => undefined,
+    }),
+  );
+  const expandedHeight = Number.parseInt(
+    getTextarea(container).style.height,
+    10,
+  );
+  assert.ok(expandedHeight > threeRowHeight);
+  assert.ok(expandedHeight <= 352);
+  assert.equal(getTextarea(container).style.overflowY, "auto");
 });
 
 function thinkingEvent(
@@ -362,18 +410,11 @@ function thinkingEvent(
     eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
     runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
     stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-    toolName: "engineering_rule_plan:eng-1",
-    summary: ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-    inputSummary: { hiddenPrompt: "must not render" },
+    toolName: "rule_analysis:eng-1",
+    summary: "rule analysis progress",
+    inputSummary: null,
     outputSummary: {
-      messageKey:
-        ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-      messageParams: {
-        decision: "SELECT",
-        engineeringRuleId: "eng-1",
-        reasonCode: "SOURCE_SCOPE_MATCH",
-      },
-      hiddenRationale: "must not render",
+      activity: RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted,
     },
     errorSummary: null,
     startedAt: null,
@@ -385,15 +426,34 @@ function thinkingEvent(
   };
 }
 
-test("runtime thinking renders aggregated planner progress without rule ids or payloads", async () => {
-  const [item] = projectRuntimeThinking([
-    thinkingEvent({
-      eventId: "evt-skip",
-      sequence: 2,
-      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped,
-      toolName: "engineering_rule_plan:eng-2",
-    }),
-    thinkingEvent({}),
+function thinkingSummaryEvent(
+  overrides: Partial<WorkspaceRuntimeActivityItem> = {},
+): WorkspaceRuntimeActivityItem {
+  return thinkingEvent({
+    eventId: "evt-rule-analysis-summary",
+    toolName: RULE_ANALYSIS_SUMMARY_TOOL,
+    outputSummary: {
+      contextRevision: 3,
+      engineeringRuleCount: 5,
+      eligibleCount: 4,
+    },
+    ...overrides,
+  });
+}
+
+test("runtime thinking renders aggregated rule-analysis progress without rule ids or activity codes", async () => {
+  const [item] = projectRuntimeThinking([], [
+    {
+      assessmentId: "asm-runtime-thinking",
+      runId: "scan-runtime-thinking",
+      contextRevision: 3,
+      engineeringRuleCount: 5,
+      eligibleCount: 4,
+      completed: 1,
+      needsContext: 1,
+      unresolved: 0,
+      failed: 0,
+    },
   ]);
   assert.ok(item);
 
@@ -402,87 +462,81 @@ test("runtime thinking renders aggregated planner progress without rule ids or p
   );
 
   const text = container.textContent ?? "";
-  assert.match(text, /Tiến độ Planner/);
-  assert.match(text, /Yêu cầu được chọn để điều tra: 1\/2/);
+  assert.match(text, /Yêu cầu đã phân tích: 1\/4 trong phạm vi/);
   for (const hidden of [
     "eng-1",
     "eng-2",
     "EngineeringRule",
-    "SOURCE_SCOPE_MATCH",
-    "SELECT",
-    ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-    "hiddenPrompt",
-    "hiddenRationale",
+    "RULE_ANALYSIS_COMPLETED",
+    "rule_analysis:eng-1",
   ]) {
     assert.ok(!text.includes(hidden), `leaked ${hidden}`);
   }
   assert.equal(
-    container.querySelector("[data-runtime-thinking-id]")?.getAttribute("data-runtime-thinking-id"),
-    "planner:evt-skip",
+    container
+      .querySelector("[data-runtime-thinking-id]")
+      ?.getAttribute("data-runtime-thinking-id"),
+    "analysis:asm-runtime-thinking:scan-runtime-thinking",
   );
 });
 
-test("runtime thinking for a targeted resume aggregates skipped requirements instead of dumping SKIP events", async () => {
-  const events = Array.from({ length: 41 }, (_, index) =>
+test("runtime thinking derives progress from the rule-analysis activity window", async () => {
+  const items = projectRuntimeThinking([
+    thinkingSummaryEvent({ sequence: 1 }),
     thinkingEvent({
-      eventId: `evt-plan-${index}`,
-      sequence: index + 1,
-      toolName: `engineering_rule_plan:eng-${index + 1}`,
-      eventType:
-        index === 0
-          ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted
-          : ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped,
+      eventId: "evt-rule-1",
+      sequence: 2,
+      toolName: "rule_analysis:eng-1",
       outputSummary: {
-        messageKey:
-          ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-        messageParams: {
-          decision: index === 0 ? "SELECT" : "SKIP",
-          engineeringRuleId: `eng-${index + 1}`,
-          reasonCode: ASSESSMENT_RUNTIME_PLAN_REASON_CODES.targetedExactResumePin,
-        },
-        reasonCode: ASSESSMENT_RUNTIME_PLAN_REASON_CODES.targetedExactResumePin,
+        activity: RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted,
       },
     }),
-  ).reverse();
-  const items = projectRuntimeThinking(events);
-  assert.equal(items.length, 1);
-
-  const { container } = await renderElement(
-    React.createElement(RuntimeThinkingActivity, { item: items[0]! }),
-  );
-
-  const text = container.textContent ?? "";
-  assert.match(
-    text,
-    /Yêu cầu được đánh giá lại theo câu trả lời mới: 1\. Yêu cầu không liên quan được bỏ qua: 40\./,
-  );
-  assert.ok(!text.includes("TARGETED_EXACT_RESUME_PIN"));
-  assert.ok(!text.includes("SKIP"));
-});
-
-test("runtime thinking never renders legacy raw internal summaries", async () => {
-  const legacySummary =
-    "TARGETED_EXACT_RESUME_PIN CUSTOMER_CONFIRMED INVESTIGATOR_RESOLUTION resolutionCriteria CONTEXT_RESOLVED";
-  const items = projectRuntimeThinking([
     thinkingEvent({
-      toolName: "engineering_rule_investigation:eng-1",
-      summary: legacySummary,
-      outputSummary: null,
+      eventId: "evt-rule-2",
+      sequence: 3,
+      toolName: "rule_analysis:eng-2",
+      outputSummary: {
+        activity: RULE_ANALYSIS_ACTIVITIES.ruleAnalysisNeedsContext,
+      },
     }),
   ]);
-  assert.equal(items.length, 1);
+  assert.equal(items.length, 2);
 
   const { container } = await renderElement(
     React.createElement(RuntimeThinkingActivity, { item: items[0]! }),
   );
 
   const text = container.textContent ?? "";
-  assert.match(text, /Tiến độ Investigator/);
-  for (const internal of legacySummary.split(" ")) {
+  assert.match(text, /Yêu cầu đã phân tích: 1\/4 trong phạm vi/);
+  assert.ok(!text.includes("eng-1"));
+  assert.ok(!text.includes("eng-2"));
+  assert.ok(!text.includes("RULE_ANALYSIS_NEEDS_CONTEXT"));
+});
+
+test("runtime thinking never renders raw rule ids or activity codes", async () => {
+  const items = projectRuntimeThinking([
+    thinkingSummaryEvent({ sequence: 1 }),
+    thinkingEvent({
+      eventId: "evt-rule-9",
+      sequence: 2,
+      toolName: "rule_analysis:eng-9",
+      outputSummary: {
+        activity: RULE_ANALYSIS_ACTIVITIES.ruleAnalysisFailed,
+      },
+    }),
+  ]);
+  assert.equal(items.length, 2);
+
+  const { container } = await renderElement(
+    React.createElement(RuntimeThinkingActivity, { item: items[0]! }),
+  );
+
+  const text = container.textContent ?? "";
+  assert.match(text, /Yêu cầu đã phân tích: 0\/4 trong phạm vi/);
+  for (const internal of ["eng-9", "RULE_ANALYSIS_FAILED"]) {
     assert.ok(!text.includes(internal), `leaked ${internal}`);
   }
 });
-
 
 test("composer expands and collapses without changing the draft or submitting", async () => {
   const draft = "A long answer\n".repeat(30);
@@ -574,7 +628,26 @@ test("chat single select keyboard navigation selects and focuses enabled radios"
   assert.equal(testWindow.document.activeElement, getRadios(container)[0]);
 });
 
-test("assessment transcript follows latest output only while reader is near bottom", async () => {
+test("assessment transcript leaves short content at the top without synthetic bottom anchoring", async () => {
+  // createElement's positional children do not satisfy a required `children` prop type.
+  const transcriptProps: React.ComponentProps<typeof AssessmentTranscript> = {
+    ariaLabel: "Transcript",
+    children: React.createElement("p", null, "Short content"),
+  };
+  const { container } = await renderElement(
+    React.createElement(AssessmentTranscript, transcriptProps),
+  );
+
+  const transcript = getTranscript(container);
+  const rail = container.querySelector<HTMLElement>('[data-slot="chat-rail"]');
+  assert.ok(rail);
+  assert.match(transcript.className, /flex-col/);
+  assert.match(rail.className, /shrink-0/);
+  assert.match(rail.className, /pb-4/);
+  assert.doesNotMatch(rail.className, /mt-auto/);
+});
+
+test("assessment transcript follows new output while pinned and offers a jump after scrolling up", async () => {
   const { container, rerender } = await renderElement(
     transcriptElement("Initial", 1),
   );
@@ -583,16 +656,65 @@ test("assessment transcript follows latest output only while reader is near bott
   const scrollState = setScrollState(transcript, scrollCalls);
 
   scrollState.top = 680;
+  await act(async () => transcript.dispatchEvent(new Event("scroll", { bubbles: true })));
   await rerender(transcriptElement("Next", 2));
   assert.equal(scrollCalls.length, 1);
   assert.equal(scrollCalls[0].top, 1000);
-  assert.equal(scrollCalls[0].behavior, "smooth");
+  assert.equal(scrollCalls[0].behavior, "auto");
 
   scrollState.top = 100;
-  transcript.dispatchEvent(new Event("scroll", { bubbles: true }));
+  await act(async () => transcript.dispatchEvent(new Event("scroll", { bubbles: true })));
+  assert.equal(container.querySelector('[data-slot="transcript-jump-to-latest"]'), null);
   scrollState.height = 1200;
   await rerender(transcriptElement("Later", 3));
   assert.equal(scrollCalls.length, 1);
+  assert.equal(scrollState.top, 100);
+  const jump = container.querySelector<HTMLButtonElement>('[data-slot="transcript-jump-to-latest"]');
+  assert.ok(jump);
+  assert.equal(jump.getAttribute("aria-label"), "Đến hoạt động mới nhất");
+  await click(jump);
+  assert.equal(scrollCalls.at(-1)?.top, 1200);
+  assert.equal(scrollState.top, 1200);
+  assert.equal(container.querySelector('[data-slot="transcript-jump-to-latest"]'), null);
+
+  scrollState.height = 1300;
+  await rerender(transcriptElement("Newest", 4));
+  assert.equal(scrollCalls.at(-1)?.top, 1300);
+});
+
+test("assessment transcript resize never pulls an unpinned reader to latest", async () => {
+  const originalObserver = globalThis.ResizeObserver;
+  let onResize: ResizeObserverCallback | undefined;
+  class TestResizeObserver {
+    constructor(callback: ResizeObserverCallback) { onResize = callback; }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver = TestResizeObserver as typeof ResizeObserver;
+  try {
+    const { container } = await renderElement(transcriptElement("Initial", 1));
+    const transcript = getTranscript(container);
+    const scrollCalls: ScrollToOptions[] = [];
+    const scrollState = setScrollState(transcript, scrollCalls);
+    scrollState.top = 100;
+    await act(async () => transcript.dispatchEvent(new Event("scroll", { bubbles: true })));
+    scrollState.height = 1200;
+    assert.ok(onResize);
+    await act(async () => onResize!([], {} as ResizeObserver));
+    assert.equal(scrollState.top, 100);
+    assert.equal(scrollCalls.length, 0);
+    assert.ok(container.querySelector('[data-slot="transcript-jump-to-latest"]'));
+
+    scrollState.top = 850;
+    await act(async () => transcript.dispatchEvent(new Event("scroll", { bubbles: true })));
+    assert.equal(container.querySelector('[data-slot="transcript-jump-to-latest"]'), null);
+    scrollState.height = 1400;
+    await act(async () => onResize!([], {} as ResizeObserver));
+    assert.equal(scrollCalls.at(-1)?.top, 1400);
+  } finally {
+    globalThis.ResizeObserver = originalObserver;
+  }
 });
 
 test("selection history row keeps completed value visible and non-interactive", async () => {
@@ -773,7 +895,7 @@ for (const control of [
   ]) {
     test(`answered ${control} retains disabled choices and saved selection with comment=${Boolean(comment)}`, async () => {
       const { container } = await renderElement(
-        React.createElement(InterviewAnswerHistory, {
+        React.createElement(InterviewCycleTurn, {
           answer: {
             questionId: "q-1",
             answeredAt: "2026-09-09T00:00:00Z",
@@ -821,10 +943,10 @@ for (const control of [
   }
 }
 
-test("confirmed interpretation history renders as an agent acknowledgement with timestamp", async () => {
+test("confirmed interpretation history renders through the structured question turn and an output status card, not a raw internal status message", async () => {
   const answeredAt = "2026-09-14T08:14:05.968Z";
   const { container } = await renderElement(
-    React.createElement(InterviewAnswerHistory, {
+    React.createElement(InterviewCycleTurn, {
       answer: {
         questionId: "q-confirm",
         answeredAt,
@@ -839,24 +961,104 @@ test("confirmed interpretation history renders as an agent acknowledgement with 
     }),
   );
 
-  const turns = Array.from(
-    container.querySelectorAll<HTMLElement>('[data-slot="agent-turn"]'),
+  // The confirmation question renders through the structured
+  // AssessmentQuestionTurn path, not as plain assistant paragraph text.
+  const questionTurn = container.querySelector(
+    '[data-slot="assessment-question-turn"]',
   );
-  const acknowledgementTurn = turns.find((turn) =>
-    turn.textContent?.includes("Customer confirmed prior material context."),
+  assert.ok(questionTurn);
+  assert.match(
+    questionTurn.textContent ?? "",
+    /Please confirm this interpretation\./,
   );
-  assert.ok(acknowledgementTurn);
-  assert.equal(acknowledgementTurn.dataset.role, "agent");
+  // A resolved (historical) confirmAdjust turn has nothing left to act on.
   assert.equal(
-    acknowledgementTurn.querySelector("time")?.getAttribute("datetime"),
+    questionTurn.querySelector('[data-slot="confirm-adjust-actions"]'),
+    null,
+  );
+
+  const questionAgentTurn = questionTurn.closest('[data-slot="agent-turn"]');
+  assert.equal(
+    questionAgentTurn?.querySelector("time")?.getAttribute("datetime"),
     answeredAt,
+  );
+
+  const customerConfirm = container.querySelector(
+    '[data-slot="interview-customer-confirmation"]',
+  );
+  assert.ok(customerConfirm);
+  assert.equal(
+    customerConfirm
+      .closest('[data-slot="agent-turn"]')
+      ?.getAttribute("data-role"),
+    "user",
+  );
+
+  // The internal status ("Customer confirmed prior material context.") is
+  // never rendered verbatim as a standalone chat message — it surfaces as a
+  // distinct output card instead.
+  const outputPanel = container.querySelector(
+    '[data-slot="interview-output-panel"]',
+  );
+  assert.ok(outputPanel);
+  assert.doesNotMatch(
+    container.textContent ?? "",
+    /Customer confirmed prior material context\./,
+  );
+});
+
+test('adjusted interpretation history shows the customer\'s own adjustment before the "context updated" output panel', async () => {
+  const answeredAt = "2026-09-14T08:20:00.000Z";
+  const { container } = await renderElement(
+    React.createElement(InterviewCycleTurn, {
+      answer: {
+        questionId: "q-adjust",
+        answeredAt,
+        summary: "Customer requested adjustment to prior material context.",
+        comment:
+          "Payment overrides require three-party authorization in production.",
+        question: {
+          id: "q-adjust",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+          control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+          prompt: "Please confirm this interpretation.",
+        },
+      },
+    }),
+  );
+
+  const questionTurn = container.querySelector(
+    '[data-slot="assessment-question-turn"]',
+  );
+  const comment = [...container.querySelectorAll("p")].find((node) =>
+    node.textContent?.includes(
+      "Payment overrides require three-party authorization in production.",
+    ),
+  );
+  const outputPanel = container.querySelector(
+    '[data-slot="interview-output-panel"]',
+  );
+  assert.ok(questionTurn && comment && outputPanel);
+  assert.ok(
+    questionTurn.compareDocumentPosition(comment) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    "the question must come before the customer's adjustment",
+  );
+  assert.ok(
+    comment.compareDocumentPosition(outputPanel) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    'the customer\'s adjustment must come before the "context updated" output panel',
+  );
+  assert.doesNotMatch(
+    container.textContent ?? "",
+    /Customer requested adjustment to prior material context\./,
   );
 });
 
 test("historical free-text questions render as agent turns with timestamp", async () => {
   const answeredAt = "2026-09-14T08:12:31.000Z";
   const { container } = await renderElement(
-    React.createElement(InterviewAnswerHistory, {
+    React.createElement(InterviewCycleTurn, {
       answer: {
         questionId: "q-free-text",
         answeredAt,
@@ -885,7 +1087,7 @@ test("turn timestamps render through the active locale instead of raw ISO", asyn
   for (const locale of ["vi", "en"] as const) {
     setAppLocale(locale);
     const { container } = await renderElement(
-      React.createElement(InterviewAnswerHistory, {
+      React.createElement(InterviewCycleTurn, {
         answer: {
           questionId: `q-locale-${locale}`,
           answeredAt,

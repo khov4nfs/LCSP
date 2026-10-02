@@ -304,7 +304,10 @@ export class GetInterviewAuditTrailHandler implements IQueryHandler<
         outcome: readOutcome(payloadRecord.outcome),
         interpretation: cleanString(payloadRecord.interpretation) ?? undefined,
         evidenceRefs,
-        originatingInvestigationReference:
+        originatingRuleAnalysisReference:
+          // Legacy READ fallback for audit rows written before the rename
+          // (remove one release after deploy); never written.
+          cleanString(payloadRecord.originatingRuleAnalysisReference) ??
           cleanString(payloadRecord.originatingInvestigationReference) ??
           undefined,
         downstreamImpact:

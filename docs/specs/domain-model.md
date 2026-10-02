@@ -60,7 +60,7 @@ See `docs/specs/legal-rule-catalog-spec.md`.
 - Developer invitation/task workspace is retired from the active MVP. Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
 - RBAC is the authorization source of truth. Roles are subject attributes/templates only.
 - Python Worker Platform owns all asynchronous domain workloads.
-- Python Scanner Worker owns Repository Scan lifecycle and scanner evidence entities.
+- Managed Repository Analysis Agent owns repository evidence derivation; existing Repository Scan and evidence entities remain domain compatibility contracts.
 - Internal Legal Operator owns corpus review/approval actions through internal API/CLI for MVP.
 - Internal Legal Operator also owns legal rule catalog authoring/approval; a `LegalRule` is never auto-derived from corpus text.
 - Approved LegalCorpusVersion is immutable.

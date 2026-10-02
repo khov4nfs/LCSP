@@ -9,7 +9,7 @@ This document is the active ADR authority index for the A-to-Z runnable MVP. Det
 ```text
 Modular NestJS API synchronous control plane
 + Python Worker Platform for all asynchronous domain workloads
-+ bounded Node.js TS/JS analyzer CLI only
++ native Deep Agents / LangGraph repository analysis
 + PostgreSQL/Prisma for primary persistence
 + ChromaDB structure-first vectorless legal retrieval
 + RabbitMQ/outbox
@@ -32,7 +32,7 @@ The system uses deterministic orchestration, state machines, evidence gates, and
 ## Authority and Supersession Rules
 
 1. Newer explicit supersession notes override older conflicting wording.
-2. ADR-023 overrides TypeScript-first scanner lifecycle ownership in ADR-002/ADR-022.
+2. Repository-analysis ownership is governed by `docs/architecture/repository-deep-agent-analysis.md`; older scanner lifecycle decisions are superseded.
 3. ADR-024 overrides mock-LLM-as-default happy-path wording.
 4. ADR-025 overrides local JSONL corpus seed as the legal source architecture.
 5. ADR-026 overrides pgvector, embedding-index, hybrid-vector and unspecified legal retrieval wording for MVP.
@@ -44,7 +44,7 @@ The system uses deterministic orchestration, state machines, evidence gates, and
 | ADR              | Active Decision                                                                                                            | Status                                                                                                  |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | ADR-001          | Modular monolith-first API boundary with extractable modules                                                               | Accepted                                                                                                |
-| ADR-002          | Async worker workloads remain outside synchronous API lifecycle                                                            | Partially Superseded: scanner runtime wording replaced by ADR-023; downstream async separation retained |
+| ADR-002          | Async worker workloads remain outside synchronous API lifecycle                                                            | Partially Superseded: repository-analysis ownership moved to the native Deep Agents / LangGraph architecture; downstream async separation retained |
 | ADR-003          | Manager-led workflow; Developer invitation/task retired from active MVP                                                    | Accepted                                                                                                |
 | ADR-004          | Evidence-first classification gate                                                                                         | Accepted                                                                                                |
 | ADR-005          | GitHub App Repository Scan is the only active MVP evidence path; Local/CI/manual uploads deferred                          | Superseded by Phase 5.2L for `FR-050`/`FR-051` semantics                                                |
@@ -54,8 +54,6 @@ The system uses deterministic orchestration, state machines, evidence gates, and
 | ADR-009          | Deterministic orchestration and state-machine-controlled worker chaining                                                   | Accepted                                                                                                |
 | ADR-010          | GitHub App read-only repository evidence path                                                                              | Accepted                                                                                                |
 | ADR-011..ADR-021 | Existing active technical/security/queue/evidence decisions                                                                | Retained unless explicitly superseded below                                                             |
-| ADR-022          | TypeScript-first non-scanner stack and prototype boundaries                                                                | Superseded for downstream domain workers by Phase 5.2L                                                  |
-| ADR-023          | Python Worker owns Repository Scan; Poetry, `ast` + `libcst`, Node subprocess for TS/JS                                    | Accepted — Superseded in part by expanded Phase 5.2L scanner toolchain                                  |
 | ADR-024          | Real configured LLM provider mandatory for A-to-Z acceptance; mock test/offline only                                       | Accepted — Superseding                                                                                  |
 | ADR-025          | Provenance-preserving official-source legal corpus with internal approval and immutable versioning                         | Accepted — Superseding                                                                                  |
 | ADR-026          | ChromaDB structure-first vectorless legal retrieval with legal hierarchy, xref expansion and citation allowlist validation | Accepted — Superseding                                                                                  |
@@ -67,8 +65,8 @@ The active decision is:
 ```text
 NestJS API handles synchronous HTTP, RBAC enforcement boundary, job/trigger creation, and query surfaces.
 Python Worker Platform owns all asynchronous domain workloads.
-Python Scanner Worker owns Repository Scan lifecycle.
-Bounded Node.js CLI owns only TS/JS `ts-morph` analyzer adaptation invoked by Python Scanner Worker.
+Managed Repository Analysis Agent owns repository evidence derivation inside the assessment MDA sandbox.
+Codebase Memory MCP is optional structural memory; direct repository source is authoritative.
 ```
 
 Any older statement that the controlled MVP scanner worker is TypeScript-first is historical and superseded.
@@ -87,22 +85,12 @@ ADR-025 corpus source validation, review, approval, and index-build actions are 
 
 ## Locked Technical Profiles
 
-### Scanner
+### Repository Analysis
 
-```text
-Python 3.11+
-Poetry / pyproject.toml
-ast + libcst
-Syft SBOM/dependency inventory
-Knip JS/TS dependency usage
-deptry Python dependency usage
-Semgrep custom AI rules
-tree-sitter/custom parser structural augmentation
-Python-native scan-local graph
-Node ts-morph subprocess with JSON stdio
-metadata-only PostgreSQL persistence
-cleanup-verified terminal event
-```
+The active repository-analysis profile is defined by
+docs/architecture/repository-deep-agent-analysis.md. Older scanner-runtime ADr details are
+available through Git history only and are not active implementation authority.
+
 
 ### Authorization
 

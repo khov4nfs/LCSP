@@ -420,7 +420,7 @@ describe("InterviewAuditService", () => {
     it("records targeted clarification with originating investigation reference", async () => {
       await service.recordTargetedClarification({
         assessmentId: "assessment-123",
-        originatingInvestigationReference: "inv-rule-9988",
+        originatingRuleAnalysisReference: "inv-rule-9988",
         interviewContextRevision: "rev-4",
         sessionId: "session-789",
         threadId: "thread-abc",
@@ -445,7 +445,7 @@ describe("InterviewAuditService", () => {
       );
 
       const payload = event.payload as Record<string, unknown>;
-      expect(payload.originatingInvestigationReference).toBe("inv-rule-9988");
+      expect(payload.originatingRuleAnalysisReference).toBe("inv-rule-9988");
       expect(payload.stage).toBe("TARGETED_INVESTIGATION");
       expect(payload.runId).toBe("run-456");
     });

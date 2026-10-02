@@ -255,8 +255,8 @@ MVP technical evidence is acquired only through GitHub App read-only Repository 
 
 ## Active References
 
-- `docs/specs/scanner-spec.md`
-- `docs/implementation/scanner-implementation.md`
+- `docs/architecture/repository-deep-agent-analysis.md`
+- `docs/architecture/repository-deep-agent-analysis.md`
 - `docs/implementation/persistence-implementation.md`
 - `docs/implementation/queue-implementation.md`
 
@@ -295,16 +295,16 @@ Trusted trigger received from verified webhook, scheduler, backend trigger, or a
 - Branch and commit selection must be pinned before scan.
 - Scan authorization must verify RBAC policy, tenant scope, trusted source identity and valid GitHub App installation.
 
-## Static Scanner Lifecycle
+## Managed Repository Analysis Lifecycle
 
-| Step        | Implementation Contract                                                                                   |
-| ----------- | --------------------------------------------------------------------------------------------------------- |
-| Snapshot    | Shallow clone selected repository at pinned commit SHA                                                    |
-| Workspace   | Ephemeral isolated container or restricted temporary volume                                               |
-| Execution   | Static file reads and parsing only; no customer code/scripts/builds/tests/install/Docker/CI/API probes    |
-| Analysis    | Inventory, manifest/config parsing, AST/symbol analysis, AI invocation/input/output/action/review signals |
-| Persistence | Structured findings, hashes, graph refs, report metadata, coverage limitations                            |
-| Cleanup     | Raw workspace deletion is mandatory and audited                                                           |
+| Step | Implementation Contract |
+| --- | --- |
+| Snapshot | Resolve the immutable RepositorySnapshot and hydrate it into the assessment LCSP Docker repository sandbox |
+| Repository database | `/workspace/repository` is the durable thread working tree and Deep Agent filesystem root |
+| Analysis | Repository Deep Agent uses native filesystem/search/shell/planning/subagents; Codebase Memory MCP 0.11.0 is optional structural memory |
+| Source authority | Material claims are verified against direct repository source with bounded path/line anchors |
+| Coverage | Generated, dynamic, unreadable, skipped, partial, or runtime-only frontiers remain explicit limitations and block unsupported absence claims |
+| Persistence | Structured evidence graph compatibility payload, source anchors, AI discovery state, tool/version provenance, and coverage limitations |
 
 ## Required Inputs and Outputs
 
@@ -312,12 +312,12 @@ Trusted trigger received from verified webhook, scheduler, backend trigger, or a
 | ------------------------------------------------ | ------------------ | ----------------------------------- |
 | Assessment id, repository id, branch, commit SHA | Manager/API        | RepositoryScanJob                   |
 | GitHub App installation reference                | GitHub Integration | Temporary repository access context |
-| Scanner/ruleset version                          | Worker config      | Versioned scan metadata             |
-| Structured findings                              | Scanner            | TechnicalEvidenceReport             |
+| Repository-analysis / Deep Agents versions       | Managed runtime    | Versioned scan metadata             |
+| Structured evidence                              | Repository Deep Agent | TechnicalEvidenceReport          |
 
 ## Idempotency and Re-scan
 
-Use an idempotency key based on repository, commit SHA, scanner version and ruleset version. Re-run is allowed when Manager requests it or evidence is insufficient/stale. Duplicate scan requests with the same key return the existing job/result when safe.
+Use an idempotency key based on repository, commit SHA, repository-analysis version and pinned snapshot identity. Re-run is allowed when Manager requests it or evidence is insufficient/stale. Duplicate scan requests with the same key return the existing job/result when safe.
 
 ## Failure and Retry Behavior
 
@@ -326,13 +326,13 @@ Use an idempotency key based on repository, commit SHA, scanner version and rule
 | Missing GitHub App installation | Block scan and show repository connection required      |
 | Token/access failure            | Mark scan failed, audit, allow Manager correction/retry |
 | Clone failure                   | Retry if transient, otherwise fail job                  |
-| Scanner failure                 | Mark report unavailable, classification locked          |
+| Repository-analysis failure     | Mark report unavailable, classification locked          |
 | Workspace cleanup failure       | Critical security event requiring alert and remediation |
 | Report hash mismatch            | Reject report and keep classification locked            |
 
 ## Security and Privacy Considerations
 
-- Non-root scanner execution.
+- Non-root repository-analysis execution in LCSP Agent Runtime.
 - Restricted filesystem write access.
 - Restricted outbound network after repository retrieval.
 - File size, count, depth and time limits.
@@ -545,7 +545,7 @@ Covers authentication, authorization, GitHub App access, scanner isolation, sour
 ## Active References
 
 - `docs/architecture/architecture.md`
-- `docs/specs/scanner-spec.md`
+- `docs/architecture/repository-deep-agent-analysis.md`
 - `docs/specs/event-catalog.md`
 - `docs/implementation/persistence-implementation.md`
 
@@ -553,7 +553,7 @@ Covers authentication, authorization, GitHub App access, scanner isolation, sour
 
 - OAuth/OIDC authenticates LCSP user identity only.
 - GitHub App grants repository scan access only.
-- Raw source exists only in temporary scanner workspace.
+- Raw source exists only inside the assessment-scoped LCSP Docker repository sandbox.
 - LLM Gateway receives sanitized metadata only.
 - Manager authority is server-side enforced.
 
@@ -653,19 +653,19 @@ Future developers will need runtime support for Web, API, Worker, PostgreSQL, qu
 
 ## Local Environment Variables by Category
 
-Use configuration categories only: database, queue, object storage, OAuth/OIDC, MFA encryption, GitHub App, LLM Gateway, legal corpus, scanner rulesets, observability and app URLs.
+Use configuration categories only: database, queue, object storage, OAuth/OIDC, MFA encryption, repository credential encryption (KEK), LLM Gateway, legal corpus, scanner rulesets, observability and app URLs.
 
 ## Local OAuth Callback Strategy
 
 Use a configured local callback URL or mocked provider. Validate state, nonce, issuer, audience and expiry even in local mode.
 
-## Local GitHub App Setup Strategy
+## Local Repository Access Setup
 
-For local repository connection, create a real GitHub App, not an OAuth App. Use `http://localhost:3000/api/github/app/callback` as the user authorization callback URL, enable "Request user authorization (OAuth) during installation", and grant repository `Contents: Read-only`; GitHub's implicit `Metadata: Read-only` is allowed. Disable webhook `Active` unless a reachable webhook URL and secret are configured. "Redirect on update" may be enabled only for the LCSP-managed update UX; users should start repository access changes from the LCSP Manage action so state validation is present.
+Repository access uses per-user provider credentials (a personal access token configured in Settings or the repository setup step) that the API stores envelope-encrypted. A key-encryption-key keyring (`GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION`, `GITHUB_CLI_CREDENTIAL_KEK_KEYRING`) is therefore a required secret wherever credentials are stored; see `.env.example`. The GitHub App installation flow was removed: there is no GitHub App, no installation callback and no `GITHUB_APP_*` configuration. Repository CLIs (`gh`, `glab`, `bb`, `az`) are resolved from `PATH`; `*_CLI_EXECUTABLE_PATH` is an optional override.
 
-## GitHub App Testing Strategy
+## Repository Access Testing Strategy
 
-Use a test GitHub App installation or mock repository provider. Do not substitute OAuth/OIDC identity for repository authorization.
+Use a mock repository provider or the CLI provider test doubles. Do not substitute OAuth/OIDC identity for repository authorization.
 
 ## Scanner Fixture Strategy
 
@@ -683,7 +683,7 @@ Do not use real customer repositories, secrets, full prompts or regulated person
 
 | Symptom                             | Likely Area                                                                     |
 | ----------------------------------- | ------------------------------------------------------------------------------- |
-| Login succeeds but repo unavailable | GitHub App not connected; OAuth does not grant repo access                      |
+| Login succeeds but repo unavailable | Repository credential not configured; OAuth login does not grant repo access    |
 | Scan stuck                          | Queue/Worker/job state                                                          |
 | Classification blocked              | Missing VerifiedProfile, unresolved conflict, unclear usage or missing citation |
 | Document blocked                    | Final report gate failed                                                        |
@@ -754,10 +754,10 @@ No service may publish directly to RabbitMQ inside the same transaction.
 | `npm run db:migrate`                             | Local PostgreSQL schema migrated for relational metadata without pgvector requirement.                                                                                  |
 | `npm run dev:api`                                | API starts and reports ready state without logging secrets.                                                                                                             |
 | `npm run dev:worker`                             | NestJS background orchestration workers start and initialize queue bindings.                                                                                            |
-| `poetry run python -m tools.graph.scanner.main` | Python Scanner Worker starts, connects to RabbitMQ and PostgreSQL, and logs ready status.                                                                               |
+| Agent Runtime server / worker entrypoint | Repository-analysis runtime starts the local LangGraph Agent Server, native Deep Agents graph and RabbitMQ bridge; no static scanner process is required. |
 | `npm run dev:web`                                | Web app starts and can reach API health endpoint.                                                                                                                       |
 | `npm run test`                                   | Unit and contract test suite passes.                                                                                                                                    |
-| `npm run test:scanner`                           | Python AST/static-analysis stack and extraction parser tests pass.                                                                                                      |
+| Repository-analysis test suite | Docker repository sandbox, source-grounding, coverage-gate, LangGraph Agent Server, and Codebase Memory integration tests pass. |
 | `npm run smoke:scan-fixture`                     | Synthetic scan fixture triggers scan job through Python Worker, creates TechnicalEvidenceReport, and verifies downstream command projection or explicit blocked reason. |
 
 ### Smoke Scan Fixture Expected Behavior

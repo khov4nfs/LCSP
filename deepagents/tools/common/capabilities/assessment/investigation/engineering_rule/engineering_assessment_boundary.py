@@ -1,31 +1,53 @@
-"""Consume accepted repository evidence and persist direct EngineeringRule evaluation results."""
+"""Consume accepted repository evidence and run one Repository Analyst task per EngineeringRule.
+
+The whole assessment is a plain per-rule loop: resolve pinned rules, evaluate legal
+applicability, analyze each eligible rule (one Deep Agent task each), register Customer
+business-context needs, then finalize deterministically into the classification callback.
+"""
 from __future__ import annotations
+
 
 import hashlib
 import json
 import os
 from collections.abc import Callable
 from dataclasses import replace
-from pathlib import Path
 from typing import Any
 
 import pika
 
-from model_policy import INVESTIGATOR_MODEL_SPEC, PLANNER_MODEL_SPEC
+from orchestration.context import LCSPRunContext
 from orchestration.waiting_assessments import WaitingAssessmentRegistry
 from tools.common.capabilities.platform.api_client import WorkerApiClient, WorkerCallbackError
 from tools.common.capabilities.platform.callback_schemas import ClassificationCallbackPayload
 from tools.common.capabilities.platform.logging import get_logger
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
-from tools.common.capabilities.evidence.scanner.snapshot.snapshot_service_client import (
-    SnapshotArchiveRequest,
-    SnapshotServiceClient,
-)
-from tools.common.capabilities.evidence.scanner.snapshot.workspace import ScannerWorkspace
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
 from tools.triage.legal_rule_triage.contracts import LEGAL_RULE_TRIAGE_REQUEST_COMMAND
 
-from .pipeline import EngineeringInvestigationPipeline
-from .planned_pipeline import PlannedEngineeringInvestigationPipeline
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
+    ENGINEERING_LIMITATION_CODES,
+)
+from tools.common.capabilities.assessment.rule_assessment.run import (
+    ELIGIBLE_APPLICABILITY,
+    analyze_rule,
+    claims_for_rule,
+    emit_rule_activity,
+    emit_rule_analysis_summary,
+    evaluate_rule_applicability,
+    finalize_rule_results,
+    register_business_needs,
+    rule_runtime_version,
+    technical_evidence_display,
+    usable_rule_result,
+)
+from tools.common.capabilities.assessment.rule_assessment.values import (
+    RULE_ANALYSIS_STATUSES,
+)
+from tools.legal.corpus.engineering_rules.orchestration.service import EngineeringRuleService
+from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
+
+from .result import EngineeringInvestigationResult
+from .rule_sources import resolve_engineering_rules
 
 
 logger = get_logger(__name__)
@@ -33,6 +55,7 @@ WAITING_ENGINEERING_INVESTIGATION_STATUSES = {"WAITING"}
 ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS = {
     "engineering_rule_readiness_waiting": "ENGINEERING_RULE_READINESS_WAITING",
 }
+CONFIRMED_CONTEXT_REQUIRED = "CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_REQUIRED"
 
 
 class _AssessmentLegalPreparationDeferredDriver:
@@ -47,7 +70,7 @@ class _AssessmentLegalPreparationDeferredDriver:
 
 
 class EngineeringAssessmentBoundary(AgentBoundaryBase):
-    """Run the canonical post-scan assessment directly against Program Evidence Graph."""
+    """Run the post-scan assessment as a deterministic per-rule loop."""
 
     boundary_source = "investigation.evidence-accepted"
     source_event = "event.technical-evidence.accepted.v1"
@@ -59,11 +82,9 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         config,
         rbac_client=None,
         api_client: WorkerApiClient | None = None,
-        model: str = INVESTIGATOR_MODEL_SPEC,
-        planner_model: str = PLANNER_MODEL_SPEC,
-        investigation_pipeline: EngineeringInvestigationPipeline | None = None,
-        snapshot_client: SnapshotServiceClient | None = None,
-        code_workspace: ScannerWorkspace | None = None,
+        dispatcher: Any | None = None,
+        retriever: ChromaDbCitationRetriever | None = None,
+        rule_service: EngineeringRuleService | None = None,
         triage_trigger_publisher: Callable[[dict[str, Any]], None] | None = None,
         waiting_registry: WaitingAssessmentRegistry | None = None,
     ) -> None:
@@ -72,26 +93,28 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
-        self._snapshot_client = snapshot_client or SnapshotServiceClient(
-            config.nestjs_api_base_url,
-            config.worker_api_key,
-        )
-        self._code_workspace = code_workspace or ScannerWorkspace()
+        self._dispatcher = dispatcher
+        self._retriever = retriever or ChromaDbCitationRetriever()
+        self._rule_service = rule_service or EngineeringRuleService(retriever=self._retriever)
+        self._corpus_recovery_driver = _AssessmentLegalPreparationDeferredDriver()
         self._triage_trigger_publisher = (
             triage_trigger_publisher or self._publish_legal_triage_command
         )
         self._waiting_registry = waiting_registry or WaitingAssessmentRegistry()
-        if investigation_pipeline is not None:
-            self._pipeline = investigation_pipeline
-        else:
-            self._pipeline = PlannedEngineeringInvestigationPipeline(
-                api_client=self._api_client,
-                model=model,
-                planner_model=planner_model,
-                corpus_recovery_driver=_AssessmentLegalPreparationDeferredDriver(),
-            )
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
+        # No Customer-confirmed context: nothing may be analysed (fail closed).
+        self.run_assessment(message, correlationId, confirmed_context=None)
+
+    def run_assessment(
+        self,
+        message: dict[str, Any],
+        correlationId: str,
+        *,
+        confirmed_context: Any | None,
+        rule_scope: tuple[str, ...] | None = None,
+    ) -> None:
+        """Analyze eligible rules (all, or ``rule_scope``), then finalize and call back."""
         evidence_report_id = self._evidence_report_id(message)
         evidence_report = self._get_accepted_evidence_report(evidence_report_id)
         assessment_id = str(
@@ -115,31 +138,27 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             message, evidence_report, evidence_report_id
         )
         scan_job_id = self._scan_job_id(evidence_report)
-        workspace_job_id = f"investigation-{correlationId}"
-        workspace_path = (
-            self._materialize_code_workspace(
-                evidence_report=evidence_report,
-                workspace_job_id=workspace_job_id,
-                correlation_id=correlationId,
-            )
-            if getattr(self._pipeline, "requires_code_workspace", True)
-            else None
+        result, pending_customer = self._assess(
+            evidence_report=evidence_report,
+            evidence_report_id=evidence_report_id,
+            assessment_id=assessment_id,
+            user_id=user_id or None,
+            workflow_run_id=workflow_run_id,
+            scan_job_id=scan_job_id,
+            correlation_id=correlationId,
+            confirmed_context=confirmed_context,
+            rule_scope=rule_scope,
+            source_crawl_requests=self._source_crawl_requests(message),
         )
-        try:
-            result = self._pipeline.run(
-                evidence_report=evidence_report,
-                workflow_run_id=workflow_run_id,
-                correlation_id=correlationId,
-                confirmed_customer_context=None,
-                workspace_path=workspace_path,
-                recovery_source_crawl_requests=self._source_crawl_requests(message),
+        if pending_customer:
+            # A Customer question is open: results stay in the ledger, and the answer resumes
+            # that same rule. The classification is posted once no rule is waiting.
+            logger.info(
+                "ENGINEERING_ASSESSMENT_WAITING_FOR_CUSTOMER",
                 assessment_id=assessment_id,
-                user_id=user_id or None,
-                scan_job_id=scan_job_id,
+                correlationId=correlationId,
             )
-        finally:
-            if workspace_path is not None:
-                self._code_workspace.cleanup(workspace_job_id)
+            return
 
         result = self._as_waiting_for_triage(result)
         if result.status in WAITING_ENGINEERING_INVESTIGATION_STATUSES:
@@ -192,11 +211,6 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                 workflow_run_id=workflow_run_id,
                 result=result,
                 correlation_id=correlationId,
-                billing_context=(
-                    message.get("billing")
-                    if isinstance(message.get("billing"), dict)
-                    else None
-                ),
             )
 
         logger.info(
@@ -207,6 +221,208 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             evaluation_count=(result_data.get("summary") or {}).get("total", 0),
             observability=result_data.get("observability") or {},
             correlationId=correlationId,
+        )
+
+    def _assess(
+        self,
+        *,
+        evidence_report: dict[str, Any],
+        evidence_report_id: str,
+        assessment_id: str,
+        user_id: str | None,
+        workflow_run_id: str,
+        scan_job_id: str | None,
+        correlation_id: str,
+        confirmed_context: Any | None,
+        rule_scope: tuple[str, ...] | None,
+        source_crawl_requests: list[dict[str, Any]] | None,
+    ) -> tuple[EngineeringInvestigationResult, bool]:
+        if confirmed_context is None:
+            return self._stopped("BLOCKED", (CONFIRMED_CONTEXT_REQUIRED,), CONFIRMED_CONTEXT_REQUIRED), False
+        resolution = resolve_engineering_rules(
+            api_client=self._api_client,
+            retriever=self._retriever,
+            rule_service=self._rule_service,
+            recovery_driver=self._corpus_recovery_driver,
+            workflow_run_id=workflow_run_id,
+            correlation_id=correlation_id,
+            source_crawl_requests=source_crawl_requests,
+        )
+        if resolution.status != "READY":
+            return (
+                EngineeringInvestigationResult(
+                    status=resolution.status,
+                    legal_rule_catalog_version_id=resolution.catalog_version_id,
+                    legal_corpus_version_id=resolution.corpus_version_id,
+                    rules_considered=len(resolution.legal_rules),
+                    engineering_rules_executed=0,
+                    engineering_rule_cache_hits=resolution.cache_hits,
+                    limitations=resolution.limitations,
+                    observability={**resolution.observability, "stop_reason": resolution.reason},
+                ),
+                False,
+            )
+
+        rules = list(resolution.rules)
+        facts = {
+            "legal_rules": list(resolution.legal_rules),
+            "ai_discovery": _ai_discovery(evidence_report),
+            "confirmed_statements": [item.to_prompt_dict() for item in confirmed_context.statements],
+        }
+        applicability = evaluate_rule_applicability(rules, facts)
+        commit_sha = _commit_sha(evidence_report)
+        context = LCSPRunContext(
+            assessment_id=assessment_id,
+            user_id=user_id,
+            workflow_run_id=workflow_run_id,
+            snapshot_id=str(evidence_report.get("snapshot_id") or evidence_report.get("snapshotId") or "") or None,
+            scan_job_id=self._scan_job_id(evidence_report),
+            commit_sha=commit_sha,
+            correlation_id=correlation_id,
+            artifact_versions={
+                "technicalEvidenceReportId": evidence_report_id,
+                "repositorySnapshotId": str(
+                    evidence_report.get("snapshot_id") or evidence_report.get("snapshotId") or ""
+                ),
+                "legalRuleCatalogVersionId": resolution.catalog_version_id,
+                "legalCorpusVersionId": resolution.corpus_version_id,
+            },
+        )
+        statuses = [(applicability.get(str(rule.engineering_rule_id)) or {}).get("status") for rule in rules]
+        emit_rule_analysis_summary(
+            self._api_client,
+            context.scan_job_id,
+            engineeringRuleCount=len(rules),
+            eligibleCount=sum(status in ELIGIBLE_APPLICABILITY for status in statuses),
+            applicability={str(key): statuses.count(key) for key in dict.fromkeys(statuses)},
+            contextRevision=confirmed_context.context_revision,
+            scoped=rule_scope is not None,
+        )
+        persisted = {row.get("engineeringRuleId"): row for row in self._api_client.list_rule_assessments(assessment_id)}
+        dispatcher = self._dispatcher or _default_dispatcher()
+        executed = 0
+        registered_needs: list[str] = []
+        # ponytail: sequential. The dispatcher's billing/stream/repository-backend state is
+        # context-local and unproven thread-safe; a bounded ThreadPoolExecutor (with
+        # contextvars.copy_context per task) is the upgrade once that is verified.
+        for rule in rules:
+            rule_id = str(rule.engineering_rule_id)
+            if rule_scope is not None and rule_id not in rule_scope:
+                continue
+            status = (applicability.get(rule_id) or {}).get("status")
+            emit_rule_activity(
+                self._api_client, context.scan_job_id, "ruleApplicabilityEvaluated", rule_id, applicability=status
+            )
+            if status not in ELIGIBLE_APPLICABILITY:
+                continue  # NOT_APPLICABLE / BLOCKED / UPSTREAM_FACT_PENDING / missing: owner route, no analysis
+            existing = persisted.get(rule_id)
+            prior = existing if _same_pins(existing, rule, commit_sha) else None
+            explicit = rule_scope is not None
+            try:
+                if prior is not None and not explicit and not _needs_analysis(prior, confirmed_context):
+                    assessment = prior
+                else:
+                    assessment = analyze_rule(
+                        rule=rule,
+                        context=context,
+                        dispatcher=dispatcher,
+                        api=self._api_client,
+                        confirmed_context=confirmed_context,
+                        prior_result=prior,
+                        attempt=int(((prior or {}).get("execution") or {}).get("attempt") or 0) + 1,
+                    )
+                    executed += 1
+                if assessment.get("status") == RULE_ANALYSIS_STATUSES["needsContext"]:
+                    # Idempotent (needId): re-registering on every run means a failed or
+                    # skipped registration is retried instead of leaving the rule waiting forever.
+                    registered_needs.extend(
+                        register_business_needs(
+                            rule=rule, assessment=assessment, context=context, api=self._api_client, user_id=user_id
+                        )
+                    )
+            except Exception as error:  # noqa: BLE001 - one rule never aborts the other rules
+                logger.warning("RULE_LOOP_ITEM_FAILED", engineering_rule_id=rule_id, error_type=type(error).__name__)
+
+        assessments = self._api_client.list_rule_assessments(assessment_id)
+        by_rule = {row.get("engineeringRuleId"): row for row in assessments}
+        usable = {
+            str(rule.engineering_rule_id): by_rule[str(rule.engineering_rule_id)]
+            for rule in rules
+            if usable_rule_result(
+                rule,
+                by_rule.get(str(rule.engineering_rule_id)),
+                commit_sha=commit_sha,
+                applicability_status=(applicability.get(str(rule.engineering_rule_id)) or {}).get("status"),
+            )
+        }
+        waiting = [row for row in usable.values() if row.get("status") == RULE_ANALYSIS_STATUSES["needsContext"]]
+        # Waiting on the Customer only when a need was actually registered; otherwise the rule
+        # stays UNKNOWN with a typed limitation rather than hanging.
+        pending_customer = bool(waiting and registered_needs)
+        evaluations = finalize_rule_results(
+            assessment_id=assessment_id,
+            rules=rules,
+            api=self._api_client,
+            applicability_facts=facts,
+            context_revision=confirmed_context.context_revision,
+            assessments=assessments,
+            applicability=applicability,
+            commit_sha=commit_sha,
+        )
+        claims = tuple(
+            claim
+            for rule in rules
+            if str(rule.engineering_rule_id) in usable
+            for claim in claims_for_rule(rule, usable[str(rule.engineering_rule_id)], commit_sha=commit_sha)
+        )
+        limitations = list(resolution.limitations)
+        if waiting and not registered_needs:
+            limitations.append(ENGINEERING_LIMITATION_CODES["interview_registration_failed"])
+        failed = [
+            row for row in assessments if row.get("status") == RULE_ANALYSIS_STATUSES["failed"]
+        ]
+        if failed:
+            limitations.append(ENGINEERING_LIMITATION_CODES["engineering_investigation_runtime_error"])
+        if any(e.limitations and ENGINEERING_LIMITATION_CODES["rule_conclusion_withheld"] in e.limitations for e in evaluations):
+            limitations.append(ENGINEERING_LIMITATION_CODES["rule_conclusion_withheld"])
+        status = "BLOCKED" if not evaluations else "PARTIAL" if limitations else "COMPLETE"
+        return (
+            EngineeringInvestigationResult(
+                status=status,
+                legal_rule_catalog_version_id=resolution.catalog_version_id,
+                legal_corpus_version_id=resolution.corpus_version_id,
+                rules_considered=len(resolution.legal_rules),
+                engineering_rules_executed=executed,
+                engineering_rule_cache_hits=resolution.cache_hits,
+                claims=claims,
+                evaluations=tuple(evaluations),
+                limitations=tuple(dict.fromkeys(limitations)),
+                technical_evidence_by_rule={
+                    e.engineering_rule_id: tuple(technical_evidence_display(usable.get(e.engineering_rule_id)))
+                    for e in evaluations
+                },
+                observability={
+                    **resolution.observability,
+                    "rule_analysis": {
+                        "statusCounts": _count(row.get("status") for row in assessments),
+                        "executed": executed,
+                    },
+                },
+            ),
+            pending_customer,
+        )
+
+    @staticmethod
+    def _stopped(status: str, limitations: tuple[str, ...], reason: str) -> EngineeringInvestigationResult:
+        return EngineeringInvestigationResult(
+            status=status,
+            legal_rule_catalog_version_id="",
+            legal_corpus_version_id="",
+            rules_considered=0,
+            engineering_rules_executed=0,
+            engineering_rule_cache_hits=0,
+            limitations=limitations,
+            observability={"stop_reason": reason},
         )
 
     @staticmethod
@@ -220,71 +436,6 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                 "sourceCrawlRequests must be a list of objects"
             )
         return value
-
-    def _materialize_code_workspace(
-        self,
-        *,
-        evidence_report: dict[str, Any],
-        workspace_job_id: str,
-        correlation_id: str,
-    ) -> Path | None:
-        """Materialize pinned source only for the active assessment process.
-
-        Program Evidence Graph remains sufficient for graph-only investigation. If
-        source download/materialization is unavailable, the run continues without
-        raw-source tools rather than persisting source or weakening snapshot guards.
-        """
-        snapshot_id = str(
-            evidence_report.get("snapshot_id")
-            or evidence_report.get("snapshotId")
-            or ""
-        )
-        scan_job_id = str(
-            evidence_report.get("scan_job_id")
-            or evidence_report.get("scanJobId")
-            or ""
-        )
-        if not snapshot_id or not scan_job_id:
-            logger.info(
-                "CODE_CONTEXT_SNAPSHOT_UNAVAILABLE",
-                reason="snapshot_or_scan_job_id_missing",
-                correlationId=correlation_id,
-            )
-            return None
-        try:
-            archive = self._snapshot_client.download_snapshot_archive(
-                SnapshotArchiveRequest(
-                    snapshot_id=snapshot_id,
-                    scan_job_id=scan_job_id,
-                    correlationId=correlation_id,
-                )
-            )
-            materialized = self._code_workspace.materialize(
-                workspace_job_id,
-                archive,
-                snapshot_id=snapshot_id,
-            )
-            logger.info(
-                "CODE_CONTEXT_SNAPSHOT_MATERIALIZED",
-                snapshot_id=snapshot_id,
-                extracted_files=materialized.extracted_files,
-                skipped_files=materialized.skipped_files,
-                coverage_limited=materialized.coverage_limited,
-                correlationId=correlation_id,
-            )
-            return materialized.workspace_path
-        except Exception as error:
-            try:
-                self._code_workspace.cleanup(workspace_job_id)
-            except Exception:
-                pass
-            logger.warning(
-                "CODE_CONTEXT_SNAPSHOT_UNAVAILABLE",
-                snapshot_id=snapshot_id,
-                error_type=type(error).__name__,
-                correlationId=correlation_id,
-            )
-            return None
 
     @staticmethod
     def _guardrail_status(status: str) -> str:
@@ -398,18 +549,14 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         workflow_run_id: str,
         result,
         correlation_id: str,
-        billing_context: dict[str, Any] | None,
     ) -> None:
         trigger = self._legal_triage_trigger(result)
-        billing = self._billing_checkpoint_context(assessment_id, billing_context)
-        if billing:
-            self._waiting_registry.register(
-                assessment_id=assessment_id,
-                evidence_report_id=evidence_report_id,
-                workflow_run_id=workflow_run_id,
-                source_correlation_id=correlation_id,
-                billing_context=billing,
-            )
+        self._waiting_registry.register(
+            assessment_id=assessment_id,
+            evidence_report_id=evidence_report_id,
+            workflow_run_id=workflow_run_id,
+            source_correlation_id=correlation_id,
+        )
         command = {
             "trigger": "ENGINEERING_RULE_NOT_READY",
             "affectedLegalRuleIds": trigger["affectedLegalRuleIds"],
@@ -429,24 +576,6 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             full_backlog=trigger["fullBacklog"],
             correlationId=correlation_id,
         )
-
-    def _billing_checkpoint_context(
-        self,
-        assessment_id: str,
-        billing: dict[str, Any] | None,
-    ) -> dict[str, str] | None:
-        if not isinstance(billing, dict):
-            return None
-        values = {
-            "runId": str(billing.get("runId") or "").strip(),
-            "amountCredits": str(billing.get("amountCredits") or "").strip(),
-            "maxChargeCredits": str(billing.get("maxChargeCredits") or "").strip(),
-            "idempotencyKey": str(billing.get("idempotencyKey") or "").strip(),
-        }
-        billing_assessment_id = str(billing.get("assessmentId") or "").strip()
-        if billing_assessment_id != assessment_id or not all(values.values()):
-            return None
-        return values
 
     @classmethod
     def _legal_triage_trigger(cls, result) -> dict[str, Any]:
@@ -585,3 +714,54 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
     def _is_terminal_callback_client_error(error: WorkerCallbackError) -> bool:
         """Return whether WorkerApiClient reported a non-idempotent HTTP 4xx."""
         return bool(getattr(error, "callback_client_error", False))
+
+
+def _default_dispatcher() -> Any:
+    from orchestration.dispatcher import RootSubagentDispatcher
+
+    return RootSubagentDispatcher()
+
+
+def _same_pins(existing: dict[str, Any] | None, rule: Any, commit_sha: str) -> bool:
+    return bool(
+        existing
+        and existing.get("repositoryVersion") == commit_sha
+        and existing.get("engineeringRuleVersion") == rule_runtime_version(rule)
+    )
+
+
+def _needs_analysis(existing: dict[str, Any], confirmed_context: Any) -> bool:
+    """Reuse a current result; redo failed ones and resume rules whose Customer answer landed."""
+    status = existing.get("status")
+    if status == RULE_ANALYSIS_STATUSES["failed"]:
+        return True
+    return status == RULE_ANALYSIS_STATUSES["needsContext"] and int(
+        existing.get("contextRevision") or 0
+    ) < int(confirmed_context.context_revision or 0)
+
+
+def _count(values: Any) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        counts[str(value)] = counts.get(str(value), 0) + 1
+    return counts
+
+
+def _commit_sha(evidence_report: dict[str, Any]) -> str:
+    payload = evidence_report.get("evidence_payload") or evidence_report.get("evidencePayload") or {}
+    graph = payload.get("evidence_graph") or payload.get("evidenceGraph") or {}
+    for source, keys in (
+        (payload, ("commit_sha", "commitSha")),
+        (graph, ("commit_sha", "commitSha")),
+        (evidence_report, ("commit_sha", "commitSha")),
+    ):
+        for key in keys:
+            if isinstance(source, dict) and source.get(key):
+                return str(source[key])
+    return ""
+
+
+def _ai_discovery(evidence_report: dict[str, Any]) -> dict[str, Any] | None:
+    from .interview_gated_boundary import _ai_discovery as read_ai_discovery
+
+    return read_ai_discovery(evidence_report)

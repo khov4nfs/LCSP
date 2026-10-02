@@ -3,7 +3,6 @@ import { test } from "node:test";
 import { JSDOM } from "jsdom";
 import { act, createElement } from "react";
 import {
-  BILLING_ESTIMATE_AVAILABILITY,
   BILLING_ORDER_STATUSES,
   BILLING_PAYMENT_PROVIDERS,
   PREPAID_BILLING_CONFIG,
@@ -162,10 +161,6 @@ function mockBillingApi(fixture: BillingFixture) {
         amountVnd,
         creditUnits: amountVnd,
         expiresInHours: PREPAID_BILLING_CONFIG.orderExpiryHours,
-        availability:
-          BILLING_ESTIMATE_AVAILABILITY.insufficientPricingConfiguration,
-        effectiveRuntimeModel: null,
-        estimatedUsageChargeVnd: null,
       });
     }
     if (path === "/api/billing/orders" && init?.method === "POST") {
@@ -628,5 +623,24 @@ test("history completing before the initial wallet triggers a fresh wallet reque
     fixture.walletCalls,
     2,
     "only one synchronization fetch is needed",
+  );
+});
+
+test("Billing Settings renders the top-up quote without usage-charge fields", async (context) => {
+  const container = await renderBilling(fixtureFor([]), context);
+  await waitFor(
+    () => container.querySelector("#billing-amount-vnd") !== null,
+    "expected the top-up form",
+  );
+  await setAmount(container, "20000");
+  await waitFor(
+    () => container.textContent?.includes("Credits received") ?? false,
+    "expected the top-up quote",
+  );
+  const text = container.textContent ?? "";
+  assert.match(text, /You pay/);
+  assert.doesNotMatch(
+    text,
+    /usage charge|Effective model|Effective provider|Estimate unavailable/i,
   );
 });

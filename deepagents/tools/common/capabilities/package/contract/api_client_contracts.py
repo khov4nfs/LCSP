@@ -7,14 +7,13 @@ correlationId_HEADER = "X-Correlation-Id"
 
 class CallbackPath(StrEnum):
     SCAN = "/internal/scan-jobs/{scan_job_id}/callback"
+    SCAN_CLAIM = "/internal/scan-jobs/{scan_job_id}/claim"
+    SCAN_TERMINAL_FAILURE = "/internal/scan-jobs/{scan_job_id}/terminal-failure"
     SCAN_RUNTIME_EVENT = "/internal/scan-jobs/{scan_job_id}/runtime-events"
     AGENT_STREAM_EVENT = "/internal/scan-jobs/agent-stream-events"
     TECHNICAL_PROFILE = "/internal/evidence/technical-profile-callback"
     AI_USAGE_FLOW = "/internal/ai-usage-flow/callback"
     BILLING_USAGE = "/internal/billing/usage"
-    BILLING_RESERVATION = "/internal/billing/reservations"
-    BILLING_RESERVATION_RELEASE = "/internal/billing/reservations/{reservation_id}/release"
-    BILLING_RESERVATION_CLAIM = "/internal/billing/reservations/{reservation_id}/claim"
     RECONCILIATION_CONFLICT = "/internal/reconciliation/conflict-callback"
     CLASSIFICATION = "/internal/classification/result-callback"
     AUDIT_EXPORT = "/internal/callbacks/audit-export/{export_request_id}"
@@ -40,6 +39,11 @@ class InternalPath(StrEnum):
     INTERVIEW_AGENT_DECISION = "/internal/assessment-interviews/{assessment_id}/agent-decisions"
     INTERVIEW_INITIAL_QUESTION = "/internal/assessment-interviews/{assessment_id}/initial-question"
     INTERVIEW_TARGETED_NEED = "/internal/assessment-interviews/{assessment_id}/targeted-needs"
+    RULE_ASSESSMENTS = "/internal/assessments/{assessment_id}/rule-assessments"
+    RULE_ASSESSMENT = (
+        "/internal/assessments/{assessment_id}/rule-assessments/{engineering_rule_id}"
+    )
+    ASSESSMENT_AI_NOT_DETECTED = "/internal/assessment-interviews/{assessment_id}/ai-not-detected"
     LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-rule-catalog/source-snapshots"
 
 

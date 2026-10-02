@@ -23,6 +23,8 @@ const config: Config = {
   },
   collectCoverageFrom: ["src/**/*.(t|j)s"],
   coverageDirectory: "../coverage",
+  maxWorkers: 1,
+  workerIdleMemoryLimit: "768MB",
 };
 
 export default config;

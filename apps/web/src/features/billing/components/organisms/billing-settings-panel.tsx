@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BILLING_ESTIMATE_AVAILABILITY,
   BILLING_ORDER_STATUSES,
   type BillingOrderView,
 } from "@lcsp/contracts/billing";
@@ -597,65 +596,22 @@ function EstimateSection({
         </p>
       ) : null}
       {query.data ? (
-        <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <Metric
             label={resolveMessage(
               locale,
-              "pages.workspace.settingsHub.billing.effectiveProvider",
+              "pages.workspace.settingsHub.billing.estimateAmount",
             )}
-            value={
-              query.data.effectiveRuntimeModel?.provider ??
-              resolveMessage(
-                locale,
-                "pages.workspace.settingsHub.billing.unavailable",
-              )
-            }
+            value={formatVnd(query.data.amountVnd, locale)}
           />
           <Metric
             label={resolveMessage(
               locale,
-              "pages.workspace.settingsHub.billing.effectiveModel",
+              "pages.workspace.settingsHub.billing.estimateCredits",
             )}
-            value={
-              query.data.effectiveRuntimeModel?.model ??
-              resolveMessage(
-                locale,
-                "pages.workspace.settingsHub.billing.unavailable",
-              )
-            }
-          />
-          <Metric
-            label={resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.estimatedUsageCharge",
-            )}
-            value={
-              query.data.estimatedUsageChargeVnd
-                ? formatVnd(query.data.estimatedUsageChargeVnd, locale)
-                : resolveMessage(
-                    locale,
-                    "pages.workspace.settingsHub.billing.unavailable",
-                  )
-            }
+            value={formatVnd(query.data.creditUnits, locale)}
           />
         </div>
-      ) : null}
-      {query.data?.availability ===
-      BILLING_ESTIMATE_AVAILABILITY.insufficientPricingConfiguration ? (
-        <Alert className="mt-4">
-          <AlertTitle>
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.insufficientPricingTitle",
-            )}
-          </AlertTitle>
-          <AlertDescription>
-            {resolveMessage(
-              locale,
-              "pages.workspace.settingsHub.billing.insufficientPricingDescription",
-            )}
-          </AlertDescription>
-        </Alert>
       ) : null}
     </section>
   );

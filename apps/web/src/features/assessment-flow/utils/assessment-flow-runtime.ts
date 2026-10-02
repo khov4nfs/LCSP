@@ -35,6 +35,14 @@ export function deriveAssessmentFlowRuntime(input: {
     input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.blockedMapping;
   const scanCompleted =
     input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.completed;
+  const scanActive = Boolean(
+    input.snapshot &&
+      input.scanJob?.snapshotId === input.snapshot.id &&
+      (input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
+        input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.running ||
+        input.scanJob.status ===
+          REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits),
+  );
   const reportMatchesScan = Boolean(
     input.scanJob &&
     input.evidenceReport?.scanJobId === input.scanJob.id &&
@@ -78,7 +86,7 @@ export function deriveAssessmentFlowRuntime(input: {
                 ? TOOL_ACTIVITY_STATUSES.failed
                 : scanCompleted
                   ? TOOL_ACTIVITY_STATUSES.completed
-                  : input.scanJob
+                  : scanActive
                     ? TOOL_ACTIVITY_STATUSES.running
                     : TOOL_ACTIVITY_STATUSES.pending
               : activity.id === SCANNER_ACTIVITY_IDS.buildGraph
@@ -99,6 +107,7 @@ export function deriveAssessmentFlowRuntime(input: {
     stage,
     activities,
     scanFailed,
+    scanActive,
     evidenceAccepted,
     programEvidenceSummary: deriveProgramEvidenceSummary({
       recentActivity: input.recentActivity,

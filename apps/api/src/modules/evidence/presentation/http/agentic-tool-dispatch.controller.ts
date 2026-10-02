@@ -1,3 +1,4 @@
+import { asRecord as record } from "@lcsp/contracts/shared";
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { RBAC_DECISIONS } from "@lcsp/contracts/rbac";
 import {
@@ -270,12 +271,6 @@ export class InternalAgenticToolDispatchController {
   }
 }
 
-function record(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
 function requiredString(value: unknown): string {
   const result = optionalString(value);
   if (!result) {
@@ -292,15 +287,6 @@ function optionalString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
-}
-
-function stringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0,
-      )
-    : [];
 }
 
 function runtimeStageForTool(toolName: string): AssessmentRuntimeStageCode {
@@ -354,20 +340,9 @@ function buildToolInputSummary(
   if (typeof input.maxRuns === "number") {
     summary.maxRuns = input.maxRuns;
   }
-  const pathPrefixes = stringArray(input.pathPrefixes);
-  if (pathPrefixes.length > 0) {
-    summary.pathPrefixes = pathPrefixes.slice(0, 5);
-  }
-  const subjectRefs = stringArray(input.subjectRefs);
-  if (subjectRefs.length > 0) {
-    summary.subjectRefs = subjectRefs.slice(0, 5);
-  }
   const artifactVersionKeys = Object.keys(artifactVersions).sort();
   if (artifactVersionKeys.length > 0) {
     summary.artifactVersionKeys = artifactVersionKeys;
-  }
-  if (toolName === AGENTIC_TOOL_NAMES.requestTargetedReanalysis) {
-    summary.analyzerId = optionalString(input.analyzerId);
   }
   return summary;
 }
@@ -442,7 +417,6 @@ const TECHNICAL_EVIDENCE_TOOL_NAMES = new Set<string>([
   AGENTIC_TOOL_NAMES.inspectDataPath,
   AGENTIC_TOOL_NAMES.findSimilarSymbols,
   AGENTIC_TOOL_NAMES.inspectDeploymentContext,
-  AGENTIC_TOOL_NAMES.requestTargetedReanalysis,
   AGENTIC_TOOL_NAMES.retrieveVerifiedEpisodes,
   AGENTIC_TOOL_NAMES.captureVerifiedEpisode,
   AGENTIC_TOOL_NAMES.consolidateVerifiedEpisodes,

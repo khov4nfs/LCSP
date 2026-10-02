@@ -1,3 +1,4 @@
+import { asRecord as record } from "@lcsp/contracts/shared";
 import { createHash } from "node:crypto";
 
 import { HttpStatus } from "@nestjs/common";
@@ -385,12 +386,6 @@ function refs(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
-}
-
-function record(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 function provenanceRef(correlationId: string): string {

@@ -3,7 +3,6 @@ import {
   BILLING_ADMIN_REPORTING,
   BILLING_DUPLICATE_REPORTING_SCOPES,
   BILLING_PENDING_RECONCILIATION_STATUSES,
-  BILLING_USAGE_REVENUE_SOURCES,
   PAYMENT_RECONCILIATION_STATUSES,
   type BillingAdminRevenueSummary,
   type BillingAdminTransactionPage,
@@ -62,16 +61,6 @@ export async function getRevenueSummary(
     reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.MATCHED,
     reconciledAt: { gte: period.from, lt: period.to },
   };
-  const usageWhere: Prisma.CreditLedgerEntryWhereInput = {
-    source: {
-      in: [
-        BILLING_USAGE_REVENUE_SOURCES.llmUsageDebit,
-        BILLING_USAGE_REVENUE_SOURCES.reservationSettlement,
-      ],
-    },
-    deltaCredits: { lt: 0n },
-    createdAt: { gte: period.from, lt: period.to },
-  };
   const pendingWhere: Prisma.PaymentTransactionWhereInput = {
     reconciliationStatus: { in: [...BILLING_PENDING_RECONCILIATION_STATUSES] },
     receivedAt: { gte: period.from, lt: period.to },
@@ -81,26 +70,19 @@ export async function getRevenueSummary(
     receivedAt: { gte: period.from, lt: period.to },
   };
 
-  const [payments, usage, wallets, pendingCount, duplicateCount] =
-    await Promise.all([
-      prisma.paymentTransaction.aggregate({
-        where: paymentWhere,
-        _sum: { amountMinorUnits: true },
-        _count: { _all: true },
-      }),
-      prisma.creditLedgerEntry.aggregate({
-        where: usageWhere,
-        _sum: { deltaCredits: true },
-        _count: { _all: true },
-      }),
-      prisma.billingWallet.aggregate({
-        _sum: { availableCredits: true, reservedCredits: true },
-      }),
-      prisma.paymentTransaction.count({ where: pendingWhere }),
-      prisma.paymentTransaction.count({ where: duplicateWhere }),
-    ]);
+  const [payments, wallets, pendingCount, duplicateCount] = await Promise.all([
+    prisma.paymentTransaction.aggregate({
+      where: paymentWhere,
+      _sum: { amountMinorUnits: true },
+      _count: { _all: true },
+    }),
+    prisma.billingWallet.aggregate({
+      _sum: { availableCredits: true, reservedCredits: true },
+    }),
+    prisma.paymentTransaction.count({ where: pendingWhere }),
+    prisma.paymentTransaction.count({ where: duplicateWhere }),
+  ]);
 
-  const usageDebit = usage._sum.deltaCredits ?? 0n;
   const outstanding =
     (wallets._sum.availableCredits ?? 0n) +
     (wallets._sum.reservedCredits ?? 0n);
@@ -111,10 +93,6 @@ export async function getRevenueSummary(
     settledTopUps: {
       amountMinorUnits: (payments._sum.amountMinorUnits ?? 0n).toString(),
       count: payments._count._all,
-    },
-    usageRevenue: {
-      amountMinorUnits: (-usageDebit).toString(),
-      count: usage._count._all,
     },
     outstandingCredits: {
       credits: outstanding.toString(),

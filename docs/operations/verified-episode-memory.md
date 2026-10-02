@@ -1,6 +1,6 @@
 # Verified Episode Memory Operations
 
-Verified episodes are reusable execution examples for Planner and Investigator.
+Verified episodes are reusable execution examples for the Repository Analyst.
 They are not factual authority for the current assessment run.
 
 Current production scope:
@@ -23,7 +23,7 @@ Runtime environment:
 
 - `LCSP_VERIFIED_EPISODE_BACKEND=api` to use the governed API-backed gateway.
 - `LCSP_VERIFIED_EPISODE_RETRIEVAL_ENABLED=true` to expose retrieval to the
-  managed agent runtime.
+  LCSP Agent Runtime.
 - `NESTJS_API_BASE_URL` and `WORKER_API_KEY` for the internal dispatch API.
 
 Out of scope for this implementation:

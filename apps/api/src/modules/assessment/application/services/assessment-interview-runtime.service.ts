@@ -1,3 +1,4 @@
+import { asRecord as objectRecord } from "@lcsp/contracts/shared";
 import { randomUUID } from "node:crypto";
 import {
   ASSESSMENT_ERROR_CODES,
@@ -6,6 +7,7 @@ import {
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
+  type AuditActorType,
   INTERVIEW_AUDIT_EVENT_TYPES,
   INTERVIEW_TECHNICAL_COVERAGE_STATES,
   type InterviewAuditActorRef,
@@ -23,8 +25,12 @@ import {
   ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES,
   ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
+  ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS,
   ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  ASSESSMENT_INTERVIEW_RESUME_MAX_ATTEMPTS,
+  ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES,
+  ASSESSMENT_INTERVIEW_RESUME_REASONS,
   ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
@@ -40,6 +46,7 @@ import {
   type AssessmentInterviewAnswerHistoryItem,
   type AssessmentInterviewAnswerInput,
   type AssessmentInterviewBlockedInput,
+  type AssessmentInterviewResumeInput,
   type AssessmentInterviewControl,
   type AssessmentInterviewOrchestratorAction,
   type CanonicalAssessmentInterviewMode,
@@ -53,6 +60,8 @@ import {
   EMPTY_INTERVIEW_WORKING_STRATEGY,
   type InterviewWorkingStrategy,
   type PartialCoveragePolicyDecision,
+  BUSINESS_CONTEXT_NEED_STATES,
+  type BusinessContextNeedState,
 } from "@lcsp/contracts/evidence";
 import {
   buildOutboxMessageInput,
@@ -96,6 +105,8 @@ const PUBLIC_REDACTED_ANSWER_SUMMARY =
 const PUBLIC_REDACTED_DRAFT_SUMMARY =
   "Customer draft persisted for Interview resume.";
 const INTERVIEW_AGENT_DECISION_REQUIRED = "INTERVIEW_AGENT_DECISION_REQUIRED";
+const BUSINESS_CONTEXT_RESOLUTION_REQUIRED =
+  ASSESSMENT_INTERVIEW_RESUME_REASONS.businessContextResolutionRequired;
 // Worker-only private answer history (never merged into publicState, which stays
 // the sanitized customer projection). Bounded so a long-running Interview thread
 // cannot grow the model prompt unboundedly: only the most recent
@@ -109,12 +120,6 @@ const WORKER_PRIOR_ANSWER_HISTORY_TRUNCATION_MARKER = "…[truncated]";
 const POST_FINDING_DECISION_TOOL_NAME = "post_finding_remediation_decision";
 const POST_FINDING_RUNTIME_CONTINUATION_REQUIRED =
   "POST_FINDING_RUNTIME_CONTINUATION_REQUIRED";
-const TARGETED_ARTIFACT_PIN_KEYS = [
-  "technicalEvidenceReportId",
-  "repositorySnapshotId",
-  "legalRuleCatalogVersionId",
-  "legalCorpusVersionId",
-] as const;
 const TARGETED_TEXT_LEAK_PATTERNS = [
   /\bEngineeringRule\b/iu,
   /\bLegalRule\b/iu,
@@ -127,7 +132,7 @@ const TARGETED_TEXT_LEAK_PATTERNS = [
   /\bLangGraph\b/iu,
   /\bthread(?:Id)?\b/iu,
   /\b[a-z0-9_.-]+\/[a-z0-9_./-]+\.(?:ts|tsx|js|jsx|py|java|go|rs)\b/iu,
-  /\b(?:CUSTOMER_CONFIRMED|CUSTOMER_STATED|CONTEXT_READY|CONTEXT_RESOLVED|INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY|INVESTIGATOR_RESOLUTION|TARGETED_EXACT_RESUME_PIN|WAITING_FOR_CUSTOMER|BLOCKED_OR_UNRESOLVED|NEEDS_INPUT|PRE_PLANNER|DECISION_PATH_UNRESOLVED)\b/iu,
+  /\b(?:CUSTOMER_CONFIRMED|CUSTOMER_STATED|CONTEXT_READY|CONTEXT_RESOLVED|INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY|BUSINESS_CONTEXT_RESOLUTION|TARGETED_EXACT_RESUME_PIN|WAITING_FOR_CUSTOMER|BLOCKED_OR_UNRESOLVED|NEEDS_INPUT|DECISION_PATH_UNRESOLVED)\b/iu,
   /\bresolutionCriteria\b/iu,
 ] as const;
 const INTERNAL_ORCHESTRATION_TOKEN_PATTERNS = [
@@ -136,12 +141,11 @@ const INTERNAL_ORCHESTRATION_TOKEN_PATTERNS = [
   /\bCONTEXT_READY\b/gu,
   /\bCONTEXT_RESOLVED\b/gu,
   /\bINTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY\b/gu,
-  /\bINVESTIGATOR_RESOLUTION\b/gu,
+  /\bBUSINESS_CONTEXT_RESOLUTION\b/gu,
   /\bTARGETED_EXACT_RESUME_PIN\b/gu,
   /\bWAITING_FOR_CUSTOMER\b/gu,
   /\bBLOCKED_OR_UNRESOLVED\b/gu,
   /\bNEEDS_INPUT\b/gu,
-  /\bPRE_PLANNER\b/gu,
   /\bDECISION_PATH_UNRESOLVED\b/gu,
   /\bresolutionCriteria\b/gu,
 ] as const;
@@ -193,24 +197,48 @@ type InterviewAnswerIdempotencyRecord = {
   recordedAt: string;
 };
 
+/**
+ * BusinessContextNeed: one customer-owned business fact a single EngineeringRule
+ * criterion needs. Registered by the repository-analyst runtime after
+ * BUSINESS_CONTEXT_REQUIRED; persisted under the legacy `targetedNeed` store key.
+ */
 type TargetedInterviewNeed = {
   needId: string;
-  businessContextNeed: string;
-  resolutionCriteria: string[];
-  whyNeeded?: string;
+  state: BusinessContextNeedState;
+  engineeringRuleId: string;
+  criterionId: string;
+  authoredConditionIndex?: number;
+  /** Customer-safe, neutral question the Interview Agent bases its question on. */
+  question: string;
+  /** Neutral plain-language note of what was observed; context for the agent only. */
+  observation: string;
+  /** Criterion ids this need resolves; answers cite one via `resolvesCriterionId`. */
+  resolutionCriterionIds: string[];
   governedEvidenceRefs?: string[];
-  originatingInvestigationReference: string;
+  contextRevision: number;
+  originatingRuleAnalysisReference: string;
   sourceVersion: string;
   pgeVersion: string;
+  /**
+   * Compatibility adapter (read-only): topic-matched criteria of needs persisted by
+   * the pre-BusinessContextNeed runtime. Consumer: assertGuardedDecision. Remove once
+   * no AssessmentInterviewThread.privateContextJson holds a targetedNeed without
+   * `engineeringRuleId` (one release after deploy).
+   */
+  legacyResolutionCriteria?: string[];
 };
 
 type TargetedInterviewContinuation = {
-  originatingInvestigationReference: string;
-  investigatorExecutionId: string;
+  originatingRuleAnalysisReference: string;
+  needId: string;
+  engineeringRuleId: string;
+  criterionId?: string;
+  /** Criteria the worker may bind a resolved answer to; absent on pre-existing rows. */
+  resolutionCriterionIds?: string[];
+  contextRevision: number;
   workflowRunId: string;
-  checkpointId: string;
-  affectedRuleIds: string[];
-  artifactVersions: Record<string, string>;
+  checkpointId?: string;
+  artifactVersions?: Record<string, string>;
   sourceVersion: string;
   pgeVersion: string;
 };
@@ -223,21 +251,31 @@ type PrivateInterviewStore = {
   targetedNeed?: TargetedInterviewNeed;
   targetedContinuation?: TargetedInterviewContinuation;
   partialCoveragePolicyDecision?: PartialCoveragePolicyDecision;
+  // Context revision whose Interview Agent decision run reported FAILED.
+  failedDecisionRevision?: number;
+  // Customer-triggered resume attempts for the failed context revision.
+  resumeAttempts?: InterviewResumeAttempts;
+};
+
+type InterviewResumeAttempts = {
+  contextRevision: number;
+  count: number;
 };
 
 type TargetedNeedRegistrationInput = {
   actorId: string;
   needId: string;
-  businessContextNeed: string;
-  resolutionCriteria: string[];
-  whyNeeded?: string;
-  governedEvidenceRefs?: string[];
-  originatingInvestigationReference: string;
-  investigatorExecutionId: string;
+  engineeringRuleId: string;
+  criterionId: string;
+  authoredConditionIndex?: number;
+  question: string;
+  observation: string;
+  resolutionCriterionIds: string[];
+  evidenceRefs: string[];
+  contextRevision: number;
   workflowRunId: string;
-  checkpointId: string;
-  affectedRuleIds: string[];
-  artifactVersions: Record<string, string>;
+  checkpointId?: string;
+  artifactVersions?: Record<string, string>;
 };
 
 type WorkerPrivateContext = {
@@ -418,7 +456,7 @@ export class AssessmentInterviewRuntimeService {
     questionId: string,
     actor: RbacRequestContext,
   ): Promise<{
-    evidenceReportId: string;
+    evidenceReportId?: string;
     snippetRef: AiDiscoverySnippetRef;
   }> {
     await this.assertAssessmentVisible(assessmentId, actor);
@@ -436,11 +474,8 @@ export class AssessmentInterviewRuntimeService {
     const evidenceReportId = evidenceReportRef?.slice(
       "technicalEvidenceReport:".length,
     );
-    if (!evidenceReportId) {
-      throw new NotFoundException({
-        code: "INTERVIEW_SOURCE_SNIPPET_UNAVAILABLE",
-      });
-    }
+    // Agent-authored refs may be plain anchor ids; the snippet service then resolves the
+    // accepted report by the snippet's pinned snapshot and re-verifies the governed ref.
     return { evidenceReportId, snippetRef: question.snippetRef };
   }
 
@@ -496,6 +531,20 @@ export class AssessmentInterviewRuntimeService {
       },
     };
     if (input.phase === INTERVIEW_PROGRESS_PHASES.failed) {
+      // Remember the failed revision so the Customer can resume the same turn.
+      await this.prisma.assessmentInterviewThread.updateMany({
+        where: {
+          assessmentId,
+          contextRevision: thread.contextRevision,
+          processedRevision: thread.processedRevision,
+        },
+        data: {
+          privateContextJson: toJson({
+            ...thread.privateStore,
+            failedDecisionRevision: thread.contextRevision,
+          }),
+        },
+      });
       await this.runtimeEvents.recordToolFailed(event);
     } else {
       await this.runtimeEvents.recordToolStarted(event);
@@ -836,6 +885,252 @@ export class AssessmentInterviewRuntimeService {
     return publicState(next.state);
   }
 
+  /**
+   * Summarises the Interview thread for pipeline Continue after the caller has
+   * checked visibility: whether the Customer owes an answer, and whether an
+   * answered turn is still waiting for its Interview Agent decision.
+   */
+  async pipelineInterviewStatus(assessmentId: string): Promise<{
+    awaitingCustomer: boolean;
+    pendingTurn: boolean;
+  }> {
+    const thread = await this.readThread(assessmentId);
+    // A blocked Interview waits for the Customer's blocked-action choice.
+    const awaitingCustomer = Boolean(
+      thread.activeQuestionId ||
+      thread.state.activeQuestion ||
+      thread.state.outcome ===
+        ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+    );
+    return {
+      awaitingCustomer,
+      pendingTurn:
+        thread.exists &&
+        !awaitingCustomer &&
+        thread.processedRevision < thread.contextRevision,
+    };
+  }
+
+  /**
+   * Re-queues the Interview Agent decision for the current context revision
+   * after the worker reported FAILED. The Customer answer is already persisted,
+   * so the retry reuses the same revision instead of asking for a new answer.
+   */
+  async resumeFailedTurn(input: {
+    assessmentId: string;
+    actor: RbacRequestContext;
+    correlationId: string;
+    resume: AssessmentInterviewResumeInput;
+    // Pipeline Continue has already proven no worker owns the turn, so a turn
+    // that stalled without reporting FAILED (worker crash) is resumable too.
+    allowStalled?: boolean;
+    actorType?: AuditActorType;
+  }): Promise<AssessmentInterviewRuntimeState> {
+    const resume = parseResumeInput(input.resume, input.correlationId);
+    await this.assertAssessmentVisible(input.assessmentId, input.actor);
+    const provenance = await this.assessmentProvenance(input.assessmentId);
+    const currentRevision = (await this.readThread(input.assessmentId))
+      .contextRevision;
+    // Failures reported before the thread persisted failedDecisionRevision are
+    // still visible as the latest FAILED progress event, which the composer uses.
+    const latestProgressPhase =
+      await this.runtimeEvents.getLatestInterviewProgressPhase(
+        input.assessmentId,
+        INTERVIEW_TOOL_NAME,
+        currentRevision,
+      );
+    const next = await this.runInterviewTransaction(async (tx) => {
+      const thread = await this.readThread(input.assessmentId, tx);
+      const turnFailed =
+        input.allowStalled === true ||
+        thread.privateStore.failedDecisionRevision === thread.contextRevision ||
+        (thread.contextRevision === currentRevision &&
+          latestProgressPhase === INTERVIEW_PROGRESS_PHASES.failed);
+      if (
+        resume.expectedSessionRevision !== undefined &&
+        resume.expectedSessionRevision !== thread.contextRevision
+      ) {
+        throw problemException(
+          ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES.revisionStale,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      const answered = [...thread.privateRevisions]
+        .reverse()
+        .find(
+          (revision) => revision.contextRevision === thread.contextRevision,
+        );
+      const targetedNeed = activeBusinessContextNeed(thread.privateStore);
+      const target = answered
+        ? {
+            questionId: answered.questionId,
+            resumeReason: INTERVIEW_AGENT_DECISION_REQUIRED,
+          }
+        : targetedNeed
+          ? {
+              questionId: targetedNeed.needId,
+              resumeReason: BUSINESS_CONTEXT_RESOLUTION_REQUIRED,
+            }
+          : undefined;
+      const workflowRunId =
+        thread.privateStore.targetedContinuation?.workflowRunId ??
+        thread.privateStore.workflowRunId;
+      if (
+        !target ||
+        !workflowRunId ||
+        thread.activeQuestionId ||
+        thread.state.activeQuestion ||
+        thread.processedRevision >= thread.contextRevision ||
+        !turnFailed
+      ) {
+        throw problemException(
+          ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES.notAvailable,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      const priorAttempts =
+        thread.privateStore.resumeAttempts?.contextRevision ===
+        thread.contextRevision
+          ? thread.privateStore.resumeAttempts.count
+          : 0;
+      if (priorAttempts >= ASSESSMENT_INTERVIEW_RESUME_MAX_ATTEMPTS) {
+        throw problemException(
+          ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES.limitReached,
+          input.correlationId,
+          {
+            status: HttpStatus.CONFLICT,
+            meta: { maxAttempts: ASSESSMENT_INTERVIEW_RESUME_MAX_ATTEMPTS },
+          },
+        );
+      }
+      const attempt = priorAttempts + 1;
+      const updated = await tx.assessmentInterviewThread.updateMany({
+        where: {
+          assessmentId: input.assessmentId,
+          contextRevision: thread.contextRevision,
+          processedRevision: thread.processedRevision,
+          activeQuestionId: null,
+        },
+        data: {
+          privateContextJson: toJson({
+            ...thread.privateStore,
+            failedDecisionRevision: undefined,
+            resumeAttempts: {
+              contextRevision: thread.contextRevision,
+              count: attempt,
+            },
+          }),
+        },
+      });
+      if (updated.count !== 1) {
+        throw problemException(
+          ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES.notAvailable,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      await this.outboxRepository.enqueue(
+        this.interviewAgentResumeCommand({
+          assessmentId: input.assessmentId,
+          workflowRunId,
+          actorId: input.actor.userId,
+          actorType: input.actorType,
+          correlationId: input.correlationId,
+          contextRevision: thread.contextRevision,
+          questionId: target.questionId,
+          sourceVersion: provenance.sourceVersion,
+          pgeVersion: provenance.pgeVersion,
+          guidanceVersion:
+            thread.guidanceVersion ?? this.resolveGuidanceVersion(),
+          resumeReason: target.resumeReason,
+          resumeAttempt: attempt,
+        }),
+        tx,
+      );
+      return {
+        state: thread.state,
+        revision: thread.contextRevision,
+        questionId: target.questionId,
+        workflowRunId,
+        attempt,
+        partialCoveragePolicyDecision:
+          provenance.partialCoveragePolicyDecision ??
+          thread.privateStore.partialCoveragePolicyDecision,
+      };
+    });
+
+    await this.runtimeEvents.recordToolWaitingInput({
+      assessmentId: input.assessmentId,
+      runId: next.workflowRunId,
+      correlationId: input.correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+      toolName: INTERVIEW_TOOL_NAME,
+      summary:
+        input.actorType === AUDIT_ACTOR_TYPES.service
+          ? "Assessment reconciliation resumed a stalled Interview turn; Interview Agent sufficiency decision re-queued."
+          : "Customer resumed a failed Interview turn; Interview Agent sufficiency decision re-queued.",
+      inputSummary: {
+        questionId: next.questionId,
+        resumeAttempt: next.attempt,
+      },
+      outputSummary: {
+        assessmentInterview: publicState(next.state),
+        interviewProgress: {
+          contextRevision: next.revision,
+          phase: INTERVIEW_PROGRESS_PHASES.queued,
+        },
+        interviewWorkflowEvent:
+          ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextUpdated,
+        partialCoveragePolicyDecision:
+          next.partialCoveragePolicyDecision ?? null,
+      },
+      waitingReason:
+        ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextUpdated,
+      startedAt: new Date(),
+    });
+
+    return publicState(next.state);
+  }
+
+  /**
+   * Cooperatively interrupts whatever Interview turn is currently running for
+   * this assessment, if any. Fire-and-forget by design: the worker no-ops if
+   * nothing is active, and thread state is untouched either way (the turn
+   * never got to persist anything before it was stopped), so this never needs
+   * a revision guard the way resumeFailedTurn does.
+   */
+  async pauseActiveTurn(input: {
+    assessmentId: string;
+    actor: RbacRequestContext;
+    correlationId: string;
+  }): Promise<void> {
+    await this.assertAssessmentVisible(input.assessmentId, input.actor);
+    const thread = await this.readThread(input.assessmentId);
+    await this.runInterviewTransaction(async (tx) => {
+      await this.outboxRepository.enqueue(
+        this.interviewAgentPauseCommand({
+          assessmentId: input.assessmentId,
+          workflowRunId:
+            thread.privateStore.targetedContinuation?.workflowRunId ??
+            thread.privateStore.workflowRunId,
+          actorId: input.actor.userId,
+          correlationId: input.correlationId,
+        }),
+        tx,
+      );
+    });
+    // The same stop covers a running Repository Analyst dispatch. Record it so
+    // automatic reconciliation leaves the stopped pipeline until the customer
+    // presses Continue.
+    await this.runtimeEvents.recordPipelineControl({
+      assessmentId: input.assessmentId,
+      correlationId: input.correlationId,
+      reason: ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS.customerRequestedStop,
+    });
+  }
+
   async recordBlockedAction(input: {
     assessmentId: string;
     actor: RbacRequestContext;
@@ -1059,7 +1354,7 @@ export class AssessmentInterviewRuntimeService {
     const privateRevision = thread.privateRevisions.find(
       (revision) => revision.contextRevision === input.contextRevision,
     );
-    const target = thread.privateStore.targetedNeed;
+    const target = activeBusinessContextNeed(thread.privateStore);
     const provenanceChanged =
       (input.sourceVersion &&
         input.sourceVersion !== authoritative.sourceVersion) ||
@@ -1089,10 +1384,7 @@ export class AssessmentInterviewRuntimeService {
       const currentWorkflowRunId =
         thread.privateStore.targetedContinuation?.workflowRunId ??
         thread.privateStore.workflowRunId;
-      if (
-        thread.privateStore.targetedNeed &&
-        input.contextRevision < thread.contextRevision
-      ) {
+      if (target && input.contextRevision < thread.contextRevision) {
         return thread.privateStore.workflowRunId ?? currentWorkflowRunId;
       }
       return currentWorkflowRunId;
@@ -1174,24 +1466,31 @@ export class AssessmentInterviewRuntimeService {
         target,
         correlationId: input.correlationId,
       });
+      const originatingRuleAnalysisReference = `rule:${target.engineeringRuleId}:${target.needId}`;
       const targetedNeed: TargetedInterviewNeed = {
         needId: target.needId,
-        businessContextNeed: target.businessContextNeed,
-        resolutionCriteria: target.resolutionCriteria,
-        whyNeeded: target.whyNeeded,
-        governedEvidenceRefs: target.governedEvidenceRefs,
-        originatingInvestigationReference:
-          target.originatingInvestigationReference,
+        state: BUSINESS_CONTEXT_NEED_STATES.active,
+        engineeringRuleId: target.engineeringRuleId,
+        criterionId: target.criterionId,
+        authoredConditionIndex: target.authoredConditionIndex,
+        question: target.question,
+        observation: target.observation,
+        resolutionCriterionIds: target.resolutionCriterionIds,
+        governedEvidenceRefs: target.evidenceRefs,
+        contextRevision: target.contextRevision,
+        originatingRuleAnalysisReference,
         sourceVersion: initialProvenance.sourceVersion,
         pgeVersion: initialProvenance.pgeVersion,
       };
       const targetedContinuation: TargetedInterviewContinuation = {
-        originatingInvestigationReference:
-          target.originatingInvestigationReference,
-        investigatorExecutionId: target.investigatorExecutionId,
+        originatingRuleAnalysisReference,
+        needId: target.needId,
+        engineeringRuleId: target.engineeringRuleId,
+        criterionId: target.criterionId,
+        resolutionCriterionIds: target.resolutionCriterionIds,
+        contextRevision: target.contextRevision,
         workflowRunId: target.workflowRunId,
         checkpointId: target.checkpointId,
-        affectedRuleIds: target.affectedRuleIds,
         artifactVersions: target.artifactVersions,
         sourceVersion: initialProvenance.sourceVersion,
         pgeVersion: initialProvenance.pgeVersion,
@@ -1231,20 +1530,20 @@ export class AssessmentInterviewRuntimeService {
           pgeVersion: initialProvenance.pgeVersion,
           guidanceVersion:
             thread.guidanceVersion ?? this.resolveGuidanceVersion(),
-          resumeReason: "INVESTIGATOR_RESOLUTION_REQUIRED",
+          resumeReason: BUSINESS_CONTEXT_RESOLUTION_REQUIRED,
         }),
         tx,
       );
       await this.interviewAudit.recordTargetedClarification(
         {
           assessmentId: input.assessmentId,
-          originatingInvestigationReference:
-            target.originatingInvestigationReference,
+          originatingRuleAnalysisReference:
+            targetedNeed.originatingRuleAnalysisReference,
           interviewContextRevision: String(thread.contextRevision ?? 0),
           sessionId: this.threadId(input.assessmentId),
           threadId: this.threadId(input.assessmentId),
           runId: target.workflowRunId,
-          stage: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
+          stage: ASSESSMENT_INTERVIEW_MODES.businessContextResolution,
           sourceSnapshot: {
             snapshotId: initialProvenance.snapshotId,
             commitSha: initialProvenance.commitSha,
@@ -1280,14 +1579,14 @@ export class AssessmentInterviewRuntimeService {
           stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
           toolName: INTERVIEW_TOOL_NAME,
           summary:
-            "Investigator-resolution Interview has started and is waiting for Customer context.",
+            "Business-context Interview has started and is waiting for Customer context.",
           outputSummary: {
             assessmentInterview: publicState(targetResult.state),
             interviewWorkflowEvent:
               ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
             orchestratorAction:
               ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer,
-            interviewMode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
+            interviewMode: ASSESSMENT_INTERVIEW_MODES.businessContextResolution,
             partialCoveragePolicyDecision:
               targetResult.partialCoveragePolicyDecision ?? null,
           },
@@ -1313,7 +1612,10 @@ export class AssessmentInterviewRuntimeService {
     correlationId: string;
   }): void {
     if (
-      input.thread.state.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.contextReady
+      input.thread.state.outcome !==
+        ASSESSMENT_INTERVIEW_OUTCOMES.contextReady &&
+      input.thread.state.outcome !==
+        ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved
     ) {
       throw problemException(
         "INTERVIEW_TARGETED_NEED_REQUIRES_READY_CONTEXT",
@@ -1339,8 +1641,15 @@ export class AssessmentInterviewRuntimeService {
         { status: HttpStatus.CONFLICT },
       );
     }
+    if (input.target.contextRevision < (input.thread.contextRevision ?? 0)) {
+      throw problemException(
+        "INTERVIEW_TARGETED_REGISTRATION_STALE_CONTEXT_REVISION",
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
     const authoritativeRefs = new Set(input.provenance.governedEvidenceRefs);
-    for (const ref of input.target.governedEvidenceRefs ?? []) {
+    for (const ref of input.target.evidenceRefs) {
       if (!authoritativeRefs.has(ref)) {
         throw problemException(
           "INTERVIEW_EVIDENCE_REF_UNAUTHORIZED",
@@ -1359,14 +1668,10 @@ export class AssessmentInterviewRuntimeService {
     const continuation = privateStore.targetedContinuation;
     return (
       need?.needId === target.needId &&
-      need.originatingInvestigationReference ===
-        target.originatingInvestigationReference &&
-      continuation?.investigatorExecutionId ===
-        target.investigatorExecutionId &&
-      continuation.workflowRunId === target.workflowRunId &&
-      continuation.checkpointId === target.checkpointId &&
-      sameStringSet(continuation.affectedRuleIds, target.affectedRuleIds) &&
-      sameRecord(continuation.artifactVersions, target.artifactVersions)
+      need.engineeringRuleId === target.engineeringRuleId &&
+      need.criterionId === target.criterionId &&
+      need.contextRevision === target.contextRevision &&
+      continuation?.workflowRunId === target.workflowRunId
     );
   }
 
@@ -1455,18 +1760,22 @@ export class AssessmentInterviewRuntimeService {
           ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved &&
         decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer;
       const isTargetedBootstrap =
-        decision.mode === ASSESSMENT_INTERVIEW_MODES.investigatorResolution &&
+        decision.mode ===
+          ASSESSMENT_INTERVIEW_MODES.businessContextResolution &&
         decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer &&
         thread.state.outcome ===
           ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer &&
         !thread.activeQuestionId &&
-        !!thread.privateStore.targetedNeed;
+        !!activeBusinessContextNeed(thread.privateStore);
       assertGuardedDecision(
         decision,
         latestPrivate,
         thread,
         input.correlationId,
-        { isBlockedFollowup, isTargetedBootstrap },
+        {
+          isBlockedFollowup,
+          isTargetedBootstrap,
+        },
       );
       const transition = orchestratorInterviewTransition(
         decision,
@@ -1499,6 +1808,10 @@ export class AssessmentInterviewRuntimeService {
             input.assessmentId,
             latestPrivate,
             input.correlationId,
+            {
+              need: activeBusinessContextNeed(thread.privateStore),
+              previousStatements: thread.state.confirmedContext?.statements,
+            },
           );
         assertInitialPlanningContextReady(
           decision,
@@ -1544,6 +1857,15 @@ export class AssessmentInterviewRuntimeService {
           privateContextJson: toJson({
             ...thread.privateStore,
             revisions,
+            // A resolved decision settles the active need; it stays as provenance.
+            targetedNeed:
+              thread.privateStore.targetedNeed &&
+              state.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved
+                ? {
+                    ...thread.privateStore.targetedNeed,
+                    state: BUSINESS_CONTEXT_NEED_STATES.resolved,
+                  }
+                : thread.privateStore.targetedNeed,
           }),
         },
       });
@@ -1643,7 +1965,7 @@ export class AssessmentInterviewRuntimeService {
         continuation:
           transition.exactResumeAllowed &&
           transition.action ===
-            ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator
+            ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeSameRule
             ? thread.privateStore.targetedContinuation
             : undefined,
       };
@@ -1960,8 +2282,8 @@ export class AssessmentInterviewRuntimeService {
       ...base,
       summary:
         input.transition.action ===
-        ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator
-          ? "Targeted Interview context resolved; exact Investigator resume is authorized."
+        ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeSameRule
+          ? "Targeted Interview context resolved; exact rule resume is authorized."
           : input.transition.action ===
               ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.selectiveRerunRescope
             ? "Targeted Interview context resolved; downstream re-evaluation rescope is required."
@@ -2008,7 +2330,7 @@ export class AssessmentInterviewRuntimeService {
     }
   }
 
-  private async assertAssessmentVisible(
+  async assertAssessmentVisible(
     assessmentId: string,
     actor: RbacRequestContext,
   ): Promise<void> {
@@ -2123,6 +2445,7 @@ export class AssessmentInterviewRuntimeService {
     assessmentId: string;
     workflowRunId: string;
     actorId: string;
+    actorType?: AuditActorType;
     correlationId: string;
     contextRevision: number;
     questionId: string;
@@ -2130,7 +2453,12 @@ export class AssessmentInterviewRuntimeService {
     pgeVersion: string;
     guidanceVersion: string;
     resumeReason: string;
+    // Customer resume attempt; distinct outbox key so the retry is not deduplicated.
+    resumeAttempt?: number;
   }) {
+    const attemptSuffix = input.resumeAttempt
+      ? `:resume-${input.resumeAttempt}`
+      : "";
     return buildOutboxMessageInput({
       aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
       aggregateId: input.assessmentId,
@@ -2138,10 +2466,13 @@ export class AssessmentInterviewRuntimeService {
       assessmentId: input.assessmentId,
       correlationId: input.correlationId,
       causationId: input.correlationId,
-      actor: { id: input.actorId, type: AUDIT_ACTOR_TYPES.user },
+      actor: {
+        id: input.actorId,
+        type: input.actorType ?? AUDIT_ACTOR_TYPES.user,
+      },
       result: ASSESSMENT_EVENT_TYPES.interviewAnswerSubmitted,
       redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
-      idempotencyKey: `${input.assessmentId}:${input.contextRevision}:${input.resumeReason}:${input.questionId}:${ASSESSMENT_EVENT_TYPES.interviewAgentResumeRequestedOutbox}`,
+      idempotencyKey: `${input.assessmentId}:${input.contextRevision}:${input.resumeReason}:${input.questionId}:${ASSESSMENT_EVENT_TYPES.interviewAgentResumeRequestedOutbox}${attemptSuffix}`,
       payload: {
         assessmentId: input.assessmentId,
         threadId: this.threadId(input.assessmentId),
@@ -2152,6 +2483,33 @@ export class AssessmentInterviewRuntimeService {
         pgeVersion: input.pgeVersion,
         guidanceVersion: input.guidanceVersion,
         resumeReason: input.resumeReason,
+      },
+    });
+  }
+
+  private interviewAgentPauseCommand(input: {
+    assessmentId: string;
+    workflowRunId?: string;
+    actorId: string;
+    correlationId: string;
+  }) {
+    return buildOutboxMessageInput({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+      aggregateId: input.assessmentId,
+      eventType: ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox,
+      assessmentId: input.assessmentId,
+      correlationId: input.correlationId,
+      causationId: input.correlationId,
+      actor: { id: input.actorId, type: AUDIT_ACTOR_TYPES.user },
+      result: ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox,
+      redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
+      // Every click gets its own delivery; a pause request is not meant to be
+      // deduplicated against an earlier one the way a resume retry is.
+      idempotencyKey: `${input.assessmentId}:${input.correlationId}:${ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox}`,
+      payload: {
+        assessmentId: input.assessmentId,
+        threadId: this.threadId(input.assessmentId),
+        workflowRunId: input.workflowRunId,
       },
     });
   }
@@ -2190,7 +2548,53 @@ export class AssessmentInterviewRuntimeService {
     };
   }
 
+  /**
+   * Scanner-backed provenance plus the canonical `source:` refs accepted into the
+   * EngineeringRuleAssessment ledger. Ledger refs are read fresh (never cached) so a
+   * ref accepted seconds ago is immediately authorized for need registration; an
+   * empty or missing Scanner evidence_graph is tolerated.
+   */
   private async assessmentProvenance(
+    assessmentId: string,
+    technicalEvidenceReportId?: string,
+  ): Promise<AssessmentProvenanceSnapshot> {
+    const base = await this.scannerProvenance(
+      assessmentId,
+      technicalEvidenceReportId,
+    );
+    const ledgerRefs = await this.acceptedRuleEvidenceRefs(assessmentId);
+    return ledgerRefs.length === 0
+      ? base
+      : {
+          ...base,
+          governedEvidenceRefs: Array.from(
+            new Set([...base.governedEvidenceRefs, ...ledgerRefs]),
+          ),
+        };
+  }
+
+  private async acceptedRuleEvidenceRefs(
+    assessmentId: string,
+  ): Promise<string[]> {
+    const rows = await this.prisma.engineeringRuleAssessment.findMany({
+      where: { assessmentId },
+      select: { criteria: true },
+    });
+    const refs = new Set<string>();
+    for (const row of rows) {
+      if (!Array.isArray(row.criteria)) continue;
+      for (const criterion of row.criteria) {
+        const items = objectRecord(criterion)?.evidenceRefs;
+        if (!Array.isArray(items)) continue;
+        for (const ref of items) {
+          if (typeof ref === "string" && ref.length > 0) refs.add(ref);
+        }
+      }
+    }
+    return [...refs];
+  }
+
+  private async scannerProvenance(
     assessmentId: string,
     technicalEvidenceReportId?: string,
   ): Promise<AssessmentProvenanceSnapshot> {
@@ -2568,15 +2972,24 @@ function parsePostFindingDecision(
   return record.decision;
 }
 
+/** The need currently being asked; a RESOLVED/CANCELLED need is provenance only. */
+function activeBusinessContextNeed(
+  store: PrivateInterviewStore,
+): TargetedInterviewNeed | undefined {
+  return store.targetedNeed?.state === BUSINESS_CONTEXT_NEED_STATES.active
+    ? store.targetedNeed
+    : undefined;
+}
+
 function orchestratorInterviewTransition(
   decision: Pick<AgentDecisionInput, "mode" | "outcome" | "flags">,
   privateStore: PrivateInterviewStore,
   correlationId: string,
 ): OrchestratorInterviewTransition {
   const mode =
-    privateStore.targetedNeed ||
-    decision.mode === ASSESSMENT_INTERVIEW_MODES.investigatorResolution
-      ? ASSESSMENT_INTERVIEW_MODES.investigatorResolution
+    activeBusinessContextNeed(privateStore) ||
+    decision.mode === ASSESSMENT_INTERVIEW_MODES.businessContextResolution
+      ? ASSESSMENT_INTERVIEW_MODES.businessContextResolution
       : ASSESSMENT_INTERVIEW_MODES.initialInterview;
   const hasDownstreamImpact = Boolean(
     decision.flags?.includes(ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact),
@@ -2650,10 +3063,10 @@ function orchestratorInterviewTransition(
       mode,
       action: hasDownstreamImpact
         ? ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.selectiveRerunRescope
-        : ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator,
+        : ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeSameRule,
       workflowEvent: hasDownstreamImpact
         ? ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.downstreamReevaluationStarted
-        : ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.investigationResumed,
+        : ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.ruleReassessmentResumed,
       exactResumeAllowed: !hasDownstreamImpact,
       requiresDownstreamRescope: hasDownstreamImpact,
     };
@@ -2693,7 +3106,7 @@ function interviewWorkflowEventsForTransition(
 ): AssessmentInterviewWorkflowEvent[] {
   if (
     transition.action ===
-      ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator ||
+      ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeSameRule ||
     transition.action ===
       ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.selectiveRerunRescope
   ) {
@@ -2718,81 +3131,104 @@ function postFindingPhaseAfterDecision(
   return current.phase;
 }
 
+const STABLE_NEED_ID = /^need:[A-Za-z0-9_.:-]{1,300}$/;
+const MAX_NEED_ITEMS = 50;
+
 function parseTargetedNeedRegistration(
   value: unknown,
 ): TargetedNeedRegistrationInput {
   const record = objectRecord(value);
-  const criteria = Array.isArray(record?.resolutionCriteria)
-    ? record.resolutionCriteria
-        .filter(
-          (item): item is string =>
-            typeof item === "string" && item.trim().length > 0,
-        )
-        .map((item) => item.trim())
-    : [];
-  const affectedRuleIds = Array.isArray(record?.affectedRuleIds)
-    ? record.affectedRuleIds
-        .filter(
-          (item): item is string =>
-            typeof item === "string" && item.trim().length > 0,
-        )
-        .map((item) => item.trim())
-    : [];
-  const governedEvidenceRefs = Array.isArray(record?.governedEvidenceRefs)
-    ? record.governedEvidenceRefs
-        .filter(
-          (item): item is string =>
-            typeof item === "string" && item.trim().length > 0,
-        )
-        .map((item) => item.trim())
-    : undefined;
-  const rawArtifactVersions = objectRecord(record?.artifactVersions);
-  const artifactVersions = Object.fromEntries(
-    Object.entries(rawArtifactVersions ?? {})
-      .filter(
-        (entry): entry is [string, string] =>
-          typeof entry[1] === "string" && entry[1].trim().length > 0,
-      )
-      .map(([key, item]) => [key, item.trim()]),
-  );
+  const text = (key: string, max: number): string | null => {
+    const item = record?.[key];
+    return typeof item === "string" && item.trim() && item.trim().length <= max
+      ? item.trim()
+      : null;
+  };
+  const list = (key: string, max: number, itemMax: number): string[] | null => {
+    const items = record?.[key];
+    if (!Array.isArray(items)) return null;
+    const cleaned = items
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0 && item.length <= itemMax);
+    return cleaned.length <= max ? cleaned : null;
+  };
+  const actorId = text("actorId", 200);
+  const needId = text("needId", 300);
+  const engineeringRuleId = text("engineeringRuleId", 200);
+  const criterionId = text("criterionId", 200);
+  const question = text("question", 1_000);
+  const observation = text("observation", 1_000);
+  const workflowRunId = text("workflowRunId", 200);
+  const resolutionCriterionIds = list("resolutionCriterionIds", 50, 200);
+  const evidenceRefs = list("evidenceRefs", MAX_NEED_ITEMS, 300);
+  const contextRevision = record?.contextRevision;
+  const authoredConditionIndex = record?.authoredConditionIndex;
+  const checkpointId = record?.checkpointId;
   if (
     !record ||
-    !nonEmptyString(record.actorId) ||
-    !nonEmptyString(record.needId) ||
-    !nonEmptyString(record.businessContextNeed) ||
-    !criteria.length ||
-    !nonEmptyString(record.originatingInvestigationReference) ||
-    !nonEmptyString(record.investigatorExecutionId) ||
-    !nonEmptyString(record.workflowRunId) ||
-    !nonEmptyString(record.checkpointId) ||
-    !affectedRuleIds.length ||
-    !hasRequiredTargetedArtifactPins(artifactVersions)
+    !actorId ||
+    !needId ||
+    !STABLE_NEED_ID.test(needId) ||
+    !engineeringRuleId ||
+    !criterionId ||
+    !question ||
+    !observation ||
+    !workflowRunId ||
+    !resolutionCriterionIds ||
+    resolutionCriterionIds.length === 0 ||
+    !resolutionCriterionIds.includes(criterionId) ||
+    !evidenceRefs ||
+    typeof contextRevision !== "number" ||
+    !Number.isSafeInteger(contextRevision) ||
+    contextRevision < 0 ||
+    (authoredConditionIndex !== undefined &&
+      authoredConditionIndex !== null &&
+      (typeof authoredConditionIndex !== "number" ||
+        !Number.isSafeInteger(authoredConditionIndex) ||
+        authoredConditionIndex < 0)) ||
+    (checkpointId !== undefined &&
+      checkpointId !== null &&
+      typeof checkpointId !== "string")
   ) {
     throw new BadRequestException({ code: "INTERVIEW_TARGETED_NEED_INVALID" });
   }
   assertNeutralTargetedText({
-    businessContextNeed: record.businessContextNeed,
-    resolutionCriteria: criteria,
-    whyNeeded:
-      typeof record.whyNeeded === "string" ? record.whyNeeded : undefined,
+    businessContextNeed: question,
+    resolutionCriteria: [],
+    whyNeeded: observation,
   });
+  const rawArtifactVersions = objectRecord(record.artifactVersions);
+  const artifactVersions = rawArtifactVersions
+    ? Object.fromEntries(
+        Object.entries(rawArtifactVersions)
+          .filter(
+            (entry): entry is [string, string] =>
+              typeof entry[1] === "string" && entry[1].trim().length > 0,
+          )
+          .map(([key, item]) => [key, item.trim()]),
+      )
+    : undefined;
   return {
-    actorId: record.actorId.trim(),
-    needId: record.needId.trim(),
-    businessContextNeed: record.businessContextNeed.trim(),
-    resolutionCriteria: criteria,
-    whyNeeded:
-      typeof record.whyNeeded === "string" && record.whyNeeded.trim()
-        ? record.whyNeeded.trim()
-        : undefined,
-    governedEvidenceRefs,
-    originatingInvestigationReference:
-      record.originatingInvestigationReference.trim(),
-    investigatorExecutionId: record.investigatorExecutionId.trim(),
-    workflowRunId: record.workflowRunId.trim(),
-    checkpointId: record.checkpointId.trim(),
-    affectedRuleIds,
-    artifactVersions,
+    actorId,
+    needId,
+    engineeringRuleId,
+    criterionId,
+    ...(typeof authoredConditionIndex === "number"
+      ? { authoredConditionIndex }
+      : {}),
+    question,
+    observation,
+    resolutionCriterionIds,
+    evidenceRefs,
+    contextRevision,
+    workflowRunId,
+    ...(typeof checkpointId === "string" && checkpointId.trim()
+      ? { checkpointId: checkpointId.trim() }
+      : {}),
+    ...(artifactVersions && Object.keys(artifactVersions).length > 0
+      ? { artifactVersions }
+      : {}),
   };
 }
 
@@ -2984,11 +3420,12 @@ function parseAgentDecision(value: unknown): AgentDecisionInput {
     record.activeQuestion,
     outcome,
   );
+  const storedMode = canonicalizeLegacyInterviewValue(record.mode);
   const mode =
-    record.mode === ASSESSMENT_INTERVIEW_MODES.initialInterview
+    storedMode === ASSESSMENT_INTERVIEW_MODES.initialInterview
       ? ASSESSMENT_INTERVIEW_MODES.initialInterview
-      : record.mode === ASSESSMENT_INTERVIEW_MODES.investigatorResolution
-        ? ASSESSMENT_INTERVIEW_MODES.investigatorResolution
+      : storedMode === ASSESSMENT_INTERVIEW_MODES.businessContextResolution
+        ? ASSESSMENT_INTERVIEW_MODES.businessContextResolution
         : undefined;
   if (!mode) {
     throw new BadRequestException({ code: "INTERVIEW_AGENT_DECISION_INVALID" });
@@ -3036,6 +3473,30 @@ function parseStoredInterviewState(
   return record as AssessmentInterviewRuntimeState;
 }
 
+function parseResumeInput(
+  value: unknown,
+  correlationId: string,
+): AssessmentInterviewResumeInput {
+  const record =
+    value === undefined || value === null ? {} : objectRecord(value);
+  const expected = record?.expectedSessionRevision;
+  if (
+    !record ||
+    Object.keys(record).some((key) => key !== "expectedSessionRevision") ||
+    (expected !== undefined &&
+      (typeof expected !== "number" ||
+        !Number.isSafeInteger(expected) ||
+        expected < 0))
+  ) {
+    throw problemException(
+      ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES.notAvailable,
+      correlationId,
+      { status: HttpStatus.BAD_REQUEST },
+    );
+  }
+  return expected === undefined ? {} : { expectedSessionRevision: expected };
+}
+
 function parsePrivateStore(value: unknown): PrivateInterviewStore {
   if (Array.isArray(value)) {
     return { revisions: value.filter(isPrivateRevision) };
@@ -3068,40 +3529,133 @@ function parsePrivateStore(value: unknown): PrivateInterviewStore {
     workingStrategy: normalizeStrategy(
       record.workingStrategy as Partial<InterviewWorkingStrategy> | undefined,
     ),
+    failedDecisionRevision: positiveSafeInteger(record.failedDecisionRevision),
+    resumeAttempts: parseResumeAttempts(record.resumeAttempts),
   };
+}
+
+function positiveSafeInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function parseResumeAttempts(
+  value: unknown,
+): InterviewResumeAttempts | undefined {
+  const record = objectRecord(value);
+  const contextRevision = positiveSafeInteger(record?.contextRevision);
+  const count = positiveSafeInteger(record?.count);
+  return contextRevision && count ? { contextRevision, count } : undefined;
+}
+
+// READ-ONLY legacy adapter for Interview thread JSON persisted before the
+// Investigator -> business-context/same-rule vocabulary rename. It only maps stored
+// or in-flight values to the canonical ones; nothing here is ever emitted.
+// Removal condition: delete one release after this rename is deployed, once no
+// persisted thread or in-flight worker message can carry the legacy values.
+const LEGACY_INTERVIEW_VALUE_ALIASES: Readonly<Record<string, string>> = {
+  INVESTIGATOR_RESOLUTION: ASSESSMENT_INTERVIEW_MODES.businessContextResolution,
+  INVESTIGATOR_RESOLUTION_REQUIRED:
+    ASSESSMENT_INTERVIEW_RESUME_REASONS.businessContextResolutionRequired,
+  RESUME_EXACT_INVESTIGATOR:
+    ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeSameRule,
+  INVESTIGATION_RESUMED:
+    ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.ruleReassessmentResumed,
+};
+
+function canonicalizeLegacyInterviewValue(value: unknown): unknown {
+  return typeof value === "string"
+    ? (LEGACY_INTERVIEW_VALUE_ALIASES[value] ?? value)
+    : value;
+}
+
+function readOriginatingRuleAnalysisReference(
+  record: Record<string, unknown>,
+): unknown {
+  return (
+    record.originatingRuleAnalysisReference ??
+    record.originatingInvestigationReference
+  );
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 function parseStoredTargetedNeed(
   value: unknown,
 ): TargetedInterviewNeed | undefined {
   const record = objectRecord(value);
+  const originatingRuleAnalysisReference = record
+    ? readOriginatingRuleAnalysisReference(record)
+    : undefined;
   if (
     !record ||
     typeof record.needId !== "string" ||
-    typeof record.businessContextNeed !== "string" ||
-    !Array.isArray(record.resolutionCriteria) ||
-    typeof record.originatingInvestigationReference !== "string" ||
+    typeof originatingRuleAnalysisReference !== "string" ||
     typeof record.sourceVersion !== "string" ||
     typeof record.pgeVersion !== "string"
   ) {
     return undefined;
   }
+  const state =
+    record.state === BUSINESS_CONTEXT_NEED_STATES.resolved ||
+    record.state === BUSINESS_CONTEXT_NEED_STATES.cancelled
+      ? record.state
+      : BUSINESS_CONTEXT_NEED_STATES.active;
+  const governedEvidenceRefs = Array.isArray(record.governedEvidenceRefs)
+    ? stringList(record.governedEvidenceRefs)
+    : undefined;
+  if (
+    typeof record.engineeringRuleId === "string" &&
+    typeof record.criterionId === "string" &&
+    typeof record.question === "string"
+  ) {
+    return {
+      needId: record.needId,
+      state,
+      engineeringRuleId: record.engineeringRuleId,
+      criterionId: record.criterionId,
+      authoredConditionIndex:
+        typeof record.authoredConditionIndex === "number"
+          ? record.authoredConditionIndex
+          : undefined,
+      question: record.question,
+      observation:
+        typeof record.observation === "string" ? record.observation : "",
+      resolutionCriterionIds: stringList(record.resolutionCriterionIds),
+      governedEvidenceRefs,
+      contextRevision:
+        typeof record.contextRevision === "number" ? record.contextRevision : 0,
+      originatingRuleAnalysisReference,
+      sourceVersion: record.sourceVersion,
+      pgeVersion: record.pgeVersion,
+    };
+  }
+  // Compatibility adapter: need persisted by the pre-BusinessContextNeed runtime.
+  if (
+    typeof record.businessContextNeed !== "string" ||
+    !Array.isArray(record.resolutionCriteria)
+  ) {
+    return undefined;
+  }
   return {
     needId: record.needId,
-    businessContextNeed: record.businessContextNeed,
-    resolutionCriteria: record.resolutionCriteria.filter(
-      (item): item is string => typeof item === "string",
-    ),
-    whyNeeded:
-      typeof record.whyNeeded === "string" ? record.whyNeeded : undefined,
-    governedEvidenceRefs: Array.isArray(record.governedEvidenceRefs)
-      ? record.governedEvidenceRefs.filter(
-          (item): item is string => typeof item === "string",
-        )
-      : undefined,
-    originatingInvestigationReference: record.originatingInvestigationReference,
+    state,
+    engineeringRuleId: "",
+    criterionId: "",
+    question: record.businessContextNeed,
+    observation: typeof record.whyNeeded === "string" ? record.whyNeeded : "",
+    resolutionCriterionIds: [],
+    governedEvidenceRefs,
+    contextRevision: 0,
+    originatingRuleAnalysisReference,
     sourceVersion: record.sourceVersion,
     pgeVersion: record.pgeVersion,
+    legacyResolutionCriteria: stringList(record.resolutionCriteria),
   };
 }
 
@@ -3109,25 +3663,48 @@ function parseStoredTargetedContinuation(
   value: unknown,
 ): TargetedInterviewContinuation | undefined {
   const record = objectRecord(value);
-  const artifactVersions = objectRecord(record?.artifactVersions);
+  const originatingRuleAnalysisReference = record
+    ? readOriginatingRuleAnalysisReference(record)
+    : undefined;
   if (
     !record ||
-    typeof record.originatingInvestigationReference !== "string" ||
-    typeof record.investigatorExecutionId !== "string" ||
+    typeof originatingRuleAnalysisReference !== "string" ||
     typeof record.workflowRunId !== "string" ||
-    typeof record.checkpointId !== "string" ||
-    !Array.isArray(record.affectedRuleIds) ||
-    !artifactVersions ||
-    Object.keys(artifactVersions).length === 0 ||
-    Object.values(artifactVersions).some(
-      (value) => typeof value !== "string",
-    ) ||
     typeof record.sourceVersion !== "string" ||
     typeof record.pgeVersion !== "string"
   ) {
     return undefined;
   }
-  return record as TargetedInterviewContinuation;
+  const artifactVersions = objectRecord(record.artifactVersions);
+  const engineeringRuleId =
+    typeof record.engineeringRuleId === "string"
+      ? record.engineeringRuleId
+      : // Compatibility adapter: pre-BusinessContextNeed continuation rows.
+        stringList(record.affectedRuleIds)[0];
+  return {
+    originatingRuleAnalysisReference,
+    needId: typeof record.needId === "string" ? record.needId : "",
+    engineeringRuleId: engineeringRuleId ?? "",
+    criterionId:
+      typeof record.criterionId === "string" ? record.criterionId : undefined,
+    resolutionCriterionIds: Array.isArray(record.resolutionCriterionIds)
+      ? stringList(record.resolutionCriterionIds)
+      : undefined,
+    contextRevision:
+      typeof record.contextRevision === "number" ? record.contextRevision : 0,
+    workflowRunId: record.workflowRunId,
+    checkpointId:
+      typeof record.checkpointId === "string" ? record.checkpointId : undefined,
+    artifactVersions: artifactVersions
+      ? Object.fromEntries(
+          Object.entries(artifactVersions).filter(
+            (entry): entry is [string, string] => typeof entry[1] === "string",
+          ),
+        )
+      : undefined,
+    sourceVersion: record.sourceVersion,
+    pgeVersion: record.pgeVersion,
+  };
 }
 
 function parsePartialCoveragePolicyDecision(
@@ -3203,7 +3780,7 @@ function assertInitialPlanningContextReady(
   mode: CanonicalAssessmentInterviewMode,
   correlationId: string,
 ): void {
-  // Targeted INVESTIGATOR_RESOLUTION turns resolve one rule-specific need and must
+  // Targeted BUSINESS_CONTEXT_RESOLUTION turns resolve one rule-specific need and must
   // never be re-gated by the initial minimum planning context.
   if (
     mode !== ASSESSMENT_INTERVIEW_MODES.initialInterview ||
@@ -3278,8 +3855,10 @@ function assertGuardedDecision(
     privateRevision,
     correlationId,
   );
-  if (thread.privateStore.targetedNeed) {
-    if (decision.mode !== ASSESSMENT_INTERVIEW_MODES.investigatorResolution) {
+  if (activeBusinessContextNeed(thread.privateStore)) {
+    if (
+      decision.mode !== ASSESSMENT_INTERVIEW_MODES.businessContextResolution
+    ) {
       throw problemException(
         "INTERVIEW_TARGETED_MODE_REQUIRED",
         correlationId,
@@ -3300,6 +3879,14 @@ function assertGuardedDecision(
       );
     }
   }
+  const boundNeed = activeBusinessContextNeed(thread.privateStore);
+  if (boundNeed && decision.confirmedContext) {
+    assertAnswerBoundToNeed(
+      decision.confirmedContext,
+      boundNeed,
+      correlationId,
+    );
+  }
   assertTargetedQuestionBounded(decision, thread, correlationId);
   if (
     decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextReady &&
@@ -3314,7 +3901,7 @@ function assertGuardedDecision(
   if (decision.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved) {
     return;
   }
-  if (decision.mode !== ASSESSMENT_INTERVIEW_MODES.investigatorResolution) {
+  if (decision.mode !== ASSESSMENT_INTERVIEW_MODES.businessContextResolution) {
     throw problemException(
       "INTERVIEW_CONTEXT_RESOLVED_REQUIRES_TARGETED_MODE",
       correlationId,
@@ -3328,7 +3915,7 @@ function assertGuardedDecision(
       { status: HttpStatus.CONFLICT },
     );
   }
-  const target = thread.privateStore.targetedNeed;
+  const target = activeBusinessContextNeed(thread.privateStore);
   const continuation = thread.privateStore.targetedContinuation;
   if (!target || !continuation) {
     throw problemException(
@@ -3338,8 +3925,8 @@ function assertGuardedDecision(
     );
   }
   if (
-    target.originatingInvestigationReference !==
-    continuation.originatingInvestigationReference
+    target.originatingRuleAnalysisReference !==
+    continuation.originatingRuleAnalysisReference
   ) {
     throw problemException(
       "INTERVIEW_CONTINUATION_ORIGIN_MISMATCH",
@@ -3357,24 +3944,22 @@ function assertGuardedDecision(
       status: HttpStatus.CONFLICT,
     });
   }
-  if (!continuation.affectedRuleIds.length) {
+  if (!continuation.engineeringRuleId) {
     throw problemException(
       "INTERVIEW_CONTINUATION_SCOPE_REQUIRED",
       correlationId,
       { status: HttpStatus.CONFLICT },
     );
   }
-  if (!hasRequiredTargetedArtifactPins(continuation.artifactVersions)) {
-    throw problemException(
-      "INTERVIEW_CONTINUATION_ARTIFACT_PINS_REQUIRED",
-      correlationId,
-      { status: HttpStatus.CONFLICT },
-    );
-  }
   const context = decision.confirmedContext ?? {};
-  const missing = target.resolutionCriteria.filter(
-    (criterion) => !confirmedContextSatisfiesCriterion(context, criterion),
-  );
+  const missing = target.legacyResolutionCriteria
+    ? target.legacyResolutionCriteria.filter(
+        (criterion) => !confirmedContextSatisfiesCriterion(context, criterion),
+      )
+    : target.resolutionCriterionIds.filter(
+        (criterionId) =>
+          !confirmedContextResolvesCriterion(context, criterionId),
+      );
   if (missing.length > 0) {
     throw problemException(
       "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED",
@@ -3385,6 +3970,29 @@ function assertGuardedDecision(
       },
     );
   }
+}
+
+/**
+ * A criterion is settled when a confirmed statement cites it through the model-selected
+ * `resolvesCriterionId`. Runs before API provenance is materialized.
+ */
+function confirmedContextResolvesCriterion(
+  context: Record<string, unknown>,
+  criterionId: string,
+): boolean {
+  if (!Array.isArray(context.statements)) {
+    return false;
+  }
+  return context.statements.some((value) => {
+    const statement = objectRecord(value);
+    return (
+      !!statement &&
+      statement.resolvesCriterionId === criterionId &&
+      (statement.resolutionState === undefined ||
+        statement.resolutionState ===
+          ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed)
+    );
+  });
 }
 
 function confirmedContextSatisfiesCriterion(
@@ -3442,13 +4050,13 @@ function assertTargetedQuestionBounded(
   correlationId: string,
 ): void {
   if (
-    decision.mode !== ASSESSMENT_INTERVIEW_MODES.investigatorResolution ||
+    decision.mode !== ASSESSMENT_INTERVIEW_MODES.businessContextResolution ||
     decision.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer ||
     !decision.activeQuestion
   ) {
     return;
   }
-  const target = thread.privateStore.targetedNeed;
+  const target = activeBusinessContextNeed(thread.privateStore);
   if (!target) {
     throw problemException(
       "INTERVIEW_TARGETED_CONTEXT_NOT_REGISTERED",
@@ -3486,14 +4094,6 @@ function assertTargetedQuestionBounded(
 
 function nonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function hasRequiredTargetedArtifactPins(
-  artifactVersions: Record<string, string>,
-): boolean {
-  return TARGETED_ARTIFACT_PIN_KEYS.every((key) =>
-    Boolean(artifactVersions[key]?.trim()),
-  );
 }
 
 function assertNeutralTargetedText(input: {
@@ -3857,13 +4457,110 @@ export function sanitizePublicText(text?: string): string | undefined {
   return sanitized.replace(/[ \t]+/g, " ").trim();
 }
 
-function materializeConfirmedStructuredBusinessContext(
+/**
+ * Server-owned identity for a governed answer to a BusinessContextNeed.
+ *
+ * The model may only pick, per statement, ONE of the criterion ids the active need listed
+ * (`resolvesCriterionId`). `sourceNeedId`, `engineeringRuleId` and `resolvedCriterionIds`
+ * are stamped here from the need the server itself registered; anything the model wrote
+ * for those fields is never copied. An answer is therefore tied to its need by identity,
+ * not by topic or wording, and resolves only that need's criteria.
+ */
+function needIdentityFor(
+  stmt: Record<string, unknown>,
+  need: TargetedInterviewNeed | undefined,
+  previous: Map<string, Record<string, unknown>>,
+  statementId: string,
+): Record<string, unknown> {
+  const carried = previous.get(statementId);
+  if (carried && typeof carried.sourceNeedId === "string") {
+    // Identity already established on an earlier revision survives later turns that
+    // re-emit the same statement.
+    return {
+      sourceNeedId: carried.sourceNeedId,
+      ...(typeof carried.engineeringRuleId === "string"
+        ? { engineeringRuleId: carried.engineeringRuleId }
+        : {}),
+      resolvedCriterionIds: carried.resolvedCriterionIds,
+    };
+  }
+  const claimed = stmt.resolvesCriterionId;
+  if (
+    need?.engineeringRuleId &&
+    typeof claimed === "string" &&
+    need.resolutionCriterionIds.includes(claimed)
+  ) {
+    return {
+      sourceNeedId: need.needId,
+      engineeringRuleId: need.engineeringRuleId,
+      resolvedCriterionIds: [claimed],
+    };
+  }
+  return {};
+}
+
+/**
+ * Rejects an answer that names an identity its need does not own: a foreign need id,
+ * rule id, or a criterion id outside the registered resolutionCriterionIds.
+ */
+function assertAnswerBoundToNeed(
+  context: Record<string, unknown>,
+  need: TargetedInterviewNeed,
+  correlationId: string,
+): void {
+  if (need.legacyResolutionCriteria || !Array.isArray(context.statements)) {
+    return;
+  }
+  for (const value of context.statements) {
+    const statement = objectRecord(value);
+    if (!statement) continue;
+    const claimed = statement.resolvesCriterionId;
+    if (
+      claimed !== undefined &&
+      claimed !== null &&
+      (typeof claimed !== "string" ||
+        !need.resolutionCriterionIds.includes(claimed))
+    ) {
+      throw problemException(
+        "INTERVIEW_ANSWER_CRITERION_UNKNOWN",
+        correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    const foreignNeed =
+      statement.sourceNeedId !== undefined &&
+      statement.sourceNeedId !== need.needId;
+    const foreignRule =
+      statement.engineeringRuleId !== undefined &&
+      statement.engineeringRuleId !== need.engineeringRuleId;
+    if (foreignNeed || foreignRule) {
+      throw problemException("INTERVIEW_ANSWER_NEED_MISMATCH", correlationId, {
+        status: HttpStatus.CONFLICT,
+      });
+    }
+  }
+}
+
+export function materializeConfirmedStructuredBusinessContext(
   context: Record<string, unknown>,
   authorizedRefs: Set<string>,
   assessmentId: string,
   privateRevision: PrivateInterviewAnswerRevision,
   correlationId: string,
+  identity: {
+    need?: TargetedInterviewNeed;
+    previousStatements?: unknown;
+  } = {},
 ): Record<string, unknown> {
+  const previous = new Map<string, Record<string, unknown>>();
+  if (Array.isArray(identity.previousStatements)) {
+    for (const item of identity.previousStatements) {
+      const record = objectRecord(item);
+      if (record && typeof record.statementId === "string") {
+        previous.set(record.statementId, record);
+      }
+    }
+  }
   if (!Array.isArray(context.statements) || context.statements.length === 0) {
     throw problemException(
       "INTERVIEW_CONFIRMED_CONTEXT_INVALID",
@@ -3923,6 +4620,12 @@ function materializeConfirmedStructuredBusinessContext(
       ...(nonEmptyString(stmt.supersedesStatementId)
         ? { supersedesStatementId: stmt.supersedesStatementId.trim() }
         : {}),
+      ...needIdentityFor(
+        stmt,
+        identity.need,
+        previous,
+        stmt.statementId.trim(),
+      ),
       source: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
       resolutionState: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
     };
@@ -4059,31 +4762,6 @@ function parseAiDiscoverySnippetRef(
     evidence_hash: evidenceHash,
     snippet_policy: "PINNED_SNAPSHOT_BOUNDED_REDACTED_V1",
   };
-}
-
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function sameStringSet(left: string[], right: string[]): boolean {
-  if (left.length !== right.length) {
-    return false;
-  }
-  const rightSet = new Set(right);
-  return left.every((value) => rightSet.has(value));
-}
-
-function sameRecord(
-  left: Record<string, string>,
-  right: Record<string, string>,
-): boolean {
-  const leftEntries = Object.entries(left);
-  if (leftEntries.length !== Object.keys(right).length) {
-    return false;
-  }
-  return leftEntries.every(([key, value]) => right[key] === value);
 }
 
 function toJson(value: unknown): Prisma.InputJsonValue {

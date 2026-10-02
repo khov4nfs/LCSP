@@ -11,11 +11,6 @@ export const BILLING_ADMIN_REPORTING = {
   maxPeriodDays: 365,
 } as const;
 
-export const BILLING_USAGE_REVENUE_SOURCES = {
-  llmUsageDebit: "LLM_USAGE_DEBIT",
-  reservationSettlement: "RESERVATION_SETTLEMENT",
-} as const;
-
 export const BILLING_DUPLICATE_REPORTING_SCOPES = {
   durablePaymentTransactions: "DURABLE_PAYMENT_TRANSACTIONS",
 } as const;
@@ -40,7 +35,6 @@ export type BillingAdminRevenueSummary = {
   period: BillingAdminReportPeriod;
   currency: typeof BILLING_ADMIN_REPORTING.currency;
   settledTopUps: BillingAdminMoneyAggregate;
-  usageRevenue: BillingAdminMoneyAggregate;
   outstandingCredits: {
     credits: string;
     asOf: string;

@@ -1,13 +1,19 @@
+import { asRecord } from "@lcsp/contracts/shared";
 import { randomUUID } from "node:crypto";
 import {
+  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
+  ASSESSMENT_AGENT_STREAM_STAGES,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
-  ASSESSMENT_RUNTIME_ENGINEERING_PROGRESS_TOOL_NAMES,
-  ASSESSMENT_RUNTIME_ENGINEERING_RULE_TOOL_PREFIXES,
-  ASSESSMENT_RUNTIME_PLAN_REASON_CODES,
+  ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS,
+  ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
+  RULE_ANALYSIS_ACTIVITIES,
+  RULE_ANALYSIS_SUMMARY_TOOL,
+  RULE_ANALYSIS_TOOL_PREFIX,
   ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES,
   isAssessmentAgentStreamEventType,
+  normalizePersistedAgentStreamStage,
   isPostFindingRuntimePhase,
   isRemediationDecision,
   REMEDIATION_APPROVAL_STATUSES,
@@ -15,9 +21,11 @@ import {
   FINAL_ASSESSMENT_RESULT_STATUSES,
   type AssessmentAgentStreamEvent,
   type AssessmentAgentStreamEventType,
+  type AssessmentAgentStreamStage,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
   type AssessmentRuntimeEventType,
+  type AssessmentRuntimePipelineControlReason,
   type AssessmentRuntimeEngineeringProgress,
   type AssessmentRuntimeActiveTool,
   type AssessmentRuntimeActivityEvent,
@@ -28,6 +36,11 @@ import {
   type AssessmentRuntimeSummaryValue,
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import { ASSESSMENT_PIPELINE_LIVENESS_WINDOW_SECONDS } from "@lcsp/contracts/evidence";
+import {
+  deriveStageLifecycles,
+  type StageLifecycleInterviewThread,
+} from "./stage-lifecycle.js";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import type { Prisma } from "@prisma/client";
 import { Injectable, Logger } from "@nestjs/common";
@@ -63,7 +76,7 @@ const RUNTIME_EVENT_SEQUENCE_RETRY_ATTEMPTS = 8;
 const RUNTIME_EVENT_SEQUENCE_RETRY_DELAY_MS = 5;
 const ENGINEERING_PROGRESS_DURABLE_MAX_RUNS = 10;
 const ENGINEERING_PROGRESS_SUMMARY_SCAN_LIMIT = 40;
-const ENGINEERING_PROGRESS_INVESTIGATION_SCAN_LIMIT = 1_000;
+const ENGINEERING_PROGRESS_RULE_EVENT_SCAN_LIMIT = 1_000;
 const AGENT_STREAM_JOURNAL_TOOL_NAME = "agent_stream_semantic";
 const AGENT_STREAM_DURABLE_REPLAY_TOTAL_LIMIT = 5_000;
 const AGENT_STREAM_DURABLE_REPLAY_ASSESSMENT_LIMIT = 100;
@@ -81,6 +94,8 @@ export type PublishAgentStreamEventInput = {
   runId: string;
   correlationId: string;
   eventType: AssessmentAgentStreamEventType;
+  stage?: AssessmentAgentStreamStage | null;
+  engineeringRuleId?: string | null;
   source?: string | null;
   agentName?: string | null;
   subagentName?: string | null;
@@ -387,12 +402,12 @@ export class AssessmentRuntimeEventService {
   }
 
   /**
-   * Records a scanner-worker runtime progress event after resolving tenant and assessment identity from the scan job.
+   * Records a repository-analysis-worker runtime progress event after resolving tenant and assessment identity from the scan job.
    *
    * @param input - Worker supplied runtime metadata plus the scan-job identifier.
    * @returns A promise that resolves after the sanitized runtime event is persisted, or after the scan job is ignored because it is absent/inactive.
    */
-  async recordScanWorkerEvent(
+  async recordRepositoryAnalysisEvent(
     input: RecordWorkerRuntimeEventInput,
   ): Promise<RecordWorkerRuntimeEventResult> {
     const scanJob = await this.prisma.repositoryScanJob.findUnique({
@@ -408,10 +423,16 @@ export class AssessmentRuntimeEventService {
       return { recorded: false, reason: "not_found" };
     }
     const isTerminalWorkerEvent = isTerminalWorkerRuntimeEvent(input.eventType);
-    if (isTerminalScanRuntimeStatus(scanJob.status) && !isTerminalWorkerEvent) {
+    // Repository analysis runs after the scan finished, under the same scan job:
+    // their progress (e.g. a rule's investigation starting) must still record.
+    // Only scan-stage progress is rejected once the scan itself has ended.
+    const isDownstreamEvent =
+      input.stage === ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence;
+    const accepted = isTerminalWorkerEvent || isDownstreamEvent;
+    if (isTerminalScanRuntimeStatus(scanJob.status) && !accepted) {
       return { recorded: false, reason: "terminal" };
     }
-    if (!isActiveScanRuntimeStatus(scanJob.status) && !isTerminalWorkerEvent) {
+    if (!isActiveScanRuntimeStatus(scanJob.status) && !accepted) {
       return { recorded: false, reason: "inactive" };
     }
 
@@ -437,7 +458,8 @@ export class AssessmentRuntimeEventService {
       assessmentId: scanJob.assessmentId,
       runId: scanJob.id,
       correlationId: scanJob.correlationId,
-      eventType: "RUNTIME_EVENT",
+      eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeEvent,
+      stage: ASSESSMENT_AGENT_STREAM_STAGES.scanner,
       source: "runtime-event",
       toolName: input.toolName ?? null,
       status: input.runStatus,
@@ -478,6 +500,8 @@ export class AssessmentRuntimeEventService {
         sanitizeAgentStreamIdentifier(input.correlationId) ??
         input.correlationId,
       eventType: input.eventType,
+      stage: input.stage ?? null,
+      engineeringRuleId: sanitizeAgentStreamIdentifier(input.engineeringRuleId),
       source: sanitizeAgentStreamIdentifier(input.source),
       agentName: sanitizeAgentStreamIdentifier(input.agentName),
       subagentName: sanitizeAgentStreamIdentifier(input.subagentName),
@@ -491,7 +515,13 @@ export class AssessmentRuntimeEventService {
       toolCallId: sanitizeAgentStreamIdentifier(input.toolCallId),
       status: sanitizeAgentStreamIdentifier(input.status),
       text: sanitizeAgentStreamText(input.text),
-      data: sanitizeAgentStreamValue(input.data),
+      data: sanitizeAgentStreamValue(
+        input.data,
+        0,
+        false,
+        input.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted,
+      ),
     };
     if (isPersistableAgentStreamEvent(event)) {
       await this.persistAgentStreamJournalEvent(event);
@@ -680,22 +710,21 @@ export class AssessmentRuntimeEventService {
   }
 
   /**
-   * Returns the newest exact Planner batch and its durable per-rule Investigator
-   * events for one assessment. Unlike workspace recent activity this reads the
-   * persisted runtime-event history for the selected batch, so artifact projections
-   * do not drift when events leave the rolling activity window.
+   * Returns the newest rule-analysis loop (its `rule_analysis_summary` event) and the
+   * durable per-rule `rule_analysis:{id}` events that follow it for one assessment.
+   * Unlike workspace recent activity this reads the persisted runtime-event history,
+   * so artifact projections do not drift when events leave the rolling window.
    */
   async getLatestDurableEngineeringState(assessmentId: string): Promise<{
     progress: AssessmentRuntimeEngineeringProgress;
-    plannerEvent: AssessmentRuntimeActivityEvent;
-    investigationEvents: AssessmentRuntimeActivityEvent[];
+    summaryEvent: AssessmentRuntimeActivityEvent;
+    ruleEvents: AssessmentRuntimeActivityEvent[];
   } | null> {
     const [summary] = await this.safeFindMany({
       where: {
         assessmentId,
         stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-        toolName:
-          ASSESSMENT_RUNTIME_ENGINEERING_PROGRESS_TOOL_NAMES.plannerSummary,
+        toolName: RULE_ANALYSIS_SUMMARY_TOOL,
       },
       orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
       take: 1,
@@ -707,23 +736,17 @@ export class AssessmentRuntimeEventService {
         assessmentId,
         runId: summary.runId,
         sequence: { gt: summary.sequence },
-        toolName: {
-          startsWith:
-            ASSESSMENT_RUNTIME_ENGINEERING_RULE_TOOL_PREFIXES.investigator,
-        },
+        toolName: { startsWith: RULE_ANALYSIS_TOOL_PREFIX },
       },
       orderBy: [{ sequence: "asc" }],
-      take: ENGINEERING_PROGRESS_INVESTIGATION_SCAN_LIMIT,
+      take: ENGINEERING_PROGRESS_RULE_EVENT_SCAN_LIMIT,
     });
-    const plannerEvent = this.toActivityEvent(summary);
-    const investigationEvents = rows.map((row) => this.toActivityEvent(row));
-    const ordered = [plannerEvent, ...investigationEvents].sort(
-      (left, right) => left.sequence - right.sequence,
-    );
+    const summaryEvent = this.toActivityEvent(summary);
+    const ruleEvents = rows.map((row) => this.toActivityEvent(row));
     return {
-      progress: deriveExplicitEngineeringProgress(ordered, plannerEvent),
-      plannerEvent,
-      investigationEvents,
+      progress: deriveEngineeringProgressForRun(summaryEvent, ruleEvents),
+      summaryEvent,
+      ruleEvents,
     };
   }
 
@@ -816,8 +839,7 @@ export class AssessmentRuntimeEventService {
     const persistedActivity = events.map((event) =>
       this.toActivityEvent(event),
     );
-    const engineeringProgress =
-      await this.deriveDurableEngineeringProgress(persistedActivity);
+    const engineeringProgress = await this.deriveDurableEngineeringProgress();
     const syntheticActivity = buildSyntheticRuntimeActivity(
       scanJobs,
       evidenceReports,
@@ -829,6 +851,37 @@ export class AssessmentRuntimeEventService {
       .slice(0, 50);
     const runs = deriveRuns(recentActivity).slice(0, 20);
     const postFindingStates = deriveLatestPostFindingStates(events);
+    // Stage status comes from durable artifacts, never from the activity log:
+    // see platform/runtime-events/stage-lifecycle.ts.
+    const assessmentIds = new Set<string>([
+      ...scanJobs.map((job) => job.assessmentId),
+      ...evidenceReports.map((report) => report.assessmentId),
+      ...recentActivity.map((event) => event.assessmentId),
+    ]);
+    const interviewThreads = assessmentIds.size
+      ? await this.safeInterviewThreads([...assessmentIds])
+      : [];
+    const liveWindowStart =
+      Date.now() - ASSESSMENT_PIPELINE_LIVENESS_WINDOW_SECONDS * 1_000;
+    const stageLifecycles = deriveStageLifecycles({
+      assessmentIds,
+      scanJobs: scanJobs.map((job) => ({
+        assessmentId: job.assessmentId,
+        status: job.status,
+        updatedAt: job.updatedAt.toISOString(),
+      })),
+      evidenceReports: evidenceReports.map((report) => ({
+        assessmentId: report.assessmentId,
+        status: report.status,
+      })),
+      interviewThreads,
+      engineeringProgress,
+      liveAssessmentIds: new Set(
+        recentActivity
+          .filter((event) => Date.parse(event.emittedAt) >= liveWindowStart)
+          .map((event) => event.assessmentId),
+      ),
+    });
 
     return {
       emittedAt,
@@ -865,7 +918,157 @@ export class AssessmentRuntimeEventService {
         createdAt: report.createdAt.toISOString(),
       })),
       postFindingStates,
+      stageLifecycles,
     };
+  }
+
+  /** Interview threads for the lifecycle projection; never fails the snapshot. */
+  private async safeInterviewThreads(
+    assessmentIds: string[],
+  ): Promise<StageLifecycleInterviewThread[]> {
+    try {
+      const threads = await this.prisma.assessmentInterviewThread.findMany({
+        where: { assessmentId: { in: assessmentIds } },
+        select: {
+          assessmentId: true,
+          contextRevision: true,
+          processedRevision: true,
+          activeQuestionId: true,
+        },
+      });
+      return threads.map((thread) => ({
+        assessmentId: thread.assessmentId,
+        contextRevision: thread.contextRevision,
+        processedRevision: thread.processedRevision,
+        activeQuestionId: thread.activeQuestionId,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Reports whether a worker still owns this assessment's pipeline: the newest
+   * persisted runtime event (model heartbeats included) is recent and does not
+   * end a run. Queued work counts as live so a second Continue cannot enqueue
+   * the same step twice while the first is waiting for a worker.
+   *
+   * @param assessmentId - Assessment whose pipeline liveness is checked.
+   * @param windowMs - Maximum age of the newest event that still counts as live.
+   * @returns Whether the pipeline is live, with the newest event time when present.
+   */
+  async getPipelineLiveness(
+    assessmentId: string,
+    windowMs: number,
+  ): Promise<{ live: boolean; lastActivityAt: Date | null }> {
+    const [latest] = await this.safeFindMany({
+      where: { assessmentId },
+      orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
+      take: 1,
+    });
+    if (!latest) return { live: false, lastActivityAt: null };
+    const agentEventType = asRecord(
+      asRecord(latest.outputSummaryJson)?.agentStreamEvent,
+    )?.eventType;
+    const endsRun =
+      // The customer stopped the pipeline; nothing is running any more.
+      latest.waitingReason ===
+        ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS.customerRequestedStop ||
+      latest.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.failed ||
+      latest.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed ||
+      agentEventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryFailed ||
+      agentEventType ===
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryCompleted ||
+      agentEventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused;
+    const recent = Date.now() - latest.createdAt.getTime() < windowMs;
+    return { live: recent && !endsRun, lastActivityAt: latest.createdAt };
+  }
+
+  /**
+   * Record that the customer stopped or continued the assessment pipeline.
+   *
+   * The marker is scoped to the assessment's latest scan job run (the run every
+   * repository-analysis dispatch reports under). Without a scan job there is no
+   * downstream pipeline to stop, so nothing is recorded.
+   */
+  async recordPipelineControl(input: {
+    assessmentId: string;
+    correlationId: string;
+    reason: AssessmentRuntimePipelineControlReason;
+  }): Promise<void> {
+    const scanJob = await this.prisma.repositoryScanJob.findFirst({
+      where: { assessmentId: input.assessmentId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (!scanJob) return;
+    const stopped =
+      input.reason ===
+      ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS.customerRequestedStop;
+    await this.recordEvent({
+      assessmentId: input.assessmentId,
+      runId: scanJob.id,
+      correlationId: input.correlationId,
+      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runStageChanged,
+      runStatus: stopped
+        ? ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
+        : ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
+      toolName: ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
+      summary: stopped
+        ? "Customer stopped the assessment pipeline"
+        : "Customer continued the assessment pipeline",
+      waitingReason: input.reason,
+    });
+  }
+
+  /** Whether the customer's latest pipeline control was a stop. */
+  async isPipelineStoppedByCustomer(assessmentId: string): Promise<boolean> {
+    const [latest] = await this.safeFindMany({
+      where: {
+        assessmentId,
+        toolName: ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
+      },
+      orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
+      take: 1,
+    });
+    return (
+      latest?.waitingReason ===
+      ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS.customerRequestedStop
+    );
+  }
+
+  /**
+   * Returns the latest Interview progress phase recorded for one context revision.
+   * The web composer derives its Resume affordance from the same events, so the
+   * API resume guard reads them too instead of relying only on thread state.
+   *
+   * @param assessmentId - Assessment that owns the Interview thread.
+   * @param toolName - Interview runtime tool name that carries interviewProgress.
+   * @param contextRevision - Interview context revision to look up.
+   * @returns The newest recorded phase for that revision, or null when none exists.
+   */
+  async getLatestInterviewProgressPhase(
+    assessmentId: string,
+    toolName: string,
+    contextRevision: number,
+  ): Promise<string | null> {
+    const events = await this.safeFindMany({
+      where: { assessmentId, toolName },
+      orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
+      take: 50,
+    });
+    for (const event of events) {
+      const output = asRecord(event.outputSummaryJson);
+      const progress = asRecord(output?.interviewProgress);
+      if (
+        progress?.contextRevision === contextRevision &&
+        typeof progress.phase === "string"
+      ) {
+        return progress.phase;
+      }
+    }
+    return null;
   }
 
   async getLatestPostFindingState(
@@ -1056,52 +1259,18 @@ export class AssessmentRuntimeEventService {
   }
 
   /**
-   * Derives authoritative Planner/Investigator progress per run from durable
-   * planner-summary and investigator runtime events, never from the bounded
-   * recent-activity window. Window-derived approximations remain only as a
-   * compatibility fallback for runs that have not persisted a planner summary.
+   * Derives rule-analysis progress per run from the durable `rule_analysis_summary`
+   * and `rule_analysis:{id}` events, never from the bounded recent-activity window.
    *
-   * @param persistedActivity - Window activity used only for the legacy fallback.
-   * @returns Authoritative progress per run, newest planning batch first.
+   * @returns Progress for the most recent runs, newest run first.
    */
-  private async deriveDurableEngineeringProgress(
-    persistedActivity: AssessmentRuntimeActivityEvent[],
-  ): Promise<AssessmentRuntimeEngineeringProgress[]> {
-    const windowProgress = deriveEngineeringProgress(persistedActivity);
-    const durableProgress =
-      await this.deriveExplicitEngineeringProgressFromDurableState();
-    const progressByRun = new Map<
-      string,
-      AssessmentRuntimeEngineeringProgress
-    >();
-    for (const progress of windowProgress) {
-      progressByRun.set(`${progress.assessmentId}:${progress.runId}`, progress);
-    }
-    for (const progress of durableProgress) {
-      progressByRun.set(`${progress.assessmentId}:${progress.runId}`, progress);
-    }
-    return [...progressByRun.values()].sort((left, right) =>
-      right.planningBatchId.localeCompare(left.planningBatchId),
-    );
-  }
-
-  /**
-   * Projects canonical Planner/Investigator counts from persisted
-   * `engineering_rule_plan_summary` events and the investigator events that
-   * follow each run's latest summary. These queries read the full durable
-   * event history for the affected runs, so eviction from the rolling
-   * recent-activity window can never change canonical totals.
-   *
-   * @returns Explicit (non-approximate) progress for the most recent runs.
-   */
-  private async deriveExplicitEngineeringProgressFromDurableState(): Promise<
+  private async deriveDurableEngineeringProgress(): Promise<
     AssessmentRuntimeEngineeringProgress[]
   > {
     const summaryRows = await this.safeFindMany({
       where: {
         stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-        toolName:
-          ASSESSMENT_RUNTIME_ENGINEERING_PROGRESS_TOOL_NAMES.plannerSummary,
+        toolName: RULE_ANALYSIS_SUMMARY_TOOL,
       },
       orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
       take: ENGINEERING_PROGRESS_SUMMARY_SCAN_LIMIT,
@@ -1116,31 +1285,27 @@ export class AssessmentRuntimeEventService {
         latestSummaryByRun.set(key, row);
       }
     }
-    const recentRuns = [...latestSummaryByRun.entries()].slice(
+    const recentRuns = [...latestSummaryByRun.values()].slice(
       0,
       ENGINEERING_PROGRESS_DURABLE_MAX_RUNS,
     );
     const progressList: AssessmentRuntimeEngineeringProgress[] = [];
-    for (const [, summary] of recentRuns) {
-      const investigationRows = await this.safeFindMany({
+    for (const summary of recentRuns) {
+      const ruleRows = await this.safeFindMany({
         where: {
+          assessmentId: summary.assessmentId,
           runId: summary.runId,
           sequence: { gt: summary.sequence },
-          toolName: {
-            startsWith:
-              ASSESSMENT_RUNTIME_ENGINEERING_RULE_TOOL_PREFIXES.investigator,
-          },
+          toolName: { startsWith: RULE_ANALYSIS_TOOL_PREFIX },
         },
         orderBy: [{ sequence: "asc" }],
-        take: ENGINEERING_PROGRESS_INVESTIGATION_SCAN_LIMIT,
+        take: ENGINEERING_PROGRESS_RULE_EVENT_SCAN_LIMIT,
       });
-      const plannerEvent = this.toActivityEvent(summary);
-      const ordered = [
-        plannerEvent,
-        ...investigationRows.map((row) => this.toActivityEvent(row)),
-      ].sort((left, right) => left.sequence - right.sequence);
       progressList.push(
-        deriveExplicitEngineeringProgress(ordered, plannerEvent),
+        deriveEngineeringProgressForRun(
+          this.toActivityEvent(summary),
+          ruleRows.map((row) => this.toActivityEvent(row)),
+        ),
       );
     }
     return progressList;
@@ -1691,222 +1856,44 @@ function objectRecord(value: unknown): Record<string, unknown> | null {
   return isObject(value) ? value : null;
 }
 
-function deriveEngineeringProgress(
-  events: AssessmentRuntimeActivityEvent[],
-): AssessmentRuntimeEngineeringProgress[] {
-  const byRun = new Map<string, AssessmentRuntimeActivityEvent[]>();
-  for (const event of events) {
-    if (event.stage !== ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence) {
-      continue;
-    }
-    const key = `${event.assessmentId}:${event.runId}`;
-    byRun.set(key, [...(byRun.get(key) ?? []), event]);
-  }
-
-  return [...byRun.values()]
-    .map(deriveRunEngineeringProgress)
-    .filter(
-      (progress): progress is AssessmentRuntimeEngineeringProgress =>
-        progress !== null,
-    )
-    .sort((left, right) =>
-      right.planningBatchId.localeCompare(left.planningBatchId),
-    );
-}
-
-function deriveRunEngineeringProgress(
-  runEvents: AssessmentRuntimeActivityEvent[],
-): AssessmentRuntimeEngineeringProgress | null {
-  const ordered = [...runEvents].sort(
-    (left, right) => left.sequence - right.sequence,
-  );
-  const explicitPlanner = newest(
-    ordered.filter(
-      (event) =>
-        event.toolName ===
-        ASSESSMENT_RUNTIME_ENGINEERING_PROGRESS_TOOL_NAMES.plannerSummary,
-    ),
-  );
-  if (explicitPlanner) {
-    return deriveExplicitEngineeringProgress(ordered, explicitPlanner);
-  }
-  return deriveApproximateEngineeringProgress(ordered);
-}
-
-function deriveExplicitEngineeringProgress(
-  ordered: AssessmentRuntimeActivityEvent[],
-  plannerEvent: AssessmentRuntimeActivityEvent,
+/** Counts each rule's latest RULE_ANALYSIS_* activity; pending = eligible - terminal counts. */
+function deriveEngineeringProgressForRun(
+  summaryEvent: AssessmentRuntimeActivityEvent,
+  ruleEvents: AssessmentRuntimeActivityEvent[],
 ): AssessmentRuntimeEngineeringProgress {
-  const plannerSummary = objectRecord(plannerEvent.outputSummary) ?? {};
-  const planningBatchId =
-    stringValue(plannerSummary.planningBatchId) ??
-    `${plannerEvent.runId}:planner:${plannerEvent.sequence}`;
-  const contextRevisionUsed = numberValue(plannerSummary.contextRevisionUsed);
-  const selectedCount = nonNegativeNumber(plannerSummary.selectedCount);
-  const candidateCount = nonNegativeNumber(plannerSummary.candidateCount);
-  const skippedCount = nonNegativeNumber(plannerSummary.skippedCount);
-  const targeted = booleanValue(plannerSummary.targeted) ?? false;
-  const scopedInvestigations = latestByToolName(
-    ordered.filter(
-      (event) =>
-        event.sequence > plannerEvent.sequence &&
-        event.toolName?.startsWith(
-          ASSESSMENT_RUNTIME_ENGINEERING_RULE_TOOL_PREFIXES.investigator,
-        ),
-    ),
-  );
-  const investigator = investigatorCounts(scopedInvestigations, selectedCount);
-  return {
-    assessmentId: plannerEvent.assessmentId,
-    runId: plannerEvent.runId,
-    planningBatchId,
-    contextRevisionUsed,
-    targeted,
-    approximate: false,
-    planner: {
-      candidateCount,
-      selectedCount,
-      skippedCount,
-    },
-    investigator,
-  };
-}
-
-function deriveApproximateEngineeringProgress(
-  ordered: AssessmentRuntimeActivityEvent[],
-): AssessmentRuntimeEngineeringProgress | null {
-  const plannerDecisions = latestByToolName(
-    ordered.filter((event) =>
-      event.toolName?.startsWith(
-        ASSESSMENT_RUNTIME_ENGINEERING_RULE_TOOL_PREFIXES.planner,
-      ),
-    ),
-  );
-  if (plannerDecisions.length === 0) {
-    return null;
-  }
-  const planningBatchStart = Math.min(
-    ...plannerDecisions.map((event) => event.sequence),
-  );
-  const selectedCount = plannerDecisions.filter(
-    (event) => event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-  ).length;
-  const skippedCount = plannerDecisions.filter(
-    (event) => event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped,
-  ).length;
-  const newestPlanner = newest(plannerDecisions) ?? plannerDecisions[0];
-  const scopedInvestigations = latestByToolName(
-    ordered.filter(
-      (event) =>
-        event.sequence > planningBatchStart &&
-        event.toolName?.startsWith(
-          ASSESSMENT_RUNTIME_ENGINEERING_RULE_TOOL_PREFIXES.investigator,
-        ),
-    ),
-  );
-  return {
-    assessmentId: newestPlanner.assessmentId,
-    runId: newestPlanner.runId,
-    planningBatchId: `${newestPlanner.runId}:planner:${planningBatchStart}`,
-    contextRevisionUsed: contextRevisionFromPlannerEvents(plannerDecisions),
-    targeted: plannerDecisions.some(isTargetedPlannerDecision),
-    approximate: true,
-    planner: {
-      candidateCount: plannerDecisions.length,
-      selectedCount,
-      skippedCount,
-    },
-    investigator: investigatorCounts(scopedInvestigations, selectedCount),
-  };
-}
-
-function investigatorCounts(
-  investigations: AssessmentRuntimeActivityEvent[],
-  selectedCount: number,
-): AssessmentRuntimeEngineeringProgress["investigator"] {
-  const completedCount = investigations.filter(
-    (event) => event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-  ).length;
-  const waitingForInputCount = investigations.filter(
-    (event) =>
-      event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput,
-  ).length;
-  const failed = investigations.filter(
-    (event) => event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed,
-  );
-  const runtimeFailedCount = failed.filter(isRuntimeFailureEvent).length;
-  const domainLimitedCount = Math.max(failed.length - runtimeFailedCount, 0);
-  const finishedCount =
-    completedCount +
-    waitingForInputCount +
-    domainLimitedCount +
-    runtimeFailedCount;
-  return {
-    selectedCount,
-    completedCount,
-    domainLimitedCount,
-    limitedOrFailedCount: domainLimitedCount + runtimeFailedCount,
-    waitingForInputCount,
-    runtimeFailedCount,
-    pendingCount: Math.max(selectedCount - finishedCount, 0),
-  };
-}
-
-function latestByToolName(
-  events: AssessmentRuntimeActivityEvent[],
-): AssessmentRuntimeActivityEvent[] {
-  const latest = new Map<string, AssessmentRuntimeActivityEvent>();
-  for (const event of events) {
+  const summary = objectRecord(summaryEvent.outputSummary) ?? {};
+  const latestByRule = new Map<string, AssessmentRuntimeActivityEvent>();
+  for (const event of ruleEvents) {
     const key = event.toolName ?? event.eventId;
-    const current = latest.get(key);
+    const current = latestByRule.get(key);
     if (!current || event.sequence > current.sequence) {
-      latest.set(key, event);
+      latestByRule.set(key, event);
     }
   }
-  return [...latest.values()];
-}
-
-function newest(
-  events: AssessmentRuntimeActivityEvent[],
-): AssessmentRuntimeActivityEvent | null {
-  return events.reduce<AssessmentRuntimeActivityEvent | null>(
-    (current, event) =>
-      current === null || event.sequence > current.sequence ? event : current,
-    null,
-  );
-}
-
-function isRuntimeFailureEvent(event: AssessmentRuntimeActivityEvent): boolean {
-  const summary = objectRecord(event.outputSummary);
-  return summary?.failureKind === "RUNTIME_ERROR";
-}
-
-function isTargetedPlannerDecision(
-  event: AssessmentRuntimeActivityEvent,
-): boolean {
-  const summary = objectRecord(event.outputSummary);
-  const params = objectRecord(summary?.messageParams);
-  return (
-    summary?.reasonCode ===
-      ASSESSMENT_RUNTIME_PLAN_REASON_CODES.targetedExactResumePin ||
-    params?.reasonCode ===
-      ASSESSMENT_RUNTIME_PLAN_REASON_CODES.targetedExactResumePin
-  );
-}
-
-function contextRevisionFromPlannerEvents(
-  events: AssessmentRuntimeActivityEvent[],
-): number | null {
-  for (const event of [...events].sort(
-    (left, right) => right.sequence - left.sequence,
-  )) {
-    const summary = objectRecord(event.outputSummary);
-    const value = numberValue(summary?.interviewContextRevisionUsed);
-    if (value !== null) {
-      return value;
+  const counts = { completed: 0, needsContext: 0, unresolved: 0, failed: 0 };
+  for (const event of latestByRule.values()) {
+    const activity = stringValue(objectRecord(event.outputSummary)?.activity);
+    if (activity === RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted) {
+      counts.completed += 1;
+    } else if (
+      activity === RULE_ANALYSIS_ACTIVITIES.ruleAnalysisNeedsContext ||
+      activity === RULE_ANALYSIS_ACTIVITIES.businessContextRequested
+    ) {
+      counts.needsContext += 1;
+    } else if (activity === RULE_ANALYSIS_ACTIVITIES.ruleAnalysisUnresolved) {
+      counts.unresolved += 1;
+    } else if (activity === RULE_ANALYSIS_ACTIVITIES.ruleAnalysisFailed) {
+      counts.failed += 1;
     }
   }
-  return null;
+  return {
+    assessmentId: summaryEvent.assessmentId,
+    runId: summaryEvent.runId,
+    contextRevision: numberValue(summary.contextRevision),
+    engineeringRuleCount: nonNegativeNumber(summary.engineeringRuleCount),
+    eligibleCount: nonNegativeNumber(summary.eligibleCount),
+    ...counts,
+  };
 }
 
 function nonNegativeNumber(value: unknown): number {
@@ -1919,10 +1906,6 @@ function numberValue(value: unknown): number | null {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
-}
-
-function booleanValue(value: unknown): boolean | null {
-  return typeof value === "boolean" ? value : null;
 }
 
 function isPersistableAgentStreamEvent(
@@ -2123,6 +2106,8 @@ function agentStreamJournalEventFromRow(
     runId: stringValue(event.runId) ?? row.runId,
     correlationId: stringValue(event.correlationId) ?? row.correlationId,
     eventType: event.eventType as AssessmentAgentStreamEventType,
+    stage: normalizePersistedAgentStreamStage(event.stage),
+    engineeringRuleId: stringValue(event.engineeringRuleId),
     source: stringValue(event.source),
     agentName: stringValue(event.agentName),
     subagentName: stringValue(event.subagentName),

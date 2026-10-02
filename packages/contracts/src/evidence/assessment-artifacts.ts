@@ -145,7 +145,6 @@ export type InvestigationNotesArtifact = {
   identity: {
     assessmentId: string;
     workflowRunId: string | null;
-    planningBatchId: string | null;
     contextRevisionUsed: number | null;
     technicalEvidenceReportId: string | null;
     snapshotId: string | null;

@@ -1,12 +1,8 @@
-"""Managed schedule for proactive legal-intelligence maintenance and triage."""
+"""Legal catalog maintenance prompt for application-owned schedulers."""
 
-from managed_deepagents import define_schedule
-
-
-schedule = define_schedule(
-    cron="0 2 * * *",
-    timezone="Asia/Ho_Chi_Minh",
-    prompt=(
+LEGAL_CATALOG_MAINTENANCE_CRON = "0 2 * * *"
+LEGAL_CATALOG_MAINTENANCE_TIMEZONE = "Asia/Ho_Chi_Minh"
+LEGAL_CATALOG_MAINTENANCE_PROMPT = (
         "Run LCSP in LEGAL_MAINTENANCE mode. Delegate the full legal-preparation cycle "
         "to the `triage` subagent. This is the SCHEDULED trigger. Claim the global Triage "
         "singleton, then call `maintain_legal_catalog` with `max_runs=0` so legal maintenance "
@@ -23,11 +19,17 @@ schedule = define_schedule(
         "schedule and Triage reasoning never select or inspect customer Assessments. After "
         "`finish_legal_rule_triage_execution` releases the singleton, deterministic orchestration "
         "reconciles every Assessment checkpoint currently waiting on EngineeringRule readiness. "
-        "An Assessment whose pre-Planner readiness gate finds missing READY EngineeringRules "
+        "An Assessment whose pre-analysis readiness gate finds missing READY EngineeringRules "
         "automatically checkpoints and emits its own bounded ENGINEERING_RULE_NOT_READY Triage "
         "trigger; no admin/operator manual trigger is required. Do not start Context Wizard, "
-        "Planner, Investigator, Resolver, or any customer assessment flow from Triage reasoning. "
+        "Repository Analyst, Resolver, or any customer assessment flow from Triage reasoning. "
         "Do not use customer assessment context, repository findings, user answers, or targeted "
         "repository reanalysis to make Legal Rule Triage decisions."
-    ),
 )
+
+
+__all__ = [
+    "LEGAL_CATALOG_MAINTENANCE_CRON",
+    "LEGAL_CATALOG_MAINTENANCE_PROMPT",
+    "LEGAL_CATALOG_MAINTENANCE_TIMEZONE",
+]

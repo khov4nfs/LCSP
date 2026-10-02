@@ -67,7 +67,7 @@ mutations.append(("contextUpdates source authority",m_ctx_source))
 def m_resolution(dst):
     p,d=load(dst)
     for e in d["evals"]:
-        if e.get("runtime_mode")=="INVESTIGATOR_RESOLUTION" and "resolutionCriteria" in e.get("runtime_context",{}):
+        if e.get("runtime_mode")=="BUSINESS_CONTEXT_RESOLUTION" and "resolutionCriteria" in e.get("runtime_context",{}):
             del e["runtime_context"]["resolutionCriteria"]; break
     p.write_text(json.dumps(d,indent=2))
 mutations.append(("resolutionCriteria required",m_resolution))

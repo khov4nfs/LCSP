@@ -29,7 +29,6 @@ includedFiles:
     - docs/specs/domain-model.md
     - docs/specs/domain-state-machines.md
     - docs/specs/event-catalog.md
-    - docs/specs/scanner-spec.md
     - docs/specs/ai-usage-flow-domain-spec.md
     - docs/specs/legal-corpus-source-spec.md
     - docs/specs/legal-matching-domain-spec.md
@@ -86,7 +85,6 @@ project_knowledge: docs
 - `docs/specs/domain-model.md`
 - `docs/specs/domain-state-machines.md`
 - `docs/specs/event-catalog.md`
-- `docs/specs/scanner-spec.md`
 - `docs/specs/ai-usage-flow-domain-spec.md`
 - `docs/specs/legal-corpus-source-spec.md`
 - `docs/specs/legal-matching-domain-spec.md`
@@ -250,7 +248,7 @@ Total FRs extracted: 56 canonical FR IDs. Active MVP implementation requirements
 | NFR-013 | Privacy | Raw source code must not be stored long term in persistent stores. |
 | NFR-014 | Privacy | Technical findings must avoid unnecessary source/code exposure. |
 | NFR-015 | Privacy | Secrets must be redacted before logs, findings, reports, prompts or audit records. |
-| NFR-016 | Traceability | Accepted evidence reports and scanner tool outputs must include provenance, version, config/ruleset hash and integrity metadata. |
+| NFR-016 | Traceability | Accepted evidence reports and repository-analysis outputs must include provenance, version, config/ruleset hash and integrity metadata. |
 | NFR-017 | Traceability | Legal classification outputs must trace to legal rule, citation and corpus version. |
 | NFR-018 | Compliance Support | System must fail closed for missing critical evidence, unresolved conflict, unknown critical usage or missing legal citation. |
 | NFR-019 | Compliance Support | Classification must use evidence-backed VerifiedProfile and LegalRuleMatch, not provider/model/framework presence alone. |
@@ -267,7 +265,7 @@ Total FRs extracted: 56 canonical FR IDs. Active MVP implementation requirements
 | NFR-030 | Reliability | Re-runs must preserve historical evidence/profile/classification chain rather than mutating prior records. |
 | NFR-033 | Security/Control | LLM API calls must be protected by monthly cost budget boundaries and token usage caps. Dense embedding calls are not required for legal retrieval MVP and become future-scoped if later approved. |
 | NFR-034 | Compliance Support | Pinned legal corpus snapshots (`LegalCorpusVersion`) must remain immutable, with updates governed by a formal review and approval process. |
-| NFR-035 | Security | Python Scanner Worker must operate in a restricted scanner workspace with pinned scanner tools, bounded resources, no repository dependency installation, no customer application execution, validated/redacted tool output and verified cleanup. |
+| NFR-035 | Security | Managed Repository Analysis Agent must operate in the assessment-scoped MDA sandbox with commit-pinned repository input, bounded resources, no customer dependency installation or application execution, source-safe outputs, and explicit coverage limitations. |
 
 Total active NFRs extracted: 33. `NFR-031` and `NFR-032` are legacy aliases only and are not active catalog rows.
 
@@ -278,7 +276,7 @@ Total active NFRs extracted: 33. `NFR-031` and `NFR-032` are legacy aliases only
 - Wizard-only outputs must remain readiness-only and must not show final risk or HIGH/MEDIUM/LOW labels.
 - Structured attestation, Local/CI scanner report upload as an MVP evidence path, manual technical evidence JSON upload, and delegated free-form clarification screens must not reappear in active MVP scope.
 - GitHub App read-only repository scan and Automatic Trusted Scan Initiation are the active MVP technical evidence path.
-- Python Worker Platform owns asynchronous domain workloads; scanner runtime is Python-worker based.
+- Python Worker Platform owns asynchronous domain workloads; repository-analysis runtime is Python-worker based.
 - Legal retrieval is ChromaDB structure-first vectorless, with stable hierarchy IDs, parent context, one-hop xref expansion, and citation allowlist validation.
 - Real LLM provider integration is required for happy-path classification and document generation; deterministic mock mode is only suitable for tests/offline CI/dev without configured key.
 - Audit trail must preserve wizard answers, evidence metadata, RBAC/trigger decisions, conflict resolution, VerifiedProfile, classification, legal citation trace, gap analysis, and generated document versions.
@@ -407,7 +405,7 @@ Found. Active UX authority is the rebased pair `DESIGN.md` and `EXPERIENCE.md`, 
 | --- | --- | --- |
 | Operational web workbench with assessment overview, Wizard, evidence, conflicts, classification, documents, audit | `Web Frontend` plus `Backend API` synchronous control plane. | Supported |
 | Gate-driven stepper and blocked/degraded state handling | Architecture mandates persisted object/event stages and explicit blocking conditions. | Supported |
-| Scan progress, retry/re-run, redacted evidence review | Repository Integration, Python Scanner Worker, queue boundary, persistence, audit. | Supported, pending scanner severity decision |
+| Scan progress, retry/re-run, redacted evidence review | Repository Integration, Managed Repository Analysis Agent, queue boundary, persistence, audit. | Supported, pending scanner severity decision |
 | Legal citation inspection, corpus version, context roles, allowlist validation | ChromaDB Legal Retriever, Citation Guardrail, Legal Matching Worker. | Supported |
 | Real LLM provider metadata and guarded output states | LLM Gateway, Classification Worker, Document Worker. | Supported |
 | Developer task workspace with RBAC-scoped data boundaries | RBAC enforcement boundary and optional Developer collaboration invariant. | Supported, pending RBAC runtime decision |
@@ -462,7 +460,6 @@ No technical epic was found that is merely “setup database”, “API developm
 1. Required decision artifacts were unresolved at initial assessment time.
    - RBAC runtime is now resolved by `docs/implementation/decisions/rbac-runtime-decision.md`.
    - Automatic trusted scan trigger behavior is now resolved by `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`.
-   - Scanner severity/provenance is now resolved by `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`.
    - Impact: these areas can proceed to sprint planning review with the decision artifacts cited.
 
 2. Story-level traceability was not certification-grade at initial assessment time.
@@ -521,7 +518,6 @@ LCSP documentation is now ready for sprint planning review after remediation. Th
 1. Required decision artifacts are now created.
    - RBAC runtime: `docs/implementation/decisions/rbac-runtime-decision.md`
    - Trusted scan trigger idempotency/retry/DLQ/replay/operator recovery: `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`
-   - Scanner severity and tool version/config/ruleset hash policy: `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`
 
 2. Certification-grade planning traceability is now created.
    - Artifact: `docs/test-artifacts/traceability/implementation-readiness-traceability-2026-06-25.md`

@@ -14,15 +14,19 @@ import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_GATE_STATUSES,
   ASSESSMENT_RUNTIME_GATE_TOOL_NAMES,
-  ASSESSMENT_RUNTIME_PLAN_REASON_CODES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   ASSESSMENT_RUNTIME_STEP_SKIP_REASONS,
   ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+  RULE_ANALYSIS_ACTIVITIES,
+  RULE_ANALYSIS_SUMMARY_TOOL,
+  RULE_ANALYSIS_TOOL_PREFIX,
+  INTERVIEW_PROGRESS_PHASES,
   type AssessmentInterviewAuditRef,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
+import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { PROGRAM_EVIDENCE_METRIC_FORMATS } from "../src/features/assessment-flow/types/assessment-flow.types.ts";
 
@@ -170,8 +174,7 @@ test("production sidebar normalization preserves repository metadata and canonic
       "SCANNER",
       "INTERVIEW",
       "RULES",
-      "PLANNER",
-      "INVESTIGATE",
+      "RULE_ANALYSIS",
       "GATE",
     ],
   );
@@ -217,74 +220,63 @@ test("runtime workflow derives Interview running state from the active public qu
   );
 });
 
-test("runtime projection maps technical evidence planner and investigator events onto visible workflow stages", () => {
+test("runtime projection maps rule-analysis events onto visible workflow stages", () => {
+  const assessmentId = "asm-runtime-technical-evidence";
+  const runId = "asm-runtime-technical-evidence-scan";
   const normalized = normalizeAssessmentRuntime({
-    assessmentId: "asm-runtime-technical-evidence",
+    assessmentId,
     timeline: {
       currentRun: null,
       recentActivity: [
         runtimeActivity(
-          "asm-runtime-technical-evidence",
+          assessmentId,
           4,
-          ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRuleInvestigationFailed,
+          "Rule analysis finished with a runtime error",
           {
+            runId,
             eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed,
             runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
             stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-            toolName: "engineering_rule_investigation:eng-1",
+            toolName: `${RULE_ANALYSIS_TOOL_PREFIX}eng-1`,
             outputSummary: {
-              messageKey:
-                ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRuleInvestigationFailed,
-              messageParams: { engineeringRuleId: "eng-1" },
+              activity: RULE_ANALYSIS_ACTIVITIES.ruleAnalysisFailed,
             },
             errorSummary: "StructuredOutputValidationError",
           },
         ),
         runtimeActivity(
-          "asm-runtime-technical-evidence",
+          assessmentId,
           3,
-          ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
+          "Rule analysis finished",
           {
-            eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped,
-            runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-            stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-            toolName: "engineering_rule_plan:eng-2",
-            outputSummary: {
-              messageKey:
-                ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-              messageParams: {
-                decision: "SKIP",
-                engineeringRuleId: "eng-2",
-                reasonCode: "SOURCE_SIGNAL_NOT_MATERIAL",
-              },
-            },
-          },
-        ),
-        runtimeActivity(
-          "asm-runtime-technical-evidence",
-          2,
-          ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-          {
+            runId,
             eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
             runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
             stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-            toolName: "engineering_rule_plan:eng-1",
+            toolName: `${RULE_ANALYSIS_TOOL_PREFIX}eng-2`,
             outputSummary: {
-              messageKey:
-                ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-              messageParams: {
-                decision: "SELECT",
-                engineeringRuleId: "eng-1",
-                reasonCode: "SOURCE_SCOPE_MATCH",
-              },
+              activity: RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted,
             },
           },
         ),
         runtimeActivity(
-          "asm-runtime-technical-evidence",
+          assessmentId,
+          2,
+          "Engineering rule applicability evaluated",
+          {
+            runId,
+            eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+            runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+            stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
+            toolName: "engineering_rule_applicability",
+          },
+        ),
+        runtimeActivity(
+          assessmentId,
           1,
           "Initial Interview context is ready for engineering rule evaluation.",
           {
+            runId,
             eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
             runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
             stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
@@ -292,7 +284,20 @@ test("runtime projection maps technical evidence planner and investigator events
           },
         ),
       ],
-      latestRunId: "asm-runtime-technical-evidence-scan",
+      engineeringProgress: [
+        {
+          assessmentId,
+          runId,
+          contextRevision: 12,
+          engineeringRuleCount: 2,
+          eligibleCount: 2,
+          completed: 1,
+          needsContext: 0,
+          unresolved: 0,
+          failed: 1,
+        },
+      ],
+      latestRunId: runId,
       connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
       lastEmittedAt: "2026-09-05T08:04:00.000Z",
       postFinding: null,
@@ -307,20 +312,12 @@ test("runtime projection maps technical evidence planner and investigator events
     NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
   );
   assert.equal(
-    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner)?.status,
-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
-  );
-  assert.equal(
-    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner)?.detail,
-    "Yêu cầu được chọn để điều tra: 1/2. Tạm thời ngoài phạm vi: 1.",
-  );
-  assert.equal(
-    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate)?.status,
+    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis)?.status,
     NORMALIZED_WORKFLOW_STEP_STATUSES.failed,
   );
   assert.equal(
-    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate)?.detail,
-    "Lượt điều tra yêu cầu gặp giới hạn và chưa kết luận: 1.",
+    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis)?.detail,
+    "Yêu cầu đã phân tích: 1/2 trong phạm vi (tổng 2). Đang chờ: 0. Lượt phân tích yêu cầu bị gián đoạn bởi lỗi runtime: 1.",
   );
 
   const thinking = selectRuntimeThinkingItems(normalized);
@@ -328,11 +325,11 @@ test("runtime projection maps technical evidence planner and investigator events
     thinking.map((item) => [item.phase, item.limited, item.params]),
     [
       [
-        RUNTIME_THINKING_PHASES.planner,
+        RUNTIME_THINKING_PHASES.analysis,
         false,
-        { selected: "1", skipped: "1", total: "2" },
+        { completed: "1", eligible: "2", total: "2", pending: "0" },
       ],
-      [RUNTIME_THINKING_PHASES.investigator, true, { failed: "1" }],
+      [RUNTIME_THINKING_PHASES.analysis, true, { count: "1" }],
     ],
   );
   assertNoInternalTelemetry(normalized);
@@ -359,13 +356,16 @@ test("legacy runs without an explicit Gate event project Gate SKIPPED once Class
         runtimeActivity(
           "asm-runtime-classification",
           3,
-          "Investigation completed",
+          "Rule analysis completed",
           {
             runId,
             eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
             runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
             stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-            toolName: "engineering_rule_investigation:eng-1",
+            toolName: `${RULE_ANALYSIS_TOOL_PREFIX}eng-1`,
+            outputSummary: {
+              activity: RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted,
+            },
           },
         ),
       ],
@@ -380,7 +380,7 @@ test("legacy runs without an explicit Gate event project Gate SKIPPED once Class
     normalized.workflow.steps.map((step) => [step.id, step]),
   );
   assert.equal(
-    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate)?.status,
+    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis)?.status,
     NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
   );
   assert.equal(
@@ -444,7 +444,8 @@ function gateStatusFor(
   );
   return {
     gate: steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate)?.status,
-    planner: steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner)?.status,
+    ruleAnalysis: steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis)
+      ?.status,
     classification: steps.get(ASSESSMENT_RUNTIME_STAGE_CODES.classification)
       ?.status,
   };
@@ -489,7 +490,7 @@ test("Gate required: explicit gate activity moves RUNNING then COMPLETED", () =>
   );
 });
 
-test("Gate not required: explicit TOOL_SKIPPED NOT_REQUIRED projects SKIPPED, planner SKIPs do not", () => {
+test("Gate not required: explicit TOOL_SKIPPED NOT_REQUIRED projects SKIPPED, rule-analysis SKIPs do not", () => {
   const runId = "run-gate-not-required";
   const statuses = gateStatusFor("asm-gate-skipped", runId, [
     classificationCompleted("asm-gate-skipped", 4, runId),
@@ -503,22 +504,25 @@ test("Gate not required: explicit TOOL_SKIPPED NOT_REQUIRED projects SKIPPED, pl
         reason: ASSESSMENT_RUNTIME_STEP_SKIP_REASONS.notRequired,
       },
     ),
-    runtimeActivity("asm-gate-skipped", 2, "Planner skip", {
+    runtimeActivity("asm-gate-skipped", 2, "Rule analysis skip", {
       runId,
       eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped,
       runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-      toolName: "engineering_rule_plan:eng-9",
+      toolName: `${RULE_ANALYSIS_TOOL_PREFIX}eng-9`,
     }),
   ]);
 
   assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.skipped);
-  assert.equal(statuses.planner, NORMALIZED_WORKFLOW_STEP_STATUSES.completed);
+  assert.equal(
+    statuses.ruleAnalysis,
+    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+  );
 });
 
 test("targeted resume with no Gate keeps the explicit SKIPPED state of its own run", () => {
   const previousRun = "run-initial-assessment";
-  const resumeRun = "investigator:exec-1:gate:4";
+  const resumeRun = "rule-analysis:exec-1:gate:4";
   const statuses = gateStatusFor("asm-targeted-no-gate", resumeRun, [
     classificationCompleted("asm-targeted-no-gate", 6, resumeRun),
     gateActivity(
@@ -549,12 +553,12 @@ test("stale Gate events from a previous run never leak into the current run", ()
   const previousRun = "run-previous";
   const currentRun = "run-current";
   const statuses = gateStatusFor("asm-stale-gate", currentRun, [
-    runtimeActivity("asm-stale-gate", 5, "Investigation running", {
+    runtimeActivity("asm-stale-gate", 5, "Rule analysis running", {
       runId: currentRun,
       eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
       runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-      toolName: "engineering_rule_investigation:eng-2",
+      toolName: `${RULE_ANALYSIS_TOOL_PREFIX}eng-2`,
     }),
     gateActivity(
       "asm-stale-gate",
@@ -671,24 +675,41 @@ test("runtime projection ignores stale previous-run activity during targeted res
 });
 
 test("runtime thinking projection excludes raw internal telemetry summaries", () => {
+  const assessmentId = "asm-runtime-raw-telemetry";
   const runId = "asm-runtime-raw-telemetry-run";
   const normalized = normalizeAssessmentRuntime({
-    assessmentId: "asm-runtime-raw-telemetry",
+    assessmentId,
     timeline: {
       currentRun: null,
       recentActivity: [
         runtimeActivity(
-          "asm-runtime-raw-telemetry",
+          assessmentId,
           1,
-          "TARGETED_EXACT_RESUME_PIN CUSTOMER_CONFIRMED INVESTIGATOR_RESOLUTION resolutionCriteria",
+          "TARGETED_EXACT_RESUME_PIN CUSTOMER_CONFIRMED BUSINESS_CONTEXT_RESOLUTION resolutionCriteria",
           {
             runId,
             eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
             runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
             stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-            toolName: "engineering_rule_investigation:eng-1",
+            toolName: `${RULE_ANALYSIS_TOOL_PREFIX}eng-1`,
+            outputSummary: {
+              activity: RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted,
+            },
           },
         ),
+      ],
+      engineeringProgress: [
+        {
+          assessmentId,
+          runId,
+          contextRevision: 12,
+          engineeringRuleCount: 1,
+          eligibleCount: 1,
+          completed: 1,
+          needsContext: 0,
+          unresolved: 0,
+          failed: 0,
+        },
       ],
       latestRunId: runId,
       connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
@@ -700,7 +721,7 @@ test("runtime thinking projection excludes raw internal telemetry summaries", ()
   const thinking = selectRuntimeThinkingItems(normalized);
   assert.deepEqual(
     thinking.map((item) => item.messageKey),
-    ["pages.assessmentFlow.technicalEvidence.investigatorSummary"],
+    ["pages.assessmentFlow.technicalEvidence.ruleAnalysisSummary"],
   );
   assertNoInternalTelemetry(normalized);
 });
@@ -715,7 +736,7 @@ function assertNoInternalTelemetry(
   for (const internal of [
     "TARGETED_EXACT_RESUME_PIN",
     "CUSTOMER_CONFIRMED",
-    "INVESTIGATOR_RESOLUTION",
+    "BUSINESS_CONTEXT_RESOLUTION",
     "resolutionCriteria",
     "SOURCE_SIGNAL_NOT_MATERIAL",
     "SOURCE_SCOPE_MATCH",
@@ -731,108 +752,78 @@ function assertNoInternalTelemetry(
   }
 }
 
-function plannerDecision(
+function ruleAnalysisEvent(
   assessmentId: string,
   sequence: number,
   runId: string,
   ruleId: string,
-  decision: "SELECT" | "SKIP",
-  reasonCode: string,
+  activity:
+    | typeof RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted
+    | typeof RULE_ANALYSIS_ACTIVITIES.ruleAnalysisNeedsContext
+    | typeof RULE_ANALYSIS_ACTIVITIES.ruleAnalysisUnresolved
+    | typeof RULE_ANALYSIS_ACTIVITIES.ruleAnalysisFailed,
+  eventType: WorkspaceRuntimeActivityItem["eventType"] =
+    ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
 ): WorkspaceRuntimeActivityItem {
-  return runtimeActivity(
-    assessmentId,
-    sequence,
-    ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-    {
-      runId,
-      emittedAt: new Date(Date.UTC(2026, 8, 5, 8, 0, sequence)).toISOString(),
-      eventType:
-        decision === "SELECT"
-          ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted
-          : ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped,
-      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-      stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-      toolName: `engineering_rule_plan:${ruleId}`,
-      outputSummary: {
-        messageKey:
-          ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-        messageParams: { decision, engineeringRuleId: ruleId, reasonCode },
-        finalDecision: decision,
-        reasonCode,
-      },
-    },
-  );
+  return runtimeActivity(assessmentId, sequence, "Rule analysis progress", {
+    runId,
+    emittedAt: new Date(Date.UTC(2026, 8, 5, 8, 0, sequence)).toISOString(),
+    eventType,
+    runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+    stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
+    toolName: `${RULE_ANALYSIS_TOOL_PREFIX}${ruleId}`,
+    outputSummary: { activity },
+  });
 }
 
-function investigated(
+function ruleAnalysisSummaryEvent(
   assessmentId: string,
   sequence: number,
   runId: string,
-  ruleId: string,
+  counts: {
+    contextRevision?: number;
+    engineeringRuleCount: number;
+    eligibleCount: number;
+  },
 ): WorkspaceRuntimeActivityItem {
-  return runtimeActivity(
-    assessmentId,
-    sequence,
-    ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRuleInvestigated,
-    {
-      runId,
-      emittedAt: new Date(Date.UTC(2026, 8, 5, 8, 0, sequence)).toISOString(),
-      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-      stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-      toolName: `engineering_rule_investigation:${ruleId}`,
-      outputSummary: {
-        messageKey:
-          ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRuleInvestigated,
-        messageParams: {
-          engineeringRuleId: ruleId,
-          evaluationStatus: "UNKNOWN",
-        },
-      },
+  return runtimeActivity(assessmentId, sequence, "Rule analysis summary", {
+    runId,
+    emittedAt: new Date(Date.UTC(2026, 8, 5, 8, 0, sequence)).toISOString(),
+    eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+    runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+    stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
+    toolName: RULE_ANALYSIS_SUMMARY_TOOL,
+    outputSummary: {
+      contextRevision: counts.contextRevision ?? 12,
+      engineeringRuleCount: counts.engineeringRuleCount,
+      eligibleCount: counts.eligibleCount,
     },
-  );
+  });
 }
 
-test("targeted resume thinking aggregates one re-evaluated requirement and 40 skipped ones", () => {
+test("business-context resume thinking aggregates one completed requirement and pending remainder", () => {
   const assessmentId = "asm-targeted-thinking";
   const runId = "scan-job-shared-by-initial-run-and-resume";
-  const ruleIds = Array.from({ length: 41 }, (_, index) => `eng-${index + 1}`);
-  let sequence = 0;
-  const initialBatch = ruleIds.map((ruleId, index) =>
-    plannerDecision(
-      assessmentId,
-      ++sequence,
-      runId,
-      ruleId,
-      index < 3 ? "SELECT" : "SKIP",
-      "SOURCE_SCOPE_MATCH",
-    ),
-  );
-  const initialInvestigations = ruleIds
-    .slice(0, 3)
-    .map((ruleId) => investigated(assessmentId, ++sequence, runId, ruleId));
-  const resumeBatch = ruleIds.map((ruleId) =>
-    plannerDecision(
-      assessmentId,
-      ++sequence,
-      runId,
-      ruleId,
-      ruleId === "eng-2" ? "SELECT" : "SKIP",
-      ASSESSMENT_RUNTIME_PLAN_REASON_CODES.targetedExactResumePin,
-    ),
-  );
-  const resumeInvestigation = investigated(
-    assessmentId,
-    ++sequence,
-    runId,
-    "eng-2",
-  );
   const recentActivity = [
-    ...initialBatch,
-    ...initialInvestigations,
-    ...resumeBatch,
-    resumeInvestigation,
-  ].reverse();
+    ruleAnalysisEvent(
+      assessmentId,
+      3,
+      runId,
+      "eng-2",
+      RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted,
+    ),
+    ruleAnalysisSummaryEvent(assessmentId, 2, runId, {
+      engineeringRuleCount: 41,
+      eligibleCount: 41,
+    }),
+    runtimeActivity(assessmentId, 1, "Business context resolved", {
+      runId,
+      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+      toolName: "assessment_interview",
+    }),
+  ];
 
   setAppLocale("en");
   try {
@@ -850,8 +841,7 @@ test("targeted resume thinking aggregates one re-evaluated requirement and 40 sk
 
     const thinking = selectRuntimeThinkingItems(normalized);
     assert.deepEqual(thinking.map(formatRuntimeThinkingItem), [
-      "Requirements re-evaluated for the new answer: 1. Unrelated requirements skipped: 40.",
-      "Requirements investigated: 1 of 1. Pending: 0.",
+      "Requirements analysed: 1 of 41 in scope (41 total). Pending: 40.",
     ]);
     assertNoInternalTelemetry(normalized);
   } finally {
@@ -863,7 +853,13 @@ test("canonical engineering progress survives last-50 activity eviction", () => 
   const assessmentId = "asm-runtime-progress-eviction";
   const runId = "scan-job-observed-live-run";
   const noisyRecentActivity = Array.from({ length: 55 }, (_, index) =>
-    investigated(assessmentId, index + 100, runId, `eng-noise-${index + 1}`),
+    ruleAnalysisEvent(
+      assessmentId,
+      index + 100,
+      runId,
+      `eng-noise-${index + 1}`,
+      RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted,
+    ),
   );
 
   setAppLocale("en");
@@ -877,24 +873,13 @@ test("canonical engineering progress survives last-50 activity eviction", () => 
           {
             assessmentId,
             runId,
-            planningBatchId: `${runId}:context:12`,
-            contextRevisionUsed: 12,
-            targeted: false,
-            approximate: false,
-            planner: {
-              candidateCount: 41,
-              selectedCount: 19,
-              skippedCount: 22,
-            },
-            investigator: {
-              selectedCount: 19,
-              completedCount: 13,
-              domainLimitedCount: 3,
-              limitedOrFailedCount: 3,
-              waitingForInputCount: 0,
-              runtimeFailedCount: 0,
-              pendingCount: 3,
-            },
+            contextRevision: 12,
+            engineeringRuleCount: 41,
+            eligibleCount: 19,
+            completed: 13,
+            needsContext: 0,
+            unresolved: 3,
+            failed: 0,
           },
         ],
         latestRunId: runId,
@@ -907,9 +892,8 @@ test("canonical engineering progress survives last-50 activity eviction", () => 
     assert.deepEqual(
       selectRuntimeThinkingItems(normalized).map(formatRuntimeThinkingItem),
       [
-        "Requirements selected for investigation: 19 of 41. Out of scope for now: 22.",
-        "Requirements investigated: 13 of 19. Pending: 3.",
-        "Requirement investigations that hit a limitation and stay unresolved: 3.",
+        "Requirements analysed: 13 of 19 in scope (41 total). Pending: 3.",
+        "Requirements the analysis could not establish from the repository: 3.",
       ],
     );
 
@@ -918,31 +902,26 @@ test("canonical engineering progress survives last-50 activity eviction", () => 
       timeline: {
         currentRun: null,
         recentActivity: [
-          investigated(assessmentId, 200, runId, "eng-14"),
+          ruleAnalysisEvent(
+            assessmentId,
+            200,
+            runId,
+            "eng-14",
+            RULE_ANALYSIS_ACTIVITIES.ruleAnalysisCompleted,
+          ),
           ...noisyRecentActivity,
         ],
         engineeringProgress: [
           {
             assessmentId,
             runId,
-            planningBatchId: `${runId}:context:12`,
-            contextRevisionUsed: 12,
-            targeted: false,
-            approximate: false,
-            planner: {
-              candidateCount: 41,
-              selectedCount: 19,
-              skippedCount: 22,
-            },
-            investigator: {
-              selectedCount: 19,
-              completedCount: 14,
-              domainLimitedCount: 3,
-              limitedOrFailedCount: 3,
-              waitingForInputCount: 0,
-              runtimeFailedCount: 0,
-              pendingCount: 2,
-            },
+            contextRevision: 12,
+            engineeringRuleCount: 41,
+            eligibleCount: 19,
+            completed: 14,
+            needsContext: 0,
+            unresolved: 3,
+            failed: 0,
           },
         ],
         latestRunId: runId,
@@ -955,9 +934,8 @@ test("canonical engineering progress survives last-50 activity eviction", () => 
     assert.deepEqual(
       selectRuntimeThinkingItems(advanced).map(formatRuntimeThinkingItem),
       [
-        "Requirements selected for investigation: 19 of 41. Out of scope for now: 22.",
-        "Requirements investigated: 14 of 19. Pending: 2.",
-        "Requirement investigations that hit a limitation and stay unresolved: 3.",
+        "Requirements analysed: 14 of 19 in scope (41 total). Pending: 2.",
+        "Requirements the analysis could not establish from the repository: 3.",
       ],
     );
     assertNoInternalTelemetry(advanced);
@@ -966,7 +944,7 @@ test("canonical engineering progress survives last-50 activity eviction", () => 
   }
 });
 
-test("runtime failures are not presented as investigator limitations", () => {
+test("runtime failures are not presented as unresolved limitations", () => {
   const assessmentId = "asm-runtime-failure-not-limitation";
   const runId = "scan-job-runtime-failure";
   const normalized = normalizeAssessmentRuntime({
@@ -978,24 +956,13 @@ test("runtime failures are not presented as investigator limitations", () => {
         {
           assessmentId,
           runId,
-          planningBatchId: `${runId}:context:12`,
-          contextRevisionUsed: 12,
-          targeted: false,
-          approximate: false,
-          planner: {
-            candidateCount: 2,
-            selectedCount: 2,
-            skippedCount: 0,
-          },
-          investigator: {
-            selectedCount: 2,
-            completedCount: 1,
-            domainLimitedCount: 0,
-            limitedOrFailedCount: 1,
-            waitingForInputCount: 0,
-            runtimeFailedCount: 1,
-            pendingCount: 0,
-          },
+          contextRevision: 12,
+          engineeringRuleCount: 2,
+          eligibleCount: 2,
+          completed: 1,
+          needsContext: 0,
+          unresolved: 0,
+          failed: 1,
         },
       ],
       latestRunId: runId,
@@ -1010,9 +977,8 @@ test("runtime failures are not presented as investigator limitations", () => {
     assert.deepEqual(
       selectRuntimeThinkingItems(normalized).map(formatRuntimeThinkingItem),
       [
-        "Requirements selected for investigation: 2 of 2. Out of scope for now: 0.",
-        "Requirements investigated: 1 of 2. Pending: 0.",
-        "Requirement investigations interrupted by a runtime error: 1.",
+        "Requirements analysed: 1 of 2 in scope (2 total). Pending: 0.",
+        "Requirement analyses interrupted by a runtime error: 1.",
       ],
     );
   } finally {
@@ -1065,8 +1031,7 @@ test("LCSP-272 right sidebar projects F03 scanner-running state without fabricat
   for (const stage of [
     ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
     ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
     ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
   ]) {
     assert.equal(
@@ -1136,17 +1101,30 @@ function scannerStepStatus(timeline: AdapterTimelineInput) {
   )?.status;
 }
 
-test("rerunning the scanner shows Scanner running before the worker reports", () => {
-  for (const status of [
-    REPOSITORY_SCAN_JOB_STATUSES.queued,
-    REPOSITORY_SCAN_JOB_STATUSES.running,
-  ]) {
-    assert.equal(
-      scannerStepStatus(rerunTimeline("asm-rerun", status)),
-      NORMALIZED_WORKFLOW_STEP_STATUSES.running,
-      status,
-    );
-  }
+test("queued scanner rerun waits until Agent Runtime claims the job", () => {
+  const queued = normalizeAssessmentRuntime({
+    assessmentId: "asm-rerun-queued",
+    timeline: rerunTimeline(
+      "asm-rerun-queued",
+      REPOSITORY_SCAN_JOB_STATUSES.queued,
+    ),
+  });
+  assert.equal(
+    queued.workflow.steps.find(
+      (step) => step.id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+    )?.status,
+    NORMALIZED_WORKFLOW_STEP_STATUSES.waiting,
+  );
+  assert.equal(
+    queued.artifacts.programEvidenceGraph.availability,
+    ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting,
+  );
+  assert.equal(
+    scannerStepStatus(
+      rerunTimeline("asm-rerun-running", REPOSITORY_SCAN_JOB_STATUSES.running),
+    ),
+    NORMALIZED_WORKFLOW_STEP_STATUSES.running,
+  );
 });
 
 test("a finished scan job leaves the Scanner row to its runtime events", () => {
@@ -1155,6 +1133,24 @@ test("a finished scan job leaves the Scanner row to its runtime events", () => {
       rerunTimeline("asm-rerun-done", REPOSITORY_SCAN_JOB_STATUSES.failed),
     ),
     NORMALIZED_WORKFLOW_STEP_STATUSES.waiting,
+  );
+});
+
+test("a completed scan stays completed when a later rule-analysis dispatch posts SCAN bookkeeping", () => {
+  const timeline = rerunTimeline("asm-resume", REPOSITORY_SCAN_JOB_STATUSES.completed);
+  const resumed: AdapterTimelineInput = {
+    ...timeline,
+    recentActivity: [
+      runtimeActivity("asm-resume", 2, "LangGraph repository run resumed", {
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+      }),
+      ...timeline.recentActivity,
+    ],
+  };
+  assert.equal(
+    scannerStepStatus(resumed),
+    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
   );
 });
 
@@ -1659,7 +1655,7 @@ test("19. DOWNSTREAM_IMPACT: flag preserved without local rerun decision", () =>
   ]);
 });
 
-test("20. TARGETED LOOP: investigator waiting + interview clarifying creates synchronized loop projection", () => {
+test("20. TARGETED LOOP: rule-analysis waiting + interview clarifying creates synchronized loop projection", () => {
   const timeline: WorkspaceRuntimeAssessmentTimeline = {
     currentRun: {
       assessmentId: "asm-20",
@@ -1679,9 +1675,9 @@ test("20. TARGETED LOOP: investigator waiting + interview clarifying creates syn
         correlationId: "corr-1",
         eventType: "TOOL_WAITING_INPUT",
         runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-        stage: "INVESTIGATE",
-        toolName: "investigator_agent",
-        summary: "Investigator waiting for targeted business context",
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
+        toolName: `${RULE_ANALYSIS_TOOL_PREFIX}eng-1`,
+        summary: "Rule analysis waiting for targeted business context",
         inputSummary: null,
         outputSummary: null,
         errorSummary: null,
@@ -1706,7 +1702,7 @@ test("20. TARGETED LOOP: investigator waiting + interview clarifying creates syn
         id: "q-targeted-clarify",
         intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
         control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
-        prompt: "Targeted clarification for Investigator",
+        prompt: "Targeted clarification for rule analysis",
         choices: [{ id: "c1", label: "Internal service only" }],
       },
     },
@@ -1842,6 +1838,7 @@ test("23. SSE DISCONNECTED: connection state disconnected does not mutate interv
     normalized.interview.outcome,
     ASSESSMENT_INTERVIEW_OUTCOMES.failed,
   );
+  assert.equal(selectComposerAvailability(normalized).isEnabled, true);
 });
 
 test("24. CROSS-CONSUMER CONSISTENCY: Chat, Workflow, Sidebar, and Artifacts selectors are synchronized", () => {
@@ -1996,6 +1993,9 @@ test("LCSP-272 HANDOFF: evidence ready without orchestration request stays truth
     handoff.placeholderKey,
     "pages.assessmentFlow.interview.pendingPlaceholder",
   );
+  // Nothing has run for Interview yet, so Pipeline Continue must stay hidden
+  // instead of offering to restart a pipeline that hasn't even been dispatched.
+  assert.equal(handoff.isGenuinelyPending, true);
   const resumed = {
     ...normalized,
     interview: {
@@ -2009,9 +2009,133 @@ test("LCSP-272 HANDOFF: evidence ready without orchestration request stays truth
       ],
     },
   };
+  const resumedHandoff = selectInterviewHandoffPresentation(resumed);
   assert.equal(
-    selectInterviewHandoffPresentation(resumed).messageKey,
+    resumedHandoff.messageKey,
     "pages.assessmentFlow.interview.continuingDescription",
+  );
+  assert.equal(resumedHandoff.isGenuinelyPending, false);
+});
+
+test("LCSP-999 HANDOFF: a failed Interview turn offers Resume until a new progress phase arrives", () => {
+  const progressEvent = (
+    sequence: number,
+    phase: string,
+    eventType: WorkspaceRuntimeActivityItem["eventType"],
+  ) =>
+    runtimeActivity("asm-failed-turn", sequence, "Interview progress", {
+      runId: "run-interview",
+      eventType,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+      outputSummary: { interviewProgress: { contextRevision: 2, phase } },
+    });
+  const failedRuntime = (recentActivity: WorkspaceRuntimeActivityItem[]) =>
+    normalizeAssessmentRuntime({
+      assessmentId: "asm-failed-turn",
+      interviewState: {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        contextRevision: 2,
+        orchestrationRequested: true,
+        answerHistory: [
+          {
+            questionId: "q-1",
+            answeredAt: "2026-09-05T08:00:00.000Z",
+            summary: "Saved answer",
+          },
+        ],
+      },
+      timeline: {
+        currentRun: null,
+        recentActivity,
+        latestRunId: "run-interview",
+        connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
+        lastEmittedAt: "2026-09-05T08:05:00.000Z",
+      },
+    });
+
+  const failed = selectInterviewHandoffPresentation(
+    failedRuntime([
+      progressEvent(
+        1,
+        INTERVIEW_PROGRESS_PHASES.running,
+        ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+      ),
+      progressEvent(
+        2,
+        INTERVIEW_PROGRESS_PHASES.failed,
+        ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed,
+      ),
+    ]),
+  );
+  assert.equal(failed.canResumeFailedTurn, true);
+  assert.equal(failed.isGenuinelyPending, false);
+  assert.equal(
+    failed.messageKey,
+    "pages.assessmentFlow.interview.progressFailed",
+  );
+  assert.equal(
+    failed.placeholderKey,
+    "pages.assessmentFlow.interview.resumeFailedPlaceholder",
+  );
+
+  const requeued = selectInterviewHandoffPresentation(
+    failedRuntime([
+      progressEvent(
+        2,
+        INTERVIEW_PROGRESS_PHASES.failed,
+        ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed,
+      ),
+      progressEvent(
+        3,
+        INTERVIEW_PROGRESS_PHASES.queued,
+        ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput,
+      ),
+    ]),
+  );
+  assert.equal(requeued.canResumeFailedTurn, false);
+  assert.equal(
+    requeued.messageKey,
+    "pages.assessmentFlow.interview.progressQueued",
+  );
+});
+
+test("LCSP-999 HANDOFF: AI not detected ends the assessment instead of waiting for Interview", () => {
+  const normalized = normalizeAssessmentRuntime({
+    assessmentId: "asm-ai-not-detected",
+    interviewState: {
+      outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+      orchestrationRequested: false,
+    },
+    timeline: {
+      currentRun: null,
+      recentActivity: [],
+      latestRunId: "run-scan",
+      connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
+      lastEmittedAt: "2026-09-26T10:00:00.000Z",
+    },
+  });
+
+  const waiting = selectInterviewHandoffPresentation(
+    normalized,
+    ASSESSMENT_STATUS_CODES.wizardSubmitted,
+  );
+  assert.equal(
+    waiting.messageKey,
+    "pages.assessmentFlow.interview.pendingDescription",
+  );
+
+  const ended = selectInterviewHandoffPresentation(
+    normalized,
+    ASSESSMENT_STATUS_CODES.aiNotDetected,
+  );
+  assert.equal(ended.isStartupPending, false);
+  assert.equal(
+    ended.messageKey,
+    "pages.assessmentFlow.interview.aiNotDetectedDescription",
+  );
+  assert.equal(
+    ended.placeholderKey,
+    "pages.assessmentFlow.interview.aiNotDetectedPlaceholder",
   );
 });
 
@@ -2087,7 +2211,7 @@ test("26. FIGMA PROJECTION TEST — F09: Targeted loop semantic projection", () 
       },
       recentActivity: [
         {
-          eventId: "evt-f09-investigate",
+          eventId: "evt-f09-rule-analysis",
           sequence: 1,
           emittedAt: "2026-09-05T10:04:00.000Z",
           assessmentId: "asm-f09",
@@ -2095,9 +2219,9 @@ test("26. FIGMA PROJECTION TEST — F09: Targeted loop semantic projection", () 
           correlationId: "corr-f09",
           eventType: "TOOL_WAITING_INPUT",
           runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-          stage: "INVESTIGATE",
-          toolName: "investigator",
-          summary: "Investigator waiting on context clarification",
+          stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
+          toolName: `${RULE_ANALYSIS_TOOL_PREFIX}eng-1`,
+          summary: "Rule analysis waiting on context clarification",
           inputSummary: null,
           outputSummary: null,
           errorSummary: null,
@@ -2256,7 +2380,7 @@ test("30. REGRESSION: Non-targeted CLARIFY question stays in normal Interview qu
   assert.equal(workflow.isTargetedClarificationLoop, false);
 
   const screen = selectAssessmentScreenProjection(normalized);
-  // Must NOT be F09 because it is not in the targeted Investigator loop
+  // Must NOT be F09 because it is not in the targeted rule-analysis loop
   assert.equal(screen, ASSESSMENT_SCREEN_PROJECTIONS.f04);
 });
 
@@ -2389,7 +2513,6 @@ test("context ready and resolved handoffs resolve deterministic i18n copy withou
   }
 });
 
-
 test("artifact cards derive Business Context and Investigation Notes readiness only from artifact API state", () => {
   const normalized = normalizeAssessmentRuntime({
     assessmentId: "asm-artifacts",
@@ -2415,7 +2538,6 @@ test("artifact cards derive Business Context and Investigation Notes readiness o
           identity: {
             assessmentId: "asm-artifacts",
             workflowRunId: "run-2",
-            planningBatchId: null,
             contextRevisionUsed: 3,
             technicalEvidenceReportId: null,
             snapshotId: null,
@@ -2443,7 +2565,10 @@ test("artifact cards derive Business Context and Investigation Notes readiness o
     ASSESSMENT_ARTIFACT_AVAILABILITIES.updating,
   );
   assert.equal(normalized.artifacts.businessContext.customerSafeSummary, null);
-  assert.equal(normalized.artifacts.investigationNotes.customerSafeSummary, null);
+  assert.equal(
+    normalized.artifacts.investigationNotes.customerSafeSummary,
+    null,
+  );
 });
 
 test("completed workflow stages cannot fabricate READY textual artifacts when the artifact API says unavailable", () => {
@@ -2471,7 +2596,6 @@ test("completed workflow stages cannot fabricate READY textual artifacts when th
           identity: {
             assessmentId: "asm-artifacts-unavailable",
             workflowRunId: null,
-            planningBatchId: null,
             contextRevisionUsed: null,
             technicalEvidenceReportId: null,
             snapshotId: null,
@@ -2502,5 +2626,65 @@ test("completed workflow stages cannot fabricate READY textual artifacts when th
   assert.notEqual(
     normalized.artifacts.investigationNotes.availability,
     ASSESSMENT_ARTIFACT_AVAILABILITIES.ready,
+  );
+});
+
+test("artifact lifecycle from the API decides stage status, not runtime events", () => {
+  // Events say the scan is running again (downstream bookkeeping under the same
+  // scan job); the durable lifecycle says the scanner finished and rule
+  // analysis is working. The artifact wins.
+  const timeline = rerunTimeline("asm-lifecycle", REPOSITORY_SCAN_JOB_STATUSES.completed);
+  const withLifecycle: AdapterTimelineInput = {
+    ...timeline,
+    recentActivity: [
+      runtimeActivity("asm-lifecycle", 2, "LangGraph repository run resumed", {
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+      }),
+      ...timeline.recentActivity,
+    ],
+    stageLifecycle: {
+      assessmentId: "asm-lifecycle",
+      scanner: { state: "DONE", source: "acceptedEvidence", detail: null },
+      interview: { state: "CONTEXT_CONFIRMED", source: "confirmedContext", detail: null },
+      ruleAnalysis: { state: "RUNNING", source: "ruleAssessments", detail: "40/41" },
+      gate: { state: "QUEUED", source: "ruleClaims", detail: null },
+    },
+  };
+
+  const steps = normalizeAssessmentRuntime({
+    assessmentId: "asm-lifecycle",
+    timeline: withLifecycle,
+  }).workflow.steps;
+  const statusOf = (id: string) =>
+    steps.find((step) => step.id === id)?.status;
+
+  assert.equal(
+    statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner),
+    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+  );
+  assert.equal(
+    statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis),
+    NORMALIZED_WORKFLOW_STEP_STATUSES.running,
+  );
+  assert.equal(
+    statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate),
+    NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+  );
+});
+
+test("an assessment from before the lifecycle existed still renders", () => {
+  // Old API/snapshot: no stageLifecycle at all. The event-derived projection
+  // stays in charge instead of the sidebar breaking.
+  const steps = normalizeAssessmentRuntime({
+    assessmentId: "asm-legacy",
+    timeline: rerunTimeline("asm-legacy", REPOSITORY_SCAN_JOB_STATUSES.completed),
+  }).workflow.steps;
+
+  assert.ok(steps.length > 0);
+  assert.equal(
+    steps.find((step) => step.id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner)
+      ?.status,
+    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
   );
 });

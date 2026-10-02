@@ -7,7 +7,6 @@ sources:
   - docs/specs/functional-requirements.md
   - docs/specs/non-functional-requirements.md
   - docs/specs/requirements-traceability-summary.md
-  - docs/specs/scanner-spec.md
   - docs/specs/legal-matching-domain-spec.md
   - docs/architecture/architecture.md
   - docs/architecture/multi-agent-system-architecture.md
@@ -41,7 +40,7 @@ LCSP must not feel like a chatbot, legal opinion generator, or certification por
 | Assessment overview | Assessment row | Show workflow stage, blockers, readiness, next action, and audit refs |
 | WizardProfile | Overview / stepper | Capture business/legal context in non-technical language |
 | Repository connection | Overview / stepper | Connect read-only GitHub repository and separate OAuth identity from repository authorization |
-| Snapshot and scan | Repository step | Select commit, create snapshot, trigger/monitor Python scanner |
+| Snapshot and scan | Repository step | Select commit, create snapshot, trigger/monitor managed repository analysis |
 | Evidence review | Scan completed | Review redacted findings, AIUsageFlow, confidence, limitations, and evidence refs |
 | Conflict resolution | Overview / blocker / task list | Compare declared and detected facts; Manager resolves with rationale |
 | VerifiedProfile review | Conflict-free state | Review merged facts, evidence provenance, and version |

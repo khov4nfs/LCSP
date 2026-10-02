@@ -1,10 +1,21 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from langchain.messages import AIMessage
 
 from tools.common.capabilities.reporting.report.final_report.final_report_boundary import FinalReportBoundary
 from tools.common.capabilities.reporting.report.final_report.final_report_generator import FinalReportGenerator
+
+
+@pytest.fixture(autouse=True)
+def _offline_agent_models(monkeypatch):
+    """Agents are built with create_deep_agent; keep model construction offline."""
+    monkeypatch.setattr(
+        "tools.common.capabilities.reporting.report.final_report.final_report_generator.resolve_agent_model",
+        lambda role: f"model:{role}",
+    )
 
 
 def _context() -> dict:
@@ -132,7 +143,7 @@ def test_t05_citation_references():
         invoke=MagicMock(return_value={"messages": [AIMessage(content="Summary.")]})
     )
     with patch(
-        "tools.common.capabilities.reporting.report.final_report.final_report_generator.create_agent",
+        "tools.common.capabilities.reporting.report.final_report.final_report_generator.create_deep_agent",
         return_value=agent,
     ):
         content = FinalReportGenerator().generate(

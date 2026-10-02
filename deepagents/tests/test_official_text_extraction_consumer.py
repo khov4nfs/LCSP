@@ -14,7 +14,7 @@ from tools.legal.sources.extraction.official_text_extraction_boundary import (
 from tools.legal.sources.extraction.official_text_extraction_repository import (
     OfficialTextExtractionRepository,
 )
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def _docx_fixture() -> bytes:

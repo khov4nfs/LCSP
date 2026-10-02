@@ -51,9 +51,6 @@ export function useConnectGitHubRepositoryMutation() {
         queryClient.invalidateQueries({
           queryKey: apiQueryKeys.githubIntegration.repositories(),
         }),
-        queryClient.invalidateQueries({
-          queryKey: apiQueryKeys.auth.repositories(),
-        }),
       ]);
     },
   });

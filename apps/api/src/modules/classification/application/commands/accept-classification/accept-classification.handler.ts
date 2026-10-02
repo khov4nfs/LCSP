@@ -39,7 +39,7 @@ import {
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
 
-import { isRecord } from "@lcsp/contracts/shared";
+import { cleanString as clean, isRecord } from "@lcsp/contracts/shared";
 
 import {
   toPrismaClassificationGuardrailStatus,
@@ -456,10 +456,6 @@ function isMachineLimitationArray(value: unknown): boolean {
         typeof item === "string" && ENGINEERING_LIMITATION_CODE_SET.has(item),
     )
   );
-}
-
-function clean(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function nonNegativeInteger(value: unknown): number {

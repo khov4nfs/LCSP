@@ -18,7 +18,6 @@ import { httpRequest, problemCode, successBody } from "./support/http.js";
 import { AppModule } from "../src/app.module.js";
 import {
   TEST_DATABASE_URL,
-  ensureTestMfaEncryptionKey,
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
@@ -41,7 +40,6 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
-    ensureTestMfaEncryptionKey();
     pushPrismaSchema();
 
     prisma = new PrismaClient({

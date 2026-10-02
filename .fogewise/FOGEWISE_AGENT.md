@@ -2,15 +2,15 @@
 
 Project-specific deployment rules for Fogewise production.
 
-Read `.fogewise/README.md` before changing deployment topology.
+Read `docs/FOGEWISE_DEPLOYMENT.md` before changing deployment topology.
 
 ## Source of truth
 
 - `.fogewise/deploy.yml` is the single source of truth for Fogewise topology.
-- `.fogewise/README.md` documents the current Fogewise Deploy v2 contract and LCSP topology.
+- `docs/FOGEWISE_DEPLOYMENT.md` documents the current Fogewise Deploy contract and LCSP topology.
 - Do not add Fogewise metadata to `package.json`.
-- Do not commit repository-owned production Compose files.
-- Do not put application secrets, env variable names, internal URLs, image tags, host ports, registry credentials, or build arguments in `deploy.yml`.
+- Do not make `ecosystem.config.cjs` or `redeploy.sh` the Fogewise production authority.
+- Do not put application secrets, host ports, registry credentials, or build arguments in `deploy.yml`.
 
 ## Manifest contract
 
@@ -23,6 +23,11 @@ services:
       - <optional-platform-dependency>
     command:
       - <optional-runtime-command-arg>
+    environment:
+      OPTIONAL_NON_SECRET_NAME: <optional-runtime-value>
+    dockerSocket: <optional-boolean>
+    extraHosts:
+      - <optional-host-gateway-entry>
 ```
 
 Semantics:
@@ -31,6 +36,9 @@ Semantics:
 - `route` is optional. When present, the service is public through Caddy.
 - `requires` attaches the service to approved Fogewise shared infrastructure such as `redis` or `rabbitmq`.
 - `command` is an optional Docker CMD override. Image `ENTRYPOINT` remains active.
+- `environment` is an optional scalar map for non-secret runtime topology values. Secret values must stay in the VPS environment and may be referenced by placeholder only.
+- `dockerSocket: true` is allowed only for trusted LCSP runtime infrastructure that must create or clean up repository sandbox containers.
+- `extraHosts` is optional and should only be used when a Docker service must reach a host-local dependency.
 
 Do not add `type`, `port`, `hostPort`, `dockerServiceName`, `runtimeEnv`, `buildEnv`, or similar metadata.
 
@@ -62,15 +70,32 @@ Internet -> Caddy -> web:8080
 
 api                    <-> fogewise-rabbitmq
 api                    <-> fogewise-redis
-api                    -> managed-deep-agent:8080
-managed-deep-agent      -> api:8080
+agent-runtime          <-> fogewise-rabbitmq
+agent-runtime          -> agent-runtime-server:8000
+agent-runtime-server   -> api:8080
+agent-runtime-server   -> fogewise-postgres
+agent-runtime-server   -> Docker repository sandboxes
 ```
 
 The NestJS `api` service intentionally has no public `/api` Fogewise route because Next.js owns the public `/api/*` BFF routes and calls NestJS internally through Docker DNS.
 
-The Managed Deep Agent service uses `path: deepagents` and the image `ENTRYPOINT` (`python entrypoint.py`). It remains internal and must not publish host ports. Do not reintroduce separate `ConsumerBase` worker services for scanner, assessment, reporting, targeted reanalysis, or legal-corpus jobs.
+The LCSP Agent Runtime is split into two internal Fogewise services:
 
-Repository scan outbox commands are still published by NestJS through RabbitMQ. The Managed Deep Agent service runs a single generic RabbitMQ bridge that derives queue bindings from the invocation boundary manifest and dispatches each message to the matching boundary. Do not add API-side hardcoded MDA routing predicates for individual event types.
+- `agent-runtime-server` uses `path: deepagents-langgraph` and runs the native
+  LCSP-owned LangGraph HTTP runtime that exports the `lcsp-agent` graph without
+  requiring LangGraph Platform or LangSmith entitlement.
+- `agent-runtime` uses `path: deepagents` and runs the image `ENTRYPOINT`
+  (`python entrypoint.py`) with `LCSP_AGENT_RUNTIME_ROLE=bridge`.
+
+Both services remain internal and must not publish host ports. Do not
+reintroduce separate `ConsumerBase` worker services for scanner, assessment,
+reporting, targeted reanalysis, or legal-corpus jobs.
+
+Repository scan outbox commands are still published by NestJS through RabbitMQ.
+The `agent-runtime` bridge derives queue bindings from the invocation boundary
+manifest and dispatches each message to the matching boundary through
+`agent-runtime-server`. Do not add API-side hardcoded agent-runtime routing
+predicates for individual event types.
 
 `audit-export` is not an active Fogewise worker in the current MVP topology.
 
@@ -121,9 +146,9 @@ Expected permissions:
 /srv/apps/<repo>/.fogewise/deploy.yml root:root 0644
 ```
 
-Managed Deep Agents load the nearest `.env` file at startup with
-`override=False`, so any process environment injected by the deployer or process
-manager still takes precedence.
+The LCSP entrypoint loads the nearest `.env` file at startup with
+`override=False`, so any process environment injected by Fogewise still takes
+precedence.
 
 Generated state:
 
@@ -149,21 +174,24 @@ Examples of application-owned production env values:
 ```text
 LCSP_API_BASE_URL=http://api:8080
 NESTJS_API_BASE_URL=http://api:8080
+LCSP_AGENT_SERVER_URL=http://agent-runtime-server:8000
 ```
 
-Fogewise does not inject those env names. It only guarantees service DNS/network topology.
+Fogewise may inject non-secret topology env names declared in `deploy.yml`.
+Secrets such as `LANGGRAPH_CHECKPOINT_DATABASE_URL` remain VPS-owned and are
+referenced by placeholder, not committed as values.
 
-`requires: [redis]` and `requires: [rabbitmq]` attach a service to `fogewise-network`. Shared infrastructure connection URIs remain application-owned env configuration.
+`requires: [redis]`, `requires: [rabbitmq]`, and `requires: [postgres]` attach a service to `fogewise-network`. Shared infrastructure connection URIs remain application-owned env configuration. `agent-runtime-server` must declare `requires: [postgres]` because its durable checkpointer connects to `fogewise-postgres`.
 
 ## Health and readiness
 
-Fogewise Deploy v2 behavior:
+Fogewise Deploy behavior:
 
 - image has Docker `HEALTHCHECK` -> wait for `healthy`;
 - image has no Docker `HEALTHCHECK` -> wait for `running`;
 - public service -> also resolve and verify its dynamic loopback TCP port before rendering Caddy.
 
-Python workers expose `/health` on container port `8080` through their Docker health check only. That port must not be published publicly.
+Python workers expose `/health` on container port `8080` through their Docker health check only. The internal `agent-runtime-server` image probes `/health` on port `8000`. Neither port must be published publicly.
 
 ## Secrets and logs
 
@@ -194,15 +222,16 @@ For v1-style manifests with routes such as `/api` and `/`, more-specific routes 
 
 ## Required deployer
 
-LCSP requires `fogewise-deploy` v2 or newer:
+LCSP requires `fogewise-deploy` v3 or newer:
 
 ```bash
 /usr/local/sbin/fogewise-deploy --version
 ```
 
-Do not deploy the current LCSP manifest with a v1 deployer that requires every service to have `route`.
+Do not deploy the current LCSP manifest with a v1/v2 deployer that requires
+every service to have `route` or cannot expand environment/image placeholders.
 
-Fogewise Deploy v2 must remain backward-compatible with projects such as `tasks-dash` where all declared services are public and use v1-style `path + route + requires` entries.
+Fogewise Deploy v3 must remain backward-compatible with projects such as `tasks-dash` where all declared services are public and use v1-style `path + route + requires` entries.
 
 ## Change discipline
 
@@ -211,4 +240,4 @@ Fogewise Deploy v2 must remain backward-compatible with projects such as `tasks-
 - Do not reintroduce source rsync or VPS-side application builds.
 - Do not add fixed host ports.
 - Do not expose background workers through Caddy.
-- When topology or Fogewise semantics change, update both `deploy.yml` and `.fogewise/README.md` in the same PR.
+- When topology or Fogewise semantics change, update both `deploy.yml` and `docs/FOGEWISE_DEPLOYMENT.md` in the same PR.

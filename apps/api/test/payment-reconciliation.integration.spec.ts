@@ -400,47 +400,6 @@ describe("LCSP-310 payment reconciliation", () => {
     ).toEqual([{ actorId: null, correlationId: "corr-expired-settlement" }]);
   });
 
-  it("keeps payment credit and reservation projections canonical when concurrent", async () => {
-    const { a, wallet, order } = await setupOrder();
-    await accounting.appendLedger({
-      userId: a.id,
-      walletId: wallet.id,
-      deltaCredits: 100n,
-      idempotencyKey: "seed-race",
-      source: "TEST",
-    });
-    await Promise.allSettled([
-      payments.reconcilePayment({
-        provider: "SEPAY",
-        providerTransactionId: "TX-RACE",
-        paymentCode: order.paymentCode,
-        amountMinorUnits: 100000n,
-      }),
-      accounting.reserveCredits({
-        userId: a.id,
-        amountCredits: 150n,
-        idempotencyKey: "reserve-race",
-      }),
-    ]);
-    const w = await prisma.billingWallet.findUniqueOrThrow({
-      where: { userId: a.id },
-    });
-    const entries = await prisma.creditLedgerEntry.findMany({
-      where: { walletId: w.id },
-    });
-    const reservations = await prisma.billingReservation.findMany({
-      where: { walletId: w.id, status: "RESERVED" },
-    });
-    const ledger = entries.reduce((sum, entry) => sum + entry.deltaCredits, 0n);
-    const reserved = reservations.reduce(
-      (sum, item) => sum + item.amountCredits,
-      0n,
-    );
-    expect(w.availableCredits).toBe(ledger - reserved);
-    expect(w.reservedCredits).toBe(reserved);
-    expect(w.availableCredits >= 0n).toBe(true);
-  });
-
   it("rebuilds the ledger projection independently for each user account", async () => {
     const ownerA = await setupOrder();
     const ownerB = await setupOrder();
@@ -458,10 +417,15 @@ describe("LCSP-310 payment reconciliation", () => {
       idempotencyKey: "projection-user-b-credit",
       source: "TEST",
     });
-    await accounting.reserveCredits({
-      userId: ownerA.a.id,
-      amountCredits: 40n,
-      idempotencyKey: "projection-user-a-reservation",
+    // Legacy held credit still counts against the available balance.
+    await prisma.billingReservation.create({
+      data: {
+        userId: ownerA.a.id,
+        walletId: ownerA.wallet.id,
+        amountCredits: 40n,
+        remainingCredits: 40n,
+        status: "RESERVED",
+      },
     });
 
     const [projectionA, projectionB] = await Promise.all([
@@ -484,46 +448,6 @@ describe("LCSP-310 payment reconciliation", () => {
     expect(
       await prisma.creditLedgerEntry.count({ where: { userId: ownerB.a.id } }),
     ).toBe(1);
-  });
-
-  it("serializes concurrent reservations so one user cannot overspend", async () => {
-    const owner = await setupOrder();
-    await accounting.appendLedger({
-      userId: owner.a.id,
-      walletId: owner.wallet.id,
-      deltaCredits: 100n,
-      idempotencyKey: "reservation-race-account-credit",
-      source: "TEST",
-    });
-    const results = await Promise.allSettled([
-      accounting.reserveCredits({
-        userId: owner.a.id,
-        amountCredits: 80n,
-        idempotencyKey: "reservation-race-a",
-      }),
-      accounting.reserveCredits({
-        userId: owner.a.id,
-        amountCredits: 80n,
-        idempotencyKey: "reservation-race-b",
-      }),
-    ]);
-    expect(
-      results.filter((result) => result.status === "fulfilled"),
-    ).toHaveLength(1);
-    expect(
-      results.filter((result) => result.status === "rejected"),
-    ).toHaveLength(1);
-    const wallet = await prisma.billingWallet.findUniqueOrThrow({
-      where: { userId: owner.a.id },
-    });
-    expect(wallet.availableCredits).toBe(20n);
-    expect(wallet.reservedCredits).toBe(80n);
-    const ledger = await prisma.creditLedgerEntry.findMany({
-      where: { userId: owner.a.id },
-    });
-    expect(ledger.reduce((sum, entry) => sum + entry.deltaCredits, 0n)).toBe(
-      100n,
-    );
   });
 
   it("allows an Admin to resolve an unmatched exact payment into the selected order owner", async () => {

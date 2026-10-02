@@ -11,8 +11,12 @@ import type {
 import { getAssessmentArtifactAvailability } from "./assessment-artifact-client";
 import {
   buildSubmitInterviewAnswerCommand,
+  continueAssessmentPipeline,
   getAssessmentInterviewState,
+  getAssessmentInterviewSourceSnippet,
+  pauseAssessmentInterviewTurn,
   recordAssessmentInterviewBlockedAction,
+  resumeAssessmentInterviewTurn,
   submitAssessmentInterviewAnswer,
   submitAssessmentPostFindingDecision,
 } from "./assessment-interview-client";
@@ -55,16 +59,29 @@ export function useAssessmentInterviewStateQuery(
   });
 }
 
+export function useAssessmentInterviewSourceSnippetQuery(
+  assessmentId: string,
+  questionId: string,
+) {
+  return useQuery({
+    queryKey: apiQueryKeys.assessment.interviewSourceSnippet(
+      assessmentId,
+      questionId,
+    ),
+    queryFn: () =>
+      getAssessmentInterviewSourceSnippet(assessmentId, questionId),
+    enabled: assessmentId.length > 0 && questionId.length > 0,
+  });
+}
+
 export function useAssessmentArtifactsQuery(assessmentId: string) {
+  // Refreshed by the workspace runtime SSE stream (workspace-runtime-provider.tsx),
+  // which invalidates this query on every runtime event for the assessment —
+  // no HTTP polling needed here.
   return useQuery({
     queryKey: apiQueryKeys.assessment.artifacts(assessmentId),
     queryFn: () => getAssessmentArtifactAvailability(assessmentId),
     enabled: assessmentId.length > 0,
-    refetchInterval: (query) => {
-      // A missing artifact projection is a valid pre-artifact state. Once the
-      // endpoint reports it, stop polling until an explicit invalidation.
-      return query.state.data === null ? false : 5_000;
-    },
   });
 }
 
@@ -111,6 +128,50 @@ export function useAssessmentInterviewBlockedActionMutation(
       await queryClient.invalidateQueries({
         queryKey: apiQueryKeys.assessment.interview(assessmentId),
       });
+    },
+  });
+}
+
+export function useInterruptAssessmentInterviewMutation(assessmentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => pauseAssessmentInterviewTurn(assessmentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.assessment.interview(assessmentId),
+      });
+    },
+  });
+}
+
+export function useResumeAssessmentInterviewMutation(assessmentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => resumeAssessmentInterviewTurn(assessmentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.assessment.interview(assessmentId),
+      });
+    },
+  });
+}
+
+export function useContinueAssessmentPipelineMutation(assessmentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => continueAssessmentPipeline(assessmentId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.assessment.interview(assessmentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.assessment.classification(assessmentId),
+        }),
+      ]);
     },
   });
 }
@@ -193,9 +254,6 @@ export function useStartRepositoryAnalysisMutation(assessmentId: string) {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: apiQueryKeys.assessment.readiness(assessmentId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: apiQueryKeys.auth.repositories(),
         }),
       ]);
     },

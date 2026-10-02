@@ -81,10 +81,21 @@ class AIUsageFlowCallbackPayload(BaseModel):
 
 
 class SettledUsagePayload(BaseModel):
+    """Provider-reported usage telemetry for one model invocation.
+
+    Carries identity and provider-reported token counts only. There is no
+    reservation, price, or monetary field: assessment execution never debits a
+    wallet, so nothing here may imply a charge.
+
+    Fields: assessmentId, runId, invocationId, agentRole, provider, model,
+    providerResponseId?, effectiveRuntimeModel?, inputTokens?, cachedInputTokens?,
+    cacheWriteTokens?, outputTokens?, reasoningTokens?, totalTokens?, occurredAt.
+    Token counts are decimal strings and only present when the provider reported them.
+    """
+
     model_config = ConfigDict(extra="forbid")
     assessmentId: str
     runId: str
-    reservationId: str
     invocationId: str
     agentRole: str
     provider: str
@@ -98,34 +109,6 @@ class SettledUsagePayload(BaseModel):
     reasoningTokens: Optional[str] = None
     totalTokens: Optional[str] = None
     occurredAt: str
-
-
-class BillingReservationPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    assessmentId: str
-    runId: str
-    amountCredits: str
-    maxChargeCredits: str
-    provider: str
-    model: str
-    maxInputTokens: str
-    maxInputBytes: str
-    maxOutputTokens: str
-    maxReasoningTokens: str
-    maxInvocations: str
-    authorizedModels: List[Dict[str, str]]
-    idempotencyKey: str
-
-
-class BillingReservationReleasePayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    assessmentId: str
-
-
-class BillingReservationClaimPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    assessmentId: str
-    invocationId: str
 
 
 class ConflictDetectionCallbackPayload(BaseModel):

@@ -32,14 +32,10 @@ test.describe("Admin Billing & Revenue release gate", () => {
       page.getByText("Administrator", { exact: true }),
     ).toBeVisible();
     await expect(page.getByText("₫124,500,000")).toBeVisible();
-    await expect(page.getByText("₫96,800,000")).toBeVisible();
     await expect(page.getByText("3 events")).toBeVisible();
     await expect(page.getByText("12 events")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Settled top-up trend" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Usage pricing policy" }),
     ).toBeVisible();
     await expect(page.getByRole("columnheader")).toHaveText([
       "Order",

@@ -15,9 +15,12 @@ const requiredReleaseGateCommands = [
 
 test("LCSP-278 release gate keeps static, web, and frozen spec CI coverage", () => {
   assert.match(workflow, /pull_request:\s*\n\s+branches:\s+\["\*\*"\]/);
-  assert.match(workflow, /push:\s*\n\s+branches:\s+\[develop\]/);
+  assert.match(workflow, /push:\s*\n\s+branches:\s+\[main, develop\]/);
   assert.match(workflow, /workflow_dispatch:/);
-  assert.match(workflow, /release_gate:\s*\$\{\{\s*steps\.filter\.outputs\.release_gate\s*\}\}/);
+  assert.match(
+    workflow,
+    /release_gate:\s*\$\{\{\s*steps\.filter\.outputs\.release_gate\s*\}\}/,
+  );
   assert.match(workflow, /release-gate-static:/);
   assert.match(workflow, /web-production-build:/);
   assert.match(workflow, /frozen\/interview-agent-frozen\/\*\*/);

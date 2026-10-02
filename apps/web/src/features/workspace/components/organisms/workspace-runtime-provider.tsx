@@ -44,6 +44,7 @@ const initialRuntime: WorkspaceRuntimeContextValue = {
   agentStreamHistoryByAssessmentId: {},
   latestRunIdByAssessmentId: {},
   postFindingByAssessmentId: {},
+  stageLifecycleByAssessmentId: {},
   getAssessmentRuntime: (): WorkspaceRuntimeAssessmentTimeline => ({
     currentRun: null,
     recentActivity: [],
@@ -65,6 +66,8 @@ const AGENT_STREAM_VISIBLE_EVENT_LIMIT = 5_000;
 const AGENT_STREAM_HISTORY_PAGE_LIMIT = 5_000;
 
 export type ScopedAgentStreamSource = {
+  onopen?: ((event: Event) => void) | null;
+  onerror?: ((event: Event) => void) | null;
   addEventListener: (
     type: "workspace.agent-stream",
     listener: (event: MessageEvent<string>) => void,
@@ -77,9 +80,13 @@ export type ScopedAgentStreamSource = {
 };
 
 export type ScopedAgentStreamEntry = {
-  source: ScopedAgentStreamSource;
+  source: ScopedAgentStreamSource | null;
   subscribers: number;
   onAgentStream: (event: MessageEvent<string>) => void;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
+  attempts: number;
+  stopped: boolean;
+  connect: () => void;
 };
 
 export function WorkspaceRuntimeProvider({
@@ -263,6 +270,11 @@ export function WorkspaceRuntimeProvider({
         assessmentId,
         appendAgentStreamEvent,
         scopedAgentStreams: scopedAgentStreams.current,
+        replayAgentStreamHistory: (replayAssessmentId) =>
+          loadAgentStreamHistoryPage(replayAssessmentId, {
+            cursor: null,
+            initial: true,
+          }),
       });
     },
     [appendAgentStreamEvent, loadAgentStreamHistoryPage],
@@ -291,6 +303,10 @@ export function WorkspaceRuntimeProvider({
         const fingerprint = runtimeFingerprint(parsed);
         if (latestFingerprint.current !== fingerprint) {
           latestFingerprint.current = fingerprint;
+          // Runtime outcomes can change lifecycle status (e.g. AI not detected).
+          void queryClient.invalidateQueries({
+            queryKey: apiQueryKeys.workspace.assessments(),
+          });
           for (const assessmentId of affectedAssessmentIds(parsed)) {
             void queryClient.invalidateQueries({
               queryKey: apiQueryKeys.assessment.interview(assessmentId),
@@ -307,6 +323,9 @@ export function WorkspaceRuntimeProvider({
             });
             void queryClient.invalidateQueries({
               queryKey: apiQueryKeys.assessment.classification(assessmentId),
+            });
+            void queryClient.invalidateQueries({
+              queryKey: apiQueryKeys.assessment.artifacts(assessmentId),
             });
           }
         }
@@ -364,11 +383,7 @@ export function WorkspaceRuntimeProvider({
       stopped = true;
       clearTimeout(retryTimer);
       for (const entry of activeScopedAgentStreams.values()) {
-        entry.source.removeEventListener(
-          "workspace.agent-stream",
-          entry.onAgentStream,
-        );
-        entry.source.close();
+        closeScopedAssessmentRuntimeStream(entry);
       }
       activeScopedAgentStreams.clear();
       source.removeEventListener("workspace.runtime", onRuntime);
@@ -427,11 +442,15 @@ export function subscribeScopedAssessmentRuntimeStream({
   assessmentId,
   appendAgentStreamEvent,
   scopedAgentStreams,
+  replayAgentStreamHistory,
+  reconnectDelayMs = defaultScopedAgentStreamReconnectDelayMs,
   createEventSource = (url) => new EventSource(url),
 }: {
   assessmentId: string;
   appendAgentStreamEvent: (event: MessageEvent<string>) => boolean;
   scopedAgentStreams: Map<string, ScopedAgentStreamEntry>;
+  replayAgentStreamHistory?: (assessmentId: string) => Promise<unknown> | unknown;
+  reconnectDelayMs?: (attempt: number) => number;
   createEventSource?: (url: string) => ScopedAgentStreamSource;
 }): () => void {
   const scopedAssessmentId = assessmentId.trim();
@@ -449,18 +468,44 @@ export function subscribeScopedAssessmentRuntimeStream({
     };
   }
 
-  const source = createEventSource(
-    workspaceRuntimeEventsUrl(scopedAssessmentId, true),
-  );
   const onAgentStream = (event: MessageEvent<string>) => {
     appendAgentStreamEvent(event);
   };
-  source.addEventListener("workspace.agent-stream", onAgentStream);
-  scopedAgentStreams.set(scopedAssessmentId, {
-    source,
+  const entry: ScopedAgentStreamEntry = {
+    source: null,
     subscribers: 1,
     onAgentStream,
-  });
+    reconnectTimer: null,
+    attempts: 0,
+    stopped: false,
+    connect: () => {
+      if (entry.stopped) return;
+      const source = createEventSource(
+        workspaceRuntimeEventsUrl(scopedAssessmentId, true),
+      );
+      entry.source = source;
+      source.addEventListener("workspace.agent-stream", onAgentStream);
+      source.onopen = () => {
+        entry.attempts = 0;
+      };
+      source.onerror = () => {
+        cleanupScopedAgentStreamSource(entry);
+        const delay = reconnectDelayMs(entry.attempts++);
+        entry.reconnectTimer = setTimeout(() => {
+          entry.reconnectTimer = null;
+          void Promise.resolve(replayAgentStreamHistory?.(scopedAssessmentId))
+            .catch(() => undefined)
+            .then(() => {
+              if (!entry.stopped) {
+                entry.connect();
+              }
+            });
+        }, delay);
+      };
+    },
+  };
+  scopedAgentStreams.set(scopedAssessmentId, entry);
+  entry.connect();
 
   return () => {
     releaseScopedAssessmentRuntimeStream(
@@ -478,12 +523,33 @@ function releaseScopedAssessmentRuntimeStream(
   if (!current) return;
   current.subscribers -= 1;
   if (current.subscribers > 0) return;
-  current.source.removeEventListener(
-    "workspace.agent-stream",
-    current.onAgentStream,
-  );
-  current.source.close();
+  closeScopedAssessmentRuntimeStream(current);
   scopedAgentStreams.delete(scopedAssessmentId);
+}
+
+function defaultScopedAgentStreamReconnectDelayMs(attempt: number): number {
+  return Math.min(1000 * 2 ** Math.min(attempt, 5), 30000);
+}
+
+function closeScopedAssessmentRuntimeStream(entry: ScopedAgentStreamEntry) {
+  entry.stopped = true;
+  if (entry.reconnectTimer !== null) {
+    clearTimeout(entry.reconnectTimer);
+    entry.reconnectTimer = null;
+  }
+  cleanupScopedAgentStreamSource(entry);
+}
+
+function cleanupScopedAgentStreamSource(entry: ScopedAgentStreamEntry) {
+  if (entry.source === null) return;
+  entry.source.removeEventListener(
+    "workspace.agent-stream",
+    entry.onAgentStream,
+  );
+  entry.source.onopen = null;
+  entry.source.onerror = null;
+  entry.source.close();
+  entry.source = null;
 }
 
 export function mergeAgentStreamEvents(
@@ -538,10 +604,15 @@ function compareAgentStreamEvents(
   left: AssessmentAgentStreamEvent,
   right: AssessmentAgentStreamEvent,
 ) {
-  const sequence = left.sequence - right.sequence;
-  if (sequence !== 0) return sequence;
+  if (left.runId === right.runId) {
+    const sequence = left.sequence - right.sequence;
+    if (sequence !== 0) return sequence;
+  }
   const emittedAt = left.emittedAt.localeCompare(right.emittedAt);
   if (emittedAt !== 0) return emittedAt;
+  if (left.runId !== right.runId) {
+    return left.runId.localeCompare(right.runId);
+  }
   return left.eventId.localeCompare(right.eventId);
 }
 
@@ -565,6 +636,8 @@ function withAgentStreamEvents(
       connectionState: runtime.connectionState,
       lastEmittedAt: runtime.emittedAt,
       postFinding: runtime.postFindingByAssessmentId[assessmentId] ?? null,
+      stageLifecycle:
+        runtime.stageLifecycleByAssessmentId[assessmentId] ?? null,
     }),
   };
 }
@@ -635,6 +708,6 @@ export function useWorkspaceRuntime() {
   return useContext(WorkspaceRuntimeContext);
 }
 
-export const __workspaceRuntimeTestUtils = {
+const __workspaceRuntimeTestUtils = {
   parseRuntimeEvent,
 };

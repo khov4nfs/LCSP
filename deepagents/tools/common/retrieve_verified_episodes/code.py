@@ -5,16 +5,17 @@ from __future__ import annotations
 from typing import Any
 
 from langchain.tools import ToolRuntime, tool
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from memory_policy.episodes import (
     episode_retrieval_enabled,
     retrieve_verified_episodes_from_gateway,
 )
 from orchestration.context import LCSPRunContext
+from tools.common.runtime_envelope import RuntimeInjectedInput
 
 
-class RetrieveVerifiedEpisodesRequest(BaseModel):
+class RetrieveVerifiedEpisodesRequest(RuntimeInjectedInput):
     """Exact owner filter; trusted runtime supplies assessment/rule/artifact scope."""
 
     model_config = ConfigDict(extra="forbid")

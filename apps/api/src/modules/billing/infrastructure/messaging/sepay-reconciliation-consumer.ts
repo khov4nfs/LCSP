@@ -1,6 +1,5 @@
 import { CommandBus } from "@nestjs/cqrs";
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import {
   BILLING_RECONCILIATION_EVENT_TYPES,
   BILLING_RECONCILIATION_QUEUE_NAMES,
@@ -17,11 +16,9 @@ export class SePayReconciliationConsumer implements OnModuleInit {
   constructor(
     private readonly rabbitMq: RabbitMqClient,
     private readonly commandBus: CommandBus,
-    private readonly config: ConfigService,
   ) {}
 
   onModuleInit(): void {
-    if (!this.config.get<boolean>("outbox.enabled", true)) return;
     void this.rabbitMq
       .consume({
         queue: BILLING_RECONCILIATION_QUEUE_NAMES.sepayWebhookAccepted,

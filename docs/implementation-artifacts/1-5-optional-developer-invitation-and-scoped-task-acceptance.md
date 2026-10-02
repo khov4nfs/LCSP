@@ -219,7 +219,6 @@ GPT-5 Codex
 - packages/i18n/src/locales/vi/pages.ts
 - packages/i18n/src/types.ts
 - tests/story-1-5.web.test.ts
-- docs/developer/task-index.md
 - docs/implementation/tasks/modules/auth-workspace/11-accept-developer-invitation-endpoint.md
 - docs/implementation/tasks/modules/auth-workspace/12-revoke-developer-membership-endpoint.md
 

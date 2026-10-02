@@ -42,7 +42,7 @@ POSTGRESQL_PGVECTOR_LEGAL_RETRIEVAL_SUPERSEDED
 - `FR-050` đã được định nghĩa lại thành Automatic Trusted Scan Initiation.
 - `FR-051` đã được đánh dấu `REMOVED_FROM_PRODUCT`.
 - Python Worker Platform đã được đặt làm owner của các asynchronous domain workloads.
-- Scanner specs đã bổ sung Syft, Knip, deptry, Semgrep, tree-sitter/custom parser, `ast`/`libcst` và `ts-morph`.
+- Scanner specs/toolchain cũ đã bị loại khỏi repository; active repository analysis dùng LangGraph + native Deep Agents harness + LCSP Docker sandbox và Codebase Memory tùy chọn.
 - Trigger mapping states, domain objects, commands/events và negative paths đã được đưa vào nhiều tài liệu.
 - Readiness report đã ghi đúng kết quả `NOT READY` vì thiếu UX, epics/stories và technical decisions.
 
@@ -94,13 +94,13 @@ Yêu cầu đóng:
 
 ### ADR và technical decisions
 
-Proposal yêu cầu dedicated ADRs cho PBAC, Automatic Trusted Scan Initiation, Python Worker Platform và expanded scanner toolchain, nhưng PR hiện chủ yếu sửa ADR index/ADR-022/ADR-023.
+Proposal yêu cầu dedicated ADRs cho PBAC, Automatic Trusted Scan Initiation, Python Worker Platform và LCSP Agent Runtime repository-analysis runtime, nhưng PR hiện chủ yếu sửa ADR index và các ADR runtime cũ.
 
 Các decision sau có thể chưa cần chọn implementation cụ thể để bắt đầu UX, nhưng phải được ghi là constraint/dependency rõ:
 
 - PBAC engine, storage, cache, invalidation, topology và failure behavior;
 - trigger idempotency key, retry/DLQ, replay authority và recovery;
-- scanner tool failure severity và version/config/ruleset policy;
+- repository-analysis failure/coverage và version/config policy;
 - Python Worker Platform package/process/deployment boundary.
 
 ### Residual implementation wording
@@ -118,7 +118,7 @@ Backend, delivery plan và ADR relationship tables còn một số wording như 
 [x] historical UC-018/FR-045/FR-046/AC-013 separated from active coverage
 [x] docs/README and readiness markers corrected for pre-UX closure
 [x] prior UX artifact removed from active documentation set
-[x] scanner authority consolidation completed
+[x] legacy scanner runtime/toolchain removed; repository-analysis authority consolidated
 [x] ChromaDB vectorless domain sync completed
 [ ] UX rebased after authority-set pruning
 [ ] dedicated ADRs added or explicit pre-story decision records created

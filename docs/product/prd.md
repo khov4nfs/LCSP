@@ -30,8 +30,8 @@ Phase 5.2L là authority hiện hành cho các điểm sau:
 - Structured attestation bị loại khỏi active MVP: `FR-045`, `FR-046`, `UC-018`, `AC-013` và các route/entity/event/audit/report dependency tương ứng là `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Compliance certification, formal legal opinion, direct regulator submission và manual technical evidence JSON upload (`FR-051`) là `REMOVED_FROM_PRODUCT`.
 - `FR-050` không còn là Local/CI scanner report upload. `FR-050` là `AUTOMATIC_TRUSTED_SCAN_INITIATION`.
-- Asynchronous domain workloads thuộc Python Worker Platform. Node.js chỉ còn hợp lệ cho NestJS API, web/tooling và bounded `ts-morph` analyzer CLI.
-- Scanner toolchain bao gồm Syft, Knip, deptry, Semgrep custom rules, tree-sitter/custom parser, Python `ast` + `libcst`, và bounded `ts-morph`.
+- Asynchronous domain workloads thuộc Python Worker Platform. Node.js chỉ còn hợp lệ cho NestJS API và web/tooling; repository analysis không còn phụ thuộc analyzer CLI riêng theo ngôn ngữ.
+- Repository analysis dùng full Deep Agents harness trên commit-pinned repository; Codebase Memory MCP là structural memory tùy chọn và source trực tiếp là evidence authority.
 
 Mọi đoạn PRD cũ bên dưới nhắc attestation, Local/CI upload, manual JSON upload, RBAC, Node.js downstream worker hoặc removed product concepts phải được đọc theo marker Phase 5.2L ở trên.
 
@@ -178,8 +178,8 @@ Nếu chưa thể cung cấp technical evidence, Manager có thể xuất readin
 - Shared customer-facing auth/workspace contracts implemented through TypeScript shared packages, provided public export boundaries are preserved.
 - Web Wizard cho Manager.
 - Python Worker Platform cho tất cả asynchronous domain workloads.
-- Python Scanner Worker thực thi Repository Scan độc lập.
-- Scanner toolchain gồm Syft, Knip, deptry, Python `ast` + `libcst`, TypeScript/JavaScript `ts-morph` CLI, tree-sitter/custom parser và Semgrep custom rules.
+- Repository Deep Agent thực thi Repository Scan trên durable LCSP Docker repository workspace.
+- Repository analysis dùng native filesystem/search/shell/subagent tools và có thể dùng Codebase Memory MCP; không còn language-specific static-scanner toolchain.
 - Kết nối GitHub repository (read-only) và Automatic Trusted Scan Initiation.
 - Tích hợp nhà cung cấp LLM thật (Gemini, Claude, hoặc GPT) cho happy-path risk classification và document generation.
 - Legal corpus bảo toàn provenance từ nguồn chính phủ chính thức, tổ chức thành các phiên bản `LegalCorpusVersion` bất biến.
@@ -358,7 +358,7 @@ Structured human technical attestation maps to historical `FR-045` and `FR-046` 
 
 #### FR-E4-1: Schema completeness gate
 
-System validates required evidence report groups: `assessment_id`, `source_type`, `system_identifier`, `provenance`, `scanner_version` or `report_version`, timestamp/generated_at, scope, privacy_flags, technical_profile, findings array, confidence_per_signal and report_hash.
+System validates required evidence report groups: `assessment_id`, `source_type`, `system_identifier`, `provenance`, `repository_analysis_version` or `report_version`, timestamp/generated_at, scope, privacy_flags, technical_profile, findings array, confidence_per_signal and report_hash.
 
 **Consequences:**
 
@@ -416,7 +416,7 @@ System computes Conflict Score for each conflict.
 
 #### FR-E5-3: Route technical conflicts to Manager
 
-Technical conflicts such as dependency use, false positive/negative, repo/branch/commit or production scope are routed to Manager in MVP. Manager may request re-scan/correction and may consider scanner evidence and coverage limitations. Structured attestation under `FR-046` is `SUPERSEDED_FOR_ACTIVE_MVP`; delegated clarification in `FR-052` is `DEFERRED_POST_MVP`.
+Technical conflicts such as dependency use, false positive/negative, repo/branch/commit or production scope are routed to Manager in MVP. Manager may request re-analysis/correction and may consider repository-analysis evidence and coverage limitations. Structured attestation under `FR-046` is `SUPERSEDED_FOR_ACTIVE_MVP`; delegated clarification in `FR-052` is `DEFERRED_POST_MVP`.
 
 **Consequences:**
 
@@ -560,7 +560,7 @@ System records Wizard answers, timestamps and Manager identity.
 
 #### FR-E8-2: Audit technical evidence metadata
 
-System records evidence source type, provenance, scanner/report version, ruleset version where applicable, timestamp, scope, privacy flags, report hash and evidence status.
+System records evidence source type, provenance, repository-analysis/report version, Deep Agents/tool versions, configuration hash where applicable, timestamp, scope, privacy flags, report hash and evidence status.
 
 **Consequences:**
 
@@ -719,7 +719,7 @@ Technical evidence report must include:
 - `source_type`
 - `system_identifier`
 - `provenance`
-- `scanner_version` or `report_version`
+- `repository_analysis_version` or `report_version`
 - `timestamp` or `generated_at`
 - `scope`
 - `privacy_flags`
@@ -746,11 +746,11 @@ Human technical attestation is `SUPERSEDED_FOR_ACTIVE_MVP`. Prior guardrail disc
 No human assertion can replace these machine-generated or external metadata:
 
 - report hash;
-- scanner version;
-- ruleset version;
+- repository-analysis version;
+- tool/configuration hash;
 - scan timestamp;
 - repo/commit metadata;
-- privacy flags generated by scanner;
+- privacy flags generated by repository analysis;
 - dependency inventory/SBOM;
 - legal corpus version;
 - evidence report integrity;
@@ -770,8 +770,8 @@ No human assertion can replace these machine-generated or external metadata:
 
 Examples:
 
-- Scanner detects dependency/package AI use: Manager resolves or requests re-scan/correction.
-- Scanner false positive/false negative: Manager resolves with evidence review, re-scan/correction, and safe context references; structured attestation under `FR-046` is `SUPERSEDED_FOR_ACTIVE_MVP`.
+- Repository analysis detects evidence of AI-related dependency/package use: Manager resolves or requests re-analysis/correction.
+- Repository-analysis false positive/false negative: Manager resolves with evidence review, re-analysis/correction, and safe context references; structured attestation under `FR-046` is `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Wizard business purpose is wrong: Manager resolves.
 - AI affects decision/workflow: Manager resolves using WizardProfile, TechnicalProfile and AIUsageFlow evidence.
 - Auto decision or human oversight conflict: Manager resolves; structured attestation does not participate in active MVP conflict completion, and delegated clarification remains `DEFERRED_POST_MVP` under `FR-052`.
@@ -792,7 +792,7 @@ LCSP audit trail must record:
 - Wizard answers and versions.
 - Assessment owner and RBAC policy decisions.
 - Evidence source metadata.
-- Scanner/report version and ruleset version where applicable.
+- Repository-analysis engine/model/tool versions and configuration hashes where applicable.
 - Report hash and timestamp.
 - Scope and privacy flags.
 - Evidence gate result and reason.
@@ -895,7 +895,7 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 - Rule review/approval owner is not yet defined.
 - Behavior for incomplete legal corpus in a scenario needs final decision.
 
-### Evidence and Scanner
+### Evidence and Repository Analysis
 
 - GitHub App read-only acceptance by target MVP users needs validation.
 - Scope coverage for monorepos needs definition.
@@ -908,7 +908,7 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 
 - Exact list of optional human-attestable claims remains historical and out of active MVP.
 - RBAC engine/storage/cache/invalidation/topology/failure behavior is `TECHNICAL_DECISION_REQUIRED`.
-- Scanner tool failure severity table is `TECHNICAL_DECISION_REQUIRED`.
+- Repository-analysis failure/coverage policy follows the Agent Runtime contract and fail-closed evidence rules.
 
 ### Reporting
 

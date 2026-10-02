@@ -64,7 +64,7 @@ LCSP handoff templates should assume a polyglot implementation stack rather than
 For LCSP, the primary language categories are:
 
 - TypeScript for API contracts, NestJS modules, Prisma-facing persistence, request validation, RBAC enforcement boundaries, route handlers, outbox writes, and status/read-model APIs.
-- Python for scan-trigger resolution, scanner runtime, TechnicalProfile, AIUsageFlow, reconciliation, legal ingestion/index/matching, classification, gap analysis, and document workers.
+- Python for scan-trigger resolution, repository-analysis runtime, TechnicalProfile, AIUsageFlow, reconciliation, legal ingestion/index/matching, classification, gap analysis, and document workers.
 - JavaScript/TypeScript subprocess analysis for repository scanning, especially `ts-morph`, Knip, and package/ecosystem evidence extraction.
 - SQL/schema language for PostgreSQL/Prisma migrations and persistence contracts.
 - Markdown/YAML for task specs, handoffs, decision records, issue templates, and queue/event contract references.
@@ -781,7 +781,6 @@ Recommended implementation documentation metrics:
 - 100% tasks cite source authority docs.
 - 100% async tasks include queue/event/idempotency/retry/DLQ/audit contracts.
 - 100% legal retrieval tasks include citation allowlist/context-role/versioning contracts.
-- 100% scanner tasks use `docs/specs/scanner-spec.md` as scanner behavior authority.
 - 0 tasks use `docs/archive/` or redirect files as source of truth.
 - 0 tasks introduce implementation scope without traceability to UC/FR/NFR/BR/ADR/AC/story.
 
@@ -807,7 +806,6 @@ The research supports a four-artifact implementation documentation model: implem
 - Task docs must bind product, architecture, UX, specs, implementation, traceability, and verification intent into one actionable packet.
 - Async domain tasks require command/event/queue/idempotency/retry/DLQ/audit contracts.
 - Legal retrieval tasks require ChromaDB vectorless, stable hierarchical legal IDs, context roles, versioning, xref expansion, and citation allowlist behavior.
-- Scanner tasks must use `docs/specs/scanner-spec.md` as the sole scanner behavior authority.
 - TechnicalProfile and AIUsageFlow must remain distinct implementation domains: TechnicalProfile captures technical capability/evidence; AIUsageFlow explains how AI is used in business workflows based on TechnicalProfile trace and TechnicalEvidenceReport claims.
 
 **Technical Recommendations:**
@@ -874,7 +872,7 @@ Archive docs were not treated as authority. External sources were used to verify
 
 ### Current Technical Architecture Patterns
 
-LCSP should document implementation work as a `web + queue + worker` architecture. The NestJS/API boundary handles synchronous user/API workflows, request validation, state handoff, RBAC decision points, persistence writes, outbox records, and read/status projections. The Python Worker Platform owns asynchronous domain workloads such as scan triggers, scanner runtime, TechnicalProfile, AIUsageFlow, reconciliation, legal ingestion/index/matching, classification, gap analysis, document generation, and audit export if retained as a worker flow.
+LCSP should document implementation work as a `web + queue + worker` architecture. The NestJS/API boundary handles synchronous user/API workflows, request validation, state handoff, RBAC decision points, persistence writes, outbox records, and read/status projections. The Python Worker Platform owns asynchronous domain workloads such as scan triggers, repository-analysis runtime, TechnicalProfile, AIUsageFlow, reconciliation, legal ingestion/index/matching, classification, gap analysis, document generation, and audit export if retained as a worker flow.
 
 _Dominant Patterns:_ event-driven workflow, transactional outbox, worker queue processing, structure-first legal retrieval, fail-closed compliance workflow.
 _Architectural Evolution:_ LCSP has moved away from Node worker ambiguity, pgvector legal retrieval, structured attestation, and duplicate scanner authority.

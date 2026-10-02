@@ -7,9 +7,13 @@ import json
 from typing import Any
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import PLANNER_MODEL_SPEC, create_lcsp_agent as create_agent
+from deepagents import create_deep_agent
+from middleware.agent_run_budget import AgentRunBudgetMiddleware
+from middleware.usage_metering import AgentRoleMiddleware
+from tools.common.capabilities.platform.repository_sandbox import current_repository_backend
+from model_policy import resolve_agent_model, resolve_role
 from tools.common.capabilities.evidence.graph.schema.vocabulary import EDGE_TYPES, NODE_TYPES
-from tools.common.capabilities.managed.skill_loader import load_project_skill
+from tools.common.capabilities.agent_runtime.skill_loader import load_project_skill
 
 from .chunk_triage import LegalChunkEngineeringRuleTriage, TRIAGE_SKILL_NAME
 from ..contract.models import (
@@ -25,9 +29,9 @@ PROMPT_VERSION = "legal-to-engineering/v2"
 
 
 class EngineeringRuleCompiler:
-    def __init__(self, model: str = PLANNER_MODEL_SPEC) -> None:
-        self._model = model
-        self.triage = LegalChunkEngineeringRuleTriage(model)
+    def __init__(self, role: str = "legal-compiler", triage_role: str = "legal-chunk-triage") -> None:
+        self._role = role
+        self.triage = LegalChunkEngineeringRuleTriage(triage_role)
 
     def compile(
         self,
@@ -53,9 +57,10 @@ class EngineeringRuleCompiler:
         if not compile_context:
             return []
         triage_skill = load_project_skill(TRIAGE_SKILL_NAME)
-        agent = create_agent(
-            agent_name="lcsp-engineering-rule-compiler",
-            model=self._model,
+        agent = create_deep_agent(
+            name="lcsp-engineering-rule-compiler",
+            model=resolve_agent_model(self._role),
+            backend=current_repository_backend(),
             system_prompt=(
                 "Compile only triage-approved legal evidence into bounded, reusable "
                 "EngineeringRules. Preserve the legal obligation and its timing/conditions; "
@@ -65,7 +70,11 @@ class EngineeringRuleCompiler:
                 f"{triage_skill}"
             ),
             response_format=_engineering_rules_response_schema(),
-            middleware=MODEL_GOVERNANCE_MIDDLEWARE,
+            middleware=[
+                AgentRunBudgetMiddleware(),
+                AgentRoleMiddleware("lcsp-engineering-rule-compiler"),
+                *MODEL_GOVERNANCE_MIDDLEWARE,
+            ],
         )
         result = invoke_with_stream(agent,
             {"messages": [{"role": "user", "content": self._prompt(legal_rule, compile_context)}]},
@@ -127,7 +136,7 @@ class EngineeringRuleCompiler:
                         negative_evidence=negative_evidence,
                     ),
                     "sourceFingerprint": source_fingerprint,
-                    "compilerModel": self._model,
+                    "compilerModel": "{0.provider}:{0.model}".format(resolve_role(self._role)),
                     "compilerVersion": COMPILER_VERSION,
                     "promptVersion": PROMPT_VERSION,
                     "schemaVersion": ENGINEERING_RULE_SCHEMA_VERSION,

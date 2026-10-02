@@ -1,3 +1,4 @@
+import { asRecord as objectRecord } from "@lcsp/contracts/shared";
 import { createHash } from "node:crypto";
 import { Readable } from "node:stream";
 import { createGunzip } from "node:zlib";
@@ -50,18 +51,19 @@ export class AssessmentInterviewSnippetService {
   async resolve(input: {
     assessmentId: string;
     correlationId: string;
-    evidenceReportId: string;
+    evidenceReportId?: string;
     snippetRef: AiDiscoverySnippetRef;
   }): Promise<AssessmentInterviewSourceSnippet> {
     assertSnippetRef(input.snippetRef);
 
     const evidenceReport = await this.prisma.technicalEvidenceReport.findFirst({
       where: {
-        id: input.evidenceReportId,
+        ...(input.evidenceReportId ? { id: input.evidenceReportId } : {}),
         assessmentId: input.assessmentId,
         snapshotId: input.snippetRef.snapshot_id,
         status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
       },
+      orderBy: { createdAt: "desc" },
       select: { evidencePayload: true },
     });
     if (
@@ -199,7 +201,7 @@ function isGovernedSnippetRef(
     const candidateEvidenceHash = candidate.evidence_hash;
     if (
       typeof candidateFilePath !== "string" ||
-      (candidateSymbol !== undefined && typeof candidateSymbol !== "string") ||
+      (candidateSymbol != null && typeof candidateSymbol !== "string") ||
       typeof candidateEvidenceHash !== "string"
     ) {
       return false;
@@ -216,12 +218,6 @@ function isGovernedSnippetRef(
       candidate.snippet_policy === ref.snippet_policy
     );
   });
-}
-
-function objectRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 function assertSnippetRef(ref: AiDiscoverySnippetRef): void {
@@ -255,6 +251,7 @@ async function readFileFromGzipTar(
   const target = normalizeArchivePath(filePath);
 
   let uncompressedBytes = 0;
+  let drainArchiveForCache = false;
   try {
     while (true) {
       const header = await reader.readExactly(TAR_BLOCK_SIZE);
@@ -288,15 +285,17 @@ async function readFileFromGzipTar(
         const body = await reader.readExactly(member.size);
         if (!body) break;
         await reader.skip(paddingFor(member.size));
-        input.destroy();
+        drainArchiveForCache = true;
+        input.unpipe(gunzip);
         gunzip.destroy();
+        input.resume();
         return body;
       }
 
       await reader.skip(memberBytes);
     }
   } finally {
-    input.destroy();
+    if (!drainArchiveForCache) input.destroy();
     gunzip.destroy();
   }
 

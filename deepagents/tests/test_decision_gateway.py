@@ -499,4 +499,4 @@ def test_successful_telemetry_never_contains_secret_values():
 def test_jev_is_not_a_lcsp_model_provider():
     import model_policy
 
-    assert "jev" not in model_policy.PROVIDER_PRESETS
+    assert "jev" not in model_policy._PROVIDERS

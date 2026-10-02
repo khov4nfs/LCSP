@@ -1,3 +1,5 @@
+import type { LlmUsageStatus } from "@lcsp/contracts/billing";
+
 export type WalletRecord = {
   id: string;
   userId: string;
@@ -15,19 +17,16 @@ export type LedgerRecord = {
   referenceId: string | null;
   billingOrderId: string | null;
 };
-export type ReservationRecord = {
+/** Held-credit row created before model use stopped debiting; only drained, never created. */
+export type LegacyReservationRecord = {
   id: string;
   userId: string;
   walletId: string;
-  amountCredits: bigint;
   remainingCredits: bigint;
-  maxInvocations: bigint;
-  invocationsStarted: bigint;
   assessmentId: string | null;
-  runId: string | null;
-  idempotencyKey: string | null;
   status: string;
 };
+
 export type OrderRecord = {
   id: string;
   userId: string;
@@ -73,30 +72,8 @@ export type UsageRecord = {
   outputTokens: bigint | null;
   totalTokens: bigint | null;
   reasoningTokens: bigint | null;
-  pricingSnapshotId: string | null;
   runtimePolicySnapshotId: string | null;
-  reservationId: string | null;
-  chargedCredits: bigint | null;
-  providerCostCredits: bigint | null;
-  customerChargeVnd: bigint | null;
   occurredAt: Date;
-};
-export type PricingRecord = {
-  id: string;
-  provider: string;
-  model: string;
-  inputPricePerMillion: string;
-  cachedInputPricePerMillion?: string;
-  cacheWritePricePerMillion?: string;
-  outputPricePerMillion: string;
-  reasoningPricePerMillion?: string;
-  version: number;
-  effectiveAt: Date;
-  providerCurrency?: string;
-  customerCurrency?: string;
-  markupBps?: bigint;
-  fxRateVndNumerator?: bigint;
-  fxRateVndDenominator?: bigint;
 };
 export type RuntimeModelPolicyRecord = {
   id: string;
@@ -106,10 +83,6 @@ export type RuntimeModelPolicyRecord = {
   policyVersion: string;
   effectiveAt: Date;
 };
-
-export interface AssessmentOwnershipPort {
-  findOwnerId(assessmentId: string): Promise<string | null>;
-}
 
 export interface BillingWalletPort {
   findForUser(userId: string): Promise<WalletRecord | null>;
@@ -134,33 +107,14 @@ export interface CreditLedgerPort {
   }): Promise<LedgerRecord>;
   listForWallet(walletId: string): Promise<LedgerRecord[]>;
 }
-export interface BillingReservationPort {
-  findForUser(userId: string, id: string): Promise<ReservationRecord | null>;
-  findByIdempotencyKey(
+export interface LegacyReservationPort {
+  findForUser(
     userId: string,
-    key: string,
-  ): Promise<ReservationRecord | null>;
-  createReserved(input: {
-    userId: string;
-    walletId: string;
-    amountCredits: bigint;
-    assessmentId?: string;
-    runId?: string;
-    idempotencyKey: string;
-    maxInvocations?: bigint;
-  }): Promise<ReservationRecord>;
-  claimInvocation(input: {
+    id: string,
+  ): Promise<LegacyReservationRecord | null>;
+  listReservedForWallet(walletId: string): Promise<LegacyReservationRecord[]>;
+  releaseReserved(input: {
     reservationId: string;
-    invocationId: string;
-  }): Promise<boolean>;
-  listReservedForWallet(walletId: string): Promise<ReservationRecord[]>;
-  consumeRemaining(input: {
-    reservationId: string;
-    amountCredits: bigint;
-  }): Promise<boolean>;
-  transitionFromReserved(input: {
-    reservationId: string;
-    to: "SETTLED" | "RELEASED";
     timestamp: Date;
   }): Promise<boolean>;
 }
@@ -240,7 +194,6 @@ export interface WebhookEventPort {
   markProcessed(id: string, processedAt: Date): Promise<boolean>;
 }
 export interface LlmUsagePort {
-  findById(id: string): Promise<UsageRecord | null>;
   findByInvocation(
     userId: string,
     invocationId: string,
@@ -264,44 +217,24 @@ export interface LlmUsagePort {
     outputTokens?: bigint;
     reasoningTokens?: bigint;
     totalTokens?: bigint;
-    pricingSnapshotId?: string;
     runtimePolicySnapshotId?: string;
-    reservationId: string;
-    status?: LlmUsageStatus;
+    status: LlmUsageStatus;
     availabilityReason?: string;
-    chargedCredits: bigint;
-    providerCostCredits?: bigint;
-    customerChargeVnd?: bigint;
-    occurredAt?: Date;
+    occurredAt: Date;
   }): Promise<UsageRecord>;
-  updateRetryable(input: {
-    id: string;
-    providerResponseId?: string;
-    inputTokens: bigint;
-    cachedInputTokens?: bigint;
-    cacheWriteTokens?: bigint;
-    outputTokens: bigint;
-    reasoningTokens?: bigint;
-    totalTokens?: bigint;
-    pricingSnapshotId: string;
-    runtimePolicySnapshotId: string;
-    providerCostCredits: bigint;
-    customerChargeVnd: bigint;
-  }): Promise<UsageRecord>;
-}
-export interface PricingSnapshotPort {
-  findById(id: string): Promise<PricingRecord | null>;
-  findApplicable(
-    provider: string,
-    model: string,
-    occurredAt: Date,
-  ): Promise<PricingRecord | null>;
 }
 export interface RuntimeModelPolicyPort {
-  findApplicable(
-    role: string,
-    occurredAt: Date,
-  ): Promise<RuntimeModelPolicyRecord | null>;
+  /**
+   * Get-or-create the immutable snapshot for (role, policyVersion). A version that
+   * already exists with a different provider/model is rejected; rows are never updated.
+   */
+  ensure(input: {
+    role: string;
+    provider: string;
+    model: string;
+    policyVersion: string;
+    effectiveAt: Date;
+  }): Promise<RuntimeModelPolicyRecord>;
 }
 export interface BillingAuditPort {
   append(input: {
@@ -316,15 +249,13 @@ export interface BillingAuditPort {
 export type BillingTransactionRepositories = {
   wallet: BillingWalletPort;
   ledger: CreditLedgerPort;
-  reservation: BillingReservationPort;
+  reservation: LegacyReservationPort;
   order: BillingOrderPort;
   payment: PaymentTransactionPort;
   webhook: WebhookEventPort;
   usage: LlmUsagePort;
-  pricing: PricingSnapshotPort;
   audit: BillingAuditPort;
   runtimePolicy: RuntimeModelPolicyPort;
-  assessment: AssessmentOwnershipPort;
   lockUserAccount(userId: string): Promise<void>;
 };
 export interface BillingTransactionPort {
@@ -335,4 +266,3 @@ export interface BillingTransactionPort {
 }
 
 export const BILLING_TRANSACTION_PORT = Symbol("BILLING_TRANSACTION_PORT");
-import type { LlmUsageStatus } from "@lcsp/contracts/billing";

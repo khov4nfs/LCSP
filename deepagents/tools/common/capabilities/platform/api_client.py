@@ -26,12 +26,11 @@ from tools.common.capabilities.platform.callback_schemas import (
     ConflictDetectionCallbackPayload,
     ClassificationCallbackPayload,
     AuditExportCallbackPayload,
-    BillingReservationPayload,
-    BillingReservationClaimPayload,
-    BillingReservationReleasePayload,
 )
 
 logger = get_logger(__name__)
+
+_AGENT_STREAM_NETWORK_BACKOFF_SECONDS = 2.0
 
 _IDEMPOTENT_CONFLICT_CODES = {
     "FLOW_ALREADY_EXISTS",
@@ -53,9 +52,16 @@ class WorkerCallbackError(Exception):
     redelivery, so an unbounded loop spends real money and never converges.
     """
 
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        error_code: str | None = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.error_code = error_code
         self.callback_client_error = (
             status_code is not None and 400 <= status_code < 500
         )
@@ -156,10 +162,13 @@ class WorkerApiClient:
         self._api_key = api_key
         self._timeout = 30.0
         self._max_retries = 3
+        self._agent_stream_unavailable_until = 0.0
         from tools.common.capabilities.platform.rbac_client import RbacClient
         self.rbac_client = RbacClient(self._base_url, self._api_key)
 
-    def _post_with_retry(self, path: str, payload: dict, *, redact: bool = True) -> dict:
+    def _post_with_retry(
+        self, path: str, payload: dict, *, redact: bool = True, method: str = "POST"
+    ) -> dict:
         """POST a sanitized payload with exponential retry for network/5xx failures.
 
         Known 409 duplicate codes are treated as idempotent success. Other 4xx
@@ -174,9 +183,10 @@ class WorkerApiClient:
         }
         safe_payload = self._redact_callback_payload(payload) if redact else dict(payload)
 
+        send = httpx.put if method == "PUT" else httpx.post
         for attempt in range(self._max_retries):
             try:
-                resp = httpx.post(
+                resp = send(
                     url,
                     json=safe_payload,
                     headers=headers,
@@ -196,12 +206,24 @@ class WorkerApiClient:
                             "status": "duplicate",
                             "correlationId": cid,
                         }
-                    logger.error(
-                        CallbackLogEvent.CLIENT_ERROR,
-                        path=path,
-                        status_code=resp.status_code,
-                        error_code=error_code,
-                    )
+                    if (
+                        resp.status_code == 404
+                        and error_code == "SCAN_JOB_NOT_FOUND"
+                        and path.endswith("/claim")
+                    ):
+                        logger.info(
+                            "SCAN_JOB_CLAIM_STALE_DELIVERY",
+                            path=path,
+                            status_code=resp.status_code,
+                            error_code=error_code,
+                        )
+                    else:
+                        logger.error(
+                            CallbackLogEvent.CLIENT_ERROR,
+                            path=path,
+                            status_code=resp.status_code,
+                            error_code=error_code,
+                        )
                     message = client_error_message(resp.status_code)
                     if error_code:
                         message = f"{error_code}: {message}"
@@ -228,15 +250,21 @@ class WorkerApiClient:
                             status_code=resp.status_code,
                             meta=meta,
                         )
-                    raise WorkerCallbackError(message, status_code=resp.status_code)
+                    raise WorkerCallbackError(
+                        message,
+                        status_code=resp.status_code,
+                        error_code=error_code,
+                    )
 
                 if resp.status_code >= 500:
+                    error_code = self._response_error_code(resp)
                     if attempt < self._max_retries - 1:
                         backoff = 2**attempt
                         logger.warning(
                             CallbackLogEvent.SERVER_ERROR_RETRYING,
                             path=path,
                             status_code=resp.status_code,
+                            error_code=error_code,
                             attempt=attempt + 1,
                             sleep=backoff,
                         )
@@ -246,6 +274,7 @@ class WorkerApiClient:
                         CallbackLogEvent.SERVER_ERROR_TERMINAL,
                         path=path,
                         status_code=resp.status_code,
+                        error_code=error_code,
                     )
                     raise WorkerCallbackError(
                         server_error_message(self._max_retries, resp.status_code)
@@ -460,6 +489,49 @@ class WorkerApiClient:
             resp_data = self._post_with_retry(path, request_payload)
         return CallbackResponse(**resp_data)
 
+    def claim_scan_job(self, scan_job_id: str, payload: dict) -> dict:
+        """Atomically claim a queued scan before repository analysis starts."""
+        path = CallbackPath.SCAN_CLAIM.format(scan_job_id=scan_job_id)
+        response = self._post_with_retry(path, payload)
+        return response if isinstance(response, dict) else {}
+
+    def post_scan_terminal_failure(self, scan_job_id: str, payload: dict) -> None:
+        """Best-effort terminal scan failure callback used by broker watchdogs."""
+        url = f"{self._base_url}{CallbackPath.SCAN_TERMINAL_FAILURE.format(scan_job_id=scan_job_id)}"
+        headers = {
+            WORKER_API_KEY_HEADER: self._api_key,
+            correlationId_HEADER: get_correlationId(),
+        }
+        try:
+            response = httpx.post(
+                url,
+                json=redact_dict(payload),
+                headers=headers,
+                timeout=3.0,
+            )
+            if response.status_code >= 400:
+                error_code = self._response_error_code(response)
+                if response.status_code == 404 and error_code == "SCAN_JOB_NOT_FOUND":
+                    logger.info(
+                        "SCAN_TERMINAL_FAILURE_SKIPPED_STALE_JOB",
+                        scan_job_id=scan_job_id,
+                        status_code=response.status_code,
+                        error_code=error_code,
+                    )
+                    return
+                logger.warning(
+                    "SCAN_TERMINAL_FAILURE_REJECTED",
+                    scan_job_id=scan_job_id,
+                    status_code=response.status_code,
+                    error_code=error_code,
+                )
+        except Exception as exc:
+            logger.warning(
+                "SCAN_TERMINAL_FAILURE_POST_FAILED",
+                scan_job_id=scan_job_id,
+                error=type(exc).__name__,
+            )
+
     def post_interview_progress(self, assessment_id: str, revision: int, phase: str) -> None:
         try:
             response = httpx.post(
@@ -504,6 +576,9 @@ class WorkerApiClient:
 
     def post_agent_stream_event(self, payload: dict) -> None:
         """Submit one best-effort live agent event for the workspace chat stream."""
+        now = time.monotonic()
+        if now < self._agent_stream_unavailable_until:
+            return
         url = f"{self._base_url}{CallbackPath.AGENT_STREAM_EVENT}"
         headers = {
             WORKER_API_KEY_HEADER: self._api_key,
@@ -516,16 +591,24 @@ class WorkerApiClient:
                 headers=headers,
                 timeout=3.0,
             )
+            self._agent_stream_unavailable_until = 0.0
             if response.status_code >= 400:
                 logger.warning(
                     "AGENT_STREAM_EVENT_REJECTED",
                     status_code=response.status_code,
                     error_code=self._response_error_code(response),
+                    event_type=payload.get("event_type"),
+                    run_id=payload.get("run_id"),
+                    client_sequence=payload.get("client_sequence"),
                 )
         except Exception as exc:
+            self._agent_stream_unavailable_until = (
+                time.monotonic() + _AGENT_STREAM_NETWORK_BACKOFF_SECONDS
+            )
             logger.warning(
                 "AGENT_STREAM_EVENT_POST_FAILED",
                 error=type(exc).__name__,
+                retry_after_seconds=_AGENT_STREAM_NETWORK_BACKOFF_SECONDS,
             )
 
     def post_decision_model_event(self, payload: dict) -> None:
@@ -675,38 +758,16 @@ class WorkerApiClient:
         return CallbackResponse(**resp_data)
 
     def post_settled_usage(self, payload: SettledUsagePayload) -> CallbackResponse:
-        """Submit provider-reported usage for fail-closed billing settlement."""
+        """Submit provider-reported usage telemetry for one model invocation.
+
+        Usage is observability only: it carries provider-reported token counts and
+        is never used to reserve, price, or debit customer credits.
+        """
         resp_data = self._post_with_retry(
             CallbackPath.BILLING_USAGE,
             payload.model_dump(exclude_none=True),
         )
         return CallbackResponse(**resp_data)
-
-    def reserve_billing_credits(
-        self, payload: BillingReservationPayload
-    ) -> dict:
-        """Reserve credits for a canonical assessment/run billing group."""
-        return self._post_with_retry(
-            CallbackPath.BILLING_RESERVATION,
-            payload.model_dump(exclude_none=True),
-        )
-
-    def release_billing_reservation(
-        self, reservation_id: str, payload: BillingReservationReleasePayload
-    ) -> dict:
-        """Release unused credits; the API operation is idempotent."""
-        path = CallbackPath.BILLING_RESERVATION_RELEASE.format(
-            reservation_id=reservation_id
-        )
-        return self._post_with_retry(path, payload.model_dump(exclude_none=True))
-
-    def claim_billing_invocation(
-        self, reservation_id: str, payload: BillingReservationClaimPayload
-    ) -> dict:
-        path = CallbackPath.BILLING_RESERVATION_CLAIM.format(
-            reservation_id=reservation_id
-        )
-        return self._post_with_retry(path, payload.model_dump(exclude_none=True))
 
     def post_reconciliation_conflict_callback(
         self, payload: ConflictDetectionCallbackPayload
@@ -814,13 +875,42 @@ class WorkerApiClient:
             raise WorkerCallbackError("Interview initial question response was invalid.")
         return data
 
+    def post_assessment_ai_not_detected(self, assessment_id: str, payload: dict) -> dict:
+        """End the assessment as "AI not detected"; the API re-validates the evidence."""
+        path = InternalPath.ASSESSMENT_AI_NOT_DETECTED.format(assessment_id=assessment_id)
+        data = self._post_with_retry(path, payload, redact=False)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("AI not detected response was invalid.")
+        return data
+
     def post_interview_targeted_need(self, assessment_id: str, payload: dict) -> dict:
-        """Persist a server-guarded Targeted Interview need and opaque continuation."""
+        """Register one BusinessContextNeed (needId, engineeringRuleId, criterionId, question,
+        observation, resolutionCriterionIds, evidenceRefs, contextRevision)."""
         path = InternalPath.INTERVIEW_TARGETED_NEED.format(assessment_id=assessment_id)
         data = self._post_with_retry(path, payload, redact=False)
         if not isinstance(data, dict):
             raise WorkerCallbackError("Interview targeted need response was invalid.")
         return data
+
+    def put_rule_assessment(
+        self, assessment_id: str, engineering_rule_id: str, payload: dict
+    ) -> dict:
+        """Upsert the accepted per-rule assessment (RuleEvidenceIndex ledger row)."""
+        path = InternalPath.RULE_ASSESSMENT.format(
+            assessment_id=assessment_id, engineering_rule_id=engineering_rule_id
+        )
+        data = self._post_with_retry(path, payload, redact=False, method="PUT")
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Rule assessment response was invalid.")
+        return data
+
+    def list_rule_assessments(self, assessment_id: str) -> list[dict]:
+        """List accepted per-rule assessments for one assessment."""
+        path = InternalPath.RULE_ASSESSMENTS.format(assessment_id=assessment_id)
+        data = self._get_with_retry(path)
+        if not isinstance(data, list):
+            raise WorkerCallbackError("Rule assessments response was invalid.")
+        return [item for item in data if isinstance(item, dict)]
 
     def dispatch_agentic_tool(self, payload: dict) -> dict:
         """Dispatch one already validated/authorized agentic tool to the trusted API."""

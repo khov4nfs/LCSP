@@ -6,7 +6,7 @@ import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration
 
 import type { WorkspaceRuntimeActivityItem } from "../../workspace/types/workspace-runtime.types";
 
-export type RuntimeConsoleStep = {
+type RuntimeConsoleStep = {
   id: string;
   item: WorkspaceRuntimeActivityItem;
   isActive: boolean;
@@ -141,7 +141,7 @@ export function buildRuntimeConsoleModel(
   };
 }
 
-export function isActiveRuntimeStatus(
+function isActiveRuntimeStatus(
   status: string | null | undefined,
 ): boolean {
   return (

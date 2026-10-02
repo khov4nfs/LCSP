@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/dialog";
 import { AdminPagination } from "../molecules/admin-pagination";
 import { AdminBillingMetricCard } from "../molecules/admin-billing-metric-card";
-import { AdminBillingPricingPolicyCard } from "../molecules/admin-billing-pricing-policy-card";
 import { AdminBillingTrendCard } from "../molecules/admin-billing-trend-card";
 import {
   BILLING_ADMIN_FILTER_OPTIONS,
@@ -236,7 +235,7 @@ export function AdminBillingPage() {
 
       <section
         aria-label={message("pages.admin.billing.title")}
-        className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4 xl:gap-8"
+        className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 xl:gap-8"
       >
         <AdminBillingMetricCard
           label={message("pages.admin.billing.metrics.settledTopUps")}
@@ -244,14 +243,6 @@ export function AdminBillingPage() {
             dashboard ? formatVnd(dashboard.summary.settledTopUpVnd) : undefined
           }
           subtitle={message("pages.admin.billing.metrics.topUpSubtitle")}
-          isLoading={isLoading}
-        />
-        <AdminBillingMetricCard
-          label={message("pages.admin.billing.metrics.usageRevenue")}
-          value={
-            dashboard ? formatVnd(dashboard.summary.usageRevenueVnd) : undefined
-          }
-          subtitle={message("pages.admin.billing.metrics.usageSubtitle")}
           isLoading={isLoading}
         />
         <AdminBillingMetricCard
@@ -278,9 +269,9 @@ export function AdminBillingPage() {
 
       <section
         aria-label={message("pages.admin.billing.trend.title")}
-        className="mt-9 grid grid-cols-1 gap-5 xl:grid-cols-11 xl:gap-7"
+        className="mt-9 grid grid-cols-1 gap-5 xl:gap-7"
       >
-        <div className="xl:col-span-7">
+        <div>
           {dashboard ? (
             <AdminBillingTrendCard
               trend={dashboard.summary.settledTopUpTrend}
@@ -288,9 +279,6 @@ export function AdminBillingPage() {
           ) : (
             <div className="min-h-53 rounded-xl border border-border bg-card p-4" />
           )}
-        </div>
-        <div className="xl:col-span-4">
-          <AdminBillingPricingPolicyCard />
         </div>
       </section>
 

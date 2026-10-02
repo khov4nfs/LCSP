@@ -6,6 +6,7 @@ import {
   ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  AI_DISCOVERY_SNIPPET_POLICIES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   FINAL_ASSESSMENT_RESULT_STATUSES,
   isPostFindingRuntimePhase,
@@ -19,21 +20,38 @@ import {
   type AssessmentInterviewAnswerInput,
   type AssessmentInterviewAuditRef,
   type AssessmentInterviewBlockedInput,
+  type AssessmentPipelineContinueAction,
+  type AssessmentPipelineContinueResult,
   type AssessmentInterviewFlag,
   type AssessmentInterviewQuestion,
   type AssessmentInterviewQuestionChoice,
   type AssessmentInterviewRuntimeState,
+  type AssessmentInterviewSourceSnippet,
+  type AiDiscoverySnippetRef,
   type CustomerAnswer,
   type NonEmptyArray,
   type SubmitInterviewAnswerCommand,
   INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+  ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES,
+  ASSESSMENT_PIPELINE_CONTINUE_PROBLEM_CODES,
 } from "@lcsp/contracts/evidence";
 
-import { apiJson } from "./api-request";
+
+import { apiJson, apiRequest } from "./api-request";
+import { API_OUTCOME_KINDS } from "./outcome-kinds";
 
 export async function getAssessmentInterviewState(assessmentId: string) {
   return apiJson<AssessmentInterviewRuntimeState>(
     `/api/assessments/${encodeURIComponent(assessmentId)}/interview`,
+  );
+}
+
+export async function getAssessmentInterviewSourceSnippet(
+  assessmentId: string,
+  questionId: string,
+) {
+  return apiJson<AssessmentInterviewSourceSnippet>(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/interview/questions/${encodeURIComponent(questionId)}/source-snippet`,
   );
 }
 
@@ -136,6 +154,26 @@ function toCustomerAnswer(
   };
 }
 
+/** Cooperatively interrupt whatever Interview turn is currently running. */
+export async function pauseAssessmentInterviewTurn(assessmentId: string) {
+  return apiJson<{ paused: boolean }>(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/interview/pause`,
+    { method: "POST" },
+  );
+}
+
+/** Continue an Interview turn previously stopped with pauseAssessmentInterviewTurn. */
+export async function resumeAssessmentInterviewTurn(assessmentId: string) {
+  return apiJson<AssessmentInterviewRuntimeState>(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/interview/resume`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    },
+  );
+}
+
 export async function recordAssessmentInterviewBlockedAction(
   assessmentId: string,
   input: AssessmentInterviewBlockedInput,
@@ -148,6 +186,58 @@ export async function recordAssessmentInterviewBlockedAction(
       body: JSON.stringify(input),
     },
   );
+}
+
+export type AssessmentPipelineContinueOutcome =
+  | {
+      kind: typeof API_OUTCOME_KINDS.requested;
+      action: AssessmentPipelineContinueAction;
+    }
+  | { kind: typeof API_OUTCOME_KINDS.alreadyRunning }
+  | { kind: typeof API_OUTCOME_KINDS.waitingForCustomer }
+  | { kind: typeof API_OUTCOME_KINDS.completed }
+  | { kind: typeof API_OUTCOME_KINDS.rateLimited }
+  | { kind: typeof API_OUTCOME_KINDS.error };
+
+const PIPELINE_CONTINUE_PROBLEM_OUTCOMES: Record<
+  string,
+  Exclude<
+    AssessmentPipelineContinueOutcome,
+    { kind: typeof API_OUTCOME_KINDS.requested }
+  >
+> = {
+  [ASSESSMENT_PIPELINE_CONTINUE_PROBLEM_CODES.alreadyRunning]: {
+    kind: API_OUTCOME_KINDS.alreadyRunning,
+  },
+  [ASSESSMENT_PIPELINE_CONTINUE_PROBLEM_CODES.waitingForCustomer]: {
+    kind: API_OUTCOME_KINDS.waitingForCustomer,
+  },
+  [ASSESSMENT_PIPELINE_CONTINUE_PROBLEM_CODES.completed]: {
+    kind: API_OUTCOME_KINDS.completed,
+  },
+  [ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES.limitReached]: {
+    kind: API_OUTCOME_KINDS.rateLimited,
+  },
+};
+
+/** Continue a paused or stopped assessment pipeline from wherever it stopped. */
+export async function continueAssessmentPipeline(
+  assessmentId: string,
+): Promise<AssessmentPipelineContinueOutcome> {
+  const { ok, payload, problemCode } = await apiRequest(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/pipeline/continue`,
+    { method: "POST" },
+  );
+  if (ok) {
+    return {
+      kind: API_OUTCOME_KINDS.requested,
+      action: (payload as AssessmentPipelineContinueResult).action,
+    };
+  }
+  const mapped = problemCode
+    ? PIPELINE_CONTINUE_PROBLEM_OUTCOMES[problemCode]
+    : undefined;
+  return mapped ?? { kind: API_OUTCOME_KINDS.error };
 }
 
 export async function submitAssessmentPostFindingDecision(
@@ -225,6 +315,37 @@ export function sanitizeAssessmentInterviewState(
         }))
       : undefined,
     audit: audit ?? undefined,
+  };
+}
+
+export function sanitizeAssessmentInterviewSourceSnippet(
+  value: unknown,
+): AssessmentInterviewSourceSnippet | null {
+  const record = objectRecord(value);
+  const snippetRef = sanitizeSnippetRef(record?.snippetRef);
+  if (
+    !record ||
+    !snippetRef ||
+    !Array.isArray(record.lines) ||
+    typeof record.redacted !== "boolean" ||
+    typeof record.truncated !== "boolean"
+  ) {
+    return null;
+  }
+  const lines = record.lines.map((value) => {
+    const line = objectRecord(value);
+    return line && Number.isInteger(line.line) && typeof line.text === "string"
+      ? { line: line.line as number, text: line.text }
+      : null;
+  });
+  if (lines.some((line) => line === null)) {
+    return null;
+  }
+  return {
+    snippetRef,
+    lines: lines.filter(isDefined),
+    redacted: record.redacted,
+    truncated: record.truncated,
   };
 }
 
@@ -321,7 +442,41 @@ function sanitizeQuestion(value: unknown): AssessmentInterviewQuestion | null {
       (item): item is string => typeof item === "string",
     );
   }
+  const snippetRef = sanitizeSnippetRef(record.snippetRef);
+  if (snippetRef) {
+    question.snippetRef = snippetRef;
+  }
   return question;
+}
+
+function sanitizeSnippetRef(value: unknown): AiDiscoverySnippetRef | null {
+  const record = objectRecord(value);
+  if (
+    !record ||
+    typeof record.snapshot_id !== "string" ||
+    typeof record.commit_sha !== "string" ||
+    typeof record.file_path !== "string" ||
+    (record.symbol !== undefined && typeof record.symbol !== "string") ||
+    !Number.isInteger(record.start_line) ||
+    !Number.isInteger(record.end_line) ||
+    (record.start_line as number) < 1 ||
+    (record.end_line as number) < (record.start_line as number) ||
+    typeof record.evidence_hash !== "string" ||
+    record.snippet_policy !==
+      AI_DISCOVERY_SNIPPET_POLICIES.pinnedSnapshotBoundedRedacted
+  ) {
+    return null;
+  }
+  return {
+    snapshot_id: record.snapshot_id,
+    commit_sha: record.commit_sha,
+    file_path: record.file_path,
+    ...(record.symbol ? { symbol: record.symbol } : {}),
+    start_line: record.start_line as number,
+    end_line: record.end_line as number,
+    evidence_hash: record.evidence_hash,
+    snippet_policy: record.snippet_policy,
+  };
 }
 
 function sanitizeQuestionChoice(

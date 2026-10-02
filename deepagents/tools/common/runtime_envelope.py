@@ -122,21 +122,7 @@ def trusted_request_from_model_input(
     )
 
 
-_PYTHON_LOCAL_TOOLS = {
-    "get_scan_coverage",
-    "search_evidence",
-    "inspect_decision_path",
-    "inspect_data_path",
-    "inspect_human_review_path",
-    "find_provider_invocations",
-    "get_evidence_subgraph",
-    "get_symbol_context",
-    "trace_static_flow",
-    "find_similar_symbols",
-    "inspect_deployment_context",
-    "propose_missing_targets",
-    "get_finding_detail",
-}
+_PYTHON_LOCAL_TOOLS = {"propose_gap_remediation"}
 
 _custom_api_client = None
 
@@ -163,50 +149,8 @@ def _get_api_client():
 
 
 def _normalize_canonical_input(tool_name: str, raw_input: dict[str, Any]) -> dict[str, Any]:
-    data = dict(raw_input)
-    if tool_name == "get_scan_coverage":
-        return {"maxResults": int(data.get("maxResults", 50))}
-
-    if tool_name == "search_evidence":
-        out: dict[str, Any] = {"maxResults": int(data.get("maxResults", 10))}
-        if data.get("query"):
-            out["query"] = str(data["query"])
-        if data.get("pathPrefixes"):
-            out["pathPrefixes"] = list(data["pathPrefixes"])
-        return out
-
-    if tool_name == "inspect_decision_path":
-        start_ref = data.get("startRef") or data.get("subjectRef") or ""
-        out = {
-            "startRef": str(start_ref),
-            "maxHops": int(data.get("maxHops") or 5),
-            "maxResults": int(data.get("maxResults", 20)),
-        }
-        if data.get("actionCategories"):
-            out["actionCategories"] = list(data["actionCategories"])
-        return out
-
-    if tool_name == "inspect_data_path":
-        start_ref = data.get("startRef") or data.get("subjectRef") or ""
-        direction = str(data.get("direction", "FORWARD")).upper()
-        if direction not in {"FORWARD", "BACKWARD"}:
-            direction = "FORWARD"
-        return {
-            "startRef": str(start_ref),
-            "direction": direction,
-            "maxHops": int(data.get("maxHops") or 5),
-            "maxResults": int(data.get("maxResults", 20)),
-        }
-
-    if tool_name == "inspect_human_review_path":
-        start_ref = data.get("startRef") or data.get("subjectRef") or ""
-        return {
-            "startRef": str(start_ref),
-            "maxHops": int(data.get("maxHops") or 5),
-            "maxResults": int(data.get("maxResults", 20)),
-        }
-
-    return {k: v for k, v in data.items() if v is not None}
+    """Normalize only surviving model-callable Python-local tool inputs."""
+    return {key: value for key, value in dict(raw_input).items() if value is not None}
 
 
 def dispatch_agentic_tool(tool_name: str, request: TrustedAgenticToolRequest) -> dict[str, Any]:

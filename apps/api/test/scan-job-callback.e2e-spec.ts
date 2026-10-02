@@ -305,8 +305,8 @@ function validPayload(
 ): ScanCallbackRequest {
   return {
     scan_job_id: "scan-job-1",
-    tools_version: { semgrep: "1.0.0", syft: "0.90.0" },
-    config_hash: { semgrep: "sha256:abc", syft: "sha256:def" },
+    tools_version: { deepagents: "0.7.17", "repository-analysis": "1.0.0" },
+    config_hash: { "repository-analysis": "sha256:abc" },
     evidence_payload: { findings: [{ finding_type: "AI_MODEL_INVOCATION" }] },
     privacy_flags: {
       containsSourceCode: false,

@@ -21,12 +21,12 @@ export type AssessmentSummary = {
   created_at: string;
 };
 
-export type WorkspaceRedirectOutcome = {
+type WorkspaceRedirectOutcome = {
   kind: typeof API_OUTCOME_KINDS.redirect;
   location: string;
 };
 
-export type WorkspaceLoadedOutcome = {
+type WorkspaceLoadedOutcome = {
   kind: typeof API_OUTCOME_KINDS.loaded;
   workspace: WorkspaceContext;
 };

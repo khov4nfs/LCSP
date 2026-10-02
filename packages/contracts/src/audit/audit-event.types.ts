@@ -33,7 +33,7 @@ export const AUDIT_ACTOR_IDS = {
   documentWorker: "document-worker",
   interviewAgent: "interview-agent",
   legalRuleMatchWorker: "legal-rule-match-worker",
-  scannerWorker: "scanner-worker",
+  repositoryAnalysisWorker: "repository-analysis-worker",
   technicalProfileWorker: "technical-profile-worker",
   verifiedProfileWorker: "verified-profile-worker",
 } as const;

@@ -27,7 +27,7 @@ export type UpstreamRequestResult = {
   problemCode?: string;
 };
 
-export type UpstreamBinaryResult = {
+type UpstreamBinaryResult = {
   body: ArrayBuffer | null;
   result: WebAppResult | null;
   ok: boolean;
@@ -81,7 +81,7 @@ export async function upstreamRequest(
   };
 }
 
-export async function upstreamBinaryRequest(
+async function upstreamBinaryRequest(
   path: string | URL,
   init: UpstreamRequestInit = {},
 ): Promise<UpstreamBinaryResult> {

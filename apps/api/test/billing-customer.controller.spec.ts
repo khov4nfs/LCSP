@@ -1,8 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import {
-  BILLING_ERROR_CODES,
-  BILLING_ESTIMATE_AVAILABILITY,
-} from "@lcsp/contracts/billing";
+import { BILLING_ERROR_CODES } from "@lcsp/contracts/billing";
 import { InvalidBillingInputError } from "../src/modules/billing/domain/billing.errors.js";
 import { BillingCustomerController } from "../src/modules/billing/presentation/http/billing-customer.controller.js";
 
@@ -17,19 +14,16 @@ const request = {
 } as never;
 
 describe("BillingCustomerController input boundary", () => {
-  it("passes the authenticated customer and amount to the usage estimate query", async () => {
+  it("passes only the amount to the prepaid estimate query", async () => {
+    const quote = {
+      currency: "VND",
+      amountVnd: "10000",
+      creditUnits: "10000",
+      expiresInHours: 24,
+    };
     const execute = jest
-      .fn<
-        (query: unknown) => Promise<{
-          availability: (typeof BILLING_ESTIMATE_AVAILABILITY)["insufficientPricingConfiguration"];
-          estimatedUsageChargeVnd: null;
-        }>
-      >()
-      .mockResolvedValue({
-        availability:
-          BILLING_ESTIMATE_AVAILABILITY.insufficientPricingConfiguration,
-        estimatedUsageChargeVnd: null,
-      });
+      .fn<(query: unknown) => Promise<typeof quote>>()
+      .mockResolvedValue(quote);
     const controller = new BillingCustomerController(
       { execute: jest.fn() } as never,
       { execute } as never,
@@ -37,14 +31,10 @@ describe("BillingCustomerController input boundary", () => {
 
     await expect(controller.estimate("10000", request)).resolves.toMatchObject({
       ok: true,
-      data: {
-        availability:
-          BILLING_ESTIMATE_AVAILABILITY.insufficientPricingConfiguration,
-        estimatedUsageChargeVnd: null,
-      },
+      data: quote,
     });
     expect(execute).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1", amountVnd: 10000n }),
+      expect.objectContaining({ amountVnd: 10000n }),
     );
   });
 
@@ -68,7 +58,7 @@ describe("BillingCustomerController input boundary", () => {
       }),
     });
     expect(execute).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1", amountVnd: 10001n }),
+      expect.objectContaining({ amountVnd: 10001n }),
     );
   });
 

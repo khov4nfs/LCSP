@@ -11,7 +11,6 @@ type PrismaStub = {
     count: jest.Mock;
     findMany: jest.Mock;
   };
-  creditLedgerEntry: { aggregate: jest.Mock };
   billingWallet: { aggregate: jest.Mock };
 };
 
@@ -49,12 +48,6 @@ function prismaStub(): PrismaStub {
         },
       ]),
     },
-    creditLedgerEntry: {
-      aggregate: resolved({
-        _sum: { deltaCredits: -130n },
-        _count: { _all: 2 },
-      }),
-    },
     billingWallet: {
       aggregate: resolved({
         _sum: { availableCredits: 700n, reservedCredits: 50n },
@@ -64,7 +57,7 @@ function prismaStub(): PrismaStub {
 }
 
 describe("billing admin reporting", () => {
-  it("uses settled payments, both settled debit sources, and wallet projections", async () => {
+  it("uses settled payments and wallet projections, with no model-usage revenue", async () => {
     const prisma = prismaStub();
     const result = await getRevenueSummary(prisma as unknown as PrismaService, {
       from: "2026-01-01T00:00:00.000Z",
@@ -75,10 +68,7 @@ describe("billing admin reporting", () => {
       amountMinorUnits: "800",
       count: 2,
     });
-    expect(result.usageRevenue).toEqual({
-      amountMinorUnits: "130",
-      count: 2,
-    });
+    expect(result).not.toHaveProperty("usageRevenue");
     expect(result.outstandingCredits.credits).toBe("750");
 
     const paymentCall = prisma.paymentTransaction.aggregate.mock
@@ -91,12 +81,7 @@ describe("billing admin reporting", () => {
         lt: new Date("2026-02-01T00:00:00.000Z"),
       },
     });
-    const ledgerCall = prisma.creditLedgerEntry.aggregate.mock
-      .calls[0]?.[0] as { where: unknown };
-    expect(ledgerCall.where).toMatchObject({
-      source: { in: ["LLM_USAGE_DEBIT", "RESERVATION_SETTLEMENT"] },
-      deltaCredits: { lt: 0n },
-    });
+    // The stub has no ledger delegate: any model-debit aggregation would throw.
   });
 
   it("filters transactions server-side and projects only safe fields", async () => {

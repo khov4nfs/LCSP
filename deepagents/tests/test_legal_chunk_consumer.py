@@ -10,7 +10,7 @@ from tools.legal.corpus.legal_chunks.legal_chunk_boundary import (
     LegalChunkBoundary,
 )
 from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def _write_reviewed_input(*, storage_root: Path, reviewed_input_ref: str, text: str):

@@ -18,7 +18,6 @@ const adminBillingPaths = [
   "apps/web/src/app/(admin)/admin/billing/page.tsx",
   "apps/web/src/app/api/admin/billing/route.ts",
   "apps/web/src/features/admin/components/organisms/admin-billing-page.tsx",
-  "apps/web/src/features/admin/schemas/billing-admin.schema.ts",
   "apps/web/src/lib/api/admin-billing-client.ts",
   "apps/web/src/lib/api/admin-billing-queries.ts",
 ];
@@ -36,7 +35,7 @@ assert.match(customerSource, /getBillingWallet\(/);
 assert.match(customerSource, /upstreamRequest\("\/billing\/wallet"/);
 assert.match(adminSource, /useAdminBillingQuery\(/);
 assert.match(adminSource, /validatedBillingUpstreamJson\(/);
-assert.match(adminSource, /parseBillingAdminDashboard/);
+assert.match(adminSource, /billingAdminDashboardSchema\.safeParse\(/);
 assert.doesNotMatch(
   productionSource,
   /assets\/mocks|isMockModeEnabled|mockJsonResponse|readMockJson|mockFallback|fallbackBalance|fallbackRevenue|fallbackPayment|fabricated/i,

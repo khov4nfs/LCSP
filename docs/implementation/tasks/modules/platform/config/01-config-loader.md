@@ -59,12 +59,11 @@ interface PythonWorkerConfig {
 | Variable                      | Type   | Required | Default       | Notes                                     |
 | ----------------------------- | ------ | -------- | ------------- | ----------------------------------------- |
 | `DATABASE_URL`                | string | Yes      | —             | Prisma connection string                  |
-| `AUTH_BCRYPT_COST`            | number | No       | 12            | Min 10                                    |
-| `AUTH_SESSION_TTL_SECONDS`    | number | No       | 86400         |                                           |
-| `JWT_SECRET`                  | string | Yes      | —             | ≥ 32 chars                                |
 | `OAUTH_GOOGLE_CLIENT_ID`      | string | No       | `""`          | Google OAuth login is disabled when blank |
 | `OAUTH_GOOGLE_CLIENT_SECRET`  | string | No       | `""`          | Google OAuth login is disabled when blank |
-| `OAUTH_ALLOWED_REDIRECT_URIS` | string | Yes      | —             | Comma-separated                           |
+| `OAUTH_ALLOWED_REDIRECT_ORIGINS` | string | No    | `""`          | Comma-separated origins                   |
+| `GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION` | string | Yes | — | Active KEK version for stored repository credentials |
+| `GITHUB_CLI_CREDENTIAL_KEK_KEYRING` | string | Yes | — | JSON map version -> 32-byte base64 key |
 | `RABBITMQ_URL`                | string | Yes      | —             |                                           |
 | `RABBITMQ_EXCHANGE`           | string | No       | `lcsp.events` |                                           |
 | `MFA_SECRET_ENCRYPTION_KEY`   | string | Yes      | —             | AES-256-GCM: 32-byte hex                  |
@@ -73,7 +72,7 @@ interface PythonWorkerConfig {
 ## Business Rules
 
 1. Validation runs at startup. Any missing required variable → app crashes with descriptive error listing missing keys.
-2. `OAUTH_ALLOWED_REDIRECT_URIS` is parsed into `string[]` by splitting on commas.
+2. `OAUTH_ALLOWED_REDIRECT_ORIGINS` is parsed into `string[]` by splitting on commas.
 3. `MFA_SECRET_ENCRYPTION_KEY` must be exactly 64 hex characters (32 bytes). Validate length at startup.
 4. No module may import `process.env` directly — always use `ConfigService.get<T>('key')`.
 5. In test environment, validation can be bypassed using `ignoreEnvVars: true` or test-specific `.env.test`.
@@ -84,10 +83,8 @@ interface PythonWorkerConfig {
 | --- | ----------------------------------------- | ---------------------------------------- |
 | T01 | All required vars set                     | App starts successfully                  |
 | T02 | Missing `DATABASE_URL`                    | App startup fails with descriptive error |
-| T03 | Missing `JWT_SECRET`                      | App startup fails                        |
 | T04 | `MFA_SECRET_ENCRYPTION_KEY` wrong length  | App startup fails                        |
-| T05 | `AUTH_BCRYPT_COST` below 10               | App startup fails or clamps to 10        |
-| T06 | `OAUTH_ALLOWED_REDIRECT_URIS` = `"a,b,c"` | Parsed as `['a', 'b', 'c']`              |
+| T06 | `OAUTH_ALLOWED_REDIRECT_ORIGINS` = `"a,b,c"` | Parsed as `['a', 'b', 'c']`              |
 
 ## Definition of Done
 

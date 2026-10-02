@@ -59,7 +59,7 @@ Rationale:
 | `docs/specs/requirements-traceability-matrix.md` | Existing UC/FR/AC/NFR/domain implementation map; stale story status noted. |
 | `docs/specs/requirements-traceability-summary.md` | Traceability summary input. |
 | `docs/specs/user-task-flows.md` | UX/user-flow alignment input. |
-| `docs/specs/scanner-spec.md` | Scanner behavior and evidence contract input. |
+| `docs/architecture/repository-deep-agent-analysis.md` | Scanner behavior and evidence contract input. |
 | `docs/specs/legal-matching-domain-spec.md` | Legal retrieval, citation allowlist, and LegalRuleMatch input. |
 | `docs/architecture/architecture.md` | Architecture and implementation boundary input. |
 | `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/DESIGN.md` | Rebased UX design input. |
@@ -136,7 +136,7 @@ The repo is currently documentation/planning-heavy rather than implementation/te
 
 - API groups and route contracts in `docs/implementation/backend-implementation.md`.
 - Worker commands and events in `docs/specs/event-catalog.md` and `docs/implementation/queue-implementation.md`.
-- Scanner command/event/runtime contract in `docs/specs/scanner-spec.md` and `docs/implementation/scanner-worker-implementation.md`.
+- Scanner command/event/runtime contract in `docs/architecture/repository-deep-agent-analysis.md` and `docs/architecture/repository-deep-agent-analysis.md`.
 - Legal retrieval, citation allowlist, and LegalRuleMatch contracts in `docs/specs/legal-matching-domain-spec.md`.
 - AIUsageFlow and classification handoffs in `docs/specs/ai-usage-flow-domain-spec.md` and `docs/specs/legal-classification-spec.md`.
 

@@ -1,3 +1,4 @@
+import { asRecord } from "@lcsp/contracts/shared";
 import type { TechnicalEvidenceDisplayDto } from "../contracts/assessment/assessment-detail.contract.js";
 
 const MAX_TECHNICAL_EVIDENCE_DISPLAY_ITEMS = 12;
@@ -16,7 +17,18 @@ export function resolveTechnicalEvidenceDisplays(
   const projected = projectedDisplays(projectedEvidence);
   if (projected.length > 0) return projected;
 
-  // Compatibility for historical reports that still embedded graph nodes/anchors.
+  // Canonical governed refs `source:{sha}:{path}#L{a}-L{b}` carry their own location;
+  // they were live-verified before the EngineeringRuleAssessment ledger accepted them,
+  // so no Scanner graph is needed (and an empty evidence_graph is tolerated).
+  const located = evidenceRefs
+    .map(sourceRefDisplay)
+    .filter((item): item is TechnicalEvidenceDisplayDto => item !== null);
+  if (located.length > 0) {
+    return dedupe(located).slice(0, MAX_TECHNICAL_EVIDENCE_DISPLAY_ITEMS);
+  }
+
+  // Compatibility for historical reports that still embedded graph nodes/anchors
+  // (read-only adapter; remove once no ClassificationResult predates rule assessments).
   const payload = asRecord(evidencePayload);
   const graph = asRecord(payload?.evidence_graph ?? payload?.evidenceGraph);
   if (!graph) return [];
@@ -83,6 +95,33 @@ export function resolveTechnicalEvidenceDisplays(
     0,
     MAX_TECHNICAL_EVIDENCE_DISPLAY_ITEMS,
   );
+}
+
+const SOURCE_REF = /^source:[^:]+:([^#\s~]+)#L(\d+)-L(\d+)$/;
+
+function sourceRefDisplay(ref: string): TechnicalEvidenceDisplayDto | null {
+  const match = SOURCE_REF.exec(ref);
+  if (!match) return null;
+  const path = match[1] ?? "";
+  if (path.startsWith("/") || path.split("/").includes("..")) return null;
+  return {
+    kind: "SOURCE_LOCATION",
+    label: fileName(path) ?? "Repository source location",
+    file_path: path,
+    symbol_ref: null,
+    start_line: Number(match[2]),
+    end_line: Number(match[3]),
+  };
+}
+
+function dedupe(
+  items: TechnicalEvidenceDisplayDto[],
+): TechnicalEvidenceDisplayDto[] {
+  const seen = new Map<string, TechnicalEvidenceDisplayDto>();
+  for (const item of items) {
+    seen.set(`${item.file_path}|${item.start_line}|${item.end_line}`, item);
+  }
+  return [...seen.values()];
 }
 
 function projectedDisplays(value: unknown): TechnicalEvidenceDisplayDto[] {
@@ -187,12 +226,6 @@ function sourcePath(value: string | null): string | null {
 function fileName(value: string | null): string | null {
   if (!value) return null;
   return value.replaceAll("\\", "/").split("/").filter(Boolean).at(-1) ?? null;
-}
-
-function asRecord(value: unknown): JsonRecord | null {
-  return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as JsonRecord)
-    : null;
 }
 
 function asRecords(value: unknown): JsonRecord[] {

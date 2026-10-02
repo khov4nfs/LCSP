@@ -10,7 +10,7 @@ from tools.legal.sources.ocr_quality.ocr_quality_boundary import (
     OcrQualityBoundary,
 )
 from tools.legal.sources.ocr_quality.ocr_quality_repository import OcrQualityRepository
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def _write_canonical_extraction(*, storage_root, snapshot_ref, document_number, spans):

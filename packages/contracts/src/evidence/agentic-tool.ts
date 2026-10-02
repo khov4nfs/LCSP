@@ -37,7 +37,6 @@ export const AGENTIC_TOOL_NAMES = {
   validateChunkIntegrity: "validate_chunk_integrity",
   buildLegalRetrievalIndex: "build_legal_retrieval_index",
   resumeWaitingRuns: "resume_waiting_runs",
-  requestTargetedReanalysis: "request_targeted_reanalysis",
   captureVerifiedEpisode: "capture_verified_episode",
   retrieveVerifiedEpisodes: "retrieve_verified_episodes",
   consolidateVerifiedEpisodes: "consolidate_verified_episodes",

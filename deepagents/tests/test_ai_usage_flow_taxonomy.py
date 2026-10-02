@@ -80,7 +80,7 @@ def _evidence_report(*, dynamic: bool = False) -> dict:
             "secretsRedacted": True,
         },
         "evidence_payload": {
-            # Keep a Semgrep branch populated to prove technical_findings are
+            # Keep the agent-discovered signal branch populated to prove technical_findings are
             # merged instead of being ignored when ai_usage_signals is non-empty.
             "ai_usage_signals": [
                 {
@@ -100,7 +100,7 @@ def _evidence_report(*, dynamic: bool = False) -> dict:
     }
 
 
-def test_rule_engine_consumes_semgrep_and_technical_findings_for_full_taxonomy() -> None:
+def test_rule_engine_consumes_repository_analysis_signals_and_technical_findings_for_full_taxonomy() -> None:
     flow = AIUsageFlowRuleEngine().generate(
         technical_profile=_technical_profile(),
         evidence_report=_evidence_report(),

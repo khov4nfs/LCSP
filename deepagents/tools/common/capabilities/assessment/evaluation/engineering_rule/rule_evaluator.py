@@ -267,6 +267,7 @@ class EngineeringRuleEvaluator:
     def _has_evidence(claim: EvidenceClaim) -> bool:
         return bool(
             claim.evidence_refs or claim.graph_path_refs or claim.source_anchor_refs
+            or (claim.source_locations and claim.source_verified)
         )
 
     def _unknown(

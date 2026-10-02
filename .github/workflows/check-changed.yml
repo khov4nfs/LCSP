@@ -65,6 +65,7 @@ jobs:
             python:
               - '.github/workflows/check-changed.yml'
               - 'deepagents/**'
+              - 'deepagents-langgraph/**'
 
   autofix:
     name: Auto-fix imports and lint
@@ -262,3 +263,26 @@ jobs:
 
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
+
+
+      - name: Validate LangGraph Agent Runtime config
+        env:
+          OPENAI_API_KEY: ci-import-only
+          LANGSMITH_TRACING: "false"
+          LANGCHAIN_TRACING_V2: "false"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("langgraph.json").read_text())
+          assert config["graphs"]["lcsp-agent"] == "./agent.py:agent"
+          PY
+          python - <<'PY'
+          import agent
+
+          assert agent.agent is not None
+          PY
+
+      - name: Test Python workers
+        run: pytest

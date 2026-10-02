@@ -51,7 +51,8 @@ import { EvidenceSchemaValidatorService } from "../../services/scan/evidence-sch
 import { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
 import { ProcessScanCallbackCommand } from "./process-scan-callback.command.js";
 
-const SCANNER_WORKER_ACTOR_ID = AUDIT_ACTOR_IDS.scannerWorker;
+const REPOSITORY_ANALYSIS_WORKER_ACTOR_ID =
+  AUDIT_ACTOR_IDS.repositoryAnalysisWorker;
 const SCAN_CALLBACK_TRANSACTION_TIMEOUT_MS = 15_000;
 
 /**
@@ -259,7 +260,7 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
             correlationId: command.correlationId,
             causationId: job.id,
             actor: {
-              id: SCANNER_WORKER_ACTOR_ID,
+              id: REPOSITORY_ANALYSIS_WORKER_ACTOR_ID,
               type: AUDIT_ACTOR_TYPES.service,
             },
             result: SCAN_EVENT_TYPES.evidenceAcceptedAudit,
@@ -285,7 +286,7 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
 
         const auditEvent = buildAuditEventInput({
           eventType: auditEventType,
-          actorId: SCANNER_WORKER_ACTOR_ID,
+          actorId: REPOSITORY_ANALYSIS_WORKER_ACTOR_ID,
           assessmentId: job.assessmentId,
           resourceType: AUDIT_RESOURCE_TYPES.technicalEvidenceReport,
           resourceId: reportId,
@@ -296,7 +297,7 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
           result: auditEventType,
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
           actor: {
-            id: SCANNER_WORKER_ACTOR_ID,
+            id: REPOSITORY_ANALYSIS_WORKER_ACTOR_ID,
             type: AUDIT_ACTOR_TYPES.service,
           },
           payload: {
@@ -447,7 +448,7 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     await this.auditWriter.write(
       buildAuditEventInput({
         eventType: SCAN_EVENT_TYPES.evidenceRejectedAudit,
-        actorId: SCANNER_WORKER_ACTOR_ID,
+        actorId: REPOSITORY_ANALYSIS_WORKER_ACTOR_ID,
         assessmentId: job.assessmentId,
         resourceType: AUDIT_RESOURCE_TYPES.repositoryScanJob,
         resourceId: job.id,
@@ -457,7 +458,10 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
         decision: AUDIT_DECISIONS.deny,
         result: SCAN_EVENT_TYPES.evidenceRejectedAudit,
         redactionStatus: AUDIT_REDACTION_STATUSES.none,
-        actor: { id: SCANNER_WORKER_ACTOR_ID, type: AUDIT_ACTOR_TYPES.service },
+        actor: {
+          id: REPOSITORY_ANALYSIS_WORKER_ACTOR_ID,
+          type: AUDIT_ACTOR_TYPES.service,
+        },
         payload: {
           assessmentId: job.assessmentId,
           scanJobId: job.id,

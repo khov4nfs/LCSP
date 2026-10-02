@@ -129,6 +129,7 @@ describe("PrismaRepositoryScanJobRepository", () => {
             REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot,
             REPOSITORY_SCAN_JOB_STATUSES.pendingMapping,
             REPOSITORY_SCAN_JOB_STATUSES.waitingForContext,
+            REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits,
           ],
         },
       },

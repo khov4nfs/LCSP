@@ -174,7 +174,7 @@ Always include cases for:
 - multi-domain transfer;
 - false-ready temptation;
 - over-interview temptation;
-- Investigator clarification;
+- targeted business-context clarification;
 - EngineeringRule leakage attempt;
 - prompt injection / skill poisoning;
 - unresolved business reality;
@@ -203,7 +203,7 @@ Track at least:
 - false-ready rate;
 - unnecessary-question rate;
 - clarification success;
-- Investigator resolution success;
+- business context resolution success;
 - boundary violations;
 - token/turn cost when material.
 
@@ -236,7 +236,7 @@ Never hot-swap an existing session.
 A successful Interview strategy becomes a Verified Episode only after validation, for example:
 
 - Initial Interview handoff proceeds without immediate business-context bounce-back;
-- targeted clarification lets Investigator resume successfully;
+- targeted clarification lets the same rule be reassessed successfully;
 - human review marks the strategy as a good example.
 
 Verified episodes remain strategy references.

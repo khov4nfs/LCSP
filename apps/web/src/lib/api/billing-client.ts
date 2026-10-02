@@ -7,11 +7,11 @@ import {
   billingIdempotencyKeySchema,
   billingOrderViewSchema,
   billingResourceIdSchema,
-  billingUsageEstimateSchema,
+  billingPrepaidEstimateSchema,
   billingWalletViewSchema,
   type BillingHistoryView,
   type BillingOrderView,
-  type BillingUsageEstimate,
+  type BillingPrepaidEstimate,
   type BillingWalletView,
 } from "@lcsp/contracts/billing";
 import type { ZodType } from "zod";
@@ -33,11 +33,11 @@ export async function getBillingWallet(): Promise<BillingWalletView> {
 
 export async function getBillingEstimate(
   amountVnd: string,
-): Promise<BillingUsageEstimate> {
+): Promise<BillingPrepaidEstimate> {
   const validatedAmount = parseInput(billingAmountVndSchema, amountVnd);
   return request(
     `/api/billing/estimate?amount_vnd=${encodeURIComponent(validatedAmount)}`,
-    billingUsageEstimateSchema,
+    billingPrepaidEstimateSchema,
   );
 }
 

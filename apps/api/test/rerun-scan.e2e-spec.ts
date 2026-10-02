@@ -48,6 +48,11 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
   });
 
   beforeEach(async () => {
+    await prisma.billingReservationInvocationClaim.deleteMany();
+    await prisma.llmUsageEvent.deleteMany();
+    await prisma.billingReservation.deleteMany();
+    await prisma.creditLedgerEntry.deleteMany();
+    await prisma.billingWallet.deleteMany();
     await prisma.outboxMessage.deleteMany({
       where: { eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered },
     });
@@ -132,6 +137,15 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
       },
     });
     assert.ok(audit);
+  });
+
+  it("T06: re-run does not depend on wallet balance and creates no billing rows", async () => {
+    // No wallet, no ledger, no pricing rows: the rerun must still be accepted.
+    const response = await triggerRerun(app, managerToken);
+
+    assert.equal(response.status, 201);
+    assert.equal(await prisma.billingReservation.count(), 0);
+    assert.equal(await prisma.creditLedgerEntry.count(), 0);
   });
 
   it("T02: Same idempotency_key returns existing re-run job", async () => {

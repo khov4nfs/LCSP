@@ -6,15 +6,15 @@ AUTHORITATIVE — LCSP-999 BIG RE-ARCHITECTURE
 
 ## Purpose
 
-LCSP scans the complete statically resolvable repository, builds an immutable Program Evidence Graph, maps governed legal source chunks to reusable Engineering Rules, lets a bounded LLM investigator query that graph, and deterministically evaluates each Engineering Rule as `COMPLIANT`, `NON_COMPLIANT`, or `UNKNOWN`.
+LCSP analyzes the commit-pinned repository through a repository-backed Repository Deep Agent, derives a compatibility Program Evidence Graph from inspected source, maps governed legal source chunks to reusable Engineering Rules, and evaluates each Engineering Rule with source-grounded evidence.
 
 The canonical runtime is code-centric. `TechnicalProfile`, `AIUsageFlow`, `VerifiedProfile`, and `LegalRuleMatch` are no longer execution stages. Historical rows and endpoints may remain temporarily for migration/read compatibility, but new assessments must not depend on them.
 
 ## Ownership
 
-- Python Worker owns scanner execution, semantic IR, graph construction/query, legal-to-engineering compilation, graph investigation, EvidenceClaim validation, EngineeringRule evaluation, remediation synthesis, and document generation inputs.
+- Repository Deep Agent owns repository exploration, source-grounded graph derivation, coverage/AI discovery, and technical investigation inputs; downstream workers retain governed legal/evaluation responsibilities.
 - NestJS owns CQRS persistence/read boundaries, RBAC/authority, HTTP/internal APIs, outbox/events, protected mutations, and persistence of the direct EngineeringRule assessment result.
-- TypeScript/JavaScript semantic parsing may run as a `ts-morph` subprocess owned and invoked by the Python Scanner Worker; it does not own orchestration or evidence decisions.
+- Codebase Memory MCP may accelerate cross-language structural discovery, but direct source inspection is authoritative and no language-specific parser subprocess owns evidence decisions.
 - LLM Gateway remains the only model-provider boundary.
 
 ## Canonical end-to-end flow
@@ -30,33 +30,27 @@ Approved Legal Corpus
   -> deterministic EngineeringRule validation
   -> versioned/fingerprinted EngineeringRule cache
 
-REPOSITORY SIDE
+REPOSITORY SIDE (scan job)
 
-RepositorySnapshot
-  -> full static/semantic scan
-  -> language-neutral Semantic IR
-  -> ProgramEvidenceGraph
+RepositorySnapshot (pinned commit)
+  -> hydrate once at /workspace/repository
+  -> Codebase Memory index once (optional agent tool, never evidence)
+  -> technical coverage
+  -> ONE bounded AI-discovery Deep Agent task (independent prerequisite)
 
-ASSESSMENT SIDE
+ASSESSMENT SIDE (deterministic per-rule loop)
 
-ProgramEvidenceGraph
-  + EngineeringRule
-  -> deterministic seed graph queries
-  -> orchestrator-owned EvidenceLedger (full per-run observations)
-  -> bounded LLM working-context/tool loop
-       search_nodes
-       trace_static_flow
-       inspect_data_path
-       inspect_decision_path
-       inspect_human_review_path
-       symbol_context
-       provider_invocations
-       list_observations
-       inspect_observation
-       finish(observationRefs[])
-  -> LCSP derives graph/source provenance from observationRefs
-  -> validated EvidenceClaims
-  -> deterministic EngineeringRuleEvaluator
+pinned READY EngineeringRule
+  -> deterministic legal applicability
+  -> ONE repository-analyst Deep Agent task per eligible rule
+       native filesystem/shell + codebase-memory tools
+       cite_repository_source / get_code_snippet mint evidence refs
+       submit_rule_assessment (governed validation + provenance stamp)
+  -> per-rule ledger EngineeringRuleAssessment
+  -> BusinessContextNeed -> Interview -> resume the same rule
+  -> claims from accepted criteria
+       (SUPPORTS_REQUIREMENT -> MET, DEMONSTRATES_VIOLATION -> NOT_MET, others UNRESOLVED)
+  -> deterministic EngineeringRuleEvaluator + rule-completion gate
        COMPLIANT
        NON_COMPLIANT
        UNKNOWN
@@ -83,37 +77,22 @@ Engineering Rules are cached by immutable fingerprint over LegalRule content, le
 
 Development bootstrap LegalRules exist only to give precompiled EngineeringRules stable governed identities/fingerprints. Their sentinel facts are never injected into repository assessments and are never used as applicability predicates.
 
-## Investigation state and LLM working context
+## Rule analysis and provenance
 
-The context window is **not** the investigation source of truth. LCSP owns a per-EngineeringRule `EvidenceLedger` containing the full seed-query and graph-tool observations for that run. The model receives a bounded index/working view with stable observation IDs such as `obs:0001`.
+The context window is not the source of truth. The assessed repository (working database)
+and the durable per-rule ledger are. A Repository Analyst explores the repository with the
+native Deep Agents tools; LCSP does not prescribe how. Evidence refs are minted only by the
+governed tools `cite_repository_source` and `get_code_snippet` (HMAC-bound to assessment, rule
+and execution); the model never writes a ref. `submit_rule_assessment` validates identity,
+version, commit, criterion ids, evidence liveness and limitation vocabulary, stamps
+provenance and persists one `EngineeringRuleAssessment` row per rule.
 
-When more detail is needed the model uses `list_observations` and `inspect_observation` to page the existing ledger instead of forcing LCSP to resend every prior graph result. Full observations remain available to the orchestrator; a prompt-size guard may reject an unexpectedly oversized working view, but it must not silently delete historical observations to fit a provider context window.
-
-This separates:
-
-- **source of truth:** Program Evidence Graph + full EvidenceLedger;
-- **working memory:** current rule contract, ledger index, recent tool result pages;
-- **provider context window:** only the working view required for the current step.
-
-The LLM does not receive unrestricted repository access. It can only invoke the declared deterministic Program Evidence Graph and EvidenceLedger tools.
-
-## Evidence claims and provenance
-
-The LLM emits engineering evidence claims only:
-
-- `RULE_REQUIREMENT_MET`
-- `RULE_REQUIREMENT_NOT_MET`
-- `UNRESOLVED_ENGINEERING_FACT`
-
-The provider-native `finish` tool accepts `observationRefs[]` rather than model-authored `evidenceRefs`, `graphPathRefs`, or `sourceAnchorRefs`. LCSP resolves those observation IDs against its own EvidenceLedger and deterministically derives immutable evidence/node/edge/source-anchor provenance. Unknown observation IDs fail closed instead of allowing invented graph identities into persisted claims.
-
-The model does not author a separate claim `value`; LCSP derives it deterministically from `claimType` (`true`, `false`, or `null`). `limitations[]` accepts only enumerated machine codes. Free-form prose is not valid in claim/evaluation/top-level limitation arrays and is rejected or converted to a fail-closed unresolved result before persistence.
-
-Narrative text is deliberately restricted to controlled fields such as optional top-level `notes` and deterministic `evaluations[].reason`. Overclaim validation scans those narrative fields only. IDs, provenance, canonical statuses, evidence refs, boolean/null claim values, and machine limitation codes are structured data and are not substring-scanned as prose.
-
-A positive/negative claim must resolve to concrete ledger-derived graph evidence. Absence can support a negative claim only when the referenced observation demonstrates a bounded and complete search. Dynamic, external, truncated, conflicting, or otherwise insufficient paths remain unresolved.
-
-The model never determines a legal verdict, certification, legal risk tier, or court-level violation conclusion.
+Criterion statuses are `EVIDENCE_FOUND` (with `evidenceKind` `SUPPORTS_REQUIREMENT` or
+`DEMONSTRATES_VIOLATION`), `BUSINESS_CONTEXT_REQUIRED`, `TECHNICAL_UNRESOLVED` and
+`NOT_OBSERVED` ("not established", never absence). Finalization maps accepted criteria to
+`RULE_REQUIREMENT_MET` / `RULE_REQUIREMENT_NOT_MET` (verified positive evidence only) /
+`UNRESOLVED_ENGINEERING_FACT`. FINAL_ABSENCE stays disabled. The model never determines a
+legal verdict, certification or risk tier.
 
 ## Deterministic EngineeringRule evaluation
 

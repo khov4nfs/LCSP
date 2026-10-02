@@ -83,7 +83,7 @@ This document defines canonical user-facing and system task flows for the A-to-Z
 | Goal            | Request static analysis and monitor progress.                                                                                                                                                                                        |
 | Preconditions   | Trusted integration context exists or Manager action creates trusted context.                                                                                                                                                        |
 | Happy path      | Verified trigger creates or resumes a pending scan; Manager monitors queued/running/completed state.                                                                                                                                 |
-| System behavior | Python Scanner Worker owns lifecycle; toolchain includes Syft, Knip, deptry, `ast`/`libcst`, `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules; no customer code execution; workspace is deleted before success event. |
+| System behavior | Managed Repository Analysis Agent owns repository evidence derivation in a durable MDA sandbox; it uses native Deep Agents repository tools and optional Codebase Memory MCP, verifies material facts against source, and emits coverage/AI-discovery state without executing customer application dependencies. |
 | Failure states  | Repository access failure, missing mapping, ambiguous assessment mapping, out-of-order trigger waiting, bounded parser/tool limitation, privacy/schema failure, TS/JS analyzer failure, workspace cleanup failure.                   |
 | UX requirements | Show status, safe reason code, retry/rescan or mapping recovery action, and coverage limitations without raw source.                                                                                                                 |
 | Result          | TechnicalEvidenceReport exists or explicit failed state.                                                                                                                                                                             |
@@ -207,16 +207,14 @@ This document defines canonical user-facing and system task flows for the A-to-Z
 
 ```text
 command.scan.requested.v1
--> Python Worker RUNNING
--> snapshot materialization
--> Syft SBOM/dependency inventory
--> Knip/deptry dependency usage analysis
--> Python AST/CST analysis
--> TS/JS subprocess analysis
--> tree-sitter/custom parser structural augmentation
--> Semgrep custom AI rules
+-> LangGraph Agent Runtime thread RUNNING
+-> pinned snapshot hydrated into /workspace/repository
+-> repository Deep Agent inventories languages/frameworks/build/config/runtime surfaces
+-> native filesystem/search/shell/subagent investigation
+-> optional Codebase Memory MCP index/search/trace/coverage assistance
+-> direct-source verification and unresolved-frontier accounting
+-> Deep Agent structured evidence graph + source anchors + AI discovery gate
 -> evidence/report gates
--> workspace cleanup verification
 -> event.scan.completed.v1 or event.scan.failed.v1
 ```
 

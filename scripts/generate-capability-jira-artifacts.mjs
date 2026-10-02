@@ -199,13 +199,13 @@ function normalizeRepoFolderToken(token) {
 function preferredRepoFoldersForDomain(domain) {
   const folderMap = {
     auth: [
-      "apps/api/src/modules/auth-workspace",
+      "apps/api/src/modules/auth",
       "apps/web/src",
       "packages/contracts/src/auth",
       "packages/i18n/src",
     ],
     governance: [
-      "apps/api/src/modules/auth-workspace",
+      "apps/api/src/modules/auth",
       "apps/web/src",
       "packages/contracts/src/shared",
       "packages/i18n/src",
@@ -530,8 +530,8 @@ const epics = [
     shortName: "Repository and Scan",
     description:
       "Repository connection, snapshot pinning, trusted scan execution, evidence gates, and TechnicalProfile output.",
-    labels: "epic,repository,scanner,evidence",
-    domain: "scanner",
+    labels: "epic,repository,repository-analysis,evidence",
+    domain: "repository-analysis",
   },
   {
     code: "E4",
@@ -657,11 +657,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D1-D10",
     dependencies: ["E1-T1"],
     externalDependencies: [],
-    extraReferences: [
-      "TASK-003",
-      "TASK-004",
-      "docs/implementation/tasks/README.md",
-    ],
   },
   {
     code: "E1-T7",
@@ -746,7 +741,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D1-D5",
     dependencies: ["E2-T1"],
     externalDependencies: ["GitHub App credentials"],
-    extraReferences: ["TASK-009", "TASK-002"],
   },
   {
     code: "E3-T2",
@@ -775,22 +769,20 @@ const legacyCapabilityTasks = [
     targetWindow: "D6-D10",
     dependencies: ["E3-T2", "E1-T6"],
     externalDependencies: [],
-    extraReferences: ["TASK-010", "TASK-011"],
   },
   {
     code: "E3-T4",
     epic: "E3",
-    summary: "Static Scanner Workspace and Toolchain Execution",
+    summary: "Managed Repository Workspace and Deep Agent Analysis",
     stories: ["3.4", "3.5"],
     owner: "B",
     priority: "High",
     points: 5,
     runtime: "worker",
-    domain: "scanner",
+    domain: "repository-analysis",
     targetWindow: "D11-D15",
     dependencies: ["E3-T3"],
     externalDependencies: [],
-    extraReferences: ["TASK-012", "TASK-013", "TASK-014"],
   },
   {
     code: "E3-T5",
@@ -801,11 +793,10 @@ const legacyCapabilityTasks = [
     priority: "High",
     points: 5,
     runtime: "cross-runtime",
-    domain: "scanner",
+    domain: "evidence",
     targetWindow: "D11-D15",
     dependencies: ["E3-T4"],
     externalDependencies: [],
-    extraReferences: ["TASK-015"],
   },
   {
     code: "E3-T6",
@@ -820,7 +811,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D16-D20",
     dependencies: ["E3-T5"],
     externalDependencies: [],
-    extraReferences: ["TASK-016"],
   },
   {
     code: "E3-T7",
@@ -849,7 +839,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D16-D20",
     dependencies: ["E3-T6"],
     externalDependencies: [],
-    extraReferences: ["TASK-017"],
   },
   {
     code: "E4-T2",
@@ -892,7 +881,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D21-D25",
     dependencies: ["E4-T3"],
     externalDependencies: [],
-    extraReferences: ["TASK-018"],
   },
   {
     code: "E4-T5",
@@ -977,7 +965,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D1-D10",
     dependencies: ["E1-T6"],
     externalDependencies: ["Object storage"],
-    extraReferences: ["TASK-020", "TASK-021"],
   },
   {
     code: "E6-T2",
@@ -992,7 +979,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D11-D15",
     dependencies: ["E6-T1"],
     externalDependencies: ["ChromaDB config"],
-    extraReferences: ["TASK-022"],
   },
   {
     code: "E6-T3",
@@ -1007,7 +993,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D16-D20",
     dependencies: ["E6-T2"],
     externalDependencies: [],
-    extraReferences: ["TASK-023"],
   },
   {
     code: "E6-T4",
@@ -1022,7 +1007,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D21-D25",
     dependencies: ["E6-T3", "E5-T4"],
     externalDependencies: [],
-    extraReferences: ["TASK-024"],
   },
   {
     code: "E7-T1",
@@ -1037,7 +1021,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D21-D25",
     dependencies: ["E5-T4", "E6-T4"],
     externalDependencies: [],
-    extraReferences: ["TASK-026"],
   },
   {
     code: "E7-T2",
@@ -1066,10 +1049,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D1-D5; D16-D20",
     dependencies: [],
     externalDependencies: ["Provider credentials", "Provider SDK access"],
-    extraReferences: [
-      "TASK-025",
-      "docs/implementation/llm-gateway-implementation.md",
-    ],
   },
   {
     code: "E7-T4",
@@ -1112,7 +1091,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D21-D25",
     dependencies: ["E7-T5"],
     externalDependencies: [],
-    extraReferences: ["TASK-027"],
   },
   {
     code: "E8-T2",
@@ -1127,7 +1105,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D21-D30",
     dependencies: ["E8-T1", "E7-T3"],
     externalDependencies: [],
-    extraReferences: ["TASK-028"],
   },
   {
     code: "E8-T3",
@@ -1142,7 +1119,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D21-D30",
     dependencies: ["E8-T1"],
     externalDependencies: [],
-    extraReferences: ["TASK-028"],
   },
   {
     code: "E8-T4",
@@ -1171,7 +1147,6 @@ const legacyCapabilityTasks = [
     targetWindow: "D26-D30",
     dependencies: ["E1-T6", "E8-T4"],
     externalDependencies: [],
-    extraReferences: ["TASK-029", "TASK-033", "TASK-034"],
   },
 ];
 

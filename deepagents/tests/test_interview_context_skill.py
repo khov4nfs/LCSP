@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.common.capabilities.managed.skill_loader import (
+from tools.common.capabilities.agent_runtime.skill_loader import (
     load_project_skill,
     load_project_skill_package,
 )
@@ -89,7 +89,12 @@ def test_interview_context_runtime_prompt_includes_protected_and_adaptive_rules(
     assert "AR-IA-001 — Materiality first" in INTERVIEW_SKILL
     assert "Validated runtime and governed assessment state" in INTERVIEW_SKILL
     assert "Customer-safe evidence explanation" in INTERVIEW_SKILL
-    assert "`PRE_PLANNER` is a legacy compatibility alias" in INTERVIEW_SKILL
+    # PRE_PLANNER alias was intentionally removed with the planner deletion;
+    # the current planner-free contract uses BUSINESS_CONTEXT_RESOLUTION.
+    assert "BUSINESS_CONTEXT_RESOLUTION" in INTERVIEW_SKILL
+    assert "references/business-context-resolution.md" in INTERVIEW_SKILL_REFERENCES
+    assert "resolutionCriterionIds" in INTERVIEW_SKILL
+    assert "PRE_PLANNER" not in INTERVIEW_SKILL
     assert "## Checked-in Interview skill" in SYSTEM_PROMPT
     assert "PR-IA-018 — Protected Sufficiency Guardrails" in SYSTEM_PROMPT
     assert "AR-IA-001 — Materiality first" in SYSTEM_PROMPT

@@ -10,7 +10,7 @@ TechnicalEvidenceReport Gates
 
 1. **Given** scanner outputs are available
    **When** LCSP builds a TechnicalEvidenceReport
-   **Then** the report includes required schema fields, snapshot provenance, tool versions, config hash, ruleset hash, finding references, confidence, privacy flags, coverage limitations, report hash, and generation timestamp.
+   **Then** the report includes required schema fields, snapshot provenance, repository-analysis runtime version, config hash, coverage metadata, finding references, confidence, privacy flags, coverage limitations, report hash, and generation timestamp.
 
 2. **Given** TechnicalEvidenceReport contains raw source, secrets, full prompts, unsafe identifiers, schema-invalid data, or missing required provenance
    **When** evidence gates run
@@ -33,30 +33,29 @@ TechnicalEvidenceReport Gates
 ### Current State and Scope Guardrails
 
 - Epic 3 là bridge từ assessment sang trusted technical evidence. Đây là boundary dễ phá privacy nhất nếu implementation lỏng tay.
-- Story trong epic này phải giữ scanner là static-analysis only và không được kéo scan execution vào web request lifecycle.
+- Story trong epic này phải giữ repository analysis trong LCSP Agent Runtime ở ngoài web request lifecycle; API chỉ orchestration/status và không chạy repository analysis inline.
 - Handoff chính của epic là `RepositorySnapshot`, `TechnicalEvidenceReport`, rồi `TechnicalProfile`; ba artifact này phải giữ boundary rõ.
 
-- Previous story context: `docs/developer/story-handbook/3-6-scan-failure-severity-and-evidence-acceptance-policy.md`
 - Next story dependency seam: `docs/developer/story-handbook/3-8-technicalprofile-generation.md`
-- Artifact chain for this epic: repository connection -> commit-pinned snapshot -> trusted scan trigger -> scanner execution -> TechnicalEvidenceReport -> TechnicalProfile.
+- Artifact chain for this epic: repository connection -> commit-pinned snapshot -> trusted scan trigger -> repository analysis -> TechnicalEvidenceReport -> TechnicalProfile.
 - Workflow/state focus: repository/snapshot/scan/evidence/profile states from REPOSITORY_CONNECTED to TECHNICAL_PROFILE_READY.
 
 ### Story-Specific Implementation Tasks
 
-- Assemble TechnicalEvidenceReport schema with provenance, tool metadata, refs, privacy flags and coverage limitations.
+- Assemble TechnicalEvidenceReport schema with provenance, repository-analysis metadata, refs, privacy flags and coverage limitations.
 - Run schema/privacy/provenance gate checks before downstream use.
 - Emit accepted vs insufficient vs rejected outcome with explicit reasons and audit trail.
 
 ### Task to Acceptance Criteria Traceability
 
-- `AC1`: Assemble TechnicalEvidenceReport schema with provenance, tool metadata, refs, privacy flags and coverage limitations.
+- `AC1`: Assemble TechnicalEvidenceReport schema with provenance, repository-analysis metadata, refs, privacy flags and coverage limitations.
 - `AC2`: Run schema/privacy/provenance gate checks before downstream use.
 - `AC3`: Emit accepted vs insufficient vs rejected outcome with explicit reasons and audit trail.
 
 ### Dependencies and Prerequisites
 
 - Stories 3.4-3.6 workspace, toolchain and severity outputs.
-- Evidence gate contract from `MW-scan-py-004`.
+- Evidence gate contract is owned by the current repository-analysis and TechnicalEvidenceReport contracts.
 
 ### Explicit Non-Goals
 
@@ -73,13 +72,13 @@ TechnicalEvidenceReport Gates
 ### Architecture Compliance
 
 - NestJS API chỉ tạo trusted trigger, persist status và enqueue command qua outbox; Python Worker Platform sở hữu scan/tool execution và downstream profile work.
-- Scanner worker phải dùng restricted workspace, pinned tools, bounded resources và cleanup verification trước completed event.
+- LCSP Agent Runtime repository analysis phải dùng restricted workspace, pinned tools, bounded resources và cleanup verification trước completed event.
 - TechnicalProfile là artifact kỹ thuật bất biến; không được dùng như AIUsageFlow, VerifiedProfile hay compliance status.
 
 ### Functional and Domain Requirements
 
 - Story này phải được triển khai đúng theo acceptance criteria của riêng nó; không kéo behavior của story sau vào cùng slice nếu không có seam thật sự cần thiết.
-- Domain chain liên quan của Epic 3: repository connection -> commit-pinned snapshot -> trusted scan trigger -> scanner execution -> TechnicalEvidenceReport -> TechnicalProfile.
+- Domain chain liên quan của Epic 3: repository connection -> commit-pinned snapshot -> trusted scan trigger -> repository analysis -> TechnicalEvidenceReport -> TechnicalProfile.
 - Khi story chạm workflow gate, blocked/degraded path là một phần của yêu cầu chứ không phải edge-case tuỳ chọn.
 
 
@@ -87,7 +86,7 @@ TechnicalEvidenceReport Gates
 
 - Các story Epic 3 thường chạm `RepositoryConnection`, `RepositorySnapshot`, `ScanJob`, `TechnicalEvidenceReport`, `TechnicalProfile`, outbox event và audit metadata.
 - Raw source không được thành persistent store thông thường; snapshot/workspace là ephemeral hoặc tightly-controlled artifact boundary.
-- Tool provenance, config/ruleset hash, severity policy và evidence refs là dữ liệu bắt buộc cho downstream trust.
+- Repository-analysis provenance, config hash, coverage state và evidence refs là dữ liệu bắt buộc cho downstream trust.
 
 ### State and Audit Requirements
 
@@ -98,7 +97,7 @@ TechnicalEvidenceReport Gates
 ### File Structure Notes
 
 - `apps/api` cho repository selection, scan request/status API và outbox command creation.
-- `deepagents` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
+- `deepagents` cho queue consumer, repository-analysis runtime, evidence gates, TechnicalProfile worker.
 - `packages/*` cho command/event schemas, status projection contracts, evidence/profile DTOs.
 
 ### Implementation Guidance for the Dev Agent
@@ -110,7 +109,7 @@ TechnicalEvidenceReport Gates
 ### Testing Requirements
 
 - API/worker contract tests cho trusted trigger, outbox enqueue và status projection.
-- Scanner sandbox/cleanup security tests, provenance/severity policy assertions.
+- LCSP Docker repository sandbox isolation tests, coverage/provenance assertions, and source-grounding tests.
 - TechnicalEvidenceReport gate coverage và immutable TechnicalProfile versioning tests.
 
 ### References
@@ -126,16 +125,11 @@ TechnicalEvidenceReport Gates
 - [Source: docs/specs/event-catalog.md]
 - [Source: docs/architecture/architecture.md]
 - [Source: docs/implementation/dev-compendium.md]
-- [Source: docs/specs/scanner-spec.md]
-- [Source: docs/implementation/scanner-implementation.md]
-- [Source: docs/implementation/scanner-worker-implementation.md]
+- [Source: docs/architecture/repository-deep-agent-analysis.md]
 - [Source: docs/implementation/python-worker-platform-implementation.md]
 - [Source: docs/implementation/queue-implementation.md]
 - [Source: docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md]
-- [Source: docs/implementation/decisions/scanner-severity-tool-provenance-decision.md]
 - [Source: docs/implementation/tasks/modules/scan/01-scan-job-status-endpoint.md]
 - [Source: docs/implementation/tasks/modules/python-workers/platform/01-worker-platform-bootstrap.md]
-- [Source: docs/implementation/tasks/modules/python-workers/scanner/01-scanner-workspace-setup.md]
-- [Source: docs/implementation/tasks/modules/python-workers/scanner/04-evidence-report-assembly.md]
 - [Source: docs/implementation/tasks/modules/python-workers/intelligence/01-technical-profile-worker.md]
-- [Source: docs/implementation/handoffs/HANDOFF-scanner-evidence-to-technical-profile.md]
+- [Source: docs/implementation-artifacts/3-4-managed-repository-workspace-and-sandbox.md]

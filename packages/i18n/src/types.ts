@@ -176,8 +176,12 @@ export type PagesMessages = {
     connectors: string;
     accountMenu: string;
     chatTranscriptLabel: string;
+    chatNewActivity: string;
+    chatJumpToLatest: string;
     chatComposerPlaceholder: string;
     chatSend: string;
+    chatStopTurn: string;
+    chatResumeTurn: string;
     chatExpand: string;
     chatCollapse: string;
     chatShowMore: string;
@@ -213,6 +217,137 @@ export type PagesMessages = {
       skill: string;
       model: string;
       provenance: string;
+    };
+    agentStreamTechnicalDetails: string;
+    agentStreamActivities: {
+      repositoryScanStarted: string;
+      repositoryAnalysisStarted: string;
+      repositoryAnalysisCompleted: string;
+      repositoryAnalysisFailed: string;
+      scanWorkflowStarted: string;
+      scanWorkflowCompleted: string;
+      scanWorkflowFailed: string;
+      repositoryAnalysisQueued: string;
+      repositoryAnalysisRunning: string;
+      repositorySourceDownloading: string;
+      repositorySourceDownloaded: string;
+      repositoryWorkspacePreparing: string;
+      repositoryWorkspaceReady: string;
+      repositoryDeepAnalysis: string;
+      runtimeProgressConnected: string;
+      runtimeProgress: string;
+      analysisProgressUpdated: string;
+      reasoningReviewed: string;
+      modelOutputReviewed: string;
+      aiAnalysisRunning: string;
+      aiAnalysisCompleted: string;
+      aiAnalysisFailed: string;
+      providerFallback: string;
+      credentialRotation: string;
+      repositoryEvidenceInspected: string;
+      engineeringRuleEvaluated: string;
+      analysisSkillApplied: string;
+      evidenceProvenanceLinked: string;
+      repositoryFilesInspected: string;
+      repositorySourceSearched: string;
+      codebaseGraphQueried: string;
+      sourceFilesReviewed: string;
+      relevantFilesLocated: string;
+      repositoryChangesReviewed: string;
+      implementationUpdated: string;
+      targetedTestsRan: string;
+      codeQualityValidated: string;
+      typeSafetyValidated: string;
+      changesCommitted: string;
+      changesPushed: string;
+      repositoryToolRan: string;
+      subagentSelected: string;
+      agentReasoning: string;
+      agentStepOutput: string;
+      agentBudgetReached: string;
+      agentBudgetExhausted: string;
+      boundaryPaused: string;
+      agentContextTrimmed: string;
+    };
+    agentStreamRule: {
+      activity: {
+        ruleAnalysisStarted: string;
+        ruleAnalysisCompleted: string;
+        ruleAnalysisNeedsContext: string;
+        ruleAnalysisUnresolved: string;
+        ruleAnalysisFailed: string;
+        businessContextRequested: string;
+        businessContextResolved: string;
+        ruleAnalysisResumed: string;
+        ruleApplicabilityEvaluated: string;
+        ruleCompletionGated: string;
+      };
+      investigating: string;
+      investigated: string;
+      investigationFailed: string;
+      waitingForInput: string;
+      result: string;
+      decision: string;
+      reason: string;
+      confidence: string;
+      sources: string;
+      limitations: string;
+    };
+    agentStreamTurn: {
+      scannerActor: string;
+      interviewActor: string;
+      ruleAnalysisActor: string;
+      gateActor: string;
+      scannerRunning: string;
+      scannerCompleted: string;
+      scannerFailed: string;
+      interviewRunning: string;
+      interviewCompleted: string;
+      interviewFailed: string;
+      investigateRunning: string;
+      investigateCompleted: string;
+      investigateFailed: string;
+      gateRunning: string;
+      gateCompleted: string;
+      gateFailed: string;
+      ruleInvestigating: string;
+      ruleInvestigated: string;
+      ruleFailed: string;
+      ruleWaiting: string;
+      ruleQueued: string;
+      ruleFallback: string;
+    };
+    agentStreamTechnicalSummary: {
+      planning: string;
+      investigation: string;
+      sourceFiles: string;
+      analysis: string;
+      tools: string;
+      failures: string;
+      rawEvents: string;
+    };
+    agentStreamUsage: {
+      input: string;
+      output: string;
+      total: string;
+      lines: string;
+      items: string;
+      truncated: string;
+      metrics: {
+        reasoning_tokens: string;
+        thinking_tokens: string;
+        cached_input_tokens: string;
+        cache_read_tokens: string;
+        cache_creation_input_tokens: string;
+        audio_tokens: string;
+      };
+    };
+    agentStreamRuleAnalysisOutput: {
+      aggregatedFailed: string;
+      aggregatedWaiting: string;
+      completed: string;
+      failed: string;
+      waiting: string;
     };
     agentStreamSelected: string;
     agentStreamLoadOlder: string;
@@ -311,8 +446,7 @@ export type PagesMessages = {
         scanner: string;
         interview: string;
         rules: string;
-        planner: string;
-        investigate: string;
+        ruleAnalysis: string;
         gate: string;
       };
       statuses: {
@@ -520,8 +654,7 @@ export type PagesMessages = {
       showcaseWorkflowScanner: string;
       showcaseWorkflowInterview: string;
       showcaseWorkflowRules: string;
-      showcaseWorkflowPlanner: string;
-      showcaseWorkflowInvestigate: string;
+      showcaseWorkflowRepositoryAnalyst: string;
       showcaseWorkflowGate: string;
       showcaseStatusPassed: string;
       showcaseStatusRunning: string;
@@ -886,6 +1019,7 @@ export type PagesMessages = {
       SCAN_IN_PROGRESS: string;
       CLASSIFICATION_LOCKED: string;
       READY_FOR_REVIEW: string;
+      AI_NOT_DETECTED: string;
     };
     nextActions: {
       workflowRun: string;
@@ -1067,13 +1201,10 @@ export type PagesMessages = {
         estimateDescription: string;
         estimatePrompt: string;
         estimateLoading: string;
+        estimateAmount: string;
+        estimateCredits: string;
         estimateError: string;
-        effectiveProvider: string;
-        effectiveModel: string;
-        estimatedUsageCharge: string;
         unavailable: string;
-        insufficientPricingTitle: string;
-        insufficientPricingDescription: string;
         activeOrderTitle: string;
         noActiveOrder: string;
         paymentTitle: string;
@@ -1474,6 +1605,10 @@ export type PagesMessages = {
     targetedClarificationAfterDecision: string;
     confirm: string;
     adjust: string;
+    customerConfirmedAnswer: string;
+    confirmedContextOutput: string;
+    adjustedContextOutput: string;
+    noMoreQuestionsOutput: string;
     otherDescribe: string;
     booleanYes: string;
     booleanNo: string;
@@ -1488,6 +1623,9 @@ export type PagesMessages = {
     adjustPlaceholder: string;
     composerChooseConfirmAdjust: string;
     submitAnswer: string;
+    sourceCode: string;
+    sourceCodeLoading: string;
+    sourceCodeUnavailable: string;
     resumePipeline: string;
     resumeQueued: string;
     answerSavedForRuntime: string;
@@ -1510,6 +1648,11 @@ export type PagesMessages = {
     resumeSetupDescription: string;
     retrySetupState: string;
     thought: string;
+    thinking: {
+      running: string;
+      completed: string;
+      completedWithoutDuration: string;
+    };
     repositorySetupDescription: string;
     providerQuestion: string;
     providerHelp: string;
@@ -1649,23 +1792,34 @@ export type PagesMessages = {
       progressTool: string;
       progressCompleted: string;
       progressFailed: string;
+      resumeFailedPlaceholder: string;
+      resumeTurnQueued: string;
+      resumeTurnLimitReached: string;
+      resumeTurnFailed: string;
       contextReadyHandoff: string;
       contextResolvedHandoff: string;
       pendingPlaceholder: string;
+      investigatePlaceholder: string;
+      gatePlaceholder: string;
+      aiNotDetectedDescription: string;
+      aiNotDetectedPlaceholder: string;
       placeholder: string;
+    };
+    pipeline: {
+      continueQueued: string;
+      continueAlreadyRunning: string;
+      continueWaitingForCustomer: string;
+      continueCompleted: string;
+      continueFailed: string;
     };
     technicalEvidence: {
       progress: string;
-      plannerProgress: string;
-      plannerFailed: string;
-      investigatorProgress: string;
-      investigatorFailed: string;
-      plannerTargetedSummary: string;
-      plannerSummary: string;
-      investigatorSummary: string;
-      investigatorLimitedSummary: string;
-      investigatorRuntimeFailedSummary: string;
-      plannerDecision: string;
+      ruleAnalysisProgress: string;
+      ruleAnalysisLimited: string;
+      ruleAnalysisSummary: string;
+      ruleAnalysisNeedsContextSummary: string;
+      ruleAnalysisUnresolvedSummary: string;
+      ruleAnalysisFailedSummary: string;
       investigationFailed: string;
       investigated: string;
       readinessWaiting: string;
@@ -1926,19 +2080,14 @@ export type PagesMessages = {
     referencesLabel: string;
     generateFinalReport: string;
     generateGapAnalysis: string;
-    rerunClassification: string;
-    rerunSubmitting: string;
     errorTitle: string;
     errorDetail: string;
     observability: {
       title: string;
       description: string;
-      openWikiStatus: string;
       compileFailed: string;
       candidates: string;
       claimsWithEvidence: string;
-      openWikiError: string;
-      fallback: string;
       failedLegalRuleIds: string;
       sourceHitBuckets: string;
       sourceEvidenceBuckets: string;
@@ -1946,9 +2095,6 @@ export type PagesMessages = {
       sourceNodeTypes: string;
       evaluationsWithEvidence: string;
       displayableTechnicalEvidence: string;
-      available: string;
-      unavailable: string;
-      unknown: string;
       bucket0: string;
       bucket1: string;
       bucket2To5: string;
@@ -2066,9 +2212,6 @@ export type PagesMessages = {
       lockedBadge: string;
       lockedDescription: string;
       lockedNextSteps: string;
-      waitingLegalReadinessTitle: string;
-      waitingLegalReadinessBadge: string;
-      waitingLegalReadinessDescription: string;
       processingTitle: string;
       processingBadge: string;
       processingDescription: string;
@@ -2084,10 +2227,6 @@ export type PagesMessages = {
       blockedBadge: string;
       blockedDescription: string;
       blockedSummary: string;
-      legalMatchBlockedTitle: string;
-      legalMatchBlockedBadge: string;
-      legalMatchBlockedDescription: string;
-      legalMatchBlockedSummary: string;
     };
   };
   structuredResults: {
@@ -2235,24 +2374,15 @@ export type PagesMessages = {
       periods: { mtd: string; d7: string; d30: string; d90: string };
       metrics: {
         settledTopUps: string;
-        usageRevenue: string;
         pendingReconciliation: string;
         duplicates: string;
         topUpSubtitle: string;
-        usageSubtitle: string;
         eventSuffix: string;
       };
       trend: {
         title: string;
         description: string;
         dayAria: string;
-      };
-      pricing: {
-        title: string;
-        providerCost: string;
-        customerCharge: string;
-        prepaidCredits: string;
-        missingSnapshot: string;
       };
       columns: {
         order: string;

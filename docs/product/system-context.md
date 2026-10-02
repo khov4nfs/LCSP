@@ -44,7 +44,7 @@ Manager intent
 - Self-signup and Manager-owned workspace entry.
 - Read-only GitHub repository connection and commit-pinned Repository Scan.
 - Python Worker Platform-owned asynchronous domain work.
-- Python Scanner Worker static analysis with Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules.
+- Repository Deep Agent analysis over the commit-pinned repository in an LCSP Docker sandbox, with optional Codebase Memory MCP structural indexing and source-grounded evidence/coverage decisions.
 - Evidence gates, TechnicalProfile, AIUsageFlow context, and Manager-only conflict resolution.
 - Provenance-preserving legal corpus ingestion from approved official-source URLs.
 - Internal corpus review/approval and immutable LegalCorpusVersion management.

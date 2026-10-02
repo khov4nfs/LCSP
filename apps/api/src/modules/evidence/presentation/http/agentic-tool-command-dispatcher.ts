@@ -33,19 +33,6 @@ export function isAgenticToolCommand(toolName: string): boolean {
   );
 }
 
-/** Resolve the mandatory RBAC action for one protected canonical tool. */
-export function agenticToolCommandRbacAction(toolName: string): string {
-  const action = PROTECTED_COMMAND_ACTIONS[toolName];
-  if (!action) {
-    throw problemException(
-      EVIDENCE_ERROR_CODES.notFound,
-      "internal-agentic-dispatch",
-      { status: HttpStatus.NOT_FOUND },
-    );
-  }
-  return action;
-}
-
 /** Resolve one protected canonical name to the Nest command owning its mutation. */
 export function buildAgenticToolCommand(
   args: AgenticToolCommandDispatchArgs,

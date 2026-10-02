@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+import warnings
 from typing import TextIO
 
 import structlog
@@ -222,7 +223,7 @@ class PartitionedLogWriter:
 
 
 def configure_logging(level: str = "INFO") -> None:
-    """Configure JSON logging for Managed Agent processes.
+    """Configure JSON logging for Agent Runtime processes.
 
     Normal worker events continue to stdout and partitioned run/orchestration
     files. Safe LLM request/response plus EngineeringRule native tool input/result
@@ -270,6 +271,16 @@ def suppress_langgraph_heartbeat_logs() -> None:
     Warnings and errors from these components still surface. The suppressed INFO
     records only report idle queue/worker counters such as ``Worker stats`` and
     ``Queue stats``.
+
+    LangGraph's own console formatter also chains ``format_exc_info`` before
+    structlog's ConsoleRenderer, so every logged run error is preceded by a
+    structlog UserWarning about pretty exceptions. The traceback is still
+    rendered; only that advisory is ignored.
     """
     for logger_name in _NOISY_LANGGRAPH_INFO_LOGGERS:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
+    warnings.filterwarnings(
+        "ignore",
+        message=r"Remove `format_exc_info` from your processor chain",
+        category=UserWarning,
+    )

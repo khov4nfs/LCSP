@@ -215,7 +215,7 @@ function normalizeCount(value: unknown): number {
     : 0;
 }
 
-export async function getProgramEvidenceGraphDetail(
+async function getProgramEvidenceGraphDetail(
   assessmentId: string,
 ): Promise<ProgramEvidenceGraphDetail | null> {
   const result = await getProgramEvidenceGraphDetailState(assessmentId);

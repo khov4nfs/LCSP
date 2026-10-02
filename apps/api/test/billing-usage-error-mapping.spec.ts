@@ -4,8 +4,8 @@ import { BILLING_ERROR_CODES } from "@lcsp/contracts/billing";
 import { mapUsageError } from "../src/modules/billing/presentation/http/errors/billing-http.error-mapper.js";
 import {
   BillingDomainError,
-  InsufficientCreditError,
-  PricingSnapshotUnavailableError,
+  BillingIdempotencyConflictError,
+  OwnershipMismatchError,
 } from "../src/modules/billing/domain/billing.errors.js";
 
 /**
@@ -20,36 +20,41 @@ function problemOf(error: unknown) {
 }
 
 describe("billing usage error mapping", () => {
-  it("reports a missing pricing snapshot as a retryable provisioning gap", () => {
-    const mapped = mapUsageError(
-      new PricingSnapshotUnavailableError(
-        "Pricing snapshot is required before reserving provider spend: OPENAI/gpt-4.1-nano",
-      ),
-    );
-
-    const problem = problemOf(mapped);
-    expect(problem.code).toBe(BILLING_ERROR_CODES.pricingUnavailable);
-    expect(problem.status).toBe(HttpStatus.SERVICE_UNAVAILABLE);
-    expect((mapped as { getStatus: () => number }).getStatus()).toBe(
-      HttpStatus.SERVICE_UNAVAILABLE,
-    );
-  });
-
-  it("still reports other domain failures as caller validation problems", () => {
+  it("reports other domain failures as caller validation problems", () => {
     const problem = problemOf(
-      mapUsageError(new BillingDomainError("Reservation amount is invalid")),
+      mapUsageError(new BillingDomainError("Usage identity is required")),
     );
 
     expect(problem.code).toBe(BILLING_ERROR_CODES.validationFailed);
     expect(problem.status).toBe(HttpStatus.BAD_REQUEST);
   });
 
-  it("keeps insufficient credit distinct from a pricing gap", () => {
+  it("maps a differing usage replay to a conflict", () => {
     const problem = problemOf(
-      mapUsageError(new InsufficientCreditError("Insufficient credits")),
+      mapUsageError(
+        new BillingIdempotencyConflictError("Usage replay differs"),
+      ),
     );
 
-    expect(problem.code).toBe(BILLING_ERROR_CODES.insufficientCredits);
-    expect(problem.status).toBe(HttpStatus.PAYMENT_REQUIRED);
+    expect(problem.code).toBe(BILLING_ERROR_CODES.idempotencyConflict);
+    expect(problem.status).toBe(HttpStatus.CONFLICT);
+  });
+
+  it("maps an unknown assessment owner to forbidden", () => {
+    const problem = problemOf(
+      mapUsageError(new OwnershipMismatchError("Assessment does not exist")),
+    );
+
+    expect(problem.code).toBe(BILLING_ERROR_CODES.ownershipMismatch);
+    expect(problem.status).toBe(HttpStatus.FORBIDDEN);
+  });
+
+  it("never exposes a model-credit or pricing problem code", () => {
+    expect(Object.values(BILLING_ERROR_CODES)).not.toContain(
+      "BILLING_INSUFFICIENT_CREDITS",
+    );
+    expect(Object.values(BILLING_ERROR_CODES)).not.toContain(
+      "BILLING_PRICING_UNAVAILABLE",
+    );
   });
 });

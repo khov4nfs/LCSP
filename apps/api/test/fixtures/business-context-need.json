@@ -1,0 +1,12 @@
+{
+  "actorId": "user-1",
+  "needId": "need:R1:criterion-human-approval:0123456789ab",
+  "engineeringRuleId": "R1",
+  "criterionId": "criterion-human-approval",
+  "question": "Does an automated recommendation change the outcome by itself, or must an authorised person approve it first?",
+  "observation": "An automated recommendation reaches a step that changes a decision.",
+  "resolutionCriterionIds": ["criterion-human-approval"],
+  "evidenceRefs": [],
+  "contextRevision": 7,
+  "workflowRunId": "run-1"
+}

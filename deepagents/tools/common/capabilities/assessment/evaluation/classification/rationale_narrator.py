@@ -1,17 +1,20 @@
 """Narrate an already-computed classification decision without changing it."""
 
-from orchestration.agent_stream import invoke_with_stream
+from orchestration.agent_stream import AGENT_STREAM_STAGES, invoke_with_stream
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from middleware.billing_metering import BillingMeteringError
-from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
+from middleware.usage_metering import AgentRoleMiddleware
+from deepagents import create_deep_agent
+from middleware.agent_run_budget import AgentRunBudgetMiddleware
+from tools.common.capabilities.platform.repository_sandbox import current_repository_backend
+from model_policy import resolve_agent_model
 
 
 class RationaleNarrator:
     """Use an LLM only to explain deterministic classification results."""
 
-    def __init__(self, model: str = NARRATOR_MODEL_SPEC):
+    def __init__(self, role: str = "narrator"):
         """Create a narrator backed by LangChain's standard agent runtime."""
-        self._model = model
+        self._role = role
 
     def generate_rationale(
         self,
@@ -61,14 +64,19 @@ class RationaleNarrator:
         """
 
         try:
-            agent = create_agent(
-                agent_name="lcsp-classification-rationale-narrator",
-                model=self._model,
+            agent = create_deep_agent(
+                name="lcsp-classification-rationale-narrator",
+                model=resolve_agent_model(self._role),
+                backend=current_repository_backend(),
                 system_prompt=(
                     "You explain an existing LCSP decision without changing it or "
                     "making legal conclusions."
                 ),
-                middleware=MODEL_GOVERNANCE_MIDDLEWARE,
+                middleware=[
+                    AgentRunBudgetMiddleware(),
+                    AgentRoleMiddleware("narrator"),
+                    *MODEL_GOVERNANCE_MIDDLEWARE,
+                ],
             )
             result = invoke_with_stream(agent,
                 {"messages": [{"role": "user", "content": prompt}]},
@@ -80,6 +88,7 @@ class RationaleNarrator:
                     },
                     "configurable": {"thread_id": workflow_run_id},
                 },
+                stage=AGENT_STREAM_STAGES["gate"],
             )
             messages = result.get("messages") or []
             if not messages:
@@ -98,8 +107,6 @@ class RationaleNarrator:
                 return None
 
             return content
-        except BillingMeteringError:
-            raise
         except Exception:
             # Rationale is optional; deterministic classification still proceeds.
             return None

@@ -11,7 +11,7 @@
 6. Chọn repository hoặc nhận trusted trigger
 7. Trigger xác định branch/commit hoặc tạo trạng thái mapping an toàn
 8. Tạo RepositorySnapshot và yêu cầu Repository Scan
-9. Python Scanner Worker tạo TechnicalEvidenceReport
+9. Repository Deep Agent tạo TechnicalEvidenceReport
 10. Tạo TechnicalProfile
 11. Tạo AIUsageFlow
 12. Reconciliation phát hiện conflict hoặc xác nhận sẵn sàng
@@ -48,7 +48,7 @@ Không được đi tắt từ Wizard sang risk, từ scan sang classification, 
 
 ## Luồng scan
 
-Backend kiểm tra PBAC, nhận trusted trigger và tạo `TrustedScanTrigger`, mapping state, `AuditEvent`, rồi chỉ tạo `RepositoryScanJob` khi context an toàn. Python Scanner Worker khóa job, tạo workspace, lấy snapshot, chạy Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser và Semgrep custom rules, tạo evidence/report, chạy gate, xóa workspace rồi mới ghi trạng thái terminal và outbox event.
+Backend kiểm tra PBAC, nhận trusted trigger và tạo `TrustedScanTrigger`, mapping state, `AuditEvent`, rồi chỉ tạo `RepositoryScanJob` khi context an toàn. LCSP Agent Runtime hydrate snapshot vào Docker repository sandbox của durable LangGraph thread; Repository Deep Agent dùng native repository tools và Codebase Memory MCP tùy chọn để tạo evidence/report source-grounded, chạy gate rồi ghi trạng thái terminal và outbox event.
 
 Scan hoàn tất chỉ khi report `QUALITY_VALID` và cleanup đã được xác minh. Mọi rerun tạo job/evidence chain mới, không sửa lịch sử.
 

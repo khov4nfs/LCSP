@@ -148,7 +148,7 @@ export function toDocumentRequestOutcome(
   };
 }
 
-export function toDocumentStatusOutcome(
+function toDocumentStatusOutcome(
   payload: unknown,
   ok: boolean,
   status: number,
@@ -211,7 +211,7 @@ export function sanitizeDocumentRequestPayload(
   return isDocumentRequestResult(payload) ? payload : null;
 }
 
-export function sanitizeDocumentStatusPayload(
+function sanitizeDocumentStatusPayload(
   payload: unknown,
 ): DocumentStatusResult | null {
   return isDocumentStatusResult(payload) ? payload : null;

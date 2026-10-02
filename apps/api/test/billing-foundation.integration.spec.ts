@@ -336,38 +336,6 @@ describe("LCSP-310 billing persistence constraints", () => {
     expect(reservation.status).toBe("RESERVED");
   });
 
-  it("prevents concurrent overspend with user-scoped transaction locking", async () => {
-    const a = user("concurrent");
-    await prisma.user.create({ data: a });
-    const wallet = await accounting.getOrCreateWallet(a.id);
-    await accounting.appendLedger({
-      userId: a.id,
-      walletId: wallet.id,
-      deltaCredits: 100n,
-      idempotencyKey: "seed-balance",
-      source: "TEST",
-    });
-    const results = await Promise.allSettled([
-      accounting.reserveCredits({
-        userId: a.id,
-        amountCredits: 80n,
-        idempotencyKey: "reserve-a",
-      }),
-      accounting.reserveCredits({
-        userId: a.id,
-        amountCredits: 80n,
-        idempotencyKey: "reserve-b",
-      }),
-    ]);
-    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
-    const finalWallet = await prisma.billingWallet.findUniqueOrThrow({
-      where: { userId: a.id },
-    });
-    expect(finalWallet.availableCredits).toBe(20n);
-    expect(finalWallet.reservedCredits).toBe(80n);
-  });
-
   it("reconciles matched, unmatched, mismatch, and terminal-order payments atomically", async () => {
     const a = user("pay");
     await prisma.user.create({ data: a });
@@ -430,7 +398,7 @@ describe("LCSP-310 billing persistence constraints", () => {
     expect(review.reconciliationStatus).toBe("NEEDS_REVIEW");
   });
 
-  it("settles and releases reservations exactly once", async () => {
+  it("drains a legacy reservation exactly once and returns its held credit", async () => {
     const a = user("lifecycle");
     await prisma.user.create({ data: a });
     const wallet = await accounting.getOrCreateWallet(a.id);
@@ -441,48 +409,19 @@ describe("LCSP-310 billing persistence constraints", () => {
       idempotencyKey: "life-seed",
       source: "TEST",
     });
-    const settled = await accounting.reserveCredits({
-      userId: a.id,
-      amountCredits: 100n,
-      idempotencyKey: "life-settle",
-    });
-    const settleResults = await Promise.allSettled([
-      accounting.settleReservation({
+    // Held-credit rows exist only from before model use stopped debiting.
+    const legacy = await prisma.billingReservation.create({
+      data: {
         userId: a.id,
-        reservationId: settled.id,
-        chargedCredits: 63n,
-      }),
-      accounting.settleReservation({
-        userId: a.id,
-        reservationId: settled.id,
-        chargedCredits: 63n,
-      }),
-    ]);
-    expect(
-      settleResults.filter((result) => result.status === "fulfilled"),
-    ).toHaveLength(2);
-    expect(settleResults[0]).toMatchObject({
-      status: "fulfilled",
-      value: { reservationId: settled.id, chargedCredits: 63n },
-    });
-    expect(settleResults[1]).toMatchObject({
-      status: "fulfilled",
-      value: { reservationId: settled.id, chargedCredits: 63n },
-    });
-    const release = await accounting.reserveCredits({
-      userId: a.id,
-      amountCredits: 10n,
-      idempotencyKey: "life-release",
+        walletId: wallet.id,
+        amountCredits: 40n,
+        remainingCredits: 40n,
+        status: "RESERVED",
+      },
     });
     const releaseResults = await Promise.allSettled([
-      accounting.releaseReservation({
-        userId: a.id,
-        reservationId: release.id,
-      }),
-      accounting.releaseReservation({
-        userId: a.id,
-        reservationId: release.id,
-      }),
+      accounting.releaseReservation({ userId: a.id, reservationId: legacy.id }),
+      accounting.releaseReservation({ userId: a.id, reservationId: legacy.id }),
     ]);
     expect(
       releaseResults.filter((result) => result.status === "fulfilled"),
@@ -490,32 +429,10 @@ describe("LCSP-310 billing persistence constraints", () => {
     const finalWallet = await prisma.billingWallet.findUniqueOrThrow({
       where: { userId: a.id },
     });
-    expect(finalWallet.availableCredits).toBe(37n);
+    expect(finalWallet.availableCredits).toBe(100n);
     expect(finalWallet.reservedCredits).toBe(0n);
     expect(
       await prisma.creditLedgerEntry.count({ where: { userId: a.id } }),
-    ).toBe(2);
-    const race = await accounting.reserveCredits({
-      userId: a.id,
-      amountCredits: 10n,
-      idempotencyKey: "life-race",
-    });
-    await Promise.allSettled([
-      accounting.settleReservation({
-        userId: a.id,
-        reservationId: race.id,
-        chargedCredits: 4n,
-      }),
-      accounting.releaseReservation({ userId: a.id, reservationId: race.id }),
-    ]);
-    const raceRow = await prisma.billingReservation.findUniqueOrThrow({
-      where: { id: race.id },
-    });
-    expect(["SETTLED", "RELEASED"]).toContain(raceRow.status);
-    expect(
-      (await prisma.creditLedgerEntry.count({
-        where: { referenceId: race.id },
-      })) <= 1,
-    ).toBe(true);
+    ).toBe(1);
   });
 });

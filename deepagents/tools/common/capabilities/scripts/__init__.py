@@ -1,1 +1,1 @@
-"""Operational scripts for LCSP Managed Deep Agent tooling."""
+"""Operational scripts for LCSP Agent Runtime tooling."""

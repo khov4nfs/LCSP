@@ -15,7 +15,7 @@ from tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_boundary import (
     VBPL_EFFECTED_CHUNK_SET_BOUNDARY_SOURCE,
     VbplEffectedChunkSetBoundary,
 )
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def test_dispatcher_exposes_vbpl_effected_chunk_set_tool() -> None:

@@ -25,7 +25,6 @@ describe("SePayReconciliationConsumer", () => {
     const consumer = new SePayReconciliationConsumer(
       { consume } as unknown as RabbitMqClient,
       { execute } as unknown as CommandBus,
-      { get: () => true } as never,
     );
 
     consumer.onModuleInit();
@@ -57,7 +56,6 @@ describe("SePayReconciliationConsumer", () => {
         ),
       } as unknown as RabbitMqClient,
       { execute: jest.fn() } as unknown as CommandBus,
-      { get: () => true } as never,
     );
 
     consumer.onModuleInit();

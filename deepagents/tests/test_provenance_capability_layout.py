@@ -44,8 +44,6 @@ def test_agentic_evidence_tools_are_grouped_by_owner_capability() -> None:
     }
     assert _py(provenance / "entrypoints") == {
         "tool_entrypoints.py",
-        "program_graph_tool_entrypoints.py",
-        "scanner_tool_entrypoints.py",
         "legal_tool_entrypoints.py",
         "remediation_tool_entrypoints.py",
     }

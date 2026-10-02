@@ -146,18 +146,12 @@ describe("Outbox and consumer idempotency (e2e) [AC-039, AC-040]", () => {
     // Process message twice via internal relay
     const first = await httpRequest(app)
       .post("/internal/outbox/process")
-      .set(
-        "X-Internal-Token",
-        process.env.INTERNAL_API_TOKEN ?? "test-internal-token",
-      )
+      .set("X-Internal-Token", "test-internal-token")
       .send({ message_id: messageId });
 
     const second = await httpRequest(app)
       .post("/internal/outbox/process")
-      .set(
-        "X-Internal-Token",
-        process.env.INTERNAL_API_TOKEN ?? "test-internal-token",
-      )
+      .set("X-Internal-Token", "test-internal-token")
       .send({ message_id: messageId });
 
     // Second processing must not create duplicate side effects
@@ -201,10 +195,7 @@ describe("Outbox and consumer idempotency (e2e) [AC-039, AC-040]", () => {
     // Deliver the ASSESSMENT_CREATED event again (duplicate)
     await httpRequest(app)
       .post("/internal/outbox/process")
-      .set(
-        "X-Internal-Token",
-        process.env.INTERNAL_API_TOKEN ?? "test-internal-token",
-      )
+      .set("X-Internal-Token", "test-internal-token")
       .send({
         event_type: ASSESSMENT_EVENT_TYPES.created,
         aggregate_id: assessmentId,

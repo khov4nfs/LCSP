@@ -10,7 +10,6 @@ authority_sources:
   - docs/architecture/multi-agent-system-architecture.md
   - docs/specs/functional-requirements.md
   - docs/specs/non-functional-requirements.md
-  - docs/specs/scanner-spec.md
   - docs/specs/legal-matching-domain-spec.md
   - docs/specs/user-task-flows.md
 excluded_sources:

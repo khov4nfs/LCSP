@@ -19,7 +19,7 @@ test("runtime sidebar preview is development-gated and uses the real sidebar", a
   assert.match(fixture, /NormalizedAssessmentRuntime/);
   assert.match(fixture, /payment-service/);
   assert.match(fixture, /feat\/payment-risk-controls/);
-  for (const label of ["Repository", "Scanner", "Interview", "Rules", "Planner", "Investigate", "Gate"]) {
+  for (const label of ["Repository", "Scanner", "Interview", "Rules", "Rule analysis", "Gate"]) {
     assert.match(fixture, new RegExp(`label: "${label}"`));
   }
   assert.match(shell, /<AssessmentRuntimeSidebar/);
@@ -32,7 +32,7 @@ test("runtime sidebar preview supplements, but does not replace, production work
   ]);
 
   assert.match(fixture, /Development-only Figma fixture/);
-  for (const label of ["rules", "planner", "gate"]) {
+  for (const label of ["rules", "gate"]) {
     assert.match(adapter, new RegExp(`assessmentSidebar\\.workflow\\.${label}`));
   }
 });

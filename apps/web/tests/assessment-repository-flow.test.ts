@@ -184,6 +184,7 @@ test("flow remains in scanner while source evidence is incomplete", () => {
   });
 
   assert.equal(flow.stage, ASSESSMENT_FLOW_STAGES.scanner);
+  assert.equal(flow.scanActive, true);
   assert.deepEqual(
     flow.activities.map((activity) => activity.status),
     [
@@ -230,6 +231,7 @@ test("flow begins Interview only after accepted evidence for the scan", () => {
 
   assert.equal(flow.stage, ASSESSMENT_FLOW_STAGES.interview);
   assert.equal(flow.evidenceAccepted, true);
+  assert.equal(flow.scanActive, false);
   assert.ok(
     flow.activities.every(
       (activity) => activity.status === TOOL_ACTIVITY_STATUSES.completed,

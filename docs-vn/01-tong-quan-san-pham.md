@@ -13,7 +13,7 @@ LCSP không được tạo kết luận pháp lý khi thiếu bằng chứng ho�
 - `FR-050` là Automatic Trusted Scan Initiation, không phải upload Local/CI scanner report.
 - `FR-051` manual evidence JSON là `REMOVED_FROM_PRODUCT`.
 - Python Worker Platform sở hữu toàn bộ asynchronous domain workloads.
-- Scanner toolchain gồm Syft, Knip, deptry, Semgrep custom rules, tree-sitter/custom parser, `ast`/`libcst` và bounded `ts-morph`.
+- Phân tích repository dùng LCSP Agent Runtime tự host trên LangGraph + native Deep Agents + Docker sandbox; Codebase Memory MCP 0.11.0 hỗ trợ structural graph, còn source trực tiếp là authority.
 
 ## Người dùng và trách nhiệm
 
@@ -35,7 +35,7 @@ Là vai trò vận hành nội bộ, dùng API/CLI để xác minh nguồn văn 
 - assessment và WizardProfile;
 - GitHub App chỉ đọc, trusted scan trigger và repository snapshot theo commit;
 - Python Worker Platform cho toàn bộ asynchronous domain workloads;
-- scanner toolchain đa công cụ và TechnicalEvidenceReport;
+- LCSP Agent Runtime repository analysis và TechnicalEvidenceReport;
 - TechnicalProfile, AIUsageFlow, reconciliation và VerifiedProfile;
 - legal corpus có provenance, immutable version và internal approval;
 - ChromaDB structure-first vectorless legal retrieval;

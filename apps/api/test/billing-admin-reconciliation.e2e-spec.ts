@@ -9,7 +9,6 @@ import {
   BILLING_ADMIN_PAYMENT_FILTERS,
   BILLING_ADMIN_PERIODS,
   BILLING_ORDER_STATUSES,
-  LLM_USAGE_STATUSES,
   PAYMENT_RECONCILIATION_REASONS,
   PAYMENT_RECONCILIATION_STATUSES,
 } from "@lcsp/contracts/billing";
@@ -275,7 +274,7 @@ describe("Admin billing reconciliation (e2e)", () => {
     const reconciledAt = new Date("2026-09-15T12:00:00.000Z");
     const receivedAt = new Date("2026-09-15T11:00:00.000Z");
 
-    const [walletA, walletB] = await Promise.all([
+    await Promise.all([
       prisma.billingWallet.create({
         data: {
           userId: "user-1",
@@ -380,40 +379,6 @@ describe("Admin billing reconciliation (e2e)", () => {
       ],
     });
 
-    await prisma.creditLedgerEntry.createMany({
-      data: [
-        {
-          userId: "user-1",
-          walletId: walletA.id,
-          idempotencyKey: "report-ledger-llm",
-          source: "LLM_USAGE_DEBIT",
-          referenceId: "report-usage-llm",
-          deltaCredits: -80n,
-          createdAt: reconciledAt,
-        },
-        {
-          userId: "user-2",
-          walletId: walletB.id,
-          idempotencyKey: "report-ledger-reservation",
-          source: "RESERVATION_SETTLEMENT",
-          referenceId: "report-usage-reservation",
-          deltaCredits: -50n,
-          createdAt: reconciledAt,
-        },
-      ],
-    });
-    await prisma.llmUsageEvent.create({
-      data: {
-        userId: "user-1",
-        provider: "OPENAI",
-        model: "gpt-test",
-        invocationId: "report-usage-without-ledger",
-        status: "SETTLED",
-        customerChargeVnd: 999n,
-        occurredAt: reconciledAt,
-      },
-    });
-
     const response = await httpRequest(app)
       .get("/admin/billing/revenue-summary")
       .query({ from: from.toISOString(), to: to.toISOString() })
@@ -421,7 +386,6 @@ describe("Admin billing reconciliation (e2e)", () => {
     assert.equal(response.status, 200);
     const body = successBody<{
       settledTopUps: { amountMinorUnits: string; count: number };
-      usageRevenue: { amountMinorUnits: string; count: number };
       outstandingCredits: { credits: string };
       pendingReconciliation: { count: number };
       duplicateBlocked: { count: number; scope: string };
@@ -430,10 +394,7 @@ describe("Admin billing reconciliation (e2e)", () => {
       amountMinorUnits: "800",
       count: 2,
     });
-    assert.deepEqual(body.usageRevenue, {
-      amountMinorUnits: "130",
-      count: 2,
-    });
+    assert.equal("usageRevenue" in body, false);
     assert.equal(body.outstandingCredits.credits, "750");
     assert.equal(body.pendingReconciliation.count, 2);
     assert.deepEqual(body.duplicateBlocked, {
@@ -451,11 +412,9 @@ describe("Admin billing reconciliation (e2e)", () => {
     assert.equal(boundary.status, 200);
     const boundaryBody = successBody<{
       settledTopUps: { amountMinorUnits: string };
-      usageRevenue: { amountMinorUnits: string };
       outstandingCredits: { credits: string };
     }>(boundary);
     assert.equal(boundaryBody.settledTopUps.amountMinorUnits, "0");
-    assert.equal(boundaryBody.usageRevenue.amountMinorUnits, "0");
     assert.equal(boundaryBody.outstandingCredits.credits, "750");
 
     const filterRequests = [
@@ -556,18 +515,6 @@ describe("Admin billing reconciliation (e2e)", () => {
       where: { id: orderId },
       data: { status: BILLING_ORDER_STATUSES.CREDITED, creditedAt },
     });
-    await prisma.llmUsageEvent.create({
-      data: {
-        userId: "user-1",
-        provider: "OPENAI",
-        model: "MODEL_A",
-        invocationId: "admin-billing-fixture-usage",
-        status: LLM_USAGE_STATUSES.SETTLED,
-        customerChargeVnd: 2500n,
-        chargedCredits: 25n,
-        occurredAt: creditedAt,
-      },
-    });
     for (const providerTransactionId of [
       "TX-ADMIN-DUPLICATE-A",
       "TX-ADMIN-DUPLICATE-B",
@@ -595,7 +542,6 @@ describe("Admin billing reconciliation (e2e)", () => {
     const dashboard = successBody<{
       summary: {
         settledTopUpVnd: string;
-        usageRevenueVnd: string;
         pendingReconciliationCount: number;
         duplicatePaymentCount: number;
         settledTopUpTrend: Array<{ day: string; amountVnd: string }>;
@@ -611,7 +557,6 @@ describe("Admin billing reconciliation (e2e)", () => {
     const { settledTopUpTrend, ...summary } = dashboard.summary;
     assert.deepEqual(summary, {
       settledTopUpVnd: "100000",
-      usageRevenueVnd: "2500",
       pendingReconciliationCount: 1,
       duplicatePaymentCount: 2,
     });

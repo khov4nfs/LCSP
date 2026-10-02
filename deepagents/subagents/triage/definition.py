@@ -1,11 +1,10 @@
 """Legal Triage subagent: own LegalRule triage and EngineeringRule preparation."""
 
 from middleware.model_governance import TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE
-from middleware.billing_metering import BillingAgentRoleMiddleware
+from middleware.usage_metering import AgentRoleMiddleware
 from middleware.triage_progress import require_triage_progress
-from model_policy import TRIAGE_MODEL_SPEC
 from contracts.handoffs import TriageResult
-from tools.common.capabilities.managed.skill_loader import load_project_skill
+from tools.common.capabilities.agent_runtime.skill_loader import load_project_skill
 from tools.triage.legal_rule_triage.code import (
     finish_legal_rule_triage_execution,
     get_legal_rule_triage_work_items,
@@ -35,7 +34,7 @@ decide the triage result for every chunk, convert only qualified Candidates into
 EngineeringRule proposals, and persist the result through the governed deterministic tool.
 
 This workflow belongs to legal-data preparation and is reasoning-independent from every customer
-Assessment. An Assessment may automatically request this separate workflow when its pre-Planner
+Assessment. An Assessment may automatically request this separate workflow when its pre-analysis
 EngineeringRule readiness gate finds missing READY rules, but the Assessment itself must never run
 Legal Rule Triage, compile a rule inline, or pass customer/repository context into Triage reasoning.
 
@@ -152,12 +151,11 @@ SUBAGENT = {
     ),
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
-    "model": TRIAGE_MODEL_SPEC,
     # Deliberately omit inject_lcsp_runtime_context. The supervisor/singleton middleware
     # transfers only the legal scope and execution ownership needed by Triage.
     "middleware": [
         require_triage_progress,
-        BillingAgentRoleMiddleware("triage"),
+        AgentRoleMiddleware("triage"),
         *TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE,
     ],
     "response_format": OUTPUT_MODEL,

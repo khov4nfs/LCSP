@@ -1,8 +1,10 @@
 import type { MessageKey } from "@lcsp/i18n";
 import type {
   AssessmentAgentStreamEvent,
+  AssessmentAgentStreamStage,
   AssessmentPostFindingRuntimeState,
   AssessmentRuntimeEngineeringProgress,
+  AssessmentStageLifecycleProjection,
 } from "@lcsp/contracts/evidence";
 
 export const WORKSPACE_RUNTIME_CONNECTION_STATES = {
@@ -92,6 +94,8 @@ export type WorkspaceRuntimeActivityItem = {
 };
 
 export type WorkspaceRuntimeAssessmentTimeline = {
+  /** Stage status from durable artifacts; null for an older API without it. */
+  stageLifecycle?: AssessmentStageLifecycleProjection | null;
   currentRun: WorkspaceRuntimeRun | null;
   recentActivity: WorkspaceRuntimeActivityItem[];
   engineeringProgress?: AssessmentRuntimeEngineeringProgress[];
@@ -112,7 +116,7 @@ export type WorkspaceRuntimeAgentStreamHistoryState = {
   hasHydratedCompleteHistory: boolean;
 };
 
-export type WorkspaceRuntimeSnapshot = {
+type WorkspaceRuntimeSnapshot = {
   emittedAt: string | null;
   runs: WorkspaceRuntimeRun[];
   recentActivity: WorkspaceRuntimeActivityItem[];
@@ -121,6 +125,8 @@ export type WorkspaceRuntimeSnapshot = {
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
   postFindingStates: AssessmentPostFindingRuntimeState[];
+  /** Stage status the API derived from durable artifacts, keyed by assessment. */
+  stageLifecycleByAssessmentId: Record<string, AssessmentStageLifecycleProjection>;
 };
 
 export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
@@ -145,15 +151,21 @@ export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
   loadMoreAgentStreamHistory: (assessmentId: string) => Promise<boolean>;
 };
 
+/** Live agent events split into one timeline per customer-visible pipeline stage. */
+export type AgentStreamStageEvents = {
+  byStage: Record<AssessmentAgentStreamStage, AssessmentAgentStreamEvent[]>;
+  /** Events the worker did not attribute to a stage (pipeline-level or legacy history). */
+  unstaged: AssessmentAgentStreamEvent[];
+};
+
 export const RUNTIME_THINKING_PHASES = {
-  planner: "PLANNER",
-  investigator: "INVESTIGATOR",
+  analysis: "ANALYSIS",
 } as const;
 
 export type RuntimeThinkingPhase =
   (typeof RUNTIME_THINKING_PHASES)[keyof typeof RUNTIME_THINKING_PHASES];
 
-/** Customer-facing aggregate of internal Planner/Investigator runtime telemetry. */
+/** Customer-facing aggregate of internal rule-selection/analysis runtime telemetry. */
 export type RuntimeThinkingItem = {
   id: string;
   phase: RuntimeThinkingPhase;

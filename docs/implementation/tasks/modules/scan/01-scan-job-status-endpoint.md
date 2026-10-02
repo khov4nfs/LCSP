@@ -59,7 +59,7 @@ Return current status and progress of a `RepositoryScanJob`. The owning Manager 
 2. Verify `scanJob.assessmentId = pathParam.assessmentId` and `organizationId = session.organizationId`.
 3. `blocked_reason` must be business-language only — no technical stack traces or raw error messages.
 4. `next_action` must be business-language — no risk labels.
-5. Never include source code content, raw scanner output, or file paths in response.
+5. Never include source code content, raw repository-analysis runtime output, or file paths in response.
 
 ## Prisma Models Used
 
@@ -82,7 +82,7 @@ Return current status and progress of a `RepositoryScanJob`. The owning Manager 
 
 - Status accurately reflects current `RepositoryScanJob.status`.
 - `blocked_reason` and `next_action` always business-language.
-- No source code or raw scanner output in response.
+- No source code or raw repository-analysis runtime output in response.
 
 ## Implementation Evidence
 

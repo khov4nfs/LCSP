@@ -6,6 +6,8 @@ import {
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
+  ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
+  ASSESSMENT_STAGE_LIFECYCLE_STATES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
@@ -16,6 +18,7 @@ import {
   type AssessmentInterviewQuestion,
   type AssessmentInterviewRuntimeState,
   type AssessmentPostFindingRuntimeState,
+  type AssessmentStageLifecycleProjection,
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
@@ -65,7 +68,8 @@ import {
   runtimeThinkingPhase,
 } from "./runtime-thinking-projection";
 import {
-  ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES,
+  RULE_ANALYSIS_ACTIVITY_SUMMARY_TOOL,
+  RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX,
   ENGINEERING_RULE_GATE_TOOL_NAME,
 } from "../config/runtime-activity";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
@@ -370,6 +374,7 @@ function normalizeWorkflow({
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
   latestScanJob: WorkspaceRuntimeScanJob | null;
 }): NormalizedAssessmentWorkflow {
+  const stageLifecycle = timeline?.stageLifecycle ?? null;
   const currentRun = timeline?.currentRun ?? null;
   const latestRunId = timeline?.latestRunId ?? currentRun?.runId ?? null;
   const recentActivity = scopeRuntimeActivity(
@@ -382,11 +387,9 @@ function normalizeWorkflow({
   );
 
   // Targeted clarification loop detection:
-  // e.g. Investigator paused / waiting for business context + Interview active/clarifying
-  const hasInvestigatorWaiting = recentActivity.some(
+  // e.g. Rule analysis paused / waiting for business context + Interview active/clarifying
+  const hasRuleAnalysisWaiting = recentActivity.some(
     (item) =>
-      item.stage === "INVESTIGATE" ||
-      item.stage === "investigate" ||
       item.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification ||
       item.waitingReason?.includes("context") ||
       item.waitingReason?.includes("interview"),
@@ -397,7 +400,7 @@ function normalizeWorkflow({
     ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify;
 
   const isTargetedClarificationLoop =
-    (hasInvestigatorWaiting && isClarifyingQuestion) ||
+    (hasRuleAnalysisWaiting && isClarifyingQuestion) ||
     (sanitizedInterview?.outcome ===
       ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved &&
       Boolean(
@@ -424,6 +427,7 @@ function normalizeWorkflow({
       repositorySnapshot,
       sanitizedInterview,
       latestScanJob,
+      stageLifecycle,
     }),
   };
 }
@@ -472,6 +476,7 @@ function normalizeRepository(
 }
 
 function normalizeWorkflowSteps({
+  stageLifecycle,
   currentRun,
   recentActivity,
   engineeringProgress,
@@ -485,6 +490,7 @@ function normalizeWorkflowSteps({
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
   sanitizedInterview: AssessmentInterviewRuntimeState | null;
   latestScanJob: WorkspaceRuntimeScanJob | null;
+  stageLifecycle: AssessmentStageLifecycleProjection | null;
 }): NormalizedWorkflowStep[] {
   const defaultSteps = [
     [
@@ -504,12 +510,8 @@ function normalizeWorkflowSteps({
       "pages.appShell.assessmentSidebar.workflow.rules",
     ],
     [
-      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner,
-      "pages.appShell.assessmentSidebar.workflow.planner",
-    ],
-    [
-      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate,
-      "pages.appShell.assessmentSidebar.workflow.investigate",
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
+      "pages.appShell.assessmentSidebar.workflow.ruleAnalysis",
     ],
     [
       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
@@ -535,12 +537,16 @@ function normalizeWorkflowSteps({
     ),
   ]);
   for (const activity of [...recentActivity].reverse()) {
+    // Customer stop/continue markers are not agent work on any step.
+    if (activity.toolName === ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME) {
+      continue;
+    }
     const id = workflowStepIdForRuntimeActivity(activity);
     steps.set(id, {
       id,
       label: steps.has(id) ? steps.get(id)!.label : stageLabel(activity.stage),
       status: normalizeActivityStepStatus(activity),
-      // Per-rule Planner/Investigator lines carry internal rule IDs and reason codes;
+      // Per-rule selection/analysis lines carry internal rule IDs and reason codes;
       // those steps get an aggregated detail below instead.
       detail:
         activity.summary && !runtimeThinkingPhase(activity)
@@ -585,12 +591,82 @@ function normalizeWorkflowSteps({
     steps.set(id, {
       id,
       label: existingStep?.label ?? stageLabel(id),
-      status: NORMALIZED_WORKFLOW_STEP_STATUSES.running,
+      status:
+        latestScanJob.status !== REPOSITORY_SCAN_JOB_STATUSES.running
+          ? NORMALIZED_WORKFLOW_STEP_STATUSES.waiting
+          : NORMALIZED_WORKFLOW_STEP_STATUSES.running,
       detail: existingStep?.detail ?? null,
     });
   }
+  // A completed scan job is authoritative for the Scanner row. Later dispatches
+  // (rule-analysis retries) post SCAN-tagged bookkeeping such as
+  // "sandbox already hydrated" or run heartbeats; they never re-open the scan.
+  if (latestScanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.completed) {
+    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
+    const existingStep = steps.get(id);
+    if (existingStep) {
+      steps.set(id, {
+        ...existingStep,
+        status: NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+      });
+    }
+  }
   completeQueuedPredecessors(steps);
+  applyStageLifecycle(steps, stageLifecycle);
   return [...steps.values()];
+}
+
+/**
+ * The API's artifact-derived lifecycle wins over anything inferred from the
+ * activity log. Runtime events stay the technical detail; they no longer decide
+ * whether a stage finished, so the sidebar and the composer cannot disagree.
+ */
+function applyStageLifecycle(
+  steps: Map<string, NormalizedWorkflowStep>,
+  lifecycle: AssessmentStageLifecycleProjection | null | undefined,
+): void {
+  if (!lifecycle) return;
+  const mapping = [
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner, lifecycle.scanner],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview, lifecycle.interview],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis, lifecycle.ruleAnalysis],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate, lifecycle.gate],
+  ] as const;
+  for (const [stepId, entry] of mapping) {
+    const status = workflowStatusForLifecycle(entry.state);
+    const existing = steps.get(stepId);
+    if (status && existing) {
+      steps.set(stepId, { ...existing, status });
+    }
+  }
+}
+
+function workflowStatusForLifecycle(
+  state: AssessmentStageLifecycleProjection["scanner"]["state"],
+): NormalizedWorkflowStep["status"] | null {
+  const S = ASSESSMENT_STAGE_LIFECYCLE_STATES;
+  switch (state) {
+    case S.queued:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.queued;
+    case S.running:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.running;
+    case S.done:
+    case S.contextConfirmed:
+    case S.claimsComplete:
+    case S.ready:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
+    case S.failed:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
+    case S.waitingForCustomer:
+    case S.blocked:
+    case S.needsContext:
+    case S.partial:
+    case S.claimsPartial:
+    case S.timeout:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
+    default:
+      return null;
+  }
 }
 
 function applyEngineeringRuleStepDetails(
@@ -599,24 +675,16 @@ function applyEngineeringRuleStepDetails(
   engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>,
 ): void {
   const items = projectRuntimeThinking(recentActivity, engineeringProgress);
-  for (const [stepId, phase] of [
-    [
-      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner,
-      RUNTIME_THINKING_PHASES.planner,
-    ],
-    [
-      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate,
-      RUNTIME_THINKING_PHASES.investigator,
-    ],
-  ] as const) {
-    const step = steps.get(stepId);
-    const detail = items
-      .filter((item) => item.phase === phase)
-      .map(formatRuntimeThinkingItem)
-      .join(" ");
-    if (step && detail) {
-      steps.set(stepId, { ...step, detail });
-    }
+  const step = steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis);
+  const detail = items
+    .filter((item) => item.phase === RUNTIME_THINKING_PHASES.analysis)
+    .map(formatRuntimeThinkingItem)
+    .join(" ");
+  if (step && detail) {
+    steps.set(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis, {
+      ...step,
+      detail,
+    });
   }
 }
 
@@ -718,12 +786,7 @@ function normalizeInterviewStepStatus(
 function workflowStepIdForRun(run: WorkspaceRuntimeRun): string {
   const activeToolName =
     run.activeTools.find((tool) =>
-      tool.toolName.startsWith(
-        ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator,
-      ),
-    )?.toolName ??
-    run.activeTools.find((tool) =>
-      tool.toolName.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.planner),
+      tool.toolName.startsWith(RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX),
     )?.toolName ??
     null;
   return workflowStepIdForStage(run.stage, activeToolName);
@@ -755,12 +818,10 @@ function workflowStepIdForStage(
     return stage;
   }
   if (
-    toolName?.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator)
+    toolName?.startsWith(RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX) ||
+    toolName === RULE_ANALYSIS_ACTIVITY_SUMMARY_TOOL
   ) {
-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate;
-  }
-  if (toolName?.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.planner)) {
-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner;
+    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis;
   }
   return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules;
 }
@@ -768,8 +829,8 @@ function workflowStepIdForStage(
 function normalizeActivityStepStatus(
   activity: WorkspaceRuntimeActivityItem,
 ): NormalizedWorkflowStep["status"] {
-  // Only the Gate treats TOOL_SKIPPED as a terminal SKIPPED step. Planner rule-level
-  // SKIP decisions are progress inside a completed Planner step.
+  // Only the Gate treats TOOL_SKIPPED as a terminal SKIPPED step. Rule-level
+  // SKIP decisions are progress inside the rules step.
   if (
     activity.toolName === ENGINEERING_RULE_GATE_TOOL_NAME &&
     activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped
@@ -800,8 +861,7 @@ function completeQueuedPredecessors(
     ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
     ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
     ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
     ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
   ] as const;
   const lastActiveIndex = orderedStages.reduce((lastIndex, stage, index) => {
@@ -941,13 +1001,12 @@ function latestSnapshotScanJob(
   );
 }
 
-/** Mirrors the scanner checklist: any scan job that has not ended is running. */
+/** Mirrors the scanner checklist: queued waits for a worker; running means claimed. */
 function isActiveScanJob(job: WorkspaceRuntimeScanJob): boolean {
   return (
-    job.status !== REPOSITORY_SCAN_JOB_STATUSES.completed &&
-    job.status !== REPOSITORY_SCAN_JOB_STATUSES.failed &&
-    job.status !== REPOSITORY_SCAN_JOB_STATUSES.blocked &&
-    job.status !== REPOSITORY_SCAN_JOB_STATUSES.blockedMapping
+    job.status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
+    job.status === REPOSITORY_SCAN_JOB_STATUSES.running ||
+    job.status === REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits
   );
 }
 
@@ -978,10 +1037,12 @@ function normalizeProgramEvidenceAvailability({
 
   switch (latestJob.status) {
     case REPOSITORY_SCAN_JOB_STATUSES.queued:
+      return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
     case REPOSITORY_SCAN_JOB_STATUSES.running:
       return ASSESSMENT_ARTIFACT_AVAILABILITIES.updating;
     case REPOSITORY_SCAN_JOB_STATUSES.pendingMapping:
     case REPOSITORY_SCAN_JOB_STATUSES.waitingForContext:
+    case REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits:
     case REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot:
       return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
     case REPOSITORY_SCAN_JOB_STATUSES.failed:
@@ -1113,7 +1174,8 @@ function normalizeArtifacts({
     businessContext,
     investigationNotes,
     ...[remediationPatch, verificationReport, finalReport].filter(
-      (artifact): artifact is NormalizedAssessmentArtifactItem => artifact !== null,
+      (artifact): artifact is NormalizedAssessmentArtifactItem =>
+        artifact !== null,
     ),
   ];
 

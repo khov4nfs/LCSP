@@ -7,7 +7,6 @@ source_specs:
   - docs/specs/event-catalog.md
   - docs/implementation/decisions/rbac-runtime-decision.md
   - docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md
-  - docs/implementation/decisions/scanner-severity-tool-provenance-decision.md
 ---
 
 # State Transition Authority
@@ -49,10 +48,10 @@ Physical enum names remain owned by persistence implementation. This document is
 | `TRUSTED_SCAN_TRIGGERED` | mapping ambiguous                  | unsafe/ambiguous context                           | `BLOCKED_MAPPING`        | `scan_trigger.mapping_blocked`     | `BLOCKED_NO_CLASSIFICATION` | no scan                     |
 | `TRUSTED_SCAN_TRIGGERED` | out-of-order context               | can safely wait                                    | `WAITING_FOR_CONTEXT`    | `scan_trigger.waiting_for_context` | `BLOCKED_NO_CLASSIFICATION` | no scan                     |
 | `TRUSTED_SCAN_TRIGGERED` | mapping resolved                   | unique assessment/repo/ref/commit                  | `SNAPSHOT_CREATED`       | `repository_snapshot.created`      | `IN_PROGRESS`               | scan request allowed        |
-| `SNAPSHOT_CREATED`       | request scan                       | idempotency key valid                              | `SCAN_REQUESTED`         | `scan.requested`                   | `IN_PROGRESS`               | scanner worker allowed      |
+| `SNAPSHOT_CREATED`       | request scan                       | idempotency key valid                              | `SCAN_REQUESTED`         | `scan.requested`                   | `IN_PROGRESS`               | repository-analysis runtime allowed      |
 | `SCAN_REQUESTED`         | worker lock acquired               | lease acquired                                     | `SCAN_RUNNING`           | `scan.started`                     | `IN_PROGRESS`               | evidence pending            |
-| `SCAN_RUNNING`           | accepted with cleanup verified     | scanner severity `ACCEPTED` or accepted limitation | `SCAN_COMPLETED`         | `scan.completed`                   | `IN_PROGRESS`               | evidence gates allowed      |
-| `SCAN_RUNNING`           | privacy/cleanup/provenance failure | scanner severity blocks                            | `SCAN_FAILED`            | `scan.failed`                      | `BLOCKED_NO_CLASSIFICATION` | no TechnicalProfile         |
+| `SCAN_RUNNING`           | accepted with cleanup verified     | repository-analysis result accepted or explicitly accepted with limitation | `SCAN_COMPLETED`         | `scan.completed`                   | `IN_PROGRESS`               | evidence gates allowed      |
+| `SCAN_RUNNING`           | privacy/cleanup/provenance failure | repository-analysis privacy/provenance/coverage policy blocks                            | `SCAN_FAILED`            | `scan.failed`                      | `BLOCKED_NO_CLASSIFICATION` | no TechnicalProfile         |
 | terminal scan            | rerun requested                    | RBAC allow + new generation                        | `SCAN_REQUESTED`         | `scan.rerun_requested`             | `IN_PROGRESS`               | creates new immutable chain |
 
 ## Evidence, Profile, and Usage Flow

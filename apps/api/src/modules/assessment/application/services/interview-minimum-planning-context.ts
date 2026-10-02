@@ -1,3 +1,5 @@
+import { isRecord } from "@lcsp/contracts/shared";
+
 /**
  * Deterministic minimum planning context required before an initial Interview may
  * declare CONTEXT_READY.
@@ -214,8 +216,4 @@ function matchesTerm(tokens: string[], term: string): boolean {
     }
   }
   return false;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

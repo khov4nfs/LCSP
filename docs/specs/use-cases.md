@@ -63,7 +63,7 @@ Goal: pin repository evidence to an immutable branch/commit snapshot. Inaccessib
 
 ## UC-007 Execute Repository Scan
 
-Goal: convert the snapshot into static technical evidence through the Python Scanner Worker. The worker runs the approved scanner toolchain, including Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules, persists metadata-only evidence, verifies cleanup, and emits completed or failed event.
+Goal: convert the pinned snapshot into grounded technical evidence through the repository-backed Repository Deep Agent running in the LCSP Agent Runtime. The agent explores the repository with native filesystem/shell/subagent capabilities, may use Codebase Memory MCP as structural memory, verifies material facts against source, derives coverage and AI-discovery state, persists the compatibility evidence payload, and emits completed or failed scan-job events.
 
 ## UC-008 Generate TechnicalProfile
 

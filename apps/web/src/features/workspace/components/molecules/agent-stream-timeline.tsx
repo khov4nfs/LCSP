@@ -1,474 +1,485 @@
 import {
-  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
-  ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS,
-  ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS,
-  ASSESSMENT_RUNTIME_RUN_STATUSES,
   type AssessmentAgentStreamEvent,
   type AssessmentRuntimeSummaryValue,
 } from "@lcsp/contracts/evidence";
-import { resolveMessage } from "@lcsp/i18n";
+
+import {
+  Brain,
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  LoaderCircle,
+  PauseCircle,
+  Terminal,
+  Wrench,
+  XCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { appLocale } from "@/lib/locale";
+
 import { cn } from "@/lib/utils";
 
+import { AGENT_STREAM_ACTIVITY_ICONS } from "../../config/agent-stream-activity-icons";
+
+import { AGENT_STREAM_SEGMENT_KINDS } from "../../types/agent-stream-rule.types";
+
 import type { WorkspaceRuntimeAgentStreamHistoryState } from "../../types/workspace-runtime.types";
+
+import {
+  projectAgentStreamRuleHeaders,
+  segmentAgentStreamRowsByRule,
+} from "../../utils/agent-stream-rule-groups";
+
+import { AgentStreamRuleGroup } from "./agent-stream-rule-group";
+import { AgentStreamUsageFooter } from "./agent-stream-usage-footer";
+
 import { AgentMessage, AgentTurn } from "./agent-turn";
+import {
+  AGENT_STREAM_RUN_OUTCOMES,
+  type AgentStreamRunOutcome,
+  type StreamRowKind,
+  type ProjectedStreamRow,
+  type StreamActivityKey,
+  deriveAgentStreamRunOutcome,
+  scopeAgentStreamRunEvents,
+  shouldShowAgentStreamHistoryAction,
+  projectStreamRows,
+  groupRepeatedActivities,
+  STREAM_ROW_STATUSES,
+  finalizeRuleHeaders,
+  activityCopy,
+  formatStreamValue,
+  cleanedStreamValue,
+  streamDuration,
+  streamLabels,
+  t,
+} from "../../utils/agent-stream-projection";
+export {
+  deriveAgentStreamRunOutcome,
+  AGENT_STREAM_RUN_OUTCOMES,
+  type AgentStreamRunOutcome,
+} from "../../utils/agent-stream-projection";
 
 type AgentStreamTimelineProps = {
   events: AssessmentAgentStreamEvent[];
+  activeRunId?: string | null;
+  reset?: boolean;
   history?: WorkspaceRuntimeAgentStreamHistoryState;
   onLoadOlder?: () => void;
   className?: string;
-};
-
-type ProjectedStreamRow = {
-  id: string;
-  sequence: number;
-  label: string;
-  detail: string | null;
-  meta: string | null;
-  failed: boolean;
+  /** Nested inside AgentStreamTurn's own message/output chrome. */
+  embedded?: boolean;
+  /** Authoritative scan-job state may close a delayed or misattributed stream. */
+  outcomeOverride?: AgentStreamRunOutcome;
 };
 
 export function AgentStreamTimeline({
   events,
+  activeRunId = null,
+  reset = false,
   history,
   onLoadOlder,
   className,
+  embedded = false,
+  outcomeOverride,
 }: AgentStreamTimelineProps) {
-  const rows = projectStreamRows(events);
+  const visibleEvents = reset
+    ? []
+    : scopeAgentStreamRunEvents(events, activeRunId);
+  const rows = settleRowsForOutcome(
+    groupRepeatedActivities(projectStreamRows(visibleEvents)),
+    outcomeOverride,
+  );
+  const ruleHeaders = finalizeRuleHeaders(
+    projectAgentStreamRuleHeaders(visibleEvents),
+    visibleEvents,
+  );
+  const segments = segmentAgentStreamRowsByRule(rows, ruleHeaders);
   const labels = streamLabels();
-  const showHistoryAction =
-    ((history?.hasMore === true && history.nextCursor !== null) ||
-      history?.error != null) &&
-    onLoadOlder !== undefined;
-  if (rows.length === 0 && !showHistoryAction) return null;
+  const outcome = outcomeOverride ?? deriveAgentStreamRunOutcome(visibleEvents);
+  const hasRunningActivity = outcome === AGENT_STREAM_RUN_OUTCOMES.running;
+  const failed = outcome === AGENT_STREAM_RUN_OUTCOMES.failed;
+  const paused = outcome === AGENT_STREAM_RUN_OUTCOMES.paused;
+  const duration = streamDuration(visibleEvents);
+  const showHistoryAction = shouldShowAgentStreamHistoryAction(
+    history,
+    onLoadOlder,
+  );
+  if (segments.length === 0 && !showHistoryAction) return null;
+
+  const statusHeader = (
+    <>
+      {hasRunningActivity ? (
+        <LoaderCircle className="size-3.5 animate-spin" />
+      ) : failed ? (
+        <XCircle className="size-3.5 text-destructive" />
+      ) : paused ? (
+        <PauseCircle className="size-3.5" />
+      ) : (
+        <CheckCircle2 className="size-3.5 text-emerald-500" />
+      )}
+      <span className={cn(failed && "text-destructive")}>
+        {hasRunningActivity
+          ? labels.thinking
+          : failed
+            ? labels.failed
+            : paused
+              ? activityCopy("boundaryPaused")
+              : labels.completed}
+        {!hasRunningActivity && duration ? ` · ${duration}` : ""}
+      </span>
+    </>
+  );
+
+  const body = (
+    <>
+      {showHistoryAction ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          disabled={history?.isLoading === true}
+          onClick={onLoadOlder}
+        >
+          {history?.isLoading === true
+            ? labels.loadingOlder
+            : history?.error != null
+              ? labels.retryHistory
+              : labels.loadOlder}
+        </Button>
+      ) : null}
+      {history?.error ? (
+        <div className="text-xs text-destructive">
+          {labels.historyLoadFailed}
+        </div>
+      ) : null}
+      <div className="relative space-y-0.5">
+        <div
+          aria-hidden="true"
+          className="absolute bottom-3 left-1.75 top-3 w-px bg-border/60"
+        />
+        {segments.map((segment) =>
+          segment.kind === AGENT_STREAM_SEGMENT_KINDS.rule ? (
+            <AgentStreamRuleGroup
+              key={`rule:${segment.header.ruleId}`}
+              header={segment.header}
+            >
+              {segment.rows.length > 0
+                ? segment.rows.map((row) => (
+                    <StreamRowView key={row.id} row={row} labels={labels} />
+                  ))
+                : null}
+            </AgentStreamRuleGroup>
+          ) : (
+            <StreamRowView
+              key={segment.row.id}
+              row={segment.row}
+              labels={labels}
+            />
+          ),
+        )}
+      </div>
+    </>
+  );
+
+  // Embedded means this is already nested inside a caller-owned disclosure
+  // (AgentStreamTurn's "Technical details"): it must not add a second,
+  // separate expand to see the raw rows, so it renders a plain non-toggleable
+  // status row plus the rows directly — no nested <details>/<summary> at all.
+  // The outer disclosure is the only gate.
+  const detailsBlock = embedded ? (
+    <div data-slot="agent-stream-timeline" className={cn("min-w-0", className)}>
+      <div className="flex items-center gap-2 py-1 text-xs font-medium text-muted-foreground">
+        {statusHeader}
+      </div>
+      <div className="mt-1.5 space-y-2 pl-0.5">{body}</div>
+    </div>
+  ) : (
+    <details
+      data-slot="agent-stream-timeline"
+      open={hasRunningActivity}
+      className="group min-w-0"
+    >
+      <summary className="flex cursor-pointer list-none items-center gap-2 py-1 text-xs font-medium text-muted-foreground select-none">
+        {statusHeader}
+        <ChevronDown className="ml-0.5 size-3 transition-transform duration-200 group-open:rotate-180" />
+      </summary>
+      <div className="mt-1.5 space-y-2 pl-0.5">{body}</div>
+    </details>
+  );
+
+  if (embedded) {
+    return detailsBlock;
+  }
 
   return (
     <AgentTurn className={className}>
       <AgentMessage>
-        <div data-slot="agent-stream-timeline" className="space-y-2">
-          {showHistoryAction ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              disabled={history?.isLoading === true}
-              onClick={onLoadOlder}
-            >
-              {history?.isLoading === true
-                ? labels.loadingOlder
-                : history?.error != null
-                  ? labels.retryHistory
-                  : labels.loadOlder}
-            </Button>
-          ) : null}
-          {history?.error ? (
-            <div className="text-xs text-destructive">
-              {labels.historyLoadFailed}
-            </div>
-          ) : null}
-          {rows.map((row) => (
-            <div
-              key={row.id}
-              data-stream-sequence={row.sequence}
-              className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-2 text-xs leading-5"
-            >
-              <span
-                className={cn(
-                  "font-medium text-muted-foreground",
-                  row.failed && "text-destructive",
-                )}
-              >
-                {row.label}
-              </span>
-              <div className="min-w-0">
-                {row.detail ? (
-                  <div className="whitespace-pre-wrap break-words wrap-anywhere text-foreground">
-                    {row.detail}
-                  </div>
-                ) : null}
-                {row.meta ? (
-                  <div className="break-words wrap-anywhere text-[11px] text-muted-foreground">
-                    {row.meta}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ))}
-        </div>
+        {detailsBlock}
       </AgentMessage>
     </AgentTurn>
   );
 }
 
-function projectStreamRows(
-  events: AssessmentAgentStreamEvent[],
+/** An authoritative settled outcome closes rows whose end never streamed in. */
+function settleRowsForOutcome(
+  rows: ProjectedStreamRow[],
+  outcome: AgentStreamRunOutcome | undefined,
 ): ProjectedStreamRow[] {
-  const ordered = [...events].sort((left, right) => left.sequence - right.sequence);
-  const rows: ProjectedStreamRow[] = [];
-  let previousMergeKey: string | null = null;
-
-  for (const event of ordered) {
-    const mergeKey = deltaMergeKey(event);
-    const previous = rows.at(-1);
-    if (mergeKey && previous && previousMergeKey === mergeKey) {
-      previous.detail = `${previous.detail ?? ""}${event.text ?? ""}`;
-      previous.sequence = event.sequence;
-      continue;
-    }
-    rows.push(toStreamRow(event));
-    previousMergeKey = mergeKey;
-  }
-
-  return rows;
-}
-
-function deltaMergeKey(event: AssessmentAgentStreamEvent): string | null {
-  if (
-    event.eventType !== ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelContentDelta &&
-    event.eventType !== ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelReasoningDelta &&
-    event.eventType !== ASSESSMENT_AGENT_STREAM_EVENT_TYPES.toolCallDelta
-  ) {
-    return null;
-  }
-  return [
-    event.runId,
-    event.eventType,
-    event.agentName ?? "",
-    event.messageId ?? "",
-    event.toolCallId ?? "",
-    event.namespace.join("/"),
-  ].join(":");
-}
-
-function toStreamRow(event: AssessmentAgentStreamEvent): ProjectedStreamRow {
-  const name =
-    event.subagentName ??
-    event.agentName ??
-    event.toolName ??
-    event.nodeName ??
-    event.source ??
-    "runtime";
-  const labels = streamLabels();
-  const semantic = semanticData(event.data);
-  if (semantic) {
-    return row(
-      event,
-      `${semanticLabel(semantic, labels)} · ${semanticName(event, semantic, name)}`,
-      semanticDetail(semantic) ?? event.text,
-      semanticMeta(event, semantic),
-      event.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed ||
-        semantic.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
-    );
-  }
-
-  switch (event.eventType) {
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.subagentSelected:
-      return row(event, `${labels.subagent} · ${name}`, labels.selected, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.agentStarted:
-      return row(event, `${labels.agent} · ${name}`, labels.running, eventMeta(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.agentCompleted:
-      return row(event, `${labels.agent} · ${name}`, labels.completed, eventMeta(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.agentFailed:
-      return row(event, `${labels.agent} · ${name}`, event.text ?? labels.failed, eventMeta(event), true);
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryStarted:
-      return row(event, `${labels.flow} · ${name}`, labels.running, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryCompleted:
-      return row(event, `${labels.flow} · ${name}`, labels.completed, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryFailed:
-      return row(event, `${labels.flow} · ${name}`, event.text ?? labels.failed, eventData(event), true);
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelReasoningDelta:
-      return row(event, `${labels.reasoning} · ${name}`, event.text, eventMeta(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelContentDelta:
-      return row(event, `${labels.output} · ${name}`, event.text, eventMeta(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.toolCallDelta:
-      return row(
-        event,
-        `${labels.toolCall} · ${event.toolName ?? name}`,
-        event.text,
-        eventMeta(event),
-      );
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.toolResult:
-      return row(
-        event,
-        `${labels.toolOutput} · ${event.toolName ?? name}`,
-        event.text,
-        eventMeta(event),
-      );
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.log:
-      return row(event, `${labels.log} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeEvent:
-      return row(
-        event,
-        `${labels.runtime} · ${event.toolName ?? name}`,
-        event.text,
-        eventData(event),
-        event.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
-      );
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.customProgress:
-      return row(event, `${labels.progress} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.graphUpdate:
-      return row(event, `${labels.update} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.graphState:
-      return row(event, `${labels.state} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.providerFallback:
-      return row(event, `${labels.provider} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.credentialRotation:
-      return row(event, `${labels.credential} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.scannerActivity:
-      return row(event, `${labels.scanner} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.engineeringRule:
-      return row(event, `${labels.engineeringRule} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.skillUsage:
-      return row(event, `${labels.skill} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.ruleProvenance:
-      return row(event, `${labels.provenance} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelRequest:
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelResult:
-      return row(event, `${labels.model} · ${name}`, event.text, eventData(event));
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.semanticToolCall:
-    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.semanticToolResult:
-      return row(event, `${labels.toolCall} · ${event.toolName ?? name}`, event.text, eventData(event));
-    default:
-      return row(event, event.eventType, event.text, eventData(event));
-  }
-}
-
-function row(
-  event: AssessmentAgentStreamEvent,
-  label: string,
-  detail: string | null,
-  meta: string | null,
-  failed = false,
-): ProjectedStreamRow {
-  return {
-    id: event.eventId,
-    sequence: event.sequence,
-    label,
-    detail,
-    meta,
-    failed,
-  };
-}
-
-function eventMeta(event: AssessmentAgentStreamEvent): string | null {
-  const parts = [
-    event.namespace.length > 0 ? event.namespace.join(" › ") : null,
-    event.nodeName,
-    event.status,
-  ].filter((part): part is string => Boolean(part));
-  return parts.length > 0 ? parts.join(" · ") : null;
-}
-
-function eventData(event: AssessmentAgentStreamEvent): string | null {
-  if (event.data === null) return eventMeta(event);
-  const serialized = JSON.stringify(event.data);
-  const meta = eventMeta(event);
-  return [meta, serialized].filter(Boolean).join(" · ") || null;
-}
-
-type SemanticRecord = Record<string, AssessmentRuntimeSummaryValue>;
-
-function semanticData(
-  value: AssessmentRuntimeSummaryValue | null,
-): SemanticRecord | null {
-  if (!isSummaryRecord(value)) return null;
-  if (
-    value.schemaVersion !==
-      ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1 ||
-    typeof value.kind !== "string"
-  ) {
-    return null;
-  }
-  return value;
-}
-
-function semanticLabel(
-  semantic: SemanticRecord,
-  labels: ReturnType<typeof streamLabels>,
-): string {
-  switch (semantic.kind) {
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerFile:
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerSymbol:
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerDependency:
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerTraceStep:
-      return labels.scanner;
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.engineeringRule:
-      return labels.engineeringRule;
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.skillUsage:
-      return labels.skill;
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.ruleProvenance:
-      return labels.provenance;
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelRequest:
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelOutput:
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.decisionModel:
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.reasoningSummary:
-      return labels.model;
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolCall:
-      return labels.toolCall;
-    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolResult:
-      return labels.toolOutput;
-    default:
-      return labels.runtime;
-  }
-}
-
-function semanticName(
-  event: AssessmentAgentStreamEvent,
-  semantic: SemanticRecord,
-  fallback: string,
-): string {
-  return firstString(
-    semantic.toolName,
-    semantic.skillName,
-    semantic.engineeringRuleId,
-    semantic.dependencyName,
-    semantic.functionName,
-    semantic.filePath,
-    semantic.model,
-    event.toolName,
-    event.nodeName,
-    fallback,
+  if (outcome === undefined || outcome === AGENT_STREAM_RUN_OUTCOMES.running)
+    return rows;
+  const status =
+    outcome === AGENT_STREAM_RUN_OUTCOMES.failed
+      ? STREAM_ROW_STATUSES.failed
+      : outcome === AGENT_STREAM_RUN_OUTCOMES.paused
+        ? STREAM_ROW_STATUSES.neutral
+        : STREAM_ROW_STATUSES.completed;
+  return rows.map((row) =>
+    row.status === STREAM_ROW_STATUSES.running ? { ...row, status } : row,
   );
 }
 
-function semanticDetail(semantic: SemanticRecord): string | null {
-  const refs = [
-    semantic.filePath,
-    semantic.functionName,
-    semantic.symbolRef,
-    semantic.dependencyName,
-    semantic.traceId,
-    semantic.edgeType,
-    semantic.fromRef,
-    semantic.toRef,
-    semantic.concept,
-    semantic.decision,
-    semantic.reasonCode,
-    semantic.evaluationStatus,
-    semantic.provider,
-    semantic.model,
-    semantic.decisionType,
-    semantic.shadowProposedAction,
-    semantic.authoritativeAction,
-    semantic.fallbackReason,
-    semantic.goalSummary,
-    semantic.status,
-  ].filter((value): value is string => typeof value === "string" && value.length > 0);
-  const structured = semanticDisplayFields(semantic, [
-    "parameters",
-    "resultSummary",
-    "availableToolNames",
-    "inputArtifactRefs",
-    "outputRefs",
-    "usage",
-    "confidence",
-    "agreement",
-    "decisionMode",
-    "policyVersion",
-    "thresholdUsed",
-    "latencyMs",
-    "finishReason",
-    "skillVersionOrHash",
-    "promptVersion",
-  ]);
-  const detail = [...refs, ...structured];
-  return detail.length > 0 ? detail.join("\n") : null;
+function StreamTechnicalDetails({
+  row,
+  labels,
+}: {
+  row: ProjectedStreamRow;
+  labels: ReturnType<typeof streamLabels>;
+}) {
+  const technical = cleanedStreamValue(row.technical);
+  const hasToolPayload = row.input !== null || row.output !== null;
+  if (technical === null && row.meta === null && !hasToolPayload) return null;
+
+  return (
+    <div
+      data-stream-technical-details
+      className="mt-2 space-y-2 border-t border-border/40 pt-2"
+    >
+      <div className="text-[11px] font-medium text-muted-foreground">
+        {labels.technicalDetails}
+      </div>
+      {row.meta ? (
+        <div className="whitespace-pre-wrap break-words wrap-anywhere font-mono text-[11px] leading-4 text-muted-foreground">
+          {row.meta}
+        </div>
+      ) : null}
+      {technical !== null ? (
+        <pre className="max-h-72 overflow-auto rounded-lg border border-border/50 bg-background/60 px-2.5 py-2 text-[11px] leading-4 whitespace-pre-wrap break-words text-foreground/85">
+          {formatStreamValue(technical)}
+        </pre>
+      ) : null}
+      {row.input !== null ? (
+        <StreamPayloadBlock label={labels.toolCall} value={row.input} />
+      ) : null}
+      {row.output !== null ? (
+        <StreamPayloadBlock label={labels.toolOutput} value={row.output} />
+      ) : null}
+    </div>
+  );
 }
 
-function semanticMeta(
-  event: AssessmentAgentStreamEvent,
-  semantic: SemanticRecord,
-): string | null {
-  const correlation = [
-    event.namespace.length > 0 ? event.namespace.join(" › ") : null,
-    event.nodeName,
-    event.messageId,
-    event.toolCallId,
-    semantic.durability,
-  ].filter((part): part is string => typeof part === "string" && part.length > 0);
-  return correlation.length > 0 ? correlation.join(" · ") : eventMeta(event);
+function StreamPayloadBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value: AssessmentRuntimeSummaryValue;
+}) {
+  const cleaned = cleanedStreamValue(value);
+  if (cleaned === null) return null;
+  return (
+    <div className="overflow-hidden rounded-lg border border-border/50 bg-background/60">
+      <div className="px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground">
+        {label}
+      </div>
+      <pre className="max-h-72 overflow-auto border-t border-border/40 px-2.5 py-2 text-[11px] leading-4 whitespace-pre-wrap break-words text-foreground/85">
+        {formatStreamValue(cleaned)}
+      </pre>
+    </div>
+  );
 }
 
-function isSummaryRecord(
-  value: AssessmentRuntimeSummaryValue | null,
-): value is SemanticRecord {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
+function StreamRowView({
+  row,
+  labels,
+}: {
+  row: ProjectedStreamRow;
+  labels: ReturnType<typeof streamLabels>;
+}) {
+  const statusLabel =
+    row.status === "running"
+      ? labels.running
+      : row.status === "completed"
+        ? labels.completed
+        : row.status === "failed"
+          ? labels.failed
+          : null;
+
+  return (
+    <div
+      data-stream-sequence={row.sequence}
+      data-stream-kind={row.kind}
+      data-stream-status={row.status}
+      className="relative min-w-0 pl-6"
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute left-0 top-2.25 z-10 flex size-3.75 items-center justify-center rounded-full bg-background text-muted-foreground",
+          row.status === "failed" && "text-destructive",
+          row.status === "completed" && "text-emerald-500",
+        )}
+      >
+        <StreamStatusIcon row={row} />
+      </span>
+      <details
+        data-stream-activity
+        className={cn(
+          "group/activity min-w-0 rounded-xl px-2.5 py-2 text-xs transition-colors duration-200 open:bg-muted/10",
+          row.kind === "tool" && "border border-border/60 bg-muted/20",
+          row.kind === "reasoning" && "bg-muted/10",
+          row.failed && "border border-destructive/30 bg-destructive/5",
+        )}
+      >
+        <summary className="flex cursor-pointer list-none items-center gap-2 select-none">
+          <StreamKindIcon kind={row.kind} activity={row.activity} />
+          <span className="flex min-w-0 flex-1 items-baseline gap-2">
+            <span
+              className={cn(
+                "shrink-0 truncate font-medium text-foreground",
+                row.failed && "text-destructive",
+              )}
+            >
+              {row.label}
+            </span>
+            {row.target ? (
+              <span
+                data-stream-target
+                className="min-w-0 truncate font-mono text-xs text-muted-foreground"
+              >
+                {row.target}
+              </span>
+            ) : null}
+          </span>
+          {row.completedTurns ? (
+            <span
+              data-stream-repeat-count={row.completedTurns.length}
+              className="shrink-0 rounded-full bg-muted px-1.5 font-mono text-xs text-muted-foreground"
+            >
+              ×{row.completedTurns.length}
+            </span>
+          ) : null}
+          {statusLabel ? (
+            <span
+              className={cn(
+                "shrink-0 text-[11px] text-muted-foreground",
+                row.status === "running" && "animate-pulse",
+                row.status === "failed" && "text-destructive",
+              )}
+            >
+              {statusLabel}
+            </span>
+          ) : null}
+          <ChevronDown className="size-3 shrink-0 text-muted-foreground transition-transform duration-200 group-open/activity:rotate-180" />
+        </summary>
+
+        {row.completedTurns ? (
+          <div className="mt-2 divide-y divide-border/40">
+            {row.completedTurns.map((turn) => (
+              <div
+                key={turn.id}
+                data-stream-turn={turn.id}
+                className="min-w-0 py-2"
+              >
+                {turn.detail ? (
+                  <div
+                    data-stream-detail
+                    className="whitespace-pre-wrap break-words wrap-anywhere text-xs leading-5 text-foreground/90"
+                  >
+                    {turn.detail}
+                  </div>
+                ) : null}
+                <StreamTechnicalDetails row={turn} labels={labels} />
+                <AgentStreamUsageFooter usage={turn.usage} className="mt-1" />
+              </div>
+            ))}
+          </div>
+        ) : row.detail ? (
+          <div
+            data-stream-detail
+            className="mt-2 whitespace-pre-wrap break-words wrap-anywhere text-xs leading-5 text-foreground/90"
+          >
+            {row.detail}
+          </div>
+        ) : null}
+
+        {!row.completedTurns ? (
+          <StreamTechnicalDetails row={row} labels={labels} />
+        ) : null}
+      </details>
+      {!row.completedTurns ? (
+        <AgentStreamUsageFooter usage={row.usage} className="px-2.5 pt-0.5" />
+      ) : null}
+    </div>
+  );
 }
 
-function firstString(
-  ...values: Array<AssessmentRuntimeSummaryValue | string | null | undefined>
-): string {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
+function StreamStatusIcon({ row }: { row: ProjectedStreamRow }) {
+  if (row.status === "running") {
+    return <LoaderCircle className="size-3.5 animate-spin" />;
   }
-  return "runtime";
-}
-
-function semanticDisplayFields(
-  semantic: SemanticRecord,
-  keys: string[],
-): string[] {
-  return keys.flatMap((key) => {
-    const value = semantic[key];
-    if (value === undefined || value === null || value === "") return [];
-    if (Array.isArray(value) && value.length === 0) return [];
-    return [`${humanizeSemanticKey(key)}: ${formatSemanticValue(value)}`];
-  });
-}
-
-function formatSemanticValue(value: AssessmentRuntimeSummaryValue): string {
-  if (Array.isArray(value)) {
-    return value.map((item) => formatSemanticValue(item)).join(", ");
+  if (row.status === "completed") {
+    return <CheckCircle2 className="size-3.5" />;
   }
-  if (value !== null && typeof value === "object") {
-    return JSON.stringify(value);
+  if (row.status === "failed") {
+    return <XCircle className="size-3.5" />;
   }
-  return String(value);
+  return <Circle className="size-2.5 fill-current" />;
 }
 
-function humanizeSemanticKey(value: string): string {
-  return value
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replaceAll("_", " ")
-    .trim();
-}
-
-function streamLabels() {
-  return {
-    subagent: t("pages.appShell.agentStreamLabels.subagent"),
-    agent: t("pages.appShell.agentStreamLabels.agent"),
-    flow: t("pages.appShell.agentStreamLabels.flow"),
-    reasoning: t("pages.appShell.agentStreamLabels.reasoning"),
-    output: t("pages.appShell.agentStreamLabels.output"),
-    toolCall: t("pages.appShell.agentStreamLabels.toolCall"),
-    toolOutput: t("pages.appShell.agentStreamLabels.toolOutput"),
-    log: t("pages.appShell.agentStreamLabels.log"),
-    runtime: t("pages.appShell.agentStreamLabels.runtime"),
-    progress: t("pages.appShell.agentStreamLabels.progress"),
-    update: t("pages.appShell.agentStreamLabels.update"),
-    state: t("pages.appShell.agentStreamLabels.state"),
-    provider: t("pages.appShell.agentStreamLabels.provider"),
-    credential: t("pages.appShell.agentStreamLabels.credential"),
-    scanner: t("pages.appShell.agentStreamLabels.scanner"),
-    engineeringRule: t("pages.appShell.agentStreamLabels.engineeringRule"),
-    skill: t("pages.appShell.agentStreamLabels.skill"),
-    model: t("pages.appShell.agentStreamLabels.model"),
-    provenance: t("pages.appShell.agentStreamLabels.provenance"),
-    selected: t("pages.appShell.agentStreamSelected"),
-    loadOlder: t("pages.appShell.agentStreamLoadOlder"),
-    loadingOlder: t("pages.appShell.agentStreamLoadingOlder"),
-    retryHistory: t("pages.appShell.agentStreamRetryHistory"),
-    historyLoadFailed: t("pages.appShell.agentStreamHistoryLoadFailed"),
-    running: t("pages.appShell.chatActivityStatuses.running"),
-    completed: t("pages.appShell.chatActivityStatuses.completed"),
-    failed: t("pages.appShell.chatActivityStatuses.failed"),
-  };
-}
-
-function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
+function StreamKindIcon({
+  kind,
+  activity,
+}: {
+  kind: StreamRowKind;
+  activity: StreamActivityKey | null;
+}) {
+  const ActivityIcon = activity
+    ? AGENT_STREAM_ACTIVITY_ICONS[activity]
+    : undefined;
+  if (kind === "tool" && ActivityIcon) {
+    return (
+      <ActivityIcon
+        aria-hidden="true"
+        data-stream-activity-icon={activity}
+        className="size-3.5 shrink-0 text-muted-foreground"
+      />
+    );
+  }
+  if (kind === "tool") {
+    return (
+      <Wrench
+        aria-hidden="true"
+        className="size-3.5 shrink-0 text-muted-foreground"
+      />
+    );
+  }
+  if (kind === "reasoning" || kind === "model") {
+    return (
+      <Brain
+        aria-hidden="true"
+        className="size-3.5 shrink-0 text-muted-foreground"
+      />
+    );
+  }
+  if (kind === "log") {
+    return (
+      <Terminal
+        aria-hidden="true"
+        className="size-3.5 shrink-0 text-muted-foreground"
+      />
+    );
+  }
+  return null;
 }

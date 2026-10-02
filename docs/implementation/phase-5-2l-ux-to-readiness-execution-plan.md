@@ -103,7 +103,7 @@ Goal: certify alignment before any implementation sprint.
 Readiness must check:
 
 - PRD, UX, architecture, ADRs, epics/stories, specs, and implementation docs are mutually consistent.
-- RBAC, automatic trusted scan initiation, Python Worker Platform, ChromaDB vectorless legal retrieval, and scanner toolchain decisions are reflected in story scope.
+- RBAC, automatic trusted scan initiation, Python Worker Platform, ChromaDB vectorless legal retrieval, and repository-analysis runtime decisions are reflected in story scope.
 - Open technical decisions are either closed or carried as explicit pre-implementation dependencies.
 - Story coverage is not inferred from implementation docs alone.
 
@@ -129,7 +129,7 @@ Sprint planning must not begin while:
 |---|---|
 | RBAC engine/topology, policy storage, cache, invalidation, and fail-closed behavior | story ready / implementation readiness |
 | Automatic scan trigger idempotency, retry/DLQ, replay authority, and operator recovery | story ready / implementation readiness |
-| Scanner tool failure severity and tool version/config/ruleset hash policy | story ready / implementation readiness |
+| Repository-analysis failure severity and tool version/config/ruleset hash policy | story ready / implementation readiness |
 
 ## Quality Checklist
 

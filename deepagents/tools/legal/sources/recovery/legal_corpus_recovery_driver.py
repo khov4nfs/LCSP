@@ -19,14 +19,14 @@ from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoin
     LegalToolExecutionContext,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 from tools.common.capabilities.platform.config import resolve_legal_source_storage_root
 from tools.common.capabilities.platform.file_lock import (
     acquire_exclusive_lock,
     ensure_lock_file,
     release_file_lock,
 )
-from tools.legal.corpus.artifact_store import write_recovery_artifact
+from tools.legal.sources.recovery.artifact_store import write_recovery_artifact
 from tools.legal.corpus.partial_update.partial_update_context_builder import (
     build_partial_update_context,
 )
@@ -989,7 +989,7 @@ def _load_script_module(filename: str):
 
 
 def _worker_root() -> Path:
-    """Return the root directory of the Managed Agent package/project."""
+    """Return the root directory of the Agent Runtime package/project."""
     return Path(__file__).resolve().parents[5]
 
 

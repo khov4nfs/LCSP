@@ -7,7 +7,7 @@ from typing import Any
 from orchestration.dispatcher import RootSubagentDispatcher
 from orchestration.lifecycle import RootOrchestrationLifecycle
 from orchestration.waiting_assessments import WaitingAssessmentRegistry
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 from tools.common.capabilities.platform.logging import get_logger
 
 from .contracts import LEGAL_RULE_TRIAGE_REQUEST_COMMAND
@@ -84,7 +84,6 @@ class LegalRuleTriageBoundary(AgentBoundaryBase):
                 "trigger": trigger,
             },
             thread_id=f"triage:{idempotency_key}",
-            reenter_root=False,
         )
 
         if result.get("status") == "ALREADY_RUNNING":

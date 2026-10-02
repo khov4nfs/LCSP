@@ -12,19 +12,13 @@ Use these definitions consistently across Skill instructions, runtime contracts,
 
 **Semantics:** Runs after Scanner/PGE and before EngineeringRule processing.
 
-### `PRE_PLANNER`
+### `BUSINESS_CONTEXT_RESOLUTION`
 
-**Definition:** Legacy compatibility alias for `INITIAL_INTERVIEW`.
-
-**Decision rule:** Normalize `PRE_PLANNER → INITIAL_INTERVIEW` before Interview reasoning. In new prose/contracts prefer `INITIAL_INTERVIEW`.
-
-### `INVESTIGATOR_RESOLUTION`
-
-**Definition:** Targeted Interview mode entered only because an existing Investigator run needs one bounded business clarification.
+**Definition:** Targeted Interview mode entered only because a rule analysis reported one `BUSINESS_CONTEXT_REQUIRED` need that needs a bounded business clarification.
 
 **Not equivalent to:** A second Initial Interview.
 
-**Decision rule:** Every question must directly resolve the supplied `businessContextNeed` or a directly coupled ambiguity needed to interpret it.
+**Decision rule:** Every question must directly resolve the supplied `targetedNeed` or a directly coupled ambiguity needed to interpret it.
 
 ### `WAITING_FOR_CUSTOMER`
 
@@ -40,7 +34,7 @@ Use these definitions consistently across Skill instructions, runtime contracts,
 
 ### `CONTEXT_RESOLVED`
 
-**Definition:** Investigator-resolution outcome indicating the exact requested business distinction has been established to the specificity required by the originating investigation, with no directly coupled ambiguity remaining that changes its interpretation.
+**Definition:** `BUSINESS_CONTEXT_RESOLUTION` outcome indicating the exact requested business distinction has been established to the specificity required by the originating need, with no directly coupled ambiguity remaining that changes its interpretation.
 
 **Not equivalent to:** “We tried but still do not know.”
 
@@ -81,7 +75,7 @@ Examples:
 - missing required runtime identity/version/mode;
 - unsupported mode;
 - invalid assessment binding;
-- malformed required Investigator handoff.
+- malformed required `targetedNeed` handoff.
 
 Report these in:
 
@@ -238,7 +232,7 @@ An uncertainty/change is **material now** only when meaningfully different plaus
 - Interview readiness/resolution;
 - the relevance, meaning, or priority of another material frontier;
 - interpretation of a consequential business action/decision;
-- Investigator continuation eligibility;
+- same-rule reassessment eligibility;
 - whether downstream work may require reconsideration.
 
 A descriptive detail is **not material merely because stored text would differ**.
@@ -259,7 +253,7 @@ If A vs B would not change:
 - readiness/resolution;
 - the relevance/meaning/priority of another material frontier;
 - consequential-action interpretation;
-- Investigator continuation eligibility;
+- same-rule reassessment eligibility;
 - or downstream reconsideration,
 
 then the distinction is probably **not material now**.
@@ -283,7 +277,7 @@ Not customer-owned:
 
 A question is bounded when it asks only the smallest distinction needed for the current Interview mode.
 
-For Investigator resolution, it must directly resolve `businessContextNeed` or a directly coupled ambiguity.
+For `BUSINESS_CONTEXT_RESOLUTION`, it must directly resolve `targetedNeed` or a directly coupled ambiguity.
 
 ### `final`
 
@@ -321,12 +315,12 @@ A mode is sufficient only when its stop condition is satisfied.
 Initial Interview:
 - no open **material + customer-owned** uncertainty currently needs clarification.
 
-Investigator resolution:
+`BUSINESS_CONTEXT_RESOLUTION`:
 - the supplied business distinction is established to required specificity and no directly coupled ambiguity changes that interpretation.
 
 ### `downstream impact`
 
-A confirmed business-context change that may invalidate, alter, or require reconsideration of downstream EngineeringRule/Planner/Investigator/evaluation work.
+A confirmed business-context change that may invalidate, alter, or require reconsideration of downstream EngineeringRule analysis/evaluation work.
 
 Interview only flags it. Orchestration decides what to invalidate/rerun.
 

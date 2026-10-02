@@ -94,7 +94,7 @@ export function formatTimelineTime(value: string, isHydrated: boolean) {
   return formatRelativeTime(value);
 }
 
-export function formatStableTimestamp(value: string) {
+function formatStableTimestamp(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     return value;
@@ -113,7 +113,7 @@ export function formatLocaleTimestamp(value: string) {
   }).format(date);
 }
 
-export function formatRelativeTime(value: string) {
+function formatRelativeTime(value: string) {
   const timestamp = new Date(value).getTime();
   const deltaSeconds = Math.max(
     0,

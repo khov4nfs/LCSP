@@ -123,19 +123,13 @@ def test_schema_failure_is_removed_from_automatic_resume(tmp_path):
     assert len(calls) == 1
 
 
-def test_reconciliation_restores_billing_context_and_advances_after_failure(tmp_path):
+def test_reconciliation_keeps_assessment_id_and_resumes_after_failure(tmp_path):
     registry = WaitingAssessmentRegistry(storage_root=tmp_path)
     registry.register(
         assessment_id="assessment-1",
         evidence_report_id="ter-1",
         workflow_run_id="scan-1",
         source_correlation_id="corr-1",
-        billing_context={
-            "runId": "scan-1",
-            "amountCredits": "100",
-            "maxChargeCredits": "100",
-            "idempotencyKey": "outbox:1:billing-reservation",
-        },
     )
     calls = []
 
@@ -148,12 +142,10 @@ def test_reconciliation_restores_billing_context_and_advances_after_failure(tmp_
     first = registry.reconcile_all(invoker=fail_once)
     assert first["deferredAssessmentCount"] == 1
     assert calls[0][1]["assessmentId"] == "assessment-1"
-    assert calls[0][1]["billing"]["attempt"] == "0"
-    assert calls[0][1]["billing"]["idempotencyKey"].endswith(
-        ":reconciliation:" + registry.pending()[0]["checkpointId"]
-    )
+    assert "billing" not in calls[0][1]
+    assert registry.pending()[0]["assessmentId"] == "assessment-1"
+    assert not any(key.startswith("billing") for key in registry.pending()[0])
 
     second = registry.reconcile_all(invoker=fail_once)
     assert second["resumedAssessmentCount"] == 1
-    assert calls[1][1]["billing"]["attempt"] == "1"
     assert registry.pending() == []

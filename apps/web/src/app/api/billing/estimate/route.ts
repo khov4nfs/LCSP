@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import {
   BILLING_ERROR_CODES,
   billingAmountVndSchema,
-  billingUsageEstimateSchema,
+  billingPrepaidEstimateSchema,
 } from "@lcsp/contracts/billing";
 
 import { problemJson } from "@/lib/server/problem-json";
@@ -26,6 +26,6 @@ export async function GET(request: NextRequest) {
     await upstreamRequest(`/billing/estimate${query}`, {
       bearerToken: session.token,
     }),
-    billingUsageEstimateSchema,
+    billingPrepaidEstimateSchema,
   );
 }

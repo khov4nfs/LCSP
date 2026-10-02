@@ -50,9 +50,6 @@ const GITLAB_ARTIFACTS = {
 
 const LOCAL_GITHUB_CLI_KEYS = [
   "GITHUB_CLI_EXECUTABLE_PATH",
-  "GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED",
-  "GITHUB_CLI_SNAPSHOT_PINNING_ENABLED",
-  "GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED",
   "GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION",
   "GITHUB_CLI_CREDENTIAL_KEK_KEYRING",
 ];
@@ -94,31 +91,16 @@ export async function bootstrapLocalGitHubCli(options = {}) {
     spawnSyncImpl: options.spawnSyncImpl ?? spawnSync,
   });
 
-  const persistenceEnabled = configuredOrDefault(
-    effective.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED,
-    "true",
-  );
   const updates = {
     GITHUB_CLI_EXECUTABLE_PATH: toPortableExecutablePath(
       repoRoot,
       executablePath,
     ),
-    GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: persistenceEnabled,
-    GITHUB_CLI_SNAPSHOT_PINNING_ENABLED: configuredOrDefault(
-      effective.GITHUB_CLI_SNAPSHOT_PINNING_ENABLED,
-      "true",
-    ),
-    GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED: configuredOrDefault(
-      effective.GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED,
-      "true",
-    ),
-    ...(persistenceEnabled.toLowerCase() === "true"
-      ? resolveLocalKek({
-          activeVersion: effective.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION,
-          encodedKeyring: effective.GITHUB_CLI_CREDENTIAL_KEK_KEYRING,
-          randomBytesImpl: options.randomBytesImpl ?? randomBytes,
-        })
-      : {}),
+    ...resolveLocalKek({
+      activeVersion: effective.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION,
+      encodedKeyring: effective.GITHUB_CLI_CREDENTIAL_KEK_KEYRING,
+      randomBytesImpl: options.randomBytesImpl ?? randomBytes,
+    }),
   };
 
   writeEnvValues(envFilePath, updates);
@@ -129,14 +111,6 @@ export async function bootstrapLocalGitHubCli(options = {}) {
 
   console.log(`[dev-bootstrap] GitHub CLI: ${executablePath}`);
   console.log(`[dev-bootstrap] GitHub CLI version: ${version}`);
-  const cliEnabled =
-    updates.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED.toLowerCase() ===
-      "true" &&
-    updates.GITHUB_CLI_SNAPSHOT_PINNING_ENABLED.toLowerCase() === "true" &&
-    updates.GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED.toLowerCase() === "true";
-  console.log(
-    `[dev-bootstrap] CLI integration: ${cliEnabled ? "enabled" : "disabled"}`,
-  );
   console.log(
     `[dev-bootstrap] Local credential KEK: configured (${updates.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION})`,
   );
@@ -555,11 +529,6 @@ function readEnvFile(filePath) {
   return parse(readFileSync(filePath));
 }
 
-function configuredOrDefault(value, fallback) {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : fallback;
-}
 
 function resolveConfiguredExecutablePath(repoRoot, configuredPath) {
   const explicit = configuredPath?.trim();

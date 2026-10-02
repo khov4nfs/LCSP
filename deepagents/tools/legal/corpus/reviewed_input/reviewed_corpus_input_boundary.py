@@ -10,7 +10,7 @@ from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import Legal
 from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoints import (
     LegalToolExecutionContext,
 )
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
 
 from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import ReviewedCorpusInputRepository
 

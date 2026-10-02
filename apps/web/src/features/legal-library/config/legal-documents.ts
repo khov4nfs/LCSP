@@ -3,12 +3,12 @@ import {
   type LegalRiskLevel,
 } from "@lcsp/contracts/legal-rule-catalog";
 
-export const LEGAL_DOCUMENT_IDS = {
+const LEGAL_DOCUMENT_IDS = {
   aiLaw: "ai-law",
   digitalTechnologyIndustryLaw: "digital-technology-industry-law",
 } as const;
 
-export type LegalDocumentId =
+type LegalDocumentId =
   (typeof LEGAL_DOCUMENT_IDS)[keyof typeof LEGAL_DOCUMENT_IDS];
 
 export const legalDocuments = [

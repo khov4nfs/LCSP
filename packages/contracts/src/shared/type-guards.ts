@@ -8,6 +8,10 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 
 export const isObject = isRecord;
 
+export function asRecord(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null;
+}
+
 export function isString(value: unknown): value is string {
   return typeof value === "string";
 }

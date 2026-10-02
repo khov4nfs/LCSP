@@ -43,7 +43,7 @@ function fakeGh(pathValue, version = SUPPORTED_GITHUB_CLI_VERSION) {
   };
 }
 
-test("first bootstrap discovers gh, enables flags, and creates one local KEK", () =>
+test("first bootstrap discovers gh and creates one local KEK", () =>
   withTempEnv(async (root, envFilePath) => {
     const executablePath = path.join(root, "gh.exe");
     const result = await bootstrapLocalGitHubCli({
@@ -59,9 +59,6 @@ test("first bootstrap discovers gh, enables flags, and creates one local KEK", (
     });
     const values = parse(readFileSync(envFilePath));
     assert.equal(result.version, SUPPORTED_GITHUB_CLI_VERSION);
-    assert.equal(values.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED, "true");
-    assert.equal(values.GITHUB_CLI_SNAPSHOT_PINNING_ENABLED, "true");
-    assert.equal(values.GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED, "true");
     assert.equal(
       values.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION,
       "local-dev-v1",

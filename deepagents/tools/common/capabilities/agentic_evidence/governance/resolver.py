@@ -25,6 +25,11 @@ class AgenticInvocationContext:
     scope: dict[str, Any]
 
 
+# Fixed per-response tool-call safety bound (ToolCallLimitMiddleware in the AIUsageFlow
+# proposer); the run-wide runaway boundary is AgentRunBudgetMiddleware.
+DEFAULT_MAX_TOOL_CALLS = 8
+
+
 class AgenticToolResolver:
     """Bridge provider tool calls to the fail-closed agentic registry.
 
@@ -39,7 +44,7 @@ class AgenticToolResolver:
         registry: AgenticToolRegistry,
         authorizer: AgenticToolAuthorizer,
         *,
-        max_tool_calls: int,
+        max_tool_calls: int = DEFAULT_MAX_TOOL_CALLS,
     ) -> None:
         """Create a resolver with a bounded per-response tool-call budget.
 

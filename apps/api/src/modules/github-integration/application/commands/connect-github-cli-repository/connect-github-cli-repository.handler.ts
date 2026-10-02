@@ -69,7 +69,7 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
   async execute(
     command: ConnectGitHubCliRepositoryCommand,
   ): Promise<GitHubCliRepositoryConnectionDto> {
-    this.assertEnabledAndManager(command.subjectRole, command.correlationId);
+    this.assertManager(command.subjectRole, command.correlationId);
     assertCredential(command.credential, command.correlationId);
     const provider = (command.provider ??
       CREDENTIAL_PROVIDERS.github) as CredentialProvider;
@@ -233,16 +233,7 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
     }
   }
 
-  private assertEnabledAndManager(role: string, correlationId: string): void {
-    if (
-      !this.config.get("githubCredentialPersistence", { infer: true }).enabled
-    ) {
-      throw problemException(
-        GITHUB_INTEGRATION_ERROR_CODES.cliConnectDisabled,
-        correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
-    }
+  private assertManager(role: string, correlationId: string): void {
     if (role !== AUTH_USER_ROLES.customer) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound,

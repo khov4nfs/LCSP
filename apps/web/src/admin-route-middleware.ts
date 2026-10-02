@@ -1,10 +1,10 @@
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { PUBLIC_ENTRY_ROUTES } from "./auth-entry.ts";
 
-export const ADMIN_ROOT_PATH = "/admin";
-export const ADMIN_USERS_PATH = "/admin/users";
+const ADMIN_ROOT_PATH = "/admin";
+const ADMIN_USERS_PATH = "/admin/users";
 
-export const protectedAdminPathPrefixes = Object.freeze([
+const protectedAdminPathPrefixes = Object.freeze([
   ADMIN_ROOT_PATH,
 ]);
 

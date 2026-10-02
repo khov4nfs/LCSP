@@ -10,8 +10,7 @@ import {
   billingAdminDashboardSchema,
   billingAmountVndSchema,
   billingOrderViewSchema,
-  billingUsageReservationSchema,
-  billingUsageSettlementSchema,
+  billingLlmUsageReportSchema,
   billingWalletViewSchema,
 } from "@lcsp/contracts/billing";
 
@@ -30,70 +29,26 @@ test("Billing amount schema enforces the canonical amount boundaries", () => {
   assert.equal(billingAmountVndSchema.safeParse("10001000").success, false);
 });
 
-test("Billing usage schemas reject invalid credit and token values", () => {
-  const reservation = {
-    assessmentId: "assessment-1",
-    runId: "run-1",
-    idempotencyKey: "reservation-1",
-    provider: "OPENAI",
-    model: "gpt-test",
-    amountCredits: "100",
-    maxChargeCredits: "50",
-    maxInputTokens: "1000",
-    maxOutputTokens: "1000",
-    maxReasoningTokens: "1000",
-    maxInvocations: "1",
-    authorizedModels: [{ provider: "OPENAI", model: "gpt-test" }],
-  };
-
-  assert.equal(
-    billingUsageReservationSchema.safeParse(reservation).success,
-    true,
-  );
-  assert.equal(
-    billingUsageReservationSchema.safeParse({
-      ...reservation,
-      amountCredits: "0",
-    }).success,
-    false,
-  );
-  assert.equal(
-    billingUsageReservationSchema.safeParse({
-      ...reservation,
-      amountCredits: "49",
-    }).success,
-    false,
-  );
-  assert.equal(
-    billingUsageReservationSchema.safeParse({
-      ...reservation,
-      maxInvocations: "0",
-    }).success,
-    false,
-  );
-
-  const settlement = {
+test("Billing LLM usage report is telemetry only and rejects invalid tokens", () => {
+  const report = {
     assessmentId: "assessment-1",
     runId: "run-1",
     agentRole: "root",
-    reservationId: "reservation-1",
     invocationId: "invocation-1",
     provider: "OPENAI",
     model: "gpt-test",
     inputTokens: "5",
+    occurredAt: "2026-09-21T00:00:00.000Z",
   };
+  assert.equal(billingLlmUsageReportSchema.safeParse(report).success, true);
   assert.equal(
-    billingUsageSettlementSchema.safeParse(settlement).success,
-    true,
-  );
-  assert.equal(
-    billingUsageSettlementSchema.safeParse({ ...settlement, inputTokens: "-1" })
+    billingLlmUsageReportSchema.safeParse({ ...report, inputTokens: "-1" })
       .success,
     false,
   );
   assert.equal(
-    billingUsageSettlementSchema.safeParse({
-      ...settlement,
+    billingLlmUsageReportSchema.safeParse({
+      ...report,
       invocationId: undefined,
     }).success,
     false,
@@ -142,7 +97,6 @@ test("Billing response schemas validate customer and admin data", () => {
     period: BILLING_ADMIN_PERIODS.d30,
     summary: {
       settledTopUpVnd: "0",
-      usageRevenueVnd: "0",
       pendingReconciliationCount: 0,
       duplicatePaymentCount: 0,
       settledTopUpTrend: Array.from({ length: 7 }, (_, index) => ({

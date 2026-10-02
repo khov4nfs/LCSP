@@ -170,7 +170,7 @@ class ClassificationGraph:
             Compiled LangGraph application.
 
         Raises:
-            RuntimeError: If LangGraph is not installed in the Managed Agent runtime.
+            RuntimeError: If LangGraph is not installed in the Agent Runtime.
         """
         try:
             from langgraph.graph import END, START, StateGraph

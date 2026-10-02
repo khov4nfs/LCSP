@@ -1,4 +1,8 @@
+> **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.** The Planner/Investigator/Scanner-pipeline description below is historical.
+
 # LCSP-334 TypeSafe AI Jev System One adoption plan
+
+> Runtime superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.
 
 ## Status
 
@@ -71,7 +75,7 @@ existing deterministic validators and gates
 
 The LCSP Decision Gateway is deliberately independent from
 `deepagents/model_policy.py`. Jev is not a LangChain chat model and must not be
-accepted as a value of `LCSP_MODEL_PROVIDER`.
+accepted as a value of the model routes file (`LCSP_MODEL_ROUTES_FILE` / `model_routes.yaml`).
 
 ## Decision Gateway Contract
 
@@ -341,7 +345,7 @@ Scope:
 
 - add reviewed architecture docs and closed decision-type contracts;
 - define allowed modes, fallback semantics and prohibited authority outputs;
-- ensure Jev is not wired through `LCSP_MODEL_PROVIDER`.
+- ensure Jev is not wired through the model routes file (`LCSP_MODEL_ROUTES_FILE` / `model_routes.yaml`).
 
 Safety boundaries:
 

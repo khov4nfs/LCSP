@@ -9,8 +9,23 @@ services:
     path: apps/web
     route: /
 
-  managed-deep-agent:
+  agent-runtime-server:
+    path: deepagents-langgraph
+    requires:
+      - postgres
+    dockerSocket: true
+    environment:
+      LCSP_AGENT_RUNTIME_MODE: production
+      LCSP_API_BASE_URL: http://api:8080
+      NESTJS_API_BASE_URL: http://api:8080
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: ${LANGGRAPH_CHECKPOINT_DATABASE_URL}
+      LCSP_REPOSITORY_SANDBOX_IMAGE: ${FOGEWISE_IMAGE_AGENT_RUNTIME}
+
+  agent-runtime:
     path: deepagents
     requires:
-      - redis
       - rabbitmq
+    dockerSocket: true
+    environment:
+      LCSP_AGENT_RUNTIME_ROLE: bridge
+      LCSP_AGENT_SERVER_URL: http://agent-runtime-server:8000

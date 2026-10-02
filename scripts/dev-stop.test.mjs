@@ -43,8 +43,8 @@ for (const sharedGroup of [false, true]) {
         kill: (pid, signal) => signals.push({ pid, signal }),
       },
       isWindows: false,
-      managedAgentEventsModule:
-        "tools.common.capabilities.managed.rabbitmq_consumer",
+      agentRuntimeEventsModule:
+        "tools.common.capabilities.agent_runtime.rabbitmq_consumer",
       console: { log() {} },
       sleepMs() {},
       listParentPids: () => [99],
@@ -67,3 +67,8 @@ for (const sharedGroup of [false, true]) {
     assert.ok(signals.some(({ signal }) => signal === "SIGTERM"));
   });
 }
+
+
+test("dev:stop matches Phoenix independently of uvx dependency arguments", () => {
+  assert.ok(stop.includes('"arize-phoenix serve"'));
+});

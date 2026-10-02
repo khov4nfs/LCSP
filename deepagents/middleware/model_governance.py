@@ -4,17 +4,32 @@ from __future__ import annotations
 
 from langchain.agents.middleware import (
     AgentMiddleware,
-    ModelCallLimitMiddleware,
     ModelRetryMiddleware,
     PIIMiddleware,
 )
-from langchain.agents.structured_output import AutoStrategy, ProviderStrategy, ToolStrategy
-from langchain_core.messages import ToolMessage
+import json
+
+from langchain.agents.middleware import ModelResponse
+from langchain.agents.structured_output import (
+    AutoStrategy,
+    OutputToolBinding,
+    ProviderStrategy,
+    ToolStrategy,
+)
+from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.tools import BaseTool
+from pydantic import ValidationError
+from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.provider_schema import ProviderSchemaCompatibilityMiddleware
 from middleware.token_fallback import TokenFallbackMiddleware
-from middleware.billing_metering import BillingMeteringMiddleware
-from middleware.failure_policy import TerminalSchemaError, retry_model_error
+from middleware.usage_metering import AgentRoleMiddleware, UsageMeteringMiddleware
+from middleware.failure_policy import (
+    StructuredOutputRejected,
+    MalformedToolCallSample,
+    TerminalSchemaError,
+    retry_model_error,
+)
 
 from middleware.redaction import (
     ANTHROPIC_KEY_PATTERN,
@@ -30,6 +45,12 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
 
     @staticmethod
     def _check(request, response):
+        # A sample whose tool calls cannot execute would otherwise reach the tool
+        # node and end the whole run as a terminal schema error; discard it before
+        # any tool runs so ModelRetry re-samples the same request instead.
+        reason = _malformed_tool_call_reason(request, response)
+        if reason is not None:
+            raise MalformedToolCallSample(reason)
         output_format = request.response_format
         if output_format is None or isinstance(output_format, ProviderStrategy):
             return response
@@ -39,7 +60,24 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
         strategy = output_format if isinstance(output_format, ToolStrategy) else ToolStrategy(schema)
         names = {spec.name for spec in strategy.schema_specs}
         if any(isinstance(message, ToolMessage) and message.name in names for message in response.result):
-            raise TerminalSchemaError("Structured output schema validation failed; automatic repair disabled")
+            raise StructuredOutputRejected(
+                "Structured output schema validation failed; automatic repair disabled"
+            )
+        final = next(
+            (message for message in reversed(response.result) if isinstance(message, AIMessage)),
+            None,
+        )
+        if final is not None and not final.tool_calls:
+            # Tool strategy forces tool_choice, so a text-only answer broke the contract
+            # (LLM7 routes do this). Accept it only when the text is exactly one schema-valid
+            # JSON object; otherwise reject it so provider fallback can try a provider with
+            # native structured output instead of ending the agent with no handoff.
+            parsed = _parse_text_structured_output(final, strategy)
+            if parsed is None:
+                raise StructuredOutputRejected(
+                    "Model answered without the structured-output tool; automatic repair disabled"
+                )
+            return ModelResponse(result=response.result, structured_response=parsed)
         return response
 
     @staticmethod
@@ -63,6 +101,65 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
 
     async def awrap_model_call(self, request, handler):
         return self._check(request, await handler(request))
+
+
+_OUTPUT_CAP_FINISH_REASONS = frozenset({"length", "max_tokens", "MAX_TOKENS"})
+
+
+def _malformed_tool_call_reason(request, response) -> str | None:
+    schemas = {
+        tool.name: tool.tool_call_schema
+        for tool in (getattr(request, "tools", None) or ())
+        if isinstance(tool, BaseTool)
+    }
+    for message in response.result:
+        if not isinstance(message, AIMessage):
+            continue
+        if not (message.tool_calls or message.invalid_tool_calls):
+            continue
+        metadata = message.response_metadata or {}
+        finish = metadata.get("finish_reason") or metadata.get("stop_reason")
+        if str(finish) in _OUTPUT_CAP_FINISH_REASONS:
+            return "Model output hit the output-token cap while emitting tool calls"
+        if message.invalid_tool_calls:
+            return "Model emitted unparseable tool-call arguments"
+        for call in message.tool_calls:
+            schema = schemas.get(call["name"])
+            if schema is None or not hasattr(schema, "model_validate"):
+                continue
+            try:
+                schema.model_validate(call["args"])
+            except ValidationError:
+                return f"Model emitted invalid arguments for tool {call['name']}"
+    return None
+
+
+def _parse_text_structured_output(message: AIMessage, strategy: ToolStrategy):
+    """Parse a text-only answer that is exactly one JSON object valid for the schema."""
+    content = message.content
+    if isinstance(content, list):
+        content = "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block) for block in content
+        )
+    if not isinstance(content, str):
+        return None
+    text = content.strip()
+    if text.startswith("```"):
+        text = text.strip("`").strip()
+        if text.lower().startswith("json"):
+            text = text[4:].strip()
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    for spec in strategy.schema_specs:
+        try:
+            return OutputToolBinding.from_schema_spec(spec).parse(payload)
+        except Exception:
+            continue
+    return None
 
 
 def _redacting_pii(pii_type: str, detector: str | None = None) -> PIIMiddleware:
@@ -98,12 +195,21 @@ MODEL_GOVERNANCE_MIDDLEWARE = (
     StopSchemaRepairMiddleware(),
     # Keep metering innermost so provider retry, key rotation and fallback each
     # expose their actual downstream response to one governed billing boundary.
-    BillingMeteringMiddleware(),
-    ModelCallLimitMiddleware(run_limit=2, exit_behavior="error"),
+    UsageMeteringMiddleware(),
 )
 
-TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE = (
-    *MODEL_GOVERNANCE_MIDDLEWARE[:-1],
-    # Read/persist up to 500 claimed rules, then finish and return the handoff.
-    ModelCallLimitMiddleware(run_limit=1100, exit_behavior="error"),
-)
+TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE = MODEL_GOVERNANCE_MIDDLEWARE
+
+
+def governed_general_purpose_subagent(model, *, role: str) -> dict:
+    """Replace Deep Agents' auto-added `general-purpose` subagent with a governed one.
+
+    The default spec inherits only parent middleware that overrides its own slots,
+    so its model calls would bypass credential rotation, provider fallback, retry
+    and billing metering. An explicit spec with the same name overrides it.
+    """
+    return {
+        **GENERAL_PURPOSE_SUBAGENT,
+        "model": model,
+        "middleware": [AgentRoleMiddleware(role), *MODEL_GOVERNANCE_MIDDLEWARE],
+    }

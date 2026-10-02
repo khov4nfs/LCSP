@@ -19,10 +19,10 @@ export const SIGN_UP_SUBMISSION_ERRORS = {
   requestFailed: "request_failed",
 } as const;
 
-export type SignUpFieldName = keyof SignUpFormValues;
-export type SignUpFieldType =
+type SignUpFieldName = keyof SignUpFormValues;
+type SignUpFieldType =
   (typeof SIGN_UP_FIELD_TYPES)[keyof typeof SIGN_UP_FIELD_TYPES];
-export type SignUpFieldAutocomplete =
+type SignUpFieldAutocomplete =
   (typeof SIGN_UP_FIELD_AUTOCOMPLETE)[keyof typeof SIGN_UP_FIELD_AUTOCOMPLETE];
 export type SignUpSubmissionError =
   | (typeof SIGN_UP_SUBMISSION_ERRORS)[keyof typeof SIGN_UP_SUBMISSION_ERRORS]

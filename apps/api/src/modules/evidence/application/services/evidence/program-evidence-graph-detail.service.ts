@@ -4,7 +4,7 @@ import {
   AI_DISCOVERY_RESOLUTION_STATES,
 } from "@lcsp/contracts/evidence";
 
-import { isRecord } from "@lcsp/contracts/shared";
+import { asRecord as record } from "@lcsp/contracts/shared";
 import type {
   ProgramEvidenceGraphClaimDto,
   ProgramEvidenceGraphDetailDto,
@@ -1143,9 +1143,6 @@ function metric(
   return null;
 }
 
-function record(value: unknown): Record<string, unknown> | null {
-  return isRecord(value) ? value : null;
-}
 function text(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
   const normalized = value.trim();

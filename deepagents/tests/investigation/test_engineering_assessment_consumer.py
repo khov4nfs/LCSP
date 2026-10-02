@@ -5,12 +5,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tools.common.capabilities.assessment.investigation.engineering_rule import (
+    engineering_assessment_boundary as boundary_module,
+)
 from tools.common.capabilities.assessment.investigation.engineering_rule.engineering_assessment_boundary import (
     EngineeringAssessmentBoundary,
 )
-from tools.common.capabilities.assessment.investigation.engineering_rule.pipeline import EngineeringInvestigationResult
+from tools.common.capabilities.assessment.investigation.engineering_rule.rule_sources import RuleResolution
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 from tools.triage.legal_rule_triage.contracts import LEGAL_RULE_TRIAGE_REQUEST_COMMAND
 
 
@@ -20,14 +23,6 @@ def _config():
         worker_api_key="worker-key",
         max_retries=3,
     )
-
-
-def _snapshot_client_unavailable() -> MagicMock:
-    snapshot_client = MagicMock()
-    snapshot_client.download_snapshot_archive.side_effect = RuntimeError(
-        "snapshot unavailable in unit test"
-    )
-    return snapshot_client
 
 
 def _api_client() -> MagicMock:
@@ -41,14 +36,27 @@ def _api_client() -> MagicMock:
     return api_client
 
 
-def _boundary(*, api_client, pipeline, publisher=None) -> EngineeringAssessmentBoundary:
-    return EngineeringAssessmentBoundary(
+CONFIRMED = SimpleNamespace(statements=(), context_revision=1)
+
+
+def _boundary(*, api_client, publisher=None, resolution=None, monkeypatch=None):
+    """Boundary with fakes; ``resolution`` replaces legal-source resolution (returns kwargs seen)."""
+    seen: dict = {}
+    if resolution is not None:
+
+        def fake_resolve(**kwargs):
+            seen.update(kwargs)
+            return resolution
+
+        monkeypatch.setattr(boundary_module, "resolve_engineering_rules", fake_resolve)
+    boundary = EngineeringAssessmentBoundary(
         _config(),
         api_client=api_client,
-        investigation_pipeline=pipeline,
-        snapshot_client=_snapshot_client_unavailable(),
+        retriever=MagicMock(),
+        rule_service=MagicMock(),
         triage_trigger_publisher=publisher or MagicMock(),
     )
+    return boundary, seen
 
 
 def test_evidence_lookup_4xx_is_terminal_and_not_outer_retryable() -> None:
@@ -56,17 +64,13 @@ def test_evidence_lookup_4xx_is_terminal_and_not_outer_retryable() -> None:
     api_client.get_accepted_technical_evidence_report.side_effect = WorkerCallbackError(
         "VALIDATION_FAILED: Callback failed with client error 404.", status_code=404
     )
-    pipeline = MagicMock()
-    boundary = _boundary(api_client=api_client, pipeline=pipeline)
+    boundary, _ = _boundary(api_client=api_client)
 
     with pytest.raises(NonRetryableAgentBoundaryError) as exc_info:
-        boundary.handle(
-            {"evidenceReportId": "stale-ter", "workflowRunId": "scan-1"},
-            "corr-stale",
-        )
+        boundary.handle({"evidenceReportId": "stale-ter", "workflowRunId": "scan-1"}, "corr-stale")
 
     assert "client error 404" in str(exc_info.value)
-    pipeline.run.assert_not_called()
+    api_client.post_classification_callback.assert_not_called()
 
 
 def test_evidence_lookup_server_failure_remains_outer_retryable() -> None:
@@ -74,16 +78,25 @@ def test_evidence_lookup_server_failure_remains_outer_retryable() -> None:
     api_client.get_accepted_technical_evidence_report.side_effect = WorkerCallbackError(
         "Callback failed after 3 attempts with server error 503."
     )
-    pipeline = MagicMock()
-    boundary = _boundary(api_client=api_client, pipeline=pipeline)
+    boundary, _ = _boundary(api_client=api_client)
 
     with pytest.raises(WorkerCallbackError, match="server error 503"):
-        boundary.handle(
-            {"evidenceReportId": "ter-1", "workflowRunId": "scan-1"},
-            "corr-retry",
-        )
+        boundary.handle({"evidenceReportId": "ter-1", "workflowRunId": "scan-1"}, "corr-retry")
 
-    pipeline.run.assert_not_called()
+
+def test_handle_without_confirmed_context_fails_closed_and_analyzes_nothing() -> None:
+    api_client = _api_client()
+    dispatcher = MagicMock()
+    boundary, _ = _boundary(api_client=api_client)
+    boundary._dispatcher = dispatcher
+
+    boundary.handle({"evidenceReportId": "ter-1", "workflowRunId": "scan-1"}, "corr-1")
+
+    dispatcher.dispatch.assert_not_called()
+    payload = api_client.post_classification_callback.call_args.args[0]
+    assert payload.guardrail_status == "BLOCKED"
+    assert payload.classification_data["status"] == "BLOCKED"
+    assert payload.classification_data["evaluations"] == []
 
 
 def test_classification_callback_4xx_is_terminal_and_not_outer_retryable() -> None:
@@ -91,27 +104,10 @@ def test_classification_callback_4xx_is_terminal_and_not_outer_retryable() -> No
     api_client.post_classification_callback.side_effect = WorkerCallbackError(
         "CLASSIFICATION_OVERCLAIM: Callback failed with client error 422.", status_code=422
     )
-
-    result = MagicMock()
-    result.status = "COMPLETE"
-    result.to_assessment_data.return_value = {
-        "mode": "ENGINEERING_RULE_EVALUATION",
-        "status": "COMPLETE",
-        "summary": {"compliant": 1, "non_compliant": 0, "unknown": 0, "total": 1},
-        "evaluations": [],
-        "claims": [],
-        "limitations": [],
-    }
-    pipeline = MagicMock()
-    pipeline.run.return_value = result
-
-    boundary = _boundary(api_client=api_client, pipeline=pipeline)
+    boundary, _ = _boundary(api_client=api_client)
 
     with pytest.raises(NonRetryableAgentBoundaryError) as exc_info:
-        boundary.handle(
-            {"evidenceReportId": "ter-1", "workflowRunId": "scan-1"},
-            "corr-1",
-        )
+        boundary.handle({"evidenceReportId": "ter-1", "workflowRunId": "scan-1"}, "corr-1")
 
     assert "CLASSIFICATION_OVERCLAIM" in str(exc_info.value)
     api_client.post_classification_callback.assert_called_once()
@@ -122,52 +118,29 @@ def test_retryable_callback_failure_is_preserved_for_outer_retry_policy() -> Non
     api_client.post_classification_callback.side_effect = WorkerCallbackError(
         "Callback failed after 3 attempts with server error 503."
     )
-
-    result = MagicMock()
-    result.status = "PARTIAL"
-    result.to_assessment_data.return_value = {
-        "mode": "ENGINEERING_RULE_EVALUATION",
-        "status": "PARTIAL",
-        "summary": {"compliant": 0, "non_compliant": 0, "unknown": 1, "total": 1},
-        "evaluations": [],
-        "claims": [],
-        "limitations": ["TEMPORARY_PROVIDER_FAILURE"],
-    }
-    pipeline = MagicMock()
-    pipeline.run.return_value = result
-
-    boundary = _boundary(api_client=api_client, pipeline=pipeline)
+    boundary, _ = _boundary(api_client=api_client)
 
     with pytest.raises(WorkerCallbackError):
-        boundary.handle(
-            {"evidenceReportId": "ter-1", "workflowRunId": "scan-1"},
-            "corr-1",
-        )
+        boundary.handle({"evidenceReportId": "ter-1", "workflowRunId": "scan-1"}, "corr-1")
 
 
-def test_waiting_legal_source_emits_and_dispatches_automatic_full_backlog_triage_trigger() -> None:
+def test_waiting_legal_source_emits_and_dispatches_automatic_full_backlog_triage_trigger(monkeypatch) -> None:
     api_client = _api_client()
     publisher = MagicMock()
-    pipeline = MagicMock()
-    pipeline.run.return_value = EngineeringInvestigationResult(
+    resolution = RuleResolution(
         status="WAITING",
-        legal_rule_catalog_version_id="catalog-v1",
-        legal_corpus_version_id="corpus-v1",
-        rules_considered=0,
-        engineering_rules_executed=0,
-        engineering_rule_cache_hits=0,
+        catalog_version_id="catalog-v1",
+        corpus_version_id="corpus-v1",
         limitations=("NO_ENGINEERING_RULE_SOURCE_RULES",),
+        reason="NO_ENGINEERING_RULE_SOURCE_RULES",
     )
 
-    boundary = _boundary(
-        api_client=api_client,
-        pipeline=pipeline,
-        publisher=publisher,
-    )
+    boundary, _ = _boundary(api_client=api_client, publisher=publisher, resolution=resolution, monkeypatch=monkeypatch)
 
-    boundary.handle(
+    boundary.run_assessment(
         {"evidenceReportId": "ter-1", "workflowRunId": "scan-1"},
         "corr-1",
+        confirmed_context=CONFIRMED,
     )
 
     api_client.post_scan_runtime_event.assert_called_once()
@@ -208,18 +181,16 @@ def test_waiting_legal_source_emits_and_dispatches_automatic_full_backlog_triage
     assert "assessmentId" not in command
 
 
-def test_missing_ready_engineering_rules_emit_bounded_automatic_triage_trigger() -> None:
+def test_missing_ready_engineering_rules_emit_bounded_automatic_triage_trigger(monkeypatch) -> None:
     api_client = _api_client()
     publisher = MagicMock()
-    pipeline = MagicMock()
-    pipeline.run.return_value = EngineeringInvestigationResult(
+    resolution = RuleResolution(
         status="BLOCKED",
-        legal_rule_catalog_version_id="catalog-v2",
-        legal_corpus_version_id="corpus-v3",
-        rules_considered=2,
-        engineering_rules_executed=0,
-        engineering_rule_cache_hits=0,
+        catalog_version_id="catalog-v2",
+        corpus_version_id="corpus-v3",
+        legal_rules=({"id": "a"}, {"id": "b"}),
         limitations=("NO_ENGINEERING_RULE_CANDIDATES",),
+        reason="ENGINEERING_RULE_NOT_READY",
         observability={
             "engineering_rule_preparation": {
                 "compile_skipped_legal_rule_ids": ["RULE-2", "RULE-1", "RULE-2"],
@@ -227,15 +198,12 @@ def test_missing_ready_engineering_rules_emit_bounded_automatic_triage_trigger()
         },
     )
 
-    boundary = _boundary(
-        api_client=api_client,
-        pipeline=pipeline,
-        publisher=publisher,
-    )
+    boundary, _ = _boundary(api_client=api_client, publisher=publisher, resolution=resolution, monkeypatch=monkeypatch)
 
-    boundary.handle(
+    boundary.run_assessment(
         {"evidenceReportId": "ter-1", "workflowRunId": "scan-1"},
         "corr-readiness-1",
+        confirmed_context=CONFIRMED,
     )
 
     runtime_payload = api_client.post_scan_runtime_event.call_args.args[1]
@@ -281,30 +249,23 @@ def test_missing_ready_engineering_rules_emit_bounded_automatic_triage_trigger()
     assert "assessmentId" not in command
 
 
-def test_triage_dispatch_happens_only_after_waiting_classification_callback() -> None:
+def test_triage_dispatch_happens_only_after_waiting_classification_callback(monkeypatch) -> None:
     api_client = _api_client()
     calls: list[str] = []
     api_client.post_classification_callback.side_effect = lambda _payload: calls.append(
         "classification"
     )
     publisher = MagicMock(side_effect=lambda _message: calls.append("triage"))
-    pipeline = MagicMock()
-    pipeline.run.return_value = EngineeringInvestigationResult(
+    resolution = RuleResolution(
         status="WAITING",
-        legal_rule_catalog_version_id="catalog-v1",
-        legal_corpus_version_id="corpus-v1",
-        rules_considered=0,
-        engineering_rules_executed=0,
-        engineering_rule_cache_hits=0,
+        catalog_version_id="catalog-v1",
+        corpus_version_id="corpus-v1",
         limitations=("NO_ENGINEERING_RULE_SOURCE_RULES",),
+        reason="NO_ENGINEERING_RULE_SOURCE_RULES",
     )
-    boundary = _boundary(
-        api_client=api_client,
-        pipeline=pipeline,
-        publisher=publisher,
-    )
+    boundary, _ = _boundary(api_client=api_client, publisher=publisher, resolution=resolution, monkeypatch=monkeypatch)
 
-    boundary.handle({"evidenceReportId": "ter-1"}, "corr-order")
+    boundary.run_assessment({"evidenceReportId": "ter-1"}, "corr-order", confirmed_context=CONFIRMED)
 
     assert calls == ["classification", "triage"]
 
@@ -331,143 +292,36 @@ def test_automatic_triage_command_uses_managed_boundary_routing_key() -> None:
     assert LEGAL_RULE_TRIAGE_REQUEST_COMMAND == "command.legal-rule-triage.requested.v1"
 
 
-def test_boundary_forwards_source_crawl_requests_to_pipeline_for_input_compatibility() -> None:
+def test_source_crawl_requests_are_forwarded_to_rule_resolution_for_input_compatibility(monkeypatch) -> None:
     api_client = _api_client()
+    boundary, seen = _boundary(
+        api_client=api_client,
+        resolution=RuleResolution(status="BLOCKED", reason="X"),
+        monkeypatch=monkeypatch,
+    )
+    requests = [{"documentId": "LAW-TEST", "sourceUrl": "https://vbpl.vn/test"}]
 
-    result = MagicMock()
-    result.status = "COMPLETE"
-    result.to_assessment_data.return_value = {
-        "mode": "ENGINEERING_RULE_EVALUATION",
-        "status": "COMPLETE",
-        "summary": {"compliant": 0, "non_compliant": 0, "unknown": 0, "total": 0},
-        "evaluations": [],
-        "claims": [],
-        "limitations": [],
-    }
-    pipeline = MagicMock()
-    pipeline.run.return_value = result
-
-    boundary = _boundary(api_client=api_client, pipeline=pipeline)
-    source_crawl_requests = [
-        {
-            "documentId": "LAW-TEST",
-            "catalogSourceRef": "catalog-source:vbpl.vn:law:law-test",
-            "sourceUrl": "https://vbpl.vn/test",
-            "gatewayDocumentId": "123",
-        }
-    ]
-
-    boundary.handle(
-        {
-            "evidenceReportId": "ter-1",
-            "workflowRunId": "scan-1",
-            "sourceCrawlRequests": source_crawl_requests,
-        },
+    boundary.run_assessment(
+        {"evidenceReportId": "ter-1", "workflowRunId": "scan-1", "sourceCrawlRequests": requests},
         "corr-1",
+        confirmed_context=CONFIRMED,
     )
 
-    assert pipeline.run.call_args.kwargs["recovery_source_crawl_requests"] == (
-        source_crawl_requests
-    )
+    assert seen["source_crawl_requests"] == requests
+    assert seen["workflow_run_id"] == "scan-1"
     api_client.post_classification_callback.assert_called_once()
 
 
-def test_boundary_forwards_scan_job_id_so_pipeline_can_stream_runtime_activity() -> None:
-    """The evidence report's scan_job_id is the channel Planner/Investigator activity
-    streams through (see PlannedEngineeringInvestigationPipeline._emit_runtime_activity).
-    If this stops being forwarded, live reasoning silently disappears from the UI again.
-    """
-    api_client = _api_client()
-
-    result = MagicMock()
-    result.status = "COMPLETE"
-    result.to_assessment_data.return_value = {
-        "mode": "ENGINEERING_RULE_EVALUATION",
-        "status": "COMPLETE",
-        "summary": {"compliant": 0, "non_compliant": 0, "unknown": 0, "total": 0},
-        "evaluations": [],
-        "claims": [],
-        "limitations": [],
-    }
-    pipeline = MagicMock()
-    pipeline.run.return_value = result
-
-    boundary = _boundary(api_client=api_client, pipeline=pipeline)
-    boundary.handle(
-        {"evidenceReportId": "ter-1", "workflowRunId": "scan-1"},
-        "corr-1",
+def test_malformed_source_crawl_requests_are_terminal(monkeypatch) -> None:
+    boundary, _ = _boundary(
+        api_client=_api_client(),
+        resolution=RuleResolution(status="BLOCKED", reason="X"),
+        monkeypatch=monkeypatch,
     )
 
-    assert pipeline.run.call_args.kwargs["scan_job_id"] == "scan-1"
-
-
-def _empty_complete_result() -> MagicMock:
-    result = MagicMock()
-    result.status = "COMPLETE"
-    result.to_assessment_data.return_value = {
-        "mode": "ENGINEERING_RULE_EVALUATION",
-        "status": "COMPLETE",
-        "summary": {"compliant": 0, "non_compliant": 0, "unknown": 0, "total": 0},
-        "evaluations": [],
-        "claims": [],
-        "limitations": [],
-    }
-    return result
-
-
-def test_exact_resume_gate_continuation_does_not_refetch_the_pinned_snapshot() -> None:
-    from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
-        ResumedManagedInvestigatorPipeline,
-    )
-
-    assert ResumedManagedInvestigatorPipeline.requires_code_workspace is False
-    api_client = _api_client()
-    pipeline = MagicMock()
-    pipeline.requires_code_workspace = False
-    pipeline.run.return_value = _empty_complete_result()
-    snapshot_client = MagicMock()
-    code_workspace = MagicMock()
-
-    EngineeringAssessmentBoundary(
-        _config(),
-        api_client=api_client,
-        investigation_pipeline=pipeline,
-        snapshot_client=snapshot_client,
-        code_workspace=code_workspace,
-        triage_trigger_publisher=MagicMock(),
-    ).handle({"evidenceReportId": "ter-1", "workflowRunId": "scan-1"}, "corr-1")
-
-    snapshot_client.download_snapshot_archive.assert_not_called()
-    code_workspace.materialize.assert_not_called()
-    code_workspace.cleanup.assert_not_called()
-    assert pipeline.run.call_args.kwargs["workspace_path"] is None
-
-
-def test_investigation_run_still_materializes_the_pinned_snapshot_once(tmp_path) -> None:
-    api_client = _api_client()
-    pipeline = MagicMock()
-    pipeline.run.return_value = _empty_complete_result()
-    snapshot_client = MagicMock()
-    snapshot_client.download_snapshot_archive.return_value = b"archive"
-    code_workspace = MagicMock()
-    code_workspace.materialize.return_value = SimpleNamespace(
-        workspace_path=tmp_path,
-        extracted_files=1,
-        skipped_files=0,
-        coverage_limited=False,
-    )
-
-    EngineeringAssessmentBoundary(
-        _config(),
-        api_client=api_client,
-        investigation_pipeline=pipeline,
-        snapshot_client=snapshot_client,
-        code_workspace=code_workspace,
-        triage_trigger_publisher=MagicMock(),
-    ).handle({"evidenceReportId": "ter-1", "workflowRunId": "scan-1"}, "corr-1")
-
-    snapshot_client.download_snapshot_archive.assert_called_once()
-    request = snapshot_client.download_snapshot_archive.call_args.args[0]
-    assert (request.snapshot_id, request.scan_job_id) == ("snapshot-1", "scan-1")
-    assert pipeline.run.call_args.kwargs["workspace_path"] == tmp_path
-    code_workspace.cleanup.assert_called_once_with("investigation-corr-1")
+    with pytest.raises(NonRetryableAgentBoundaryError):
+        boundary.run_assessment(
+            {"evidenceReportId": "ter-1", "sourceCrawlRequests": "nope"},
+            "corr-1",
+            confirmed_context=CONFIRMED,
+        )

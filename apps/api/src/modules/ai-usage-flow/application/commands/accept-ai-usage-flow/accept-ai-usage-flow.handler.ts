@@ -28,7 +28,7 @@ import {
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
-import { isRecord } from "@lcsp/contracts/shared";
+import { cleanString as clean, isRecord } from "@lcsp/contracts/shared";
 
 import {
   toPrismaAuditResourceType,
@@ -468,9 +468,6 @@ function isMaterialClaimMissingEvidence(
  * @param value - Unknown value to normalize.
  * @returns Trimmed string value, or null when the input is not a non-empty string.
  */
-function clean(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
 
 /**
  * Recursively detects forbidden source-code/raw-content keys or recognizable secret patterns in a callback payload.

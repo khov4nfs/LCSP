@@ -24,9 +24,9 @@ PostgreSQL/Prisma metadata, ChromaDB legal index configuration, RabbitMQ/outbox,
 
 Authentication, organization, assessment, WizardProfile, readiness-only state, GitHub App connection, Automatic Trusted Scan Initiation và RepositorySnapshot.
 
-### Wave 3 — Python Scanner
+### Wave 3 — Managed Repository Analysis
 
-Python Scanner Worker, Syft, Knip, deptry, `ast` + `libcst`, workspace security, TS/JS subprocess, tree-sitter/custom parser, Semgrep custom rules, graph/evidence/report và scan events.
+LCSP Agent Runtime repository sandbox, Repository Deep Agent, Codebase Memory MCP 0.11.0, source-grounded evidence/coverage/AI gate và scan events.
 
 ### Wave 4 — Intelligence và reconciliation
 
@@ -54,7 +54,7 @@ Chạy golden path và negative paths trên hạ tầng thật.
 Foundations
 -> Assessment/Wizard/Repository
 -> Automatic Trusted Scan Initiation
--> Python Scanner
+-> Managed Repository Analysis
 -> TechnicalProfile
 -> AIUsageFlow
 -> Reconciliation/VerifiedProfile
@@ -77,7 +77,7 @@ Source Ingestion
 ## Tiêu chí hoàn tất quan trọng
 
 - API/Python Worker Platform startup contract và migration chạy được.
-- Scan không chạy source, không lưu raw source và cleanup được xác minh.
+- Repository analysis ưu tiên static inspection, không lưu raw source dài hạn và cleanup được xác minh.
 - Claims có evidence refs và uncertainty.
 - Conflict khóa classification cho đến khi Manager giải quyết.
 - Corpus approved bất biến và retrieval có citation.
@@ -96,14 +96,9 @@ npm run dev:api
 npm run dev:web
 
 cd deepagents
-poetry install
-poetry run pytest
-poetry run python -m tools.graph.scanner.main
-
-cd ../tools/ts-js-analyzer
-npm install
-npm run build
-npm test
+uv sync --extra dev
+uv run pytest
+uv run langgraph dev --no-browser --no-reload --allow-blocking
 ```
 
 Các lệnh này là hợp đồng thiết kế; chưa phải bằng chứng repository hiện đã có mã chạy được.

@@ -1,6 +1,6 @@
 """Authoritative data access and persistence for Legal Rule Triage.
 
-The Managed Deep Agent performs the business reasoning. This service only provides
+The Deep Agent performs the business reasoning. This service only provides
 approved LegalRule/chunk inputs, validates the agent handoff, fingerprints it, and
 persists READY EngineeringRules. It never calls an LLM.
 """

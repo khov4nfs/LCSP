@@ -1,7 +1,7 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import { useEffect, useRef, type ReactNode, type UIEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
 
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -18,9 +18,10 @@ type AssessmentTranscriptProps = {
 type ChatRailProps = {
   children: ReactNode;
   className?: string;
+  elementRef?: Ref<HTMLDivElement>;
 };
 
-const AUTO_FOLLOW_THRESHOLD_PX = 80;
+const PINNED_BOTTOM_THRESHOLD_PX = 120;
 
 export function AssessmentTranscript({
   children,
@@ -29,56 +30,93 @@ export function AssessmentTranscript({
   className,
 }: AssessmentTranscriptProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const isFollowingLatestRef = useRef(true);
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const pinnedRef = useRef(true);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
 
-  function handleScroll(event: UIEvent<HTMLDivElement>) {
-    isFollowingLatestRef.current = isNearLatest(event.currentTarget);
-  }
+  const handleScroll = () => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    pinnedRef.current =
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <=
+      PINNED_BOTTOM_THRESHOLD_PX;
+    if (pinnedRef.current) setShowJumpToLatest(false);
+  };
 
-  useEffect(() => {
-    if (autoScrollKey === undefined) {
-      return;
-    }
+  const jumpToLatest = () => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    pinnedRef.current = true;
+    scrollToLatest(viewport);
+    setShowJumpToLatest(false);
+  };
 
+  useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) {
       return;
     }
-
-    if (!isFollowingLatestRef.current && !isNearLatest(viewport)) {
-      return;
+    if (pinnedRef.current) {
+      scrollToLatest(viewport);
+    } else {
+      setShowJumpToLatest(true);
     }
-
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    viewport.scrollTo({
-      top: viewport.scrollHeight,
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-    });
   }, [autoScrollKey]);
 
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    const rail = railRef.current;
+    if (!viewport || !rail || typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (pinnedRef.current) {
+        scrollToLatest(viewport);
+      } else {
+        setShowJumpToLatest(true);
+      }
+    });
+    observer.observe(viewport);
+    observer.observe(rail);
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div
-      ref={viewportRef}
-      data-slot="assessment-transcript"
-      role="log"
-      aria-live="polite"
-      aria-label={ariaLabel}
-      onScroll={handleScroll}
-      className={cn(
-        "no-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto",
-        className,
+    <div className={cn("relative flex min-h-0 flex-1 flex-col", className)}>
+      <div
+        ref={viewportRef}
+        data-slot="assessment-transcript"
+        role="log"
+        aria-live="polite"
+        aria-label={ariaLabel}
+        onScroll={handleScroll}
+        className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
+      >
+        <ChatRail
+          elementRef={railRef}
+          className="shrink-0 gap-4 pt-6 pb-4"
+        >
+          {children}
+        </ChatRail>
+      </div>
+      {showJumpToLatest && (
+        <button
+          type="button"
+          data-slot="transcript-jump-to-latest"
+          aria-label={t("pages.appShell.chatJumpToLatest")}
+          onClick={jumpToLatest}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground shadow-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t("pages.appShell.chatNewActivity")}
+        </button>
       )}
-    >
-      <ChatRail className="min-h-full gap-4 py-6">{children}</ChatRail>
     </div>
   );
 }
 
-export function ChatRail({ children, className }: ChatRailProps) {
+export function ChatRail({ children, className, elementRef }: ChatRailProps) {
   return (
     <div
+      ref={elementRef}
       data-slot="chat-rail"
       className={cn(
         "mx-auto flex w-full max-w-170 min-w-0 flex-col px-4 sm:px-0",
@@ -90,11 +128,14 @@ export function ChatRail({ children, className }: ChatRailProps) {
   );
 }
 
-function isNearLatest(viewport: HTMLDivElement) {
-  return (
-    viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <=
-    AUTO_FOLLOW_THRESHOLD_PX
-  );
+function scrollToLatest(viewport: HTMLDivElement) {
+  if (viewport.scrollHeight <= viewport.clientHeight) {
+    return;
+  }
+  viewport.scrollTo({
+    top: viewport.scrollHeight,
+    behavior: "auto",
+  });
 }
 
 function t(key: string) {

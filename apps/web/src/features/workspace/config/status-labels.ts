@@ -16,4 +16,6 @@ export const assessmentStatusLabelKeys = {
     "pages.workspace.statuses.CLASSIFICATION_LOCKED",
   [ASSESSMENT_STATUS_CODES.readyForReview]:
     "pages.workspace.statuses.READY_FOR_REVIEW",
+  [ASSESSMENT_STATUS_CODES.aiNotDetected]:
+    "pages.workspace.statuses.AI_NOT_DETECTED",
 } as const satisfies Record<AssessmentStatus, MessageKey>;

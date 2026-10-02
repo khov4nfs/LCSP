@@ -1,40 +1,13 @@
 import type { EffectiveRuntimeModel } from "@lcsp/contracts/billing";
 
-export type BillingUsageReservationInput = {
+export type LlmUsageRecordInput = {
+  userId: string;
   assessmentId: string;
   runId: string;
-  amountCredits: bigint;
-  maxChargeCredits: bigint;
-  provider: string;
-  model: string;
-  maxInputTokens: bigint;
-  maxOutputTokens: bigint;
-  maxReasoningTokens: bigint;
-  maxInvocations: bigint;
-  authorizedModels: Array<{ provider: string; model: string }>;
-  idempotencyKey: string;
-};
-
-export type BillingUsageReleaseInput = {
-  assessmentId: string;
-  reservationId: string;
-};
-
-export type BillingUsageClaimInput = {
-  assessmentId: string;
-  reservationId: string;
-  invocationId: string;
-};
-
-export type BillingUsageSettlementInput = {
-  userId: string;
-  assessmentId?: string;
-  runId?: string;
-  reservationId: string;
   invocationId: string;
   agentRole: string;
-  provider?: string;
-  model?: string;
+  provider: string;
+  model: string;
   effectiveRuntimeModel?: EffectiveRuntimeModel;
   providerResponseId?: string;
   inputTokens?: bigint;
@@ -43,7 +16,7 @@ export type BillingUsageSettlementInput = {
   outputTokens?: bigint;
   reasoningTokens?: bigint;
   totalTokens?: bigint;
-  occurredAt?: Date;
+  occurredAt: Date;
 };
 
 export type BillingOrderAudit = {

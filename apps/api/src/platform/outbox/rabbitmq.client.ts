@@ -1,9 +1,19 @@
 import * as amqp from "amqplib";
 import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+import { SCAN_EVENT_TYPES } from "@lcsp/contracts/scan/callback";
 
 import { emitDevUnsafeTrace } from "../logging/dev-unsafe-trace.js";
 
 export type RabbitMqMessageHeaders = Record<string, string>;
+
+export function requiresRoutableDelivery(routingKey: string): boolean {
+  return (
+    routingKey.startsWith("command.") ||
+    routingKey.startsWith("cron.") ||
+    routingKey === SCAN_EVENT_TYPES.evidenceAccepted
+  );
+}
 export type RabbitMqConsumerInput = {
   queue: string;
   routingKey: string;
@@ -17,8 +27,9 @@ export type RabbitMqConsumerInput = {
 export class RabbitMqClient implements OnModuleDestroy {
   private readonly logger = new Logger(RabbitMqClient.name);
   private connection: amqp.ChannelModel | null = null;
-  private channel: amqp.Channel | null = null;
-  private connecting: Promise<amqp.Channel> | null = null;
+  private channel: amqp.ConfirmChannel | null = null;
+  private connecting: Promise<amqp.ConfirmChannel> | null = null;
+  private readonly returnedMessageIds = new Set<string>();
   private readonly exchangeType = "topic";
 
   /**
@@ -48,8 +59,8 @@ export class RabbitMqClient implements OnModuleDestroy {
    * @param routingKey - Topic routing key for the event.
    * @param payload - Structured event payload serialized as JSON.
    * @param headers - Optional string headers propagated with the message.
-   * @returns A promise that resolves after the message is accepted into the channel buffer.
-   * @throws When RabbitMQ applies channel backpressure and rejects the publish buffer write.
+   * @returns A promise that resolves after RabbitMQ confirms the publication.
+   * @throws When RabbitMQ rejects/cannot confirm, or a delivery-critical route is unroutable.
    */
   async publish(
     exchange: string,
@@ -59,6 +70,8 @@ export class RabbitMqClient implements OnModuleDestroy {
   ): Promise<void> {
     const channel = await this.getChannel();
     const content = Buffer.from(JSON.stringify(payload));
+    const messageId = randomUUID();
+    const mandatory = requiresRoutableDelivery(routingKey);
 
     emitDevUnsafeTrace("DEV_API_AMQP_PUBLISH_REQUEST_RAW", {
       brokerUrl: this.url,
@@ -68,13 +81,38 @@ export class RabbitMqClient implements OnModuleDestroy {
       payload,
       serializedBody: content.toString("utf8"),
       byteLength: content.byteLength,
+      mandatory,
     });
 
-    const accepted = channel.publish(exchange, routingKey, content, {
-      contentType: "application/json",
-      persistent: true,
-      ...(headers ? { headers } : {}),
+    let confirmPublish!: () => void;
+    let rejectPublish!: (error: Error) => void;
+    const confirmed = new Promise<void>((resolve, reject) => {
+      confirmPublish = resolve;
+      rejectPublish = reject;
     });
+    const accepted = channel.publish(
+      exchange,
+      routingKey,
+      content,
+      {
+        contentType: "application/json",
+        persistent: true,
+        mandatory,
+        messageId,
+        ...(headers ? { headers } : {}),
+      },
+      (error: unknown) => {
+        if (error) {
+          rejectPublish(
+            error instanceof Error
+              ? error
+              : new Error("RabbitMQ publish was not confirmed"),
+          );
+          return;
+        }
+        confirmPublish();
+      },
+    );
 
     emitDevUnsafeTrace("DEV_API_AMQP_PUBLISH_RESULT_RAW", {
       brokerUrl: this.url,
@@ -83,11 +121,18 @@ export class RabbitMqClient implements OnModuleDestroy {
       headers,
       payload,
       accepted,
+      mandatory,
     });
 
     if (!accepted) {
       throw new Error(
         `RabbitMQ channel backpressure: publish buffer full for exchange="${exchange}"`,
+      );
+    }
+    await confirmed;
+    if (mandatory && this.returnedMessageIds.delete(messageId)) {
+      throw new Error(
+        `RabbitMQ unroutable publication for exchange="${exchange}" routingKey="${routingKey}"`,
       );
     }
   }
@@ -162,7 +207,7 @@ export class RabbitMqClient implements OnModuleDestroy {
    *
    * @returns Active or newly established RabbitMQ channel.
    */
-  private async getChannel(): Promise<amqp.Channel> {
+  private async getChannel(): Promise<amqp.ConfirmChannel> {
     if (this.channel) {
       return this.channel;
     }
@@ -179,7 +224,7 @@ export class RabbitMqClient implements OnModuleDestroy {
    *
    * @returns Newly created RabbitMQ channel.
    */
-  private async connect(): Promise<amqp.Channel> {
+  private async connect(): Promise<amqp.ConfirmChannel> {
     try {
       emitDevUnsafeTrace("DEV_API_AMQP_CONNECT_RAW", {
         brokerUrl: this.url,
@@ -203,7 +248,13 @@ export class RabbitMqClient implements OnModuleDestroy {
         this.resetConnectionState();
       });
 
-      const channel = await connection.createChannel();
+      const channel = await connection.createConfirmChannel();
+      channel.on("return", (message: amqp.Message) => {
+        const returnedMessageId: unknown = message.properties.messageId;
+        if (typeof returnedMessageId === "string" && returnedMessageId) {
+          this.returnedMessageIds.add(returnedMessageId);
+        }
+      });
       await channel.assertExchange(
         this.resolveExchangeName(),
         this.exchangeType,

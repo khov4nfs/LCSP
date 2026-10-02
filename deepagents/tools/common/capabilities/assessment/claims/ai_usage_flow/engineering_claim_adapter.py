@@ -14,10 +14,10 @@ from .ai_usage_flow_rule_engine import (
 class EngineeringClaimAdapter:
     """Carry validated engineering facts forward without re-interpreting them.
 
-    The law-guided investigator may synthesize engineering facts, but it may not
+    The Repository Analyst may synthesize engineering facts, but it may not
     decide legal applicability, compliance, violation, or risk tier. This adapter
     preserves that boundary: it only projects already validated EvidenceClaims
-    from TechnicalProfile into AIUsageFlow so reconciliation and VerifiedProfile
+    from accepted rule assessments into AIUsageFlow so reconciliation and VerifiedProfile
     can use the same immutable evidence refs later.
     """
 

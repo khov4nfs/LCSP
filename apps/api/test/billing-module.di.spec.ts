@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it } from "@jest/globals";
 import { BillingModule } from "../src/modules/billing/billing.module.js";
 import { BillingAccountingKernel } from "../src/modules/billing/application/shared/billing-accounting.kernel.js";
 import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
-import { BILLING_USAGE_KERNEL } from "../src/modules/billing/application/shared/billing-usage.kernel.js";
+import {
+  BILLING_USAGE_KERNEL,
+  type BillingUsagePort,
+} from "../src/modules/billing/application/shared/billing-usage.kernel.js";
 
 describe("BillingModule dependency injection", () => {
   let moduleRef: { close: () => Promise<void> } | undefined;
@@ -24,6 +27,11 @@ describe("BillingModule dependency injection", () => {
     expect(compiled.get(BillingPaymentKernel)).toBeInstanceOf(
       BillingPaymentKernel,
     );
-    expect(compiled.get(BILLING_USAGE_KERNEL)).toBeDefined();
+    const billing = compiled.get<BillingUsagePort>(BILLING_USAGE_KERNEL);
+
+    expect(billing).toBeDefined();
+    await expect(
+      billing.resolveAssessmentOwner("assessment-that-does-not-exist"),
+    ).rejects.toThrow("Assessment does not exist");
   });
 });

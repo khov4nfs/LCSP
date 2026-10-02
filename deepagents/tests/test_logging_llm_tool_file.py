@@ -36,6 +36,21 @@ def test_langgraph_heartbeat_loggers_are_suppressed() -> None:
     )
 
 
+def test_langgraph_format_exc_info_advisory_is_ignored() -> None:
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        suppress_langgraph_heartbeat_logs()
+        warnings.warn(
+            "Remove `format_exc_info` from your processor chain if you want pretty exceptions.",
+            UserWarning,
+        )
+        warnings.warn("unrelated advisory", UserWarning)
+
+    assert [str(item.message) for item in caught] == ["unrelated advisory"]
+
+
 def test_safe_llm_and_tool_events_are_mirrored_to_root_tmp(monkeypatch, tmp_path) -> None:
     from tools.common.capabilities.platform import logging_path
 

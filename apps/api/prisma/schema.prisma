@@ -76,6 +76,13 @@ enum EngineeringRuleEvaluationStatus {
   NOT_APPLICABLE
 }
 
+enum RuleAnalysisStatus {
+  COMPLETED
+  NEEDS_CONTEXT
+  UNRESOLVED
+  FAILED
+}
+
 enum EngineeringEvidenceClaimType {
   RULE_REQUIREMENT_MET
   RULE_REQUIREMENT_NOT_MET
@@ -160,16 +167,28 @@ model Assessment {
   repositoryScanJobs         RepositoryScanJob[]
   repositorySnapshots        RepositorySnapshot[]
   runtimeEvents              AssessmentRuntimeEvent[]
+  pipelineReconciliation     PipelineReconciliation?
   interviewThreads           AssessmentInterviewThread[]
+  ruleAssessments            EngineeringRuleAssessment[]
   targetedReanalysisRequests TargetedReanalysisRequest[]
   technicalEvidenceReports   TechnicalEvidenceReport[]
   technicalProfiles          TechnicalProfile[]
   verifiedAgentEpisodes      VerifiedAgentEpisode[]
   verifiedProfiles           VerifiedProfile[]
   billingReservations        BillingReservation[]
+  billingPauses              WorkflowBillingPause[]
   llmUsageEvents             LlmUsageEvent[]
 
   @@index([ownerId])
+}
+
+model PipelineReconciliation {
+  assessmentId  String     @id
+  attemptCount  Int        @default(0)
+  lastAttemptAt DateTime?
+  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@map("AssessmentPipelineReconciliation")
 }
 
 model ReadinessExport {
@@ -325,6 +344,7 @@ enum AssessmentStatus {
   SCAN_IN_PROGRESS
   CLASSIFICATION_LOCKED
   READY_FOR_REVIEW
+  AI_NOT_DETECTED
 }
 
 enum ReadinessExportStatus {
@@ -600,6 +620,28 @@ model AssessmentInterviewThread {
   @@unique([assessmentId])
   @@index([assessmentId, contextRevision])
   @@index([assessmentId, activeQuestionId, contextRevision])
+  @@index([assessmentId, updatedAt])
+}
+
+/// Accepted per-EngineeringRule assessment: the RuleEvidenceIndex ledger (accepted evidence only).
+model EngineeringRuleAssessment {
+  id                     String             @id @default(uuid())
+  assessmentId           String
+  engineeringRuleId      String
+  engineeringRuleVersion String
+  repositoryVersion      String
+  contextRevision        Int
+  status                 RuleAnalysisStatus
+  resultId               String
+  criteria               Json
+  limitations            String[]
+  execution              Json
+  attempt                Int
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  assessment             Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, engineeringRuleId])
   @@index([assessmentId, updatedAt])
 }
 
@@ -1066,6 +1108,7 @@ enum RepositoryScanJobStatus {
   PENDING_MAPPING
   BLOCKED_MAPPING
   WAITING_FOR_CONTEXT
+  WAITING_FOR_CREDITS
   READY_TO_SNAPSHOT
 }
 
@@ -1255,11 +1298,31 @@ model BillingWallet {
   availableCredits BigInt               @default(0)
   reservedCredits  BigInt               @default(0)
   version          Int                  @default(0)
+  reservationAutoRefillEnabled Boolean  @default(false)
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   user             User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
   ledgerEntries    CreditLedgerEntry[]
   reservations     BillingReservation[]
+}
+
+enum WorkflowBillingPauseSource {
+  SCANNER
+  ENGINEERING
+  INTERVIEW
+}
+
+model WorkflowBillingPause {
+  id           String   @id @default(uuid())
+  assessmentId String
+  dispatchKey  String   @unique
+  sourceEvent  WorkflowBillingPauseSource
+  payload      Json
+  pausedAt     DateTime @default(now())
+  resumedAt    DateTime?
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId, resumedAt, pausedAt])
 }
 
 model BillingOrder {
@@ -1351,9 +1414,17 @@ model BillingReservation {
   id             String                   @id @default(uuid())
   userId         String
   walletId       String
+  workspaceId    String?
   assessmentId   String?
+  scanJobId      String?
+  threadId       String?
   runId          String?
+  provider       String?
+  model          String?
+  invocationId   String?
+  modelInvocationId String?
   amountCredits  BigInt
+  initialAmountCredits BigInt?
   remainingCredits BigInt                 @default(0)
   maxInvocations BigInt                   @default(1)
   invocationsStarted BigInt               @default(0)
@@ -1371,19 +1442,27 @@ model BillingReservation {
 
   @@unique([userId, idempotencyKey])
   @@index([assessmentId, runId])
+  @@index([scanJobId])
+  @@index([threadId])
+  @@index([invocationId])
+  @@index([modelInvocationId])
   @@index([userId, status, createdAt])
   @@index([walletId, status])
 }
 
 model BillingReservationInvocationClaim {
-  id            String              @id @default(uuid())
-  reservationId String
-  invocationId  String
-  createdAt     DateTime            @default(now())
-  reservation   BillingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  id                        String              @id @default(uuid())
+  reservationId             String
+  invocationId              String
+  authorizedChargeCredits   BigInt              @default(0)
+  authorizationFingerprint  String?
+  settledAt                 DateTime?
+  createdAt                 DateTime            @default(now())
+  reservation               BillingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
   @@unique([reservationId, invocationId])
   @@index([invocationId])
+  @@index([reservationId, settledAt])
 }
 
 model ModelPricingSnapshot {

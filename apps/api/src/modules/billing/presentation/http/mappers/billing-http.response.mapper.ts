@@ -10,16 +10,3 @@ export function serializeBillingData(value: unknown): unknown {
     ]),
   );
 }
-
-export function projectReservation(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object") return {};
-  const reservation = value as Record<string, unknown>;
-  return {
-    reservationId: reservation.id ?? reservation.reservationId,
-    assessmentId: reservation.assessmentId,
-    runId: reservation.runId,
-    amountCredits: reservation.amountCredits,
-    remainingCredits: reservation.remainingCredits,
-    status: reservation.status,
-  };
-}

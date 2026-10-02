@@ -31,24 +31,52 @@ def test_dispatch_runtime_groups_support_capabilities() -> None:
     assert not root.exists()
 
     platform = PROJECT_ROOT / "tools" / "common" / "capabilities" / "platform"
+    # The evidence/graph/query/ builder runtime was intentionally deleted;
+    # graph_runtime.py + graph schema vocabulary remain as infrastructure only.
     assert _implementation_files(platform) == {
         "api_client.py",
         "artifact_storage.py",
         "callback_schemas.py",
+        "codebase_memory.py",
         "config.py",
         "correlation.py",
         "dev_unsafe_trace.py",
+        "docker_sandbox.py",
         "env.py",
         "file_lock.py",
         "graph_runtime.py",
         "logging.py",
         "logging_config.py",
         "logging_path.py",
+        "repository_sandbox.py",
         "orchestration_logging.py",
         "rbac_client.py",
-        "source_clarification.py",
+        "repository_snapshot_client.py",
+        "repository_workspace.py",
+        "subject_repository_tools.py",
         "tracing.py",
     }
+
+    # New capability layout: Codebase Memory graph tools, subject repository
+    # root guard, and governed submit_rule_assessment tools.
+    from tools.common.codebase_memory_graph import CODEBASE_MEMORY_GRAPH_TOOLS
+    from tools.common.capabilities.platform import subject_repository_tools
+
+    assert {getattr(tool, "name", "") for tool in CODEBASE_MEMORY_GRAPH_TOOLS} == {
+        "search_code_graph",
+        "trace_call_path",
+        "get_code_snippet",
+        "search_code_text",
+        "get_repository_architecture",
+    }
+    assert subject_repository_tools.SUBJECT_REPOSITORY_ROOT == "/workspace/repository"
+    from tools.common.submit_rule_assessment import (
+        cite_repository_source,
+        submit_rule_assessment,
+    )
+
+    assert submit_rule_assessment.name == "submit_rule_assessment"
+    assert cite_repository_source.name == "cite_repository_source"
 
 
 def _assert_import_blocked(module_name: str) -> None:
@@ -70,94 +98,34 @@ def test_flat_dispatch_clarification_import_is_not_supported() -> None:
 def test_program_graph_runtime_groups_owned_capabilities() -> None:
     root = PROJECT_ROOT / "tools" / "common" / "capabilities" / "evidence" / "graph"
 
-    assert _directories(root) == {
-        "schema",
-        "construction",
-        "lineage",
-        "resolution",
-        "query",
-    }
+    # The evidence/graph/query/ directory was intentionally deleted; only the
+    # schema vocabulary remains, with graph_runtime.py as infrastructure only.
+    assert _directories(root) == {"schema"}
+    assert not (root / "query").exists()
     assert _implementation_files(root) == set()
     assert _implementation_files(root / "schema") == {
         "models.py",
-        "semantic_ir.py",
         "source_roles.py",
         "vocabulary.py",
     }
-
-    construction = root / "construction"
-    assert _directories(construction) == {"assembly", "extraction", "validation"}
-    assert _implementation_files(construction) == set()
-    assert _implementation_files(construction / "assembly") == {
-        "assembler.py",
-        "builder.py",
-    }
-    assert _implementation_files(construction / "extraction") == {
-        "extractor.py",
-        "source_evidence.py",
-    }
-    assert _implementation_files(construction / "validation") == {
-        "semantic_integrity.py",
-        "validator.py",
-    }
-
-    lineage = root / "lineage"
-    assert _directories(lineage) == {"ai", "contract", "data", "sensitive", "decision"}
-    assert _implementation_files(lineage) == set()
-    assert _implementation_files(lineage / "ai") == {
-        "ai_discovery.py",
-        "ai_invocation_gate.py",
-        "ai_lifecycle.py",
-    }
-    assert _implementation_files(lineage / "contract") == {
-        "contract_flow.py",
-        "contract_lineage.py",
-    }
-    assert _implementation_files(lineage / "data") == {
-        "data_lineage.py",
-        "database_lineage.py",
-    }
-    assert _implementation_files(lineage / "sensitive") == {
-        "sensitive_data.py",
-        "sensitive_lineage_gate.py",
-    }
-    assert _implementation_files(lineage / "decision") == {"decision_influence.py"}
-
-    resolution = root / "resolution"
-    assert _directories(resolution) == {"boundary", "framework", "architecture", "dispatch"}
-    assert _implementation_files(resolution) == {"cross_project_resolution.py"}
-    assert _implementation_files(resolution / "boundary") == {
-        "api_boundary_resolution.py",
-        "python_agent_boundary_resolution.py",
-    }
-    assert _implementation_files(resolution / "framework") == {
-        "framework_boundary_finalizer.py",
-        "framework_links.py",
-        "framework_metadata.py",
-        "framework_resolution.py",
-        "python_framework_adapters.py",
-    }
-    assert _implementation_files(resolution / "architecture") == {
-        "javascript_architecture_resolution.py",
-        "managed_architecture_resolution.py",
-        "python_architecture_resolution.py",
-        "redux_extended_resolution.py",
-    }
-    assert _implementation_files(resolution / "dispatch") == {
-        "generic_dispatch_resolution.py",
-        "protocol_resolution.py",
-    }
-    assert _implementation_files(root / "query") == {"query_engine.py"}
+    assert (PROJECT_ROOT / "tools" / "common" / "capabilities" / "platform" / "graph_runtime.py").exists()
 
 
 def test_flat_program_graph_import_is_not_supported() -> None:
     _assert_import_blocked("tools.common.capabilities.evidence.graph.models")
 
 
-def test_graph_cross_capability_relative_imports_resolve_without_shims() -> None:
-    builder = importlib.import_module(
+def test_graph_schema_and_query_import_without_legacy_builder_runtime() -> None:
+    schema = importlib.import_module("tools.common.capabilities.evidence.graph.schema.models")
+    vocabulary = importlib.import_module(
+        "tools.common.capabilities.evidence.graph.schema.vocabulary"
+    )
+    assert schema is not None
+    assert vocabulary is not None
+    assert hasattr(vocabulary, "PROGRAM_GRAPH_SCHEMA_VERSION")
+    # The graph/query builder runtime was intentionally deleted: it must stay
+    # unimportable while schema vocabulary remains as infrastructure only.
+    _assert_import_blocked("tools.common.capabilities.evidence.graph.query.query_engine")
+    _assert_import_blocked(
         "tools.common.capabilities.evidence.graph.construction.assembly.builder"
     )
-    query_engine = importlib.import_module("tools.common.capabilities.evidence.graph.query.query_engine")
-    assert builder is not None
-    assert query_engine is not None

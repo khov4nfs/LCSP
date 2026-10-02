@@ -1,0 +1,34 @@
+# Model routing: the single authority for which model every agent role uses.
+# Override the location with LCSP_MODEL_ROUTES_FILE. Credentials and pricing are NOT here
+# (credentials: provider env vars; pricing: billing). Model ids are opaque strings, kept as written.
+version: 1
+
+# A route = transport provider + model id (+ optional trusted inference options).
+# provider must be exactly one of: openai, anthropic, google_genai, llm7, inception.
+# options (e.g. temperature, reasoning, max_output_tokens, context_window_tokens) are passed through;
+# omit them to get provider defaults. Credential/endpoint/header-like keys are rejected.
+routes:
+  primary:
+    provider: llm7
+    model: GLM-5.3-Flash
+  fallback:
+    provider: google_genai
+    model: gemini-3.5-flash-lite
+
+# Role -> route. `default` is required and used for any role not listed.
+# legal-chunk-triage historically used the triage model and legal-compiler the repository-analyst
+# model (now both `primary`); they are bound explicitly so they can diverge without code changes.
+# `root` and `triage` are the runtime agent roles built in agent.py.
+roles:
+  default: primary
+  root: primary
+  triage: primary
+  repository-analyst: primary
+  interview: primary
+  narrator: primary
+  legal-chunk-triage: primary
+  legal-compiler: primary
+
+# Ordered fallback chain per route (optional; cycles are rejected).
+fallbacks:
+  primary: [fallback]

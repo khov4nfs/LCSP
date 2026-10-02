@@ -111,6 +111,14 @@ export const ENGINEERING_LIMITATION_CODES = {
   externalBoundaryUnresolved: "EXTERNAL_BOUNDARY_UNRESOLVED",
   graphCoverageLimited: "GRAPH_COVERAGE_LIMITED",
   searchCoverageIncomplete: "SEARCH_COVERAGE_INCOMPLETE",
+  ruleConclusionWithheld: "RULE_CONCLUSION_WITHHELD",
+  activeCustomerConditionPending: "ACTIVE_CUSTOMER_CONDITION_PENDING",
+  conditionAskedUnresolved: "CONDITION_ASKED_UNRESOLVED",
+  interviewRegistrationFailed: "INTERVIEW_REGISTRATION_FAILED",
+  interviewNeedInvalid: "INTERVIEW_NEED_INVALID",
+  upstreamApplicabilityFactPending: "UPSTREAM_APPLICABILITY_FACT_PENDING",
+  criterionReanalysisPending: "CRITERION_REANALYSIS_PENDING",
+  agentDidNotSubmitCriterion: "AGENT_DID_NOT_SUBMIT_CRITERION",
 } as const;
 
 export type EngineeringLimitationCode =

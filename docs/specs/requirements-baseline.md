@@ -265,7 +265,7 @@ The following PRD `NFR-*` identifiers are retained only as PRD/source aliases. A
 | NFR-030    | Historical evidence/profile/classification chain preservation on re-runs                            | NFR-7                             | CANONICAL_MAPPING | `docs/specs/non-functional-requirements.md`          |
 | NFR-033    | LLM API cost controls                                                                               | PLATFORM_BASELINE                 | ACTIVE_CANONICAL  | `docs/specs/non-functional-requirements.md`; ADR-024 |
 | NFR-034    | Legal corpus immutability and approval                                                              | NFR-7, NFR-8                      | CANONICAL_MAPPING | `docs/specs/non-functional-requirements.md`; ADR-025 |
-| NFR-035    | Python Worker sandbox isolation                                                                     | NFR-1, NFR-2                      | CANONICAL_MAPPING | `docs/specs/non-functional-requirements.md`; ADR-023 |
+| NFR-035    | Python Worker sandbox isolation                                                                     | NFR-1, NFR-2                      | CANONICAL_MAPPING | `docs/specs/non-functional-requirements.md`; `docs/architecture/repository-deep-agent-analysis.md` |
 
 ## Legacy NFR Alias Mapping
 

@@ -15,6 +15,7 @@ import {
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+  AI_DISCOVERY_SNIPPET_POLICIES,
   BUSINESS_CONTEXT_RESOLUTION_STATES,
   BUSINESS_CONTEXT_SOURCES,
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
@@ -23,7 +24,6 @@ import {
   INTERVIEW_HOST_PLATFORMS,
   INTERVIEW_REASONING_TECHNICAL_COVERAGE_STATES,
   INTERVIEW_TECHNICAL_CONTRACT_VERSION,
-  LEGACY_ASSESSMENT_INTERVIEW_MODES,
   hasValidInterviewWaitingInvariant,
   isAssessmentInterviewOutcome,
   isAssessmentInterviewQuestionIntent,
@@ -35,7 +35,6 @@ import {
   isInterviewAgentInput,
   isInterviewAgentResultForMode,
   isInterviewRuntimeResult,
-  normalizeAssessmentInterviewMode,
   type AssessmentInterviewAuditRef,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
@@ -43,6 +42,7 @@ import {
 import {
   buildSubmitInterviewAnswerCommand,
   sanitizeAssessmentInterviewState,
+  sanitizeAssessmentInterviewSourceSnippet,
 } from "../src/lib/api/assessment-interview-client";
 
 test("public interview history survives sanitization without private actor identity", () => {
@@ -81,6 +81,54 @@ test("terminal Interview assistant output survives the public client boundary", 
   assert.equal(
     state?.assistantMessage,
     "I have enough confirmed business context to continue the assessment.",
+  );
+});
+
+test("source snippet references survive the public boundary and malformed source is rejected", () => {
+  const snippetRef = {
+    snapshot_id: "snapshot-1",
+    commit_sha: "abc123",
+    file_path: "src/provider.ts",
+    start_line: 12,
+    end_line: 13,
+    evidence_hash: "sha256:evidence",
+    snippet_policy: AI_DISCOVERY_SNIPPET_POLICIES.pinnedSnapshotBoundedRedacted,
+  };
+  const state = sanitizeAssessmentInterviewState({
+    outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+    activeQuestion: {
+      id: "question-1",
+      intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+      control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+      prompt: "Does production call this provider?",
+      snippetRef,
+    },
+  });
+
+  assert.deepEqual(state?.activeQuestion?.snippetRef, snippetRef);
+  assert.deepEqual(
+    sanitizeAssessmentInterviewSourceSnippet({
+      snippetRef,
+      lines: [
+        { line: 12, text: "const client = createClient();" },
+        { line: 13, text: "client.invoke();" },
+      ],
+      redacted: false,
+      truncated: false,
+    })?.lines,
+    [
+      { line: 12, text: "const client = createClient();" },
+      { line: 13, text: "client.invoke();" },
+    ],
+  );
+  assert.equal(
+    sanitizeAssessmentInterviewSourceSnippet({
+      snippetRef,
+      lines: [{ line: "12", text: "unsafe" }],
+      redacted: false,
+      truncated: false,
+    }),
+    null,
   );
 });
 
@@ -125,20 +173,11 @@ test("canonical interview contract exposes only release-gated outcomes", () => {
   );
 });
 
-test("canonical interview modes exclude compatibility-only PRE_PLANNER", () => {
+test("canonical interview modes are exactly the two supported modes", () => {
   assert.deepEqual(Object.values(ASSESSMENT_INTERVIEW_MODES).sort(), [
+    "BUSINESS_CONTEXT_RESOLUTION",
     "INITIAL_INTERVIEW",
-    "INVESTIGATOR_RESOLUTION",
   ]);
-  assert.deepEqual(Object.values(LEGACY_ASSESSMENT_INTERVIEW_MODES), [
-    "PRE_PLANNER",
-  ]);
-  assert.equal(
-    normalizeAssessmentInterviewMode(
-      LEGACY_ASSESSMENT_INTERVIEW_MODES.prePlanner,
-    ),
-    ASSESSMENT_INTERVIEW_MODES.initialInterview,
-  );
 });
 
 const canonicalScope = {
@@ -298,7 +337,7 @@ test("canonical interview contract validators reject authority-changing drift", 
   assert.equal(
     isInterviewAgentInput(
       canonicalAgentInput({
-        mode: LEGACY_ASSESSMENT_INTERVIEW_MODES.prePlanner,
+        mode: "PRE_PLANNER",
       }),
     ),
     false,
@@ -353,7 +392,7 @@ test("canonical interview contract validators reject authority-changing drift", 
   assert.equal(
     isInterviewRuntimeResult(
       runtimeResult({
-        mode: LEGACY_ASSESSMENT_INTERVIEW_MODES.prePlanner,
+        mode: "PRE_PLANNER",
       }),
     ),
     false,

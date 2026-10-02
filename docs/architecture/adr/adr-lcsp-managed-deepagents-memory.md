@@ -1,4 +1,6 @@
-# ADR: LCSP Managed Deep Agents Memory Boundary
+# ADR: LCSP Agent Runtime Memory Boundary
+
+> Runtime superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.
 
 Status: Accepted
 
@@ -6,13 +8,13 @@ Date: 2026-08-30
 
 ## Context
 
-LCSP assessment runs contain tenant, user, repository, legal-corpus, and compliance evidence. Managed Deep Agents thread state is useful execution memory, but deployment-shared durable agent memory is not an LCSP factual authority boundary.
+LCSP assessment runs contain tenant, user, repository, legal-corpus, and compliance evidence. Deep Agents / LangGraph thread state is useful execution memory, but deployment-shared durable agent memory is not an LCSP factual authority boundary.
 
 ## Decision
 
 LCSP uses checkpoint-first, authority-separated memory:
 
-- Managed Deep Agents and LangGraph thread state are execution memory only.
+- Deep Agents and LangGraph thread state are execution memory only.
 - LCSP API/database records and governed artifacts are long-term factual memory.
 - Checked-in prompts, skills, and policy modules are procedural memory.
 - Specialist scratch is transient and private to one invocation.
@@ -24,7 +26,7 @@ LCSP uses checkpoint-first, authority-separated memory:
 
 ## Consequences
 
-Specialists must return typed handoffs. Runtime identity must come from trusted runtime context or deterministic service envelopes, not model-authored arguments. Investigator claims must be schema-valid and, when graph evidence is available, pass `EvidenceClaimValidator` before deterministic compliance evaluation can consume them.
+Specialists must return typed handoffs. Runtime identity must come from trusted runtime context or deterministic service envelopes, not model-authored arguments. Repository-analyst claims must be schema-valid and, when graph evidence is available, pass `EvidenceClaimValidator` before deterministic rule assessment can consume them.
 
 Semantic ranking, deduplication, TTL, and consolidation are background concerns over verified
 episodes only. They cannot promote an episode into authoritative assessment, legal, repository, or

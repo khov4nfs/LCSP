@@ -1,7 +1,4 @@
-import type {
-  AUDIT_EXPORT_STATUSES,
-  AuditExportStatus,
-} from "@lcsp/contracts/audit";
+import type { AuditExportStatus } from "@lcsp/contracts/audit";
 
 export interface AuditExportRequestDto {
   export_request_id: string;
@@ -42,5 +39,3 @@ export interface AuditExportArtifact {
   checksum_sha256: string;
   events: AuditExportArtifactEvent[];
 }
-
-export type AuditExportReadyStatus = (typeof AUDIT_EXPORT_STATUSES)["ready"];

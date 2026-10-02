@@ -56,6 +56,7 @@ function confirmedStructuredContext(input: {
   contextRevision: number;
   topic: string;
   statement: string;
+  resolvesCriterionId?: string;
 }): Record<string, unknown> {
   return {
     assessmentId: input.assessmentId,
@@ -74,6 +75,9 @@ function confirmedStructuredContext(input: {
         createdAt: "2026-09-05T00:00:00Z",
         source: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
         resolutionState: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
+        ...(input.resolvesCriterionId
+          ? { resolvesCriterionId: input.resolvesCriterionId }
+          : {}),
       },
     ],
     limitations: ["customer-confirmed current statements only"],
@@ -985,15 +989,16 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         actorId: "user-1",
-        needId: "need-decision-authority",
-        businessContextNeed: "Who has final decision authority?",
-        resolutionCriteria: ["decision_authority"],
-        originatingInvestigationReference:
-          "investigator:investigator-run-1:need-decision-authority",
-        investigatorExecutionId: "investigator-run-1",
+        needId: "need:ENG-1:decision_authority:0123456789ab",
+        engineeringRuleId: "ENG-1",
+        criterionId: "decision_authority",
+        question: "Who has final decision authority?",
+        observation: "The repository does not state who approves this action.",
+        resolutionCriterionIds: ["decision_authority"],
+        evidenceRefs: [],
+        contextRevision: 1,
         workflowRunId: "workflow-run-1",
         checkpointId: "checkpoint-1",
-        affectedRuleIds: ["ENG-1"],
         artifactVersions: {
           technicalEvidenceReportId: "ter-original",
           repositorySnapshotId: "snap-original",
@@ -1009,24 +1014,23 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     assert.equal(privateTarget.status, 200, JSON.stringify(privateTarget.body));
     const privateTargetState = successBody<{
       status: string;
-      targetedNeed: { needId: string; resolutionCriteria: string[] };
+      targetedNeed: { needId: string; resolutionCriterionIds: string[] };
     }>(privateTarget);
     assert.equal(privateTargetState.status, "DUPLICATE");
     assert.equal(
       privateTargetState.targetedNeed.needId,
-      "need-decision-authority",
+      "need:ENG-1:decision_authority:0123456789ab",
     );
-    assert.deepEqual(privateTargetState.targetedNeed.resolutionCriteria, [
+    assert.deepEqual(privateTargetState.targetedNeed.resolutionCriterionIds, [
       "decision_authority",
     ]);
     const serializedPrivateTarget = JSON.stringify(privateTarget.body);
     assert.doesNotMatch(serializedPrivateTarget, /checkpoint-1/u);
     assert.doesNotMatch(serializedPrivateTarget, /"checkpointId"/u);
-    assert.doesNotMatch(serializedPrivateTarget, /"investigatorExecutionId"/u);
     assert.doesNotMatch(serializedPrivateTarget, /"targetedContinuation"/u);
     assert.match(
       serializedPrivateTarget,
-      /investigator:investigator-run-1:need-decision-authority/u,
+      /rule:ENG-1:need:ENG-1:decision_authority:0123456789ab/u,
     );
 
     const question = await httpRequest(app)
@@ -1034,11 +1038,11 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 1,
-        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
+        mode: ASSESSMENT_INTERVIEW_MODES.businessContextResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         activeQuestion: {
           id: "target-question-1",
-          needId: "need-decision-authority",
+          needId: "need:ENG-1:decision_authority:0123456789ab",
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
           control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
           prompt: "Who has final decision authority?",
@@ -1076,13 +1080,13 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
+        mode: ASSESSMENT_INTERVIEW_MODES.businessContextResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
         confirmedContext: { unrelated: "yes" },
         resolutionCriteria: ["unrelated"],
-        originatingInvestigationReference: "forged-origin",
+        originatingRuleAnalysisReference: "forged-origin",
         continuation: {
           investigatorExecutionId: "forged-run",
           affectedRuleIds: ["FORGED"],
@@ -1095,7 +1099,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
+        mode: ASSESSMENT_INTERVIEW_MODES.businessContextResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
         confirmedContext: { decision_authority: "human operations lead" },
@@ -1111,12 +1115,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
+        mode: ASSESSMENT_INTERVIEW_MODES.businessContextResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
         activeQuestion: {
           id: "target-confirm-1",
-          needId: "need-decision-authority",
+          needId: "need:ENG-1:decision_authority:0123456789ab",
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
           control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
           prompt:
@@ -1163,7 +1167,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 3,
-        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
+        mode: ASSESSMENT_INTERVIEW_MODES.businessContextResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -1172,19 +1176,21 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           contextRevision: 3,
           topic: "decision_authority",
           statement: "human operations lead",
+          resolvesCriterionId: "decision_authority",
         }),
         resolutionCriteria: ["forged"],
-        continuation: { investigatorExecutionId: "forged-run" },
+        continuation: { engineeringRuleId: "FORGED" },
       });
     assert.equal(resolved.status, 201, JSON.stringify(resolved.body));
     const resolvedState = successBody<{
       outcome: string;
       continuation: {
-        originatingInvestigationReference: string;
-        investigatorExecutionId: string;
+        originatingRuleAnalysisReference: string;
+        needId: string;
+        engineeringRuleId: string;
+        contextRevision: number;
         checkpointId: string;
         workflowRunId: string;
-        affectedRuleIds: string[];
         artifactVersions: Record<string, string>;
       };
       confirmedContext: Record<string, unknown>;
@@ -1194,16 +1200,17 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
     );
     assert.equal(
-      resolvedState.continuation.originatingInvestigationReference,
-      "investigator:investigator-run-1:need-decision-authority",
+      resolvedState.continuation.originatingRuleAnalysisReference,
+      "rule:ENG-1:need:ENG-1:decision_authority:0123456789ab",
     );
     assert.equal(
-      resolvedState.continuation.investigatorExecutionId,
-      "investigator-run-1",
+      resolvedState.continuation.needId,
+      "need:ENG-1:decision_authority:0123456789ab",
     );
+    assert.equal(resolvedState.continuation.engineeringRuleId, "ENG-1");
+    assert.equal(resolvedState.continuation.contextRevision, 1);
     assert.equal(resolvedState.continuation.workflowRunId, "workflow-run-1");
     assert.equal(resolvedState.continuation.checkpointId, "checkpoint-1");
-    assert.deepEqual(resolvedState.continuation.affectedRuleIds, ["ENG-1"]);
     assert.deepEqual(resolvedState.continuation.artifactVersions, {
       technicalEvidenceReportId: "ter-original",
       repositorySnapshotId: "snap-original",
@@ -1289,16 +1296,16 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
 
     const targetedNeedPayload = {
       actorId: "user-1",
-      needId: "need-targeted-tx",
-      businessContextNeed: "Who owns the deployment approval?",
-      resolutionCriteria: ["deployment_approval_owner"],
-      whyNeeded: "This determines the operational approval path.",
-      originatingInvestigationReference:
-        "investigator:investigator-tx-run-1:need-targeted-tx",
-      investigatorExecutionId: "investigator-tx-run-1",
+      needId: "need:ENG-42:deployment_approval_owner:0123456789ab",
+      engineeringRuleId: "ENG-42",
+      criterionId: "deployment_approval_owner",
+      question: "Who owns the deployment approval?",
+      observation: "The approval path is not stated in the repository.",
+      resolutionCriterionIds: ["deployment_approval_owner"],
+      evidenceRefs: [],
+      contextRevision: 1,
       workflowRunId: "workflow-run-tx-1",
       checkpointId: "checkpoint-tx-1",
-      affectedRuleIds: ["ENG-42"],
       artifactVersions: {
         technicalEvidenceReportId: "ter-original",
         repositorySnapshotId: "snap-original",
@@ -1330,12 +1337,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     );
     assert.equal(
       jsonRecord(privateAfterRegistration.targetedNeed).needId,
-      "need-targeted-tx",
+      "need:ENG-42:deployment_approval_owner:0123456789ab",
     );
     assert.equal(
       jsonRecord(privateAfterRegistration.targetedContinuation)
-        .investigatorExecutionId,
-      "investigator-tx-run-1",
+        .engineeringRuleId,
+      "ENG-42",
     );
 
     const targetedResumeEvents = await prisma.outboxMessage.findMany({
@@ -1356,10 +1363,13 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       ),
     );
     const registrationPayload = jsonRecord(registrationEvent.payload);
-    assert.equal(registrationPayload.questionId, "need-targeted-tx");
+    assert.equal(
+      registrationPayload.questionId,
+      "need:ENG-42:deployment_approval_owner:0123456789ab",
+    );
     assert.equal(
       registrationPayload.resumeReason,
-      "INVESTIGATOR_RESOLUTION_REQUIRED",
+      "BUSINESS_CONTEXT_RESOLUTION_REQUIRED",
     );
 
     const retried = await httpRequest(app)

@@ -4,13 +4,50 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.common.capabilities.assessment.claims.evidence_claim.models import (
-    ENGINEERING_LIMITATION_CODES,
-)
-from contracts.handoffs import InvestigatorResult, TriageResult
+from model_policy import resolve_agent_model
+
+from contracts.handoffs import TriageResult
 from orchestration.context import LCSPRunContext
 from orchestration.dispatcher import RootSubagentDispatcher
 from orchestration.lifecycle import RootSubagentReservation
+from orchestration.agent_stream import (
+    AGENT_STREAM_STAGES,
+    AgentStreamSession,
+    activate_agent_stream,
+    agent_stream_stage,
+)
+
+
+@pytest.mark.parametrize("specialist,stage", [
+    ("interview", "INTERVIEW"), ("repository-analyst", "RULE_ANALYSIS"),
+])
+def test_specialist_selection_is_attributed_to_target_not_enclosing_scanner(monkeypatch, specialist, stage):
+    import orchestration.dispatcher as dispatcher_module
+
+    lifecycle = MagicMock()
+    lifecycle.reserve_subagent.return_value = RootSubagentReservation(
+        subagent_type=specialist, status="OWNER", execution_id="x:owner", trigger="T",
+    )
+    lifecycle.owner_instruction.return_value = ""
+    lifecycle.complete_subagent.return_value = {}
+    definition = {**_definition(), "name": specialist}
+    definition.pop("response_format")
+    dispatcher = RootSubagentDispatcher(
+        lifecycle=lifecycle,
+        agent_factory=MagicMock(),
+        subagents={specialist: definition},
+    )
+    monkeypatch.setattr(dispatcher_module, "invoke_with_stream", lambda *a, **k: {})
+    events = []
+    session = AgentStreamSession(
+        assessment_id="assessment-1", run_id="scan-job-1", correlation_id="corr-1",
+        boundary_name="scan_requested", emit_payload=events.append,
+        stage=AGENT_STREAM_STAGES["scanner"],
+    )
+    with activate_agent_stream(session), agent_stream_stage(AGENT_STREAM_STAGES["scanner"]):
+        dispatcher.dispatch(subagent_type=specialist, instruction="bounded specialist work")
+    assert events[0]["event_type"] == "SUBAGENT_SELECTED"
+    assert events[0]["stage"] == stage
 
 
 def _definition() -> dict:
@@ -21,45 +58,6 @@ def _definition() -> dict:
         "system_prompt": "triage prompt",
         "middleware": [],
         "response_format": TriageResult,
-    }
-
-
-def _investigator_definition() -> dict:
-    return {
-        "name": "investigator",
-        "model": "test-model",
-        "tools": [],
-        "system_prompt": "investigator prompt",
-        "middleware": [],
-        "response_format": InvestigatorResult,
-    }
-
-
-def _program_graph() -> dict:
-    return {
-        "graph_id": "graph-1",
-        "snapshot_id": "snapshot-1",
-        "commit_sha": "abc123",
-        "node_count": 1,
-        "edge_count": 0,
-        "nodes": [
-            {
-                "node_id": "node:ai",
-                "node_type": "AI_MODEL_INVOCATION",
-                "label": "responses.create",
-                "source": {},
-                "attributes": {},
-                "semantic_types": [],
-                "evidence_refs": [],
-                "origin": "STATIC_ANALYSIS",
-                "resolution_state": "CORROBORATED",
-                "support_refs": [],
-            }
-        ],
-        "edges": [],
-        "source_anchors": [],
-        "evidence_refs": [],
-        "graph_hash": "sha256:graph",
     }
 
 
@@ -109,7 +107,6 @@ def test_root_dispatcher_owns_triage_begin_and_complete_transitions() -> None:
         trigger="ENGINEERING_RULE_NOT_READY",
         metadata={"correlationId": "corr-1"},
         thread_id="triage:legal-triage:key",
-        reenter_root=False,
     )
 
     lifecycle.reserve_subagent.assert_called_once_with(
@@ -140,55 +137,13 @@ def test_root_dispatcher_owns_triage_begin_and_complete_transitions() -> None:
     assert result["episode"] == {"captured": False}
 
 
-def test_root_dispatcher_prefers_reentering_managed_root_thread() -> None:
-    root = MagicMock()
-    root.invoke.return_value = {"messages": [{"role": "assistant", "content": "queued"}]}
-    lifecycle = MagicMock()
-    factory = MagicMock()
-    dispatcher = RootSubagentDispatcher(
-        lifecycle=lifecycle,
-        agent_factory=factory,
-        root_agent=root,
-        subagents={"triage": _definition()},
-    )
-    context = LCSPRunContext(
-        assessment_id="assessment-1",
-        user_id="user-1",
-        workflow_run_id="workflow-1",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-    )
+def test_dispatcher_has_no_root_reentry_path() -> None:
+    # One orchestrator: the deterministic Python loop dispatches specialists directly; there
+    # is no root-model re-entry surface left to call.
+    import inspect
 
-    result = dispatcher.dispatch(
-        subagent_type="triage",
-        instruction="Run bounded legal preparation.",
-        affected_rule_ids=["RULE-1"],
-        idempotency_key="legal-triage:key",
-        trigger="ENGINEERING_RULE_NOT_READY",
-        context=context,
-    )
-
-    assert result["status"] == "ROOT_REENTERED"
-    assert result["rootReentry"] is True
-    assert result["checkpointing"] == {"threadId": "workflow-1", "enabled": True}
-    assert result["episode"] == {"captured": False}
-    factory.assert_not_called()
-    lifecycle.reserve_subagent.assert_not_called()
-    root.invoke.assert_called_once()
-    assert root.invoke.call_args.kwargs["context"] is context
-
-
-def test_root_dispatcher_requires_managed_root_for_default_reentry() -> None:
-    dispatcher = RootSubagentDispatcher(
-        lifecycle=MagicMock(),
-        agent_factory=MagicMock(),
-        subagents={"triage": _definition()},
-    )
-
-    with pytest.raises(RuntimeError, match="managed root agent is required"):
-        dispatcher.dispatch(
-            subagent_type="triage",
-            instruction="Run bounded legal preparation.",
-        )
+    assert "reenter_root" not in inspect.signature(RootSubagentDispatcher.dispatch).parameters
+    assert not hasattr(RootSubagentDispatcher, "_dispatch_via_root")
 
 
 def test_direct_dispatch_passes_context_and_explicit_checkpointer() -> None:
@@ -241,7 +196,6 @@ def test_direct_dispatch_passes_context_and_explicit_checkpointer() -> None:
         trigger="SCHEDULED",
         thread_id="workflow-1",
         context=context,
-        reenter_root=False,
     )
 
     assert result["checkpointing"] == {"threadId": "workflow-1", "enabled": True}
@@ -275,75 +229,54 @@ def test_direct_dispatch_requires_checkpointer_when_thread_checkpointing_enabled
             instruction="Run scheduled maintenance.",
             trigger="SCHEDULED",
             thread_id="workflow-1",
-            reenter_root=False,
-        )
+            )
     lifecycle.fail_subagent.assert_called_once_with(reservation)
 
 
-def test_direct_investigator_hydrates_program_graph_from_pinned_api_metadata() -> None:
+def test_repository_analyst_dispatch_passes_trusted_context_and_needs_no_handoff_schema() -> None:
     lifecycle = MagicMock()
     reservation = RootSubagentReservation(
-        subagent_type="investigator",
+        subagent_type="repository-analyst",
         status="OWNER",
-        execution_id="investigator:owner",
-        trigger="SYSTEM",
+        execution_id="repository-analyst:owner",
+        trigger="RULE_ANALYSIS",
     )
     lifecycle.reserve_subagent.return_value = reservation
     lifecycle.owner_instruction.return_value = ""
     lifecycle.complete_subagent.return_value = {"status": "COMPLETE"}
     specialist = MagicMock()
-    specialist.invoke.return_value = {
-        "structured_response": {
-            "status": "READY",
-            "artifact_versions": {"technicalEvidenceReportId": "ter-1"},
-            "claims": [
-                {
-                    "claim_id": "claim-1",
-                    "engineering_rule_id": "ENG-1",
-                    "claim_type": "UNRESOLVED_ENGINEERING_FACT",
-                    "value": None,
-                    "evidence_refs": [],
-                    "graph_path_refs": ["node:ai"],
-                    "source_anchor_refs": [],
-                    "confidence": 0.9,
-                    "limitations": [
-                        ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
-                    ],
-                    "criterion": "AI invocation exists",
-                }
-            ],
-            "limitations": [],
-            "missing_input": None,
-            "next_step": "GATE",
-        }
-    }
-    api_client = MagicMock()
-    api_client.get_accepted_technical_evidence_report.return_value = {
-        "evidence_payload": {"evidence_graph": _program_graph()}
-    }
+    specialist.invoke.return_value = {"messages": []}
+    factory = MagicMock(return_value=specialist)
     context = LCSPRunContext(
         assessment_id="assessment-1",
         user_id="user-1",
         workflow_run_id="workflow-1",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
+        engineering_rule_ids=("ENG-1",),
+        rule_execution_id="exec-1",
     )
+    definition = _definition() | {"name": "repository-analyst"}
+    definition.pop("response_format")
     dispatcher = RootSubagentDispatcher(
         lifecycle=lifecycle,
-        agent_factory=MagicMock(return_value=specialist),
-        subagents={"investigator": _investigator_definition()},
+        agent_factory=factory,
+        subagents={"repository-analyst": definition},
     )
 
     result = dispatcher.dispatch(
-        subagent_type="investigator",
-        instruction="Investigate one pinned rule.",
+        subagent_type="repository-analyst",
+        instruction="Analyze one pinned rule.",
         affected_rule_ids=["ENG-1"],
-        metadata={"api_client": api_client},
         context=context,
-        reenter_root=False,
     )
 
     assert result["status"] == "COMPLETED"
-    api_client.get_accepted_technical_evidence_report.assert_called_once_with("ter-1")
+    # Results travel through the governed submit tool, not a structured handoff.
+    assert result["handoff"] is None
+    assert "response_format" not in factory.call_args.kwargs
+    # Governed tools read the trusted run context from ToolRuntime.
+    assert factory.call_args.kwargs["context_schema"] is LCSPRunContext
+    assert specialist.invoke.call_args.kwargs["context"] is context
+    lifecycle.complete_subagent.assert_called_once_with(reservation)
 
 
 def test_root_dispatcher_does_not_auto_promote_verified_episode() -> None:
@@ -390,7 +323,6 @@ def test_root_dispatcher_does_not_auto_promote_verified_episode() -> None:
         },
         thread_id="workflow-1",
         trigger="SCHEDULED",
-        reenter_root=False,
     )
 
     assert result["episode"] == {"captured": False}
@@ -417,7 +349,6 @@ def test_root_dispatcher_does_not_create_second_triage_when_policy_reports_runni
         affected_rule_ids=["RULE-2"],
         idempotency_key="legal-triage:key2",
         trigger="ENGINEERING_RULE_NOT_READY",
-        reenter_root=False,
     )
 
     assert result == {
@@ -453,8 +384,7 @@ def test_root_dispatcher_releases_specialist_policy_when_agent_fails() -> None:
             subagent_type="triage",
             instruction="Run scheduled maintenance.",
             trigger="SCHEDULED",
-            reenter_root=False,
-        )
+            )
 
     lifecycle.fail_subagent.assert_called_once_with(reservation)
     lifecycle.complete_subagent.assert_not_called()
@@ -484,8 +414,46 @@ def test_root_dispatcher_fails_policy_when_structured_handoff_is_missing(result)
             subagent_type="triage",
             instruction="Run scheduled maintenance.",
             trigger="SCHEDULED",
-            reenter_root=False,
-        )
+            )
 
     lifecycle.fail_subagent.assert_called_once_with(reservation)
     lifecycle.complete_subagent.assert_not_called()
+
+
+@pytest.mark.parametrize("subagent_type", ["triage", "interview", "repository-analyst"])
+def test_default_agent_factory_builds_each_specialist_definition(monkeypatch, subagent_type) -> None:
+    """Assessment 7976a135 regression: the real factory must accept real definitions.
+
+    Specialists are built with Deep Agents' own ``create_deep_agent`` from the same
+    definition dict the root ``task`` tool uses, so each role and budget middleware
+    appears exactly once and the model spec resolves through the LCSP profiles.
+    """
+    import deepagents.graph as deep_graph
+    from deepagents import create_deep_agent
+
+    from subagents import FLOW_SUBAGENTS
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("LLM7_API_KEY", "test-llm7-key")
+    compiled: dict[str, list[str]] = {}
+    real_create_agent = deep_graph.create_agent
+
+    def recording_create_agent(model, **kwargs):
+        compiled[kwargs["name"]] = [middleware.name for middleware in kwargs["middleware"]]
+        return real_create_agent(model, **kwargs)
+
+    monkeypatch.setattr(deep_graph, "create_agent", recording_create_agent)
+    definition = next(item for item in FLOW_SUBAGENTS if item["name"] == subagent_type)
+
+    factory = RootSubagentDispatcher()._agent_factory
+    assert factory is create_deep_agent
+    factory(
+        model=resolve_agent_model(subagent_type),
+        tools=definition["tools"],
+        system_prompt=definition["system_prompt"],
+        middleware=definition["middleware"],
+        name=f"lcsp-{subagent_type}-root-dispatch",
+    )
+
+    stack = compiled[f"lcsp-{subagent_type}-root-dispatch"]
+    assert stack.count("AgentRoleMiddleware") == 1

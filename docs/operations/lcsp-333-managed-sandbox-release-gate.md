@@ -1,4 +1,8 @@
+> **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.** The Planner/Investigator/Scanner-pipeline description below is historical.
+
 # LCSP-333 managed sandbox release gate
+
+> Runtime superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.
 
 LCSP-333 release readiness is blocked until a managed-sandbox proof artifact is
 validated. Unit tests, mocked sandbox declarations, GitHub CI alone, or code

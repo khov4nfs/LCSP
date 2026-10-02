@@ -263,8 +263,8 @@ async function seedAssessmentChain(
       scanJobId: `scan-job-${assessmentId}`,
       assessmentId,
       snapshotId: `snapshot-${assessmentId}`,
-      toolsVersion: { semgrep: "1.0.0" },
-      configHash: { semgrep: "sha256:abc" },
+      toolsVersion: { "repository-analysis": "1.0.0" },
+      configHash: { "repository-analysis": "sha256:abc" },
       evidencePayload: {
         findings: [{ finding_id: `finding-${assessmentId}` }],
       },

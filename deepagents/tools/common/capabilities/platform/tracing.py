@@ -38,7 +38,7 @@ def _initialize_tracer() -> Any:
                 )
                 _instrument_optional_openinference_packages()
                 _tracing_registered = True
-            return trace.get_tracer("lcsp_managed_deep_agent")
+            return trace.get_tracer("lcsp_agent_runtime")
     except Exception as exc:
         logger.warning("Phoenix tracing initialization failed", exc_info=exc)
         return None

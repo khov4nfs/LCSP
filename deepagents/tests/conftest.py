@@ -4,6 +4,7 @@ Shared fixtures for deepagents test suite.
 All fixtures default to isolated, ephemeral state. No shared mutable state between tests.
 """
 import importlib.util
+import json
 import os
 import sys
 import tempfile
@@ -27,6 +28,63 @@ _SESSION_DOTENV_KEYS = frozenset(
 )
 for _dotenv_key in _SESSION_DOTENV_KEYS:
     os.environ.pop(_dotenv_key, None)
+
+# Model identity is deployment configuration (a YAML file, ``LCSP_MODEL_ROUTES_FILE``). Tests get a
+# synthetic, offline default file so import-time agent construction works; tests override it with
+# the ``set_model_routes`` fixture and never depend on the committed default or a model catalog.
+_DEFAULT_MODEL_ROUTES_YAML = """\
+version: 1
+routes:
+  primary: {provider: llm7, model: model-alpha}
+roles:
+  default: primary
+"""
+_TEST_ROUTES_DIR = Path(tempfile.mkdtemp(prefix="lcsp-test-routes-"))
+_DEFAULT_ROUTES_FILE = _TEST_ROUTES_DIR / "default.yaml"
+_DEFAULT_ROUTES_FILE.write_text(_DEFAULT_MODEL_ROUTES_YAML, encoding="utf-8")
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+
+
+def _ensure_default_model_routes() -> None:
+    os.environ.setdefault("LCSP_MODEL_ROUTES_FILE", str(_DEFAULT_ROUTES_FILE))
+    os.environ.setdefault("LLM7_API_KEY", "test-offline-key")
+
+
+_ensure_default_model_routes()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_model_routes_cache() -> Generator[None, None, None]:
+    def clear() -> None:
+        module = sys.modules.get("model_policy")
+        if module is not None:
+            module.load_model_routes.cache_clear()
+
+    clear()
+    yield
+    clear()
+
+
+_routes_counter = iter(range(10**9))
+
+
+def use_model_routes(monkeypatch: pytest.MonkeyPatch, cfg) -> Path:
+    """Write ``cfg`` (dict -> JSON, valid YAML; or YAML text) to a fresh file and point
+    ``LCSP_MODEL_ROUTES_FILE`` at it (``from conftest import use_model_routes``)."""
+    text = cfg if isinstance(cfg, str) else json.dumps({"version": 1, **cfg})
+    path = _TEST_ROUTES_DIR / f"routes-{next(_routes_counter)}.yaml"
+    path.write_text(text, encoding="utf-8")
+    monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(path))
+    module = sys.modules.get("model_policy")
+    if module is not None:
+        module.load_model_routes.cache_clear()
+    return path
+
+
+@pytest.fixture
+def set_model_routes(monkeypatch: pytest.MonkeyPatch):
+    """``set_model_routes(cfg)``: see ``use_model_routes``."""
+    return lambda cfg: use_model_routes(monkeypatch, cfg)
 
 
 # Test bridge for historical tests that load legal utilities by physical file
@@ -102,6 +160,7 @@ def isolated_process_environment() -> Generator[None, None, None]:
 def _clear_dotenv_environment() -> None:
     for key in _SESSION_DOTENV_KEYS:
         os.environ.pop(key, None)
+    _ensure_default_model_routes()
 
 
 @pytest.fixture(autouse=True)
@@ -176,7 +235,13 @@ def sample_ts_repo(workspace_dir: Path) -> Path:
 @pytest.fixture
 def no_secrets_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure tests run without real API keys in environment."""
-    for key in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "LLM7_API_KEY", "GITHUB_TOKEN"]:
+    for key in [
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "LLM7_API_KEY",
+        "INCEPTION_API_KEY",
+        "GITHUB_TOKEN",
+    ]:
         monkeypatch.delenv(key, raising=False)
 
 

@@ -5,7 +5,6 @@ import type { CommandBus } from "@nestjs/cqrs";
 import {
   dispatchAgenticToolInternalCommand,
   consolidate_verified_episodes,
-  request_targeted_reanalysis,
   resume_waiting_runs,
 } from "./agentic-tool-internal-dispatcher.js";
 
@@ -17,33 +16,10 @@ const baseArgs = {
 
 describe("agentic internal command dispatcher", () => {
   it("exports exact same-name command functions", () => {
-    expect(request_targeted_reanalysis.name).toBe(
-      "request_targeted_reanalysis",
-    );
     expect(resume_waiting_runs.name).toBe("resume_waiting_runs");
     expect(consolidate_verified_episodes.name).toBe(
       "consolidate_verified_episodes",
     );
-  });
-
-  it("routes request_targeted_reanalysis through CommandBus", async () => {
-    const execute = jest.fn(() => Promise.resolve({ status: "READY" }));
-    const commandBus = { execute } as unknown as CommandBus;
-    const args = {
-      ...baseArgs,
-      toolName: AGENTIC_TOOL_NAMES.requestTargetedReanalysis,
-      artifactVersions: { technicalEvidenceReportId: "ter-1" },
-      input: {
-        analyzerId: "RUN_TS_JS_SEMANTIC_ANALYSIS",
-        scope: { pathPrefixes: ["apps/api/"] },
-        reasonRequirementId: "requirement:12345678",
-        idempotencyKey: "request-12345678",
-      },
-    };
-
-    await dispatchAgenticToolInternalCommand(args, commandBus);
-
-    expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it("routes resume_waiting_runs through CommandBus", async () => {

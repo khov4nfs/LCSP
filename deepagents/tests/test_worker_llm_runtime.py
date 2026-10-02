@@ -6,14 +6,13 @@ from unittest.mock import patch
 
 from tools.common.capabilities.platform import tracing as tracing_module
 from tools.common.capabilities.platform.config import (
-    AgenticRuntimeConfig,
     RbacPreflightConfig,
     WorkerConfig,
     load_config,
     load_tracing_config,
 )
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
-from tools.common.capabilities.managed.invocation import build_boundary
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.invocation import build_boundary
 
 
 def _base_env(monkeypatch) -> None:
@@ -27,7 +26,6 @@ def _worker_config() -> WorkerConfig:
         worker_api_key="worker-test-key",
         log_level="INFO",
         max_retries=3,
-        agentic_runtime=AgenticRuntimeConfig(),
         rbac_preflight=RbacPreflightConfig(),
     )
 
@@ -142,8 +140,8 @@ def test_initialize_tracer_registers_batch_silent_phoenix_once(monkeypatch) -> N
         lambda: None,
     )
     monkeypatch.setattr(tracing_module, "_tracing_registered", False)
-    assert tracing_module._initialize_tracer() == "tracer:lcsp_managed_deep_agent"
-    assert tracing_module._initialize_tracer() == "tracer:lcsp_managed_deep_agent"
+    assert tracing_module._initialize_tracer() == "tracer:lcsp_agent_runtime"
+    assert tracing_module._initialize_tracer() == "tracer:lcsp_agent_runtime"
 
     assert calls == [
         {
@@ -225,8 +223,8 @@ def test_build_boundary_keeps_graph_assembler_deterministic() -> None:
 
     config = _worker_config()
     with (
-        patch("tools.common.capabilities.managed.invocation.load_config", return_value=config),
-        patch("tools.common.capabilities.managed.invocation.load_boundary", return_value=GraphBoundary),
+        patch("tools.common.capabilities.agent_runtime.invocation.load_config", return_value=config),
+        patch("tools.common.capabilities.agent_runtime.invocation.load_boundary", return_value=GraphBoundary),
     ):
         boundary = build_boundary("ignored:GraphBoundary")
 
@@ -247,8 +245,8 @@ def test_build_boundary_keeps_deterministic_default_without_legacy_llm() -> None
 
     config = _worker_config()
     with (
-        patch("tools.common.capabilities.managed.invocation.load_config", return_value=config),
-        patch("tools.common.capabilities.managed.invocation.load_boundary", return_value=GraphBoundary),
+        patch("tools.common.capabilities.agent_runtime.invocation.load_config", return_value=config),
+        patch("tools.common.capabilities.agent_runtime.invocation.load_boundary", return_value=GraphBoundary),
     ):
         boundary = build_boundary("ignored:GraphBoundary")
 
@@ -258,9 +256,9 @@ def test_build_boundary_keeps_deterministic_default_without_legacy_llm() -> None
 def test_relative_storage_root_anchors_to_the_repository_not_the_cwd(monkeypatch):
     """One durable store for every process, whatever directory it was launched from.
 
-    The consumer runs from deepagents/ and the compiled agent from .mda/build/. A
-    relative root used as-is gave each of them a private .corpus, so completed triage
-    work was invisible across processes.
+    The event bridge and LangGraph runtime may launch from different working
+    directories. A relative root used as-is gave each of them a private .corpus,
+    so completed triage work was invisible across processes.
     """
     from pathlib import Path
 

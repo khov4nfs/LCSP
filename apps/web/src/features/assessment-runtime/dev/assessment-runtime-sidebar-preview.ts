@@ -43,7 +43,7 @@ export function createAssessmentRuntimeSidebarPreview(
       currentRun: {
         assessmentId,
         runId: "preview-run",
-        stage: "INVESTIGATE",
+        stage: "LEGAL_RETRIEVAL",
         status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
         activeTools: [],
         updatedAt: "2026-09-06T10:03:00.000Z",
@@ -94,14 +94,8 @@ export function createAssessmentRuntimeSidebarPreview(
       detail: null,
     },
     {
-      id: "PLANNER",
-      label: "Planner",
-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
-      detail: null,
-    },
-    {
-      id: "INVESTIGATE",
-      label: "Investigate",
+      id: "RULE_ANALYSIS",
+      label: "Rule analysis",
       status: REPOSITORY_SCAN_JOB_STATUSES.running,
       detail: "Reviewing findings",
     },

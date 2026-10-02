@@ -51,8 +51,6 @@ class WaitingAssessmentRegistry:
         workflow_run_id: str,
         source_correlation_id: str,
         assessment_id: str | None = None,
-        billing_context: dict[str, str] | None = None,
-        billing_attempt: int = 0,
     ) -> str:
         """Upsert one privacy-safe resume checkpoint for a WAITING Assessment."""
         evidence_report_id = str(evidence_report_id or "").strip()
@@ -79,30 +77,10 @@ class WaitingAssessmentRegistry:
                 "registeredAt": registered_at,
                 "updatedAt": now,
             }
-            if isinstance(existing, dict):
-                for key in (
-                    "assessmentId",
-                    "billingRunId",
-                    "billingAmountCredits",
-                    "billingMaxChargeCredits",
-                    "billingIdempotencyKey",
-                    "billingAttempt",
-                ):
-                    if existing.get(key) is not None:
-                        checkpoint[key] = str(existing[key])
+            if isinstance(existing, dict) and existing.get("assessmentId") is not None:
+                checkpoint["assessmentId"] = str(existing["assessmentId"])
             if assessment_id and str(assessment_id).strip():
                 checkpoint["assessmentId"] = str(assessment_id).strip()
-            if billing_context:
-                for source_key, target_key in (
-                    ("runId", "billingRunId"),
-                    ("amountCredits", "billingAmountCredits"),
-                    ("maxChargeCredits", "billingMaxChargeCredits"),
-                    ("idempotencyKey", "billingIdempotencyKey"),
-                ):
-                    value = str(billing_context.get(source_key) or "").strip()
-                    if value:
-                        checkpoint[target_key] = value
-                checkpoint["billingAttempt"] = str(max(0, billing_attempt))
             state[checkpoint_id] = checkpoint
             self._write_state_unlocked(state)
         return checkpoint_id
@@ -137,7 +115,7 @@ class WaitingAssessmentRegistry:
         """
         checkpoints = self.take_all()
         if invoker is None:
-            from tools.common.capabilities.managed.invocation import invoke_boundary
+            from tools.common.capabilities.agent_runtime.invocation import invoke_boundary
 
             invoker = invoke_boundary
         correlation_id_factory = correlation_id_factory or (
@@ -150,15 +128,12 @@ class WaitingAssessmentRegistry:
         for checkpoint in checkpoints:
             try:
                 assessment_id = checkpoint.get("assessmentId")
-                billing = _reconciliation_billing_context(checkpoint)
                 message: dict[str, Any] = {
                     "evidenceReportId": checkpoint["evidenceReportId"],
                     "workflowRunId": checkpoint["workflowRunId"],
                 }
                 if assessment_id:
                     message["assessmentId"] = assessment_id
-                if billing:
-                    message["billing"] = billing
                 invoker(
                     "engineering_assessment_requested",
                     message,
@@ -166,9 +141,9 @@ class WaitingAssessmentRegistry:
                 )
                 resumed += 1
             except Exception as error:
-                from middleware.failure_policy import is_terminal_task_error
+                from middleware.failure_policy import is_terminal_boundary_error
 
-                if is_terminal_task_error(error):
+                if is_terminal_boundary_error(error):
                     stopped += 1
                     logger.error(
                         "WAITING_ENGINEERING_ASSESSMENT_STOPPED",
@@ -182,8 +157,6 @@ class WaitingAssessmentRegistry:
                     workflow_run_id=checkpoint["workflowRunId"],
                     source_correlation_id=checkpoint.get("sourceCorrelationId", ""),
                     assessment_id=assessment_id,
-                    billing_context=_stored_billing_context(checkpoint),
-                    billing_attempt=_next_billing_attempt(checkpoint),
                 )
                 logger.warning(
                     "WAITING_ENGINEERING_ASSESSMENT_RECONCILIATION_DEFERRED",
@@ -255,40 +228,3 @@ class WaitingAssessmentRegistry:
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
-
-
-def _stored_billing_context(checkpoint: dict[str, str]) -> dict[str, str] | None:
-    values = {
-        "runId": checkpoint.get("billingRunId", ""),
-        "amountCredits": checkpoint.get("billingAmountCredits", ""),
-        "maxChargeCredits": checkpoint.get("billingMaxChargeCredits", ""),
-        "idempotencyKey": checkpoint.get("billingIdempotencyKey", ""),
-    }
-    return values if all(values.values()) else None
-
-
-def _next_billing_attempt(checkpoint: dict[str, str]) -> int:
-    try:
-        return int(checkpoint.get("billingAttempt", "0")) + 1
-    except (TypeError, ValueError):
-        return 1
-
-
-def _reconciliation_billing_context(
-    checkpoint: dict[str, str],
-) -> dict[str, str] | None:
-    assessment_id = checkpoint.get("assessmentId", "")
-    stored = _stored_billing_context(checkpoint)
-    if not assessment_id or not stored:
-        return None
-    return {
-        "assessmentId": assessment_id,
-        "runId": stored["runId"],
-        "amountCredits": stored["amountCredits"],
-        "maxChargeCredits": stored["maxChargeCredits"],
-        "idempotencyKey": (
-            f"{stored['idempotencyKey']}:reconciliation:"
-            f"{checkpoint['checkpointId']}"
-        ),
-        "attempt": checkpoint.get("billingAttempt", "0"),
-    }

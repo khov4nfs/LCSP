@@ -11,7 +11,7 @@ from tools.legal.sources.ocr_fallback.ocr_fallback_boundary import (
     OcrFallbackBoundary,
 )
 from tools.legal.sources.ocr_fallback.ocr_fallback_repository import OcrFallbackRepository
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def _write_extraction_record(

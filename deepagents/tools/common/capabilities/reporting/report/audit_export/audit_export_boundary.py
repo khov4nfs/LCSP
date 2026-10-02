@@ -4,7 +4,7 @@ import os
 import boto3
 from structlog import get_logger
 
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
 from tools.common.capabilities.platform.callback_schemas import AuditExportCallbackPayload

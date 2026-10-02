@@ -46,10 +46,7 @@ export class ConfigureProviderCredentialHandler implements ICommandHandler<Confi
   ) {}
 
   async execute(command: ConfigureProviderCredentialCommand) {
-    if (
-      command.subjectRole !== AUTH_USER_ROLES.customer ||
-      !this.config.get("githubCredentialPersistence", { infer: true }).enabled
-    ) {
+    if (command.subjectRole !== AUTH_USER_ROLES.customer) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.cliConnectDisabled,
         command.correlationId,

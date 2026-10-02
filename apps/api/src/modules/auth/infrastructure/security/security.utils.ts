@@ -113,10 +113,11 @@ export function verifyTotpOtp(
 // ─── MFA Secret Encryption (AES-256-GCM) ──────────────────────────
 
 function deriveMfaEncKey(): Buffer {
-  const raw = process.env.MFA_ENCRYPTION_KEY;
-  if (!raw) {
+  const raw = process.env.MFA_SECRET_ENCRYPTION_KEY;
+  // Same rule as the Joi schema in config.ts: exactly 64 hex characters.
+  if (!raw || !/^[0-9a-fA-F]{64}$/.test(raw)) {
     throw new Error(
-      "MFA_ENCRYPTION_KEY must be set — refusing to encrypt MFA secrets with a default key",
+      "MFA_SECRET_ENCRYPTION_KEY must be set to 64 hex characters — refusing to encrypt MFA secrets with a default key",
     );
   }
   return crypto.createHash("sha256").update(raw).digest();

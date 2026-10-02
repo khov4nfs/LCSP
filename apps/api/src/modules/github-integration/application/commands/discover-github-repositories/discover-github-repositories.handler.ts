@@ -37,7 +37,7 @@ export class DiscoverGitHubRepositoriesHandler implements ICommandHandler<Discov
   async execute(
     command: DiscoverGitHubRepositoriesCommand,
   ): Promise<GitHubRepositoryDiscoveryDto> {
-    this.assertEnabledAndManager(command.subjectRole, command.correlationId);
+    this.assertManager(command.subjectRole, command.correlationId);
     assertCredential(command.credential, command.correlationId);
     const limit = command.limit ?? 50;
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
@@ -98,16 +98,7 @@ export class DiscoverGitHubRepositoriesHandler implements ICommandHandler<Discov
     };
   }
 
-  private assertEnabledAndManager(role: string, correlationId: string): void {
-    if (
-      !this.config.get("githubCredentialPersistence", { infer: true }).enabled
-    ) {
-      throw problemException(
-        GITHUB_INTEGRATION_ERROR_CODES.cliConnectDisabled,
-        correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
-    }
+  private assertManager(role: string, correlationId: string): void {
     if (role !== AUTH_USER_ROLES.customer) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound,

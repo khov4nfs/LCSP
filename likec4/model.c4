@@ -12,7 +12,7 @@ model {
   }
 
   githubApp = externalSystem 'GitHub App / Repository API' {
-    description 'Authorizes read-only repository access and triggers automatic static scans.'
+    description 'Authorizes read-only repository access and supplies commit-pinned snapshots for managed repository analysis.'
   }
 
   officialLegalPortals = externalSystem 'Official Legal Portals' {
@@ -44,9 +44,9 @@ model {
     pythonWorkers = system 'Python Worker Platform' {
       description 'Bounded asynchronous Python worker services owning heavy domain workloads.'
 
-      scannerWorker = workerService 'Scanner Worker' {
-        technology 'Python, Syft, Knip, Semgrep, AST, TS/JS Analyzer'
-        description 'Collects static-analysis technical evidence from commit-pinned repository snapshots.'
+      repositoryAnalysisWorker = workerService 'Repository Analysis Agent' {
+        technology 'Managed Deep Agents, Deep Agents, Codebase Memory MCP 0.11.0'
+        description 'Derives source-grounded technical evidence from the commit-pinned repository working database using native Deep Agents tools and optional Codebase Memory.'
       }
 
       aiUsageWorker = workerService 'AIUsageFlow Worker' {
@@ -56,7 +56,7 @@ model {
 
       reconciliationWorker = workerService 'Reconciliation Worker' {
         technology 'Python'
-        description 'Compares declarations vs scanner evidence, handles resolution -> VerifiedProfile.'
+        description 'Compares declarations vs repository-analysis evidence, handles resolution -> VerifiedProfile.'
       }
 
       legalIngestionWorker = workerService 'Legal Ingestion Worker' {
@@ -134,11 +134,11 @@ model {
   api -> queue 'Dispatches asynchronous scan, ingestion, and calculation jobs' #async
   api -> githubApp 'Triggers automatic trusted repository scans' #sync
 
-  githubApp -> scannerWorker 'Provides commit-pinned repository snapshot read access'
+  githubApp -> repositoryAnalysisWorker 'Provides commit-pinned repository snapshot read access'
 
-  scannerWorker -> queue 'Consumes scan trigger jobs' #async
-  scannerWorker -> database 'Persists static-analysis technical evidence'
-  scannerWorker -> aiUsageWorker 'Triggers usage claim processing' #async
+  repositoryAnalysisWorker -> queue 'Consumes repository-analysis trigger jobs' #async
+  repositoryAnalysisWorker -> database 'Persists source-grounded technical evidence'
+  repositoryAnalysisWorker -> aiUsageWorker 'Triggers usage claim processing' #async
 
   aiUsageWorker -> reconciliationWorker 'Sends claims for reconciliation'
   reconciliationWorker -> database 'Persists VerifiedProfile'

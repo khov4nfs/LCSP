@@ -76,17 +76,22 @@ describe("assessment delete billing retention", () => {
     await prisma.assessment.create({
       data: { id: assessmentId, ownerId: user.id, name: "Deletable" },
     });
-    const reservation = await accounting.reserveCredits({
-      userId: user.id,
-      assessmentId,
-      runId: `run-${id()}`,
-      amountCredits: 100n,
-      idempotencyKey: `retention-reserve-${id()}`,
+    // Held credit exists only from before model use stopped debiting.
+    const reservation = await prisma.billingReservation.create({
+      data: {
+        userId: user.id,
+        walletId: wallet.id,
+        assessmentId,
+        runId: `run-${id()}`,
+        amountCredits: 100n,
+        remainingCredits: 100n,
+        idempotencyKey: `retention-reserve-${id()}`,
+      },
     });
     return { user, wallet, assessmentId, reservation };
   }
 
-  it("returns credit held by an active reservation before the assessment is deleted", async () => {
+  it("returns credit held by a legacy reservation before the assessment is deleted", async () => {
     const f = await fixture();
 
     const released = await retention.releaseActiveReservations({

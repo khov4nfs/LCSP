@@ -22,7 +22,7 @@ from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
     ReviewedCorpusInputRecord,
     ReviewedCorpusInputRepository,
 )
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def _seed(storage_root: Path) -> tuple[str, str]:

@@ -144,7 +144,7 @@ DEFAULT_DECISION_POLICIES: dict[str, DecisionTypePolicy] = {
             "exact_head_lifecycle_risk",
             "needs_deep_review",
             "likely_missing_regression_tests",
-            "requires_managed_sandbox_attention",
+            "requires_sandbox_attention",
         ),
     ),
     DECISION_TYPES["root_non_deterministic_next_stage"]: DecisionTypePolicy(

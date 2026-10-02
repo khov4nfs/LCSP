@@ -191,11 +191,6 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
           snapshot_id: "snapshot-1",
           limitations: [],
           observability: {
-            openwiki: {
-              available: false,
-              error: "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
-              fallback: "OPENWIKI_REQUIRED_FALLBACK_ALL",
-            },
             engineering_rule_preparation: {
               legal_rules_seen: 176,
               candidate_count: 265,
@@ -254,11 +249,6 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
       technical_evidence_report_id: "ter-1",
       snapshot_id: "snapshot-1",
       observability: {
-        openwiki: {
-          available: false,
-          error: "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
-          fallback: "OPENWIKI_REQUIRED_FALLBACK_ALL",
-        },
         engineering_rule_preparation: {
           legal_rules_seen: 176,
           candidate_count: 265,

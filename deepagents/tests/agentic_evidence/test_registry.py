@@ -5,7 +5,9 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from tools.common.capabilities.agentic_evidence.governance.catalog import llm_callable_tool_specs
+from tools.common.capabilities.agentic_evidence.governance.catalog import (
+    llm_callable_tool_specs,
+)
 from tools.common.capabilities.agentic_evidence.governance.registry import (
     AgenticToolRequest,
     AgenticToolValidationError,
@@ -18,45 +20,24 @@ EXPECTED_TOOLS = {
     "propose_gap_remediation",
     "get_gap_evidence_trace",
     "get_reconciliation_context",
-    "request_targeted_reanalysis",
-    "propose_missing_targets",
-    "inspect_deployment_context",
-    "inspect_decision_path",
     "get_artifact_chain",
-    "find_similar_symbols",
-    "inspect_human_review_path",
-    "inspect_data_path",
-    "find_provider_invocations",
-    "get_finding_detail",
-    "get_symbol_context",
-    "get_scan_coverage",
-    "search_evidence",
-    "get_evidence_subgraph",
-    "trace_static_flow",
 }
-
-NON_MODEL_TOOLS = {"resume_waiting_runs", "request_targeted_reanalysis"}
-LEGACY_CUSTOMER_CONTEXT_TOOLS = {
-    "context_wizard",
-    "wizard_needs_input",
-    "wizard_resume",
-    "resolver_customer_context",
-}
+NON_MODEL_TOOLS = {"resume_waiting_runs"}
+MODEL_TOOLS = EXPECTED_TOOLS - NON_MODEL_TOOLS
 
 
 def valid_input_for(tool_name: str) -> dict:
-    if tool_name == "get_scan_coverage":
-        return {"maxResults": 10}
-    if tool_name == "search_evidence":
-        return {"maxResults": 10}
-    if tool_name == "request_targeted_reanalysis":
+    if tool_name == "propose_gap_remediation":
         return {
-            "inputArtifactVersion": "ter_12345678",
-            "analyzerId": "RUN_TS_JS_SEMANTIC_ANALYSIS",
-            "scope": {"pathPrefixes": ["apps/api/"]},
-            "reasonRequirementId": "requirement:12345678",
-            "idempotencyKey": "request_1234567890",
+            "rowRef": "gap-row:abcdef",
+            "templateId": "remediation:collect-evidence",
         }
+    if tool_name == "get_gap_evidence_trace":
+        return {"rowRef": "gap-row:abcdef"}
+    if tool_name == "get_reconciliation_context":
+        return {"maxResults": 10}
+    if tool_name == "get_artifact_chain":
+        return {"anchor": {"assessmentId": "assessment:abcdefgh"}}
     if tool_name == "resume_waiting_runs":
         return {
             "activationRecordRef": "corpus-approval:abc123",
@@ -70,7 +51,7 @@ def valid_input_for(tool_name: str) -> dict:
 def request_for(
     tool_name: str,
     *,
-    max_items: int = 10,
+    max_items: int = 8,
     max_depth: int = 1,
     idempotency_key: str | None = None,
     artifact_versions: dict[str, str] | None = None,
@@ -91,34 +72,42 @@ def request_for(
                 "maxBytes": 16_384,
                 "maxDurationMs": 1_000,
             },
-            "input": input_payload if input_payload is not None else valid_input_for(tool_name),
+            "input": (
+                input_payload
+                if input_payload is not None
+                else valid_input_for(tool_name)
+            ),
             "idempotencyKey": idempotency_key,
         }
     )
 
 
-def test_engineering_rule_inventory_is_exact_and_unique() -> None:
+def test_engineering_rule_inventory_is_minimal_and_unique() -> None:
     registry = build_engineering_rule_agentic_registry()
     assert set(registry.names()) == EXPECTED_TOOLS
     assert len(registry.names()) == len(EXPECTED_TOOLS)
 
 
-def test_legacy_customer_context_tools_are_not_active_registry_entries() -> None:
-    registry = build_engineering_rule_agentic_registry()
-
-    assert set(registry.names()).isdisjoint(LEGACY_CUSTOMER_CONTEXT_TOOLS)
-    assert set(registry.model_callable_names()).isdisjoint(LEGACY_CUSTOMER_CONTEXT_TOOLS)
-
-
-def test_only_read_tools_are_exposed_to_the_model() -> None:
+def test_only_non_repository_domain_tools_are_model_callable() -> None:
     registry = build_engineering_rule_agentic_registry()
     specs = llm_callable_tool_specs()
     model_names = {spec.name for spec in specs}
 
-    assert model_names == EXPECTED_TOOLS - NON_MODEL_TOOLS
-    assert set(registry.model_callable_names()) == model_names
-    assert len(specs) == 17
+    assert model_names == MODEL_TOOLS
+    assert set(registry.model_callable_names()) == MODEL_TOOLS
+    assert len(specs) == 4
     assert all(spec.input_schema["additionalProperties"] is False for spec in specs)
+    retired_repo_tools = {
+        "get_scan_coverage",
+        "search_evidence",
+        "trace_static_flow",
+        "inspect_data_path",
+        "inspect_decision_path",
+        "inspect_human_review_path",
+        "get_symbol_context",
+        "find_provider_invocations",
+    }
+    assert set(registry.names()).isdisjoint(retired_repo_tools)
 
 
 def test_unknown_tool_fails_closed() -> None:
@@ -129,56 +118,38 @@ def test_unknown_tool_fails_closed() -> None:
 
 def test_budget_cannot_exceed_tool_capability() -> None:
     registry = build_engineering_rule_agentic_registry()
-    request = request_for(
-        "get_scan_coverage",
-        max_items=101,
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-    )
+    request = request_for("get_gap_evidence_trace", max_items=9)
+    # Capability max_items is 8.
     with pytest.raises(AgenticToolValidationError, match="AGENTIC_TOOL_BUDGET_EXCEEDED"):
-        registry.validate(request)
-
-
-def test_required_pinned_artifact_is_enforced() -> None:
-    registry = build_engineering_rule_agentic_registry()
-    request = request_for("get_scan_coverage")
-    with pytest.raises(
-        AgenticToolValidationError,
-        match="AGENTIC_TOOL_ARTIFACT_VERSION_REQUIRED",
-    ):
         registry.validate(request)
 
 
 def test_tool_specific_json_schema_is_enforced_before_dispatch() -> None:
     registry = build_engineering_rule_agentic_registry()
-    request = request_for(
-        "get_scan_coverage",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-        input_payload={"maxResults": 101},
+    invalid = request_for(
+        "get_gap_evidence_trace",
+        input_payload={"rowRef": "not-a-gap-row"},
     )
     with pytest.raises(
         AgenticToolValidationError,
         match="AGENTIC_TOOL_INPUT_SCHEMA_INVALID",
     ):
-        registry.validate(request)
+        registry.validate(invalid)
 
-    extra_field = request_for(
-        "get_scan_coverage",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-        input_payload={"maxResults": 10, "rawQuery": "anything"},
+    extra = request_for(
+        "get_gap_evidence_trace",
+        input_payload={"rowRef": "gap-row:abcdef", "rawQuery": "anything"},
     )
     with pytest.raises(
         AgenticToolValidationError,
         match="AGENTIC_TOOL_INPUT_SCHEMA_INVALID",
     ):
-        registry.validate(extra_field)
+        registry.validate(extra)
 
 
 def test_mutation_requires_idempotency_key() -> None:
     registry = build_engineering_rule_agentic_registry()
-    request = request_for(
-        "request_targeted_reanalysis",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-    )
+    request = request_for("resume_waiting_runs")
     with pytest.raises(
         AgenticToolValidationError,
         match="AGENTIC_TOOL_IDEMPOTENCY_KEY_REQUIRED",
@@ -188,35 +159,23 @@ def test_mutation_requires_idempotency_key() -> None:
 
 def test_system_and_orchestrator_tools_are_never_model_callable() -> None:
     registry = build_engineering_rule_agentic_registry()
-
-    targeted = request_for(
-        "request_targeted_reanalysis",
-        idempotency_key="request-12345678",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-    )
-    with pytest.raises(
-        AgenticToolValidationError,
-        match="AGENTIC_TOOL_NOT_MODEL_CALLABLE",
+    # Retry/reanalysis is an API-driven ruleScope rerun, never a registered agentic tool.
+    assert "request_targeted_reanalysis" not in registry.names()
+    for request in (
+        request_for("resume_waiting_runs", idempotency_key="request-87654321"),
     ):
-        registry.validate_model_request(targeted)
-
-    resume = request_for(
-        "resume_waiting_runs",
-        idempotency_key="request-87654321",
-    )
-    with pytest.raises(
-        AgenticToolValidationError,
-        match="AGENTIC_TOOL_NOT_MODEL_CALLABLE",
-    ):
-        registry.validate_model_request(resume)
+        with pytest.raises(
+            AgenticToolValidationError,
+            match="AGENTIC_TOOL_NOT_MODEL_CALLABLE",
+        ):
+            registry.validate_model_request(request)
 
 
 def test_read_tool_rejects_mutation_idempotency_key() -> None:
     registry = build_engineering_rule_agentic_registry()
     request = request_for(
-        "get_scan_coverage",
+        "get_gap_evidence_trace",
         idempotency_key="request-12345",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
     )
     with pytest.raises(
         AgenticToolValidationError,
@@ -237,23 +196,20 @@ def test_read_tool_rejects_mutation_idempotency_key() -> None:
 )
 def test_unsafe_agent_input_is_rejected(unsafe_input: dict) -> None:
     with pytest.raises(ValidationError):
-        request_for(
-            "search_evidence",
-            input_payload=unsafe_input,
-        )
+        request_for("get_gap_evidence_trace", input_payload=unsafe_input)
 
 
 def test_dispatch_requires_bound_handler_and_checks_output() -> None:
     registry = build_engineering_rule_agentic_registry()
-    request = request_for(
-        "get_scan_coverage",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-    )
-    with pytest.raises(AgenticToolValidationError, match="AGENTIC_TOOL_HANDLER_NOT_BOUND"):
+    request = request_for("get_gap_evidence_trace")
+    with pytest.raises(
+        AgenticToolValidationError,
+        match="AGENTIC_TOOL_HANDLER_NOT_BOUND",
+    ):
         registry.invoke_model_tool(request)
 
     registry.register_handler(
-        "get_scan_coverage",
+        "get_gap_evidence_trace",
         lambda _: {"status": "READY", "result": {"items": []}},
     )
     assert registry.invoke_model_tool(request)["status"] == "READY"
@@ -261,13 +217,13 @@ def test_dispatch_requires_bound_handler_and_checks_output() -> None:
 
 def test_dispatch_blocks_forbidden_output_fields() -> None:
     registry = build_engineering_rule_agentic_registry()
-    request = request_for(
-        "get_scan_coverage",
-        artifact_versions={"technicalEvidenceReportId": "ter-1"},
-    )
+    request = request_for("get_gap_evidence_trace")
     registry.register_handler(
-        "get_scan_coverage",
+        "get_gap_evidence_trace",
         lambda _: {"status": "READY", "result": {"raw_source": "secret"}},
     )
-    with pytest.raises(AgenticToolValidationError, match="AGENTIC_TOOL_UNSAFE_OUTPUT"):
+    with pytest.raises(
+        AgenticToolValidationError,
+        match="AGENTIC_TOOL_UNSAFE_OUTPUT",
+    ):
         registry.invoke_model_tool(request)

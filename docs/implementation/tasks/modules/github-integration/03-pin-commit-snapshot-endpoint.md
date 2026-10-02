@@ -6,7 +6,6 @@ priority: P0
 status: DONE
 epic_story: 3.2
 depends_on:
-  - github-integration/02-github-app-callback-endpoint.md
   - platform/rbac/03-nestjs-guard.md
   - platform/outbox/02-outbox-publisher.md
 ---

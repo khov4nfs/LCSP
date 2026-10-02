@@ -1,1 +1,1 @@
-"""Managed Deep Agents middleware package for LCSP."""
+"""Deep Agents middleware package for LCSP."""

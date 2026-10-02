@@ -49,11 +49,6 @@ export type AuthFixture = {
   noMembershipUser: { id: string; email: string };
 };
 
-export function ensureTestMfaEncryptionKey(): void {
-  process.env.MFA_ENCRYPTION_KEY ??=
-    "test-only-mfa-encryption-key-do-not-use-in-prod";
-}
-
 export type MfaFixture = {
   userId: string;
   totpSecret: string;
@@ -286,8 +281,8 @@ export async function seedVerifiedProfileGraph(
       scanJobId,
       assessmentId,
       snapshotId,
-      toolsVersion: { semgrep: "1.0.0" },
-      configHash: { semgrep: "sha256:test" },
+      toolsVersion: { "repository-analysis": "1.0.0" },
+      configHash: { "repository-analysis": "sha256:test" },
       evidencePayload: { findings: [{ finding_id: "finding-1" }] },
       privacyFlags: { containsSourceCode: false, secretsRedacted: true },
       schemaVersion: "1.0.0",
@@ -420,22 +415,29 @@ export function pushPrismaSchema(): void {
       ? resolve(apiRoot, "node_modules/.bin/prisma.cmd")
       : resolve(apiRoot, "node_modules/.bin/prisma");
 
-  execFileSync(
-    prismaBinary,
-    ["db", "push", "--accept-data-loss", "--force-reset"],
-    {
-      cwd: apiRoot,
-      env: {
-        ...process.env,
-        DATABASE_URL: TEST_DATABASE_URL,
-        XDG_CACHE_HOME: cacheHome,
-        PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION:
-          process.env.PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION ?? "yes",
-      },
-      stdio: "pipe",
-      shell: process.platform === "win32",
-    },
-  );
+  const env = {
+    ...process.env,
+    DATABASE_URL: TEST_DATABASE_URL,
+    XDG_CACHE_HOME: cacheHome,
+    PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION:
+      process.env.PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION ?? "yes",
+  };
+  const shell = process.platform === "win32";
+
+  execFileSync(prismaBinary, ["db", "execute", "--stdin"], {
+    cwd: apiRoot,
+    env,
+    input: "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;\n",
+    stdio: ["pipe", "pipe", "pipe"],
+    shell,
+  });
+
+  execFileSync(prismaBinary, ["db", "push", "--accept-data-loss"], {
+    cwd: apiRoot,
+    env,
+    stdio: "pipe",
+    shell,
+  });
 }
 
 export async function resetAuthWorkspaceDatabase(

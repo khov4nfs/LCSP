@@ -73,26 +73,28 @@ test("assessment transcript is the shared scrollable 680px rail primitive", asyn
   assert.match(source, /data-slot="chat-rail"/);
   assert.match(source, /role="log"/);
   assert.match(source, /aria-live="polite"/);
-  assert.match(source, /no-scrollbar min-h-0 flex-1 overflow-x-hidden/);
+  assert.match(source, /no-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden/);
   assert.match(source, /overflow-y-auto/);
   assert.match(source, /max-w-170/);
   assert.doesNotMatch(source, /max-w-\[760px\]/);
 });
 
-test("assessment transcript follows output only while the reader is near latest content", async () => {
+test("assessment transcript follows only while pinned and preserves a fixed composer gap", async () => {
   const source = await readFile(transcriptPath, "utf8");
 
-  assert.match(source, /AUTO_FOLLOW_THRESHOLD_PX = 80/);
-  assert.match(source, /isFollowingLatestRef = useRef\(true\)/);
-  assert.match(source, /function handleScroll/);
-  assert.match(source, /isNearLatest\(event\.currentTarget\)/);
-  assert.match(
-    source,
-    /if \(!isFollowingLatestRef\.current && !isNearLatest\(viewport\)\)/,
-  );
-  assert.match(source, /prefers-reduced-motion: reduce/);
-  assert.match(source, /behavior: prefersReducedMotion \? "auto" : "smooth"/);
-  assert.match(source, /viewport\.scrollTo/);
+  assert.match(source, /useLayoutEffect/);
+  assert.match(source, /pinnedRef\.current/);
+  assert.match(source, /onScroll=\{handleScroll\}/);
+  assert.match(source, /scrollToLatest\(viewport\)/);
+  assert.match(source, /ResizeObserver/);
+  assert.match(source, /observer\.observe\(viewport\)/);
+  assert.match(source, /observer\.observe\(rail\)/);
+  assert.match(source, /viewport\.scrollHeight <= viewport\.clientHeight/);
+  assert.match(source, /behavior: "auto"/);
+  assert.match(source, /shrink-0 gap-4 pt-6 pb-4/);
+  assert.doesNotMatch(source, /mt-auto/);
+  assert.match(source, /PINNED_BOTTOM_THRESHOLD_PX/);
+  assert.match(source, /transcript-jump-to-latest/);
   assert.doesNotMatch(source, /scrollIntoView/);
 });
 
@@ -111,17 +113,37 @@ test("assessment overview gates Interview behind repository and scanner runtime"
   );
 });
 
-test("assessment composer keeps the approved 720 by 76 single-send control", async () => {
+test("assessment overview renders the live current-turn activity before the next active question", async () => {
+  const source = await readFile(overviewPath, "utf8");
+
+  assert.match(source, /\{transcriptTurns\.currentActivity\.map\(/);
+  assert.match(source, /\{interview\.questionTurnProps \? \(/);
+  assert.ok(
+    source.indexOf("transcriptTurns.currentActivity.map((segment) => (") <
+      source.indexOf("{interview.questionTurnProps ? ("),
+    "currentActivity must render before the active question/assistant block, so the live transcript reads: previous question -> answer -> activity/output -> next question",
+  );
+});
+
+test("assessment composer auto-grows from one to three rows and keeps expansion bounded", async () => {
   const source = await readFile(composerPath, "utf8");
 
   assert.match(source, /mb-4 w-full max-w-180 shrink-0/);
-  assert.match(source, /min-h-19/);
-  assert.match(source, /rounded-\[18px\]/);
+  assert.match(source, /rows=\{1\}/);
+  assert.match(source, /COLLAPSED_MAX_ROWS = 3/);
+  assert.match(source, /EXPANDED_MAX_VIEWPORT_RATIO = 0\.42/);
+  assert.match(source, /EXPANDED_MAX_HEIGHT_PX = 352/);
+  assert.match(source, /max-h-\[min\(42dvh,22rem\)\]/);
+  assert.match(source, /min-h-11/);
+  assert.match(source, /\[scrollbar-width:none\]/);
+  assert.match(source, /\[&::-webkit-scrollbar\]:hidden/);
   assert.equal(source.match(/<Textarea\b/g)?.length, 1);
   assert.equal(source.match(/type="submit"/g)?.length, 1);
+  assert.match(source, /Maximize2Icon/);
+  assert.match(source, /Minimize2Icon/);
   assert.match(source, /CornerDownLeftIcon/);
+  assert.doesNotMatch(source, /rows=\{5\}|h-\[min\(70dvh,48rem\)\]/);
   assert.doesNotMatch(source, /PlusIcon|<input\b|avatar|brand label/i);
-  assert.doesNotMatch(source, /h-12 w-full max-w-\[760px\]/);
 });
 
 test("assessment center keeps the transcript scrollable above a bottom composer", async () => {

@@ -1,6 +1,8 @@
 import { BillingDomainError } from "./billing.errors.js";
 import type { EffectiveRuntimeModel } from "@lcsp/contracts/billing";
 
+const MAX_RUNTIME_MODEL_FIELD_LENGTH = 160;
+
 export type EffectiveRuntimeModelConfig = {
   role: string;
   provider: string;
@@ -8,33 +10,6 @@ export type EffectiveRuntimeModelConfig = {
   policyVersion: string;
   effectiveAt: Date;
 };
-
-/** Resolves exactly one runtime model config; billing never owns a provider/model allow-list. */
-export function resolveEffectiveRuntimeModel(
-  configs: readonly EffectiveRuntimeModelConfig[],
-  role: string,
-  at: Date,
-): EffectiveRuntimeModelConfig {
-  const candidates = configs
-    .filter(
-      (config) =>
-        config.role === role && config.effectiveAt.getTime() <= at.getTime(),
-    )
-    .sort((a, b) => b.effectiveAt.getTime() - a.effectiveAt.getTime());
-  const selected = candidates[0];
-  if (!selected)
-    throw new BillingDomainError("No effective runtime model configuration");
-  if (
-    candidates.filter(
-      (config) =>
-        config.effectiveAt.getTime() === selected.effectiveAt.getTime(),
-    ).length > 1
-  )
-    throw new BillingDomainError(
-      "Ambiguous effective runtime model configuration",
-    );
-  return selected;
-}
 
 /** Validates the durable runtime-policy selection carried with an invocation. */
 export function assertEffectiveRuntimeModelAt(
@@ -48,6 +23,14 @@ export function assertEffectiveRuntimeModelAt(
   )
     throw new BillingDomainError(
       "Effective runtime model identity is required",
+    );
+  if (
+    [model.provider, model.model, model.policyVersion].some(
+      (value) => value.length > MAX_RUNTIME_MODEL_FIELD_LENGTH,
+    )
+  )
+    throw new BillingDomainError(
+      "Effective runtime model identity is too long",
     );
   const effectiveAt = new Date(model.effectiveAt);
   if (Number.isNaN(effectiveAt.getTime()))

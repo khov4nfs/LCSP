@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -22,12 +23,16 @@ import { CreateAssessmentCommand } from "../../application/commands/create-asses
 import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
 import { DeleteAssessmentCommand } from "../../application/commands/delete-assessment/delete-assessment.command.js";
 import { RenameAssessmentCommand } from "../../application/commands/rename-assessment/rename-assessment.command.js";
+import { PutRuleAssessmentCommand } from "../../application/commands/put-rule-assessment/put-rule-assessment.command.js";
+import { ListRuleAssessmentsQuery } from "../../application/queries/list-rule-assessments/list-rule-assessments.query.js";
+import { MarkAiNotDetectedCommand } from "../../application/commands/mark-ai-not-detected/mark-ai-not-detected.command.js";
 import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
 import { GetAssessmentReadinessQuery } from "../../application/queries/get-assessment-readiness/get-assessment-readiness.query.js";
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { AssessmentInterviewRuntimeService } from "../../application/services/assessment-interview-runtime.service.js";
 import { AssessmentInterviewSnippetService } from "../../application/services/assessment-interview-snippet.service.js";
+import { AssessmentPipelineContinuationService } from "../../application/services/assessment-pipeline-continuation.service.js";
 import { CreateAssessmentRequest } from "./dto/create-assessment.request.js";
 
 /**
@@ -46,6 +51,7 @@ export class AssessmentController {
     private readonly queryBus: QueryBus,
     private readonly interviewRuntime: AssessmentInterviewRuntimeService,
     private readonly interviewSnippet: AssessmentInterviewSnippetService,
+    private readonly pipelineContinuation: AssessmentPipelineContinuationService,
   ) {}
 
   /**
@@ -270,6 +276,60 @@ export class AssessmentController {
     );
   }
 
+  @Post(":assessmentId/interview/resume")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async resumeInterviewTurn(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.resumeFailedTurn({
+        assessmentId,
+        actor: request.rbacContext,
+        correlationId: request.correlationId ?? "worker-interview-context",
+        resume: body as never,
+        // The customer reaches this route by clicking Resume, which covers a
+        // worker-crash stall exactly as well as a turn they cooperatively
+        // paused themselves (pauseActiveTurn never reports FAILED progress,
+        // so the strict turnFailed check alone would 409 a paused turn).
+        allowStalled: true,
+      }),
+    );
+  }
+
+  @Post(":assessmentId/interview/pause")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async pauseInterviewTurn(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    await this.interviewRuntime.pauseActiveTurn({
+      assessmentId,
+      actor: request.rbacContext,
+      correlationId: request.correlationId ?? "worker-interview-context",
+    });
+    return resultEnvelope({ paused: true });
+  }
+
+  @Post(":assessmentId/pipeline/continue")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async continuePipeline(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.pipelineContinuation.continuePipeline({
+        assessmentId,
+        actor: request.rbacContext,
+        correlationId: request.correlationId ?? "customer-pipeline-continue",
+      }),
+    );
+  }
+
   @Post(":assessmentId/post-finding/decisions")
   @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer)
@@ -315,7 +375,30 @@ export class AssessmentController {
 export class InternalAssessmentInterviewController {
   constructor(
     private readonly interviewRuntime: AssessmentInterviewRuntimeService,
+    private readonly commandBus: CommandBus,
   ) {}
+
+  @Post(":assessmentId/ai-not-detected")
+  async markAiNotDetected(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const technicalEvidenceReportId =
+      body && typeof body === "object"
+        ? (body as { technicalEvidenceReportId?: unknown })
+            .technicalEvidenceReportId
+        : undefined;
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new MarkAiNotDetectedCommand(
+          assessmentId,
+          technicalEvidenceReportId,
+          request.correlationId ?? "worker-interview-context",
+        ),
+      ),
+    );
+  }
 
   @Get(":assessmentId/state")
   async getWorkerState(@Param("assessmentId") assessmentId: string) {
@@ -414,6 +497,52 @@ export class InternalAssessmentInterviewController {
         technicalEvidenceReportId,
         workflowRunId,
       }),
+    );
+  }
+}
+
+/**
+ * Worker-key routes for the accepted per-rule assessment ledger (RuleEvidenceIndex).
+ */
+@Controller("internal/assessments")
+@UseGuards(WorkerApiKeyGuard)
+export class InternalRuleAssessmentController {
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
+
+  @Put(":assessmentId/rule-assessments/:engineeringRuleId")
+  async putRuleAssessment(
+    @Param("assessmentId") assessmentId: string,
+    @Param("engineeringRuleId") engineeringRuleId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new PutRuleAssessmentCommand(
+          assessmentId,
+          engineeringRuleId,
+          body,
+          request.correlationId ?? "worker-rule-assessment",
+        ),
+      ),
+    );
+  }
+
+  @Get(":assessmentId/rule-assessments")
+  async listRuleAssessments(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new ListRuleAssessmentsQuery(
+          assessmentId,
+          request.correlationId ?? "worker-rule-assessment",
+        ),
+      ),
     );
   }
 }

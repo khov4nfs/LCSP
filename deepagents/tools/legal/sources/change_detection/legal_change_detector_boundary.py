@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,13 +12,12 @@ from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import Legal
 from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoints import LegalToolExecutionContext
 from tools.legal.corpus.partial_update.partial_update_context_builder import build_partial_update_context
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
 
 logger = get_logger(__name__)
 
 LEGAL_CHANGE_DETECTOR_COMMAND = "cron.legal-catalog.check-updates.v1"
 LEGAL_CHANGE_DETECTOR_BOUNDARY_SOURCE = "lcsp.legal-change-detector.v1"
-PARTIAL_UPDATE_EXCHANGE = "lcsp.legal-partial-updates"
 
 
 @dataclass(frozen=True)
@@ -59,12 +57,7 @@ class LegalChangeCheckResult:
 
 
 class LegalChangeDetectorBoundary(AgentBoundaryBase):
-    """Detect changes and return the partial-update context to the caller.
-
-    RabbitMQ publication is retained only as a compatibility side effect when a
-    legacy channel is attached. Managed Deep Agents callers consume the return
-    value directly, so partial updates cannot disappear when no broker exists.
-    """
+    """Detect changes and return the partial-update context to the Agent Runtime."""
 
     boundary_source = LEGAL_CHANGE_DETECTOR_BOUNDARY_SOURCE
     source_event = LEGAL_CHANGE_DETECTOR_COMMAND
@@ -142,7 +135,6 @@ class LegalChangeDetectorBoundary(AgentBoundaryBase):
             raise NonRetryableAgentBoundaryError("changed legal source produced no partial update context")
 
         payload = final_context.to_dict()
-        self._publish_partial_update(payload, correlationId)
         logger.info("LEGAL_CHANGE_DETECTED", document_id=envelope.document_id, correlationId=correlationId)
         return LegalChangeCheckResult(
             status="CHANGED",
@@ -151,16 +143,6 @@ class LegalChangeDetectorBoundary(AgentBoundaryBase):
             partial_update_context=payload,
             snapshot_ref=snapshot_ref,
         ).to_dict()
-
-    def _publish_partial_update(self, payload: dict[str, Any], correlationId: str) -> None:
-        """Publish only for legacy broker-backed callers; MDA consumes the return value."""
-        logger.info("PUBLISHING_PARTIAL_UPDATE_CONTEXT", document_id=payload.get("documentId"), correlationId=correlationId)
-        if hasattr(self, "channel") and self.channel:
-            self.channel.basic_publish(
-                exchange=PARTIAL_UPDATE_EXCHANGE,
-                source_event="event.legal-catalog.partial-update.v1",
-                body=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            )
 
     def _read_envelope(self, message: dict[str, Any]) -> CheckUpdatesEnvelope:
         document_id = str(message.get("documentId") or "")

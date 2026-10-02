@@ -26,7 +26,7 @@ The uncertainty is material now if A vs B would change at least one of:
 - Initial Interview readiness/resolution;
 - the relevance, meaning, or priority of another material frontier;
 - interpretation of a consequential business action/decision;
-- Investigator continuation eligibility;
+- same-rule reassessment eligibility;
 - whether downstream work may require reconsideration.
 
 Descriptive detail alone is not material merely because stored text would differ.
@@ -35,7 +35,7 @@ If none changes, the distinction is probably not material now.
 
 This test guides reasoning. It is not a fixed questionnaire.
 
-## Initial Interview (`PRE_PLANNER` runtime alias)
+## Initial Interview (`INITIAL_INTERVIEW`)
 
 Question:
 
@@ -69,19 +69,19 @@ These are generic invariants, not domain-specific required fields and not a fixe
 - a material direct statement is still hedged/ambiguous;
 - a material conflict/correction needs clarification.
 
-## Investigator resolution
+## Business context resolution
 
 Question:
 
-> Has the supplied `businessContextNeed` been established to the specificity required by the originating investigation?
+> Has the supplied `targetedNeed` been established to the specificity required by the originating need?
 
 ### `CONTEXT_RESOLVED` requires all of:
 
-- the exact `businessContextNeed` is established;
-- the supplied business-operational `resolutionCriteria` is satisfied;
+- the exact `targetedNeed` is established;
+- every `resolutionCriterionIds` entry is covered by a confirmed statement (`resolvesCriterionId`);
 - the required bounded context is `CUSTOMER_CONFIRMED`;
 - directly coupled ambiguity no longer changes the interpretation;
-- the originating investigation reference/runtime remains valid for Orchestration to evaluate resume.
+- the originating rule-analysis reference remains valid for Orchestration to evaluate same-rule reassessment.
 
 If the Customer cannot establish the requested business reality:
 
@@ -112,7 +112,7 @@ Stop asking when:
 - the question is only “nice to know”;
 - PGE can establish the technical fact directly and no business meaning is missing;
 - the question belongs to EngineeringRule/legal evaluation rather than business context;
-- Investigator's bounded need is already resolved.
+- The bounded targeted need is already resolved.
 
 ## Examples
 
@@ -146,9 +146,9 @@ No meaningful change to stored business meaning/readiness.
 
 Material: no.
 
-### Investigator unresolved
+### Business context need unresolved
 
-Investigator needs:
+The targeted need asks:
 > whether an account restriction takes effect immediately or after analyst approval.
 
 Customer:

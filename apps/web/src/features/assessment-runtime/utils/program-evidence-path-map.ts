@@ -13,15 +13,15 @@ export type EvidenceTopology = {
 export type ViewportState = { zoom: number; pan: { x: number; y: number } };
 export const GRAPH_NODE_WIDTH = 150;
 export const GRAPH_NODE_HEIGHT = 44;
-export const EDGE_NODE_CLEARANCE = 8;
-export const LABEL_NODE_CLEARANCE = 4;
+const EDGE_NODE_CLEARANCE = 8;
+const LABEL_NODE_CLEARANCE = 4;
 export const LABEL_TO_LABEL_CLEARANCE = 8;
 
 export type GraphPoint = { x: number; y: number };
 
 export type GraphRect = { x: number; y: number; width: number; height: number };
 
-export function expandedNodeBounds(
+function expandedNodeBounds(
   rect: GraphRect,
   clearance = EDGE_NODE_CLEARANCE,
 ): GraphRect {
@@ -365,7 +365,7 @@ const ENDPOINT_KINDS = new Set([
   "EXTERNAL_API",
 ]);
 
-export function buildEvidenceGraphOverview(nodes: Node[], edges: Edge[]) {
+function buildEvidenceGraphOverview(nodes: Node[], edges: Edge[]) {
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const outgoing = new Map<string, Edge[]>();
   for (const edge of edges) {
@@ -506,7 +506,7 @@ export function buildEvidenceGraphOverview(nodes: Node[], edges: Edge[]) {
   return { nodes: overviewNodes, edges: overviewEdges };
 }
 
-export function buildEvidenceGraphNeighborhood(
+function buildEvidenceGraphNeighborhood(
   selectedId: string,
   nodes: Node[],
   edges: Edge[],

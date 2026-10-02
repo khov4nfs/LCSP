@@ -25,6 +25,10 @@ from .precompiled_contract_overrides import (
     apply_precompiled_contract_overrides,
     load_precompiled_contract_overrides,
 )
+from ..contract.runtime_projection import (
+    EngineeringRuleRuntimeContract,
+    runtime_contract_from_template,
+)
 from ..contract.validator import validate_engineering_rule
 
 DEFAULT_PRECOMPILED_BUNDLE_PATH = os.path.join(
@@ -83,6 +87,29 @@ class PrecompiledEngineeringRuleRegistry:
         return apply_precompiled_contract_overrides(
             bundle,
             self._contract_overrides,
+        )
+
+    def runtime_contracts(self) -> tuple[EngineeringRuleRuntimeContract, ...]:
+        """Every template as the runtime contract, technical overlay applied.
+
+        For stages that run before legal grounding exists (the Scanner). It reads the
+        same overlaid templates ``materialize`` does, so a stage can never inspect a
+        different technical contract from the one runtime EngineeringRules use. No
+        legal context is checked or built here; use ``materialize`` when it exists.
+        """
+        bundle = self._load_bundle("runtime-contracts")
+        templates, version = self.templates_for_bundle(bundle)
+        contracts = (
+            runtime_contract_from_template(
+                template, bundle=bundle, contract_version=version
+            )
+            for template in templates
+        )
+        return tuple(
+            sorted(
+                (item for item in contracts if item is not None),
+                key=lambda item: item.engineering_rule_id,
+            )
         )
 
     def records_no_engineering_rules(

@@ -8,6 +8,8 @@ companions:
 sources: []
 ---
 
+> **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.**
+
 > **Canonical contract.** This SPEC and its companions define the agentic evidence orchestration contract for LCSP.
 
 # Agentic Evidence Orchestration
@@ -40,7 +42,7 @@ LCSP must verify Wizard targets and discover equivalent technical patterns witho
 
 ## Constraints
 
-- The Python Scanner Worker owns repository scan lifecycle; the API retains RBAC, artifact persistence, and trusted trigger boundaries.
+- Managed Repository Analysis Agent owns repository evidence derivation; the API retains RBAC, artifact persistence, trusted trigger, and scan-job domain boundaries.
 - All model calls traverse the LLM Gateway and use sanitized, schema-constrained inputs.
 - Tools are versioned, allow-listed, bounded by scope/time/cost, and cannot execute customer source, install dependencies, or call arbitrary URLs.
 - Legal retrieval uses approved/active immutable corpus versions, stable hierarchical chunk IDs, and citation allowlists.

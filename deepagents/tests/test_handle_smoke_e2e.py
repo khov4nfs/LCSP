@@ -8,6 +8,15 @@ from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_bou
 from tools.common.capabilities.platform.config import WorkerConfig
 
 
+@pytest.fixture(autouse=True)
+def _offline_agent_models(monkeypatch):
+    """Agents are built with create_deep_agent; keep model construction offline."""
+    monkeypatch.setattr(
+        "tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.resolve_agent_model",
+        lambda role: f"model:{role}",
+    )
+
+
 def _config() -> WorkerConfig:
     return WorkerConfig(
         nestjs_api_base_url="http://api.test",
@@ -84,7 +93,7 @@ def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> Non
     boundary = AIUsageFlowBoundary(_config(), api_client=api_client)
 
     with patch(
-        "tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_agent",
+        "tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_deep_agent",
         return_value=proposal_agent,
     ):
         boundary.handle(

@@ -4,7 +4,7 @@ status: proposed
 owner: engineering
 based_on:
   - docs/planning-artifacts/research/technical-migrate-apps-api-apps-web-packages-tests-tu-javascript-sang-typescript-research-2026-07-02.md
-  - docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md
+  - docs/architecture/architecture.md
   - docs/project-context.md
 ---
 

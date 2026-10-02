@@ -1,6 +1,5 @@
 import { VERIFIED_AGENT_EPISODE_RECORD_STATUSES } from "@lcsp/contracts/evidence";
 import { Injectable } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
@@ -94,18 +93,3 @@ function sameCluster(left: EpisodeRow, right: EpisodeRow): boolean {
     left.contentHash !== right.contentHash
   );
 }
-
-export type VerifiedAgentEpisodeDeduplicationRow =
-  Prisma.VerifiedAgentEpisodeGetPayload<{
-    select: {
-      id: true;
-      assessmentId: true;
-      ownerAgent: true;
-      domainKey: true;
-      inputSignature: true;
-      promptVersion: true;
-      modelId: true;
-      contentHash: true;
-      createdAt: true;
-    };
-  }>;

@@ -26,7 +26,6 @@ def _dispatch_via_internal_api(tool_name: str, request: AgenticToolRequest, cont
 def _adapter(name: str, request: AgenticToolRequest, context: AgenticToolExecutionContext) -> Mapping[str, Any]: return _dispatch_via_internal_api(name, request, context)
 
 def resume_waiting_runs(request, context): return _adapter("resume_waiting_runs", request, context)
-def request_targeted_reanalysis(request, context): return _adapter("request_targeted_reanalysis", request, context)
 def get_gap_evidence_trace(request, context): return _adapter("get_gap_evidence_trace", request, context)
 def get_reconciliation_context(request, context): return _adapter("get_reconciliation_context", request, context)
 def get_artifact_chain(request, context): return _adapter("get_artifact_chain", request, context)

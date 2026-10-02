@@ -1,7 +1,6 @@
 packages:
   - "apps/*"
   - "packages/*"
-  - "deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer"
 allowBuilds:
   '@parcel/watcher': true
   '@prisma/client': true

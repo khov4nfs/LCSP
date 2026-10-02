@@ -9,7 +9,6 @@ sources:
   - docs/specs/user-task-flows.md
   - docs/specs/requirements-traceability-summary.md
   - docs/specs/legal-matching-domain-spec.md
-  - docs/specs/scanner-spec.md
 updated: 2026-06-25
 colors:
   background: '#F7F8FA'
