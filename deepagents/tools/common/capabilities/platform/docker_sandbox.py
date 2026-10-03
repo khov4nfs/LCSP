@@ -29,6 +29,7 @@ from deepagents.backends.protocol import (
 
 
 REPOSITORY_ROOT = "/workspace/repository"
+REPOSITORIES_ROOT = "/workspace/repositories"
 RUNTIME_ROOT = "/workspace/runtime"
 SANDBOX_LABEL = "lcsp.repository-sandbox"
 THREAD_LABEL = "lcsp.thread-id"
@@ -458,7 +459,7 @@ def sandbox_spec_from_config(config: object | None) -> DockerSandboxSpec:
 
 def _create_container_args(spec: DockerSandboxSpec) -> list[str]:
     command = (
-        f"mkdir -p {shlex.quote(REPOSITORY_ROOT)} {shlex.quote(RUNTIME_ROOT)} "
+        f"mkdir -p {shlex.quote(REPOSITORY_ROOT)} {shlex.quote(REPOSITORIES_ROOT)} {shlex.quote(RUNTIME_ROOT)} "
         f"{shlex.quote(RUNTIME_ROOT + '/home')} "
         f"{shlex.quote(RUNTIME_ROOT + '/cache')} "
         f"{shlex.quote(RUNTIME_ROOT + '/codebase-memory')} /tmp "
@@ -593,7 +594,7 @@ def _sandbox_path(path: str) -> str:
         return REPOSITORY_ROOT
     if normalized == "/tmp" or normalized.startswith("/tmp/"):
         return normalized
-    for allowed_root in (REPOSITORY_ROOT, RUNTIME_ROOT):
+    for allowed_root in (REPOSITORY_ROOT, REPOSITORIES_ROOT, RUNTIME_ROOT):
         if normalized == allowed_root or normalized.startswith(f"{allowed_root}/"):
             return normalized
     return posixpath.normpath(posixpath.join(REPOSITORY_ROOT, normalized.lstrip("/")))

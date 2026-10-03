@@ -8,6 +8,7 @@ from tools.common.capabilities.platform.docker_sandbox import (
     DockerSandboxManager,
     DockerSandboxSpec,
     REPOSITORY_ROOT,
+    REPOSITORIES_ROOT,
     RUNTIME_ROOT,
     _sandbox_path,
     sandbox_spec_from_config,
@@ -62,6 +63,9 @@ def test_sandbox_path_virtualizes_repository_root() -> None:
     )
     assert _sandbox_path("/workspace/runtime/state.json") == (
         f"{RUNTIME_ROOT}/state.json"
+    )
+    assert _sandbox_path("/workspace/repositories/snapshot-1/src/app.py") == (
+        f"{REPOSITORIES_ROOT}/snapshot-1/src/app.py"
     )
     assert _sandbox_path("/tmp/probe") == "/tmp/probe"
 

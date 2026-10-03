@@ -70,18 +70,24 @@ function buildAgenticController() {
 }
 
 function buildPublicEvidenceController() {
+  const technicalEvidenceReportFindMany = jest
+    .fn<(args?: unknown) => Promise<Array<Record<string, unknown>>>>()
+    .mockResolvedValue([]);
   const technicalEvidenceReportFindFirst =
-    jest.fn<(args?: unknown) => Promise<Record<string, unknown> | null>>();
-  const technicalEvidenceReportFindUnique =
     jest.fn<(args?: unknown) => Promise<Record<string, unknown> | null>>();
   const repositoryScanJobFindFirst =
     jest.fn<(args?: unknown) => Promise<Record<string, unknown> | null>>();
+  const assessmentRepositoryRelationFindMany = jest
+    .fn<(args?: unknown) => Promise<Array<Record<string, unknown>>>>()
+    .mockResolvedValue([]);
   const assessmentFindUnique =
     jest.fn<(args?: unknown) => Promise<Record<string, unknown> | null>>();
   const graphDetail = {
-    projectAcceptedReport: jest.fn(
-      async (input: { loadEvidencePayload: () => Promise<unknown> }) => ({
-        payload: await input.loadEvidencePayload(),
+    projectAcceptedReports: jest.fn(
+      async (input: {
+        reports: Array<{ loadEvidencePayload: () => Promise<unknown> }>;
+      }) => ({
+        payload: await input.reports[0]?.loadEvidencePayload(),
       }),
     ),
     projectOverview: jest.fn((payload: unknown) => payload),
@@ -99,11 +105,14 @@ function buildPublicEvidenceController() {
   };
   const prisma = {
     technicalEvidenceReport: {
+      findMany: technicalEvidenceReportFindMany,
       findFirst: technicalEvidenceReportFindFirst,
-      findUnique: technicalEvidenceReportFindUnique,
     },
     repositoryScanJob: { findFirst: repositoryScanJobFindFirst },
     assessment: { findUnique: assessmentFindUnique },
+    assessmentRepositoryRelation: {
+      findMany: assessmentRepositoryRelationFindMany,
+    },
   } as unknown as PrismaService;
   return {
     controller: new EvidenceController(
@@ -112,9 +121,10 @@ function buildPublicEvidenceController() {
       graphDetail as never,
       artifacts as never,
     ),
+    technicalEvidenceReportFindMany,
     technicalEvidenceReportFindFirst,
-    technicalEvidenceReportFindUnique,
     repositoryScanJobFindFirst,
+    assessmentRepositoryRelationFindMany,
     assessmentFindUnique,
     graphDetail,
     artifacts,
@@ -214,11 +224,11 @@ describe("EvidenceController graph lifecycle", () => {
   ])("returns EVIDENCE_NOT_READY while the scan is %s", async (scanStatus) => {
     const {
       controller,
-      technicalEvidenceReportFindFirst,
+      technicalEvidenceReportFindMany,
       repositoryScanJobFindFirst,
       graphDetail,
     } = buildPublicEvidenceController();
-    technicalEvidenceReportFindFirst.mockResolvedValue(null);
+    technicalEvidenceReportFindMany.mockResolvedValue([]);
     repositoryScanJobFindFirst.mockResolvedValue({
       id: "scan-active",
       status: scanStatus,
@@ -238,17 +248,17 @@ describe("EvidenceController graph lifecycle", () => {
         },
       },
     });
-    expect(graphDetail.projectAcceptedReport).not.toHaveBeenCalled();
+    expect(graphDetail.projectAcceptedReports).not.toHaveBeenCalled();
   });
 
   it("returns EVIDENCE_NOT_READY for overview while the scan is running", async () => {
     const {
       controller,
-      technicalEvidenceReportFindFirst,
+      technicalEvidenceReportFindMany,
       repositoryScanJobFindFirst,
       graphDetail,
     } = buildPublicEvidenceController();
-    technicalEvidenceReportFindFirst.mockResolvedValue(null);
+    technicalEvidenceReportFindMany.mockResolvedValue([]);
     repositoryScanJobFindFirst.mockResolvedValue({
       id: "scan-overview-running",
       status: REPOSITORY_SCAN_JOB_STATUSES.running,
@@ -276,10 +286,10 @@ describe("EvidenceController graph lifecycle", () => {
   it("returns EVIDENCE_NOT_READY after scan completion while report acceptance is pending", async () => {
     const {
       controller,
-      technicalEvidenceReportFindFirst,
+      technicalEvidenceReportFindMany,
       repositoryScanJobFindFirst,
     } = buildPublicEvidenceController();
-    technicalEvidenceReportFindFirst.mockResolvedValue(null);
+    technicalEvidenceReportFindMany.mockResolvedValue([]);
     repositoryScanJobFindFirst.mockResolvedValue({
       id: "scan-done",
       status: REPOSITORY_SCAN_JOB_STATUSES.completed,
@@ -302,10 +312,10 @@ describe("EvidenceController graph lifecycle", () => {
     async (scanStatus) => {
       const {
         controller,
-        technicalEvidenceReportFindFirst,
+        technicalEvidenceReportFindMany,
         repositoryScanJobFindFirst,
       } = buildPublicEvidenceController();
-      technicalEvidenceReportFindFirst.mockResolvedValue(null);
+      technicalEvidenceReportFindMany.mockResolvedValue([]);
       repositoryScanJobFindFirst.mockResolvedValue({
         id: "scan-failed",
         status: scanStatus,
@@ -329,12 +339,14 @@ describe("EvidenceController graph lifecycle", () => {
   it("returns EVIDENCE_BUILD_FAILED when the completed scan's evidence report was rejected", async () => {
     const {
       controller,
+      technicalEvidenceReportFindMany,
       technicalEvidenceReportFindFirst,
       repositoryScanJobFindFirst,
     } = buildPublicEvidenceController();
-    technicalEvidenceReportFindFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "report-rejected" });
+    technicalEvidenceReportFindMany.mockResolvedValue([]);
+    technicalEvidenceReportFindFirst.mockResolvedValue({
+      id: "report-rejected",
+    });
     repositoryScanJobFindFirst.mockResolvedValue({
       id: "scan-done",
       status: REPOSITORY_SCAN_JOB_STATUSES.completed,
@@ -351,10 +363,10 @@ describe("EvidenceController graph lifecycle", () => {
   it("returns EVIDENCE_NOT_FOUND when no scan or evidence exists", async () => {
     const {
       controller,
-      technicalEvidenceReportFindFirst,
+      technicalEvidenceReportFindMany,
       repositoryScanJobFindFirst,
     } = buildPublicEvidenceController();
-    technicalEvidenceReportFindFirst.mockResolvedValue(null);
+    technicalEvidenceReportFindMany.mockResolvedValue([]);
     repositoryScanJobFindFirst.mockResolvedValue(null);
 
     await expect(
@@ -368,22 +380,22 @@ describe("EvidenceController graph lifecycle", () => {
   it("projects the accepted report and loads its payload only through the cached projection", async () => {
     const {
       controller,
-      technicalEvidenceReportFindFirst,
-      technicalEvidenceReportFindUnique,
+      technicalEvidenceReportFindMany,
+      assessmentRepositoryRelationFindMany,
       repositoryScanJobFindFirst,
       graphDetail,
     } = buildPublicEvidenceController();
-    technicalEvidenceReportFindFirst.mockResolvedValue({
-      id: "report-accepted",
-      assessmentId: "assessment-1",
-      scanJobId: "scan-done",
-      snapshotId: "snapshot-1",
-      createdAt: new Date("2026-09-14T00:00:00.000Z"),
-      snapshot: null,
-    });
-    technicalEvidenceReportFindUnique.mockResolvedValue({
-      evidencePayload: { evidence_graph: { nodes: [] } },
-    });
+    technicalEvidenceReportFindMany.mockResolvedValue([
+      {
+        id: "report-accepted",
+        assessmentId: "assessment-1",
+        scanJobId: "scan-done",
+        snapshotId: "snapshot-1",
+        createdAt: new Date("2026-09-14T00:00:00.000Z"),
+        snapshot: null,
+        evidencePayload: { evidence_graph: { nodes: [] } },
+      },
+    ]);
 
     await expect(
       controller.getEvidenceGraph("assessment-1", adminGraphRequest),
@@ -391,16 +403,15 @@ describe("EvidenceController graph lifecycle", () => {
       ok: true,
       data: { payload: { evidence_graph: { nodes: [] } } },
     });
-    const acceptedQuery = technicalEvidenceReportFindFirst.mock
+    const acceptedQuery = technicalEvidenceReportFindMany.mock
       .calls[0]?.[0] as {
       select: Record<string, unknown>;
     };
-    expect(acceptedQuery.select).not.toHaveProperty("evidencePayload");
-    expect(technicalEvidenceReportFindUnique).toHaveBeenCalledWith({
-      where: { id: "report-accepted" },
-      select: { evidencePayload: true },
-    });
-    expect(graphDetail.projectAcceptedReport).toHaveBeenCalledTimes(1);
+    expect(acceptedQuery.select).toHaveProperty("evidencePayload", true);
+    expect(assessmentRepositoryRelationFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { assessmentId: "assessment-1" } }),
+    );
+    expect(graphDetail.projectAcceptedReports).toHaveBeenCalledTimes(1);
     expect(repositoryScanJobFindFirst).not.toHaveBeenCalled();
   });
 });

@@ -783,7 +783,7 @@ test("assessment entry points no longer route progression through legacy step pa
   assert.match(clientSource, /return `\/assessments\/\$\{encodedId\}`/);
   assert.match(
     createSource,
-    /router\.replace\(`\/assessments\/\$\{assessmentId\}`\)/,
+    /router\.replace\(`\/assessments\/\$\{workingAssessmentId\}`\)/,
   );
 });
 

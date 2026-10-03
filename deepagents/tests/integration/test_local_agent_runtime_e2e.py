@@ -28,6 +28,7 @@ from tools.common.capabilities.platform.repository_sandbox import (
     activate_repository_backend,
     current_repository_backend,
     repository_database_backend,
+    repository_root_for_snapshot,
 )
 from tests.integration.test_docker_sandbox_e2e import _fixture_archive
 
@@ -186,11 +187,12 @@ def test_agent_server_dispatch_hydrates_docker_repository_sandbox(
 
         assert api.archive_requests == 1
 
-        app = backend.read("/workspace/repository/src/app.py")
+        repository_root = repository_root_for_snapshot(event["snapshotId"])
+        app = backend.read(f"{repository_root}/src/app.py")
         assert app.error is None
         assert app.file_data["content"] == "print('hydrated')\n"
 
-        health = backend.read("/workspace/repository/.lcsp/agent/runtime-health.json")
+        health = backend.read(f"{repository_root}/.lcsp/agent/runtime-health.json")
         assert health.error is None
         assert "AgentRuntimeHealthBoundary" in health.file_data["content"]
         assert event["expectedPath"] in health.file_data["content"]

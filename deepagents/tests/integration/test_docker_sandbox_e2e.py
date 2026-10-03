@@ -15,6 +15,9 @@ from tools.common.capabilities.platform.docker_sandbox import (
     DockerSandboxBackend,
     DockerSandboxSpec,
 )
+from tools.common.capabilities.platform.repository_sandbox import (
+    repository_root_for_snapshot,
+)
 
 
 @pytest.mark.integration
@@ -120,12 +123,13 @@ def test_docker_sandbox_hydrates_repository_snapshot_without_removing_mountpoint
         FakeSnapshotClient,
     )
 
+    repository_root = repository_root_for_snapshot("snapshot-1")
     backend = DockerSandboxBackend(
         DockerSandboxSpec(f"hydrate-e2e-{uuid4()}", image=image)
     )
     try:
         backend.ensure_running()
-        stale = backend.write("stale.txt", "remove me\n")
+        stale = backend.write(f"{repository_root}/stale.txt", "remove me\n")
         assert stale.error is None
 
         repository_sandbox.hydrate_repository(
@@ -135,6 +139,7 @@ def test_docker_sandbox_hydrates_repository_snapshot_without_removing_mountpoint
             commit_sha="abcdef1",
             assessment_id="assessment-1",
             correlation_id="corr-1",
+            repository_root=repository_root,
         )
         repository_sandbox.hydrate_repository(
             backend,
@@ -143,36 +148,36 @@ def test_docker_sandbox_hydrates_repository_snapshot_without_removing_mountpoint
             commit_sha="abcdef1",
             assessment_id="assessment-1",
             correlation_id="corr-1",
+            repository_root=repository_root,
         )
         assert archive_requests == 1
 
-        stale_read = backend.read("stale.txt")
+        stale_read = backend.read(f"{repository_root}/stale.txt")
         assert stale_read.error == "file_not_found"
 
-        app = backend.read("src/app.py")
+        app = backend.read(f"{repository_root}/src/app.py")
         assert app.error is None
         assert app.file_data["content"] == "print('hydrated')\n"
 
-        marker = backend.read("/workspace/repository/.lcsp/repository.json")
+        marker = backend.read(f"{repository_root}/.lcsp/repository.json")
         assert marker.error is None
         payload = json.loads(marker.file_data["content"])
         assert payload["snapshotId"] == "snapshot-1"
         assert payload["scanJobId"] == "scan-1"
-        assert payload["repositoryRoot"] == "/workspace/repository"
+        assert payload["repositoryRoot"] == repository_root
 
-        skill = backend.read("/workspace/repository/.lcsp/agent/skills/lcsp/SKILL.md")
+        skill = backend.read(f"{repository_root}/.lcsp/agent/skills/lcsp/SKILL.md")
         assert skill.error is None
         assert "name: lcsp" in skill.file_data["content"]
         reference = backend.read(
-            "/workspace/repository/.lcsp/agent/skills/interview-context/"
+            f"{repository_root}/.lcsp/agent/skills/interview-context/"
             "references/protected-boundaries.md"
         )
         assert reference.error is None
 
         git_probe = backend.execute(
-            "test -d /workspace/repository/.git "
-            "&& git --git-dir=/workspace/repository/.git "
-            "--work-tree=/workspace/repository rev-parse --is-inside-work-tree",
+            f"test -d {repository_root}/.git "
+            f"&& git -C {repository_root} rev-parse --is-inside-work-tree",
             timeout=20,
         )
         assert git_probe.exit_code == 0

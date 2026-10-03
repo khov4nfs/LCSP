@@ -1,0 +1,5 @@
+version: 1
+routes:
+  primary: {provider: llm7, model: model-alpha}
+roles:
+  default: primary

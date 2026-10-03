@@ -95,7 +95,10 @@ test("review and map stay inside the Agent transcript with explicit terminal act
   assert.match(map, /<select/);
   assert.match(map, /removeConfirm/);
   assert.match(map, /<AgentTurn>/);
-  assert.match(map, /independentAcknowledged\] = useState\(false\)/);
+  assert.match(
+    map,
+    /independentAcknowledged,\s*setIndependentAcknowledged\] = useState\(false\)/,
+  );
   assert.match(map, /autoFocus/);
   assert.match(review, /onAddRepository/);
   assert.match(review, /onEditMap/);

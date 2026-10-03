@@ -60,6 +60,9 @@ describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
                 return data;
               }),
             },
+            assessment: {
+              updateMany: jest.fn(),
+            },
           },
         }),
     };
@@ -67,7 +70,7 @@ describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
       assessment: {
         findFirst: jest.fn(() => ({
           id: "assessment-1",
-          status: AssessmentStatus.WIZARD_SUBMITTED,
+          status: AssessmentStatus.WIZARD_IN_PROGRESS,
         })),
       },
       repositoryConnection: {

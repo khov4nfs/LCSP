@@ -4,6 +4,7 @@ import {
   REPOSITORY_AUTHENTICATION_MODES,
 } from "@lcsp/contracts/github-integration";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { describe, expect, it, jest } from "@jest/globals";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -84,7 +85,9 @@ describe("PinSnapshotHandler repository reuse", () => {
           .mockResolvedValue({
             id: "assessment-1",
             ownerId: "manager-1",
+            status: ASSESSMENT_STATUS_CODES.wizardInProgress,
           }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
     } as unknown as PrismaService;
 
