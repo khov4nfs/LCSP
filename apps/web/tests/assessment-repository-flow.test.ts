@@ -79,6 +79,10 @@ test("new assessment confines provider selection to the active repository entry 
   assert.match(setup, /RepositoryDetailsTurn/);
   assert.match(setup, /isProviderSelection/);
   assert.match(setup, /isRepositoryDetails/);
+  assert.match(setup, /isInlineMapRepositoryEntry/);
+  assert.match(setup, /entryReturnStep === REPOSITORY_SETUP_STEPS\.repositoryMap/);
+  assert.match(setup, /repositoryEntryConversation/);
+  assert.match(setup, /!isInlineMapRepositoryEntry \? repositoryEntryConversation/);
   assert.match(setup, /entryReturnStep/);
   assert.match(setup, /allRepositoriesPinned/);
   assert.doesNotMatch(setup, /AssessmentComposer/);
