@@ -331,7 +331,22 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
 
     await prisma.assessment.update({
       where: { id: "assessment-1" },
-      data: { status: ASSESSMENT_STATUS_CODES.wizardSubmitted },
+      data: {
+        status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+        repositorySetupVersion: 1,
+        repositorySetupConfirmedAt: new Date(),
+        repositorySetupManifest: {
+          setupVersion: 1,
+          snapshots: [
+            {
+              connectionId: "connection-1",
+              snapshotId: body.snapshot_id,
+              commitSha: body.commit_sha,
+            },
+          ],
+          relations: [],
+        },
+      },
     });
 
     await app.get(OutboxPublisherService).poll();
