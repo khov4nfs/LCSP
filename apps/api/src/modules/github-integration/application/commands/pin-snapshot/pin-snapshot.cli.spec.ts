@@ -118,7 +118,9 @@ function build(
           status: ASSESSMENT_STATUS_CODES.wizardInProgress,
         }),
       ),
-      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      updateMany: jest
+        .fn<PrismaService["assessment"]["updateMany"]>()
+        .mockResolvedValue({ count: 1 }),
     },
   } as unknown as PrismaService;
   const audit = {

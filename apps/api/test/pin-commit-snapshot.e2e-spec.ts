@@ -276,16 +276,16 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
   });
 
   it("publishes snapshotCreated when a manual snapshot-auto scan already exists", async () => {
-    await prisma.assessment.update({
-      where: { id: "assessment-1" },
-      data: { status: ASSESSMENT_STATUS_CODES.wizardSubmitted },
-    });
-
     const response = await httpRequest(app)
       .post("/assessments/assessment-1/snapshots")
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ connection_id: "connection-1", branch: "main" });
     const body = successBody<PinSnapshotDto>(response);
+
+    await prisma.assessment.update({
+      where: { id: "assessment-1" },
+      data: { status: ASSESSMENT_STATUS_CODES.wizardSubmitted },
+    });
 
     const manual = await httpRequest(app)
       .post("/assessments/assessment-1/scan-jobs")
@@ -323,16 +323,16 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
   });
 
   it("auto-chains a trusted scan job after snapshotCreated when the assessment is submitted", async () => {
-    await prisma.assessment.update({
-      where: { id: "assessment-1" },
-      data: { status: ASSESSMENT_STATUS_CODES.wizardSubmitted },
-    });
-
     const response = await httpRequest(app)
       .post("/assessments/assessment-1/snapshots")
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ connection_id: "connection-1", branch: "main" });
     const body = successBody<PinSnapshotDto>(response);
+
+    await prisma.assessment.update({
+      where: { id: "assessment-1" },
+      data: { status: ASSESSMENT_STATUS_CODES.wizardSubmitted },
+    });
 
     await app.get(OutboxPublisherService).poll();
 

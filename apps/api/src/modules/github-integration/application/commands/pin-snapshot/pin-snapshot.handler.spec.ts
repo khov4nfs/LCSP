@@ -16,7 +16,10 @@ import {
 
 import { REPOSITORY_CONNECTION_STATUSES } from "@lcsp/contracts/github-integration";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_STATUS_CODES,
+  type AssessmentStatusCode,
+} from "@lcsp/contracts/assessment";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -72,7 +75,11 @@ function command(overrides?: Partial<PinSnapshotCommand>) {
 
 function buildHandler(options?: {
   connection?: RepositoryConnection | null;
-  assessment?: { id: string; ownerId: string; status: string } | null;
+  assessment?: {
+    id: string;
+    ownerId: string;
+    status: AssessmentStatusCode;
+  } | null;
   resolveError?: Error;
   resolvedRepositoryFullName?: string;
 }) {
@@ -127,6 +134,7 @@ function buildHandler(options?: {
       () => Promise<{
         id: string;
         ownerId: string;
+        status: AssessmentStatusCode;
       } | null>
     >()
     .mockResolvedValue(
@@ -141,7 +149,9 @@ function buildHandler(options?: {
   const prisma = {
     assessment: {
       findUnique,
-      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      updateMany: jest
+        .fn<PrismaService["assessment"]["updateMany"]>()
+        .mockResolvedValue({ count: 1 }),
     },
   } as unknown as PrismaService;
 
