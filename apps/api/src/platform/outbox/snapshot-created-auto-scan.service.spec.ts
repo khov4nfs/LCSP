@@ -26,7 +26,9 @@ function makePrismaService(
         .fn<
           () => Promise<{
             status: string;
-            repositorySetupManifest: { snapshots: Array<{ snapshotId: string }> };
+            repositorySetupManifest: {
+              snapshots: Array<{ snapshotId: string }>;
+            };
           } | null>
         >()
         .mockResolvedValue(
@@ -48,10 +50,9 @@ function makePrismaService(
 describe("SnapshotCreatedAutoScanService", () => {
   it("dispatches a trusted scan trigger when the assessment is submitted", async () => {
     const commandBus = makeCommandBus();
-    const prisma = makePrismaService(
-      ASSESSMENT_STATUS_CODES.wizardSubmitted,
-      ["snapshot-1"],
-    );
+    const prisma = makePrismaService(ASSESSMENT_STATUS_CODES.wizardSubmitted, [
+      "snapshot-1",
+    ]);
     const service = new SnapshotCreatedAutoScanService(commandBus, prisma);
 
     await service.handle({
@@ -83,10 +84,9 @@ describe("SnapshotCreatedAutoScanService", () => {
 
   it("uses a fallback trusted correlationId when the payload omits one", async () => {
     const commandBus = makeCommandBus();
-    const prisma = makePrismaService(
-      ASSESSMENT_STATUS_CODES.wizardSubmitted,
-      ["snapshot-1"],
-    );
+    const prisma = makePrismaService(ASSESSMENT_STATUS_CODES.wizardSubmitted, [
+      "snapshot-1",
+    ]);
     const service = new SnapshotCreatedAutoScanService(commandBus, prisma);
 
     await service.handle({
@@ -121,10 +121,9 @@ describe("SnapshotCreatedAutoScanService", () => {
 
   it("skips auto-chain when the snapshot is outside the confirmed manifest", async () => {
     const commandBus = makeCommandBus();
-    const prisma = makePrismaService(
-      ASSESSMENT_STATUS_CODES.wizardSubmitted,
-      ["confirmed-snapshot"],
-    );
+    const prisma = makePrismaService(ASSESSMENT_STATUS_CODES.wizardSubmitted, [
+      "confirmed-snapshot",
+    ]);
     const service = new SnapshotCreatedAutoScanService(commandBus, prisma);
 
     await service.handle({

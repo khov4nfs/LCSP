@@ -297,10 +297,9 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
     const confirmedScopeMatchesCurrentSnapshots =
       confirmedManifestSnapshotIds.length === 0 ||
       sameSnapshotSet(confirmedManifestSnapshotIds, snapshotIds);
-    const scopedSnapshotIds =
-      confirmedScopeMatchesCurrentSnapshots
-        ? confirmedManifestSnapshotIds
-        : snapshotIds;
+    const scopedSnapshotIds = confirmedScopeMatchesCurrentSnapshots
+      ? confirmedManifestSnapshotIds
+      : snapshotIds;
     const setupConfirmed =
       assessment.status !== ASSESSMENT_STATUS_CODES.wizardInProgress &&
       confirmedScopeMatchesCurrentSnapshots;
