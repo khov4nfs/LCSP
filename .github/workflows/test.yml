@@ -280,14 +280,13 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: lcsp_worker_test
         ports:
-          - 55436:5432
+          # Let GitHub Actions choose an available host port for PostgreSQL.
+          - 5432/tcp
         options: >-
           --health-cmd "pg_isready -U postgres -d lcsp_worker_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    env:
-      LCSP_TEST_CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55436/lcsp_worker_test
     defaults:
       run:
         working-directory: deepagents
@@ -324,6 +323,8 @@ jobs:
           PY
 
       - name: Test Python workers
+        env:
+          LCSP_TEST_CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/lcsp_worker_test
         run: pytest
 
   docker-sandbox-e2e:

@@ -45,6 +45,7 @@ _bmad/
 # fogewise-dev-launchers/
 **/__pycache__/
 tmp/
+.tmp-pytest/
 .corpus/
 .chroma/
 .chorma/
