@@ -29,16 +29,12 @@ export function RepositoryReviewTurn({
   confirming,
   onConfirm,
   onBack,
-  onEditMap,
-  onAddRepository,
 }: {
   repositories: AssessmentRepositorySetupRepository[];
   relations: ReviewRelation[];
   confirming?: boolean;
   onConfirm: () => void;
   onBack: () => void;
-  onEditMap?: () => void;
-  onAddRepository?: () => void;
 }) {
   const repositoryBySnapshot = new Map(
     repositories
@@ -188,26 +184,6 @@ export function RepositoryReviewTurn({
         >
           {t("pages.assessmentFlow.multiRepository.backToSetup")}
         </Button>
-        {onEditMap ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={confirming}
-            onClick={onEditMap}
-          >
-            {t("pages.assessmentFlow.multiRepository.edit")}
-          </Button>
-        ) : null}
-        {onAddRepository ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={confirming}
-            onClick={onAddRepository}
-          >
-            {t("pages.assessmentFlow.multiRepository.addRepository")}
-          </Button>
-        ) : null}
       </div>
     </AgentTurn>
   );

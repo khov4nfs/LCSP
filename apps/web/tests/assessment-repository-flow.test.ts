@@ -122,8 +122,7 @@ test("review and map stay inside the Agent transcript with explicit terminal act
     /independentAcknowledged,\s*setIndependentAcknowledged\] = useState\(false\)/,
   );
   assert.match(map, /autoFocus/);
-  assert.match(review, /onAddRepository/);
-  assert.match(review, /onEditMap/);
+  assert.doesNotMatch(review, /onAddRepository|onEditMap/);
 });
 
 test("repository provider choices render the approved provider logos", async () => {

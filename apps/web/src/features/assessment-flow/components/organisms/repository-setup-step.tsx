@@ -543,15 +543,6 @@ export function RepositorySetupStep({
                     : REPOSITORY_SETUP_STEPS.repositoryReady,
                 )
               }
-              onEditMap={() =>
-                setSetupStep(REPOSITORY_SETUP_STEPS.repositoryMap)
-              }
-              onAddRepository={() =>
-                beginRepositoryEntry(
-                  REPOSITORY_ENTRY_INTENTS.add,
-                  REPOSITORY_SETUP_STEPS.reviewScope,
-                )
-              }
             />
           ) : null}
           {activeErrorKey ? (
