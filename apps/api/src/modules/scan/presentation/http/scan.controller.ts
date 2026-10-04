@@ -221,6 +221,7 @@ export class ScanController {
           context.role,
           context.scope,
           request.correlationId,
+          context.userId,
         ),
       ),
     );

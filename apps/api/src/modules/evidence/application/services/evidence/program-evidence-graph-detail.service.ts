@@ -1,5 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import {
+  EVIDENCE_ERROR_CODES,
   AI_DISCOVERY_EVIDENCE_STATES,
   AI_DISCOVERY_RESOLUTION_STATES,
 } from "@lcsp/contracts/evidence";
@@ -16,6 +17,15 @@ import type {
   ProgramEvidenceGraphUsageFlowGroupDto,
 } from "../../contracts/evidence/program-evidence-graph-detail.contract.js";
 import { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
+
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+
+type AcceptedGraphInput = {
+  report: EvidenceGraphReport;
+  snapshot: EvidenceGraphSnapshot;
+  loadEvidencePayload: () => Promise<unknown>;
+  correlationId?: string;
+};
 
 const MAX_CACHED_PROJECTIONS = 8;
 const MAX_AI_USAGE_PATH_DEPTH = 10;
@@ -205,11 +215,42 @@ export class ProgramEvidenceGraphDetailService {
    * are never cached. On a hit neither the payload nor the multi-hundred-MB graph
    * artifact is loaded or parsed.
    */
-  async projectAcceptedReport(input: {
-    report: EvidenceGraphReport;
-    snapshot: EvidenceGraphSnapshot;
-    loadEvidencePayload: () => Promise<unknown>;
-  }): Promise<ProgramEvidenceGraphDetailDto> {
+  async projectAcceptedReport(
+    input: AcceptedGraphInput,
+  ): Promise<ProgramEvidenceGraphDetailDto> {
+    const computed = await this.acceptedProjection(input);
+    if (computed.projection.overview.graph_ready !== true) {
+      throw problemException(
+        EVIDENCE_ERROR_CODES.notReady,
+        input.correlationId ?? input.report.id,
+        {
+          status: HttpStatus.ACCEPTED,
+          meta: {
+            scanJobId: input.report.scanJobId,
+            snapshotId: input.report.snapshotId,
+          },
+        },
+      );
+    }
+    return toDetailDto(input.report, input.snapshot, computed.projection);
+  }
+
+  /** Overview and Detail share the same artifact check, not a metric heuristic. */
+  async projectAcceptedOverview(
+    input: AcceptedGraphInput,
+  ): Promise<ProgramEvidenceGraphOverviewDto> {
+    const computed = await this.acceptedProjection(input);
+    return {
+      ...computed.projection.overview,
+      report_id: input.report.id,
+      snapshot_id: input.report.snapshotId,
+      scan_job_id: input.report.scanJobId,
+    };
+  }
+
+  private async acceptedProjection(
+    input: AcceptedGraphInput,
+  ): Promise<CachedPayloadProjection> {
     const cached = this.projections.get(input.report.id);
     if (
       cached &&
@@ -217,17 +258,24 @@ export class ProgramEvidenceGraphDetailService {
     ) {
       this.projections.delete(input.report.id);
       this.projections.set(input.report.id, cached);
-      return toDetailDto(input.report, input.snapshot, cached.projection);
+      return cached;
     }
-    const payload = await input.loadEvidencePayload();
-    const computed = await this.projectPayload(payload);
+    const computed = await this.projectPayload(
+      await input.loadEvidencePayload(),
+    );
     this.projections.delete(input.report.id);
-    this.projections.set(input.report.id, computed);
+    // Never cache an unavailable graph: a subsequent read may observe a recovered artifact.
+    if (
+      computed.projection.overview.graph_ready === true &&
+      (computed.graphRef === null || computed.artifactVersion !== null)
+    ) {
+      this.projections.set(input.report.id, computed);
+    }
     while (this.projections.size > MAX_CACHED_PROJECTIONS) {
       const [oldest] = this.projections.keys();
       this.projections.delete(oldest);
     }
-    return toDetailDto(input.report, input.snapshot, computed.projection);
+    return computed;
   }
 
   private async projectPayload(
@@ -235,18 +283,24 @@ export class ProgramEvidenceGraphDetailService {
   ): Promise<CachedPayloadProjection> {
     const payload = record(evidencePayload);
     const graph = record(payload?.evidence_graph ?? payload?.evidenceGraph);
-    let artifact: Record<string, unknown> | null = null;
-    const graphRef = text(graph?.evidence_graph_ref ?? graph?.evidenceGraphRef);
-    // Capture the version before reading so a concurrent rewrite invalidates the entry.
+    const rawGraphRef = graph?.evidence_graph_ref ?? graph?.evidenceGraphRef;
+    const graphRef = text(rawGraphRef);
     const artifactVersion = await this.artifactVersion(graphRef);
-    if (graphRef) {
-      try {
-        artifact = await this.storage.readJsonArtifactReference(graphRef);
-      } catch {
-        artifact = null;
+    let sourceGraph = graph;
+    if (rawGraphRef !== undefined && rawGraphRef !== null) {
+      // A missing referenced artifact must not masquerade as a valid empty inline graph.
+      sourceGraph = null;
+      if (graphRef) {
+        try {
+          sourceGraph = record(
+            await this.storage.readJsonArtifactReference(graphRef),
+          );
+        } catch {
+          sourceGraph = null;
+        }
       }
     }
-    const sourceGraph = artifact ?? graph;
+    const graphReady = hasGraphTopology(sourceGraph);
     const paths = projectAiUsageGraph(
       graphNodes(sourceGraph?.nodes),
       graphEdges(sourceGraph?.edges),
@@ -260,24 +314,8 @@ export class ProgramEvidenceGraphDetailService {
       artifactVersion,
       projection: {
         overview: {
-          modules_analyzed: metric(payload, [
-            "modulesAnalyzed",
-            "modules_analyzed",
-          ]),
-          code_symbols_indexed: metric(payload, [
-            "codeSymbolsIndexed",
-            "code_symbols_indexed",
-          ]),
-          ai_model_invocations: metric(payload, [
-            "aiModelInvocations",
-            "ai_model_invocations",
-          ]),
-          evidence_mapped_scope: metric(payload, [
-            "evidenceMappedScope",
-            "evidenceMappedScopePercent",
-            "evidence_mapped_scope",
-            "evidence_mapped_scope_percent",
-          ]),
+          ...this.projectOverview(payload),
+          graph_ready: graphReady,
         },
         paths,
         claims: projectedClaims,
@@ -1228,4 +1266,36 @@ function isSafeReference(value: string): boolean {
     !value.includes("/") &&
     !/\b(token|secret|password|credential|authorization)\b/i.test(value)
   );
+}
+
+/** Validate the topology container independently of metrics or redaction/projection. */
+function hasGraphTopology(graph: Record<string, unknown> | null): boolean {
+  if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges))
+    return false;
+  const nodeIds = new Set<string>();
+  for (const entry of graph.nodes) {
+    const node = record(entry);
+    const id = node?.node_id ?? node?.nodeId;
+    if (typeof id !== "string" || !id.trim() || nodeIds.has(id)) return false;
+    nodeIds.add(id);
+  }
+  const edgeIds = new Set<string>();
+  for (const entry of graph.edges) {
+    const edge = record(entry);
+    const id = edge?.edge_id ?? edge?.edgeId;
+    const source = edge?.source_node_id ?? edge?.sourceNodeId ?? edge?.source;
+    const target = edge?.target_node_id ?? edge?.targetNodeId ?? edge?.target;
+    if (
+      typeof id !== "string" ||
+      !id.trim() ||
+      edgeIds.has(id) ||
+      typeof source !== "string" ||
+      typeof target !== "string" ||
+      !nodeIds.has(source) ||
+      !nodeIds.has(target)
+    )
+      return false;
+    edgeIds.add(id);
+  }
+  return true;
 }

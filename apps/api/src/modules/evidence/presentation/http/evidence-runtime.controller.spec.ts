@@ -85,6 +85,11 @@ function buildPublicEvidenceController() {
       }),
     ),
     projectOverview: jest.fn((payload: unknown) => payload),
+    projectAcceptedOverview: jest.fn(
+      async (input: { loadEvidencePayload: () => Promise<unknown> }) => ({
+        payload: await input.loadEvidencePayload(),
+      }),
+    ),
   };
   const artifacts = {
     getAvailability: jest
@@ -373,6 +378,11 @@ describe("EvidenceController graph lifecycle", () => {
       repositoryScanJobFindFirst,
       graphDetail,
     } = buildPublicEvidenceController();
+    repositoryScanJobFindFirst.mockResolvedValue({
+      id: "scan-done",
+      snapshotId: "snapshot-1",
+      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+    });
     technicalEvidenceReportFindFirst.mockResolvedValue({
       id: "report-accepted",
       assessmentId: "assessment-1",
@@ -401,7 +411,7 @@ describe("EvidenceController graph lifecycle", () => {
       select: { evidencePayload: true },
     });
     expect(graphDetail.projectAcceptedReport).toHaveBeenCalledTimes(1);
-    expect(repositoryScanJobFindFirst).not.toHaveBeenCalled();
+    expect(repositoryScanJobFindFirst).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -439,6 +449,16 @@ describe("EvidenceController assessment artifact reads", () => {
       controller.getInvestigationNotesArtifact("assessment-1", customerRequest),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(artifacts.getInvestigationNotes).not.toHaveBeenCalled();
+  });
+
+  it("denies another customer from reading persisted evidence", async () => {
+    const { controller, assessmentFindUnique } =
+      buildPublicEvidenceController();
+    assessmentFindUnique.mockResolvedValue({ ownerId: "another-owner" });
+
+    await expect(
+      controller.getEvidence("assessment-1", customerRequest),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("allows an admin to read artifact availability", async () => {

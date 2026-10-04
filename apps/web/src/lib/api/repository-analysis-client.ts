@@ -105,6 +105,7 @@ type RepositorySetupPayload = {
 
 export type RerunRepositoryScanInput = {
   snapshotId: string;
+  idempotencyKey?: string;
 };
 
 export type RerunRepositoryScanResult = {
@@ -258,6 +259,7 @@ export async function rerunRepositoryScan(
   assessmentId: string,
   input: RerunRepositoryScanInput,
 ): Promise<RerunRepositoryScanResult> {
+  const idempotencyKey = input.idempotencyKey ?? crypto.randomUUID();
   const response = await apiRequest(
     `/api/assessments/${encodeURIComponent(assessmentId)}/scan-jobs/rerun`,
     {
@@ -265,7 +267,7 @@ export async function rerunRepositoryScan(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         snapshot_id: input.snapshotId,
-        idempotency_key: crypto.randomUUID(),
+        idempotency_key: idempotencyKey,
       }),
     },
   );

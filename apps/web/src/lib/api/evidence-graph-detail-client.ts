@@ -11,6 +11,15 @@ export type ProgramEvidenceGraphOverview = {
   code_symbols_indexed: number | null;
   ai_model_invocations: number | null;
   evidence_mapped_scope: number | null;
+  graph_ready?: boolean;
+  report_id?: string | null;
+  snapshot_id?: string | null;
+  scan_job_id?: string | null;
+};
+
+export type EvidenceGraphFilters = {
+  snapshotId?: string;
+  scanJobId?: string;
 };
 
 export type ProgramEvidenceGraphDetail = {
@@ -135,14 +144,27 @@ export function normalizeProgramEvidenceGraphDetail(
   detail: ProgramEvidenceGraphDetail,
 ): ProgramEvidenceGraphDetail {
   const overview = detail.overview ?? {};
+  const normalizedOverview: ProgramEvidenceGraphOverview = {
+    modules_analyzed: normalizeMetric(overview.modules_analyzed),
+    code_symbols_indexed: normalizeMetric(overview.code_symbols_indexed),
+    ai_model_invocations: normalizeMetric(overview.ai_model_invocations),
+    evidence_mapped_scope: normalizeMetric(overview.evidence_mapped_scope),
+  };
+  if (typeof overview.graph_ready === "boolean") {
+    normalizedOverview.graph_ready = overview.graph_ready;
+  }
+  if (typeof overview.report_id === "string") {
+    normalizedOverview.report_id = overview.report_id;
+  }
+  if (typeof overview.snapshot_id === "string") {
+    normalizedOverview.snapshot_id = overview.snapshot_id;
+  }
+  if (typeof overview.scan_job_id === "string") {
+    normalizedOverview.scan_job_id = overview.scan_job_id;
+  }
   return {
     ...detail,
-    overview: {
-      modules_analyzed: normalizeMetric(overview.modules_analyzed),
-      code_symbols_indexed: normalizeMetric(overview.code_symbols_indexed),
-      ai_model_invocations: normalizeMetric(overview.ai_model_invocations),
-      evidence_mapped_scope: normalizeMetric(overview.evidence_mapped_scope),
-    },
+    overview: normalizedOverview,
     paths: {
       nodes: detail.paths?.nodes ?? [],
       edges: detail.paths?.edges ?? [],
@@ -217,8 +239,9 @@ function normalizeCount(value: unknown): number {
 
 async function getProgramEvidenceGraphDetail(
   assessmentId: string,
+  filters?: EvidenceGraphFilters,
 ): Promise<ProgramEvidenceGraphDetail | null> {
-  const result = await getProgramEvidenceGraphDetailState(assessmentId);
+  const result = await getProgramEvidenceGraphDetailState(assessmentId, filters);
   return result.state === PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.ready
     ? result.detail
     : null;
@@ -226,12 +249,18 @@ async function getProgramEvidenceGraphDetail(
 
 export async function getProgramEvidenceGraphDetailState(
   assessmentId: string,
+  filters?: EvidenceGraphFilters,
 ): Promise<ProgramEvidenceGraphDetailLoadResult> {
+  const searchParams = new URLSearchParams();
+  if (filters?.snapshotId) searchParams.set("snapshotId", filters.snapshotId);
+  if (filters?.scanJobId) searchParams.set("scanJobId", filters.scanJobId);
+  const query = searchParams.toString() ? `?${searchParams.toString()}` : "";
+
   const { payload, ok } = await apiRequest(
-    `/api/assessments/${encodeURIComponent(assessmentId)}/evidence-graph`,
+    `/api/assessments/${encodeURIComponent(assessmentId)}/evidence-graph${query}`,
     { cache: "no-store" },
   );
-  if (ok) {
+  if (ok && isGraphDetailForSelection(payload, filters)) {
     return {
       state: PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.ready,
       detail: normalizeProgramEvidenceGraphDetail(
@@ -248,4 +277,22 @@ export async function getProgramEvidenceGraphDetailState(
       PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.unavailable,
     detail: null,
   };
+}
+
+/** Never display a success response belonging to another source or run. */
+function isGraphDetailForSelection(
+  payload: unknown,
+  filters?: EvidenceGraphFilters,
+): payload is ProgramEvidenceGraphDetail {
+  if (typeof payload !== "object" || payload === null) return false;
+  const detail = payload as Partial<ProgramEvidenceGraphDetail>;
+  const provenance = detail.provenance;
+  return Boolean(
+    detail.repository && detail.overview && detail.paths &&
+    Array.isArray(detail.paths.nodes) && Array.isArray(detail.paths.edges) &&
+    provenance && typeof provenance.evidence_report_id === "string" &&
+    typeof provenance.snapshot_id === "string" && typeof provenance.scan_job_id === "string" &&
+    (!filters?.snapshotId || provenance.snapshot_id === filters.snapshotId) &&
+    (!filters?.scanJobId || provenance.scan_job_id === filters.scanJobId),
+  );
 }

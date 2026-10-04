@@ -39,11 +39,27 @@ type LegalChunkFixture = {
 
 function buildHandler(input: {
   assessment: Assessment | null;
-  acceptedEvidenceReport?: { id: string; evidencePayload?: unknown } | null;
+  scanJob?: { id: string; snapshotId: string; status: string } | null;
+  acceptedEvidenceReport?: {
+    id: string;
+    snapshotId?: string;
+    evidencePayload?: unknown;
+    createdAt?: Date;
+  } | null;
   classificationResult?: {
     guardrailStatus: string;
     classificationData: unknown;
+    createdAt?: Date;
   } | null;
+  classificationResults?: Array<{
+    guardrailStatus: string;
+    classificationData: unknown;
+    verifiedProfile?: { technicalEvidenceReportId: string | null } | null;
+    legalRuleMatch?: {
+      verifiedProfile?: { technicalEvidenceReportId: string | null } | null;
+    } | null;
+    createdAt?: Date;
+  }>;
   legalChunks?: LegalChunkFixture[];
 }) {
   const repository: AssessmentRepository = {
@@ -58,12 +74,42 @@ function buildHandler(input: {
       .fn<AssessmentRepository["findMany"]>()
       .mockResolvedValue({ items: [], total: 0 }),
   };
+  const scanJob =
+    input.scanJob !== undefined
+      ? input.scanJob
+      : input.acceptedEvidenceReport
+        ? {
+            id: "scan-1",
+            snapshotId: input.acceptedEvidenceReport.snapshotId ?? "snapshot-1",
+            status: "COMPLETED",
+          }
+        : null;
+  const acceptedEvidenceReport = input.acceptedEvidenceReport
+    ? {
+        snapshotId: "snapshot-1",
+        createdAt: new Date("2026-09-01T00:00:00.000Z"),
+        ...input.acceptedEvidenceReport,
+      }
+    : null;
+  const classificationResult = input.classificationResult
+    ? {
+        createdAt: new Date("2026-09-01T00:00:01.000Z"),
+        ...input.classificationResult,
+      }
+    : null;
+  const candidateClassifications =
+    input.classificationResults ??
+    (classificationResult ? [classificationResult] : []);
   const prisma = {
+    repositoryScanJob: {
+      findFirst: resolvedMock(scanJob),
+    },
     technicalEvidenceReport: {
-      findFirst: resolvedMock(input.acceptedEvidenceReport ?? null),
+      findFirst: resolvedMock(acceptedEvidenceReport),
     },
     classificationResult: {
-      findFirst: resolvedMock(input.classificationResult ?? null),
+      findFirst: resolvedMock(classificationResult),
+      findMany: resolvedMock(candidateClassifications),
     },
     legalDocumentChunk: {
       findMany: resolvedMock(input.legalChunks ?? []),
@@ -328,5 +374,65 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
         query(assessment.id, AUTH_USER_ROLES.admin, "system-admin-1"),
       ),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it("locks classification and excludes evidence when current scan has no accepted report (e.g. queued rerun)", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({
+      assessment,
+      scanJob: {
+        id: "scan-rerun-2",
+        snapshotId: "snapshot-1",
+        status: "QUEUED",
+      },
+      acceptedEvidenceReport: null,
+      classificationResult: {
+        guardrailStatus: CLASSIFICATION_GUARDRAIL_STATUSES.passed,
+        classificationData: {},
+      },
+    });
+
+    const result = await handler.execute(query(assessment.id));
+    expect(result.readiness_state.classification_locked).toBe(true);
+    expect(result.readiness_state.lock_reason).toBe(
+      ASSESSMENT_LOCK_REASONS.evidenceRequired,
+    );
+    expect(result.classification_result).toBeNull();
+    expect(result.can_rerun_classification).toBe(false);
+  });
+
+  it("does not surface a stale ClassificationResult from Scan A when Scan B report is current", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({
+      assessment,
+      scanJob: {
+        id: "scan-job-b",
+        snapshotId: "snapshot-b",
+        status: "COMPLETED",
+      },
+      acceptedEvidenceReport: {
+        id: "report-b",
+        snapshotId: "snapshot-b",
+        createdAt: new Date("2026-09-02T00:00:00.000Z"),
+      },
+      classificationResults: [
+        {
+          guardrailStatus: CLASSIFICATION_GUARDRAIL_STATUSES.passed,
+          classificationData: {
+            mode: "ENGINEERING_RULE_EVALUATION",
+            status: "COMPLETE",
+            technical_evidence_report_id: "report-a",
+            snapshot_id: "snapshot-a",
+          },
+          createdAt: new Date("2026-09-02T00:05:00.000Z"),
+        },
+      ],
+    });
+
+    const result = await handler.execute(query(assessment.id));
+    expect(result.readiness_state.classification_locked).toBe(false);
+    expect(result.classification_result).toBeNull();
+    expect(result.guardrail_status).toBeNull();
+    expect(result.can_rerun_classification).toBe(true);
   });
 });

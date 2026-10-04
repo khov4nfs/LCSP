@@ -1,0 +1,29 @@
+{
+  "repository": {
+    "repository_full_name": "example/project",
+    "branch": "main",
+    "ref": null,
+    "pinned_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status": "READY"
+  },
+  "overview": {
+    "modules_analyzed": 0,
+    "code_symbols_indexed": 0,
+    "ai_model_invocations": 0,
+    "evidence_mapped_scope": null,
+    "graph_ready": true,
+    "report_id": "report-selected",
+    "snapshot_id": "snapshot-selected",
+    "scan_job_id": "job-selected"
+  },
+  "paths": { "nodes": [], "edges": [] },
+  "claims": [],
+  "provenance": {
+    "evidence_report_id": "report-selected",
+    "snapshot_id": "snapshot-selected",
+    "scan_job_id": "job-selected",
+    "generated_at": "2026-10-02T00:00:00.000Z",
+    "finding": null,
+    "source": null
+  }
+}

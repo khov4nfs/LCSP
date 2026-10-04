@@ -24,14 +24,17 @@ type ScannerStepProps = {
   repository: RepositoryHistory;
   activities: ScannerActivityItem[];
   evidenceReady: boolean;
+  graphReady?: boolean;
   /** "Thinking..." while scanning, then the measured "Thought for N seconds". */
   thinkingLabel?: string;
   programEvidenceSummary: ProgramEvidenceSummaryType;
   canonicalOverview?: ProgramEvidenceGraphOverview | null;
   scanFailed?: boolean;
+  isQueued?: boolean;
   retryScanPending?: boolean;
   retryScanError?: boolean;
   retryScanDisabled?: boolean;
+  isReconnecting?: boolean;
   onRetryScan?: () => void;
 };
 
@@ -40,13 +43,16 @@ export function ScannerStep({
   repository,
   activities,
   evidenceReady,
+  graphReady = false,
   thinkingLabel,
   programEvidenceSummary,
   canonicalOverview,
   scanFailed = false,
+  isQueued = false,
   retryScanPending = false,
   retryScanError = false,
   retryScanDisabled = false,
+  isReconnecting = false,
   onRetryScan,
 }: ScannerStepProps) {
   const canRetryScan = scanFailed && onRetryScan;
@@ -63,16 +69,34 @@ export function ScannerStep({
         <ThinkingLine
           label={
             thinkingLabel ??
-            (evidenceReady
-              ? t("pages.assessmentFlow.thinking.completedWithoutDuration")
-              : t("pages.assessmentFlow.thinking.running"))
+            (scanFailed
+              ? t("pages.assessmentFlow.scanner.failedPlaceholder")
+              : evidenceReady
+                ? t("pages.assessmentFlow.thinking.completedWithoutDuration")
+                : isQueued
+                  ? t("pages.assessmentFlow.scanner.queuedThinking")
+                  : t("pages.assessmentFlow.thinking.running"))
           }
         />
         <AgentMessage className="mt-2 text-muted-foreground">
-          {evidenceReady
-            ? t("pages.assessmentFlow.scanner.completeDescription")
-            : t("pages.assessmentFlow.scanner.runningDescription")}
+          {scanFailed
+            ? t("pages.assessmentFlow.scanner.failedPlaceholder")
+            : evidenceReady
+              ? t(graphReady
+                  ? "pages.assessmentFlow.scanner.completeDescription"
+                  : "pages.assessmentFlow.scanner.graphPendingDescription")
+              : isQueued
+                ? t("pages.assessmentFlow.scanner.queuedDescription")
+                : t("pages.assessmentFlow.scanner.runningDescription")}
         </AgentMessage>
+        {isReconnecting ? (
+          <p
+            className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400"
+            role="status"
+          >
+            {t("pages.assessmentFlow.scanner.reconnecting")}
+          </p>
+        ) : null}
         <div className="mt-3">
           <ScannerActivitySequence activities={activities} />
         </div>
@@ -98,13 +122,15 @@ export function ScannerStep({
           </div>
         ) : null}
         {evidenceReady ? (
-          <ProgramEvidenceSummary
-            className="mt-4"
-            commitSha={repository.commitSha}
-            summary={programEvidenceSummary}
-            canonicalOverview={canonicalOverview}
-            assessmentId={assessmentId}
-          />
+          graphReady ? (
+            <ProgramEvidenceSummary
+              className="mt-4"
+              commitSha={repository.commitSha}
+              summary={programEvidenceSummary}
+              canonicalOverview={canonicalOverview}
+              assessmentId={assessmentId}
+            />
+          ) : null
         ) : null}
       </AgentTurn>
     </>

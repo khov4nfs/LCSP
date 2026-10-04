@@ -114,6 +114,7 @@ describe("RerunScanHandler", () => {
             $transaction: jest.fn((cb: (tx: PrismaService) => unknown) =>
               cb(prisma),
             ),
+            $queryRaw: jest.fn().mockResolvedValue([] as never),
           },
         },
         {
@@ -193,6 +194,16 @@ describe("RerunScanHandler", () => {
     prisma.readinessExport.deleteMany.mockResolvedValue({
       count: 0,
     });
+    prisma.repositorySnapshot.findUnique.mockResolvedValue({
+      id: "snapshot-1",
+      assessmentId: "assessment-1",
+      commitSha: "a".repeat(40),
+    });
+    prisma.assessment.findUnique.mockResolvedValue({
+      id: "assessment-1",
+      ownerId: "user-1",
+      status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+    });
   });
 
   it("throws BadRequestException if idempotencyKey is missing", async () => {
@@ -223,6 +234,7 @@ describe("RerunScanHandler", () => {
     prisma.repositoryScanJob.findUnique.mockResolvedValueOnce({
       id: "job-1",
       assessmentId: "diff-assessment",
+      snapshotId: "snapshot-1",
     });
 
     await expect(handler.execute(defaultCommand)).rejects.toThrow(
@@ -231,7 +243,6 @@ describe("RerunScanHandler", () => {
   });
 
   it("[T05] throws NotFoundException if snapshot not found", async () => {
-    prisma.repositoryScanJob.findUnique.mockResolvedValueOnce(null);
     prisma.repositorySnapshot.findUnique.mockResolvedValueOnce(null);
 
     await expect(handler.execute(defaultCommand)).rejects.toThrow(
@@ -397,7 +408,7 @@ describe("RerunScanHandler", () => {
     expect(outbox.enqueue).toHaveBeenCalled();
   });
 
-  it("deletes prior scan and evidence artifacts for the same snapshot before rerun", async () => {
+  it("preserves prior scan and evidence artifacts for the same snapshot upon rerun", async () => {
     prisma.repositoryScanJob.findUnique.mockResolvedValueOnce(null);
     prisma.repositorySnapshot.findUnique.mockResolvedValueOnce({
       id: "snapshot-1",
@@ -413,23 +424,57 @@ describe("RerunScanHandler", () => {
     prisma.repositoryScanJob.findFirst.mockResolvedValueOnce({
       id: "old-job",
     });
-    prisma.repositoryScanJob.findMany
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: "old-job" }]);
-    prisma.technicalEvidenceReport.findMany.mockResolvedValueOnce([
-      { id: "report-1" },
-    ]);
 
     const result = await handler.execute(defaultCommand);
 
     expect(result.replaces_scan_job_id).toBe("old-job");
+    expect(prisma.technicalEvidenceReport.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.repositoryScanJob.deleteMany).not.toHaveBeenCalled();
+  });
 
-    expect(prisma.technicalEvidenceReport.deleteMany).toHaveBeenCalledWith({
-      where: { id: { in: ["report-1"] } },
+  it("rejects a subsequent rerun with 409 while the earlier job is active", async () => {
+    let activeJob: { id: string } | null = null;
+    prisma.repositoryScanJob.findUnique.mockResolvedValue(null);
+    prisma.repositorySnapshot.findUnique.mockResolvedValue({
+      id: "snapshot-1",
+      assessmentId: "assessment-1",
+      commitSha: "a".repeat(40),
+    });
+    prisma.assessment.findUnique.mockResolvedValue({
+      id: "assessment-1",
+      ownerId: "user-1",
+      status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+    });
+    prisma.repositoryScanJob.findFirst.mockImplementation((args: unknown) => {
+      const where = (args as { where?: { status?: unknown } })?.where;
+      if (where?.status) {
+        return Promise.resolve(activeJob);
+      }
+      return Promise.resolve(null);
+    });
+    prisma.repositoryScanJob.create.mockImplementation(() => {
+      activeJob = { id: "job-1" };
+      return Promise.resolve({} as never);
     });
 
-    expect(prisma.repositoryScanJob.deleteMany).toHaveBeenCalledWith({
-      where: { id: { in: ["old-job"] } },
-    });
+    const command1 = new RerunScanCommand(
+      "assessment-1",
+      "snapshot-1",
+      "idemp-key-1",
+      defaultRbac,
+      "corr-1",
+    );
+    const command2 = new RerunScanCommand(
+      "assessment-1",
+      "snapshot-1",
+      "idemp-key-2",
+      defaultRbac,
+      "corr-2",
+    );
+
+    const result1 = await handler.execute(command1);
+    expect(result1.status).toBe(REPOSITORY_SCAN_JOB_STATUSES.queued);
+
+    await expect(handler.execute(command2)).rejects.toThrow(ConflictException);
   });
 });

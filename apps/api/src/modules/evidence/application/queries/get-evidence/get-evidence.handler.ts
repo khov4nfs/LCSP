@@ -34,9 +34,25 @@ export class GetEvidenceHandler implements IQueryHandler<GetEvidenceQuery> {
       this.throwNotFound(query.correlationId);
     }
 
+    const latestScan = await this.prisma.repositoryScanJob.findFirst({
+      where: {
+        assessmentId: query.assessmentId,
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        snapshotId: true,
+      },
+    });
+    if (!latestScan) {
+      this.throwNotFound(query.correlationId);
+    }
+
     const report = await this.prisma.technicalEvidenceReport.findFirst({
       where: {
         assessmentId: query.assessmentId,
+        scanJobId: latestScan.id,
+        snapshotId: latestScan.snapshotId,
         status: toPrismaEvidenceAcceptanceStatus(
           TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
         ),

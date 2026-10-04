@@ -50,18 +50,24 @@ export function ProgramEvidenceSummary({
 }: ProgramEvidenceSummaryProps) {
   const graphDrawer = useProgramEvidenceGraphDrawer();
   const canonicalSummary = deriveProgramEvidenceSummary({
-    canonicalOverview: canonicalOverview ?? graphDrawer.overview,
+    // Do not reuse metrics from a historical drawer.
+    canonicalOverview,
   });
   // Keep the existing prop for callers during the runtime migration; metric authority is canonicalOverview only.
   void summary;
   const shortSha = commitSha ? commitSha.slice(0, 7) : "";
 
   const resolvedArtifactRef: ArtifactRef | null =
-    artifactRef ??
+    (artifactRef && artifactRef.type === ARTIFACT_TYPES.programEvidenceGraph &&
+      !artifactRef.snapshotId && !artifactRef.scanJobId
+      ? { ...artifactRef, snapshotId: canonicalOverview?.snapshot_id ?? undefined, scanJobId: canonicalOverview?.scan_job_id ?? undefined }
+      : artifactRef) ??
     (assessmentId
       ? {
           assessmentId,
           type: ARTIFACT_TYPES.programEvidenceGraph,
+          snapshotId: canonicalOverview?.snapshot_id ?? undefined,
+          scanJobId: canonicalOverview?.scan_job_id ?? undefined,
         }
       : null);
 

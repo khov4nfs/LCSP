@@ -27,6 +27,8 @@ import {
   type WorkspaceRuntimeContextValue,
 } from "../../types/workspace-runtime.types";
 
+export { WORKSPACE_RUNTIME_CONNECTION_STATES };
+
 const initialRuntime: WorkspaceRuntimeContextValue = {
   connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connecting,
   emittedAt: null,
@@ -319,7 +321,7 @@ export function WorkspaceRuntimeProvider({
             });
             void queryClient.invalidateQueries({
               queryKey:
-                apiQueryKeys.assessment.evidenceGraphOverview(assessmentId),
+                apiQueryKeys.assessment.evidenceGraphOverviewRoot(assessmentId),
             });
             void queryClient.invalidateQueries({
               queryKey: apiQueryKeys.assessment.classification(assessmentId),

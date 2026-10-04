@@ -34,6 +34,9 @@ export type ArtifactRef = {
   assessmentId: string;
   type: ArtifactType;
   resourceId?: string;
+  /** Preserve source/run identity for historical graph selections. */
+  snapshotId?: string;
+  scanJobId?: string;
 };
 
 export type ArtifactListItemModel = {

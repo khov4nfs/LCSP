@@ -27,6 +27,7 @@ export function deriveAssessmentFlowRuntime(input: {
   snapshot: WorkspaceRuntimeRepositorySnapshot | null;
   scanJob: WorkspaceRuntimeScanJob | null;
   evidenceReport: WorkspaceRuntimeEvidenceReport | null;
+  evidenceGraphReady?: boolean;
   recentActivity?: WorkspaceRuntimeActivityItem[];
 }) {
   const scanFailed =
@@ -40,30 +41,28 @@ export function deriveAssessmentFlowRuntime(input: {
       input.scanJob?.snapshotId === input.snapshot.id &&
       (input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
         input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.running ||
-        input.scanJob.status ===
-          REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits),
+        input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits),
   );
   const reportMatchesScan = Boolean(
     input.scanJob &&
-    input.evidenceReport?.scanJobId === input.scanJob.id &&
-    input.evidenceReport.snapshotId === input.scanJob.snapshotId,
+      input.evidenceReport?.scanJobId === input.scanJob.id &&
+      input.evidenceReport.snapshotId === input.scanJob.snapshotId,
   );
   const evidenceAccepted =
     scanCompleted &&
     reportMatchesScan &&
-    input.evidenceReport?.status ===
-      TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted;
+    input.evidenceReport?.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted;
   const evidenceRejected =
     reportMatchesScan &&
-    input.evidenceReport?.status ===
-      TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected;
+    input.evidenceReport?.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected;
+  const evidenceGraphReady = evidenceAccepted && input.evidenceGraphReady === true;
 
   const stage =
     !input.hasRepositoryConnection ||
     !input.snapshot ||
     (input.setupState !== undefined && needsRepositorySetupResume(input.setupState))
       ? ASSESSMENT_FLOW_STAGES.repositorySetup
-      : evidenceAccepted
+      : evidenceAccepted && evidenceGraphReady
         ? ASSESSMENT_FLOW_STAGES.interview
         : ASSESSMENT_FLOW_STAGES.scanner;
 
@@ -86,18 +85,22 @@ export function deriveAssessmentFlowRuntime(input: {
                 ? TOOL_ACTIVITY_STATUSES.failed
                 : scanCompleted
                   ? TOOL_ACTIVITY_STATUSES.completed
-                  : scanActive
+                  : input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.running
                     ? TOOL_ACTIVITY_STATUSES.running
                     : TOOL_ACTIVITY_STATUSES.pending
               : activity.id === SCANNER_ACTIVITY_IDS.buildGraph
-                ? scanCompleted || evidenceAccepted || evidenceRejected
-                  ? TOOL_ACTIVITY_STATUSES.completed
-                  : TOOL_ACTIVITY_STATUSES.pending
-                : evidenceAccepted
+                ? evidenceGraphReady
                   ? TOOL_ACTIVITY_STATUSES.completed
                   : evidenceRejected
                     ? TOOL_ACTIVITY_STATUSES.failed
                     : scanCompleted
+                      ? TOOL_ACTIVITY_STATUSES.running
+                      : TOOL_ACTIVITY_STATUSES.pending
+                : evidenceAccepted && evidenceGraphReady
+                  ? TOOL_ACTIVITY_STATUSES.completed
+                  : evidenceRejected
+                    ? TOOL_ACTIVITY_STATUSES.failed
+                    : evidenceGraphReady
                       ? TOOL_ACTIVITY_STATUSES.running
                       : TOOL_ACTIVITY_STATUSES.pending,
     }),
@@ -109,6 +112,7 @@ export function deriveAssessmentFlowRuntime(input: {
     scanFailed,
     scanActive,
     evidenceAccepted,
+    evidenceGraphReady,
     programEvidenceSummary: deriveProgramEvidenceSummary({
       recentActivity: input.recentActivity,
     }),

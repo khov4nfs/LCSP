@@ -11,7 +11,7 @@ test("refetches graph detail when opening after an unavailable initial result", 
   const source = await readFile(providerPath, "utf8");
 
   assert.match(source, /const loadDetail = useCallback/);
-  assert.match(source, /getProgramEvidenceGraphDetailState\(assessmentId\)/);
+  assert.match(source, /getProgramEvidenceGraphDetailState\(assessmentId, \{/);
   assert.match(
     source,
     /setDetail\(value\.detail\);\s*setLoadState\(value\.state\);/,
@@ -62,4 +62,14 @@ test("keeps polling only while the open drawer's graph is still building", async
     source,
     /PROGRAM_EVIDENCE_GRAPH_UNAVAILABLE_MESSAGE_KEYS\[loadState\]/,
   );
+});
+
+
+test("pins the selected source/run through drawer reads and clears stale details on selection", async () => {
+  const source = await readFile(providerPath, "utf8");
+  assert.match(source, /selectedGraphRef.current = ref/);
+  assert.match(source, /snapshotId: selectedGraphRef.current\?\.snapshotId/);
+  assert.match(source, /scanJobId: selectedGraphRef.current\?\.scanJobId/);
+  assert.match(source, /setDetail\(null\)/);
+  assert.match(source, /onOpenChange=\{handleGraphOpenChange\}/);
 });

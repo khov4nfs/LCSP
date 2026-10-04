@@ -190,6 +190,29 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     assertNotFound(unsafeProvenance.status, unsafeProvenance.body);
   });
 
+  it("T08: When a new rerun scan is queued, prior accepted report A is not returned as current evidence", async () => {
+    await createReport({
+      id: "report-scan-a",
+      createdAt: new Date("2026-07-18T00:00:00.000Z"),
+    });
+
+    // Create a new rerun scan job on the same snapshot
+    await prisma.repositoryScanJob.create({
+      data: {
+        id: "scan-job-rerun-b",
+        assessmentId: ASSESSMENT_ID,
+        snapshotId: "snapshot-report-scan-a",
+        idempotencyKey: "idemp-rerun-b",
+        triggerSource: "MANUAL",
+        status: "QUEUED",
+        correlationId: "corr-rerun-b",
+      },
+    });
+
+    const result = await getEvidence(managerToken, "corr-evidence-rerun-b");
+    assertNotFound(result.status, result.body);
+  });
+
   async function signIn(email: string, password: string): Promise<string> {
     const result = await httpRequest(app).post("/auth/sign-in").send({
       email,

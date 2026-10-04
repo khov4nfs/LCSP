@@ -123,6 +123,7 @@ describe("Program Evidence Graph ownership (e2e)", () => {
     assert.deepEqual(problemBody(pending).meta, {
       scanJobId: "scan-building-evidence",
       scanStatus: REPOSITORY_SCAN_JOB_STATUSES.running,
+      snapshotId: "snapshot-building-evidence",
     });
   });
 
@@ -151,6 +152,7 @@ describe("Program Evidence Graph ownership (e2e)", () => {
     assert.deepEqual(problemBody(failed).meta, {
       scanJobId: "scan-failed-evidence",
       scanStatus: REPOSITORY_SCAN_JOB_STATUSES.failed,
+      snapshotId: "snapshot-failed-evidence",
     });
   });
 
@@ -214,7 +216,9 @@ describe("Program Evidence Graph ownership (e2e)", () => {
         snapshotId: `snapshot-${assessmentId}`,
         toolsVersion: { scanner: "1" },
         configHash: { scanner: "hash" },
-        evidencePayload: {},
+        evidencePayload: {
+          evidence_graph: { nodes: [], edges: [] },
+        },
         privacyFlags: { containsSourceCode: false, secretsRedacted: true },
         schemaVersion: "1.0.0",
         status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,

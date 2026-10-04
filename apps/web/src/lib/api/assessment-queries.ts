@@ -36,6 +36,7 @@ import {
   requestGapAnalysis,
 } from "./document-client";
 import { getTechnicalEvidence } from "./evidence-client";
+import type { EvidenceGraphFilters } from "./evidence-graph-detail-client";
 import { getProgramEvidenceGraphOverview } from "./evidence-graph-overview-client";
 import { API_OUTCOME_KINDS } from "./outcome-kinds";
 import { apiQueryKeys } from "./query-keys";
@@ -317,10 +318,18 @@ export function useTechnicalEvidenceQuery(assessmentId: string) {
   });
 }
 
-export function useProgramEvidenceGraphOverviewQuery(assessmentId: string) {
+export function useProgramEvidenceGraphOverviewQuery(
+  assessmentId: string,
+  filters?: EvidenceGraphFilters,
+) {
   return useQuery({
-    queryKey: apiQueryKeys.assessment.evidenceGraphOverview(assessmentId),
-    queryFn: () => getProgramEvidenceGraphOverview(assessmentId),
+    queryKey: apiQueryKeys.assessment.evidenceGraphOverview(
+      assessmentId,
+      filters,
+    ),
+    queryFn: () => getProgramEvidenceGraphOverview(assessmentId, filters),
+    // Storage availability may recover without a new scan-status event.
+    refetchInterval: (query) => query.state.data?.graph_ready === false ? 5_000 : false,
     enabled: assessmentId.length > 0,
   });
 }
