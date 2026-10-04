@@ -6,6 +6,7 @@ import {
   projectStreamRows,
   type ProjectedStreamRow,
 } from "./agent-stream-projection";
+import { aggregateToolUsage } from "./agent-stream-usage";
 
 const VISIBLE_TOOL_ACTIVITIES = new Set([
   "codebaseGraphQueried",
@@ -42,30 +43,49 @@ export function projectAgentStreamActivityLog(
 ): AgentStreamActivityLogRow[] {
   const buckets = new Map<
     string,
-    { first: ProjectedStreamRow; latest: ProjectedStreamRow; count: number }
+    {
+      first: ProjectedStreamRow;
+      latest: ProjectedStreamRow;
+      count: number;
+      occurrences: ProjectedStreamRow[];
+    }
   >();
   for (const row of projectStreamRows(events)) {
     const key = visibleActivityKey(row);
     if (key === null) continue;
     const bucket = buckets.get(key);
     if (!bucket) {
-      buckets.set(key, { first: row, latest: row, count: 1 });
+      buckets.set(key, {
+        first: row,
+        latest: row,
+        count: 1,
+        occurrences: [row],
+      });
       continue;
     }
     bucket.count += 1;
+    bucket.occurrences.push(row);
     if (row.sequence >= bucket.latest.sequence) bucket.latest = row;
     if (row.firstSequence < bucket.first.firstSequence) bucket.first = row;
   }
   return [...buckets.entries()]
     .sort(([, a], [, b]) => a.first.firstSequence - b.first.firstSequence)
-    .map(([key, { latest, count }]) => ({
-      key,
-      label: latest.label,
-      target: latest.target,
-      count,
-      status: latest.status,
-      failed: latest.failed,
-      kind: latest.kind,
-      activity: latest.activity,
-    }));
+    .map(([key, { latest, count, occurrences }]) => {
+      const aggregate =
+        latest.kind === "tool" ? aggregateToolUsage(occurrences) : undefined;
+      return {
+        key,
+        label: latest.label,
+        target: latest.target,
+        count,
+        status: latest.status,
+        failed: latest.failed,
+        kind: latest.kind,
+        activity: latest.activity,
+        usage: aggregate?.usage,
+        sharedUsage:
+          aggregate?.countedModelSteps === 0 &&
+          occurrences.some((row) => row.usageAttribution !== undefined),
+      };
+    });
 }

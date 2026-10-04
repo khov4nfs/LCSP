@@ -331,6 +331,11 @@ export type PagesMessages = {
       rawEvents: string;
     };
     agentStreamUsage: {
+      turnTotal: string;
+      runtimeTotal: string;
+      shared: string;
+      partial: string;
+      unavailable: string;
       input: string;
       output: string;
       total: string;

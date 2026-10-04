@@ -1,10 +1,12 @@
 import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 
 import { appLocale } from "@/lib/locale";
+import { agentStreamRuntimeRunId } from "./agent-stream-identity";
 
 import {
   USAGE_COMPACT_METRIC_LIMIT,
@@ -13,7 +15,12 @@ import {
   USAGE_DETAIL_KEY_PATTERN,
   USAGE_METRIC_LABEL_KEYS,
 } from "../config/agent-stream-usage";
-import type { StreamRowUsage } from "../types/agent-stream-usage.types";
+import type {
+  StreamRowUsage,
+  StreamUsageAggregate,
+  StreamUsageOccurrence,
+  ToolUsageAttribution,
+} from "../types/agent-stream-usage.types";
 
 type Rec = Record<string, unknown>;
 
@@ -58,7 +65,8 @@ function eventDurationMs(
   const reported = count(data.duration_ms);
   if (reported !== undefined) return reported;
   if (!started) return undefined;
-  const elapsed = Date.parse(completed.emittedAt) - Date.parse(started.emittedAt);
+  const elapsed =
+    Date.parse(completed.emittedAt) - Date.parse(started.emittedAt);
   return Number.isFinite(elapsed) && elapsed > 0 ? elapsed : undefined;
 }
 
@@ -71,7 +79,10 @@ export function modelTurnUsage(
 ): StreamRowUsage | undefined {
   const completed = events
     .filter(
-      (e) => e.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted,
+      (e) =>
+        e.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted &&
+        e.status !== ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
     )
     .reduce<AssessmentAgentStreamEvent | undefined>(
       (a, b) => (!a || b.sequence >= a.sequence ? b : a),
@@ -113,6 +124,167 @@ export function toolCallMetrics(
   });
 }
 
+/** Select numeric token metadata only; model duration is never a tool duration. */
+function tokenUsage(
+  usage: StreamRowUsage | undefined,
+): StreamRowUsage | undefined {
+  return defined({
+    inputTokens: usage?.inputTokens,
+    outputTokens: usage?.outputTokens,
+    totalTokens: usage?.totalTokens,
+    details: usage?.details,
+  });
+}
+
+function stepIdentity(event: AssessmentAgentStreamEvent): string | undefined {
+  const step = record(event.data)?.model_step_id;
+  return typeof step === "string" && step.length > 0
+    ? JSON.stringify([
+        event.assessmentId,
+        agentStreamRuntimeRunId(event) ?? event.runId,
+        "step",
+        step,
+      ])
+    : undefined;
+}
+
+function messageIdentity(
+  event: AssessmentAgentStreamEvent,
+): string | undefined {
+  const data = record(event.data);
+  const message = event.messageId ?? data?.message_id;
+  return typeof message === "string" && message.length > 0
+    ? JSON.stringify([
+        event.assessmentId,
+        agentStreamRuntimeRunId(event) ?? event.runId,
+        "message",
+        message,
+      ])
+    : undefined;
+}
+
+/**
+ * Exact links only. Never pair a tool with the nearest/open model call: parallel
+ * steps and historical streams make that guess unsafe for accounting.
+ * Last successful completion owns a step's usage, including provider fallback.
+ */
+export function attributeToolUsage(
+  events: AssessmentAgentStreamEvent[],
+  occurrences: Array<{
+    row: StreamUsageOccurrence;
+    events: AssessmentAgentStreamEvent[];
+  }>,
+): Map<string, ToolUsageAttribution> {
+  const messageSteps = new Map<string, Set<string>>();
+  const completedMessages = new Set(
+    events
+      .filter(
+        (event) =>
+          event.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted,
+      )
+      .map(messageIdentity),
+  );
+  for (const event of events) {
+    const step = stepIdentity(event);
+    const message = messageIdentity(event);
+    if (!step || !message) continue;
+    const links = messageSteps.get(message) ?? new Set<string>();
+    links.add(step);
+    messageSteps.set(message, links);
+  }
+  const identity = (event: AssessmentAgentStreamEvent) => {
+    const step = stepIdentity(event);
+    if (step) return step;
+    const message = messageIdentity(event);
+    const links = message ? messageSteps.get(message) : undefined;
+    if (links && links.size !== 1) return undefined;
+    return links
+      ? [...links][0]
+      : completedMessages.has(message)
+        ? message
+        : undefined;
+  };
+  const records = new Map<string, AssessmentAgentStreamEvent[]>();
+  for (const event of events) {
+    if (
+      event.eventType !== ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted
+    )
+      continue;
+    const key = identity(event);
+    if (!key) continue;
+    records.set(key, [...(records.get(key) ?? []), event]);
+  }
+  const usageByStep = new Map<string, StreamRowUsage>();
+  for (const [key, completed] of records) {
+    const usage = tokenUsage(modelTurnUsage(completed));
+    if (usage) usageByStep.set(key, usage);
+  }
+  const owners = new Set<string>();
+  const attributed = new Map<string, ToolUsageAttribution>();
+  for (const occurrence of [...occurrences].sort(
+    (a, b) =>
+      a.row.firstSequence - b.row.firstSequence ||
+      a.row.id.localeCompare(b.row.id),
+  )) {
+    const keys = new Set(
+      occurrence.events.map(identity).filter((key) => key !== undefined),
+    );
+    if (keys.size !== 1) continue;
+    const key = [...keys][0]!;
+    const usage = usageByStep.get(key);
+    if (!usage) continue;
+    attributed.set(occurrence.row.id, {
+      identity: key,
+      accountingOwner: !owners.has(key),
+      usage,
+    });
+    owners.add(key);
+  }
+  return attributed;
+}
+
+/** One arithmetic path for groups, turns and runs; projections are never added. */
+export function aggregateToolUsage(
+  rows: StreamUsageOccurrence[],
+): StreamUsageAggregate {
+  const counted = new Map<string, StreamRowUsage>();
+  let partial = false;
+  const visit = (row: StreamUsageOccurrence) => {
+    if (row.completedTurns) {
+      row.completedTurns.forEach(visit);
+      return;
+    }
+    if (row.kind !== "tool") return;
+    const attribution = row.usageAttribution;
+    if (!attribution) partial = true;
+    else if (attribution.accountingOwner) {
+      counted.set(attribution.identity, attribution.usage);
+      if (attribution.usage.totalTokens === undefined) partial = true;
+    }
+  };
+  rows.forEach(visit);
+  const sum: StreamRowUsage = {};
+  for (const usage of counted.values()) {
+    for (const key of ["inputTokens", "outputTokens", "totalTokens"] as const) {
+      if (usage[key] !== undefined) sum[key] = (sum[key] ?? 0) + usage[key];
+    }
+    if (usage.details) {
+      sum.details ??= {};
+      for (const [key, value] of Object.entries(usage.details)) {
+        Object.defineProperty(sum.details, key, {
+          value:
+            (Object.hasOwn(sum.details, key) ? sum.details[key]! : 0) + value,
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
+      }
+    }
+  }
+  return { usage: defined(sum), countedModelSteps: counted.size, partial };
+}
+
 function t(key: MessageKey) {
   return resolveMessage(appLocale, key);
 }
@@ -122,7 +294,9 @@ function fill(key: MessageKey, value: string) {
 }
 
 function num(value: number, maximumFractionDigits = 1) {
-  return new Intl.NumberFormat(appLocale, { maximumFractionDigits }).format(value);
+  return new Intl.NumberFormat(appLocale, { maximumFractionDigits }).format(
+    value,
+  );
 }
 
 export function formatTokenCount(value: number): string {
@@ -165,7 +339,9 @@ export function usageFooterParts(usage: StreamRowUsage | undefined): string[] {
   if (!usage) return [];
   const parts: string[] = [];
   const duration =
-    usage.durationMs === undefined ? [] : [formatUsageDuration(usage.durationMs)];
+    usage.durationMs === undefined
+      ? []
+      : [formatUsageDuration(usage.durationMs)];
   const isTool =
     usage.bytes !== undefined ||
     usage.lines !== undefined ||
@@ -173,17 +349,19 @@ export function usageFooterParts(usage: StreamRowUsage | undefined): string[] {
   if (!isTool) parts.push(...duration);
   const p = "pages.appShell.agentStreamUsage.";
   if (usage.inputTokens !== undefined) {
-    parts.push(fill(`${p}input` as MessageKey, formatTokenCount(usage.inputTokens)));
+    parts.push(
+      fill(`${p}input` as MessageKey, formatTokenCount(usage.inputTokens)),
+    );
   }
   if (usage.outputTokens !== undefined) {
-    parts.push(fill(`${p}output` as MessageKey, formatTokenCount(usage.outputTokens)));
+    parts.push(
+      fill(`${p}output` as MessageKey, formatTokenCount(usage.outputTokens)),
+    );
   }
-  if (
-    usage.inputTokens === undefined &&
-    usage.outputTokens === undefined &&
-    usage.totalTokens !== undefined
-  ) {
-    parts.push(fill(`${p}total` as MessageKey, formatTokenCount(usage.totalTokens)));
+  if (usage.totalTokens !== undefined) {
+    parts.push(
+      fill(`${p}total` as MessageKey, formatTokenCount(usage.totalTokens)),
+    );
   }
   if (usage.details) parts.push(...compactDetails(usage.details));
   if (usage.lines !== undefined) {

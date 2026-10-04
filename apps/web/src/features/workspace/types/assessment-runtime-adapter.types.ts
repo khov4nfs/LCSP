@@ -39,6 +39,7 @@ import type {
   ArtifactStatus,
   ArtifactType,
 } from "@/features/artifacts/types/artifact.types";
+import type { StreamUsageAggregate } from "./agent-stream-usage.types";
 
 export const ASSESSMENT_RUNTIME_AVAILABILITIES = {
   loading: "LOADING",
@@ -297,6 +298,7 @@ export type NormalizedAssessmentIntegration = {
 };
 
 export type NormalizedAssessmentRuntime = {
+  tokenUsage?: StreamUsageAggregate;
   availability: AssessmentRuntimeAvailability;
   connectionState: WorkspaceRuntimeConnectionState;
   identity: NormalizedAssessmentIdentity;

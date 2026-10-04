@@ -309,6 +309,11 @@ export const viPages = {
       rawEvents: "Sự kiện gốc",
     },
     agentStreamUsage: {
+      turnTotal: "Token sử dụng trong lượt",
+      runtimeTotal: "Tổng token sử dụng",
+      shared: "Token dùng chung · chỉ tính một lần",
+      partial: "Chưa đủ dữ liệu token cho một số công cụ",
+      unavailable: "Chưa có dữ liệu token",
       input: "{value} đầu vào",
       output: "{value} đầu ra",
       total: "{value} token",

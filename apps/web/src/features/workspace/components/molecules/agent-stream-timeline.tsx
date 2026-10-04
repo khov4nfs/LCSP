@@ -216,9 +216,7 @@ export function AgentStreamTimeline({
 
   return (
     <AgentTurn className={className}>
-      <AgentMessage>
-        {detailsBlock}
-      </AgentMessage>
+      <AgentMessage>{detailsBlock}</AgentMessage>
     </AgentTurn>
   );
 }
@@ -393,6 +391,14 @@ function StreamRowView({
                 data-stream-turn={turn.id}
                 className="min-w-0 py-2"
               >
+                {turn.target ? (
+                  <p
+                    data-stream-target
+                    className="truncate font-mono text-xs text-muted-foreground"
+                  >
+                    {turn.target}
+                  </p>
+                ) : null}
                 {turn.detail ? (
                   <div
                     data-stream-detail
@@ -402,7 +408,11 @@ function StreamRowView({
                   </div>
                 ) : null}
                 <StreamTechnicalDetails row={turn} labels={labels} />
-                <AgentStreamUsageFooter usage={turn.usage} className="mt-1" />
+                <AgentStreamUsageFooter
+                  usage={turn.usage}
+                  shared={turn.usageAttribution?.accountingOwner === false}
+                  className="mt-1"
+                />
               </div>
             ))}
           </div>
@@ -419,9 +429,18 @@ function StreamRowView({
           <StreamTechnicalDetails row={row} labels={labels} />
         ) : null}
       </details>
-      {!row.completedTurns ? (
-        <AgentStreamUsageFooter usage={row.usage} className="px-2.5 pt-0.5" />
-      ) : null}
+      <AgentStreamUsageFooter
+        usage={row.usage}
+        shared={
+          row.completedTurns
+            ? row.usageAggregate?.countedModelSteps === 0 &&
+              row.completedTurns.some(
+                (turn) => turn.usageAttribution !== undefined,
+              )
+            : row.usageAttribution?.accountingOwner === false
+        }
+        className="px-2.5 pt-0.5"
+      />
     </div>
   );
 }

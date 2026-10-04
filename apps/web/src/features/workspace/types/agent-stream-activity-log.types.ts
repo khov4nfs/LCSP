@@ -1,4 +1,5 @@
 import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
+import type { StreamRowUsage } from "./agent-stream-usage.types";
 
 import type {
   AgentStreamRunOutcome,
@@ -19,6 +20,8 @@ export type AgentStreamActivityLogRow = {
   failed: boolean;
   kind: StreamRowKind;
   activity: StreamActivityKey | null;
+  usage?: StreamRowUsage;
+  sharedUsage?: boolean;
 };
 
 export type AgentStreamActivityLogProps = {

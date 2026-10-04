@@ -9,10 +9,22 @@ import {
 import { resolveMessage } from "@lcsp/i18n";
 import { appLocale } from "@/lib/locale";
 import type { AgentStreamRuleHeader } from "../types/agent-stream-rule.types";
-import type { StreamRowUsage } from "../types/agent-stream-usage.types";
+import type {
+  StreamRowUsage,
+  ToolUsageAttribution,
+  StreamUsageAggregate,
+} from "../types/agent-stream-usage.types";
 import type { WorkspaceRuntimeAgentStreamHistoryState } from "../types/workspace-runtime.types";
-import { modelTurnUsage, toolCallMetrics } from "./agent-stream-usage";
-import { agentStreamTurnKey } from "./agent-stream-identity";
+import {
+  modelTurnUsage,
+  toolCallMetrics,
+  attributeToolUsage,
+  aggregateToolUsage,
+} from "./agent-stream-usage";
+import {
+  agentStreamTurnKey,
+  agentStreamRuntimeRunId,
+} from "./agent-stream-identity";
 import {
   isAgentStreamRuleLifecycleEvent,
   projectAgentStreamRuleHeaders,
@@ -74,8 +86,10 @@ export type ProjectedStreamRow = {
   scope: string;
   /** Model rows only: provider tries folded into this one logical turn. */
   providerAttempts?: number;
-  /** Provider-reported usage (model) or tool result size (tool); absent when unreported. */
+  /** Provider-reported tokens alongside tool payload metrics, when correlated. */
   usage?: StreamRowUsage;
+  usageAttribution?: ToolUsageAttribution;
+  usageAggregate?: StreamUsageAggregate;
   completedTurns?: ProjectedStreamRow[];
 };
 
@@ -165,7 +179,8 @@ export function withoutRoutingEvents(
 ): AssessmentAgentStreamEvent[] {
   return events.filter(
     (event) =>
-      event.eventType !== ASSESSMENT_AGENT_STREAM_EVENT_TYPES.credentialRotation &&
+      event.eventType !==
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.credentialRotation &&
       event.eventType !== ASSESSMENT_AGENT_STREAM_EVENT_TYPES.providerFallback,
   );
 }
@@ -173,8 +188,12 @@ export function withoutRoutingEvents(
 export function projectStreamRows(
   events: AssessmentAgentStreamEvent[],
 ): ProjectedStreamRow[] {
-  const sorted = [...events].sort(
-    (left, right) => left.sequence - right.sequence,
+  const sorted = [
+    ...new Map(events.map((event) => [event.eventId, event])).values(),
+  ].sort(
+    (left, right) =>
+      left.sequence - right.sequence ||
+      left.eventId.localeCompare(right.eventId),
   );
   // Recovery cutoffs read historical fallback events, so compute them first.
   const recoveredProviderFailures = recoveredProviderFailureCutoffs(sorted);
@@ -189,7 +208,10 @@ export function projectStreamRows(
   const semanticModelOutputIds = new Set<string>();
   const semanticReasoningIds = new Set<string>();
   const modelTurnKeys = logicalModelTurnKeys(ordered);
-  const logicalEvents = new Map<ProjectedStreamRow, AssessmentAgentStreamEvent[]>();
+  const logicalEvents = new Map<
+    ProjectedStreamRow,
+    AssessmentAgentStreamEvent[]
+  >();
   const toolRowsByCall = new Map<string, ProjectedStreamRow>();
   const endedTurns = new Set<ProjectedStreamRow>();
   const pendingRuntimeByCall = new Map<string, AssessmentAgentStreamEvent[]>();
@@ -205,7 +227,8 @@ export function projectStreamRows(
         semantic.kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolResult)
     ) {
       semanticToolIds.add(toolIdentity);
-      if (event.toolCallId) semanticCallKeys.add(`${event.runId}:${event.toolCallId}`);
+      if (event.toolCallId)
+        semanticCallKeys.add(`${event.runId}:${event.toolCallId}`);
     }
     if (
       semantic.kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelOutput &&
@@ -314,7 +337,11 @@ export function projectStreamRows(
       continue;
     }
 
-    const aiKey = aiActivityKey(event, semantic, modelTurnKeys.get(event.eventId));
+    const aiKey = aiActivityKey(
+      event,
+      semantic,
+      modelTurnKeys.get(event.eventId),
+    );
     if (aiKey) {
       let aiRow = aiRows.get(aiKey);
       if (!aiRow) {
@@ -335,7 +362,8 @@ export function projectStreamRows(
       applyAiActivity(aiRow, event, semantic, aiStreamedText);
       if (ended) {
         if (
-          event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallStarted
+          event.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallStarted
         ) {
           endedTurns.delete(aiRow);
         } else if (aiRow.status === "running") {
@@ -344,9 +372,12 @@ export function projectStreamRows(
       }
       if (aiRow.status === "completed" || aiRow.status === "failed") {
         if (
-          event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted ||
-          event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallFailed ||
-          event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallTimeout ||
+          event.eventType ===
+            ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted ||
+          event.eventType ===
+            ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallFailed ||
+          event.eventType ===
+            ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallTimeout ||
           event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelResult
         ) {
           endedTurns.add(aiRow);
@@ -408,6 +439,7 @@ export function projectStreamRows(
     if (runtimeProgressKey) {
       const existing = runtimeRows.get(runtimeProgressKey);
       if (existing) {
+        logicalEvents.get(existing)?.push(event);
         const updated = toStreamRow(event);
         existing.sequence = event.sequence;
         existing.label = updated.label;
@@ -425,6 +457,7 @@ export function projectStreamRows(
       const projected = toStreamRow(event);
       rows.push(projected);
       runtimeRows.set(runtimeProgressKey, projected);
+      if (projected.kind === "tool") logicalEvents.set(projected, [event]);
       previousMergeKey = null;
       continue;
     }
@@ -442,15 +475,27 @@ export function projectStreamRows(
     }
     const projected = toStreamRow(event);
     rows.push(projected);
+    if (projected.kind === "tool") logicalEvents.set(projected, [event]);
     previousMergeKey = mergeKey;
   }
 
+  const attributions = attributeToolUsage(
+    sorted,
+    [...logicalEvents].flatMap(([row, rowEvents]) =>
+      row.kind === "tool" ? [{ row, events: rowEvents }] : [],
+    ),
+  );
   for (const [projected, rowEvents] of logicalEvents) {
+    projected.usageAttribution = attributions.get(projected.id);
+    const metrics =
+      projected.kind === "tool" ? toolCallMetrics(rowEvents) : undefined;
     projected.usage =
       projected.kind === "model"
         ? modelTurnUsage(rowEvents)
         : projected.kind === "tool"
-          ? toolCallMetrics(rowEvents)
+          ? projected.usageAttribution
+            ? { ...metrics, ...projected.usageAttribution.usage }
+            : metrics
           : undefined;
     projected.technical = withLogicalDetails(projected, rowEvents);
     projected.providerAttempts =
@@ -459,6 +504,41 @@ export function projectStreamRows(
         : undefined;
   }
   return finalizeProjectedRows(rows, ordered);
+}
+
+export function projectAgentStreamUsage(
+  events: AssessmentAgentStreamEvent[],
+): StreamUsageAggregate {
+  return aggregateToolUsage(projectStreamRows(events));
+}
+
+/** Current generation only. A reused scan-job id must not bring older native runs along. */
+export function projectCurrentRunUsage(
+  events: AssessmentAgentStreamEvent[],
+  activeRunId: string | null,
+  activeRuntimeRunId?: string | null,
+): StreamUsageAggregate {
+  if (!activeRunId && !activeRuntimeRunId) return aggregateToolUsage([]);
+  const scoped = activeRuntimeRunId
+    ? events.filter(
+        (event) => agentStreamRuntimeRunId(event) === activeRuntimeRunId,
+      )
+    : events.filter((event) => event.runId === activeRunId);
+  const latestNative = [...scoped]
+    .sort(
+      (a, b) =>
+        a.emittedAt.localeCompare(b.emittedAt) || a.sequence - b.sequence,
+    )
+    .filter((event) => agentStreamRuntimeRunId(event) !== undefined)
+    .at(-1);
+  const nativeId =
+    activeRuntimeRunId ??
+    (latestNative && agentStreamRuntimeRunId(latestNative));
+  return projectAgentStreamUsage(
+    nativeId
+      ? scoped.filter((event) => agentStreamRuntimeRunId(event) === nativeId)
+      : scoped,
+  );
 }
 
 function foldRuntimeToolEvent(
@@ -480,9 +560,12 @@ function modelRoutingSummary(events: AssessmentAgentStreamEvent[]): {
   const final = events
     .filter(
       (event) =>
-        event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted ||
-        event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallFailed ||
-        event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallTimeout,
+        event.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted ||
+        event.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallFailed ||
+        event.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallTimeout,
     )
     .reduce<AssessmentAgentStreamEvent | undefined>(
       (a, b) => (!a || b.sequence >= a.sequence ? b : a),
@@ -544,7 +627,8 @@ function withLogicalDetails(
       ...events.map((event) => event.messageId),
       ...datas.map((d) => d?.requestId),
     ]);
-    details.modelStepId = uniqueStrings(datas.map((d) => d?.model_step_id))[0] ?? null;
+    details.modelStepId =
+      uniqueStrings(datas.map((d) => d?.model_step_id))[0] ?? null;
     details.errors = uniqueStrings(
       datas.flatMap((d) => [d?.error_type, d?.error_code, d?.reason]),
     );
@@ -554,8 +638,14 @@ function withLogicalDetails(
         event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallFailed,
     ).length;
   } else {
-    details.tool = uniqueStrings(events.map((event) => event.toolName))[0] ?? null;
-    details.callId = uniqueStrings(events.map((event) => event.toolCallId))[0] ?? null;
+    if (projected.usageAttribution) {
+      details.usageIdentity = projected.usageAttribution.identity;
+      details.accountingOwner = projected.usageAttribution.accountingOwner;
+    }
+    details.tool =
+      uniqueStrings(events.map((event) => event.toolName))[0] ?? null;
+    details.callId =
+      uniqueStrings(events.map((event) => event.toolCallId))[0] ?? null;
     details.runtimeEventTypes = uniqueStrings(
       datas.map((d) => d?.runtimeEventType),
     );
@@ -629,6 +719,8 @@ export function groupRepeatedActivities(
     const latest = turns.reduce((left, right) =>
       right.sequence >= left.sequence ? right : left,
     );
+    const usageAggregate =
+      current.kind === "tool" ? aggregateToolUsage(turns) : undefined;
     grouped[position] = {
       ...latest,
       id: previous.id,
@@ -637,6 +729,12 @@ export function groupRepeatedActivities(
         ? STREAM_ROW_STATUSES.running
         : latest.status,
       completedTurns: turns,
+      ...(usageAggregate
+        ? {
+            usage: usageAggregate.usage,
+            usageAggregate,
+          }
+        : {}),
     };
   }
   return grouped;
@@ -1868,7 +1966,8 @@ export function isAiActivityEvent(
   semantic: SemanticRecord | null,
 ): boolean {
   return (
-    semantic?.kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.reasoningSummary ||
+    semantic?.kind ===
+      ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.reasoningSummary ||
     AI_ACTIVITY_EVENT_TYPES.has(event.eventType)
   );
 }
@@ -1924,12 +2023,15 @@ export function logicalModelTurnKeys(
         step = { key, bound: boundKeys.has(key), open: false };
         steps.push(step);
       }
-      if (event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallStarted) {
+      if (
+        event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallStarted
+      ) {
         step.open = true;
       } else if (
         event.eventType ===
           ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted ||
-        event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallFailed ||
+        event.eventType ===
+          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallFailed ||
         event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallTimeout
       ) {
         step.open = false;
@@ -1937,8 +2039,11 @@ export function logicalModelTurnKeys(
       keys.set(event.eventId, key);
       continue;
     }
-    if (event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.credentialRotation) {
-      const step = steps.filter((candidate) => candidate.open).at(-1) ?? steps.at(-1);
+    if (
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.credentialRotation
+    ) {
+      const step =
+        steps.filter((candidate) => candidate.open).at(-1) ?? steps.at(-1);
       if (step) keys.set(event.eventId, step.key);
       continue;
     }
@@ -1947,7 +2052,8 @@ export function logicalModelTurnKeys(
     let key = messageKeys.get(messageKey);
     if (!key) {
       const free = steps.filter((candidate) => !candidate.bound);
-      const step = free.filter((candidate) => candidate.open).at(-1) ?? free.at(-1);
+      const step =
+        free.filter((candidate) => candidate.open).at(-1) ?? free.at(-1);
       if (!step) continue;
       step.bound = true;
       key = step.key;

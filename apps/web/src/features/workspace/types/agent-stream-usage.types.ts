@@ -1,7 +1,8 @@
+import type { MessageKey } from "@lcsp/i18n";
+
 /**
- * Provider/runtime-reported telemetry of one logical activity. Model rows carry
- * token fields only; tool rows carry payload-size fields only. The two are never
- * mixed or summed together.
+ * Provider/runtime-reported telemetry. Tools keep their payload metrics alongside
+ * correlated model usage; only accounting owners contribute tokens to totals.
  */
 export type StreamRowUsage = {
   durationMs?: number;
@@ -14,4 +15,30 @@ export type StreamRowUsage = {
   lines?: number;
   items?: number;
   truncated?: boolean;
+};
+
+export type ToolUsageAttribution = {
+  identity: string;
+  accountingOwner: boolean;
+  usage: StreamRowUsage;
+};
+
+export type StreamUsageAggregate = {
+  usage?: StreamRowUsage;
+  countedModelSteps: number;
+  partial: boolean;
+};
+
+export type StreamUsageOccurrence = {
+  id: string;
+  kind: string;
+  firstSequence: number;
+  usageAttribution?: ToolUsageAttribution;
+  completedTurns?: StreamUsageOccurrence[];
+};
+
+export type AgentStreamUsageSummaryProps = {
+  aggregate: StreamUsageAggregate;
+  titleKey: MessageKey;
+  className?: string;
 };

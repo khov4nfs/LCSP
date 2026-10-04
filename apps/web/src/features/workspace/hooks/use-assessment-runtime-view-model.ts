@@ -11,6 +11,7 @@ import { useWorkspaceRuntime } from "../components/organisms/workspace-runtime-p
 import type { NormalizedAssessmentRuntime } from "../types/assessment-runtime-adapter.types";
 import { normalizeAssessmentRuntime } from "../utils/assessment-runtime-adapter";
 import { applyAssessmentRuntimeControlPresentation } from "../utils/assessment-runtime-control-presentation";
+import { projectAssessmentRuntimeUsage } from "../utils/assessment-runtime-usage";
 
 export function useAssessmentRuntimeViewModel(
   assessmentId: string,
@@ -49,9 +50,16 @@ export function useAssessmentRuntimeViewModel(
       artifactState: artifactQuery,
       timeline: { ...timeline, repositorySnapshot, scanJobs, evidenceReports },
     });
+    const events = timeline.agentStreamEvents ?? [];
+    const runId = timeline.latestRunId ?? timeline.currentRun?.runId ?? null;
+    normalized.tokenUsage = projectAssessmentRuntimeUsage(
+      events,
+      runId,
+      runtimeControl.control.data,
+    );
     return applyAssessmentRuntimeControlPresentation(
       normalized,
-      timeline.agentStreamEvents ?? [],
+      events,
       runtimeControl.control.data,
     );
   }, [

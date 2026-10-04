@@ -309,6 +309,11 @@ export const enPages = {
       rawEvents: "Raw events",
     },
     agentStreamUsage: {
+      turnTotal: "Turn token usage",
+      runtimeTotal: "Total token usage",
+      shared: "Shared model usage · counted once",
+      partial: "Partial usage: some tool usage is unavailable",
+      unavailable: "Token usage unavailable",
       input: "{value} in",
       output: "{value} out",
       total: "{value} tokens",
