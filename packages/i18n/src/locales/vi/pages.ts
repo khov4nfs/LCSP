@@ -1787,6 +1787,9 @@ export const viPages = {
       pinnedRevision: "{provider} · {branch} · {commit}",
       edit: "Chỉnh sửa",
       removeRepository: "Xoá repository",
+      editRelation: "Chỉnh sửa quan hệ",
+      removeRelationConfirm:
+        "Xoá quan hệ này? Các repository vẫn sẽ được giữ trong assessment.",
       removeConfirm:
         "Xoá repository này khỏi assessment? Dữ liệu source tại Git provider sẽ không bị xoá.",
       description:

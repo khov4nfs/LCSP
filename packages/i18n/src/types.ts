@@ -1726,6 +1726,7 @@ export type PagesMessages = {
       relationCount: string;
       pinnedRevision: string;
       edit: string;
+      editRelation: string;
       removeRepository: string;
       removeConfirm: string;
       description: string;
@@ -1741,6 +1742,7 @@ export type PagesMessages = {
       save: string;
       cancel: string;
       remove: string;
+      removeRelationConfirm: string;
       keepIndependent: string;
       independentState: string;
       relationTypes: {

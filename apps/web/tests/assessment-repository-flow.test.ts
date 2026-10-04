@@ -110,6 +110,9 @@ test("review and map stay inside the Agent transcript with explicit terminal act
   assert.match(map, /<table/);
   assert.match(map, /<select/);
   assert.match(map, /removeConfirm/);
+  assert.match(map, /editRelation/);
+  assert.match(map, /confirmingRelationRemoval/);
+  assert.match(map, /removeRelationConfirm/);
   assert.match(map, /<AgentTurn>/);
   assert.match(map, /pinnableRepositories\.length > 0/);
   assert.match(map, /pinnableRepositories\.length > 1/);

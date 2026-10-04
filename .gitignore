@@ -44,6 +44,7 @@ _bmad/
 !.env.example
 # fogewise-dev-launchers/
 **/__pycache__/
+**/.pytest-tmp-*/
 tmp/
 .tmp-pytest/
 .corpus/

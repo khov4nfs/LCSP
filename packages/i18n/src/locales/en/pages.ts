@@ -1784,6 +1784,7 @@ export const enPages = {
       relationCount: "{count} relations",
       pinnedRevision: "{provider} · {branch} · {commit}",
       edit: "Edit",
+      editRelation: "Edit relationship",
       removeRepository: "Remove repository",
       removeConfirm:
         "Remove this repository from the assessment? Source data at the Git provider will not be deleted.",
@@ -1801,6 +1802,8 @@ export const enPages = {
       save: "Save relationship",
       cancel: "Cancel",
       remove: "Remove relationship",
+      removeRelationConfirm:
+        "Remove this relationship? The repositories will remain in this assessment.",
       keepIndependent: "Keep repositories independent",
       independentState:
         "Repositories will be scanned independently; no relation edges will be added.",

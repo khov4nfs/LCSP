@@ -65,6 +65,9 @@ export function RepositoryMapTurn({
   const [confirmingRemoval, setConfirmingRemoval] = useState<string | null>(
     null,
   );
+  const [confirmingRelationRemoval, setConfirmingRelationRemoval] =
+    useState<Relation | null>(null);
+  const [removingRelation, setRemovingRelation] = useState(false);
   const [submitError, setSubmitError] = useState(false);
   const form = useForm<RepositoryRelationFormValues>({
     resolver: zodResolver(repositoryRelationSchema),
@@ -83,6 +86,8 @@ export function RepositoryMapTurn({
   const beginEdit = (relation?: Relation) => {
     onRelationEditorOpen?.();
     setSubmitError(false);
+    setConfirmingRemoval(null);
+    setConfirmingRelationRemoval(null);
     setEditing(relation ?? null);
     setEditorOpen(true);
     form.reset(
@@ -113,6 +118,25 @@ export function RepositoryMapTurn({
       setSubmitError(true);
     }
   });
+  async function removeRelation(relation: Relation) {
+    if (removingRelation) return;
+    setRemovingRelation(true);
+    setSubmitError(false);
+    try {
+      await removeAssessmentRepositoryRelation(assessmentId, relation.id);
+      if (editing?.id === relation.id) {
+        setEditing(null);
+        setEditorOpen(false);
+        form.reset();
+      }
+      setConfirmingRelationRemoval(null);
+      onChanged();
+    } catch {
+      setSubmitError(true);
+    } finally {
+      setRemovingRelation(false);
+    }
+  }
   const affectedRelationCount = confirmingRemoval
     ? relations.filter((relation) => {
         const repository = repositories.find(
@@ -183,9 +207,10 @@ export function RepositoryMapTurn({
                       type="button"
                       size="sm"
                       variant="ghost"
-                      onClick={() =>
-                        setConfirmingRemoval(repository.connectionId)
-                      }
+                      onClick={() => {
+                        setConfirmingRelationRemoval(null);
+                        setConfirmingRemoval(repository.connectionId);
+                      }}
                     >
                       {t(
                         "pages.assessmentFlow.multiRepository.removeRepository",
@@ -201,16 +226,41 @@ export function RepositoryMapTurn({
                         relation.toSnapshotId === repository.snapshot?.id,
                     )
                     .map((relation) => (
-                      <button
+                      <div
                         key={relation.id}
-                        type="button"
-                        className="mr-2 rounded-sm underline"
-                        onClick={() => beginEdit(relation)}
+                        className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 last:mb-0"
                       >
-                        {snapshotLabel(relation.fromSnapshotId)} &rarr;{" "}
-                        {snapshotLabel(relation.toSnapshotId)} &middot;{" "}
-                        {relationTypeLabel(relation.type)}
-                      </button>
+                        <span>
+                          {snapshotLabel(relation.fromSnapshotId)} &rarr;{" "}
+                          {snapshotLabel(relation.toSnapshotId)} &middot;{" "}
+                          {relationTypeLabel(relation.type)}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => beginEdit(relation)}
+                          >
+                            {t(
+                              "pages.assessmentFlow.multiRepository.editRelation",
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => {
+                              setConfirmingRemoval(null);
+                              setConfirmingRelationRemoval(relation);
+                              setSubmitError(false);
+                            }}
+                          >
+                            {t("pages.assessmentFlow.multiRepository.remove")}
+                          </Button>
+                        </div>
+                      </div>
                     ))}
                   {relations.every(
                     (relation) =>
@@ -270,6 +320,44 @@ export function RepositoryMapTurn({
             </Button>
           </div>
         </AgentTurn>
+      ) : null}
+      {confirmingRelationRemoval ? (
+        <section
+          className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3"
+          aria-label={t("pages.assessmentFlow.multiRepository.remove")}
+          role="alertdialog"
+        >
+          <p className="text-sm font-medium">
+            {t("pages.assessmentFlow.multiRepository.remove")}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("pages.assessmentFlow.multiRepository.removeRelationConfirm")}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {snapshotLabel(confirmingRelationRemoval.fromSnapshotId)} &rarr;{" "}
+            {snapshotLabel(confirmingRelationRemoval.toSnapshotId)} &middot;{" "}
+            {relationTypeLabel(confirmingRelationRemoval.type)}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={removingRelation}
+              onClick={() => void removeRelation(confirmingRelationRemoval)}
+            >
+              {t("pages.assessmentFlow.multiRepository.remove")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={removingRelation}
+              autoFocus
+              onClick={() => setConfirmingRelationRemoval(null)}
+            >
+              {t("pages.assessmentFlow.multiRepository.cancel")}
+            </Button>
+          </div>
+        </section>
       ) : null}
       {pinnableRepositories.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -376,14 +464,9 @@ export function RepositoryMapTurn({
               <Button
                 type="button"
                 variant="destructive"
-                onClick={async () => {
-                  await removeAssessmentRepositoryRelation(
-                    assessmentId,
-                    editing.id,
-                  );
-                  setEditing(null);
-                  setEditorOpen(false);
-                  onChanged();
+                onClick={() => {
+                  setConfirmingRemoval(null);
+                  setConfirmingRelationRemoval(editing);
                 }}
               >
                 {t("pages.assessmentFlow.multiRepository.remove")}
