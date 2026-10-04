@@ -1,18 +1,31 @@
-import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
-import { CheckCircle2, LoaderCircle, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDashed,
+  LoaderCircle,
+  XCircle,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+import type { AgentStreamActivityLogProps } from "../../types/agent-stream-activity-log.types";
 import { projectAgentStreamActivityLog } from "../../utils/agent-stream-activity-log";
-import { STREAM_ROW_STATUSES } from "../../utils/agent-stream-projection";
+import {
+  AGENT_STREAM_RUN_OUTCOMES,
+  STREAM_ROW_STATUSES,
+} from "../../utils/agent-stream-projection";
 
 /** Compact customer-facing activity log: one live row per activity kind. */
 export function AgentStreamActivityLog({
   events,
-}: {
-  events: AssessmentAgentStreamEvent[];
-}) {
-  const rows = projectAgentStreamActivityLog(events);
+  outcomeOverride,
+}: AgentStreamActivityLogProps) {
+  const rows = projectAgentStreamActivityLog(events).map((row) =>
+    row.status === STREAM_ROW_STATUSES.running &&
+    outcomeOverride !== undefined &&
+    outcomeOverride !== AGENT_STREAM_RUN_OUTCOMES.running
+      ? { ...row, status: STREAM_ROW_STATUSES.neutral }
+      : row,
+  );
   if (rows.length === 0) return null;
   return (
     <ul data-stream-activity-log className="mt-3 min-w-0 space-y-1 text-xs">
@@ -27,6 +40,8 @@ export function AgentStreamActivityLog({
             <LoaderCircle className="size-3.5 shrink-0 animate-spin text-muted-foreground" />
           ) : row.failed ? (
             <XCircle className="size-3.5 shrink-0 text-destructive" />
+          ) : row.status === STREAM_ROW_STATUSES.neutral ? (
+            <CircleDashed className="size-3.5 shrink-0 text-muted-foreground" />
           ) : (
             <CheckCircle2 className="size-3.5 shrink-0 text-emerald-500" />
           )}

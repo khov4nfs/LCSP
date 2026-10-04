@@ -181,10 +181,17 @@ class WorkerApiClient:
             WORKER_API_KEY_HEADER: self._api_key,
             correlationId_HEADER: cid,
         }
+        from orchestration.runtime_control import active_runtime_run_id
+        runtime_run_id = active_runtime_run_id.get()
+        if runtime_run_id:
+            headers["x-lcsp-runtime-run-id"] = runtime_run_id
         safe_payload = self._redact_callback_payload(payload) if redact else dict(payload)
 
         send = httpx.put if method == "PUT" else httpx.post
         for attempt in range(self._max_retries):
+            if path != "/internal/assessment-runtime-controls" and path != CallbackPath.BILLING_USAGE:
+                from orchestration.agent_stream import check_agent_execution_active
+                check_agent_execution_active()
             try:
                 resp = send(
                     url,
@@ -533,10 +540,16 @@ class WorkerApiClient:
             )
 
     def post_interview_progress(self, assessment_id: str, revision: int, phase: str) -> None:
+        from orchestration.agent_stream import check_agent_execution_active
+        from orchestration.runtime_control import active_runtime_run_id
+        check_agent_execution_active()
+        headers = {WORKER_API_KEY_HEADER: self._api_key, correlationId_HEADER: get_correlationId()}
+        if active_runtime_run_id.get():
+            headers["x-lcsp-runtime-run-id"] = active_runtime_run_id.get()
         try:
             response = httpx.post(
                 f"{self._base_url}/internal/assessment-interviews/{assessment_id}/runtime-progress",
-                headers={WORKER_API_KEY_HEADER: self._api_key, correlationId_HEADER: get_correlationId()},
+                headers=headers,
                 json={"contextRevision": revision, "phase": phase},
                 timeout=3,
             )
@@ -547,12 +560,19 @@ class WorkerApiClient:
 
     def post_scan_runtime_event(self, scan_job_id: str, payload: dict) -> None:
         """Submit best-effort privacy-safe runtime progress for an active scan job."""
+        from orchestration.agent_stream import check_agent_execution_active
+        from orchestration.runtime_control import active_runtime_run_id
+        check_agent_execution_active()
         path = CallbackPath.SCAN_RUNTIME_EVENT.format(scan_job_id=scan_job_id)
         url = f"{self._base_url}{path}"
         headers = {
             WORKER_API_KEY_HEADER: self._api_key,
             correlationId_HEADER: get_correlationId(),
         }
+        if active_runtime_run_id.get():
+            headers["x-lcsp-runtime-run-id"] = active_runtime_run_id.get()
+        elif isinstance(payload.get("output_summary"), dict) and payload["output_summary"].get("runtimeRunId"):
+            headers["x-lcsp-runtime-run-id"] = payload["output_summary"]["runtimeRunId"]
         try:
             response = httpx.post(
                 url,
@@ -584,6 +604,9 @@ class WorkerApiClient:
             WORKER_API_KEY_HEADER: self._api_key,
             correlationId_HEADER: get_correlationId(),
         }
+        runtime_run_id = (payload.get("data") or {}).get("runtimeRunId")
+        if isinstance(runtime_run_id, str):
+            headers["x-lcsp-runtime-run-id"] = runtime_run_id
         try:
             response = httpx.post(
                 url,

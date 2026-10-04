@@ -43,6 +43,7 @@ class _FakeRuns:
     def create(self, _thread_id, _assistant_id, **kwargs):
         self.create_calls += 1
         self.created_context = kwargs.get("context")
+        self.created_kwargs = kwargs
         return {
             "run_id": "created-run",
             "status": self._created_run_status,
@@ -75,6 +76,67 @@ def _install_client(monkeypatch, fake_client):
     monkeypatch.setattr(agent_server_client, "get_sync_client", lambda **_kwargs: fake_client)
     monkeypatch.setattr(agent_server_client.time, "sleep", lambda _seconds: None)
     monkeypatch.setattr(agent_server_client, "_ScanRunObserver", _NullObserver)
+    fake_client.control_reports = []
+    monkeypatch.setattr(
+        agent_server_client, "report_runtime_control",
+        lambda *args, **kwargs: fake_client.control_reports.append((args, kwargs)),
+    )
+
+
+def test_native_terminal_state_retires_the_registered_generation(monkeypatch):
+    client = _FakeClient(_FakeRuns())
+    _install_client(monkeypatch, client)
+    agent_server_client.dispatch_agent_runtime_event(
+        "assessment_interview_resume_requested", {"assessmentId": "a"}, "correlation"
+    )
+    args, _ = client.control_reports[0]
+    assert args[1] == "created-run"
+    assert args[2]["system_event"] == {"assessmentId": "a"}
+    assert args[3] == "COMPLETED"
+
+
+def test_checkpoint_continue_preserves_frozen_event_and_checkpoint(monkeypatch):
+    runs = _FakeRuns()
+    _install_client(monkeypatch, _FakeClient(runs))
+    frozen = {"assessment_id": "a", "system_event": {"answer": "original"}, "repository_path": "/pinned"}
+    agent_server_client.resume_agent_runtime_run("interview_context_updated", {
+        "assessmentId": "a", "threadId": "original-thread", "logicalRunId": "old-run",
+        "runtimeContext": frozen, "requestId": "resume-request",
+        "checkpoint": {"checkpoint_id": "interrupted-checkpoint"},
+    }, "resume-correlation")
+    assert runs.created_kwargs["input"] is None
+    assert runs.created_kwargs["checkpoint_id"] == "interrupted-checkpoint"
+    assert runs.created_kwargs["multitask_strategy"] == "reject"
+    assert runs.created_context["system_event"] == frozen["system_event"]
+    assert runs.created_context["repository_path"] == "/pinned"
+    assert runs.created_context["logical_run_id"] == "old-run"
+
+
+def test_duplicate_continue_reattaches_completed_request_without_parallel_run(monkeypatch):
+    runs = _FakeRuns(listed_runs=[{"run_id": "already-resumed", "status": "success", "metadata": {"lcsp_resume_request_id": "same-request"}}])
+    _install_client(monkeypatch, _FakeClient(runs))
+    agent_server_client.resume_agent_runtime_run("interview_context_updated", {
+        "threadId": "original-thread", "requestId": "same-request", "runtimeContext": {"system_event": {"original": True}},
+    }, "correlation")
+    assert runs.create_calls == 0
+
+
+def test_exact_stop_never_resolves_a_newer_active_run(monkeypatch):
+    class Runs(_FakeRuns):
+        def get(self, thread_id, run_id):
+            assert (thread_id, run_id) == ("exact-thread", "old-run")
+            return {"run_id": run_id, "status": "interrupted" if self.cancel_calls else "running"}
+    runs = Runs(refuse_cancel=False, listed_runs=[{"run_id": "new-run", "status": "running"}])
+    _install_client(monkeypatch, _FakeClient(runs))
+    callbacks = []
+    monkeypatch.setattr(agent_server_client, "load_config", lambda: type("Config", (), {"nestjs_api_base_url": "unused", "worker_api_key": "test"})())
+    monkeypatch.setattr(agent_server_client.WorkerApiClient, "_post_with_retry", lambda self, path, payload, **kwargs: callbacks.append(payload))
+    result = agent_server_client.dispatch_agent_runtime_event("assessment_interview_pause_requested", {
+        "assessmentId": "a", "targetRunId": "old-run", "threadId": "exact-thread", "boundary": "interview_context_updated", "controlAction": "STOP",
+    }, "correlation")
+    assert result["state"] == "STOPPED"
+    assert runs.cancel_calls == [{"thread_id": "exact-thread", "run_id": "old-run", "wait": False, "action": "interrupt"}]
+    assert callbacks[0]["targetRunId"] == "old-run"
 
 
 def test_run_poll_timeout_keeps_existing_binding(monkeypatch):

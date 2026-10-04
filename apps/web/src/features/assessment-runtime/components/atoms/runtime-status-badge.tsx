@@ -6,6 +6,9 @@ import {
 } from "../../../workspace/types/assessment-runtime-adapter.types";
 
 const statusLabels: Record<NormalizedWorkflowStepStatus, string> = {
+  [NORMALIZED_WORKFLOW_STEP_STATUSES.stopped]: resolveAppMessage(
+    "pages.appShell.runtimePanelStatuses.stopped",
+  ),
   [NORMALIZED_WORKFLOW_STEP_STATUSES.queued]: resolveAppMessage(
     "pages.appShell.runtimePanelStatuses.queued" as MessageKey,
   ),

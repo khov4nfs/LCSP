@@ -1,6 +1,11 @@
 import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
 import { resolveMessage } from "@lcsp/i18n";
-import { CheckCircle2, CircleDashed, LoaderCircle, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDashed,
+  LoaderCircle,
+  XCircle,
+} from "lucide-react";
 
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -8,6 +13,7 @@ import { cn } from "@/lib/utils";
 import type { AgentStreamRuleAnalysisProgressProps } from "../../types/agent-stream-rule-analysis-progress.types";
 import type { AgentStreamRuleHeader } from "../../types/agent-stream-rule.types";
 import { orderRuleAnalysisRuleQueue } from "../../utils/agent-stream-rule-analysis-progress";
+import { AGENT_STREAM_RUN_OUTCOMES } from "../../utils/agent-stream-projection";
 import { AgentStreamActivityLog } from "./agent-stream-activity-log";
 import { AgentStreamRuleAnalysisRuleResult } from "./agent-stream-rule-analysis-output";
 import { AgentStreamTimeline } from "./agent-stream-timeline";
@@ -23,6 +29,8 @@ export function AgentStreamRuleAnalysisProgress({
   events,
   planOrder,
   dispatchRunning = false,
+  outcome,
+  pausedRuleIds,
 }: AgentStreamRuleAnalysisProgressProps) {
   const { rules: ordered, queuedRuleIds } = orderRuleAnalysisRuleQueue(
     rules,
@@ -42,6 +50,14 @@ export function AgentStreamRuleAnalysisProgress({
         );
         const running = rule.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running;
         const queued = queuedRuleIds.has(rule.ruleId);
+        const paused = pausedRuleIds?.has(rule.ruleId) === true;
+        const ruleOutcome = paused
+          ? AGENT_STREAM_RUN_OUTCOMES.paused
+          : rule.status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed
+            ? AGENT_STREAM_RUN_OUTCOMES.completed
+            : rule.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed
+              ? AGENT_STREAM_RUN_OUTCOMES.failed
+              : outcome;
         const header = (
           <span className="flex min-w-0 items-start gap-2">
             <RuleStatusIcon rule={rule} queued={queued} />
@@ -62,7 +78,9 @@ export function AgentStreamRuleAnalysisProgress({
               >
                 {queued
                   ? t("pages.appShell.agentStreamTurn.ruleQueued")
-                  : statusLabel(rule)}
+                  : paused
+                    ? t("pages.appShell.agentStreamTurn.rulePaused")
+                    : statusLabel(rule)}
               </span>
             </span>
           </span>
@@ -77,7 +95,7 @@ export function AgentStreamRuleAnalysisProgress({
             <div className="pl-5.5">
               {running ? (
                 <AgentStreamActivityLog events={ruleEvents} />
-              ) : queued ? null : (
+              ) : queued || paused ? null : (
                 <div className="mt-2">
                   <AgentStreamRuleAnalysisRuleResult rule={rule} />
                 </div>
@@ -92,10 +110,17 @@ export function AgentStreamRuleAnalysisProgress({
                     {ruleEvents.length}
                   </summary>
                   {running ? null : (
-                    <AgentStreamActivityLog events={ruleEvents} />
+                    <AgentStreamActivityLog
+                      events={ruleEvents}
+                      outcomeOverride={ruleOutcome}
+                    />
                   )}
                   <div className="mt-1.5">
-                    <AgentStreamTimeline events={ruleEvents} embedded />
+                    <AgentStreamTimeline
+                      events={ruleEvents}
+                      embedded
+                      outcomeOverride={ruleOutcome}
+                    />
                   </div>
                 </details>
               ) : null}

@@ -20,6 +20,7 @@ class LCSPRunContext:
     workflow_run_id: str | None = None
     checkpoint_id: str | None = None
     thread_id: str | None = None
+    logical_run_id: str | None = None
     snapshot_id: str | None = None
     scan_job_id: str | None = None
     commit_sha: str | None = None

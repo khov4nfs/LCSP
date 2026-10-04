@@ -10,6 +10,7 @@ graph as the runtime authority while avoiding the licensed
 from __future__ import annotations
 
 import logging
+import asyncio
 import os
 import threading
 import uuid
@@ -31,6 +32,10 @@ from starlette.routing import Route
 
 from tools.common.capabilities.platform.graph_runtime import checkpoint_database_url
 from orchestration.agent_stream import AgentStreamInterrupted, active_agent_stream_cancel
+from orchestration.runtime_control import (
+    active_runtime_run_id, active_checkpoint_scope, AsyncCompatibleSaver,
+    active_native_execution_scope, NativeExecutionScope,
+)
 
 
 DEFAULT_ASSISTANT_ID = "lcsp-agent"
@@ -125,6 +130,16 @@ class LocalAgentRuntime:
         }
         key = (thread_id, run_id)
         with self._lock:
+            resume_id = (payload.get("metadata") or {}).get("lcsp_resume_request_id")
+            if resume_id:
+                for (existing_thread, _), existing in self._runs.items():
+                    if existing_thread == thread_id and existing["metadata"].get("lcsp_resume_request_id") == resume_id:
+                        return dict(existing)
+            if payload.get("multitask_strategy") == "reject" and any(
+                t == thread_id and r["status"] in {"pending", "running"}
+                for (t, _), r in self._runs.items()
+            ):
+                raise RuntimeError("Agent Server thread already has an active run")
             self._runs[key] = run
             self._cancel_events[key] = threading.Event()
         future = self._executor.submit(
@@ -168,6 +183,8 @@ class LocalAgentRuntime:
             cancel_event = self._cancel_events.get(key)
             if run is None:
                 return None
+            if run["status"] not in {"pending", "running"}:
+                return dict(run)
         if future is not None and future.cancel():
             self._set_run_status(thread_id, run_id, "interrupted")
             self._set_thread_status(thread_id, "idle")
@@ -217,13 +234,17 @@ class LocalAgentRuntime:
                     payload.get("metadata"),
                     context,
                 )
+                if payload.get("checkpoint_id"):
+                    config["configurable"]["checkpoint_id"] = payload["checkpoint_id"]
                 graph_input = payload.get("input")
                 if graph_input is None:
                     # No new input: resume from the checkpoint only if there is
                     # pending work, else this is a harmless no-op turn.
                     pending = graph.get_state(config)
                     if not getattr(pending, "next", None):
-                        graph_input = {}
+                        values = dict(getattr(pending, "values", {}) or {})
+                        self._update_thread_values(thread_id, values)
+                        return values, False
                 try:
                     stream = graph.stream(
                         graph_input,
@@ -249,6 +270,10 @@ class LocalAgentRuntime:
                     if cancel_event is not None
                     else None
                 )
+                saver = getattr(graph, "checkpointer", None)
+                scope_token = active_checkpoint_scope.set((AsyncCompatibleSaver(saver), f"{thread_id}:{context.get('logical_run_id', active_runtime_run_id.get() or thread_id)}") if saver else None)
+                execution_scope = NativeExecutionScope()
+                execution_token = active_native_execution_scope.set(execution_scope)
                 try:
                     try:
                         for chunk in stream:
@@ -256,12 +281,23 @@ class LocalAgentRuntime:
                             if cancel_event is not None and cancel_event.is_set():
                                 interrupted = True
                                 break
-                    except AgentStreamInterrupted:
+                    except (AgentStreamInterrupted, asyncio.CancelledError):
                         interrupted = True
                 finally:
+                    # The parent can be cancelled while a nested graph is still
+                    # flushing checkpoints in a tool executor thread. Never
+                    # release the root thread or advertise STOPPED before it drains.
+                    execution_scope.drain()
+                    active_native_execution_scope.reset(execution_token)
+                    if scope_token is not None:
+                        active_checkpoint_scope.reset(scope_token)
                     if cancel_token is not None:
                         active_agent_stream_cancel.reset(cancel_token)
                 snapshot = graph.get_state(config)
+                if interrupted and getattr(snapshot, "created_at", None) and not getattr(snapshot, "next", ()):
+                    # Completion wins a late Stop; there is no pending checkpoint
+                    # to advertise as resumable work.
+                    interrupted = False
                 values = dict(getattr(snapshot, "values", {}) or {})
                 self._update_thread_values(thread_id, values)
                 return last_chunk, interrupted
@@ -278,7 +314,12 @@ class LocalAgentRuntime:
         key = (thread_id, run_id)
         with self._lock:
             cancel_event = self._cancel_events.get(key)
+        context = dict(payload.get("context") or {})
+        context.setdefault("logical_run_id", run_id)
+        payload = {**payload, "context": context}
+        run_token = active_runtime_run_id.set(run_id)
         try:
+            self._report_control(thread_id, run_id, context, "RUNNING")
             _result, interrupted = self._run_graph(
                 thread_id, payload, cancel_event=cancel_event
             )
@@ -290,9 +331,21 @@ class LocalAgentRuntime:
             self._update_thread_error(thread_id, exc)
             self._set_thread_status(thread_id, "error")
             self._set_run_status(thread_id, run_id, "error")
+            self._report_control(thread_id, run_id, context, "COMPLETED")
             return
+        finally:
+            active_runtime_run_id.reset(run_token)
         self._set_run_status(
             thread_id, run_id, "interrupted" if interrupted else "success"
+        )
+        self._report_control(thread_id, run_id, context, "STOPPED" if interrupted else "COMPLETED")
+
+    def _report_control(self, thread_id: str, run_id: str, context: dict[str, Any], state: str) -> None:
+        from tools.common.capabilities.agent_runtime.runtime_control import report_runtime_control
+
+        report_runtime_control(
+            thread_id, run_id, context, state,
+            checkpoint=self.get_state(thread_id).get("checkpoint") if state == "STOPPED" and context.get("assessment_id") else None,
         )
 
     def get_state(self, thread_id: str) -> dict[str, Any]:

@@ -1,4 +1,7 @@
+import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
+
 import type {
+  AgentStreamRunOutcome,
   StreamActivityKey,
   StreamRowKind,
   StreamRowStatus,
@@ -16,4 +19,9 @@ export type AgentStreamActivityLogRow = {
   failed: boolean;
   kind: StreamRowKind;
   activity: StreamActivityKey | null;
+};
+
+export type AgentStreamActivityLogProps = {
+  events: AssessmentAgentStreamEvent[];
+  outcomeOverride?: AgentStreamRunOutcome;
 };

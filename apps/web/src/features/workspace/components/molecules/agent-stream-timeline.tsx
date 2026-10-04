@@ -93,6 +93,7 @@ export function AgentStreamTimeline({
   const ruleHeaders = finalizeRuleHeaders(
     projectAgentStreamRuleHeaders(visibleEvents),
     visibleEvents,
+    outcomeOverride,
   );
   const segments = segmentAgentStreamRowsByRule(rows, ruleHeaders);
   const labels = streamLabels();

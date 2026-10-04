@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable, Iterator
+from contextlib import contextmanager
 from typing import Any
 
-from langchain.agents.middleware import wrap_tool_call
+from langchain.agents.middleware import AgentMiddleware
 from langchain.messages import ToolMessage
 from langchain.tools.tool_node import ToolCallRequest
 from langgraph.types import Command
@@ -17,18 +19,33 @@ from orchestration.waiting_assessments import WaitingAssessmentRegistry
 from tools.triage.legal_rule_triage.singleton import TriageSingletonCoordinator
 
 
-@wrap_tool_call
-def guard_triage_singleton_task(
-    request: ToolCallRequest,
-    handler: Callable[[ToolCallRequest], ToolMessage | Command],
-) -> ToolMessage | Command:
-    """Let Root Orchestration enforce Triage policy around the built-in task tool."""
-    return _guard_triage_task_call(
-        request,
-        handler,
-        coordinator=TriageSingletonCoordinator(),
-        waiting_registry=WaitingAssessmentRegistry(),
-    )
+class _TriageSingletonMiddleware(AgentMiddleware):
+    """Keep the same reservation protocol around sync and async task tools."""
+
+    name = "guard_triage_singleton_task"
+
+    def wrap_tool_call(
+        self,
+        request: ToolCallRequest,
+        handler: Callable[[ToolCallRequest], ToolMessage | Command],
+    ) -> ToolMessage | Command:
+        return _guard_triage_task_call(
+            request, handler, coordinator=TriageSingletonCoordinator(),
+            waiting_registry=WaitingAssessmentRegistry(),
+        )
+
+    async def awrap_tool_call(
+        self,
+        request: ToolCallRequest,
+        handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]],
+    ) -> ToolMessage | Command:
+        return await _aguard_triage_task_call(
+            request, handler, coordinator=TriageSingletonCoordinator(),
+            waiting_registry=WaitingAssessmentRegistry(),
+        )
+
+
+guard_triage_singleton_task = _TriageSingletonMiddleware()
 
 
 def _guard_triage_task_call(
@@ -38,12 +55,56 @@ def _guard_triage_task_call(
     coordinator: TriageSingletonCoordinator,
     waiting_registry: WaitingAssessmentRegistry | None = None,
 ) -> ToolMessage | Command:
+    with _triage_task_scope(
+        request, coordinator=coordinator, waiting_registry=waiting_registry,
+    ) as guarded:
+        return guarded if isinstance(guarded, ToolMessage) else handler(guarded)
+
+
+async def _aguard_triage_task_call(
+    request: ToolCallRequest,
+    handler: Callable[[ToolCallRequest], Awaitable[ToolMessage | Command]],
+    *,
+    coordinator: TriageSingletonCoordinator,
+    waiting_registry: WaitingAssessmentRegistry | None = None,
+) -> ToolMessage | Command:
+    scope = _triage_task_scope(
+        request, coordinator=coordinator, waiting_registry=waiting_registry,
+    )
+    # Reservation and completion use the existing filesystem/API lifecycle.
+    # Keep that blocking work off the Agent Server event loop, and do not lose
+    # a just-acquired reservation if cancellation races with its acquisition.
+    entering = asyncio.create_task(asyncio.to_thread(scope.__enter__))
+    try:
+        guarded = await asyncio.shield(entering)
+    except BaseException as error:
+        await entering
+        await asyncio.to_thread(scope.__exit__, type(error), error, error.__traceback__)
+        raise
+    try:
+        result = guarded if isinstance(guarded, ToolMessage) else await handler(guarded)
+    except BaseException as error:
+        await asyncio.to_thread(scope.__exit__, type(error), error, error.__traceback__)
+        raise
+    await asyncio.to_thread(scope.__exit__, None, None, None)
+    return result
+
+
+@contextmanager
+def _triage_task_scope(
+    request: ToolCallRequest,
+    *,
+    coordinator: TriageSingletonCoordinator,
+    waiting_registry: WaitingAssessmentRegistry | None,
+) -> Iterator[ToolCallRequest | ToolMessage]:
     tool_call = request.tool_call
     args = tool_call.get("args")
     if tool_call.get("name") != "task" or not isinstance(args, dict):
-        return handler(request)
+        yield request
+        return
     if str(args.get("subagent_type") or "") != "triage":
-        return handler(request)
+        yield request
+        return
 
     context = _coerce_context(getattr(request.runtime, "context", None))
     legal_rule_ids = list(context.legal_rule_ids) if context else []
@@ -61,7 +122,7 @@ def _guard_triage_task_call(
         trigger=trigger,
     )
     if reservation.status == "ALREADY_RUNNING":
-        return ToolMessage(
+        yield ToolMessage(
             content=json.dumps(
                 {
                     "status": "ALREADY_RUNNING",
@@ -81,6 +142,7 @@ def _guard_triage_task_call(
             ),
             tool_call_id=str(tool_call.get("id") or "triage-singleton"),
         )
+        return
 
     if reservation.status != "OWNER" or not reservation.execution_id:
         raise RuntimeError(
@@ -96,7 +158,7 @@ def _guard_triage_task_call(
     guarded_call = {**tool_call, "args": guarded_args}
 
     try:
-        result = handler(request.override(tool_call=guarded_call))
+        yield request.override(tool_call=guarded_call)
     except Exception:
         lifecycle.fail_subagent(reservation)
         raise
@@ -105,7 +167,6 @@ def _guard_triage_task_call(
     # Root Orchestration verifies that protocol and owns all cross-agent transitions,
     # including reconciliation of Assessments waiting on EngineeringRule readiness.
     lifecycle.complete_subagent(reservation)
-    return result
 
 
 def _coerce_context(value: Any) -> LCSPRunContext | None:

@@ -7,6 +7,7 @@ of the usage payload.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import math
 import re
@@ -22,7 +23,9 @@ from uuid import uuid4
 from langchain.agents.middleware import AgentMiddleware
 
 from middleware.token_fallback import model_provider
+from orchestration.runtime_control import cancellable_sync, cancellable_async
 from orchestration.agent_stream import (
+    active_agent_stream_cancel,
     active_model_step,
     active_model_step_summary,
     check_agent_execution_active,
@@ -503,6 +506,9 @@ class _ModelCallTelemetry:
         if self._thread is not None:
             self._thread.join(timeout=0.25)
 
+    def cancel(self) -> None:
+        self._finish("MODEL_CALL_CANCELLED", status="STOPPED", text="Model step interrupted")
+
     def _finish(
         self,
         event_type: str,
@@ -520,13 +526,20 @@ class _ModelCallTelemetry:
         self._emit(event_type, status=status, text=text, data=data)
 
     def _heartbeat(self) -> None:
-        while not self._stop.wait(_MODEL_CALL_HEARTBEAT_SECONDS):
-            self._emit(
-                "MODEL_CALL_HEARTBEAT",
-                status="RUNNING",
-                text="model call waiting",
-                data=self._data(elapsed_seconds=self._elapsed_seconds()),
-            )
+        cancel = self._context.get(active_agent_stream_cancel)
+        next_heartbeat = time.monotonic() + _MODEL_CALL_HEARTBEAT_SECONDS
+        while not self._stop.wait(min(0.025, _MODEL_CALL_HEARTBEAT_SECONDS)):
+            if cancel is not None and cancel.is_set():
+                self._stop.set()
+                return
+            if time.monotonic() >= next_heartbeat:
+                self._emit(
+                    "MODEL_CALL_HEARTBEAT",
+                    status="RUNNING",
+                    text="model call waiting",
+                    data=self._data(elapsed_seconds=self._elapsed_seconds()),
+                )
+                next_heartbeat = time.monotonic() + _MODEL_CALL_HEARTBEAT_SECONDS
 
     def _elapsed_seconds(self) -> int:
         return max(0, int(time.monotonic() - self._started_at))
@@ -719,13 +732,16 @@ class UsageMeteringMiddleware(AgentMiddleware):
         telemetry = _ModelCallTelemetry(model)
         telemetry.start()
         try:
-            response = handler(request)
-        except Exception as error:
+            response = cancellable_sync(lambda: handler(request), late_result=lambda result: self._record(result, model))
+            self._record(response, model)
+            check_agent_execution_active()
+        except BaseException as error:
             telemetry.fail(error)
+            from orchestration.agent_stream import AgentStreamInterrupted
+            if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
+                telemetry.cancel()
             raise
         telemetry.complete(response)
-        self._record(response, model)
-        check_agent_execution_active()
         return response
 
     async def awrap_model_call(self, request, handler):
@@ -733,14 +749,25 @@ class UsageMeteringMiddleware(AgentMiddleware):
         telemetry = _ModelCallTelemetry(model)
         telemetry.start()
         try:
-            response = await handler(request)
-        except Exception as error:
+            response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model))
+            # Usage-only delivery must not block the graph's async cancellation
+            # loop. This thread can finish telemetry after the turn is stopped.
+            await asyncio.to_thread(self._record, response, model)
+            check_agent_execution_active()
+        except BaseException as error:
             telemetry.fail(error)
+            from orchestration.agent_stream import AgentStreamInterrupted
+            if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
+                telemetry.cancel()
             raise
         telemetry.complete(response)
-        self._record(response, model)
-        check_agent_execution_active()
         return response
+
+    def wrap_tool_call(self, request, handler):
+        return cancellable_sync(lambda: handler(request))
+
+    async def awrap_tool_call(self, request, handler):
+        return await cancellable_async(lambda: handler(request))
 
 
 def effective_runtime_model(role: str, provider: str, model: str) -> dict[str, str] | None:

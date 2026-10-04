@@ -27,6 +27,7 @@ from uuid import uuid4
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
 
 from middleware.redaction import redact_dict, redact_string
+from orchestration.runtime_control import active_runtime_run_id, checkpointed_invocation, native_stream
 
 
 MAX_STREAM_TEXT_CHARS = 65_536
@@ -187,6 +188,12 @@ class AgentStreamSession:
     tool_started_at: dict[str, float] = field(default_factory=dict, init=False)
 
     def emit(self, event_type: str, **fields: Any) -> None:
+        cancel = active_agent_stream_cancel.get()
+        if cancel is not None and cancel.is_set() and event_type != "MODEL_CALL_CANCELLED":
+            return
+        runtime_run_id = active_runtime_run_id.get()
+        if runtime_run_id:
+            fields = {**fields, "data": {**(fields.get("data") or {}), "runtimeRunId": runtime_run_id}}
         step_id = active_model_step.get() or _MESSAGE_MODEL_STEPS.get(
             str(fields.get("message_id") or "")
         )
@@ -583,6 +590,12 @@ def _invoke_with_stream(
     context: Any | None,
     agent_name: str | None,
 ) -> Any:
+    check_agent_execution_active()
+    agent, input_value, config, completed = checkpointed_invocation(
+        agent, input_value, config, agent_name or getattr(agent, "name", "agent")
+    )
+    if completed is not None:
+        return completed
     session = active_agent_stream.get()
     if session is None or not callable(getattr(agent, "stream", None)):
         check_agent_execution_active()
@@ -591,7 +604,11 @@ def _invoke_with_stream(
             invoke_kwargs["config"] = config
         if context is not None:
             invoke_kwargs["context"] = context
-        return agent.invoke(input_value, **invoke_kwargs)
+        if active_agent_stream_cancel.get() is not None and callable(getattr(agent, "stream", None)):
+            from orchestration.runtime_control import invoke_native_values
+            return invoke_native_values(agent, input_value, **invoke_kwargs)
+        from orchestration.runtime_control import cancellable_sync
+        return cancellable_sync(lambda: agent.invoke(input_value, **invoke_kwargs))
 
     resolved_name = (
         agent_name
@@ -617,7 +634,7 @@ def _invoke_with_stream(
             stream_kwargs["config"] = config
         if context is not None:
             stream_kwargs["context"] = context
-        for chunk in agent.stream(input_value, **stream_kwargs):
+        for chunk in native_stream(agent, input_value, **stream_kwargs):
             if cancel_event is not None and cancel_event.is_set():
                 publish_agent_stream_event(
                     "AGENT_FAILED",
@@ -674,6 +691,7 @@ def _invoke_with_stream(
         )
         raise
 
+    check_agent_execution_active()
     if not final.seen:
         raise RuntimeError(
             "LCSP streamed agent invocation completed without a final values projection"
@@ -713,11 +731,17 @@ def _invoke_graph_with_stream(
     config: Any | None,
     graph_name: str,
 ) -> Any:
+    check_agent_execution_active()
+    graph, input_value, config, completed = checkpointed_invocation(graph, input_value, config, graph_name)
+    if completed is not None:
+        return completed
     if active_agent_stream.get() is None or not callable(getattr(graph, "stream", None)):
         check_agent_execution_active()
-        if config is None:
-            return graph.invoke(input_value)
-        return graph.invoke(input_value, config)
+        if active_agent_stream_cancel.get() is not None and callable(getattr(graph, "stream", None)):
+            from orchestration.runtime_control import invoke_native_values
+            return invoke_native_values(graph, input_value, **({"config": config} if config is not None else {}))
+        from orchestration.runtime_control import cancellable_sync
+        return cancellable_sync(lambda: graph.invoke(input_value) if config is None else graph.invoke(input_value, config))
 
     final = _FinalValues()
     cancel_event = active_agent_stream_cancel.get()
@@ -728,7 +752,7 @@ def _invoke_graph_with_stream(
         data={"kind": "workflow"},
     )
     try:
-        for chunk in graph.stream(
+        for chunk in native_stream(graph,
             input_value,
             config=config,
             stream_mode=list(GRAPH_STREAM_MODES),
@@ -782,6 +806,7 @@ def _invoke_graph_with_stream(
         )
         raise
 
+    check_agent_execution_active()
     if not final.seen:
         raise RuntimeError(
             "LCSP streamed workflow completed without a final root values projection"
@@ -1841,6 +1866,7 @@ CRITICAL_STREAM_EVENT_TYPES = frozenset(
         "AGENT_FAILED",
         "MODEL_CALL_STARTED",
         "MODEL_CALL_COMPLETED",
+        "MODEL_CALL_CANCELLED",
         "MODEL_CALL_FAILED",
         "MODEL_CALL_TIMEOUT",
         "PROVIDER_FALLBACK",

@@ -12,6 +12,7 @@ import type { AgentStreamRuleHeader } from "../types/agent-stream-rule.types";
 import type { StreamRowUsage } from "../types/agent-stream-usage.types";
 import type { WorkspaceRuntimeAgentStreamHistoryState } from "../types/workspace-runtime.types";
 import { modelTurnUsage, toolCallMetrics } from "./agent-stream-usage";
+import { agentStreamTurnKey } from "./agent-stream-identity";
 import {
   isAgentStreamRuleLifecycleEvent,
   projectAgentStreamRuleHeaders,
@@ -644,6 +645,7 @@ export function groupRepeatedActivities(
 export function finalizeRuleHeaders(
   headers: Map<string, AgentStreamRuleHeader>,
   events: AssessmentAgentStreamEvent[],
+  outcomeOverride?: AgentStreamRunOutcome,
 ): Map<string, AgentStreamRuleHeader> {
   const outcomes = terminalOutcomesByRun(events);
   const owners = new Map<string, string>();
@@ -661,7 +663,11 @@ export function finalizeRuleHeaders(
   return new Map(
     [...headers].map(([ruleId, header]) => {
       const owner = owners.get(ruleId);
-      const outcome = owner ? outcomes.get(owner) : undefined;
+      const outcome =
+        (owner ? outcomes.get(owner) : undefined) ??
+        (outcomeOverride === AGENT_STREAM_RUN_OUTCOMES.running
+          ? undefined
+          : outcomeOverride);
       return [
         ruleId,
         outcome && header.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
@@ -690,13 +696,14 @@ export type TerminalOutcome =
   (typeof TERMINAL_OUTCOMES)[keyof typeof TERMINAL_OUTCOMES];
 
 export function dispatchKey(event: AssessmentAgentStreamEvent): string {
-  return JSON.stringify([event.runId, event.correlationId]);
+  return agentStreamTurnKey(event);
 }
 
 export function terminalOutcomesByRun(
   events: AssessmentAgentStreamEvent[],
 ): Map<string, TerminalOutcome> {
   const outcomes = new Map<string, TerminalOutcome>();
+  const stopped = new Set<string>();
   const activeBoundaryStages = new Map<
     string,
     AssessmentAgentStreamEvent["stage"]
@@ -706,6 +713,15 @@ export function terminalOutcomesByRun(
   )) {
     const key = dispatchKey(event);
     const runtimeType = runtimeEventType(event);
+    if (
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopped
+    ) {
+      stopped.add(key);
+      outcomes.set(key, TERMINAL_OUTCOMES.paused);
+      continue;
+    }
+    // Late worker bookkeeping cannot reopen an acknowledged native stop.
+    if (stopped.has(key)) continue;
     if (
       event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryStarted
     ) {
@@ -741,6 +757,8 @@ export function terminalOutcomesByRun(
     if (
       event.eventType ===
         ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryCompleted ||
+      event.eventType ===
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeCompleted ||
       runtimeType === "RUN_COMPLETED"
     ) {
       // Dispatch completion means processing ended, not rule-analysis success.
@@ -759,9 +777,20 @@ export function terminalOutcomesByRun(
 
 export function hasOpenBoundary(events: AssessmentAgentStreamEvent[]): boolean {
   const open = new Map<string, AssessmentAgentStreamEvent["stage"]>();
+  const settledNativeRuns = new Set<string>();
   for (const event of [...events].sort(
     (left, right) => left.sequence - right.sequence,
   )) {
+    const key = dispatchKey(event);
+    if (settledNativeRuns.has(key)) continue;
+    if (
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopped ||
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeCompleted
+    ) {
+      settledNativeRuns.add(key);
+      open.delete(key);
+      continue;
+    }
     if (
       event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryStarted
     ) {

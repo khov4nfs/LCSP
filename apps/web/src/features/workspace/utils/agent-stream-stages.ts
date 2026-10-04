@@ -7,7 +7,13 @@ import {
 } from "@lcsp/contracts/evidence";
 
 import type { AgentStreamTurnOutput } from "../types/agent-stream-turn.types";
+import {
+  agentStreamRuntimeRunId,
+  agentStreamTurnKey,
+} from "./agent-stream-identity";
 import { projectAgentStreamTurnOutput } from "./agent-stream-turn-output";
+
+export { agentStreamRuntimeRunId } from "./agent-stream-identity";
 
 import type { AgentStreamStageEvents } from "../types/workspace-runtime.types.ts";
 
@@ -71,7 +77,9 @@ export function groupAgentStreamEventsByStage(
       event.eventType ===
         ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryCompleted ||
       event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryFailed ||
-      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused;
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused ||
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopped ||
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeCompleted;
     if (dispatchEnded) {
       const stages = participatingStages.get(key);
       if (stages?.size) {
@@ -100,10 +108,6 @@ export function groupAgentStreamEventsByStage(
     }
   }
   return grouped;
-}
-
-function agentStreamTurnKey(event: AssessmentAgentStreamEvent): string {
-  return JSON.stringify([event.runId, event.correlationId]);
 }
 
 export type AgentStreamRunGroup = {
@@ -178,10 +182,17 @@ export function deriveLatestAgentStreamTurnState(
       isCustomerRequestedStop(event.data);
     if (event.engineeringRuleId && !ruleScopedCustomerStop) continue;
     if (
-      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopped
     ) {
       terminal = true;
       pausedByCustomer = true;
+      continue;
+    }
+    if (pausedByCustomer) continue;
+    if (
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused
+    ) {
+      terminal = true;
       continue;
     }
     const failed =
@@ -189,10 +200,12 @@ export function deriveLatestAgentStreamTurnState(
       event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryFailed;
     const completed =
       event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.agentCompleted ||
-      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryCompleted;
+      event.eventType ===
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryCompleted ||
+      event.eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeCompleted;
     if (failed) {
       terminal = true;
-      pausedByCustomer = isCustomerRequestedStop(event.data);
+      pausedByCustomer = false;
     } else if (completed) {
       terminal = true;
       pausedByCustomer = false;
@@ -224,6 +237,8 @@ export type AgentStreamGroupedActivity = {
   stageEvents: Partial<
     Record<AssessmentAgentStreamStage, AssessmentAgentStreamEvent[]>
   >;
+  /** A newer native generation owns the same workflow; this is history, not live work. */
+  superseded?: boolean;
 };
 
 /**
@@ -258,15 +273,37 @@ export function groupAgentStreamActivityByTurnKey(
       entry.events.push(...group.events);
     }
   }
-  return [...byTurnKey.values()].map((entry) => ({
-    ...entry,
-    // Terminal events are deliberately copied into each stage for lifecycle
-    // closure. The merged raw dispatch contains each actual event only once.
-    events: uniqueAgentStreamEvents(entry.events).sort((left, right) => {
-      const emittedAt = left.emittedAt.localeCompare(right.emittedAt);
-      return emittedAt || left.sequence - right.sequence;
-    }),
-  }));
+  const ordered = [...byTurnKey.values()]
+    .map((entry) => ({
+      ...entry,
+      // Terminal events are deliberately copied into each stage for lifecycle
+      // closure. The merged raw dispatch contains each actual event only once.
+      events: uniqueAgentStreamEvents(entry.events).sort((left, right) => {
+        const emittedAt = left.emittedAt.localeCompare(right.emittedAt);
+        return emittedAt || left.sequence - right.sequence;
+      }),
+    }))
+    .sort((left, right) =>
+      (left.events[0]?.emittedAt ?? "").localeCompare(
+        right.events[0]?.emittedAt ?? "",
+      ),
+    );
+  const latestNativeOwner = new Map<string, string>();
+  for (const entry of [...ordered].reverse()) {
+    entry.superseded = entry.events.some((event) => {
+      const owner = latestNativeOwner.get(event.runId);
+      return owner !== undefined && owner !== entry.turnKey;
+    });
+    for (const event of entry.events) {
+      if (
+        agentStreamRuntimeRunId(event) !== undefined &&
+        !latestNativeOwner.has(event.runId)
+      ) {
+        latestNativeOwner.set(event.runId, entry.turnKey);
+      }
+    }
+  }
+  return ordered;
 }
 
 /** Keep the first copy so the outer boundary keeps its original stage. */
