@@ -65,7 +65,6 @@ export function RepositoryMapTurn({
   const [confirmingRemoval, setConfirmingRemoval] = useState<string | null>(
     null,
   );
-  const [independentAcknowledged, setIndependentAcknowledged] = useState(false);
   const [submitError, setSubmitError] = useState(false);
   const form = useForm<RepositoryRelationFormValues>({
     resolver: zodResolver(repositoryRelationSchema),
@@ -106,7 +105,6 @@ export function RepositoryMapTurn({
         ...values,
         relationId: editing?.id,
       });
-      setIndependentAcknowledged(false);
       setEditing(null);
       setEditorOpen(false);
       form.reset();
@@ -285,16 +283,6 @@ export function RepositoryMapTurn({
               {t("pages.assessmentFlow.multiRepository.addRelation")}
             </Button>
           ) : null}
-          {relations.length === 0 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setIndependentAcknowledged(true)}
-              aria-pressed={independentAcknowledged}
-            >
-              {t("pages.assessmentFlow.multiRepository.keepIndependent")}
-            </Button>
-          ) : null}
           {onAddRepository ? (
             <Button
               type="button"
@@ -310,20 +298,12 @@ export function RepositoryMapTurn({
               {t("pages.assessmentFlow.multiRepository.addRepository")}
             </Button>
           ) : null}
-          {onReviewScope &&
-          (relations.length > 0 || independentAcknowledged) ? (
+          {onReviewScope ? (
             <Button type="button" onClick={onReviewScope}>
               {t("pages.assessmentFlow.multiRepository.reviewTitle")}
             </Button>
           ) : null}
         </div>
-      ) : null}
-      {pinnableRepositories.length > 0 &&
-      relations.length === 0 &&
-      independentAcknowledged ? (
-        <p className="mt-2 text-xs text-muted-foreground" role="status">
-          {t("pages.assessmentFlow.multiRepository.independentState")}
-        </p>
       ) : null}
       {submitError ? (
         <p className="mt-2 text-sm text-destructive" role="alert">

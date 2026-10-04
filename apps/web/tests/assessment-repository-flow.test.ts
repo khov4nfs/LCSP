@@ -117,10 +117,8 @@ test("review and map stay inside the Agent transcript with explicit terminal act
   assert.match(map, /onRelationEditorOpen/);
   assert.match(map, /aria-pressed=\{editorOpen\}/);
   assert.match(map, /aria-pressed=\{repositoryEntryActive\}/);
-  assert.match(
-    map,
-    /independentAcknowledged,\s*setIndependentAcknowledged\] = useState\(false\)/,
-  );
+  assert.doesNotMatch(map, /keepIndependent|independentAcknowledged/);
+  assert.match(map, /onReviewScope/);
   assert.match(map, /autoFocus/);
   assert.doesNotMatch(review, /onAddRepository|onEditMap/);
 });
