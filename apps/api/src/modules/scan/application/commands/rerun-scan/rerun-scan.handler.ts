@@ -22,6 +22,7 @@ import {
 } from "@lcsp/contracts/outbox";
 import { SCAN_ERROR_CODES, SCAN_EVENT_TYPES } from "@lcsp/contracts/scan";
 
+import { Prisma } from "@prisma/client";
 import {
   fromPrismaAssessmentStatus,
   fromPrismaRepositoryScanJobStatus,
@@ -70,29 +71,6 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
         GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyKeyRequired,
         command.correlationId,
         { status: HttpStatus.BAD_REQUEST },
-      );
-    }
-
-    const existing = await this.prisma.repositoryScanJob.findUnique({
-      where: { idempotencyKey: command.idempotencyKey },
-    });
-
-    if (existing) {
-      if (
-        existing.assessmentId !== command.assessmentId ||
-        existing.snapshotId !== command.snapshotId
-      ) {
-        throw problemException(
-          GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict,
-          command.correlationId,
-          { status: HttpStatus.CONFLICT },
-        );
-      }
-      return this.toDto(
-        existing.id,
-        fromPrismaRepositoryScanJobStatus(existing.status),
-        undefined,
-        command.correlationId,
       );
     }
 
@@ -152,6 +130,29 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
       );
     }
 
+    const existing = await this.prisma.repositoryScanJob.findUnique({
+      where: { idempotencyKey: command.idempotencyKey },
+    });
+
+    if (existing) {
+      if (
+        existing.assessmentId !== command.assessmentId ||
+        existing.snapshotId !== command.snapshotId
+      ) {
+        throw problemException(
+          GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict,
+          command.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      return this.toDto(
+        existing.id,
+        fromPrismaRepositoryScanJobStatus(existing.status),
+        undefined,
+        command.correlationId,
+      );
+    }
+
     const newScanJobId = randomUUID();
     const triggerSource = REPOSITORY_SCAN_TRIGGER_SOURCES.manual;
     const status = REPOSITORY_SCAN_JOB_STATUSES.queued;
@@ -163,6 +164,11 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
     let replacedScanJobId: string | undefined;
     try {
       await this.prisma.$transaction(async (tx) => {
+        // Serializes concurrent rerun requests for the same assessment to prevent race conditions.
+        await tx.$queryRaw(
+          Prisma.sql`SELECT "id" FROM "Assessment" WHERE "id" = ${command.assessmentId} FOR UPDATE`,
+        );
+
         await failStaleRepositoryScanJobs(tx, {
           assessmentId: command.assessmentId,
         });
@@ -194,10 +200,8 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
         });
         replacedScanJobId = priorJob?.id;
 
-        await replaceSameSnapshotScanArtifacts(tx, {
-          assessmentId: command.assessmentId,
-          snapshotId: command.snapshotId,
-        });
+        // Preserves prior scan artifacts and reports in accordance with UC-M03 (A4, BR-62).
+        // Historical jobs and reports remain queryable for audit traceability.
 
         const event = buildOutboxMessageInput({
           aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
@@ -241,6 +245,16 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
         where: { idempotencyKey: command.idempotencyKey },
       });
       if (raced) {
+        if (
+          raced.assessmentId !== command.assessmentId ||
+          raced.snapshotId !== command.snapshotId
+        ) {
+          throw problemException(
+            GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict,
+            command.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
         return this.toDto(
           raced.id,
           fromPrismaRepositoryScanJobStatus(raced.status),
@@ -301,200 +315,4 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
       correlationId: correlationId,
     };
   }
-}
-
-type RerunTransactionClient = Pick<
-  PrismaService,
-  | "aIUsageFlow"
-  | "assessmentRuntimeEvent"
-  | "classificationResult"
-  | "classificationReviewRequest"
-  | "conflictRecord"
-  | "documentRequest"
-  | "legalRuleMatch"
-  | "outboxMessage"
-  | "readinessExport"
-  | "repositoryScanJob"
-  | "targetedReanalysisCheckpoint"
-  | "targetedReanalysisRequest"
-  | "technicalEvidenceReport"
-  | "technicalProfile"
-  | "verifiedProfile"
->;
-
-async function replaceSameSnapshotScanArtifacts(
-  tx: RerunTransactionClient,
-  input: { assessmentId: string; snapshotId: string },
-) {
-  const scanJobs = await tx.repositoryScanJob.findMany({
-    where: {
-      assessmentId: input.assessmentId,
-      snapshotId: input.snapshotId,
-    },
-    select: { id: true },
-  });
-  const scanJobIds = scanJobs.map((scanJob) => scanJob.id);
-  if (scanJobIds.length === 0) {
-    return;
-  }
-
-  const reports = await tx.technicalEvidenceReport.findMany({
-    where: {
-      assessmentId: input.assessmentId,
-      scanJobId: { in: scanJobIds },
-    },
-    select: { id: true },
-  });
-  const reportIds = reports.map((report) => report.id);
-
-  const profiles = await tx.technicalProfile.findMany({
-    where: {
-      assessmentId: input.assessmentId,
-      evidenceReportId: { in: reportIds },
-    },
-    select: { id: true },
-  });
-  const profileIds = profiles.map((profile) => profile.id);
-
-  const flows = await tx.aIUsageFlow.findMany({
-    where: {
-      assessmentId: input.assessmentId,
-      technicalProfileId: { in: profileIds },
-    },
-    select: { id: true },
-  });
-  const flowIds = flows.map((flow) => flow.id);
-
-  const verifiedProfiles = await tx.verifiedProfile.findMany({
-    where: {
-      assessmentId: input.assessmentId,
-      OR: [
-        { aiUsageFlowId: { in: flowIds } },
-        { technicalEvidenceReportId: { in: reportIds } },
-      ],
-    },
-    select: { id: true },
-  });
-  const verifiedProfileIds = verifiedProfiles.map((profile) => profile.id);
-
-  const legalRuleMatches = await tx.legalRuleMatch.findMany({
-    where: {
-      assessmentId: input.assessmentId,
-      verifiedProfileId: { in: verifiedProfileIds },
-    },
-    select: { id: true },
-  });
-  const legalRuleMatchIds = legalRuleMatches.map((match) => match.id);
-
-  const classificationResults = await tx.classificationResult.findMany({
-    where: {
-      assessmentId: input.assessmentId,
-      OR: [
-        { verifiedProfileId: { in: verifiedProfileIds } },
-        { legalRuleMatchId: { in: legalRuleMatchIds } },
-      ],
-    },
-    select: { id: true },
-  });
-  const classificationResultIds = classificationResults.map(
-    (result) => result.id,
-  );
-
-  const targetedRequests = await tx.targetedReanalysisRequest.findMany({
-    where: {
-      assessmentId: input.assessmentId,
-      OR: [
-        { scanJobId: { in: scanJobIds } },
-        { inputEvidenceReportId: { in: reportIds } },
-        { outputEvidenceReportId: { in: reportIds } },
-      ],
-    },
-    select: { id: true },
-  });
-  const targetedRequestIds = targetedRequests.map((request) => request.id);
-  const aggregateIds = [
-    ...scanJobIds,
-    ...reportIds,
-    ...profileIds,
-    ...flowIds,
-    ...verifiedProfileIds,
-    ...legalRuleMatchIds,
-    ...classificationResultIds,
-    ...targetedRequestIds,
-  ];
-
-  if (aggregateIds.length > 0) {
-    await tx.outboxMessage.deleteMany({
-      where: { aggregateId: { in: aggregateIds } },
-    });
-  }
-  if (classificationResultIds.length > 0) {
-    await tx.documentRequest.deleteMany({
-      where: {
-        assessmentId: input.assessmentId,
-        classificationResultId: { in: classificationResultIds },
-      },
-    });
-  }
-  if (legalRuleMatchIds.length > 0) {
-    await tx.classificationReviewRequest.deleteMany({
-      where: {
-        assessmentId: input.assessmentId,
-        legalRuleMatchId: { in: legalRuleMatchIds },
-      },
-    });
-  }
-  if (classificationResultIds.length > 0) {
-    await tx.classificationResult.deleteMany({
-      where: { id: { in: classificationResultIds } },
-    });
-  }
-  if (legalRuleMatchIds.length > 0) {
-    await tx.legalRuleMatch.deleteMany({
-      where: { id: { in: legalRuleMatchIds } },
-    });
-  }
-  if (verifiedProfileIds.length > 0) {
-    await tx.verifiedProfile.deleteMany({
-      where: { id: { in: verifiedProfileIds } },
-    });
-  }
-  if (flowIds.length > 0) {
-    await tx.conflictRecord.deleteMany({
-      where: {
-        assessmentId: input.assessmentId,
-        aiUsageFlowId: { in: flowIds },
-      },
-    });
-    await tx.aIUsageFlow.deleteMany({ where: { id: { in: flowIds } } });
-  }
-  if (profileIds.length > 0) {
-    await tx.technicalProfile.deleteMany({ where: { id: { in: profileIds } } });
-  }
-  if (targetedRequestIds.length > 0) {
-    await tx.targetedReanalysisCheckpoint.deleteMany({
-      where: { requestId: { in: targetedRequestIds } },
-    });
-    await tx.targetedReanalysisRequest.deleteMany({
-      where: { id: { in: targetedRequestIds } },
-    });
-  }
-  if (reportIds.length > 0) {
-    await tx.technicalEvidenceReport.deleteMany({
-      where: { id: { in: reportIds } },
-    });
-  }
-  await tx.assessmentRuntimeEvent.deleteMany({
-    where: {
-      assessmentId: input.assessmentId,
-      OR: [
-        { runId: { in: scanJobIds } },
-        { correlationId: { in: scanJobIds } },
-      ],
-    },
-  });
-  await tx.readinessExport.deleteMany({
-    where: { assessmentId: input.assessmentId },
-  });
-  await tx.repositoryScanJob.deleteMany({ where: { id: { in: scanJobIds } } });
 }

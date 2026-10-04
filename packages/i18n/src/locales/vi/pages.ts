@@ -1737,10 +1737,13 @@ export const viPages = {
       loadingState: "Đang tải trạng thái repository...",
     },
     scanner: {
+      queuedThinking: "Đang chờ xử lý...",
+      queuedDescription:
+        "Yêu cầu quét đang nằm trong hàng đợi. Đang chờ bắt đầu quét repository...",
       runningThinking: "Đang suy nghĩ...",
       runningDescription:
         "Repository đã được pin. Tôi đang quét source trước khi hỏi bất kỳ câu Interview nào.",
-      completeThinking: "Đã suy nghĩ trong 18 giây",
+      completeThinking: "Đã hoàn tất suy nghĩ",
       completeDescription:
         "Scan hoàn tất. Source đã pin đã được index và evidence graph đã được xây dựng.",
       runningPlaceholder: "Scanner đang chạy...",
@@ -1749,6 +1752,8 @@ export const viPages = {
       retryScan: "Thử lại quét source",
       retryingScan: "Đang tạo scan mới",
       retryError: "Không thể thử lại quét source. Hãy thử lại sau.",
+      graphPendingDescription: "Quét đã hoàn tất và evidence đã được chấp nhận. Graph chưa được xác nhận sẵn sàng để xem.",
+      reconnecting: "Đang kết nối lại luồng cập nhật trực tiếp...",
       activities: {
         connect: "Đã kết nối Git provider",
         clone: "Đã clone source archive",
@@ -2117,6 +2122,8 @@ export const viPages = {
     rerunScan: "Chạy lại scan",
     rerunningScan: "Đang tạo scan mới",
     rerunError: "Không thể tạo scan mới. Hãy thử lại sau.",
+    currentBadge: "Hiện tại",
+    historicalBadge: "Lịch sử",
     scanStatuses: {
       queued: "Đang chờ chạy",
       running: "Đang phân tích",

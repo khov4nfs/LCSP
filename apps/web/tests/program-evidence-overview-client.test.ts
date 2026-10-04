@@ -22,6 +22,7 @@ test("overview client accepts the unwrapped BFF metric payload", async () => {
     assert.deepEqual(
       await getProgramEvidenceGraphOverview("assessment-1"),
       {
+        graph_ready: false,
         modules_analyzed: 1539,
         code_symbols_indexed: 7113,
         ai_model_invocations: 2,

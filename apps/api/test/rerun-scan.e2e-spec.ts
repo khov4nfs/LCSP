@@ -85,7 +85,7 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
     await prisma.$disconnect();
   });
 
-  it("T01/T03: Valid re-run creates 201 replacement scan job and removes prior same-snapshot scan", async () => {
+  it("T01/T03: Valid re-run creates 201 replacement scan job and preserves prior same-snapshot scan", async () => {
     const priorUpdatedAt = new Date("2026-07-17T00:00:00.000Z");
     await prisma.repositoryScanJob.create({
       data: {
@@ -119,7 +119,8 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
     const prior = await prisma.repositoryScanJob.findUnique({
       where: { id: "prior-scan-job" },
     });
-    assert.equal(prior, null);
+    assert.ok(prior);
+    assert.equal(prior.id, "prior-scan-job");
 
     const event = await prisma.outboxMessage.findFirst({
       where: { aggregateId: body.scan_job_id },

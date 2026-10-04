@@ -22,6 +22,7 @@ export class GetScanJobQuery extends Query<ScanJobStatusDto> {
     public readonly subjectRole: AuthUserRole,
     public readonly scope: string | null,
     public readonly correlationId: string,
+    public readonly userId?: string,
   ) {
     super();
   }

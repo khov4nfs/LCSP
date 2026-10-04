@@ -1,3 +1,4 @@
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
   type RepositoryScanJobStatus,
@@ -35,6 +36,19 @@ export class GetScanJobHandler implements IQueryHandler<GetScanJobQuery> {
    * @throws A job-not-found problem when the job is missing from the assessment scope.
    */
   async execute(query: GetScanJobQuery): Promise<ScanJobStatusDto> {
+    if (query.subjectRole !== AUTH_USER_ROLES.admin) {
+      if (!query.userId) {
+        this.notFound(query.correlationId);
+      }
+      const assessment = await this.prisma.assessment.findUnique({
+        where: { id: query.assessmentId },
+        select: { ownerId: true },
+      });
+      if (!assessment || assessment.ownerId !== query.userId) {
+        this.notFound(query.correlationId);
+      }
+    }
+
     const job = await this.prisma.repositoryScanJob.findFirst({
       where: {
         id: query.scanJobId,
