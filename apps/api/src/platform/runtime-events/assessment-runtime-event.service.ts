@@ -1,34 +1,34 @@
-import { asRecord } from "@lcsp/contracts/shared";
-import { randomUUID } from "node:crypto";
 import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   ASSESSMENT_AGENT_STREAM_STAGES,
+  ASSESSMENT_PIPELINE_LIVENESS_WINDOW_SECONDS,
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS,
   ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
+  ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES,
+  FINAL_ASSESSMENT_RESULT_STATUSES,
+  isAssessmentAgentStreamEventType,
+  isPostFindingRuntimePhase,
+  isRemediationDecision,
+  normalizePersistedAgentStreamStage,
+  REMEDIATION_APPROVAL_STATUSES,
   RULE_ANALYSIS_ACTIVITIES,
   RULE_ANALYSIS_SUMMARY_TOOL,
   RULE_ANALYSIS_TOOL_PREFIX,
-  ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES,
-  isAssessmentAgentStreamEventType,
-  normalizePersistedAgentStreamStage,
-  isPostFindingRuntimePhase,
-  isRemediationDecision,
-  REMEDIATION_APPROVAL_STATUSES,
   VERIFICATION_RESULT_STATUSES,
-  FINAL_ASSESSMENT_RESULT_STATUSES,
   type AssessmentAgentStreamEvent,
   type AssessmentAgentStreamEventType,
   type AssessmentAgentStreamStage,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
-  type AssessmentRuntimeEventType,
-  type AssessmentRuntimePipelineControlReason,
-  type AssessmentRuntimeEngineeringProgress,
   type AssessmentRuntimeActiveTool,
   type AssessmentRuntimeActivityEvent,
+  type AssessmentRuntimeEngineeringProgress,
+  type AssessmentRuntimeEventType,
+  type AssessmentRuntimePipelineControlReason,
   type AssessmentRuntimeRun,
   type AssessmentRuntimeRunStatus,
   type AssessmentRuntimeSnapshot,
@@ -36,24 +36,25 @@ import {
   type AssessmentRuntimeSummaryValue,
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
-import { ASSESSMENT_PIPELINE_LIVENESS_WINDOW_SECONDS } from "@lcsp/contracts/evidence";
-import {
-  deriveStageLifecycles,
-  type StageLifecycleInterviewThread,
-} from "./stage-lifecycle.js";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
-import type { Prisma } from "@prisma/client";
+import { asRecord } from "@lcsp/contracts/shared";
 import { Injectable, Logger } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import {
-  Observable,
-  ReplaySubject,
   defer,
   filter,
   from,
   map,
   merge,
   mergeMap,
+  Observable,
+  ReplaySubject,
 } from "rxjs";
+import {
+  deriveStageLifecycles,
+  type StageLifecycleInterviewThread,
+} from "./stage-lifecycle.js";
 
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import {
@@ -61,16 +62,16 @@ import {
   STALE_REPOSITORY_SCAN_BLOCKED_REASON,
 } from "../scan/repository-scan-staleness.js";
 import {
+  sanitizeAgentStreamIdentifier,
+  sanitizeAgentStreamText,
+  sanitizeAgentStreamValue,
+} from "./agent-stream-sanitizer.js";
+import {
   FALLBACK_SUMMARY,
   sanitizeRuntimeSummaryText,
   sanitizeRuntimeSummaryValue,
   summarizeRuntimeError,
 } from "./runtime-summary-sanitizer.js";
-import {
-  sanitizeAgentStreamIdentifier,
-  sanitizeAgentStreamText,
-  sanitizeAgentStreamValue,
-} from "./agent-stream-sanitizer.js";
 
 const RUNTIME_EVENT_SEQUENCE_RETRY_ATTEMPTS = 8;
 const RUNTIME_EVENT_SEQUENCE_RETRY_DELAY_MS = 5;
@@ -110,6 +111,7 @@ export type PublishAgentStreamEventInput = {
 };
 
 type RecordRuntimeEventInput = {
+  idempotentId?: string;
   assessmentId: string;
   runId: string;
   correlationId: string;
@@ -481,6 +483,19 @@ export class AssessmentRuntimeEventService {
   async publishAgentStreamEvent(
     input: PublishAgentStreamEventInput,
   ): Promise<AssessmentAgentStreamEvent | null> {
+    const runtimeRunId = asRecord(input.data)?.runtimeRunId;
+    if (typeof runtimeRunId === "string") {
+      const turn = await this.prisma.assessmentRuntimeTurn.findUnique({
+        where: { id: runtimeRunId },
+      });
+      if (
+        !turn ||
+        turn.assessmentId !== input.assessmentId ||
+        (turn.state !== ASSESSMENT_RUNTIME_CONTROL_STATES.running &&
+          turn.state !== ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested)
+      )
+        return null;
+    }
     const ownerId = await this.resolveAssessmentOwnerId(input.assessmentId);
     if (ownerId === null) {
       this.logger.warn(
@@ -578,6 +593,17 @@ export class AssessmentRuntimeEventService {
     event: AssessmentAgentStreamEvent,
   ): Promise<void> {
     await this.recordEvent({
+      ...([
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeResumed,
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopRequested,
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopped,
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeResumeRequested,
+        ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeCompleted,
+      ].includes(event.eventType as never)
+        ? {
+            idempotentId: `runtime-control:${event.assessmentId}:${event.eventId}`,
+          }
+        : {}),
       assessmentId: event.assessmentId,
       runId: event.runId,
       correlationId: event.correlationId,
@@ -961,6 +987,16 @@ export class AssessmentRuntimeEventService {
     assessmentId: string,
     windowMs: number,
   ): Promise<{ live: boolean; lastActivityAt: Date | null }> {
+    const turn = await this.prisma.assessmentRuntimeTurn.findFirst({
+      where: { assessmentId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (turn && turn.state !== ASSESSMENT_RUNTIME_CONTROL_STATES.running) {
+      return {
+        live: turn.state === ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested,
+        lastActivityAt: turn.updatedAt,
+      };
+    }
     const [latest] = await this.safeFindMany({
       where: { assessmentId },
       orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
@@ -971,9 +1007,6 @@ export class AssessmentRuntimeEventService {
       asRecord(latest.outputSummaryJson)?.agentStreamEvent,
     )?.eventType;
     const endsRun =
-      // The customer stopped the pipeline; nothing is running any more.
-      latest.waitingReason ===
-        ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS.customerRequestedStop ||
       latest.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.failed ||
       latest.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed ||
       agentEventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryFailed ||
@@ -1016,7 +1049,7 @@ export class AssessmentRuntimeEventService {
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
       toolName: ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
       summary: stopped
-        ? "Customer stopped the assessment pipeline"
+        ? "Customer requested interruption of the assessment pipeline"
         : "Customer continued the assessment pipeline",
       waitingReason: input.reason,
     });
@@ -1024,6 +1057,17 @@ export class AssessmentRuntimeEventService {
 
   /** Whether the customer's latest pipeline control was a stop. */
   async isPipelineStoppedByCustomer(assessmentId: string): Promise<boolean> {
+    const turn = await this.prisma.assessmentRuntimeTurn.findFirst({
+      where: { assessmentId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (turn) {
+      return (
+        turn.state === ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested ||
+        turn.state === ASSESSMENT_RUNTIME_CONTROL_STATES.stopped ||
+        turn.state === ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested
+      );
+    }
     const [latest] = await this.safeFindMany({
       where: {
         assessmentId,
@@ -1124,6 +1168,7 @@ export class AssessmentRuntimeEventService {
       })) as { sequence: number } | null;
       await runtimeEventDelegate(tx).create({
         data: {
+          ...(input.idempotentId ? { id: input.idempotentId } : {}),
           assessmentId: input.assessmentId,
           runId: input.runId,
           correlationId: input.correlationId,
@@ -1167,6 +1212,15 @@ export class AssessmentRuntimeEventService {
         });
         return;
       } catch (error) {
+        if (
+          input.idempotentId &&
+          asRecord(error)?.code === "P2002" &&
+          (await runtimeEventDelegate(this.prisma).findFirst({
+            where: { id: input.idempotentId },
+          }))
+        ) {
+          return;
+        }
         if (isMissingAssessmentRuntimeEventTable(error)) {
           this.logRuntimeEventTableMissing("recordEvent", error);
           return;

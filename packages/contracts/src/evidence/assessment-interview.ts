@@ -832,6 +832,7 @@ export type AssessmentInterviewResumeInput = {
 export const ASSESSMENT_PIPELINE_CONTINUE_ACTIONS = {
   interviewTurnResumed: "INTERVIEW_TURN_RESUMED",
   downstreamRequeued: "DOWNSTREAM_REQUEUED",
+  checkpointResumeRequested: "CHECKPOINT_RESUME_REQUESTED",
 } as const;
 
 export type AssessmentPipelineContinueAction =
@@ -855,6 +856,7 @@ export const ASSESSMENT_PIPELINE_LIVENESS_WINDOW_SECONDS = 90;
 
 export type AssessmentPipelineContinueResult = {
   action: AssessmentPipelineContinueAction;
+  control?: import("./assessment-runtime-control.ts").AssessmentRuntimeControlResult;
 };
 
 type StringLiteralRecord = Record<string, string>;

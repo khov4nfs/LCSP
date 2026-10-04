@@ -47,7 +47,9 @@ def test_missing_source_fails_closed():
             "workItems": [{"legalRuleId": "R1", "readyForTriage": False}]})])
 
 
-def test_real_agent_loop_cannot_bind_finish_or_handoff_before_persistence():
+@pytest.mark.parametrize("async_mode", [False, True])
+@pytest.mark.asyncio
+async def test_real_agent_loop_cannot_bind_finish_or_handoff_before_persistence(async_mode):
     from langchain.agents import create_agent
     from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
     from langchain.messages import AIMessage
@@ -87,7 +89,9 @@ def test_real_agent_loop_cannot_bind_finish_or_handoff_before_persistence():
     model = Model(responses=[AIMessage(content="", tool_calls=[{
         "id": str(index), "name": name, "args": {"complete": True} if name == "Handoff" else {},
     }]) for index, name in enumerate([GET, PERSIST, GET, FINISH, "Handoff"])])
-    result = create_agent(model, tools=[get_page, persist, finish], response_format=Handoff,
-        middleware=[require_triage_progress]).invoke({"messages": [{"role": "user", "content": "Process scope"}]})
+    agent = create_agent(model, tools=[get_page, persist, finish], response_format=Handoff,
+        middleware=[require_triage_progress])
+    inputs = {"messages": [{"role": "user", "content": "Process scope"}]}
+    result = await agent.ainvoke(inputs) if async_mode else agent.invoke(inputs)
     assert result["structured_response"].complete
     assert model.bindings == [[GET], [PERSIST], [GET], [FINISH], ["Handoff"]]

@@ -9,6 +9,7 @@ import {
   ASSESSMENT_AGENT_STREAM_STAGES,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   type AssessmentAgentStreamEvent,
   type AssessmentRuntimeSummaryValue,
@@ -54,8 +55,232 @@ const { InterviewCycleTurn } =
   await import("../src/features/workspace/components/molecules/interview-cycle-turn.tsx");
 const { AgentStreamTurn } =
   await import("../src/features/workspace/components/molecules/agent-stream-turn.tsx");
+const { AgentStreamDispatchTurns } =
+  await import("../src/features/workspace/components/molecules/agent-stream-dispatch-turns.tsx");
 
 const roots: ReturnType<typeof createRoot>[] = [];
+
+test("native Stop settles the transcript and per-rule technical rows without failing completed work", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  const types = ASSESSMENT_AGENT_STREAM_EVENT_TYPES;
+  const stage = ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis;
+  const rule = (
+    sequence: number,
+    ruleId: string,
+    status: AssessmentAgentStreamEvent["status"],
+    native = false,
+  ) =>
+    event(
+      sequence,
+      types.engineeringRule,
+      {
+        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1,
+        kind: ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.engineeringRule,
+        investigationGoals: [ruleId],
+        ...(native ? { runtimeRunId: "native-resume" } : {}),
+      },
+      { stage, engineeringRuleId: ruleId, status },
+    );
+  const work = [
+    rule(0, "needs-context-rule", ASSESSMENT_RUNTIME_RUN_STATUSES.waiting),
+    rule(1, "finished-rule", ASSESSMENT_RUNTIME_RUN_STATUSES.completed),
+    rule(2, "unfinished-rule", ASSESSMENT_RUNTIME_RUN_STATUSES.running),
+    event(3, types.modelCallStarted, null, {
+      stage,
+      engineeringRuleId: "unfinished-rule",
+    }),
+    rule(4, "unfinished-rule", ASSESSMENT_RUNTIME_RUN_STATUSES.completed, true),
+    rule(5, "current-rule", ASSESSMENT_RUNTIME_RUN_STATUSES.running, true),
+    event(
+      6,
+      types.modelCallStarted,
+      { runtimeRunId: "native-resume" },
+      { stage, engineeringRuleId: "current-rule" },
+    ),
+    event(
+      7,
+      types.runtimeStopped,
+      {
+        runtimeControl: {
+          state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
+          targetRunId: "native-resume",
+        },
+      },
+      {
+        runId: "native-resume",
+        correlationId: "customer-stop",
+        stage: null,
+      },
+    ),
+  ];
+  const stages = groupAgentStreamEventsByStage(work);
+  const turns = groupAgentStreamActivityByTurnKey([
+    { stage, groups: groupAgentStreamEventsByRun(stages.byStage[stage]) },
+  ]);
+  await act(async () =>
+    root.render(
+      <>
+        {turns.map((segment) => (
+          <AgentStreamDispatchTurns key={segment.turnKey} segment={segment} />
+        ))}
+      </>,
+    ),
+  );
+  assert.equal(container.querySelectorAll(".animate-spin").length, 0);
+  assert.doesNotMatch(
+    container.textContent ?? "",
+    /Thinking\.\.\.|Đang suy nghĩ/,
+  );
+  assert.match(container.textContent ?? "", /Paused|tạm dừng/i);
+  const statuses = [
+    ...container.querySelectorAll("[data-stream-rule-analysis-rule-status]"),
+  ].map((row) => row.getAttribute("data-stream-rule-analysis-rule-status"));
+  assert.equal(
+    statuses.filter(
+      (status) => status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+    ).length,
+    0,
+  );
+  assert.equal(
+    statuses.filter(
+      (status) => status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+    ).length,
+    2,
+  );
+  assert.equal(
+    statuses.filter(
+      (status) => status === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+    ).length,
+    3,
+  );
+  assert.match(
+    container.textContent ?? "",
+    /Waiting for more context|Đang chờ thêm ngữ cảnh/,
+  );
+});
+
+test("stopping rule analysis keeps the earlier completed Interview turn completed", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  const types = ASSESSMENT_AGENT_STREAM_EVENT_TYPES;
+  const work = [
+    event(1, types.modelCallCompleted, { runtimeRunId: "native-a" }, {
+      stage: ASSESSMENT_AGENT_STREAM_STAGES.interview,
+      status: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+    }),
+    event(2, types.boundaryStarted, { runtimeRunId: "native-a" }, {
+      stage: ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+    }),
+    event(3, types.runtimeStopped, { runtimeControl: {
+      state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
+      targetRunId: "native-a",
+    } }, { runId: "native-a", correlationId: "customer-stop", stage: null }),
+  ];
+  const stages = groupAgentStreamEventsByStage(work);
+  const segments = groupAgentStreamActivityByTurnKey([
+    ASSESSMENT_AGENT_STREAM_STAGES.interview,
+    ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+  ].map(stage => ({
+    stage, groups: groupAgentStreamEventsByRun(stages.byStage[stage]),
+  })));
+  await act(async () => root.render(<>{segments.map(segment =>
+    <AgentStreamDispatchTurns key={segment.turnKey} segment={segment} />,
+  )}</>));
+  const turns = [...container.querySelectorAll('[data-slot="agent-turn"]')];
+  assert.equal(turns.length, 2);
+  assert.match(turns[0]!.textContent ?? "", /Finished reviewing your answer|Đã xem xét xong câu trả lời/);
+  assert.doesNotMatch(turns[0]!.textContent ?? "", /Paused|tạm dừng/);
+  assert.match(turns[1]!.textContent ?? "", /Paused|tạm dừng/);
+  assert.equal(container.querySelector(".animate-spin"), null);
+});
+
+test("acknowledged Stop settles live activity before SSE arrives and is fenced to the native generation", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  const stage = ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis;
+  const types = ASSESSMENT_AGENT_STREAM_EVENT_TYPES;
+  const work = [
+    event(
+      1,
+      types.engineeringRule,
+      {
+        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1,
+        kind: ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.engineeringRule,
+        investigationGoals: ["Current investigation"],
+        runtimeRunId: "native-current",
+      },
+      { stage, engineeringRuleId: "current-rule" },
+    ),
+    event(
+      2,
+      types.modelCallStarted,
+      { runtimeRunId: "native-current" },
+      {
+        stage,
+        engineeringRuleId: "current-rule",
+      },
+    ),
+  ];
+  const segment = groupAgentStreamActivityByTurnKey([
+    { stage, groups: groupAgentStreamEventsByRun(work) },
+  ])[0]!;
+  const render = (
+    runtimeControl: Parameters<
+      typeof AgentStreamDispatchTurns
+    >[0]["runtimeControl"],
+  ) =>
+    act(async () =>
+      root.render(
+        <AgentStreamDispatchTurns
+          segment={segment}
+          runtimeControl={runtimeControl}
+        />,
+      ),
+    );
+  await render({
+    state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested,
+    targetRunId: "native-current",
+  });
+  assert.ok(
+    container.querySelector(".animate-spin"),
+    "a requested Stop is not yet acknowledged",
+  );
+  await render({
+    state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
+    targetRunId: "native-old",
+  });
+  assert.ok(
+    container.querySelector(".animate-spin"),
+    "another native generation cannot pause this turn",
+  );
+  await render({
+    state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
+    targetRunId: "native-current",
+  });
+  assert.equal(container.querySelector(".animate-spin"), null);
+  assert.match(container.textContent ?? "", /Paused|tạm dừng/i);
+  assert.equal(
+    container
+      .querySelector("[data-stream-rule-analysis-rule-status]")
+      ?.getAttribute("data-stream-rule-analysis-rule-status"),
+    ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+  );
+  await render({
+    state: ASSESSMENT_RUNTIME_CONTROL_STATES.running,
+    targetRunId: "native-current",
+  });
+  assert.ok(
+    container.querySelector(".animate-spin"),
+    "a running generation can render live again",
+  );
+});
 
 test("completed scan job keeps Scanner done despite delayed running stream rows", async () => {
   const container = document.createElement("div");
@@ -2434,7 +2659,7 @@ test("one pipeline dispatch spanning Interview and rule-analysis renders as a si
     1,
     "Interview and rule-analysis sharing a dispatch must render as ONE turn, not two",
   );
-  assert.match(container.textContent ?? "", /LCSP Assessment Agent/);
+  assert.match(container.textContent ?? "", /LCSP Rule analysis/);
   assert.match(
     container.textContent ?? "",
     /classifies AI risk before the feature is used/,

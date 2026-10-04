@@ -1,3 +1,4 @@
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   Body,
   Controller,
@@ -12,24 +13,23 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { CreateAssessmentCommand } from "../../application/commands/create-assessment/create-assessment.command.js";
-import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
-import { DeleteAssessmentCommand } from "../../application/commands/delete-assessment/delete-assessment.command.js";
-import { RenameAssessmentCommand } from "../../application/commands/rename-assessment/rename-assessment.command.js";
-import { PutRuleAssessmentCommand } from "../../application/commands/put-rule-assessment/put-rule-assessment.command.js";
-import { ListRuleAssessmentsQuery } from "../../application/queries/list-rule-assessments/list-rule-assessments.query.js";
-import { MarkAiNotDetectedCommand } from "../../application/commands/mark-ai-not-detected/mark-ai-not-detected.command.js";
-import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
-import { GetAssessmentReadinessQuery } from "../../application/queries/get-assessment-readiness/get-assessment-readiness.query.js";
-import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
+import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
+import { CreateAssessmentCommand } from "../../application/commands/create-assessment/create-assessment.command.js";
+import { DeleteAssessmentCommand } from "../../application/commands/delete-assessment/delete-assessment.command.js";
+import { MarkAiNotDetectedCommand } from "../../application/commands/mark-ai-not-detected/mark-ai-not-detected.command.js";
+import { PutRuleAssessmentCommand } from "../../application/commands/put-rule-assessment/put-rule-assessment.command.js";
+import { RenameAssessmentCommand } from "../../application/commands/rename-assessment/rename-assessment.command.js";
+import { GetAssessmentReadinessQuery } from "../../application/queries/get-assessment-readiness/get-assessment-readiness.query.js";
+import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
+import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
+import { ListRuleAssessmentsQuery } from "../../application/queries/list-rule-assessments/list-rule-assessments.query.js";
 import { AssessmentInterviewRuntimeService } from "../../application/services/assessment-interview-runtime.service.js";
 import { AssessmentInterviewSnippetService } from "../../application/services/assessment-interview-snippet.service.js";
 import { AssessmentPipelineContinuationService } from "../../application/services/assessment-pipeline-continuation.service.js";
@@ -285,16 +285,11 @@ export class AssessmentController {
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.interviewRuntime.resumeFailedTurn({
+      await this.interviewRuntime.resumeInterruptedTurn({
         assessmentId,
         actor: request.rbacContext,
         correlationId: request.correlationId ?? "worker-interview-context",
         resume: body as never,
-        // The customer reaches this route by clicking Resume, which covers a
-        // worker-crash stall exactly as well as a turn they cooperatively
-        // paused themselves (pauseActiveTurn never reports FAILED progress,
-        // so the strict turnFailed check alone would 409 a paused turn).
-        allowStalled: true,
       }),
     );
   }
@@ -306,12 +301,12 @@ export class AssessmentController {
     @Param("assessmentId") assessmentId: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    await this.interviewRuntime.pauseActiveTurn({
+    const control = await this.interviewRuntime.pauseActiveTurn({
       assessmentId,
       actor: request.rbacContext,
       correlationId: request.correlationId ?? "worker-interview-context",
     });
-    return resultEnvelope({ paused: true });
+    return resultEnvelope(control);
   }
 
   @Post(":assessmentId/pipeline/continue")

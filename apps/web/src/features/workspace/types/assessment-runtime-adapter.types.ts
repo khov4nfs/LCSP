@@ -1,4 +1,5 @@
 import {
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
   type AssessmentArtifactAvailabilityProjection,
@@ -166,6 +167,7 @@ export const NORMALIZED_WORKFLOW_STEP_STATUSES = {
   queued: REPOSITORY_SCAN_JOB_STATUSES.queued,
   running: REPOSITORY_SCAN_JOB_STATUSES.running,
   waiting: "WAITING",
+  stopped: ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
   completed: REPOSITORY_SCAN_JOB_STATUSES.completed,
   skipped: "SKIPPED",
   failed: REPOSITORY_SCAN_JOB_STATUSES.failed,

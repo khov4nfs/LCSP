@@ -49,6 +49,8 @@ def test_scan_job_reuses_thread_only_for_same_scan_delivery() -> None:
 
 
 def test_agent_server_dispatch_reuses_thread_and_keeps_event_out_of_prompt(monkeypatch) -> None:
+    report_control = MagicMock(return_value={})
+    monkeypatch.setattr(agent_server_client, "report_runtime_control", report_control)
     fake_client = MagicMock()
     fake_client.runs.create.return_value = {"run_id": "run-1", "status": "pending"}
     fake_client.runs.get.side_effect = [
@@ -90,6 +92,9 @@ def test_agent_server_dispatch_reuses_thread_and_keeps_event_out_of_prompt(monke
     assert "trusted lcsp system event" in prompt.lower()
     assert create.kwargs["multitask_strategy"] == "enqueue"
     assert fake_client.runs.get.call_count == 2
+    report_control.assert_called_once_with(
+        thread_id, "run-1", create.kwargs["context"], "COMPLETED"
+    )
 
 
 def test_agent_server_scan_observer_persists_scheduler_progress(monkeypatch) -> None:
@@ -132,6 +137,7 @@ def test_agent_server_scan_observer_persists_scheduler_progress(monkeypatch) -> 
                 "output_summary": {
                     "runId": "run-1",
                     "schedulerState": "pending",
+                    "runtimeRunId": "run-1",
                 },
             },
         )
@@ -139,6 +145,8 @@ def test_agent_server_scan_observer_persists_scheduler_progress(monkeypatch) -> 
 
 
 def test_agent_server_dispatch_raises_terminal_error_from_run_state(monkeypatch) -> None:
+    report_control = MagicMock(return_value={})
+    monkeypatch.setattr(agent_server_client, "report_runtime_control", report_control)
     fake_client = MagicMock()
     fake_client.runs.create.return_value = {"run_id": "run-1", "status": "pending"}
     fake_client.runs.get.return_value = {"run_id": "run-1", "status": "error"}
@@ -160,6 +168,10 @@ def test_agent_server_dispatch_raises_terminal_error_from_run_state(monkeypatch)
 
     assert captured.value.remote_error_type == "RuntimeError"
     assert "Remote run failed" in str(captured.value)
+    create = fake_client.runs.create.call_args
+    report_control.assert_called_once_with(
+        create.args[0], "run-1", create.kwargs["context"], "COMPLETED"
+    )
 
 
 

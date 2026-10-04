@@ -135,8 +135,7 @@ test("assessment composer auto-grows from one to three rows and keeps expansion 
   assert.match(source, /EXPANDED_MAX_HEIGHT_PX = 352/);
   assert.match(source, /max-h-\[min\(42dvh,22rem\)\]/);
   assert.match(source, /min-h-11/);
-  assert.match(source, /\[scrollbar-width:none\]/);
-  assert.match(source, /\[&::-webkit-scrollbar\]:hidden/);
+  assert.match(source, /scrollbar-none/);
   assert.equal(source.match(/<Textarea\b/g)?.length, 1);
   assert.equal(source.match(/type="submit"/g)?.length, 1);
   assert.match(source, /Maximize2Icon/);

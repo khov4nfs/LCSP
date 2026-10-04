@@ -1,6 +1,10 @@
-import { ASSESSMENT_AGENT_STREAM_STAGES } from "@lcsp/contracts/evidence";
+import {
+  ASSESSMENT_AGENT_STREAM_STAGES,
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
+} from "@lcsp/contracts/evidence";
 
 import type { AgentStreamDispatchTurnsProps } from "../../types/agent-stream-dispatch-turns.types";
+import { agentStreamRuntimeRunId } from "../../utils/agent-stream-identity";
 import {
   AGENT_STREAM_RUN_OUTCOMES,
   deriveAgentStreamRunOutcome,
@@ -15,6 +19,7 @@ import { AgentStreamTurn } from "./agent-stream-turn";
 export function AgentStreamDispatchTurns({
   segment,
   outputs,
+  runtimeControl,
 }: AgentStreamDispatchTurnsProps) {
   const turns = splitAgentStreamActivityByStage(segment);
   // Caller-owned results (an Interview answer's outcome) belong to the
@@ -25,13 +30,26 @@ export function AgentStreamDispatchTurns({
       (turn) => turn.stage === ASSESSMENT_AGENT_STREAM_STAGES.interview,
     ),
   );
-  const dispatchOutcome = deriveAgentStreamRunOutcome(segment.events);
+  const ownDispatchOutcome = deriveAgentStreamRunOutcome(segment.events);
+  // An acknowledged poll can precede the terminal stream event. Fence it to
+  // this native generation so an old Stop never pauses a resumed dispatch.
+  const stopped =
+    runtimeControl?.state === ASSESSMENT_RUNTIME_CONTROL_STATES.stopped &&
+    segment.events.some(
+      (event) => agentStreamRuntimeRunId(event) === runtimeControl.targetRunId,
+    );
+  const dispatchOutcome =
+    (segment.superseded || stopped) &&
+    ownDispatchOutcome === AGENT_STREAM_RUN_OUTCOMES.running
+      ? AGENT_STREAM_RUN_OUTCOMES.paused
+      : ownDispatchOutcome;
   return turns.map((turn, index) => {
     const own = deriveAgentStreamRunOutcome(turn.events);
     // An earlier stage is done once a later one started; its boundary only
     // closes on the dispatch's final stage, so "running" here is stale.
     const outcome = turn.superseded
-      ? own === AGENT_STREAM_RUN_OUTCOMES.running
+      ? own === AGENT_STREAM_RUN_OUTCOMES.running ||
+        own === AGENT_STREAM_RUN_OUTCOMES.paused
         ? AGENT_STREAM_RUN_OUTCOMES.completed
         : own
       : dispatchOutcome;

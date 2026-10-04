@@ -2,25 +2,21 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
-from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
+from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain.messages import SystemMessage
 
 from orchestration.context import LCSPRunContext
 
 
-@wrap_model_call
-def inject_interview_runtime_context(
-    request: ModelRequest,
-    handler: Callable[[ModelRequest], ModelResponse],
-) -> ModelResponse:
+def _project_interview_runtime_context(request: ModelRequest) -> ModelRequest:
     """Expose assessment correlation and provenance pins, never workflow internals."""
     context = request.runtime.context
     if isinstance(context, dict):
         context = LCSPRunContext(**context)
     if not isinstance(context, LCSPRunContext):
-        return handler(request)
+        return request
 
     lines: list[str] = []
     if context.assessment_id:
@@ -36,7 +32,7 @@ def inject_interview_runtime_context(
         if value:
             lines.append(f"{key}={value}")
     if not lines:
-        return handler(request)
+        return request
 
     content = list(request.system_message.content_blocks)
     content.append(
@@ -50,7 +46,26 @@ def inject_interview_runtime_context(
             ),
         }
     )
-    return handler(request.override(system_message=SystemMessage(content=content)))
+    return request.override(system_message=SystemMessage(content=content))
+
+
+class _InterviewRuntimeContextMiddleware(AgentMiddleware):
+    name = "inject_interview_runtime_context"
+
+    def wrap_model_call(
+        self, request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse],
+    ) -> ModelResponse:
+        return handler(_project_interview_runtime_context(request))
+
+    async def awrap_model_call(
+        self,
+        request: ModelRequest,
+        handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        return await handler(_project_interview_runtime_context(request))
+
+
+inject_interview_runtime_context = _InterviewRuntimeContextMiddleware()
 
 
 __all__ = ["inject_interview_runtime_context"]

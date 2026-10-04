@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
-from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
+from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain.messages import ToolMessage
 
 GET = "get_legal_rule_triage_work_items"
@@ -13,10 +13,7 @@ PERSIST = "persist_legal_rule_triage_result"
 FINISH = "finish_legal_rule_triage_execution"
 
 
-@wrap_model_call
-def require_triage_progress(
-    request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse]
-) -> ModelResponse:
+def _bounded_triage_request(request: ModelRequest) -> ModelRequest:
     """Withhold finish and structured output until all work is persisted."""
     page = None
     persisted: set[str] = set()
@@ -39,7 +36,7 @@ def require_triage_progress(
             finished = True
 
     if finished:
-        return handler(request.override(tools=[], tool_choice=None))
+        return request.override(tools=[], tool_choice=None)
 
     allowed = {GET, "maintain_legal_catalog"} if page is None else {GET}
     if page is not None:
@@ -50,8 +47,27 @@ def require_triage_progress(
             if any(not item.get("readyForTriage") for item in items):
                 raise RuntimeError("Triage source page contains unavailable legal evidence")
             allowed = {PERSIST}
-    return handler(request.override(
+    return request.override(
         tools=[tool for tool in request.tools if getattr(tool, "name", None) in allowed],
         response_format=None,
         tool_choice="any",
-    ))
+    )
+
+
+class _TriageProgressMiddleware(AgentMiddleware):
+    name = "require_triage_progress"
+
+    def wrap_model_call(
+        self, request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse],
+    ) -> ModelResponse:
+        return handler(_bounded_triage_request(request))
+
+    async def awrap_model_call(
+        self,
+        request: ModelRequest,
+        handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        return await handler(_bounded_triage_request(request))
+
+
+require_triage_progress = _TriageProgressMiddleware()

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 from langchain.messages import ToolMessage
 
-from middleware.triage_singleton import _guard_triage_task_call
+from middleware.triage_singleton import _aguard_triage_task_call, _guard_triage_task_call
 from orchestration.context import LCSPRunContext
 
 
@@ -29,7 +31,21 @@ class FakeRequest:
         )
 
 
-def test_running_triage_short_circuits_before_second_subagent_start() -> None:
+@pytest.fixture(params=[False, True], ids=["sync", "async"])
+def invoke_guard(request):
+    def invoke(tool_request, handler, **kwargs):
+        if not request.param:
+            return _guard_triage_task_call(tool_request, handler, **kwargs)
+
+        async def async_handler(guarded):
+            return handler(guarded)
+
+        return asyncio.run(_aguard_triage_task_call(tool_request, async_handler, **kwargs))
+
+    return invoke
+
+
+def test_running_triage_short_circuits_before_second_subagent_start(invoke_guard) -> None:
     coordinator = MagicMock()
     coordinator.claim_or_observe.return_value = SimpleNamespace(
         status="ALREADY_RUNNING",
@@ -45,7 +61,7 @@ def test_running_triage_short_circuits_before_second_subagent_start() -> None:
         )
     )
 
-    result = _guard_triage_task_call(
+    result = invoke_guard(
         request,
         handler,
         coordinator=coordinator,
@@ -66,7 +82,7 @@ def test_running_triage_short_circuits_before_second_subagent_start() -> None:
     )
 
 
-def test_first_readiness_triage_dispatch_injects_claimed_execution_and_root_reconciles() -> None:
+def test_first_readiness_triage_dispatch_injects_claimed_execution_and_root_reconciles(invoke_guard) -> None:
     coordinator = MagicMock()
     coordinator.claim_or_observe.return_value = SimpleNamespace(
         status="OWNER",
@@ -94,7 +110,7 @@ def test_first_readiness_triage_dispatch_injects_claimed_execution_and_root_reco
         )
     )
 
-    result = _guard_triage_task_call(
+    result = invoke_guard(
         request,
         handler,
         coordinator=coordinator,
@@ -118,7 +134,7 @@ def test_first_readiness_triage_dispatch_injects_claimed_execution_and_root_reco
     waiting_registry.reconcile_all.assert_called_once_with()
 
 
-def test_full_backlog_readiness_trigger_is_not_misclassified_as_scheduled() -> None:
+def test_full_backlog_readiness_trigger_is_not_misclassified_as_scheduled(invoke_guard) -> None:
     coordinator = MagicMock()
     coordinator.claim_or_observe.return_value = SimpleNamespace(
         status="OWNER",
@@ -134,7 +150,7 @@ def test_full_backlog_readiness_trigger_is_not_misclassified_as_scheduled() -> N
         context=LCSPRunContext(idempotency_key="readiness:full-backlog")
     )
 
-    _guard_triage_task_call(
+    invoke_guard(
         request,
         handler,
         coordinator=coordinator,
@@ -149,7 +165,7 @@ def test_full_backlog_readiness_trigger_is_not_misclassified_as_scheduled() -> N
     waiting_registry.reconcile_all.assert_called_once_with()
 
 
-def test_scheduled_triage_uses_same_root_lifecycle_and_reconciles_after_return() -> None:
+def test_scheduled_triage_uses_same_root_lifecycle_and_reconciles_after_return(invoke_guard) -> None:
     coordinator = MagicMock()
     coordinator.claim_or_observe.return_value = SimpleNamespace(
         status="OWNER",
@@ -163,7 +179,7 @@ def test_scheduled_triage_uses_same_root_lifecycle_and_reconciles_after_return()
     )
     request = FakeRequest(context=LCSPRunContext())
 
-    _guard_triage_task_call(
+    invoke_guard(
         request,
         handler,
         coordinator=coordinator,
@@ -178,7 +194,7 @@ def test_scheduled_triage_uses_same_root_lifecycle_and_reconciles_after_return()
     waiting_registry.reconcile_all.assert_called_once_with()
 
 
-def test_failed_owner_dispatch_releases_lease_without_reconciliation() -> None:
+def test_failed_owner_dispatch_releases_lease_without_reconciliation(invoke_guard) -> None:
     coordinator = MagicMock()
     coordinator.claim_or_observe.return_value = SimpleNamespace(
         status="OWNER",
@@ -191,7 +207,7 @@ def test_failed_owner_dispatch_releases_lease_without_reconciliation() -> None:
         raise RuntimeError("subagent failed")
 
     with pytest.raises(RuntimeError, match="subagent failed"):
-        _guard_triage_task_call(
+        invoke_guard(
             request,
             fail,
             coordinator=coordinator,
@@ -204,7 +220,7 @@ def test_failed_owner_dispatch_releases_lease_without_reconciliation() -> None:
     waiting_registry.reconcile_all.assert_not_called()
 
 
-def test_root_fails_closed_if_triage_returns_before_finish() -> None:
+def test_root_fails_closed_if_triage_returns_before_finish(invoke_guard) -> None:
     coordinator = MagicMock()
     coordinator.claim_or_observe.return_value = SimpleNamespace(
         status="OWNER",
@@ -221,7 +237,7 @@ def test_root_fails_closed_if_triage_returns_before_finish() -> None:
     )
 
     with pytest.raises(RuntimeError, match="returned before finish"):
-        _guard_triage_task_call(
+        invoke_guard(
             request,
             handler,
             coordinator=coordinator,
@@ -234,7 +250,7 @@ def test_root_fails_closed_if_triage_returns_before_finish() -> None:
     waiting_registry.reconcile_all.assert_not_called()
 
 
-def test_non_triage_task_is_not_intercepted() -> None:
+def test_non_triage_task_is_not_intercepted(invoke_guard) -> None:
     coordinator = MagicMock()
     waiting_registry = MagicMock()
     request = FakeRequest(
@@ -251,7 +267,7 @@ def test_non_triage_task_is_not_intercepted() -> None:
     expected = ToolMessage(content="planner", tool_call_id="call-2")
     handler = MagicMock(return_value=expected)
 
-    result = _guard_triage_task_call(
+    result = invoke_guard(
         request,
         handler,
         coordinator=coordinator,
@@ -261,4 +277,49 @@ def test_non_triage_task_is_not_intercepted() -> None:
     assert result is expected
     handler.assert_called_once()
     coordinator.claim_or_observe.assert_not_called()
+    waiting_registry.reconcile_all.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("during_reservation", [False, True])
+async def test_async_cancellation_preserves_interrupted_lease_without_reconciliation(during_reservation):
+    coordinator = MagicMock()
+    waiting_registry = MagicMock()
+    started = Event()
+    release = Event()
+    tool_cancelled = asyncio.Event()
+
+    def reserve(**kwargs):
+        if during_reservation:
+            started.set()
+            assert release.wait(2)
+        return SimpleNamespace(status="OWNER", execution_id="triage:owner")
+
+    coordinator.claim_or_observe.side_effect = reserve
+
+    async def handler(request):
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            tool_cancelled.set()
+
+    task = asyncio.create_task(_aguard_triage_task_call(
+        FakeRequest(context=LCSPRunContext()), handler,
+        coordinator=coordinator, waiting_registry=waiting_registry,
+    ))
+    try:
+        assert await asyncio.to_thread(started.wait, 2)
+        task.cancel()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=1)
+    finally:
+        release.set()
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    assert tool_cancelled.is_set() is (not during_reservation)
+    coordinator.abandon_execution.assert_not_called()
     waiting_registry.reconcile_all.assert_not_called()

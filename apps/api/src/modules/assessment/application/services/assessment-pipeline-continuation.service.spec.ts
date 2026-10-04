@@ -7,12 +7,16 @@ import {
   ASSESSMENT_PIPELINE_CONTINUE_RERUN_REASON,
   ASSESSMENT_PIPELINE_LIVENESS_WINDOW_SECONDS,
   ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS,
+  ASSESSMENT_RUNTIME_CONTROL_STATES as States,
+  ASSESSMENT_RUNTIME_CONTROL_ACTIONS as Actions,
+  type AssessmentRuntimeControlResult,
 } from "@lcsp/contracts/evidence";
 import { AssessmentStatus } from "@prisma/client";
 import type { CommandBus } from "@nestjs/cqrs";
 
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
+import type { AssessmentRuntimeControlService } from "../../../../platform/runtime-events/assessment-runtime-control.service.js";
 import { RerunClassificationCommand } from "../../../classification/application/commands/rerun-classification/rerun-classification.command.js";
 import type { AssessmentInterviewRuntimeService } from "./assessment-interview-runtime.service.js";
 import { AssessmentPipelineContinuationService } from "./assessment-pipeline-continuation.service.js";
@@ -46,6 +50,12 @@ describe("AssessmentPipelineContinuationService", () => {
   let stoppedByCustomer: jest.Mock<(...args: unknown[]) => Promise<boolean>>;
   let recordControl: jest.Mock<(...args: unknown[]) => Promise<void>>;
   let service: AssessmentPipelineContinuationService;
+  let currentControl: jest.Mock<
+    (...args: unknown[]) => Promise<AssessmentRuntimeControlResult | null>
+  >;
+  let requestControl: jest.Mock<
+    (...args: unknown[]) => Promise<AssessmentRuntimeControlResult>
+  >;
 
   const run = () =>
     service.continuePipeline({
@@ -91,6 +101,15 @@ describe("AssessmentPipelineContinuationService", () => {
     recordControl = jest
       .fn<(...args: unknown[]) => Promise<void>>()
       .mockResolvedValue(undefined);
+    currentControl = jest
+      .fn<
+        (...args: unknown[]) => Promise<AssessmentRuntimeControlResult | null>
+      >()
+      .mockResolvedValue(null);
+    requestControl =
+      jest.fn<
+        (...args: unknown[]) => Promise<AssessmentRuntimeControlResult>
+      >();
     service = new AssessmentPipelineContinuationService(
       {
         // No wallet/billing model on purpose: continue must never consult one.
@@ -103,7 +122,51 @@ describe("AssessmentPipelineContinuationService", () => {
         isPipelineStoppedByCustomer: stoppedByCustomer,
         recordPipelineControl: recordControl,
       } as unknown as AssessmentRuntimeEventService,
+      {
+        current: currentControl,
+        request: requestControl,
+      } as unknown as AssessmentRuntimeControlService,
     );
+  });
+
+  it("uses native checkpoint resume before any legacy requeue or rule rerun", async () => {
+    currentControl.mockResolvedValue({
+      state: States.stopped,
+      targetRunId: "native-run",
+      requestId: "stop",
+    });
+    const control = {
+      state: States.resumeRequested,
+      targetRunId: "native-run",
+      requestId: "resume",
+    };
+    requestControl.mockResolvedValue(control);
+    await expect(run()).resolves.toEqual({
+      action: ASSESSMENT_PIPELINE_CONTINUE_ACTIONS.checkpointResumeRequested,
+      control,
+    });
+    expect(requestControl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: Actions.resume,
+        targetRunId: "native-run",
+      }),
+    );
+    expect(interview.resumeFailedTurn).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(recordControl).not.toHaveBeenCalled();
+    expect(liveness).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to replay when Stop acknowledgement is pending", async () => {
+    currentControl.mockResolvedValue({
+      state: States.stopRequested,
+      targetRunId: "native-run",
+      requestId: "stop",
+    });
+    requestControl.mockRejectedValue(new Error("not stopped"));
+    await expect(run()).rejects.toThrow("not stopped");
+    expect(execute).not.toHaveBeenCalled();
+    expect(interview.resumeFailedTurn).not.toHaveBeenCalled();
   });
 
   it("re-sends accepted evidence when the downstream pipeline stopped", async () => {
