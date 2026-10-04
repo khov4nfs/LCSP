@@ -1,0 +1,69 @@
+{
+  "steps": [
+    {
+      "id": "A",
+      "sequence": 10,
+      "usage": {
+        "input_tokens": 9500,
+        "output_tokens": 500,
+        "total_tokens": 10000,
+        "details": { "reasoning_tokens": 800 }
+      },
+      "tools": [
+        {
+          "id": "read-1",
+          "name": "read_file",
+          "path": "/deepagents/model_policy.py"
+        },
+        {
+          "id": "read-2",
+          "name": "read_file",
+          "path": "/deepagents/model_router.py"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "sequence": 20,
+      "usage": {
+        "input_tokens": 5700,
+        "output_tokens": 300,
+        "total_tokens": 6000
+      },
+      "tools": [{ "id": "search-1", "name": "grep", "path": "model_step_id" }]
+    },
+    {
+      "id": "C",
+      "sequence": 30,
+      "usage": {
+        "input_tokens": 3800,
+        "output_tokens": 200,
+        "total_tokens": 4000
+      },
+      "tools": [
+        {
+          "id": "read-3",
+          "name": "read_file",
+          "path": "/deepagents/agent_stream.py"
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "sequence": 50,
+      "usage": {
+        "input_tokens": 11400,
+        "output_tokens": 600,
+        "total_tokens": 12000
+      },
+      "tools": [
+        {
+          "id": "read-4",
+          "name": "read_file",
+          "path": "/deepagents/correlation.py"
+        }
+      ]
+    }
+  ],
+  "result_metrics": { "bytes": 116, "lines": 4, "duration_ms": 252 }
+}

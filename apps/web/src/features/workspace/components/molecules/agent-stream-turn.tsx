@@ -13,12 +13,14 @@ import { agentThinkingLabel } from "../../utils/agent-thinking-label";
 import { AgentStreamActivityLog } from "./agent-stream-activity-log";
 import { AgentStreamRuleAnalysisProgress } from "./agent-stream-rule-analysis-progress";
 import { AgentStreamTimeline } from "./agent-stream-timeline";
+import { AgentStreamUsageSummary } from "./agent-stream-usage-summary";
 import {
   deriveAgentStreamRunOutcome,
   AGENT_STREAM_RUN_OUTCOMES,
   isAgentStreamDispatchFailed,
   shouldShowAgentStreamHistoryAction,
   withoutRoutingEvents,
+  projectAgentStreamUsage,
 } from "../../utils/agent-stream-projection";
 import { AgentStreamTechnicalSummary } from "./agent-stream-technical-summary";
 import { AgentStreamRuleAnalysisOutput } from "./agent-stream-rule-analysis-output";
@@ -177,6 +179,13 @@ export function AgentStreamTurn({
               </div>
             </details>
           </details>
+        ) : null}
+        {outcome !== AGENT_STREAM_RUN_OUTCOMES.running ? (
+          <AgentStreamUsageSummary
+            aggregate={projectAgentStreamUsage(events)}
+            titleKey="pages.appShell.agentStreamUsage.turnTotal"
+            className="mt-3"
+          />
         ) : null}
       </AgentMessage>
     </AgentTurn>
