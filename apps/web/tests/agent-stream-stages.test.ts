@@ -67,6 +67,8 @@ test("outer dispatch termination closes every participating stage but no other t
     types.boundaryCompleted,
     types.boundaryFailed,
     types.boundaryPaused,
+    types.runtimeStopped,
+    types.runtimeCompleted,
   ]) {
     const grouped = groupAgentStreamEventsByStage([
       event(1, stages.scanner, {
@@ -89,7 +91,7 @@ test("outer dispatch termination closes every participating stage but no other t
       assert.equal(end.stage, stage);
       assert.equal(
         deriveLatestAgentStreamTurnState(grouped.byStage[stage]),
-        terminal === types.boundaryPaused ? "paused" : "idle",
+        terminal === types.runtimeStopped ? "paused" : "idle",
       );
     }
     assert.deepEqual(
@@ -447,17 +449,31 @@ test("turn state is idle when the run genuinely fails, not paused", () => {
   assert.equal(state, "idle");
 });
 
-test("turn state is paused when the worker reports a cooperative stop", () => {
+test("turn state is paused only when the native runtime acknowledges Stop", () => {
   const state = deriveLatestAgentStreamTurnState([
     event(1, ASSESSMENT_AGENT_STREAM_STAGES.interview, {
       eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelRequest,
     }),
     event(2, ASSESSMENT_AGENT_STREAM_STAGES.interview, {
-      eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.agentFailed,
-      data: { reasonCode: "CUSTOMER_REQUESTED_STOP" },
+      eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopped,
     }),
   ]);
   assert.equal(state, "paused");
+});
+
+test("request is not pause; replay and late old events cannot reopen a stopped generation", () => {
+  const stage = ASSESSMENT_AGENT_STREAM_STAGES.interview;
+  const old = { runtimeRunId: "cancelled-generation" };
+  const events = [
+    event(1, stage, { eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopRequested, data: old }),
+  ];
+  assert.equal(deriveLatestAgentStreamTurnState(events), "running");
+  const stopped = event(2, stage, { eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopped, data: old });
+  events.push(stopped, stopped, event(3, stage, { eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted, data: old }));
+  assert.equal(deriveLatestAgentStreamTurnState(events), "paused");
+  events.push(event(4, stage, { eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeResumed, data: { runtimeRunId: "resumed-generation" } }));
+  events.push(event(5, stage, { eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallHeartbeat, data: old }));
+  assert.equal(deriveLatestAgentStreamTurnState(events), "running");
 });
 
 test("interview transcript interleaves each turn's activity between its own answer and the next one", () => {
@@ -723,7 +739,7 @@ test("a finished rule's investigator agent does not end the running Investigator
   );
 });
 
-test("a customer stop inside a rule pauses the whole Investigator turn", () => {
+test("a customer stop inside a rule requires a whole-runtime acknowledgement", () => {
   const investigate = ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis;
   const events = [
     event(1, investigate, {
@@ -735,7 +751,8 @@ test("a customer stop inside a rule pauses the whole Investigator turn", () => {
       data: { reasonCode: "CUSTOMER_REQUESTED_STOP" },
     }),
   ];
-  // The composer then offers Resume, which continues from rule 4.
+  assert.equal(deriveLatestAgentStreamTurnState(events), "idle");
+  events.push(event(3, investigate, { eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.runtimeStopped }));
   assert.equal(deriveLatestAgentStreamTurnState(events), "paused");
 });
 

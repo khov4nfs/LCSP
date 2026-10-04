@@ -1,5 +1,3 @@
-import { asRecord as objectRecord } from "@lcsp/contracts/shared";
-import { randomUUID } from "node:crypto";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
@@ -16,58 +14,59 @@ import {
 } from "@lcsp/contracts/audit";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
+  type AiDiscoverySnippetRef,
   ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
-  INTERVIEW_PROGRESS_PHASES,
   ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
+  ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_MODES,
-  ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES,
   ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
-  ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS,
-  ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES,
   ASSESSMENT_INTERVIEW_RESUME_MAX_ATTEMPTS,
   ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES,
   ASSESSMENT_INTERVIEW_RESUME_REASONS,
   ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS,
   ASSESSMENT_RUNTIME_STAGE_CODES,
-  CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
-  INTERVIEW_FRONTIER_MATERIALITIES,
-  INTERVIEW_FRONTIER_OWNERS,
-  INTERVIEW_TECHNICAL_CONTRACT_VERSION,
-  isRemediationDecision,
-  POST_FINDING_RUNTIME_PHASES,
-  REMEDIATION_DECISIONS,
-  type AssessmentPostFindingDecisionInput,
-  type AssessmentPostFindingRuntimeState,
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
   type AssessmentContextAuthorityStatus,
   type AssessmentInterviewAnswerHistoryItem,
   type AssessmentInterviewAnswerInput,
   type AssessmentInterviewBlockedInput,
-  type AssessmentInterviewResumeInput,
   type AssessmentInterviewControl,
   type AssessmentInterviewOrchestratorAction,
-  type CanonicalAssessmentInterviewMode,
-  type CustomerAnswer,
-  type SubmitInterviewAnswerCommand,
-  type AssessmentInterviewWorkflowEvent,
   type AssessmentInterviewQuestion,
   type AssessmentInterviewQuestionIntent,
-  type AiDiscoverySnippetRef,
+  type AssessmentInterviewResumeInput,
   type AssessmentInterviewRuntimeState,
-  EMPTY_INTERVIEW_WORKING_STRATEGY,
-  type InterviewWorkingStrategy,
-  type PartialCoveragePolicyDecision,
+  type AssessmentInterviewWorkflowEvent,
+  type AssessmentPostFindingDecisionInput,
+  type AssessmentPostFindingRuntimeState,
   BUSINESS_CONTEXT_NEED_STATES,
   type BusinessContextNeedState,
+  type CanonicalAssessmentInterviewMode,
+  CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
+  type CustomerAnswer,
+  EMPTY_INTERVIEW_WORKING_STRATEGY,
+  INTERVIEW_FRONTIER_MATERIALITIES,
+  INTERVIEW_FRONTIER_OWNERS,
+  INTERVIEW_PROGRESS_PHASES,
+  INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+  type InterviewWorkingStrategy,
+  isRemediationDecision,
+  type PartialCoveragePolicyDecision,
+  POST_FINDING_RUNTIME_PHASES,
+  REMEDIATION_DECISIONS,
+  type SubmitInterviewAnswerCommand,
 } from "@lcsp/contracts/evidence";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
+import { asRecord as objectRecord } from "@lcsp/contracts/shared";
 import {
   BadRequestException,
   HttpStatus,
@@ -76,19 +75,25 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 
+import {
+  ASSESSMENT_RUNTIME_CONTROL_ACTIONS,
+  type AssessmentRuntimeControlResult,
+} from "@lcsp/contracts/evidence";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
-import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
+import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
+import { AssessmentRuntimeControlService } from "../../../../platform/runtime-events/assessment-runtime-control.service.js";
+import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { InterviewAuditService } from "../../../audit/application/services/interview-audit.service.js";
+import { InterviewGuidanceResolver } from "./interview-guidance.resolver.js";
+import { missingInitialPlanningContextDimensions } from "./interview-minimum-planning-context.js";
 import {
   normalizeStrategy,
   updateInterviewWorkingStrategy,
 } from "./interview-working-strategy.js";
-import { InterviewGuidanceResolver } from "./interview-guidance.resolver.js";
-import { missingInitialPlanningContextDimensions } from "./interview-minimum-planning-context.js";
 
 const INTERVIEW_TOOL_NAME = "assessment_interview";
 const INTERVIEW_TRANSACTION_TIMEOUT_MS = 15_000;
@@ -364,6 +369,7 @@ export class AssessmentInterviewRuntimeService {
     private readonly runtimeEvents: AssessmentRuntimeEventService,
     private readonly outboxRepository: OutboxRepository,
     private readonly interviewAudit: InterviewAuditService,
+    private readonly runtimeControl: AssessmentRuntimeControlService,
   ) {}
 
   async getState(
@@ -1095,40 +1101,46 @@ export class AssessmentInterviewRuntimeService {
   }
 
   /**
-   * Cooperatively interrupts whatever Interview turn is currently running for
-   * this assessment, if any. Fire-and-forget by design: the worker no-ops if
-   * nothing is active, and thread state is untouched either way (the turn
-   * never got to persist anything before it was stopped), so this never needs
-   * a revision guard the way resumeFailedTurn does.
+   * Binds a stop request to the current native run. Acceptance is not proof of
+   * interruption: only the runtime acknowledgement makes the turn resumable.
    */
   async pauseActiveTurn(input: {
     assessmentId: string;
     actor: RbacRequestContext;
     correlationId: string;
-  }): Promise<void> {
+  }): Promise<AssessmentRuntimeControlResult> {
     await this.assertAssessmentVisible(input.assessmentId, input.actor);
-    const thread = await this.readThread(input.assessmentId);
-    await this.runInterviewTransaction(async (tx) => {
-      await this.outboxRepository.enqueue(
-        this.interviewAgentPauseCommand({
-          assessmentId: input.assessmentId,
-          workflowRunId:
-            thread.privateStore.targetedContinuation?.workflowRunId ??
-            thread.privateStore.workflowRunId,
-          actorId: input.actor.userId,
-          correlationId: input.correlationId,
-        }),
-        tx,
-      );
-    });
-    // The same stop covers a running Repository Analyst dispatch. Record it so
-    // automatic reconciliation leaves the stopped pipeline until the customer
-    // presses Continue.
-    await this.runtimeEvents.recordPipelineControl({
+    return this.runtimeControl.request({
       assessmentId: input.assessmentId,
+      actorId: input.actor.userId,
       correlationId: input.correlationId,
-      reason: ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS.customerRequestedStop,
+      action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
     });
+  }
+
+  async resumeInterruptedTurn(input: {
+    assessmentId: string;
+    actor: RbacRequestContext;
+    correlationId: string;
+    resume: AssessmentInterviewResumeInput;
+  }): Promise<
+    AssessmentRuntimeControlResult | AssessmentInterviewRuntimeState
+  > {
+    await this.assertAssessmentVisible(input.assessmentId, input.actor);
+    const current = await this.runtimeControl.current(input.assessmentId);
+    if (
+      current &&
+      current.state !== ASSESSMENT_RUNTIME_CONTROL_STATES.completed
+    ) {
+      return this.runtimeControl.request({
+        assessmentId: input.assessmentId,
+        actorId: input.actor.userId,
+        correlationId: input.correlationId,
+        action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
+        targetRunId: current.targetRunId,
+      });
+    }
+    return this.resumeFailedTurn({ ...input, allowStalled: true });
   }
 
   async recordBlockedAction(input: {
@@ -2483,33 +2495,6 @@ export class AssessmentInterviewRuntimeService {
         pgeVersion: input.pgeVersion,
         guidanceVersion: input.guidanceVersion,
         resumeReason: input.resumeReason,
-      },
-    });
-  }
-
-  private interviewAgentPauseCommand(input: {
-    assessmentId: string;
-    workflowRunId?: string;
-    actorId: string;
-    correlationId: string;
-  }) {
-    return buildOutboxMessageInput({
-      aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
-      aggregateId: input.assessmentId,
-      eventType: ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox,
-      assessmentId: input.assessmentId,
-      correlationId: input.correlationId,
-      causationId: input.correlationId,
-      actor: { id: input.actorId, type: AUDIT_ACTOR_TYPES.user },
-      result: ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox,
-      redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
-      // Every click gets its own delivery; a pause request is not meant to be
-      // deduplicated against an earlier one the way a resume retry is.
-      idempotencyKey: `${input.assessmentId}:${input.correlationId}:${ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox}`,
-      payload: {
-        assessmentId: input.assessmentId,
-        threadId: this.threadId(input.assessmentId),
-        workflowRunId: input.workflowRunId,
       },
     });
   }

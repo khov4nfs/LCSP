@@ -167,6 +167,7 @@ model Assessment {
   repositoryScanJobs         RepositoryScanJob[]
   repositorySnapshots        RepositorySnapshot[]
   runtimeEvents              AssessmentRuntimeEvent[]
+  runtimeTurns               AssessmentRuntimeTurn[]
   pipelineReconciliation     PipelineReconciliation?
   interviewThreads           AssessmentInterviewThread[]
   ruleAssessments            EngineeringRuleAssessment[]
@@ -643,6 +644,33 @@ model EngineeringRuleAssessment {
 
   @@unique([assessmentId, engineeringRuleId])
   @@index([assessmentId, updatedAt])
+}
+
+enum AssessmentRuntimeControlState {
+  RUNNING
+  STOP_REQUESTED
+  STOPPED
+  RESUME_REQUESTED
+  COMPLETED
+}
+
+model AssessmentRuntimeTurn {
+  id             String                        @id
+  assessmentId   String
+  threadId       String
+  boundary       String
+  logicalRunId   String
+  workflowRunId  String?
+  correlationId  String
+  state          AssessmentRuntimeControlState @default(RUNNING)
+  requestId      String?
+  contextJson    Json
+  checkpointJson Json?
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  assessment     Assessment                    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId, createdAt])
 }
 
 model AssessmentRuntimeEvent {

@@ -13,7 +13,6 @@ import {
   ASSESSMENT_INTERVIEW_MODES,
   ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
-  ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   ASSESSMENT_INTERVIEW_RESUME_MAX_ATTEMPTS,
   ASSESSMENT_INTERVIEW_RESUME_PROBLEM_CODES,
@@ -41,6 +40,11 @@ import {
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import type { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
+import type { AssessmentRuntimeControlService } from "../../../../platform/runtime-events/assessment-runtime-control.service.js";
+import {
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
+  ASSESSMENT_RUNTIME_CONTROL_ACTIONS,
+} from "@lcsp/contracts/evidence";
 import type { InterviewAuditService } from "../../../audit/application/services/interview-audit.service.js";
 import { readFileSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
@@ -355,6 +359,7 @@ type MockRuntimeEvents = {
 
 describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => {
   let service: AssessmentInterviewRuntimeService;
+  let controlRequest: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
   let mockTransaction: jest.Mock<
     (
       callback: (tx: MockPrismaDelegates) => Promise<unknown>,
@@ -662,11 +667,19 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         .mockReturnValue(TEST_GUIDANCE_VERSION),
     };
 
+    controlRequest = jest
+      .fn<(...args: unknown[]) => Promise<unknown>>()
+      .mockResolvedValue({
+        state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested,
+        targetRunId: "native-run",
+        requestId: "request-1",
+      });
     service = new AssessmentInterviewRuntimeService(
       mockPrisma as unknown as PrismaService,
       mockRuntimeEvents as unknown as AssessmentRuntimeEventService,
       mockOutboxRepository as unknown as OutboxRepository,
       mockInterviewAudit as unknown as InterviewAuditService,
+      { request: controlRequest } as unknown as AssessmentRuntimeControlService,
     );
     Object.defineProperty(service, "guidanceResolver", {
       configurable: true,
@@ -1787,7 +1800,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
       scope: "assessment:assessment-1",
     };
 
-    it("enqueues a pause command carrying the active thread's workflow run id", async () => {
+    it("delegates Stop to the shared native runtime control without claiming a pause", async () => {
       mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
         assessmentId: "assessment-1",
         contextRevision: 2,
@@ -1805,32 +1818,27 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         pgeVersion: "report-1:v1",
       });
 
-      await service.pauseActiveTurn({
+      const result = await service.pauseActiveTurn({
         assessmentId: "assessment-1",
         actor,
         correlationId: "corr-pause-1",
       });
 
-      expect(mockOutboxRepository.enqueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          eventType: ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox,
-          payload: expect.objectContaining({
-            assessmentId: "assessment-1",
-            workflowRunId: "10000000-0000-4000-8000-000000000001",
-          }),
-        }),
-        mockTx,
-      );
-      // The stop is durable so reconciliation does not resume it on its own.
-      expect(mockRuntimeEvents.recordPipelineControl).toHaveBeenCalledWith({
+      expect(controlRequest).toHaveBeenCalledWith({
         assessmentId: "assessment-1",
+        actorId: actor.userId,
         correlationId: "corr-pause-1",
-        reason:
-          ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS.customerRequestedStop,
+        action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
       });
+      expect(result).toEqual({
+        state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested,
+        targetRunId: "native-run",
+        requestId: "request-1",
+      });
+      expect(mockRuntimeEvents.recordPipelineControl).not.toHaveBeenCalled();
     });
 
-    it("still enqueues the pause command when no Interview thread exists yet", async () => {
+    it("controls downstream work without requiring an Interview thread", async () => {
       mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(null);
 
       await service.pauseActiveTurn({
@@ -1839,19 +1847,12 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         correlationId: "corr-pause-2",
       });
 
-      expect(mockOutboxRepository.enqueue).toHaveBeenCalledWith(
+      expect(controlRequest).toHaveBeenCalledWith(
         expect.objectContaining({
-          eventType: ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox,
-          payload: expect.objectContaining({
-            assessmentId: "assessment-1",
-          }),
+          assessmentId: "assessment-1",
+          action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
         }),
-        mockTx,
       );
-      const [enqueuedPayload] = mockOutboxRepository.enqueue.mock.calls[0];
-      expect(
-        (enqueuedPayload as { payload: Record<string, unknown> }).payload,
-      ).not.toHaveProperty("workflowRunId");
     });
 
     it("rejects a customer pausing an assessment they do not own", async () => {

@@ -5,10 +5,11 @@ import {
   ASSESSMENT_REPOSITORY_PROVIDERS,
 } from "@lcsp/contracts/assessment";
 import {
-  ASSESSMENT_AGENT_STREAM_STAGES,
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
+  ASSESSMENT_AGENT_STREAM_STAGES,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
   type AssessmentInterviewBlockedAction,
   type RemediationDecision,
 } from "@lcsp/contracts/evidence";
@@ -27,14 +28,13 @@ import {
   useAssessmentInterviewBlockedActionMutation,
   useAssessmentInterviewStateQuery,
   useContinueAssessmentPipelineMutation,
-  useInterruptAssessmentInterviewMutation,
   useProgramEvidenceGraphOverviewQuery,
   useReadinessStatusQuery,
   useRerunRepositoryScanMutation,
-  useResumeAssessmentInterviewMutation,
   useSubmitAssessmentInterviewAnswerMutation,
   useSubmitAssessmentPostFindingDecisionMutation,
 } from "@/lib/api/assessment-queries";
+import { useAssessmentRuntimeControl } from "@/lib/api/assessment-runtime-control-queries";
 import { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
 import { useAssessmentsQuery } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
@@ -47,12 +47,18 @@ import {
 import { useAssessmentRuntimeViewModel } from "../../hooks/use-assessment-runtime-view-model";
 import type { AssessmentOverviewProps } from "../../types/assessment-overview.types";
 import {
+  scopeAgentStreamRunEvents,
+  shouldShowAgentStreamHistoryAction,
+} from "../../utils/agent-stream-projection";
+import {
   deriveLatestAgentStreamTurnState,
   groupAgentStreamEventsByRun,
   groupAgentStreamEventsByStage,
   interleaveInterviewTranscript,
   splitCurrentInterviewActivity,
 } from "../../utils/agent-stream-stages";
+import { agentThinkingLabel } from "../../utils/agent-thinking-label";
+import { selectAssessmentComposerRuntimeControl } from "../../utils/assessment-composer-control";
 import {
   selectComposerAvailability,
   selectCustomerActions,
@@ -62,16 +68,11 @@ import {
   selectRuntimeThinkingItems,
   selectWorkflowPresentation,
 } from "../../utils/assessment-runtime-selectors";
-import {
-  AgentStreamTimeline,
-  AGENT_STREAM_RUN_OUTCOMES,
-} from "../molecules/agent-stream-timeline";
-import {
-  scopeAgentStreamRunEvents,
-  shouldShowAgentStreamHistoryAction,
-} from "../../utils/agent-stream-projection";
-import { agentThinkingLabel } from "../../utils/agent-thinking-label";
 import { AgentStreamDispatchTurns } from "../molecules/agent-stream-dispatch-turns";
+import {
+  AGENT_STREAM_RUN_OUTCOMES,
+  AgentStreamTimeline,
+} from "../molecules/agent-stream-timeline";
 import { AgentStreamTurn } from "../molecules/agent-stream-turn";
 import {
   AgentMessage,
@@ -110,28 +111,37 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   const retryScan = useRerunRepositoryScanMutation(assessmentId);
   const readinessLoaded =
     readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded;
-  const readiness = readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded
-    ? readinessQuery.data.data
-    : undefined;
+  const readiness =
+    readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded
+      ? readinessQuery.data.data
+      : undefined;
   const setupState = readiness?.repositorySetup;
-  const connection = setupState ? setupState.connection : readiness?.repositoryConnection ?? null;
+  const connection = setupState
+    ? setupState.connection
+    : (readiness?.repositoryConnection ?? null);
   // Explicit null checkpoints must not resurrect a stale SSE snapshot.
   const snapshot = setupState
     ? setupState.snapshot
-    : workspaceRuntime.repositorySnapshots.find(
+    : (workspaceRuntime.repositorySnapshots.find(
         (item) => item.assessmentId === assessmentId,
-      ) ?? null;
-  const liveScanJob = workspaceRuntime.scanJobs.find(
-    (item) => item.assessmentId === assessmentId && item.snapshotId === snapshot?.id,
-  ) ?? null;
+      ) ?? null);
+  const liveScanJob =
+    workspaceRuntime.scanJobs.find(
+      (item) =>
+        item.assessmentId === assessmentId && item.snapshotId === snapshot?.id,
+    ) ?? null;
   const persistedScanJob = setupState?.scanJob ?? null;
-  const scanJob = liveScanJob && (
-    !persistedScanJob || liveScanJob.updatedAt >= persistedScanJob.updatedAt
-  ) ? liveScanJob : persistedScanJob;
+  const scanJob =
+    liveScanJob &&
+    (!persistedScanJob || liveScanJob.updatedAt >= persistedScanJob.updatedAt)
+      ? liveScanJob
+      : persistedScanJob;
   const evidenceReport =
     workspaceRuntime.evidenceReports.find(
-      (item) => item.assessmentId === assessmentId &&
-        item.snapshotId === snapshot?.id && item.scanJobId === scanJob?.id,
+      (item) =>
+        item.assessmentId === assessmentId &&
+        item.snapshotId === snapshot?.id &&
+        item.scanJobId === scanJob?.id,
     ) ?? null;
   const timeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
   const repositoryAnswer = deriveRepositorySetupAnswer(connection ?? snapshot);
@@ -174,7 +184,10 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
     return (
       <main className="flex h-full flex-col items-start gap-4 p-4">
         <p role="alert">{t("pages.readiness.errorDetail")}</p>
-        <Button disabled={readinessQuery.isFetching} onClick={() => void readinessQuery.refetch()}>
+        <Button
+          disabled={readinessQuery.isFetching}
+          onClick={() => void readinessQuery.refetch()}
+        >
           {t("pages.assessmentFlow.retrySetupState")}
         </Button>
       </main>
@@ -182,7 +195,9 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   }
 
   if (flow.stage === ASSESSMENT_FLOW_STAGES.repositorySetup) {
-    return <RepositorySetupStep key={assessmentId} assessmentId={assessmentId} />;
+    return (
+      <RepositorySetupStep key={assessmentId} assessmentId={assessmentId} />
+    );
   }
 
   return (
@@ -302,13 +317,6 @@ function AssessmentInterviewFlow({
     () => groupAgentStreamEventsByStage(liveTimeline.agentStreamEvents ?? []),
     [liveTimeline.agentStreamEvents],
   );
-  const interviewTurnState = useMemo(
-    () =>
-      deriveLatestAgentStreamTurnState(
-        stageEvents.byStage[ASSESSMENT_AGENT_STREAM_STAGES.interview],
-      ),
-    [stageEvents],
-  );
   const boundaryPaused =
     groupAgentStreamEventsByRun(liveTimeline.agentStreamEvents ?? [])
       .at(-1)
@@ -317,37 +325,6 @@ function AssessmentInterviewFlow({
           event.eventType ===
           ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused,
       ) ?? false;
-  // Cooperative stops belong to Interview; billing can pause any dispatch.
-  // Downstream work still owns the turn while it is running.
-  const downstreamTurnRunning = useMemo(
-    () =>
-      [
-        ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
-        ASSESSMENT_AGENT_STREAM_STAGES.gate,
-      ].some(
-        (stage) =>
-          deriveLatestAgentStreamTurnState(stageEvents.byStage[stage]) ===
-          "running",
-      ),
-    [stageEvents],
-  );
-  // A customer stop of rule analysis/Gate: Continue resumes it through
-  // the pipeline (finished rules are reused), not an Interview turn.
-  const downstreamTurnPaused = useMemo(
-    () =>
-      !downstreamTurnRunning &&
-      [
-        ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
-        ASSESSMENT_AGENT_STREAM_STAGES.gate,
-      ].some(
-        (stage) =>
-          deriveLatestAgentStreamTurnState(stageEvents.byStage[stage]) ===
-          "paused",
-      ),
-    [stageEvents, downstreamTurnRunning],
-  );
-  const anyAgentTurnRunning =
-    interviewTurnState === "running" || downstreamTurnRunning;
   // Which downstream stage is actively running right now, if any — drives a
   // composer placeholder that reflects what's really happening (planning,
   // investigating, reviewing) instead of always saying "waiting on Interview"
@@ -377,10 +354,20 @@ function AssessmentInterviewFlow({
   const recordBlockedAction =
     useAssessmentInterviewBlockedActionMutation(assessmentId);
   const continuePipeline = useContinueAssessmentPipelineMutation(assessmentId);
-  const interruptInterviewTurn =
-    useInterruptAssessmentInterviewMutation(assessmentId);
-  const resumeInterviewTurn =
-    useResumeAssessmentInterviewMutation(assessmentId);
+  const runtimeControl = useAssessmentRuntimeControl(assessmentId);
+  const activeRuntimeControl = useMemo(
+    () =>
+      selectAssessmentComposerRuntimeControl(
+        liveTimeline.agentStreamEvents ?? [],
+        runtimeControl.control.data,
+      ),
+    [liveTimeline.agentStreamEvents, runtimeControl.control.data],
+  );
+  const runtimeControlState = runtimeControl.stop.isPending
+    ? ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested
+    : runtimeControl.resume.isPending
+      ? ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested
+      : activeRuntimeControl.state;
   const submitPostFindingDecision =
     useSubmitAssessmentPostFindingDecisionMutation(assessmentId);
 
@@ -692,10 +679,14 @@ function AssessmentInterviewFlow({
   // the API decides whether a failed/stalled Interview turn or the downstream
   // assessment restarts, and refuses while a worker still owns the pipeline.
   const canContinuePipeline =
+    runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.running &&
+    runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested &&
+    runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested &&
     (boundaryPaused || interviewEnabled) &&
     !scanFailed &&
     !hasComposerDraft &&
-    (boundaryPaused || !(customerActions.canAnswerQuestion && activeQuestion)) &&
+    (boundaryPaused ||
+      !(customerActions.canAnswerQuestion && activeQuestion)) &&
     !customerActions.canSubmitBlockedAction &&
     !(
       assessmentStatus !== null &&
@@ -712,13 +703,6 @@ function AssessmentInterviewFlow({
     if (!canContinuePipeline || continuePipeline.isPending) {
       return;
     }
-    requestContinuePipeline();
-  }
-
-  // Resuming a stopped rule analysis does not depend on Interview
-  // composer state; the API decides whether the pipeline can continue.
-  function handleResumeStoppedPipeline() {
-    if (continuePipeline.isPending) return;
     requestContinuePipeline();
   }
 
@@ -806,6 +790,7 @@ function AssessmentInterviewFlow({
               <AgentStreamDispatchTurns
                 key={`activity:${segment.turnKey}`}
                 segment={segment}
+                runtimeControl={activeRuntimeControl}
               />
             ))}
 
@@ -823,6 +808,7 @@ function AssessmentInterviewFlow({
                     <AgentStreamDispatchTurns
                       key={`activity:${segment.turnKey}`}
                       segment={segment}
+                      runtimeControl={activeRuntimeControl}
                       outputs={
                         // The answer's result belongs to the dispatch that
                         // processed it, not to later retries appended after it.
@@ -1014,29 +1000,21 @@ function AssessmentInterviewFlow({
         onValueChange={handleComposerValueChange}
         onSubmit={handleSubmit}
         onResume={handleContinuePipeline}
-        turnRunning={anyAgentTurnRunning}
-        turnPaused={
-          boundaryPaused ||
-          interviewTurnState === "paused" ||
-          downstreamTurnPaused
+        runtimeControlState={runtimeControlState}
+        onInterruptTurn={() =>
+          runtimeControl.stop.mutate(activeRuntimeControl.targetRunId, {
+            onError: () =>
+              setLastSavedMessage(t(PIPELINE_CONTINUE_FAILED_MESSAGE_KEY)),
+          })
         }
-        // One stop covers the Interview turn and the rule-analysis run.
-        onInterruptTurn={
-          anyAgentTurnRunning
-            ? () => interruptInterviewTurn.mutate()
-            : undefined
+        onResumeTurn={() =>
+          runtimeControl.resume.mutate(activeRuntimeControl.targetRunId, {
+            onError: () =>
+              setLastSavedMessage(t(PIPELINE_CONTINUE_FAILED_MESSAGE_KEY)),
+          })
         }
-        onResumeTurn={
-          downstreamTurnPaused
-            ? handleResumeStoppedPipeline
-            : () => resumeInterviewTurn.mutate()
-        }
-        interruptingTurn={interruptInterviewTurn.isPending}
-        resumingTurn={
-          downstreamTurnPaused
-            ? continuePipeline.isPending
-            : resumeInterviewTurn.isPending
-        }
+        interruptingTurn={runtimeControl.stop.isPending}
+        resumingTurn={runtimeControl.resume.isPending}
       />
     </main>
   );

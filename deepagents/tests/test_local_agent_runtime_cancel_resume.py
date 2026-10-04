@@ -86,8 +86,7 @@ def test_run_graph_treats_input_none_as_noop_when_nothing_is_pending() -> None:
 
     runtime._run_graph("thread-1", {"input": None}, cancel_event=None)
 
-    graph_input, _config = graph.stream_calls[0]
-    assert graph_input == {}
+    assert graph.stream_calls == []
 
 
 def test_run_graph_treats_agent_stream_interrupted_from_a_nested_call_as_cancelled() -> None:

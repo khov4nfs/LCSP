@@ -24,6 +24,8 @@ const CONTINUE_ACTION_MESSAGE_KEYS: Record<
     "pages.assessmentFlow.interview.resumeTurnQueued",
   [ASSESSMENT_PIPELINE_CONTINUE_ACTIONS.downstreamRequeued]:
     "pages.assessmentFlow.pipeline.continueQueued",
+  [ASSESSMENT_PIPELINE_CONTINUE_ACTIONS.checkpointResumeRequested]:
+    "pages.appShell.chatContinuingTurn",
 };
 
 const CONTINUE_OUTCOME_MESSAGE_KEYS: Record<string, string> = {

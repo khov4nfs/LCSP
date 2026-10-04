@@ -105,13 +105,33 @@ export function AgentStreamTurn({
           <AgentStreamRuleAnalysisProgress
             events={events}
             dispatchRunning={outcome === AGENT_STREAM_RUN_OUTCOMES.running}
+            outcome={outcome}
+            pausedRuleIds={
+              outcome === AGENT_STREAM_RUN_OUTCOMES.paused
+                ? new Set(
+                    ruleAnalysisRuleHeaders
+                      .filter(
+                        (rule) =>
+                          rule.status ===
+                          ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+                      )
+                      .map((rule) => rule.ruleId),
+                  )
+                : undefined
+            }
             // A rule cannot still be running once its dispatch has ended.
             rules={
               outcome === AGENT_STREAM_RUN_OUTCOMES.running
                 ? ruleAnalysisRuleHeaders
                 : ruleAnalysisRuleHeaders.map((rule) =>
                     rule.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
-                      ? { ...rule, status: ASSESSMENT_RUNTIME_RUN_STATUSES.failed }
+                      ? {
+                          ...rule,
+                          status:
+                            outcome === AGENT_STREAM_RUN_OUTCOMES.paused
+                              ? ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
+                              : ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+                        }
                       : rule,
                   )
             }

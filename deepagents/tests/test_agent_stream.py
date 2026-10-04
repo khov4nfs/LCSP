@@ -822,8 +822,8 @@ def test_invoke_with_stream_raises_agent_stream_interrupted_when_cancel_is_set()
         finally:
             active_agent_stream_cancel.reset(token)
 
-    assert events[-1]["event_type"] == "AGENT_FAILED"
-    assert events[-1]["data"]["reasonCode"] == "CUSTOMER_REQUESTED_STOP"
+    # Cancellation is not an agent failure; the owning runtime emits STOPPED.
+    assert events == []
 
 
 def test_invoke_with_stream_ignores_an_unset_cancel_event():
@@ -851,5 +851,4 @@ def test_invoke_graph_with_stream_raises_agent_stream_interrupted_when_cancel_is
         finally:
             active_agent_stream_cancel.reset(token)
 
-    assert events[-1]["event_type"] == "AGENT_FAILED"
-    assert events[-1]["data"]["reasonCode"] == "CUSTOMER_REQUESTED_STOP"
+    assert events == []

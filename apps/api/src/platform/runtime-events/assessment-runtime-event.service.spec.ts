@@ -6,6 +6,7 @@ import {
   ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   POST_FINDING_RUNTIME_PHASES,
   REMEDIATION_APPROVAL_STATUSES,
@@ -1961,12 +1962,20 @@ describe("AssessmentRuntimeEventService", () => {
 describe("AssessmentRuntimeEventService.getPipelineLiveness", () => {
   const WINDOW_MS = 90_000;
 
-  function serviceWithLatest(latest: Record<string, unknown> | null) {
+  function serviceWithLatest(
+    latest: Record<string, unknown> | null,
+    turn: Record<string, unknown> | null = null,
+  ) {
     const findMany = jest
       .fn<(...args: unknown[]) => Promise<unknown[]>>()
       .mockResolvedValue(latest ? [latest] : []);
     const service = new AssessmentRuntimeEventService({
       assessmentRuntimeEvent: { findMany },
+      assessmentRuntimeTurn: {
+        findFirst: jest
+          .fn<() => Promise<typeof turn>>()
+          .mockResolvedValue(turn),
+      },
     } as never);
     return { service, findMany };
   }
@@ -1992,7 +2001,35 @@ describe("AssessmentRuntimeEventService.getPipelineLiveness", () => {
     );
   });
 
-  it("is not live right after the customer stopped the pipeline", async () => {
+  it.each([
+    ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
+    ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested,
+    ASSESSMENT_RUNTIME_CONTROL_STATES.completed,
+  ])("ignores old heartbeat liveness after native state %s", async (state) => {
+    const { service, findMany } = serviceWithLatest(
+      {
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+        createdAt: new Date(),
+      },
+      { state, updatedAt: new Date() },
+    );
+    await expect(
+      service.getPipelineLiveness("assessment-1", WINDOW_MS),
+    ).resolves.toMatchObject({ live: false });
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps Stop requested distinct from Stop acknowledged", async () => {
+    const { service } = serviceWithLatest(null, {
+      state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested,
+      updatedAt: new Date(),
+    });
+    await expect(
+      service.getPipelineLiveness("assessment-1", WINDOW_MS),
+    ).resolves.toMatchObject({ live: true });
+  });
+
+  it("does not treat a request marker as a stop acknowledgement", async () => {
     const { service } = serviceWithLatest({
       runStatus: "WAITING",
       createdAt: new Date(),
@@ -2000,10 +2037,10 @@ describe("AssessmentRuntimeEventService.getPipelineLiveness", () => {
       outputSummaryJson: null,
     });
 
-    // Continue must be available immediately after a stop.
+    // Only the native runtime acknowledgement makes Continue available.
     await expect(
       service.getPipelineLiveness("assessment-1", WINDOW_MS),
-    ).resolves.toEqual(expect.objectContaining({ live: false }));
+    ).resolves.toEqual(expect.objectContaining({ live: true }));
   });
 
   it("reports the pipeline stopped only while the latest control is a stop", async () => {

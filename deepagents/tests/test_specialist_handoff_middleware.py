@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -39,6 +40,22 @@ class FakeRequest:
             metadata=self.runtime.config.get("metadata"),
             tool_call=kwargs.get("tool_call", self.tool_call),
         )
+
+
+@pytest.fixture(params=[False, True], ids=["sync", "async"])
+def validate_handoff(request):
+    def invoke(tool_request, handler):
+        if not request.param:
+            return _validate_lcsp_specialist_task_handoff(tool_request, handler)
+
+        async def async_handler(guarded):
+            return handler(guarded)
+
+        return asyncio.run(specialist_handoff_validation.validate_lcsp_specialist_task_handoff.awrap_tool_call(
+            tool_request, async_handler,
+        ))
+
+    return invoke
 
 
 def _program_graph() -> dict:
@@ -95,7 +112,7 @@ def _investigator_handoff(*, graph_ref: str = "node:ai") -> dict:
     }
 
 
-def test_task_middleware_validates_investigator_tool_message_handoff() -> None:
+def test_task_middleware_validates_investigator_tool_message_handoff(validate_handoff) -> None:
     request = FakeRequest(
         context=LCSPRunContext(
             assessment_id="assessment-1",
@@ -118,7 +135,7 @@ def test_task_middleware_validates_investigator_tool_message_handoff() -> None:
     )
     handler = MagicMock(return_value=expected)
 
-    result = _validate_lcsp_specialist_task_handoff(request, handler)
+    result = validate_handoff(request, handler)
 
     assert result is expected
     handler.assert_called_once_with(request)
@@ -152,7 +169,7 @@ def _triage_handoff() -> dict:
     }
 
 
-def test_task_middleware_rejects_invalid_investigator_graph_ref() -> None:
+def test_task_middleware_rejects_invalid_investigator_graph_ref(validate_handoff) -> None:
     """PlannerResult/InvestigatorResult were intentionally deleted.
 
     SPECIALIST_RESPONSE_FORMATS is now {interview, triage} only, so the removed
@@ -193,11 +210,11 @@ def test_task_middleware_rejects_invalid_investigator_graph_ref() -> None:
     )
     handler = MagicMock(return_value=expected)
 
-    assert _validate_lcsp_specialist_task_handoff(request, handler) is expected
+    assert validate_handoff(request, handler) is expected
 
 
 def test_task_middleware_loads_program_graph_from_env_backed_api_client(
-    monkeypatch,
+    monkeypatch, validate_handoff,
 ) -> None:
     """Retargeted: the task boundary no longer loads a program graph.
 
@@ -269,12 +286,12 @@ def test_task_middleware_loads_program_graph_from_env_backed_api_client(
         )
     )
 
-    result = _validate_lcsp_specialist_task_handoff(request, handler)
+    result = validate_handoff(request, handler)
 
     assert isinstance(result, Command)
 
 
-def test_task_middleware_requires_json_structured_subagent_handoff() -> None:
+def test_task_middleware_requires_json_structured_subagent_handoff(validate_handoff) -> None:
     request = FakeRequest(
         context=LCSPRunContext(
             artifact_versions={"technicalEvidenceReportId": "ter-1"},
@@ -300,7 +317,7 @@ def test_task_middleware_requires_json_structured_subagent_handoff() -> None:
     )
 
     with pytest.raises(RuntimeError, match="not valid JSON"):
-        _validate_lcsp_specialist_task_handoff(request, handler)
+        validate_handoff(request, handler)
 
     # A valid triage handoff passes the same boundary.
     triage_request = request.override(
@@ -327,6 +344,36 @@ def test_task_middleware_requires_json_structured_subagent_handoff() -> None:
     )
 
     assert isinstance(
-        _validate_lcsp_specialist_task_handoff(triage_request, triage_handler),
+        validate_handoff(triage_request, triage_handler),
         Command,
     )
+
+
+def test_task_middleware_does_not_accept_invalid_typed_handoff(validate_handoff):
+    from orchestration.result_validation import SpecialistHandoffValidationError
+
+    request = FakeRequest(context=LCSPRunContext(), tool_call={
+        "name": "task", "id": "call-1", "args": {"subagent_type": "interview"},
+    })
+
+    def handler(request):
+        # The selected handoff contract is fixed before downstream execution.
+        request.tool_call["args"]["subagent_type"] = "repository_analyst"
+        return ToolMessage(content='{"outcome": "WAITING_FOR_CUSTOMER"}', tool_call_id="call-1")
+
+    with pytest.raises(SpecialistHandoffValidationError):
+        validate_handoff(request, handler)
+
+
+def test_task_middleware_preserves_triage_already_running_short_circuit(validate_handoff):
+    request = FakeRequest(context=LCSPRunContext(), tool_call={
+        "name": "task", "id": "call-1", "args": {"subagent_type": "triage"},
+    })
+    expected = ToolMessage(content=json.dumps({
+        "status": "ALREADY_RUNNING", "subagentStarted": False,
+        "triageExecutionId": "triage:active",
+    }), tool_call_id="call-1")
+    handler = MagicMock(return_value=expected)
+
+    assert validate_handoff(request, handler) is expected
+    handler.assert_called_once_with(request)

@@ -14,10 +14,15 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
 
+import {
+  ASSESSMENT_RUNTIME_CONTROL_ACTIONS,
+  ASSESSMENT_RUNTIME_CONTROL_STATES,
+} from "@lcsp/contracts/evidence";
 import { fromPrismaAssessmentStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
+import { AssessmentRuntimeControlService } from "../../../../platform/runtime-events/assessment-runtime-control.service.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { RerunClassificationCommand } from "../../../classification/application/commands/rerun-classification/rerun-classification.command.js";
 import { AssessmentInterviewRuntimeService } from "./assessment-interview-runtime.service.js";
@@ -41,6 +46,7 @@ export class AssessmentPipelineContinuationService {
     private readonly commandBus: CommandBus,
     private readonly interviewRuntime: AssessmentInterviewRuntimeService,
     private readonly runtimeEvents: AssessmentRuntimeEventService,
+    private readonly runtimeControl: AssessmentRuntimeControlService,
   ) {}
 
   /** Whether the customer stopped the pipeline and has not continued it. */
@@ -72,6 +78,24 @@ export class AssessmentPipelineContinuationService {
         ASSESSMENT_PIPELINE_CONTINUE_PROBLEM_CODES.completed,
         input.correlationId,
       );
+    }
+    const control = await this.runtimeControl.current(input.assessmentId);
+    if (
+      control &&
+      control.state !== ASSESSMENT_RUNTIME_CONTROL_STATES.completed &&
+      control.state !== ASSESSMENT_RUNTIME_CONTROL_STATES.running
+    ) {
+      const requested = await this.runtimeControl.request({
+        assessmentId: input.assessmentId,
+        actorId: input.actor.userId,
+        correlationId: input.correlationId,
+        action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
+        targetRunId: control.targetRunId,
+      });
+      return {
+        action: ASSESSMENT_PIPELINE_CONTINUE_ACTIONS.checkpointResumeRequested,
+        control: requested,
+      };
     }
     const liveness = await this.runtimeEvents.getPipelineLiveness(
       input.assessmentId,

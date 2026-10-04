@@ -1,6 +1,6 @@
 from dataclasses import asdict
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langchain.messages import SystemMessage
@@ -12,8 +12,10 @@ from subagents.repository_analyst.definition import SYSTEM_PROMPT
 
 @pytest.mark.parametrize("as_mapping", [False, True])
 @pytest.mark.parametrize("key", ["rule-analysis:assessment-1:ENG-1:1:ab12", "resume:execution-1:3"])
-def test_repository_analyst_idempotency_does_not_inject_legal_maintenance_routing(
-    key, as_mapping,
+@pytest.mark.parametrize("async_mode", [False, True])
+@pytest.mark.asyncio
+async def test_repository_analyst_idempotency_does_not_inject_legal_maintenance_routing(
+    key, as_mapping, async_mode,
 ):
     context = LCSPRunContext(
         assessment_id="assessment-1",
@@ -25,9 +27,12 @@ def test_repository_analyst_idempotency_does_not_inject_legal_maintenance_routin
     request = MagicMock()
     request.runtime = SimpleNamespace(context=asdict(context) if as_mapping else context)
     request.system_message = SystemMessage(content=SYSTEM_PROMPT)
-    handler = MagicMock()
+    handler = AsyncMock() if async_mode else MagicMock()
 
-    inject_lcsp_runtime_context.wrap_model_call(request, handler)
+    if async_mode:
+        await inject_lcsp_runtime_context.awrap_model_call(request, handler)
+    else:
+        inject_lcsp_runtime_context.wrap_model_call(request, handler)
 
     message = request.override.call_args.kwargs["system_message"]
     text = "\n".join(block["text"] for block in message.content_blocks)
@@ -39,6 +44,8 @@ def test_repository_analyst_idempotency_does_not_inject_legal_maintenance_routin
     assert "LEGAL_MAINTENANCE" not in text
     assert "delegate to the `triage`" not in text
     handler.assert_called_once_with(request.override.return_value)
+    if async_mode:
+        handler.assert_awaited_once_with(request.override.return_value)
 
 
 def test_explicit_triage_instruction_is_preserved_without_inferred_routing():

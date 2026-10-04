@@ -33,7 +33,7 @@
     "test": "node scripts/with-check-memory.mjs pnpm run test:run",
     "test:run": "pnpm run test:web:run && pnpm --filter @lcsp/api test:e2e",
     "test:web": "node scripts/with-check-memory.mjs pnpm run test:web:run",
-    "test:web:run": "pnpm run build:runtime-packages && pnpm exec tsx --test --test-concurrency=1 tests/*.web.test.ts && pnpm --dir apps/web exec tsx --tsconfig tsconfig.test.json --test --test-concurrency=1 'tests/*.test.ts'",
+    "test:web:run": "pnpm run build:runtime-packages && pnpm exec tsx --tsconfig apps/web/tsconfig.test.json --test --test-concurrency=1 tests/*.web.test.ts && pnpm --dir apps/web exec tsx --tsconfig tsconfig.test.json --test --test-concurrency=1 'tests/*.test.ts'",
     "pretest:admin:e2e": "pnpm run build:runtime-packages",
     "test:admin:e2e": "playwright test tests/e2e/admin",
     "pretest:billing:e2e": "pnpm run build:runtime-packages",

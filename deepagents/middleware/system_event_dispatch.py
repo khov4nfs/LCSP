@@ -5,12 +5,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from dataclasses import asdict
 from threading import Event, Timer
 from typing import Any, Mapping
 
 from langchain.agents.middleware import AgentMiddleware, hook_config
+from langgraph.config import get_config
 
 from orchestration.context import LCSPRunContext
+from orchestration.runtime_control import (
+    NativeExecutionScope,
+    active_native_execution_scope,
+    active_runtime_run_id,
+    hosted_checkpoint_scope,
+)
+from tools.common.capabilities.agent_runtime.runtime_control import report_runtime_control
 from orchestration.agent_stream import (
     AgentStreamInterrupted,
     active_agent_stream_cancel,
@@ -65,13 +74,69 @@ class _SystemEventDispatchMiddleware(AgentMiddleware):
         cancel = active_agent_stream_cancel.get() or Event()
         token = active_agent_stream_cancel.set(cancel)
         try:
-            return await asyncio.to_thread(_dispatch_system_event, state, runtime)
+            # Agent Server injects the native run/thread IDs here. A LangChain
+            # callback run_id is a different identity and must never be used.
+            configured = get_config().get("configurable", {})
+        except RuntimeError:
+            configured = {}
+        task = asyncio.create_task(
+            asyncio.to_thread(_dispatch_hosted_system_event, state, runtime, configured)
+        )
+        try:
+            return await asyncio.shield(task)
         except asyncio.CancelledError:
             # Cancelling to_thread's await does not stop its underlying thread.
+            # Keep the native run active until boundary/checkpoint cleanup drains;
+            # otherwise the control worker could acknowledge STOPPED too early.
             cancel.set()
+            while not task.done():
+                try:
+                    await asyncio.shield(task)
+                except asyncio.CancelledError:
+                    continue
+                except BaseException:
+                    break
+            if not task.cancelled():
+                task.exception()  # retrieve the cancelled boundary's outcome
             raise
         finally:
             active_agent_stream_cancel.reset(token)
+
+
+def _dispatch_hosted_system_event(state, runtime, configured):
+    """Apply the same native cancellation/registration scope in langgraph dev."""
+    context = _context(getattr(runtime, "context", None))
+    run_id = configured.get("run_id")
+    thread_id = configured.get("thread_id")
+    if (
+        active_runtime_run_id.get() is not None
+        or not run_id or not thread_id
+        or context is None
+        or not context.system_boundary_name or not context.system_event
+    ):
+        # The LCSP-owned server already binds and registers its execution scope.
+        return _dispatch_system_event(state, runtime)
+    run_id, thread_id = str(run_id), str(thread_id)
+    frozen_context = asdict(context)
+    frozen_context["logical_run_id"] = context.logical_run_id or run_id
+    execution_scope = NativeExecutionScope()
+    run_token = active_runtime_run_id.set(run_id)
+    execution_token = active_native_execution_scope.set(execution_scope)
+    try:
+        control = report_runtime_control(thread_id, run_id, frozen_context, "RUNNING")
+        if control.get("state") in {"STOP_REQUESTED", "STOPPED", "RESUME_REQUESTED", "COMPLETED"}:
+            # Re-execution of the same cancelled generation is not Continue.
+            # A fresh native generation is required to resume its checkpoints.
+            active_agent_stream_cancel.get().set()
+            raise asyncio.CancelledError("Native runtime generation already stopped")
+        with hosted_checkpoint_scope(thread_id, frozen_context["logical_run_id"]):
+            try:
+                return _dispatch_system_event(state, runtime)
+            finally:
+                execution_scope.drain()
+    finally:
+        active_native_execution_scope.reset(execution_token)
+        active_runtime_run_id.reset(run_token)
 
 
 def _dispatch_system_event(state, runtime) -> dict[str, Any] | None:
