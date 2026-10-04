@@ -43,8 +43,32 @@ export const apiQueryKeys = {
       ["assessment", assessmentId, "conflicts", "pending"] as const,
     evidence: (assessmentId: string) =>
       ["assessment", assessmentId, "evidence"] as const,
-    evidenceGraphOverview: (assessmentId: string) =>
+    evidenceGraphOverviewRoot: (assessmentId: string) =>
       ["assessment", assessmentId, "evidence-graph-overview"] as const,
+    evidenceGraphDetailRoot: (assessmentId: string) =>
+      ["assessment", assessmentId, "evidence-graph-detail"] as const,
+    evidenceGraphOverview: (
+      assessmentId: string,
+      filters?: { snapshotId?: string; scanJobId?: string },
+    ) =>
+      [
+        "assessment",
+        assessmentId,
+        "evidence-graph-overview",
+        filters?.snapshotId ?? null,
+        filters?.scanJobId ?? null,
+      ] as const,
+    evidenceGraphDetail: (
+      assessmentId: string,
+      filters?: { snapshotId?: string; scanJobId?: string },
+    ) =>
+      [
+        "assessment",
+        assessmentId,
+        "evidence-graph-detail",
+        filters?.snapshotId ?? null,
+        filters?.scanJobId ?? null,
+      ] as const,
     documents: (assessmentId: string) =>
       ["assessment", assessmentId, "documents"] as const,
     documentStatus: (assessmentId: string, documentRequestId: string) =>

@@ -1736,10 +1736,13 @@ export const enPages = {
       loadingState: "Loading repository state...",
     },
     scanner: {
+      queuedThinking: "Queued...",
+      queuedDescription:
+        "Scan request has been queued. Waiting to start repository scan...",
       runningThinking: "Thinking...",
       runningDescription:
         "Repository is pinned. I am scanning the source before asking any interview questions.",
-      completeThinking: "Thought for 18s",
+      completeThinking: "Thought completed",
       completeDescription:
         "Scan complete. I indexed the pinned source and built the evidence graph.",
       runningPlaceholder: "Scanner is running...",
@@ -1747,6 +1750,8 @@ export const enPages = {
       retryScan: "Retry source scan",
       retryingScan: "Creating new scan",
       retryError: "Unable to retry the source scan. Please try again.",
+      graphPendingDescription: "The scan is complete and evidence has been accepted. The graph is not yet confirmed ready to view.",
+      reconnecting: "Reconnecting to live update stream...",
       activities: {
         connect: "Connected to Git provider",
         clone: "Cloned source archive",
@@ -2120,6 +2125,8 @@ export const enPages = {
     rerunScan: "Run scan again",
     rerunningScan: "Creating new scan",
     rerunError: "Unable to create a new scan. Please try again.",
+    currentBadge: "Current",
+    historicalBadge: "Historical",
     scanStatuses: {
       queued: "Queued",
       running: "Analyzing",

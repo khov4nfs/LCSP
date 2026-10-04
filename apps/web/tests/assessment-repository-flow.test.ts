@@ -200,6 +200,7 @@ test("flow remains in scanner while source evidence is incomplete", () => {
 test("flow begins Interview only after accepted evidence for the scan", () => {
   const flow = deriveAssessmentFlowRuntime({
     hasRepositoryConnection: true,
+    evidenceGraphReady: true,
     snapshot: {
       id: "snapshot-1",
       assessmentId: "assessment-1",
@@ -271,8 +272,56 @@ test("completed scan waits for accepted evidence before rendering F04", () => {
       TOOL_ACTIVITY_STATUSES.completed,
       TOOL_ACTIVITY_STATUSES.completed,
       TOOL_ACTIVITY_STATUSES.completed,
+      TOOL_ACTIVITY_STATUSES.running,
+      TOOL_ACTIVITY_STATUSES.pending,
+    ],
+  );
+});
+
+test("accepted evidence waits for graph readiness before opening interview", () => {
+  const flow = deriveAssessmentFlowRuntime({
+    hasRepositoryConnection: true,
+    evidenceGraphReady: false,
+    snapshot: {
+      id: "snapshot-1",
+      assessmentId: "assessment-1",
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+      repositoryFullName: "acme/payments",
+      branch: null,
+      commitSha: "b".repeat(40),
+      createdAt: "2026-09-05T00:00:00.000Z",
+    },
+    scanJob: {
+      id: "scan-1",
+      assessmentId: "assessment-1",
+      snapshotId: "snapshot-1",
+      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+      attemptCount: 1,
+      blockedReason: null,
+      updatedAt: "2026-09-05T00:00:02.000Z",
+    },
+    evidenceReport: {
+      id: "evidence-1",
+      assessmentId: "assessment-1",
+      scanJobId: "scan-1",
+      snapshotId: "snapshot-1",
+      status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+      rejectionReason: null,
+      createdAt: "2026-09-05T00:00:03.000Z",
+    },
+  });
+
+  assert.equal(flow.stage, ASSESSMENT_FLOW_STAGES.scanner);
+  assert.equal(flow.evidenceAccepted, true);
+  assert.equal(flow.evidenceGraphReady, false);
+  assert.deepEqual(
+    flow.activities.map((activity) => activity.status),
+    [
+      TOOL_ACTIVITY_STATUSES.completed,
+      TOOL_ACTIVITY_STATUSES.completed,
       TOOL_ACTIVITY_STATUSES.completed,
       TOOL_ACTIVITY_STATUSES.running,
+      TOOL_ACTIVITY_STATUSES.pending,
     ],
   );
 });
@@ -330,7 +379,7 @@ test("assessment scanner renders retry action for failed source scans", async ()
   assert.match(overviewSource, /scanFailed={flow\.scanFailed}/);
   assert.match(
     overviewSource,
-    /retryScan\.mutate\(\{ snapshotId: retryScanSnapshotId \}\)/,
+    /retryScan\.mutate\(\s*\{\s*snapshotId:\s*retryScanSnapshotId,\s*idempotencyKey:\s*retryKeyRef\.current/,
   );
   assert.match(scannerStepSource, /RotateCcwIcon/);
   assert.match(scannerStepSource, /pages\.assessmentFlow\.scanner\.retryScan/);

@@ -52,33 +52,22 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
       );
     }
 
-    const [connection, acceptedEvidence] = await Promise.all([
-      this.prisma.repositoryConnection.findFirst({
-        where: {
-          assessmentId: assessment.id,
-          userId: query.sessionUserId,
-          status: REPOSITORY_CONNECTION_STATUSES.active,
-        },
-        orderBy: { connectedAt: "desc" },
-        select: {
-          id: true,
-          provider: true,
-          repositoryId: true,
-          repositoryFullName: true,
-          defaultBranch: true,
-          status: true,
-        },
-      }),
-      this.prisma.technicalEvidenceReport.findFirst({
-        where: {
-          assessmentId: assessment.id,
-          status: toPrismaEvidenceAcceptanceStatus(
-            TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
-          ),
-        },
-        select: { id: true },
-      }),
-    ]);
+    const connection = await this.prisma.repositoryConnection.findFirst({
+      where: {
+        assessmentId: assessment.id,
+        userId: query.sessionUserId,
+        status: REPOSITORY_CONNECTION_STATUSES.active,
+      },
+      orderBy: { connectedAt: "desc" },
+      select: {
+        id: true,
+        provider: true,
+        repositoryId: true,
+        repositoryFullName: true,
+        defaultBranch: true,
+        status: true,
+      },
+    });
 
     // Read only: opening an Assessment must not pin a source or enqueue a scan.
     // A checkpoint is always scoped to the current active connection.
@@ -98,6 +87,20 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         })
       : null;
+    const acceptedEvidence =
+      snapshot && scanJob
+        ? await this.prisma.technicalEvidenceReport.findFirst({
+            where: {
+              assessmentId: assessment.id,
+              scanJobId: scanJob.id,
+              snapshotId: snapshot.id,
+              status: toPrismaEvidenceAcceptanceStatus(
+                TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+              ),
+            },
+            select: { id: true },
+          })
+        : null;
     const setupCompleted = Boolean(
       connection &&
       snapshot &&

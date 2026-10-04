@@ -35,6 +35,7 @@ function query(
     subjectRole: AuthUserRole;
     scope: string | null;
     correlationId: string;
+    userId: string | null;
   }> = {},
 ): GetScanJobQuery {
   return new GetScanJobQuery(
@@ -43,20 +44,85 @@ function query(
     overrides.subjectRole ?? AUTH_USER_ROLES.customer,
     overrides.scope ?? null,
     overrides.correlationId ?? "request-corr-1",
+    overrides.userId !== undefined ? (overrides.userId ?? undefined) : "user-1",
   );
 }
 
-function buildHandler(record: Record<string, unknown> | null) {
+function buildHandler(
+  record: Record<string, unknown> | null,
+  assessmentRecord: Record<string, unknown> | null = {
+    id: "assessment-1",
+    ownerId: "user-1",
+  },
+) {
   const findFirst = jest
     .fn<(args: unknown) => Promise<Record<string, unknown> | null>>()
     .mockResolvedValue(record);
+  const findUnique = jest
+    .fn<(args: unknown) => Promise<Record<string, unknown> | null>>()
+    .mockResolvedValue(assessmentRecord);
   const handler = new GetScanJobHandler({
     repositoryScanJob: { findFirst },
+    assessment: { findUnique },
   } as unknown as PrismaService);
-  return { handler, findFirst };
+  return { handler, findFirst, findUnique };
 }
 
 describe("GetScanJobHandler", () => {
+  it("hides scan job with 404 when non-admin has no userId", async () => {
+    const { handler } = buildHandler(job());
+
+    await expect(
+      handler.execute(
+        new GetScanJobQuery(
+          "assessment-1",
+          "scan-job-1",
+          AUTH_USER_ROLES.customer,
+          null,
+          "corr",
+          undefined,
+        ),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("allows admin without userId to view scan job", async () => {
+    const { handler, findFirst } = buildHandler(job());
+
+    const result = await handler.execute(
+      new GetScanJobQuery(
+        "assessment-1",
+        "scan-job-1",
+        AUTH_USER_ROLES.admin,
+        null,
+        "corr",
+        undefined,
+      ),
+    );
+
+    expect(result.scan_job_id).toBe("scan-job-1");
+    expect(findFirst).toHaveBeenCalled();
+  });
+
+  it("hides scan job with 404 when userId is not assessment owner", async () => {
+    const { handler } = buildHandler(job(), {
+      id: "assessment-1",
+      ownerId: "other-user",
+    });
+
+    await expect(
+      handler.execute(
+        new GetScanJobQuery(
+          "assessment-1",
+          "scan-job-1",
+          AUTH_USER_ROLES.customer,
+          null,
+          "corr",
+          "user-1",
+        ),
+      ),
+    ).rejects.toThrow();
+  });
   it("T01/T06 returns a safe queued status projection", async () => {
     const { handler, findFirst } = buildHandler(job());
 

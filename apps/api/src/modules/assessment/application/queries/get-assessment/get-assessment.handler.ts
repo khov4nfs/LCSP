@@ -65,20 +65,39 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       this.throwNotFound(query.correlationId);
     }
 
-    const acceptedEvidenceReport =
-      await this.prisma.technicalEvidenceReport.findFirst({
-        where: {
-          assessmentId: assessment.id,
-          status: toPrismaEvidenceAcceptanceStatus(
-            TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
-          ),
-        },
-        select: { id: true, evidencePayload: true },
-        orderBy: { createdAt: "desc" },
-      });
+    const latestScan = await this.prisma.repositoryScanJob.findFirst({
+      where: {
+        assessmentId: assessment.id,
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        snapshotId: true,
+      },
+    });
 
-    const classificationResult = acceptedEvidenceReport
-      ? await this.prisma.classificationResult.findFirst({
+    const acceptedEvidenceReport = latestScan
+      ? await this.prisma.technicalEvidenceReport.findFirst({
+          where: {
+            assessmentId: assessment.id,
+            scanJobId: latestScan.id,
+            snapshotId: latestScan.snapshotId,
+            status: toPrismaEvidenceAcceptanceStatus(
+              TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+            ),
+          },
+          select: {
+            id: true,
+            snapshotId: true,
+            evidencePayload: true,
+            createdAt: true,
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        })
+      : null;
+
+    const candidateClassifications = acceptedEvidenceReport
+      ? await this.prisma.classificationResult.findMany({
           where: {
             assessmentId: assessment.id,
             status: toPrismaEvidenceAcceptanceStatus(
@@ -88,10 +107,53 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
           select: {
             guardrailStatus: true,
             classificationData: true,
+            verifiedProfile: {
+              select: {
+                technicalEvidenceReportId: true,
+              },
+            },
+            legalRuleMatch: {
+              select: {
+                verifiedProfile: {
+                  select: {
+                    technicalEvidenceReportId: true,
+                  },
+                },
+              },
+            },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         })
-      : null;
+      : [];
+
+    const classificationResult =
+      candidateClassifications.find((candidate) => {
+        const data = isRecord(candidate.classificationData)
+          ? candidate.classificationData
+          : null;
+        const reportIdInData = cleanString(data?.technical_evidence_report_id);
+        const snapshotIdInData = cleanString(data?.snapshot_id);
+        const profileReportId =
+          candidate.verifiedProfile?.technicalEvidenceReportId ??
+          candidate.legalRuleMatch?.verifiedProfile?.technicalEvidenceReportId;
+
+        if (reportIdInData) {
+          if (reportIdInData !== acceptedEvidenceReport?.id) return false;
+          if (
+            snapshotIdInData &&
+            snapshotIdInData !== acceptedEvidenceReport?.snapshotId
+          ) {
+            return false;
+          }
+          return true;
+        }
+
+        if (profileReportId) {
+          return profileReportId === acceptedEvidenceReport?.id;
+        }
+
+        return false;
+      }) ?? null;
 
     const legalChunks = classificationResult
       ? await this.loadLegalChunks(classificationResult.classificationData)
