@@ -48,6 +48,10 @@ const repositoryMapPath = new URL(
   "../src/features/assessment-flow/components/organisms/repository-map-turn.tsx",
   import.meta.url,
 );
+const repositoryDetailsPath = new URL(
+  "../src/features/assessment-flow/components/organisms/repository-details-turn.tsx",
+  import.meta.url,
+);
 const scannerSequencePath = new URL(
   "../src/features/assessment-flow/components/molecules/scanner-activity-sequence.tsx",
   import.meta.url,
@@ -57,7 +61,7 @@ const assessmentQueriesPath = new URL(
   import.meta.url,
 );
 
-test("new assessment confines provider selection to the active repository entry subflow", async () => {
+test("new assessment renders the active repository entry as one inline form", async () => {
   const [page, setup, overview] = await Promise.all([
     readFile(newAssessmentPagePath, "utf8"),
     readFile(repositorySetupPath, "utf8"),
@@ -66,7 +70,6 @@ test("new assessment confines provider selection to the active repository entry 
 
   assert.match(page, /RepositorySetupStep/);
   assert.doesNotMatch(page, /CreateAssessmentForm/);
-  assert.match(setup, /RepositorySetupConversation/);
   assert.match(setup, /ProviderCredentialDialog/);
   assert.match(setup, /ConfirmAccessDialog/);
   assert.match(setup, /onReauthenticate/);
@@ -77,12 +80,13 @@ test("new assessment confines provider selection to the active repository entry 
   assert.match(setup, /connectAssessmentRepository/);
   assert.match(setup, /startAssessmentRepositoryAnalysis/);
   assert.match(setup, /RepositoryDetailsTurn/);
-  assert.match(setup, /isProviderSelection/);
-  assert.match(setup, /isRepositoryDetails/);
   assert.match(setup, /isInlineMapRepositoryEntry/);
-  assert.match(setup, /entryReturnStep === REPOSITORY_SETUP_STEPS\.repositoryMap/);
-  assert.match(setup, /repositoryEntryConversation/);
-  assert.match(setup, /!isInlineMapRepositoryEntry \? repositoryEntryConversation/);
+  assert.match(
+    setup,
+    /entryReturnStep === REPOSITORY_SETUP_STEPS\.repositoryMap/,
+  );
+  assert.match(setup, /onProviderChange=/);
+  assert.match(setup, /credentialConfigured/);
   assert.match(setup, /entryReturnStep/);
   assert.match(setup, /allRepositoriesPinned/);
   assert.doesNotMatch(setup, /AssessmentComposer/);
@@ -109,6 +113,10 @@ test("review and map stay inside the Agent transcript with explicit terminal act
   assert.match(map, /<AgentTurn>/);
   assert.match(map, /pinnableRepositories\.length > 0/);
   assert.match(map, /pinnableRepositories\.length > 1/);
+  assert.match(map, /repositoryEntryActive/);
+  assert.match(map, /onRelationEditorOpen/);
+  assert.match(map, /aria-pressed=\{editorOpen\}/);
+  assert.match(map, /aria-pressed=\{repositoryEntryActive\}/);
   assert.match(
     map,
     /independentAcknowledged,\s*setIndependentAcknowledged\] = useState\(false\)/,
@@ -116,6 +124,19 @@ test("review and map stay inside the Agent transcript with explicit terminal act
   assert.match(map, /autoFocus/);
   assert.match(review, /onAddRepository/);
   assert.match(review, /onEditMap/);
+});
+
+test("repository provider choices render the approved provider logos", async () => {
+  const details = await readFile(repositoryDetailsPath, "utf8");
+
+  assert.match(details, /<Image/);
+  assert.match(details, /data-selected=\{selected \? "true" : "false"\}/);
+  assert.match(details, /ring-primary\/30/);
+  assert.doesNotMatch(details, /text-primary-foreground/);
+  assert.match(details, /logo-github\.svg/);
+  assert.match(details, /logo-gitlab\.svg/);
+  assert.match(details, /logo-bitbucket\.svg/);
+  assert.match(details, /logo-azure-devops\.svg/);
 });
 
 test("aggregate runtime waits for every repository and the aggregate graph", () => {

@@ -43,6 +43,8 @@ export function RepositoryMapTurn({
   onChanged,
   onEditRepository,
   onAddRepository,
+  onRelationEditorOpen,
+  repositoryEntryActive = false,
   onReviewScope,
 }: {
   assessmentId: string;
@@ -51,6 +53,8 @@ export function RepositoryMapTurn({
   onChanged: () => void;
   onEditRepository?: (repository: AssessmentRepositorySetupRepository) => void;
   onAddRepository?: () => void;
+  onRelationEditorOpen?: () => void;
+  repositoryEntryActive?: boolean;
   onReviewScope?: () => void;
 }) {
   const pinnableRepositories = repositories.filter(
@@ -78,6 +82,7 @@ export function RepositoryMapTurn({
       : id;
   };
   const beginEdit = (relation?: Relation) => {
+    onRelationEditorOpen?.();
     setSubmitError(false);
     setEditing(relation ?? null);
     setEditorOpen(true);
@@ -271,7 +276,12 @@ export function RepositoryMapTurn({
       {pinnableRepositories.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {pinnableRepositories.length > 1 ? (
-            <Button type="button" variant="outline" onClick={() => beginEdit()}>
+            <Button
+              type="button"
+              variant="outline"
+              aria-pressed={editorOpen}
+              onClick={() => beginEdit()}
+            >
               {t("pages.assessmentFlow.multiRepository.addRelation")}
             </Button>
           ) : null}
@@ -286,7 +296,17 @@ export function RepositoryMapTurn({
             </Button>
           ) : null}
           {onAddRepository ? (
-            <Button type="button" variant="outline" onClick={onAddRepository}>
+            <Button
+              type="button"
+              variant="outline"
+              aria-pressed={repositoryEntryActive}
+              onClick={() => {
+                setEditing(null);
+                setEditorOpen(false);
+                form.reset();
+                onAddRepository();
+              }}
+            >
               {t("pages.assessmentFlow.multiRepository.addRepository")}
             </Button>
           ) : null}

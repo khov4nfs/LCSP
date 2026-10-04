@@ -28,7 +28,6 @@ import {
   type ProviderCredentialDialogMode,
 } from "@/features/settings/components/molecules/provider-credential-dialog";
 import { AgentTurn } from "@/features/workspace/components/molecules/agent-turn";
-import { TurnFooter } from "@/features/workspace/components/molecules/turn-footer";
 import { AssessmentTranscript } from "@/features/workspace/components/organisms/assessment-transcript";
 import { useReadinessStatusQuery } from "@/lib/api/assessment-queries";
 import {
@@ -63,7 +62,6 @@ import {
   type RepositoryEntryIntent,
 } from "../../types/repository-setup-conversation.types";
 import { RepositoryDetailsTurn } from "./repository-details-turn";
-import { RepositorySetupConversation } from "./repository-setup-conversation";
 import { RepositoryMapTurn } from "./repository-map-turn";
 import { RepositoryReviewTurn } from "./repository-review-turn";
 
@@ -163,20 +161,17 @@ export function RepositorySetupStep({
     allRepositoriesPinned
       ? REPOSITORY_SETUP_STEPS.repositoryMap
       : setupStep;
-  const isProviderSelection =
-    displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryEntry;
-  const isRepositoryDetails =
-    displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryDetails;
   const isAddingRepository = entryIntent === REPOSITORY_ENTRY_INTENTS.add;
   const isEditingRepository = entryIntent === REPOSITORY_ENTRY_INTENTS.edit;
   // Adding from the repository map keeps the context table mounted and appends
-  // the provider/repository entry turns underneath it, like Add relation.
+  // the provider/repository form underneath it.
   const isInlineMapRepositoryEntry =
     displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryMap &&
     entryReturnStep === REPOSITORY_SETUP_STEPS.repositoryMap &&
     isAddingRepository;
   const isRepositoryEntryActive =
-    isProviderSelection || isRepositoryDetails || isInlineMapRepositoryEntry;
+    displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryEntry ||
+    isInlineMapRepositoryEntry;
 
   function closeConfirmAccessDialog(cancelled = true) {
     if (cancelled) setPendingReauthRetry(null);
@@ -426,71 +421,38 @@ export function RepositorySetupStep({
     form.reset({ provider: undefined, repositoryUrl: "", branch: "" });
   }
 
-  function showProviderSelection() {
-    if (isInlineMapRepositoryEntry) {
-      form.reset({ provider: undefined, repositoryUrl: "", branch: "" });
-    } else {
-      setSetupStep(REPOSITORY_SETUP_STEPS.repositoryEntry);
-    }
-    setSubmitErrorKey(undefined);
-  }
-
   function openCredentialDialog() {
     setCredentialDialogMode(PROVIDER_CREDENTIAL_DIALOG_MODES.connect);
     setCredentialDialogOpen(true);
   }
 
-  const repositoryEntryConversation = isRepositoryEntryActive ? (
-    <RepositorySetupConversation
+  const repositoryDetails = isRepositoryEntryActive ? (
+    <RepositoryDetailsTurn
       provider={provider}
       providerCapabilities={setupState?.providerCapabilities}
+      intent={entryIntent}
+      repositoryPreview={repositoryPreviewFromUrl(repositoryUrl)}
+      credentialConfigured={credentialConfigured}
+      canSubmit={
+        canEnterRepository && !Boolean(workingAssessmentId && !setupState)
+      }
+      submitting={isSubmitting}
+      onSubmit={handleSubmit}
       onProviderChange={(value) => {
         const providerChanged = value !== provider;
         form.setValue("provider", value, { shouldValidate: true });
         if (providerChanged) form.setValue("repositoryUrl", "");
         form.clearErrors();
         setSubmitErrorKey(undefined);
-        if (!isInlineMapRepositoryEntry) {
-          setSetupStep(REPOSITORY_SETUP_STEPS.repositoryDetails);
-        }
       }}
-      disabled={isSubmitting}
-      footer={
-        provider && credentialProvider && !credentialConfigured ? (
-          <TurnFooter
-            actions={[
-              {
-                id: "configure-provider",
-                label: t("pages.assessmentFlow.configureProvider"),
-                onSelect: openCredentialDialog,
-              },
-            ]}
-          />
-        ) : undefined
+      onBackToRepositories={
+        entryIntent === REPOSITORY_ENTRY_INTENTS.initial
+          ? undefined
+          : returnToRepositories
       }
+      onConfigureProvider={openCredentialDialog}
     />
   ) : null;
-  const repositoryDetails =
-    provider && (isRepositoryDetails || isInlineMapRepositoryEntry) ? (
-      <RepositoryDetailsTurn
-        provider={provider}
-        intent={entryIntent}
-        repositoryPreview={repositoryPreviewFromUrl(repositoryUrl)}
-        canSubmit={
-          canEnterRepository &&
-          !Boolean(workingAssessmentId && !setupState)
-        }
-        submitting={isSubmitting}
-        onSubmit={handleSubmit}
-        onBackToProviders={showProviderSelection}
-        onBackToRepositories={
-          entryIntent === REPOSITORY_ENTRY_INTENTS.initial
-            ? undefined
-            : returnToRepositories
-        }
-        onConfigureProvider={openCredentialDialog}
-      />
-    ) : null;
 
   return (
     <main
@@ -503,7 +465,6 @@ export function RepositorySetupStep({
             ":",
           )}
         >
-          {!isInlineMapRepositoryEntry ? repositoryEntryConversation : null}
           {!isInlineMapRepositoryEntry ? repositoryDetails : null}
           {displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryReady &&
           allRepositoriesPinned ? (
@@ -551,6 +512,10 @@ export function RepositorySetupStep({
                   REPOSITORY_SETUP_STEPS.repositoryMap,
                 )
               }
+              onRelationEditorOpen={() => {
+                if (isInlineMapRepositoryEntry) returnToRepositories();
+              }}
+              repositoryEntryActive={isInlineMapRepositoryEntry}
               onReviewScope={() =>
                 setSetupStep(REPOSITORY_SETUP_STEPS.reviewScope)
               }
@@ -563,7 +528,6 @@ export function RepositorySetupStep({
               }}
             />
           ) : null}
-          {isInlineMapRepositoryEntry ? repositoryEntryConversation : null}
           {isInlineMapRepositoryEntry ? repositoryDetails : null}
           {displayedSetupStep === REPOSITORY_SETUP_STEPS.reviewScope &&
           allRepositoriesPinned ? (
