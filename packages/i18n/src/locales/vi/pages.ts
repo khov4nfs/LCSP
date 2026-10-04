@@ -1715,13 +1715,24 @@ export const viPages = {
     },
     repositorySetupDescription:
       "Trước khi assessment bắt đầu, hãy kết nối repository cần quét. Tôi sẽ phân tích source đã pin trước, sau đó mới bắt đầu Interview.",
+    addRepositoryDescription:
+      "Chọn provider cho repository này. Mỗi repository giữ provider, branch và commit đã pin riêng.",
     providerQuestion: "Chọn Git provider",
     providerHelp:
       "Chọn provider để mở kết nối bảo mật. Repository và commit đã pin là bắt buộc trước khi scan.",
+    providerSelected: "Provider đã chọn cho repository này",
+    selected: "Đã chọn",
     providerComingSoon: "Sắp hỗ trợ",
     configureProvider: "Cấu hình kết nối bảo mật",
+    repositoryUrlLabel: "URL repository",
     repositoryPlaceholder: "Dán URL repository để tiếp tục...",
     repositoryDisabledPlaceholder: "Kết nối provider để tiếp tục...",
+    repositoryPreviewDescription:
+      "Repository này sẽ giữ provider, branch và commit đã pin riêng.",
+    addRepositoryAction: "Thêm repository",
+    replaceRepositoryAction: "Thay thế repository",
+    backToProviders: "Quay lại providers",
+    backToRepositories: "Quay lại repositories",
     providers: {
       github: "GitHub",
       gitlab: "GitLab",

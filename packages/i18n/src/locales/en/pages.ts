@@ -1714,13 +1714,24 @@ export const enPages = {
     },
     repositorySetupDescription:
       "Before the assessment can start, connect the repository I should scan. I will analyze the pinned source first, then begin the interview.",
+    addRepositoryDescription:
+      "Choose a provider for this repository. Each repository keeps its own provider, branch, and pinned commit.",
     providerQuestion: "Choose Git provider",
     providerHelp:
       "Select a provider to open the secure connector. A repository and pinned commit are required before scanning.",
+    providerSelected: "Provider selected for this repository",
+    selected: "Selected",
     providerComingSoon: "Coming soon",
     configureProvider: "Configure secure connection",
+    repositoryUrlLabel: "Repository URL",
     repositoryPlaceholder: "Paste a repository URL to continue...",
     repositoryDisabledPlaceholder: "Connect a provider to continue...",
+    repositoryPreviewDescription:
+      "This repository will keep its own provider, branch, and pinned commit.",
+    addRepositoryAction: "Add repository",
+    replaceRepositoryAction: "Replace repository",
+    backToProviders: "Back to providers",
+    backToRepositories: "Back to repositories",
     providers: {
       github: "GitHub",
       gitlab: "GitLab",

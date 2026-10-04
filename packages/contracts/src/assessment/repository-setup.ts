@@ -235,6 +235,12 @@ export function isAssessmentRepositorySetupState(
 export function needsRepositorySetupResume(
   state: AssessmentRepositorySetupState,
 ): boolean {
+  if (
+    state.confirmed === false ||
+    state.confirmation?.status === ASSESSMENT_SETUP_CONFIRMATION_STATUSES.draft
+  ) {
+    return true;
+  }
   if (state.repositories && state.repositories.length > 0) {
     return (
       state.assessmentStatus === ASSESSMENT_STATUS_CODES.wizardInProgress ||

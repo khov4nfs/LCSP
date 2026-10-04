@@ -19,11 +19,9 @@ import { InfoIcon, SaveIcon, TextCursorInputIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
-import { RepositorySetupConversation } from "@/features/assessment-flow/components/organisms/repository-setup-conversation";
 import { RepositorySetupStep } from "@/features/assessment-flow/components/organisms/repository-setup-step";
 import { ScannerStep } from "@/features/assessment-flow/components/organisms/scanner-step";
 import { deriveAssessmentFlowRuntime } from "@/features/assessment-flow/utils/assessment-flow-runtime";
-import { deriveRepositorySetupAnswer } from "@/features/assessment-flow/utils/repository-setup-history";
 import {
   useAssessmentInterviewBlockedActionMutation,
   useAssessmentInterviewStateQuery,
@@ -144,7 +142,6 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
         item.scanJobId === scanJob?.id,
     ) ?? null;
   const timeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
-  const repositoryAnswer = deriveRepositorySetupAnswer(connection ?? snapshot);
   const flow = deriveAssessmentFlowRuntime({
     setupState,
     hasRepositoryConnection: readinessLoaded
@@ -231,9 +228,6 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
       interviewEnabled={flow.stage === ASSESSMENT_FLOW_STAGES.interview}
       scanner={
         <>
-          {repositoryAnswer ? (
-            <RepositorySetupConversation {...repositoryAnswer} disabled />
-          ) : null}
           <ScannerStep
             assessmentId={assessmentId}
             repositories={scannerRepositories}

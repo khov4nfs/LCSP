@@ -138,64 +138,32 @@ afterEach(() => {
   testWindow.document.body.replaceChildren();
 });
 
-test("repository setup remains a read-only conversation after submission and remount", async () => {
+test("repository provider choices are interactive only while the entry turn is mounted", async () => {
   const provider = ASSESSMENT_REPOSITORY_PROVIDERS.gitlab;
   let selectedProvider: string | undefined;
-  const { container, rerender } = await renderElement(
+  const { container } = await renderElement(
     React.createElement(RepositorySetupConversation, {
       onProviderChange: (value) => {
         selectedProvider = value;
       },
     }),
   );
-  const prompt = container.querySelector(
-    '[data-slot="agent-message"]',
-  )?.textContent;
   await click(
     container.querySelector<HTMLButtonElement>(
       `[data-option-id="${provider}"]`,
     )!,
   );
   assert.equal(selectedProvider, provider);
-
-  const persistedAnswer = deriveRepositorySetupAnswer({
-    provider,
-    repositoryFullName: "organization/subgroup/software",
-  });
-  assert.ok(persistedAnswer);
+  const choices = [
+    ...container.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
+  ];
+  assert.equal(choices.length, 4);
   assert.equal(
-    persistedAnswer.repositoryUrl,
-    "https://gitlab.com/organization/subgroup/software",
+    container
+      .querySelector(`[data-option-id="${provider}"]`)
+      ?.getAttribute("aria-checked"),
+    "false",
   );
-  const history = React.createElement(RepositorySetupConversation, {
-    ...persistedAnswer,
-    disabled: true,
-  });
-  await rerender(history);
-
-  for (const target of [container, (await renderElement(history)).container]) {
-    assert.equal(
-      target.querySelector('[data-slot="agent-message"]')?.textContent,
-      prompt,
-    );
-    assert.equal(
-      target.querySelector('[data-role="user"]')?.textContent,
-      persistedAnswer.repositoryUrl,
-    );
-    const choices = [
-      ...target.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
-    ];
-    assert.equal(choices.length, 4);
-    assert.ok(choices.every((choice) => choice.disabled));
-    assert.equal(
-      target
-        .querySelector(`[data-option-id="${provider}"]`)
-        ?.getAttribute("aria-checked"),
-      "true",
-    );
-    await click(choices[0]);
-    assert.equal(choices[0].getAttribute("aria-checked"), "false");
-  }
 });
 
 test("repository history requires persisted identity and never guesses a provider", () => {

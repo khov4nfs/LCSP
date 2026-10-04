@@ -254,11 +254,6 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
     const scanJob = snapshot
       ? (latestJobBySnapshot.get(snapshot.id) ?? null)
       : null;
-    const setupCompleted = Boolean(
-      connection &&
-      snapshot &&
-      assessment.status !== ASSESSMENT_STATUS_CODES.wizardInProgress,
-    );
     const scanProgress = repositories.reduce(
       (progress, repository) => {
         progress.total += 1;
@@ -296,10 +291,20 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
     const acceptedSnapshotIds = new Set(
       acceptedEvidence.map((report) => report.snapshotId),
     );
+    // Older assessments may predate the manifest column. Preserve their
+    // compatibility projection, but fail closed once a manifest exists and
+    // no longer describes the current pinned snapshot set.
+    const confirmedScopeMatchesCurrentSnapshots =
+      confirmedManifestSnapshotIds.length === 0 ||
+      sameSnapshotSet(confirmedManifestSnapshotIds, snapshotIds);
     const scopedSnapshotIds =
-      confirmedManifestSnapshotIds.length > 0
+      confirmedScopeMatchesCurrentSnapshots
         ? confirmedManifestSnapshotIds
         : snapshotIds;
+    const setupConfirmed =
+      assessment.status !== ASSESSMENT_STATUS_CODES.wizardInProgress &&
+      confirmedScopeMatchesCurrentSnapshots;
+    const setupCompleted = Boolean(connection && snapshot && setupConfirmed);
 
     return {
       repository_setup: {
@@ -349,21 +354,18 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
           toSnapshotId: relation.toSnapshotId,
           type: String(relation.type) as AssessmentRepositoryRelationType,
         })),
-        confirmed:
-          assessment.status !== ASSESSMENT_STATUS_CODES.wizardInProgress,
+        confirmed: setupConfirmed,
         providerCapabilities,
         confirmation: {
-          status:
-            assessment.status === ASSESSMENT_STATUS_CODES.wizardInProgress
-              ? ASSESSMENT_SETUP_CONFIRMATION_STATUSES.draft
-              : ASSESSMENT_SETUP_CONFIRMATION_STATUSES.confirmed,
-          confirmedAt:
-            assessment.status === ASSESSMENT_STATUS_CODES.wizardInProgress
-              ? null
-              : (
-                  persistedSetup?.repositorySetupConfirmedAt ??
-                  assessment.updatedAt
-                ).toISOString(),
+          status: setupConfirmed
+            ? ASSESSMENT_SETUP_CONFIRMATION_STATUSES.confirmed
+            : ASSESSMENT_SETUP_CONFIRMATION_STATUSES.draft,
+          confirmedAt: setupConfirmed
+            ? (
+                persistedSetup?.repositorySetupConfirmedAt ??
+                assessment.updatedAt
+              ).toISOString()
+            : null,
         },
         scanProgress,
         relationAggregate: {
@@ -432,4 +434,10 @@ function manifestSnapshotIds(value: unknown): string[] {
       return [];
     return [(snapshot as { snapshotId: string }).snapshotId];
   });
+}
+
+function sameSnapshotSet(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  const rightIds = new Set(right);
+  return left.every((snapshotId) => rightIds.has(snapshotId));
 }

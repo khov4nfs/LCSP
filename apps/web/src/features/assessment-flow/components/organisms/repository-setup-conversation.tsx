@@ -7,7 +7,6 @@ import {
   AgentTurn,
   ThoughtLine,
 } from "@/features/workspace/components/molecules/agent-turn";
-import { ASSESSMENT_CHAT_ROLES } from "@/features/workspace/types/assessment-chat.types";
 import { appLocale } from "@/lib/locale";
 
 import type { RepositorySetupConversationProps } from "../../types/repository-setup-conversation.types";
@@ -15,7 +14,6 @@ import { GitProviderQuestion } from "../molecules/git-provider-question";
 
 export function RepositorySetupConversation({
   provider,
-  repositoryUrl,
   providerCapabilities,
   onProviderChange,
   disabled,
@@ -52,11 +50,6 @@ export function RepositorySetupConversation({
         }
         footer={footer}
       />
-      {repositoryUrl ? (
-        <AgentTurn role={ASSESSMENT_CHAT_ROLES.user}>
-          <p className="whitespace-pre-wrap wrap-anywhere">{repositoryUrl}</p>
-        </AgentTurn>
-      ) : null}
     </>
   );
 }

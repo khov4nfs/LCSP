@@ -16,12 +16,31 @@ function makeCommandBus() {
   } as unknown as CommandBus;
 }
 
-function makePrismaService(status: string | null) {
+function makePrismaService(
+  status: string | null,
+  manifestSnapshots: string[] = [],
+) {
   return {
     assessment: {
       findUnique: jest
-        .fn<() => Promise<{ status: string } | null>>()
-        .mockResolvedValue(status === null ? null : { status }),
+        .fn<
+          () => Promise<{
+            status: string;
+            repositorySetupManifest: { snapshots: Array<{ snapshotId: string }> };
+          } | null>
+        >()
+        .mockResolvedValue(
+          status === null
+            ? null
+            : {
+                status,
+                repositorySetupManifest: {
+                  snapshots: manifestSnapshots.map((snapshotId) => ({
+                    snapshotId,
+                  })),
+                },
+              },
+        ),
     },
   } as unknown as PrismaService;
 }
@@ -29,7 +48,10 @@ function makePrismaService(status: string | null) {
 describe("SnapshotCreatedAutoScanService", () => {
   it("dispatches a trusted scan trigger when the assessment is submitted", async () => {
     const commandBus = makeCommandBus();
-    const prisma = makePrismaService(ASSESSMENT_STATUS_CODES.wizardSubmitted);
+    const prisma = makePrismaService(
+      ASSESSMENT_STATUS_CODES.wizardSubmitted,
+      ["snapshot-1"],
+    );
     const service = new SnapshotCreatedAutoScanService(commandBus, prisma);
 
     await service.handle({
@@ -61,7 +83,10 @@ describe("SnapshotCreatedAutoScanService", () => {
 
   it("uses a fallback trusted correlationId when the payload omits one", async () => {
     const commandBus = makeCommandBus();
-    const prisma = makePrismaService(ASSESSMENT_STATUS_CODES.wizardSubmitted);
+    const prisma = makePrismaService(
+      ASSESSMENT_STATUS_CODES.wizardSubmitted,
+      ["snapshot-1"],
+    );
     const service = new SnapshotCreatedAutoScanService(commandBus, prisma);
 
     await service.handle({
@@ -91,6 +116,25 @@ describe("SnapshotCreatedAutoScanService", () => {
     });
 
     // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(commandBus.execute).not.toHaveBeenCalled();
+  });
+
+  it("skips auto-chain when the snapshot is outside the confirmed manifest", async () => {
+    const commandBus = makeCommandBus();
+    const prisma = makePrismaService(
+      ASSESSMENT_STATUS_CODES.wizardSubmitted,
+      ["confirmed-snapshot"],
+    );
+    const service = new SnapshotCreatedAutoScanService(commandBus, prisma);
+
+    await service.handle({
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+      payload: {
+        snapshotId: "draft-snapshot",
+        assessmentId: "assessment-1",
+      },
+    });
+
     expect(commandBus.execute).not.toHaveBeenCalled();
   });
 });

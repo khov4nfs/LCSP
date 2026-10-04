@@ -16,13 +16,12 @@ import {
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 
 import { ConfirmAccessDialog } from "@/components/organisms/confirm-access-dialog";
 import type { ConfirmAccessOtpValues } from "@/components/schemas/confirm-access-dialog.schema";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   PROVIDER_CREDENTIAL_DIALOG_MODES,
   ProviderCredentialDialog,
@@ -30,7 +29,6 @@ import {
 } from "@/features/settings/components/molecules/provider-credential-dialog";
 import { AgentTurn } from "@/features/workspace/components/molecules/agent-turn";
 import { TurnFooter } from "@/features/workspace/components/molecules/turn-footer";
-import { AssessmentComposer } from "@/features/workspace/components/organisms/assessment-composer";
 import { AssessmentTranscript } from "@/features/workspace/components/organisms/assessment-transcript";
 import { useReadinessStatusQuery } from "@/lib/api/assessment-queries";
 import {
@@ -60,7 +58,11 @@ import {
   type RepositorySetupFormData,
 } from "../../schemas/repository-setup.schema";
 import type { GitProviderValue } from "../../types/assessment-flow.types";
-import { deriveRepositorySetupAnswer } from "../../utils/repository-setup-history";
+import {
+  REPOSITORY_ENTRY_INTENTS,
+  type RepositoryEntryIntent,
+} from "../../types/repository-setup-conversation.types";
+import { RepositoryDetailsTurn } from "./repository-details-turn";
 import { RepositorySetupConversation } from "./repository-setup-conversation";
 import { RepositoryMapTurn } from "./repository-map-turn";
 import { RepositoryReviewTurn } from "./repository-review-turn";
@@ -71,15 +73,10 @@ type RepositorySetupStepProps = {
 
 const REPOSITORY_SETUP_STEPS = {
   repositoryEntry: "REPOSITORY_ENTRY",
+  repositoryDetails: "REPOSITORY_DETAILS",
   repositoryReady: "REPOSITORY_READY",
   repositoryMap: "REPOSITORY_MAP",
   reviewScope: "REVIEW_SCOPE",
-} as const;
-
-const REPOSITORY_ENTRY_INTENTS = {
-  initial: "INITIAL",
-  add: "ADD",
-  edit: "EDIT",
 } as const;
 
 type RepositorySetupStepState =
@@ -107,17 +104,18 @@ export function RepositorySetupStep({
   const allRepositoriesPinned =
     repositories.length > 0 &&
     repositories.every((repository) => repository.snapshot !== null);
-  const savedConnection = setupState?.connection;
-  const savedAnswer = deriveRepositorySetupAnswer(savedConnection ?? null);
   const [submitErrorKey, setSubmitErrorKey] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [setupStep, setSetupStep] = useState<RepositorySetupStepState>(
     REPOSITORY_SETUP_STEPS.repositoryEntry,
   );
   const [editingConnectionId, setEditingConnectionId] = useState<string>();
-  const [entryIntent, setEntryIntent] = useState<
-    (typeof REPOSITORY_ENTRY_INTENTS)[keyof typeof REPOSITORY_ENTRY_INTENTS]
-  >(REPOSITORY_ENTRY_INTENTS.initial);
+  const [entryReturnStep, setEntryReturnStep] = useState<
+    RepositorySetupStepState | undefined
+  >();
+  const [entryIntent, setEntryIntent] = useState<RepositoryEntryIntent>(
+    REPOSITORY_ENTRY_INTENTS.initial,
+  );
   const [confirmingScope, setConfirmingScope] = useState(false);
   const [credentialDialogOpen, setCredentialDialogOpen] = useState(false);
   const [credentialDialogMode, setCredentialDialogMode] =
@@ -162,11 +160,13 @@ export function RepositorySetupStep({
   const displayedSetupStep =
     setupStep === REPOSITORY_SETUP_STEPS.repositoryEntry &&
     entryIntent === REPOSITORY_ENTRY_INTENTS.initial &&
-    savedConnection
-      ? REPOSITORY_SETUP_STEPS.repositoryReady
+    allRepositoriesPinned
+      ? REPOSITORY_SETUP_STEPS.repositoryMap
       : setupStep;
-  const isRepositoryEntry =
+  const isProviderSelection =
     displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryEntry;
+  const isRepositoryDetails =
+    displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryDetails;
   const isAddingRepository = entryIntent === REPOSITORY_ENTRY_INTENTS.add;
   const isEditingRepository = entryIntent === REPOSITORY_ENTRY_INTENTS.edit;
 
@@ -331,7 +331,7 @@ export function RepositorySetupStep({
       setEditingConnectionId(undefined);
       setEntryIntent(REPOSITORY_ENTRY_INTENTS.initial);
       setSetupStep(
-        isAddingRepository && refreshedRepositories.length > 1
+        refreshedRepositories.length > 0
           ? REPOSITORY_SETUP_STEPS.repositoryMap
           : REPOSITORY_SETUP_STEPS.repositoryReady,
       );
@@ -376,204 +376,207 @@ export function RepositorySetupStep({
     }
   }
 
+  function beginRepositoryEntry(
+    intent: RepositoryEntryIntent,
+    returnStep: RepositorySetupStepState | undefined,
+    repository?: AssessmentRepositorySetupRepository,
+  ) {
+    setEditingConnectionId(repository?.connectionId);
+    setEntryIntent(intent);
+    setEntryReturnStep(returnStep);
+    setSetupStep(REPOSITORY_SETUP_STEPS.repositoryEntry);
+    setSubmitErrorKey(undefined);
+    form.reset(
+      repository
+        ? {
+            provider: repository.provider as GitProviderValue,
+            repositoryUrl: repositoryUrlForEdit(
+              repository.provider,
+              repository.repositoryFullName,
+            ),
+            branch: repository.snapshot?.branch ?? repository.defaultBranch,
+          }
+        : { provider: undefined, repositoryUrl: "", branch: "" },
+    );
+  }
+
+  function returnToRepositories() {
+    const fallbackStep =
+      repositories.length > 0
+        ? REPOSITORY_SETUP_STEPS.repositoryMap
+        : REPOSITORY_SETUP_STEPS.repositoryReady;
+    setEditingConnectionId(undefined);
+    setEntryIntent(REPOSITORY_ENTRY_INTENTS.initial);
+    setEntryReturnStep(undefined);
+    setSetupStep(entryReturnStep ?? fallbackStep);
+    setSubmitErrorKey(undefined);
+    form.reset({ provider: undefined, repositoryUrl: "", branch: "" });
+  }
+
+  function showProviderSelection() {
+    setSetupStep(REPOSITORY_SETUP_STEPS.repositoryEntry);
+    setSubmitErrorKey(undefined);
+  }
+
+  function openCredentialDialog() {
+    setCredentialDialogMode(PROVIDER_CREDENTIAL_DIALOG_MODES.connect);
+    setCredentialDialogOpen(true);
+  }
+
   return (
     <main
       className="flex h-full min-h-0 flex-col"
       data-surface="repository-setup"
     >
-      <AssessmentTranscript
-        autoScrollKey={[provider, activeErrorKey].join(":")}
-      >
-        <RepositorySetupConversation
-          provider={
-            isRepositoryEntry ? provider : (savedAnswer?.provider ?? provider)
-          }
-          repositoryUrl={
-            isRepositoryEntry && isSubmitting
-              ? repositoryUrl.trim()
-              : (savedAnswer?.repositoryUrl ?? undefined)
-          }
-          providerCapabilities={setupState?.providerCapabilities}
-          onProviderChange={(value) => {
-            form.setValue("provider", value, { shouldValidate: true });
-            form.setValue("repositoryUrl", "");
-            form.clearErrors();
-            setSubmitErrorKey(undefined);
-          }}
-          disabled={isSubmitting || !isRepositoryEntry}
-          footer={
-            isRepositoryEntry &&
-            provider &&
-            credentialProvider &&
-            !credentialConfigured ? (
-              <TurnFooter
-                actions={[
-                  {
-                    id: "configure-provider",
-                    label: t("pages.assessmentFlow.configureProvider"),
-                    onSelect: () => {
-                      setCredentialDialogMode(
-                        PROVIDER_CREDENTIAL_DIALOG_MODES.connect,
-                      );
-                      setCredentialDialogOpen(true);
-                    },
-                  },
-                ]}
-              />
-            ) : undefined
-          }
-        />
-        {isRepositoryEntry && provider ? (
-          <AgentTurn>
-            <label
-              className="block text-sm font-medium"
-              htmlFor="repository-branch"
-            >
-              {t("pages.assessmentFlow.graph.branch")}
-              <Input
-                className="mt-2"
-                id="repository-branch"
-                placeholder={t("pages.assessmentFlow.repository.pending")}
-                {...form.register("branch")}
-              />
-            </label>
-          </AgentTurn>
-        ) : null}
-        {displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryReady &&
-        allRepositoriesPinned ? (
-          <RepositoryReadyTurn
-            repository={repositories.at(-1)}
-            onAddRepository={() => {
-              setEditingConnectionId(undefined);
-              setEntryIntent(REPOSITORY_ENTRY_INTENTS.add);
-              setSetupStep(REPOSITORY_SETUP_STEPS.repositoryEntry);
-              form.reset({
-                provider: undefined,
-                repositoryUrl: "",
-                branch: "",
-              });
-            }}
-            onContinue={() =>
-              setSetupStep(
-                repositories.length > 1
-                  ? REPOSITORY_SETUP_STEPS.repositoryMap
-                  : REPOSITORY_SETUP_STEPS.reviewScope,
-              )
-            }
-            onEdit={() => {
-              const repository = repositories.at(-1);
-              if (!repository) return;
-              setEditingConnectionId(repository.connectionId);
-              setEntryIntent(REPOSITORY_ENTRY_INTENTS.edit);
-              setSetupStep(REPOSITORY_SETUP_STEPS.repositoryEntry);
-              form.reset({
-                provider: repository.provider as GitProviderValue,
-                repositoryUrl: repositoryUrlForEdit(
-                  repository.provider,
-                  repository.repositoryFullName,
-                ),
-                branch: repository.snapshot?.branch ?? repository.defaultBranch,
-              });
-            }}
-          />
-        ) : null}
-        {displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryMap &&
-        setupState?.repositories &&
-        setupState.repositories.length > 1 ? (
-          <RepositoryMapTurn
-            assessmentId={workingAssessmentId ?? ""}
-            repositories={setupState.repositories}
-            relations={setupState.relations ?? []}
-            onEditRepository={(repository) => {
-              form.reset({
-                provider: repository.provider as GitProviderValue,
-                repositoryUrl: repositoryUrlForEdit(
-                  repository.provider,
-                  repository.repositoryFullName,
-                ),
-                branch: repository.snapshot?.branch ?? repository.defaultBranch,
-              });
-              setEditingConnectionId(repository.connectionId);
-              setEntryIntent(REPOSITORY_ENTRY_INTENTS.edit);
-              setSetupStep(REPOSITORY_SETUP_STEPS.repositoryEntry);
-            }}
-            onAddRepository={() => {
-              setEditingConnectionId(undefined);
-              setEntryIntent(REPOSITORY_ENTRY_INTENTS.add);
-              setSetupStep(REPOSITORY_SETUP_STEPS.repositoryEntry);
-              form.reset({
-                provider: undefined,
-                repositoryUrl: "",
-                branch: "",
-              });
-            }}
-            onReviewScope={() =>
-              setSetupStep(REPOSITORY_SETUP_STEPS.reviewScope)
-            }
-            onChanged={() => {
-              if (workingAssessmentId)
-                void queryClient.invalidateQueries({
-                  queryKey:
-                    apiQueryKeys.assessment.readiness(workingAssessmentId),
-                });
-            }}
-          />
-        ) : null}
-        {displayedSetupStep === REPOSITORY_SETUP_STEPS.reviewScope &&
-        allRepositoriesPinned ? (
-          <RepositoryReviewTurn
-            repositories={repositories}
-            relations={setupState?.relations ?? []}
-            confirming={confirmingScope}
-            onConfirm={() => void confirmRepositoryScope()}
-            onBack={() =>
-              setSetupStep(
-                repositories.length > 1
-                  ? REPOSITORY_SETUP_STEPS.repositoryMap
-                  : REPOSITORY_SETUP_STEPS.repositoryReady,
-              )
-            }
-            onEditMap={() => setSetupStep(REPOSITORY_SETUP_STEPS.repositoryMap)}
-            onAddRepository={() => {
-              setEditingConnectionId(undefined);
-              setEntryIntent(REPOSITORY_ENTRY_INTENTS.add);
-              setSetupStep(REPOSITORY_SETUP_STEPS.repositoryEntry);
-              form.reset({
-                provider: undefined,
-                repositoryUrl: "",
-                branch: "",
-              });
-            }}
-          />
-        ) : null}
-        {activeErrorKey ? (
-          <AgentTurn>
-            <Alert variant="destructive">
-              <AlertTitle>{t("pages.assessmentFlow.errors.title")}</AlertTitle>
-              <AlertDescription>{t(activeErrorKey)}</AlertDescription>
-            </Alert>
-          </AgentTurn>
-        ) : null}
-      </AssessmentTranscript>
-      {isRepositoryEntry ? (
-        <AssessmentComposer
-          value={repositoryUrl}
-          onValueChange={(value) => {
-            form.setValue("repositoryUrl", value);
-            if (submitErrorKey) setSubmitErrorKey(undefined);
-          }}
-          onSubmit={handleSubmit}
-          disabled={
-            !canEnterRepository || Boolean(workingAssessmentId && !setupState)
-          }
-          submitting={isSubmitting}
-          placeholder={t(
-            canEnterRepository
-              ? "pages.assessmentFlow.repositoryPlaceholder"
-              : "pages.assessmentFlow.repositoryDisabledPlaceholder",
+      <FormProvider {...form}>
+        <AssessmentTranscript
+          autoScrollKey={[displayedSetupStep, provider, activeErrorKey].join(
+            ":",
           )}
-        />
-      ) : null}
+        >
+          {isProviderSelection ? (
+            <RepositorySetupConversation
+              provider={provider}
+              providerCapabilities={setupState?.providerCapabilities}
+              onProviderChange={(value) => {
+                const providerChanged = value !== provider;
+                form.setValue("provider", value, { shouldValidate: true });
+                if (providerChanged) form.setValue("repositoryUrl", "");
+                form.clearErrors();
+                setSubmitErrorKey(undefined);
+                setSetupStep(REPOSITORY_SETUP_STEPS.repositoryDetails);
+              }}
+              disabled={isSubmitting}
+              footer={
+                provider && credentialProvider && !credentialConfigured ? (
+                  <TurnFooter
+                    actions={[
+                      {
+                        id: "configure-provider",
+                        label: t("pages.assessmentFlow.configureProvider"),
+                        onSelect: openCredentialDialog,
+                      },
+                    ]}
+                  />
+                ) : undefined
+              }
+            />
+          ) : null}
+          {isRepositoryDetails && provider ? (
+            <RepositoryDetailsTurn
+              provider={provider}
+              intent={entryIntent}
+              repositoryPreview={repositoryPreviewFromUrl(repositoryUrl)}
+              canSubmit={
+                canEnterRepository &&
+                !Boolean(workingAssessmentId && !setupState)
+              }
+              submitting={isSubmitting}
+              onSubmit={handleSubmit}
+              onBackToProviders={showProviderSelection}
+              onBackToRepositories={
+                entryIntent === REPOSITORY_ENTRY_INTENTS.initial
+                  ? undefined
+                  : returnToRepositories
+              }
+              onConfigureProvider={openCredentialDialog}
+            />
+          ) : null}
+          {displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryReady &&
+          allRepositoriesPinned ? (
+            <RepositoryReadyTurn
+              repository={repositories.at(-1)}
+              onAddRepository={() =>
+                beginRepositoryEntry(
+                  REPOSITORY_ENTRY_INTENTS.add,
+                  REPOSITORY_SETUP_STEPS.repositoryReady,
+                )
+              }
+              onContinue={() =>
+                setSetupStep(
+                  repositories.length > 1
+                    ? REPOSITORY_SETUP_STEPS.repositoryMap
+                    : REPOSITORY_SETUP_STEPS.reviewScope,
+                )
+              }
+              onEdit={() =>
+                beginRepositoryEntry(
+                  REPOSITORY_ENTRY_INTENTS.edit,
+                  REPOSITORY_SETUP_STEPS.repositoryReady,
+                  repositories.at(-1),
+                )
+              }
+            />
+          ) : null}
+          {displayedSetupStep === REPOSITORY_SETUP_STEPS.repositoryMap &&
+          setupState?.repositories &&
+          setupState.repositories.length > 0 ? (
+            <RepositoryMapTurn
+              assessmentId={workingAssessmentId ?? ""}
+              repositories={setupState.repositories}
+              relations={setupState.relations ?? []}
+              onEditRepository={(repository) =>
+                beginRepositoryEntry(
+                  REPOSITORY_ENTRY_INTENTS.edit,
+                  REPOSITORY_SETUP_STEPS.repositoryMap,
+                  repository,
+                )
+              }
+              onAddRepository={() =>
+                beginRepositoryEntry(
+                  REPOSITORY_ENTRY_INTENTS.add,
+                  REPOSITORY_SETUP_STEPS.repositoryMap,
+                )
+              }
+              onReviewScope={() =>
+                setSetupStep(REPOSITORY_SETUP_STEPS.reviewScope)
+              }
+              onChanged={() => {
+                if (workingAssessmentId)
+                  void queryClient.invalidateQueries({
+                    queryKey:
+                      apiQueryKeys.assessment.readiness(workingAssessmentId),
+                  });
+              }}
+            />
+          ) : null}
+          {displayedSetupStep === REPOSITORY_SETUP_STEPS.reviewScope &&
+          allRepositoriesPinned ? (
+            <RepositoryReviewTurn
+              repositories={repositories}
+              relations={setupState?.relations ?? []}
+              confirming={confirmingScope}
+              onConfirm={() => void confirmRepositoryScope()}
+              onBack={() =>
+                setSetupStep(
+                  repositories.length > 0
+                    ? REPOSITORY_SETUP_STEPS.repositoryMap
+                    : REPOSITORY_SETUP_STEPS.repositoryReady,
+                )
+              }
+              onEditMap={() =>
+                setSetupStep(REPOSITORY_SETUP_STEPS.repositoryMap)
+              }
+              onAddRepository={() =>
+                beginRepositoryEntry(
+                  REPOSITORY_ENTRY_INTENTS.add,
+                  REPOSITORY_SETUP_STEPS.reviewScope,
+                )
+              }
+            />
+          ) : null}
+          {activeErrorKey ? (
+            <AgentTurn>
+              <Alert variant="destructive">
+                <AlertTitle>
+                  {t("pages.assessmentFlow.errors.title")}
+                </AlertTitle>
+                <AlertDescription>{t(activeErrorKey)}</AlertDescription>
+              </Alert>
+            </AgentTurn>
+          ) : null}
+        </AssessmentTranscript>
+      </FormProvider>
       {workingAssessmentId && !setupState && !setupQuery.isFetching ? (
         <Button variant="outline" onClick={() => void setupQuery.refetch()}>
           {t("pages.assessmentFlow.retrySetupState")}
@@ -726,6 +729,18 @@ function assessmentNameFromUrl(repositoryUrl: string) {
     .replace(/\/$/u, "")
     .replace(/\.git$/u, "");
   return pathname.split("/").filter(Boolean).slice(-2).join("/");
+}
+
+function repositoryPreviewFromUrl(repositoryUrl: string) {
+  try {
+    const pathname = new URL(repositoryUrl).pathname
+      .replace(/\/$/u, "")
+      .replace(/\.git$/u, "");
+    const segments = pathname.split("/").filter(Boolean);
+    return segments.length > 1 ? segments.slice(-2).join("/") : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function repositoryUrlForEdit(provider: string, repositoryFullName: string) {

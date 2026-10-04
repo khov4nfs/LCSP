@@ -86,6 +86,7 @@ export function normalizeAssessmentRuntime(
 ): NormalizedAssessmentRuntime {
   const {
     assessmentId,
+    repositorySetup,
     interviewState: rawInterviewInput,
     artifactState,
     timeline: rawTimeline,
@@ -151,6 +152,7 @@ export function normalizeAssessmentRuntime(
 
   // 5. Workflow normalization
   const workflow = normalizeWorkflow({
+    repositorySetup,
     timeline: rawTimeline,
     sanitizedInterview,
     repositorySnapshot: rawTimeline?.repositorySnapshot,
@@ -364,11 +366,13 @@ function normalizeCoverage({
 }
 
 function normalizeWorkflow({
+  repositorySetup,
   timeline,
   sanitizedInterview,
   repositorySnapshot,
   latestScanJob,
 }: {
+  repositorySetup?: NormalizeAssessmentRuntimeParams["repositorySetup"];
   timeline?: AdapterTimelineInput | null;
   sanitizedInterview: AssessmentInterviewRuntimeState | null;
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
@@ -428,6 +432,7 @@ function normalizeWorkflow({
       sanitizedInterview,
       latestScanJob,
       stageLifecycle,
+      repositorySetup,
     }),
   };
 }
@@ -477,6 +482,7 @@ function normalizeRepository(
 
 function normalizeWorkflowSteps({
   stageLifecycle,
+  repositorySetup,
   currentRun,
   recentActivity,
   engineeringProgress,
@@ -484,6 +490,7 @@ function normalizeWorkflowSteps({
   sanitizedInterview,
   latestScanJob,
 }: {
+  repositorySetup?: NormalizeAssessmentRuntimeParams["repositorySetup"];
   currentRun: WorkspaceRuntimeRun | null;
   recentActivity: WorkspaceRuntimeActivityItem[];
   engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>;
@@ -613,7 +620,60 @@ function normalizeWorkflowSteps({
   }
   completeQueuedPredecessors(steps);
   applyStageLifecycle(steps, stageLifecycle);
+  applyRepositorySetupGate(steps, repositorySetup);
   return [...steps.values()];
+}
+
+/**
+ * Runtime SSE can still contain a previous scan/interview lifecycle while a
+ * repository setup draft is being edited. The readiness checkpoint is the
+ * server-authoritative boundary for whether those lifecycle rows are usable.
+ */
+function applyRepositorySetupGate(
+  steps: Map<string, NormalizedWorkflowStep>,
+  repositorySetup: NormalizeAssessmentRuntimeParams["repositorySetup"],
+): void {
+  // While readiness is loading, fail closed instead of letting a previous SSE
+  // lifecycle paint completed scanner/interview rows.
+  if (repositorySetup === undefined) return;
+  if (repositorySetup === null) {
+    gateRuntimeStages(steps);
+    return;
+  }
+
+  const repositories = repositorySetup.repositories;
+  const everyRepositoryHasScan = repositories
+    ? repositories.length > 0 &&
+      repositories.every(
+        (repository) => repository.snapshot !== null && repository.scanJob !== null,
+      )
+    : Boolean(repositorySetup.snapshot && repositorySetup.scanJob);
+  const scopeIsReadyForRuntime =
+    repositorySetup.confirmed === true && everyRepositoryHasScan;
+
+  if (scopeIsReadyForRuntime) return;
+
+  gateRuntimeStages(steps);
+}
+
+function gateRuntimeStages(steps: Map<string, NormalizedWorkflowStep>): void {
+  const gatedStages = [
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
+  ];
+  for (const id of gatedStages) {
+    const existing = steps.get(id);
+    if (existing) {
+      steps.set(id, {
+        ...existing,
+        status: NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+        detail: null,
+      });
+    }
+  }
 }
 
 /**

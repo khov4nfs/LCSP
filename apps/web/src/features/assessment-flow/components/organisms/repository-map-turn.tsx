@@ -268,11 +268,13 @@ export function RepositoryMapTurn({
           </div>
         </AgentTurn>
       ) : null}
-      {pinnableRepositories.length > 1 ? (
+      {pinnableRepositories.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => beginEdit()}>
-            {t("pages.assessmentFlow.multiRepository.addRelation")}
-          </Button>
+          {pinnableRepositories.length > 1 ? (
+            <Button type="button" variant="outline" onClick={() => beginEdit()}>
+              {t("pages.assessmentFlow.multiRepository.addRelation")}
+            </Button>
+          ) : null}
           {relations.length === 0 ? (
             <Button
               type="button"
@@ -296,7 +298,7 @@ export function RepositoryMapTurn({
           ) : null}
         </div>
       ) : null}
-      {pinnableRepositories.length > 1 &&
+      {pinnableRepositories.length > 0 &&
       relations.length === 0 &&
       independentAcknowledged ? (
         <p className="mt-2 text-xs text-muted-foreground" role="status">

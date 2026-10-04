@@ -1664,12 +1664,21 @@ export type PagesMessages = {
       completedWithoutDuration: string;
     };
     repositorySetupDescription: string;
+    addRepositoryDescription: string;
     providerQuestion: string;
     providerHelp: string;
+    providerSelected: string;
+    selected: string;
     providerComingSoon: string;
     configureProvider: string;
+    repositoryUrlLabel: string;
     repositoryPlaceholder: string;
     repositoryDisabledPlaceholder: string;
+    repositoryPreviewDescription: string;
+    addRepositoryAction: string;
+    replaceRepositoryAction: string;
+    backToProviders: string;
+    backToRepositories: string;
     providers: {
       github: string;
       gitlab: string;

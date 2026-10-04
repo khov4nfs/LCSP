@@ -1,6 +1,8 @@
 import { HttpStatus } from "@nestjs/common";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+  ASSESSMENT_GRAPH_STATES,
+  ASSESSMENT_SETUP_CONFIRMATION_STATUSES,
   ASSESSMENT_STATUS_CODES,
   isAssessmentRepositorySetupState,
   type AssessmentStatusCode,
@@ -24,6 +26,7 @@ function harness(
     withoutConnection?: boolean;
     withoutSnapshot?: boolean;
     withJob?: boolean;
+    manifestSnapshotIds?: string[];
   } = {},
 ) {
   const now = new Date("2026-10-01T00:00:00.000Z");
@@ -74,7 +77,23 @@ function harness(
   const jobQuery = jest
     .fn<(args: unknown) => Promise<typeof job | null>>()
     .mockResolvedValue(options.withJob ? job : null);
+  const assessmentSetupQuery = jest
+    .fn<() => Promise<Record<string, unknown> | null>>()
+    .mockResolvedValue(
+      options.manifestSnapshotIds
+        ? {
+            repositorySetupVersion: 1,
+            repositorySetupManifest: {
+              snapshots: options.manifestSnapshotIds.map((snapshotId) => ({
+                snapshotId,
+              })),
+            },
+            repositorySetupConfirmedAt: now,
+          }
+        : null,
+    );
   const prisma = {
+    assessment: { findUnique: assessmentSetupQuery },
     repositoryConnection: { findFirst: connectionQuery },
     technicalEvidenceReport: {
       findFirst: jest.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -147,6 +166,25 @@ describe("GetAssessmentReadinessHandler repository setup checkpoint", () => {
           snapshotId: test.snapshot.id,
         },
       }),
+    );
+  });
+
+  it("does not confirm setup when the persisted manifest omits a current snapshot", async () => {
+    const test = harness({
+      status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+      withJob: true,
+      manifestSnapshotIds: ["older-snapshot"],
+    });
+
+    const result = await test.handler.execute(test.query);
+
+    expect(result.completed_steps).toEqual([]);
+    expect(result.repository_setup.confirmed).toBe(false);
+    expect(result.repository_setup.confirmation?.status).toBe(
+      ASSESSMENT_SETUP_CONFIRMATION_STATUSES.draft,
+    );
+    expect(result.repository_setup.programEvidenceGraph?.state).toBe(
+      ASSESSMENT_GRAPH_STATES.notReady,
     );
   });
 

@@ -57,10 +57,11 @@ const assessmentQueriesPath = new URL(
   import.meta.url,
 );
 
-test("new assessment opens repository setup and removes the legacy details form", async () => {
-  const [page, setup] = await Promise.all([
+test("new assessment confines provider selection to the active repository entry subflow", async () => {
+  const [page, setup, overview] = await Promise.all([
     readFile(newAssessmentPagePath, "utf8"),
     readFile(repositorySetupPath, "utf8"),
+    readFile(assessmentOverviewPath, "utf8"),
   ]);
 
   assert.match(page, /RepositorySetupStep/);
@@ -75,12 +76,19 @@ test("new assessment opens repository setup and removes the legacy details form"
   );
   assert.match(setup, /connectAssessmentRepository/);
   assert.match(setup, /startAssessmentRepositoryAnalysis/);
-  assert.match(setup, /AssessmentComposer/);
+  assert.match(setup, /RepositoryDetailsTurn/);
+  assert.match(setup, /isProviderSelection/);
+  assert.match(setup, /isRepositoryDetails/);
+  assert.match(setup, /entryReturnStep/);
+  assert.match(setup, /allRepositoriesPinned/);
+  assert.doesNotMatch(setup, /AssessmentComposer/);
+  assert.doesNotMatch(overview, /RepositorySetupConversation/);
   assert.match(setup, /RepositoryReviewTurn/);
   assert.match(setup, /REPOSITORY_SETUP_STEPS/);
   assert.match(setup, /REPOSITORY_ENTRY_INTENTS/);
-  assert.match(setup, /refreshedRepositories\.length > 1/);
+  assert.match(setup, /refreshedRepositories\.length > 0/);
   assert.match(setup, /REPOSITORY_SETUP_STEPS\.repositoryMap/);
+  assert.match(setup, /setupState\.repositories\.length > 0/);
 });
 
 test("review and map stay inside the Agent transcript with explicit terminal actions", async () => {
@@ -95,6 +103,8 @@ test("review and map stay inside the Agent transcript with explicit terminal act
   assert.match(map, /<select/);
   assert.match(map, /removeConfirm/);
   assert.match(map, /<AgentTurn>/);
+  assert.match(map, /pinnableRepositories\.length > 0/);
+  assert.match(map, /pinnableRepositories\.length > 1/);
   assert.match(
     map,
     /independentAcknowledged,\s*setIndependentAcknowledged\] = useState\(false\)/,

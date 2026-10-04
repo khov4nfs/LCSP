@@ -5,8 +5,10 @@ import { useEffect, useMemo } from "react";
 import {
   useAssessmentArtifactsQuery,
   useAssessmentInterviewStateQuery,
+  useReadinessStatusQuery,
 } from "../../../lib/api/assessment-queries";
 import { useAssessmentRuntimeControl } from "@/lib/api/assessment-runtime-control-queries";
+import { API_OUTCOME_KINDS } from "../../../lib/api/outcome-kinds";
 import { useWorkspaceRuntime } from "../components/organisms/workspace-runtime-provider";
 import type { NormalizedAssessmentRuntime } from "../types/assessment-runtime-adapter.types";
 import { normalizeAssessmentRuntime } from "../utils/assessment-runtime-adapter";
@@ -29,6 +31,11 @@ export function useAssessmentRuntimeViewModel(
     assessmentId,
     interviewEnabled,
   );
+  const readinessQuery = useReadinessStatusQuery(assessmentId);
+  const repositorySetup =
+    readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded
+      ? readinessQuery.data.data.repositorySetup
+      : null;
   const artifactQuery = useAssessmentArtifactsQuery(assessmentId);
   const repositorySnapshot =
     workspaceRuntime.repositorySnapshots
@@ -46,6 +53,7 @@ export function useAssessmentRuntimeViewModel(
   return useMemo(() => {
     const normalized = normalizeAssessmentRuntime({
       assessmentId,
+      repositorySetup,
       interviewState: interviewQuery,
       artifactState: artifactQuery,
       timeline: { ...timeline, repositorySnapshot, scanJobs, evidenceReports },
@@ -64,6 +72,7 @@ export function useAssessmentRuntimeViewModel(
     );
   }, [
     assessmentId,
+    repositorySetup,
     interviewQuery,
     artifactQuery,
     timeline,

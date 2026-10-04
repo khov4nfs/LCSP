@@ -18,6 +18,7 @@ import {
   ASSESSMENT_RUNTIME_STAGE_CODES,
   ASSESSMENT_RUNTIME_STEP_SKIP_REASONS,
   ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS,
+  ASSESSMENT_STAGE_LIFECYCLE_STATES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
   RULE_ANALYSIS_ACTIVITIES,
   RULE_ANALYSIS_SUMMARY_TOOL,
@@ -26,8 +27,15 @@ import {
   type AssessmentInterviewAuditRef,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  ASSESSMENT_REPOSITORY_PROVIDERS,
+  ASSESSMENT_SETUP_CONFIRMATION_STATUSES,
+  ASSESSMENT_STATUS_CODES,
+} from "@lcsp/contracts/assessment";
+import {
+  REPOSITORY_CONNECTION_STATUSES,
+  REPOSITORY_SCAN_JOB_STATUSES,
+} from "@lcsp/contracts/github-integration";
 import { PROGRAM_EVIDENCE_METRIC_FORMATS } from "../src/features/assessment-flow/types/assessment-flow.types.ts";
 
 import {
@@ -184,6 +192,108 @@ test("production sidebar normalization preserves repository metadata and canonic
   );
   assert.equal(
     normalized.workflow.steps[1]?.status,
+    NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+  );
+});
+
+test("runtime activity does not reuse completed stages while repository setup is unconfirmed", () => {
+  const normalized = normalizeAssessmentRuntime({
+    assessmentId: "asm-runtime-setup-draft",
+    repositorySetup: {
+      assessmentId: "asm-runtime-setup-draft",
+      assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+      connection: null,
+      snapshot: null,
+      scanJob: null,
+      repositories: [
+        {
+          connectionId: "connection-1",
+          provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+          repositoryId: "repository-1",
+          repositoryFullName: "acme/project",
+          defaultBranch: "main",
+          status: REPOSITORY_CONNECTION_STATUSES.active,
+          snapshot: {
+            id: "snapshot-new",
+            branch: "main",
+            commitSha: "a".repeat(40),
+            createdAt: "2026-10-03T12:00:00.000Z",
+          },
+          scanJob: null,
+        },
+      ],
+      confirmed: false,
+      confirmation: {
+        status: ASSESSMENT_SETUP_CONFIRMATION_STATUSES.draft,
+        confirmedAt: null,
+      },
+    },
+    interviewState: {
+      outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+      activeQuestion: {
+        id: "stale-question",
+        intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+        control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+        prompt: "This must not reopen before scan.",
+      },
+    },
+    timeline: {
+      currentRun: null,
+      recentActivity: [],
+      latestRunId: null,
+      connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
+      lastEmittedAt: null,
+      repositorySnapshot: repositorySnapshot({ branch: "develop" }),
+      scanJobs: [
+        {
+          id: "old-completed-job",
+          assessmentId: "asm-runtime-setup-draft",
+          snapshotId: "old-snapshot",
+          status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+          attemptCount: 1,
+          blockedReason: null,
+          updatedAt: "2026-10-03T11:00:00.000Z",
+        },
+      ],
+      stageLifecycle: {
+        assessmentId: "asm-runtime-setup-draft",
+        scanner: {
+          state: ASSESSMENT_STAGE_LIFECYCLE_STATES.done,
+          source: "scanJob",
+          detail: null,
+        },
+        interview: {
+          state: ASSESSMENT_STAGE_LIFECYCLE_STATES.waitingForCustomer,
+          source: "interviewThread",
+          detail: null,
+        },
+        ruleAnalysis: {
+          state: ASSESSMENT_STAGE_LIFECYCLE_STATES.claimsComplete,
+          source: "ruleAnalysis",
+          detail: null,
+        },
+        gate: {
+          state: ASSESSMENT_STAGE_LIFECYCLE_STATES.ready,
+          source: "ruleAnalysis",
+          detail: null,
+        },
+      },
+    },
+  });
+
+  const steps = new Map(
+    normalized.workflow.steps.map((step) => [step.id, step.status]),
+  );
+  assert.equal(
+    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner),
+    NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+  );
+  assert.equal(
+    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview),
+    NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+  );
+  assert.equal(
+    steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate),
     NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
   );
 });

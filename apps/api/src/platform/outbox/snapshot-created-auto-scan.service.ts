@@ -21,7 +21,8 @@ type SnapshotCreatedActor = {
 };
 
 /**
- * Handles snapshot-created outbox events and automatically starts a trusted scan for submitted assessments.
+ * Handles snapshot-created outbox events and automatically starts a trusted scan
+ * only for snapshots already included in a submitted assessment's confirmed scope.
  */
 @Injectable()
 export class SnapshotCreatedAutoScanService {
@@ -37,7 +38,8 @@ export class SnapshotCreatedAutoScanService {
   ) {}
 
   /**
-   * Processes snapshot-created messages and triggers a trusted scan only for wizard-submitted assessments.
+   * Processes snapshot-created messages and triggers a trusted scan only when the
+   * assessment is submitted and the snapshot belongs to its confirmed manifest.
    *
    * @param message - Outbox event type and structured payload to inspect.
    * @returns A promise that resolves after the event is ignored or its scan command is dispatched.
@@ -66,11 +68,12 @@ export class SnapshotCreatedAutoScanService {
 
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
-      select: { status: true },
+      select: { status: true, repositorySetupManifest: true },
     });
     if (
       !assessment ||
-      assessment.status !== ASSESSMENT_STATUS_CODES.wizardSubmitted
+      assessment.status !== ASSESSMENT_STATUS_CODES.wizardSubmitted ||
+      !manifestIncludesSnapshot(assessment.repositorySetupManifest, snapshotId)
     ) {
       return;
     }
@@ -102,6 +105,28 @@ export function buildAutoScanIdempotencyKey(
   snapshotId: string,
 ): string {
   return ["snapshot-auto", assessmentId, snapshotId].join(":");
+}
+
+/**
+ * Auto-scan is allowed only for a snapshot in the server-confirmed scope.
+ * A snapshot-created event can be published after setup confirmation even when
+ * the snapshot was pinned while the setup was still a draft; checking the
+ * manifest prevents that event from becoming an implicit scan trigger for an
+ * unconfirmed repository.
+ */
+function manifestIncludesSnapshot(value: unknown, snapshotId: string): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const snapshots = (value as { snapshots?: unknown }).snapshots;
+  if (!Array.isArray(snapshots)) return false;
+  return snapshots.some(
+    (snapshot) =>
+      snapshot &&
+      typeof snapshot === "object" &&
+      !Array.isArray(snapshot) &&
+      (snapshot as { snapshotId?: unknown }).snapshotId === snapshotId,
+  );
 }
 
 /**
