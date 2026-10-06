@@ -145,14 +145,24 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                 assessment_id=assessment_id,
             )
 
-        if outcome in _TERMINAL_WAITING_OUTCOMES and (
+        # UC-M04-01 A1: existing Customer context can be evaluated without a
+        # synthetic first question/answer. Never interrupt a pending Customer or Agent turn.
+        existing_context = state.get("confirmedContext")
+        reviewing_existing_context = (
+            outcome == "WAITING_FOR_CUSTOMER"
+            and active_question is None
+            and state.get("orchestrationRequested") is not True
+            and isinstance(existing_context, dict)
+            and bool(existing_context.get("statements"))
+        )
+        if not reviewing_existing_context and outcome in _TERMINAL_WAITING_OUTCOMES and (
             active_question is not None
             or context_revision > 0
             or outcome != "WAITING_FOR_CUSTOMER"
         ):
             return None
 
-        if outcome != "WAITING_FOR_CUSTOMER" or context_revision != 0:
+        if outcome != "WAITING_FOR_CUSTOMER" or (context_revision != 0 and not reviewing_existing_context):
             return None
 
         from uuid import UUID
@@ -199,6 +209,12 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
             or ""
         )
 
+        initial_decision_key = f"assessment-interview-initial:{assessment_id}:{evidence_report_id}"
+        if reviewing_existing_context:
+            # Do not replay the first (revision-0) question when evaluating existing
+            # context that has since been confirmed. Same revision still deduplicates.
+            initial_decision_key += f":context:{context_revision}"
+
         run_context = LCSPRunContext(
             assessment_id=assessment_id,
             user_id=authenticated_actor_id,
@@ -222,7 +238,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                     or "1.0.0"
                 ),
             },
-            idempotency_key=f"assessment-interview-initial:{assessment_id}:{evidence_report_id}",
+            idempotency_key=initial_decision_key,
         )
 
         initial_refs = {
@@ -243,21 +259,38 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                 evidence_report=evidence_report,
                 ai_discovery=ai_discovery,
             )
-            if ai_discovery
+            if ai_discovery and not reviewing_existing_context
             else None
         )
         # The exact set the API persists and accepts (AssessmentProvenanceSnapshot
         # .governedEvidenceRefs). Question refs must be copied verbatim from it.
         persistable_refs = _persistable_evidence_refs(evidence_report, evidence_report_id)
 
-        def _require_persistable_question(candidate: Any) -> dict[str, Any]:
+        def _require_persistable_initial_decision(candidate: Any) -> dict[str, Any]:
             if not isinstance(candidate, dict):
                 raise ValueError("Initial Interview specialist did not return a validated handoff")
+            if candidate.get("outcome") == "CONTEXT_READY":
+                if candidate.get("activeQuestion") is not None:
+                    raise SpecialistHandoffValidationError("CONTEXT_READY cannot contain an activeQuestion")
+                if not reviewing_existing_context:
+                    raise SpecialistHandoffValidationError(
+                        "CONTEXT_READY requires existing Customer-confirmed context; technical evidence is not Customer authority"
+                    )
+                if any(candidate.get(key) for key in ("contextUpdates", "unresolved", "flags")):
+                    raise SpecialistHandoffValidationError(
+                        "Zero-question completion must reuse existing context without new facts or unresolved business assumptions"
+                    )
+                proposed_context = candidate.get("confirmedContext")
+                if proposed_context not in (None, {}, {"statements": []}) and proposed_context != existing_context:
+                    raise SpecialistHandoffValidationError(
+                        "Zero-question completion cannot replace existing Customer-confirmed statements"
+                    )
+                return candidate
             if candidate.get("outcome") != "WAITING_FOR_CUSTOMER" or not isinstance(
                 candidate.get("activeQuestion"), dict
             ):
                 raise ValueError(
-                    "Initial Interview must persist a Customer question before EngineeringRule work"
+                    "Initial Interview requires either CONTEXT_READY or a focused Customer question"
                 )
             if not isinstance(candidate["activeQuestion"].get("frontier"), dict):
                 raise ValueError("Initial Interview question candidate requires frontier metadata")
@@ -274,8 +307,9 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                 evidence_report_id=evidence_report_id,
                 evidence_report=evidence_report,
                 allowed_evidence_refs=persistable_refs,
+                current_confirmed_context=existing_context if reviewing_existing_context else None,
             )
-            idempotency_key = f"assessment-interview-initial:{assessment_id}:{evidence_report_id}"
+            idempotency_key = initial_decision_key
             dispatcher = self._interview_dispatcher or RootSubagentDispatcher()
 
             def _dispatch_initial(instruction: str, idempotency_key: str) -> dict[str, Any]:
@@ -296,7 +330,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                     )
                 finally:
                     reset_active_turn_evidence_ledger(ledger_token)
-                return _require_persistable_question(
+                return _require_persistable_initial_decision(
                     result.get("handoff") if isinstance(result, dict) else None
                 )
 
@@ -317,7 +351,32 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                     f"{idempotency_key}:schema-correction:1",
                 )
         else:
-            handoff = _require_persistable_question(handoff)
+            handoff = _require_persistable_initial_decision(handoff)
+
+        if handoff.get("outcome") == "CONTEXT_READY":
+            # Persist the outcome before allowing EngineeringRule work. Only the API's
+            # guarded stored context is authoritative, not the model's proposed payload.
+            try:
+                persisted = self._api_client.post_interview_initial_question(
+                    assessment_id,
+                    {
+                        "mode": "INITIAL_INTERVIEW",
+                        "outcome": "CONTEXT_READY",
+                        "expectedContextRevision": context_revision,
+                        "technicalEvidenceReportId": evidence_report_id,
+                        "workflowRunId": valid_wf_id,
+                    },
+                )
+            except InterviewCoverageCallbackError:
+                self._emit_technical_limitation(
+                    evidence_report, TECHNICAL_COVERAGE_RECOVERY_REQUIRED, coverageState=coverage_state
+                )
+                return None
+            if not isinstance(persisted, dict) or persisted.get("outcome") != "CONTEXT_READY":
+                raise ValueError("Initial CONTEXT_READY was not confirmed by the persistence boundary")
+            if persisted.get("contextRevision") != context_revision:
+                raise ValueError("Initial CONTEXT_READY response has a different context revision")
+            return normalize_confirmed_structured_business_context(persisted, assessment_id=assessment_id)
 
         question = handoff["activeQuestion"]
         frontier = question["frontier"]
@@ -359,7 +418,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                     authoritative_topic=server_topic,
                     active_question_id=str(question.get("id") or question.get("questionId") or ""),
                     active_topic_key=server_topic,
-                    context_revision=0,
+                    context_revision=context_revision,
                     customer_safe_topic_keys=(server_topic,),
                     unresolved_topic_keys=(server_topic,),
                     resolution_criteria_keys=tuple(
@@ -376,7 +435,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         except Exception:
             pass
 
-        handoff["expectedContextRevision"] = 0
+        handoff["expectedContextRevision"] = context_revision
         handoff["technicalEvidenceReportId"] = evidence_report_id
         handoff["workflowRunId"] = valid_wf_id
         try:
@@ -776,6 +835,7 @@ def _initial_interview_instruction(
     evidence_report_id: str,
     evidence_report: dict[str, Any],
     allowed_evidence_refs: set[str] | None = None,
+    current_confirmed_context: dict[str, Any] | None = None,
 ) -> str:
     coverage_state, coverage_notes = _technical_coverage(evidence_report)
     safe_context = {
@@ -796,6 +856,8 @@ def _initial_interview_instruction(
         "schemaVersion": evidence_report.get("schema_version")
         or evidence_report.get("schemaVersion"),
         "aiDiscovery": _ai_discovery(evidence_report),
+        "currentConfirmedBusinessContext": current_confirmed_context,
+        "contextRevision": int((current_confirmed_context or {}).get("contextRevision") or 0),
         "allowedEvidenceRefs": sorted(
             allowed_evidence_refs
             if allowed_evidence_refs is not None
@@ -804,7 +866,7 @@ def _initial_interview_instruction(
     }
     return (
         "Run INITIAL_INTERVIEW before any EngineeringRule analysis. "
-        "Use only this bounded technical coverage/provenance and governed AI-discovery summary to decide the first Customer question. "
+        "Use this bounded technical coverage/provenance, governed AI-discovery summary and existing Customer-confirmed context to assess sufficiency first. "
         "Missing technical evidence is not proof that a business behavior does not exist. "
         "Do not infer Customer confirmation from PGE/documentary evidence. "
         "Never invent a provider, model, endpoint role, or technical edge. Technical/resolvable "
@@ -812,7 +874,13 @@ def _initial_interview_instruction(
         "confirmed AI invocation is already present, do not ask whether it is AI; ask only the "
         "unresolved purpose/feature/workflow/output-role context. For an unresolved custom outbound "
         "candidate, use Yes/No/Unsure and do not name a provider unless evidence or the Customer does. "
-        "Return WAITING_FOR_CUSTOMER with exactly one bounded activeQuestion. Every "
+        "If existing Customer-confirmed context and Technical Evidence are sufficient and no material business uncertainty remains, "
+        "return CONTEXT_READY with no activeQuestion or new context updates. There is no minimum question count; "
+        "do not ask again for facts already established. For this no-new-answer decision, leave contextAuthority null "
+        "and confirmedContext as an empty statements envelope; the API will preserve the existing confirmed context. "
+        "Copy expectedContextRevision from contextRevision in the bounded input. "
+        "Do not fabricate confirmations, respondents or answers. "
+        "Otherwise return WAITING_FOR_CUSTOMER with exactly one bounded activeQuestion for the missing business fact. Every "
         "whyEvidenceRefs/frontier.evidenceRefs entry must be copied verbatim from "
         "allowedEvidenceRefs; never invent, shorten or rename a ref, and use [] when none applies.\n"
         f"Bounded initial context: {json.dumps(safe_context, ensure_ascii=False, sort_keys=True)}"
@@ -831,7 +899,8 @@ def _initial_schema_correction_instruction(
         f"{instruction}\n"
         "Your previous candidate was rejected before persistence. Return the final answer "
         "as the structured InterviewResult handoff (not prose), fixing only the rule named "
-        "in rejectedReason: outcome WAITING_FOR_CUSTOMER with exactly one activeQuestion "
+        "in rejectedReason. Use CONTEXT_READY without a question only when existing Customer-confirmed context is sufficient; "
+        "otherwise use WAITING_FOR_CUSTOMER with exactly one activeQuestion "
         "whose frontier has owner=CUSTOMER, materiality=MATERIAL, a non-empty description "
         "and evidenceRefs limited to governed refs from the bounded context ([] when none).\n"
         f"decisionValidationFeedback: {json.dumps(feedback, ensure_ascii=False, sort_keys=True)}"

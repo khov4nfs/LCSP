@@ -38,6 +38,7 @@ import {
 
 
 import { apiJson, apiRequest } from "./api-request";
+import { requestInterviewMutation } from "./interview-mutation-request";
 import { API_OUTCOME_KINDS } from "./outcome-kinds";
 
 export async function getAssessmentInterviewState(assessmentId: string) {
@@ -59,7 +60,7 @@ export async function submitAssessmentInterviewAnswer(
   assessmentId: string,
   input: SubmitInterviewAnswerCommand,
 ) {
-  return apiJson<AssessmentInterviewRuntimeState>(
+  return requestInterviewMutation(
     `/api/assessments/${encodeURIComponent(assessmentId)}/interview`,
     {
       method: "POST",
@@ -92,6 +93,22 @@ export function buildSubmitInterviewAnswerCommand(
     expectedSessionRevision: state.contextRevision,
     clientRequestId,
     answer: toCustomerAnswer(activeQuestion, input),
+  };
+}
+
+export function buildInterviewBlockedActionCommand(
+  state: AssessmentInterviewRuntimeState,
+  input: Pick<AssessmentInterviewBlockedInput, "action" | "draft">,
+  clientRequestId = createClientRequestId(),
+): AssessmentInterviewBlockedInput {
+  if (typeof state.contextRevision !== "number" || !Number.isSafeInteger(state.contextRevision)) {
+    throw new Error("INTERVIEW_SUBMIT_STATE_INVALID");
+  }
+  return {
+    action: input.action,
+    draft: input.draft,
+    expectedSessionRevision: state.contextRevision,
+    clientRequestId,
   };
 }
 
@@ -178,7 +195,7 @@ export async function recordAssessmentInterviewBlockedAction(
   assessmentId: string,
   input: AssessmentInterviewBlockedInput,
 ) {
-  return apiJson<AssessmentInterviewRuntimeState>(
+  return requestInterviewMutation(
     `/api/assessments/${encodeURIComponent(assessmentId)}/interview/blocked-actions`,
     {
       method: "POST",

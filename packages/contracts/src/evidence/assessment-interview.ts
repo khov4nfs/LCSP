@@ -56,6 +56,14 @@ export const ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES = {
 export type AssessmentInterviewReadinessErrorCode =
   (typeof ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES)[keyof typeof ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES];
 
+/** Guarded first-turn decisions; a question is optional when existing context suffices. */
+export const ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES = {
+  decisionInvalid: "INTERVIEW_INITIAL_DECISION_INVALID",
+  authorityRequired: "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY",
+  contextChanged: "INTERVIEW_INITIAL_CONTEXT_REPLACEMENT_FORBIDDEN",
+  seedStale: "INTERVIEW_INITIAL_SEED_STALE",
+} as const;
+
 export const ASSESSMENT_INTERVIEW_QUESTION_INTENTS = {
   ask: "ASK",
   clarify: "CLARIFY",
@@ -809,7 +817,21 @@ export type ContextRevision = {
 export type AssessmentInterviewBlockedInput = {
   action: AssessmentInterviewBlockedAction;
   draft?: string;
+  expectedSessionRevision: number;
+  clientRequestId: string;
 };
+
+/** Public mutation failures shared by API guards and client recovery. */
+export const ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES = {
+  revisionStale: "INTERVIEW_SESSION_REVISION_STALE",
+  questionStale: "INTERVIEW_QUESTION_STALE_OR_UNKNOWN",
+  answerIdempotencyConflict: "INTERVIEW_ANSWER_IDEMPOTENCY_CONFLICT",
+  provenanceStale: "INTERVIEW_ANSWER_STALE_PROVENANCE",
+  blockedActionInvalid: "INTERVIEW_BLOCKED_ACTION_INVALID",
+  blockedActionNotAvailable: "INTERVIEW_BLOCKED_ACTION_NOT_AVAILABLE",
+  blockedActionIdempotencyConflict: "INTERVIEW_BLOCKED_ACTION_IDEMPOTENCY_CONFLICT",
+  requestPending: "INTERVIEW_MUTATION_RESULT_UNCONFIRMED",
+} as const;
 
 /** Customer retries allowed for one failed Interview Agent turn (per context revision). */
 export const ASSESSMENT_INTERVIEW_RESUME_MAX_ATTEMPTS = 3;

@@ -74,6 +74,7 @@ import {
   selectWorkflowPresentation,
 } from "../../utils/assessment-runtime-selectors";
 import { AgentStreamDispatchTurns } from "../molecules/agent-stream-dispatch-turns";
+import { InterviewMutationFeedback } from "../molecules/interview-mutation-feedback";
 import {
   AGENT_STREAM_RUN_OUTCOMES,
   AgentStreamTimeline,
@@ -416,6 +417,8 @@ function AssessmentInterviewFlow({
     null,
   );
   const [lastSavedMessage, setLastSavedMessage] = useState<string | null>(null);
+  const [retainedDrafts, setRetainedDrafts] = useState<Record<string, string>>({});
+  const mutationBusy = submitAnswer.isPending || recordBlockedAction.isPending;
 
   const activeDraft: InterviewAnswerDraft =
     draftMap[assessmentId] &&
@@ -650,10 +653,21 @@ function AssessmentInterviewFlow({
       !customerActions.canAnswerQuestion ||
       interview.stale ||
       interview.revalidating ||
+      mutationBusy ||
+      submitAnswer.hasPendingRequest ||
+      recordBlockedAction.hasPendingRequest ||
       !runtimeInterviewState
     ) {
       return;
     }
+    setLastSavedMessage(null);
+    setRetainedDrafts((current) => ({
+      ...current,
+      [assessmentId]: input.freeText || input.otherText ||
+        activeQuestion?.choices?.filter((choice) => input.selectedChoiceIds?.includes(choice.id))
+          .map((choice) => choice.label).join(", ") ||
+        activeQuestion?.prompt || "",
+    }));
     submitAnswer.mutate(
       { answer: input, state: runtimeInterviewState },
       {
@@ -667,16 +681,25 @@ function AssessmentInterviewFlow({
   }
 
   function handleBlockedAction(action: AssessmentInterviewBlockedAction) {
-    if (!interviewEnabled || !customerActions.canSubmitBlockedAction) {
+    if (
+      !interviewEnabled || !customerActions.canSubmitBlockedAction ||
+      !runtimeInterviewState || mutationBusy ||
+      submitAnswer.hasPendingRequest || recordBlockedAction.hasPendingRequest
+    ) {
       return;
     }
+    setLastSavedMessage(null);
+    setRetainedDrafts((current) => ({ ...current, [assessmentId]: composerValue }));
     recordBlockedAction.mutate(
       {
-        action,
-        draft:
-          action === ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit
-            ? composerValue.trim() || undefined
-            : undefined,
+        state: runtimeInterviewState,
+        blocked: {
+          action,
+          draft:
+            action === ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit
+              ? composerValue.trim() || undefined
+              : undefined,
+        },
       },
       {
         onSuccess: () => {
@@ -818,6 +841,19 @@ function AssessmentInterviewFlow({
             onLoadOlder={onLoadOlderScannerActivity}
           />
         ) : null}
+
+        <InterviewMutationFeedback
+          error={submitAnswer.error ?? recordBlockedAction.error}
+          busy={mutationBusy || interviewQuery.isFetching}
+          retainedDraft={retainedDrafts[assessmentId]}
+          canRetryOriginal={submitAnswer.hasPendingRequest || recordBlockedAction.hasPendingRequest}
+          onRetryOriginal={() => {
+            if (mutationBusy) return;
+            if (submitAnswer.hasPendingRequest) submitAnswer.mutate(undefined);
+            else if (recordBlockedAction.hasPendingRequest) recordBlockedAction.mutate(undefined);
+          }}
+          onRefresh={() => { void interviewQuery.refetch(); }}
+        />
 
         {interviewEnabled ? (
           <>

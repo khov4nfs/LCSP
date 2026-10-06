@@ -1683,6 +1683,11 @@ export const viPages = {
     sourceCodeUnavailable: "Không thể tải mã nguồn liên quan.",
     resumePipeline: "Tiếp tục",
     resumeQueued: "Đã đưa assessment vào hàng đợi tiếp tục.",
+    interviewMutationConflict: "Câu hỏi, trạng thái hoặc bằng chứng đã thay đổi. Nội dung bạn soạn được giữ để đối chiếu; không tự áp dụng cho câu hỏi mới.",
+    interviewMutationUnconfirmed: "Chưa xác nhận được kết quả thao tác. Nội dung đã soạn được giữ lại. Hãy kiểm tra trạng thái hoặc gửi lại đúng yêu cầu trước đó.",
+    interviewRetainedDraft: "Nội dung của thao tác trước để đối chiếu",
+    interviewRetryOriginal: "Gửi lại yêu cầu trước",
+    interviewRefreshState: "Tải lại trạng thái Interview",
     answerSavedForRuntime:
       "Câu trả lời đã được ghi cho thread runtime. Interview Agent sẽ đánh giá đủ bối cảnh trước khi resume downstream.",
     draftSavedForResume:

@@ -311,12 +311,16 @@ export class AssessmentRuntimeEventService {
    */
   async recordToolCompleted(
     input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.recordEvent({
-      ...input,
-      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-    });
+    await this.recordEvent(
+      {
+        ...input,
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+      },
+      tx,
+    );
   }
 
   /**

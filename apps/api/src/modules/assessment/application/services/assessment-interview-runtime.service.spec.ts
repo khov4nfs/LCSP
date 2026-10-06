@@ -11,6 +11,8 @@ import {
   ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES,
   ASSESSMENT_INTERVIEW_MODES,
+  ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES,
+  ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES,
   ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
@@ -307,8 +309,14 @@ type MockPrismaDelegates = {
     updateMany: jest.Mock<(...args: unknown[]) => Promise<{ count: number }>>;
     upsert: jest.Mock<(...args: unknown[]) => Promise<Record<string, unknown>>>;
   };
+  repositoryConnection: {
+    findFirst: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+  };
   repositorySnapshot: {
-    findFirst: jest.Mock<() => Promise<{ id: string; commitSha: string }>>;
+    findFirst: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+  };
+  repositoryScanJob: {
+    findFirst: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
   };
   engineeringRuleAssessment: {
     findMany: jest.Mock<() => Promise<unknown[]>>;
@@ -323,7 +331,7 @@ type MockPrismaDelegates = {
           coverageLimitations?: string[];
           [key: string]: unknown;
         };
-      }>
+      } | null>
     >;
   };
 };
@@ -563,12 +571,31 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           .fn<(...args: unknown[]) => Promise<Record<string, unknown>>>()
           .mockResolvedValue({}),
       },
+      repositoryConnection: {
+        findFirst: jest
+          .fn<(...args: unknown[]) => Promise<unknown>>()
+          .mockResolvedValue({
+            id: "conn-1",
+          }),
+      },
       repositorySnapshot: {
         findFirst: jest
           .fn<() => Promise<{ id: string; commitSha: string }>>()
           .mockResolvedValue({
             id: "snap-1",
             commitSha: "sha-123456",
+          }),
+      },
+      repositoryScanJob: {
+        findFirst: jest
+          .fn<(...args: unknown[]) => Promise<unknown>>()
+          .mockResolvedValue({
+            id: "scan-1",
+            snapshotId: "snap-1",
+            snapshot: {
+              id: "snap-1",
+              commitSha: "sha-123456",
+            },
           }),
       },
       engineeringRuleAssessment: {
@@ -1482,7 +1509,8 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
   describe("recordBlockedAction", () => {
     it("atomically records blocked interview outcome in transaction", async () => {
       const currentState: AssessmentInterviewRuntimeState = {
-        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+        blockedActions: Object.values(ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS),
         contextRevision: 2,
       };
 
@@ -1490,7 +1518,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         assessmentId: "assessment-1",
         contextRevision: 2,
         processedRevision: 1,
-        activeQuestionId: "q-1",
+        activeQuestionId: null,
         stateJson: currentState,
         privateContextJson: {
           revisions: [],
@@ -1511,6 +1539,8 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         correlationId: "corr-blocked-1",
         blocked: {
           action: ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit,
+          expectedSessionRevision: 2,
+          clientRequestId: "blocked-save-1",
         },
       });
 
@@ -1530,6 +1560,308 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         }),
         mockTx,
       );
+    });
+  });
+
+  describe("M04 safe mutation regressions", () => {
+    const actor = {
+      userId: "user-1",
+      sessionId: "session-1",
+      role: AUTH_USER_ROLES.customer,
+      scope: "assessment:assessment-1",
+    };
+    const blockedCommand = {
+      action: ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit,
+      expectedSessionRevision: 2,
+      clientRequestId: "m04-blocked-request",
+      draft: "draft retained",
+    };
+    function blockedThread() {
+      return {
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 2,
+        activeQuestionId: null,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+          contextRevision: 2,
+          blockedActions: Object.values(ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS),
+        },
+      };
+    }
+    const recordAction = (blocked = blockedCommand) =>
+      service.recordBlockedAction({
+        assessmentId: "assessment-1",
+        actor,
+        correlationId: "m04-corr",
+        blocked,
+      });
+
+    it("does not overwrite a ready thread from an old tab", async () => {
+      const row = blockedThread();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        stateJson: {
+          ...row.stateJson,
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+        },
+      });
+      await expect(recordAction()).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES.blockedActionNotAvailable,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.enqueue).not.toHaveBeenCalled();
+    });
+
+    it("rejects a stale blocked-action revision without writing", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        blockedThread(),
+      );
+      await expect(
+        recordAction({ ...blockedCommand, expectedSessionRevision: 1 }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES.revisionStale,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+    });
+
+    it("replays a saved action after the thread has progressed, without another audit or write", async () => {
+      const row = blockedThread();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(row);
+      await recordAction();
+      const persisted = mockTx.assessmentInterviewThread.upsert.mock
+        .calls[0]?.[0] as {
+        update: {
+          privateContextJson: unknown;
+          stateJson: Record<string, unknown>;
+        };
+      };
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        privateContextJson: persisted.update.privateContextJson,
+        stateJson: {
+          ...persisted.update.stateJson,
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+        },
+      });
+      const replay = await recordAction();
+      expect(replay.outcome).toBe(ASSESSMENT_INTERVIEW_OUTCOMES.contextReady);
+      expect(mockTx.assessmentInterviewThread.upsert).toHaveBeenCalledTimes(1);
+      expect(mockInterviewAudit.recordInterviewOutcome).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockRuntimeEvents.recordToolWaitingInput).toHaveBeenCalledTimes(1);
+      await expect(
+        recordAction({ ...blockedCommand, draft: "different content" }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES.blockedActionIdempotencyConflict,
+          },
+        },
+      });
+    });
+
+    it("rejects an answer whose question was based on an older accepted report", async () => {
+      const row = initialInterviewThreadFixture();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 1,
+          activeQuestion: {
+            id: "q-1",
+            intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+            control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            prompt: "How is it used?",
+          },
+        },
+      });
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValue({
+        id: "report-new",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: "READY",
+          coverageLimitations: [],
+        },
+      });
+      await expect(
+        service.submitAnswer({
+          assessmentId: "assessment-1",
+          actor,
+          correlationId: "m04-stale-source",
+          answer: submitAnswerCommand({
+            questionId: "q-1",
+            answer: {
+              kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              text: "customer answer",
+            },
+          }),
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES.provenanceStale,
+          },
+        },
+      });
+      expect(
+        mockTx.assessmentInterviewThread.updateMany,
+      ).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.enqueue).not.toHaveBeenCalled();
+      expect(mockTx.$queryRaw).toHaveBeenCalled();
+    });
+
+    it("rejects answer when a new scan is queued/running and has no accepted report yet", async () => {
+      const row = initialInterviewThreadFixture();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 1,
+          activeQuestion: {
+            id: "q-1",
+            intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+            control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            prompt: "How is it used?",
+          },
+        },
+      });
+      // Scan B is current but has no accepted report yet
+      mockTx.repositoryScanJob.findFirst.mockResolvedValue({
+        id: "scan-2",
+        snapshotId: "snap-2",
+        snapshot: { id: "snap-2", commitSha: "sha-new" },
+      });
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.submitAnswer({
+          assessmentId: "assessment-1",
+          actor,
+          correlationId: "m04-scan-b-running",
+          answer: submitAnswerCommand({
+            questionId: "q-1",
+            answer: {
+              kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              text: "customer answer",
+            },
+          }),
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES.provenanceStale,
+          },
+        },
+      });
+    });
+
+    it("rejects blocked action when a new scan is running with no accepted report yet", async () => {
+      const row = initialInterviewThreadFixture();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        activeQuestionId: null,
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+          contextRevision: 1,
+          blockedActions: [
+            ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext,
+          ],
+        },
+      });
+      // Scan B running with no accepted report yet
+      mockTx.repositoryScanJob.findFirst.mockResolvedValue({
+        id: "scan-2",
+        snapshotId: "snap-2",
+        snapshot: { id: "snap-2", commitSha: "sha-new" },
+      });
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.recordBlockedAction({
+          assessmentId: "assessment-1",
+          actor,
+          correlationId: "m04-blocked-scan-b-running",
+          blocked: {
+            expectedSessionRevision: 1,
+            clientRequestId: "req-blocked-1",
+            action: ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext,
+            draft: "Draft explanation",
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES.provenanceStale,
+          },
+        },
+      });
+    });
+
+    it("accepts answer when question matches newly completed Scan B and Report B", async () => {
+      const row = initialInterviewThreadFixture();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        sourceVersion: "snap-2:sha-new",
+        pgeVersion: "report-2:v1",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 1,
+          activeQuestion: {
+            id: "q-1",
+            intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+            control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            prompt: "How is it used?",
+          },
+        },
+      });
+      mockTx.repositoryScanJob.findFirst.mockResolvedValue({
+        id: "scan-2",
+        snapshotId: "snap-2",
+        snapshot: { id: "snap-2", commitSha: "sha-new" },
+      });
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValue({
+        id: "report-2",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: "READY",
+          coverageLimitations: [],
+        },
+      });
+
+      const result = await service.submitAnswer({
+        assessmentId: "assessment-1",
+        actor,
+        correlationId: "m04-scan-b-accepted",
+        answer: submitAnswerCommand({
+          questionId: "q-1",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "customer answer for scan B",
+          },
+        }),
+      });
+      expect(result.contextRevision).toBe(2);
+      expect(mockTx.assessmentInterviewThread.updateMany).toHaveBeenCalled();
     });
   });
 
@@ -3308,6 +3640,246 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         });
       },
     );
+  });
+
+  describe("UC-M04-01 A1 — zero-question Initial", () => {
+    const workflowRunId = "10000000-0000-4000-8000-000000000004";
+    function existingContextThread() {
+      return {
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 2,
+        activeQuestionId: null,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        guidanceVersion: TEST_GUIDANCE_VERSION,
+        privateContextJson: { revisions: [], workflowRunId },
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          threadId: "interview:assessment-1",
+          contextRevision: 2,
+          orchestrationRequested: false,
+          answerHistory: [],
+          contextAuthority:
+            ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+          confirmedContext: confirmedStructuredContext({
+            contextRevision: 2,
+            statements: initialPlanningReadyStatements(),
+          }),
+        },
+      };
+    }
+    function complete(extra: Record<string, unknown> = {}) {
+      return service.seedInitialQuestionForWorker({
+        assessmentId: "assessment-1",
+        correlationId: "corr-zero-question",
+        technicalEvidenceReportId: "report-1",
+        workflowRunId,
+        state: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+          expectedContextRevision: 2,
+          ...extra,
+        } as AssessmentInterviewRuntimeState,
+      });
+    }
+    it("persists CONTEXT_READY without creating a question, answer or context revision", async () => {
+      const row = existingContextThread();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(row);
+      const result = await complete({
+        confirmedContext: { statements: [] },
+        contextAuthority: null,
+      });
+      expect(result.outcome).toBe(ASSESSMENT_INTERVIEW_OUTCOMES.contextReady);
+      expect(result.activeQuestion).toBeUndefined();
+      expect(result.contextRevision).toBe(2);
+      expect(result.answerHistory).toEqual([]);
+      expect(result.confirmedContext).toEqual(row.stateJson.confirmedContext);
+      expect(mockInterviewAudit.recordQuestionPersisted).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordCustomerAnswer).not.toHaveBeenCalled();
+      expect(
+        mockInterviewAudit.recordContextRevisionCreated,
+      ).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolCompleted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputSummary: expect.objectContaining({
+            orchestratorAction:
+              ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.continueToEngineeringRule,
+          }),
+        }),
+        mockTx,
+      );
+      expect(mockTx.assessmentInterviewThread.upsert).toHaveBeenCalledTimes(1);
+    });
+    it("replays the ready outcome without another write or audit", async () => {
+      const row = existingContextThread();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(row);
+      const first = await complete();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        stateJson: first,
+      });
+      expect(await complete()).toEqual(first);
+      expect(mockTx.assessmentInterviewThread.upsert).toHaveBeenCalledTimes(1);
+      expect(mockInterviewAudit.recordInterviewOutcome).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockRuntimeEvents.recordToolCompleted).toHaveBeenCalledTimes(1);
+    });
+    it("does not treat model supplied context as prior Customer confirmation", async () => {
+      const row = existingContextThread();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        stateJson: { ...row.stateJson, confirmedContext: undefined },
+      });
+      await expect(
+        complete({ confirmedContext: row.stateJson.confirmedContext }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.authorityRequired,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+    });
+    it("rejects replacement of existing Customer statements through the initial decision", async () => {
+      const row = existingContextThread();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(row);
+      await expect(
+        complete({
+          confirmedContext: {
+            ...row.stateJson.confirmedContext,
+            statements: [
+              {
+                statementId: "invented",
+                statement: "All decisions are automated.",
+              },
+            ],
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.contextChanged,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+    });
+    it("rejects incomplete business context without fabricating an answer", async () => {
+      const row = existingContextThread();
+      row.stateJson.confirmedContext = confirmedStructuredContext({
+        statement: "A reviewer approves actions.",
+      });
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(row);
+      await expect(complete()).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES.minimumContextIncomplete,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+    });
+    it("does not erase an active question even when the stored context looks sufficient", async () => {
+      const row = existingContextThread();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        ...row,
+        activeQuestionId: "new-question",
+      });
+      await expect(complete()).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.seedStale,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+    });
+    it("rejects an initial decision evaluated on an older revision", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        existingContextThread(),
+      );
+      await expect(
+        complete({ expectedContextRevision: 1 }),
+      ).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.seedStale,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+    });
+    it("rejects source/evidence replacement before zero-question completion", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        existingContextThread(),
+      );
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValue({
+        id: "report-new",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: "READY",
+          coverageLimitations: [],
+        },
+      });
+      await expect(complete()).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES.provenanceStale,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+    });
+    it("still checks Technical Coverage before completing without questions", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        existingContextThread(),
+      );
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValue({
+        id: "report-1",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: "UNAVAILABLE",
+          coverageLimitations: [],
+        },
+      });
+      await expect(complete()).rejects.toMatchObject({
+        response: {
+          problem: {
+            code: ASSESSMENT_ERROR_CODES.interviewTechnicalCoverageUnusable,
+          },
+        },
+      });
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+    });
+    it("can ask the missing business fact without resetting the existing context", async () => {
+      const row = existingContextThread();
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(row);
+      const result = await complete({
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        activeQuestion: {
+          id: "focused-question",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+          control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+          prompt: "Who approves this action?",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Approval authority",
+            evidenceRefs: [],
+          },
+        },
+      });
+      expect(result.activeQuestion?.id).toBe("focused-question");
+      expect(result.contextRevision).toBe(2);
+      expect(result.confirmedContext).toEqual(row.stateJson.confirmedContext);
+      expect(mockInterviewAudit.recordQuestionPersisted).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockInterviewAudit.recordCustomerAnswer).not.toHaveBeenCalled();
+    });
   });
 
   describe("seedInitialQuestionForWorker", () => {

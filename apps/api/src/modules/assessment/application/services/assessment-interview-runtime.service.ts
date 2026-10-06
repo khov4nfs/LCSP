@@ -21,6 +21,8 @@ import {
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_MODES,
+  ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES,
+  ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES,
   ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
@@ -82,6 +84,15 @@ import {
   type AssessmentRuntimeControlResult,
 } from "@lcsp/contracts/evidence";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import {
+  toPrismaEvidenceAcceptanceStatus,
+  toPrismaRepositoryConnectionStatus,
+  toPrismaRepositorySnapshotStatus,
+} from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import {
+  REPOSITORY_CONNECTION_STATUSES,
+  REPOSITORY_SNAPSHOT_STATUSES,
+} from "@lcsp/contracts/github-integration";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
@@ -94,6 +105,18 @@ import {
   normalizeStrategy,
   updateInterviewWorkingStrategy,
 } from "./interview-working-strategy.js";
+
+import {
+  assertInterviewBlockedActionAvailable,
+  assertInterviewMutationProvenance,
+  isInterviewBlockedActionReceipt,
+  parseInterviewBlockedAction,
+  type InterviewBlockedActionReceipt,
+} from "./interview-mutation-guards.js";
+import {
+  requireExistingInitialContext,
+  assertExistingInitialContextSufficient,
+} from "./initial-interview-context.js";
 
 const INTERVIEW_TOOL_NAME = "assessment_interview";
 const INTERVIEW_TRANSACTION_TIMEOUT_MS = 15_000;
@@ -251,6 +274,7 @@ type TargetedInterviewContinuation = {
 type PrivateInterviewStore = {
   revisions: PrivateInterviewAnswerRevision[];
   submittedAnswerRequests?: InterviewAnswerIdempotencyRecord[];
+  submittedBlockedRequests?: InterviewBlockedActionReceipt[];
   workflowRunId?: string;
   workingStrategy?: InterviewWorkingStrategy;
   targetedNeed?: TargetedInterviewNeed;
@@ -568,8 +592,8 @@ export class AssessmentInterviewRuntimeService {
     const answer = command.answer;
     await this.assertAssessmentVisible(input.assessmentId, input.actor);
     const now = new Date().toISOString();
-    const provenance = await this.assessmentProvenance(input.assessmentId);
     const next = await this.runInterviewTransaction(async (tx) => {
+      await this.lockInterviewThread(input.assessmentId, tx);
       const thread = await this.readThread(input.assessmentId, tx);
       if (
         command.sessionId &&
@@ -639,6 +663,18 @@ export class AssessmentInterviewRuntimeService {
           },
         );
       }
+      // Exact replays have already returned. New writes must match the question's
+      // pinned evidence, using an uncached read inside the transaction.
+      const provenance = await this.assessmentProvenance(
+        input.assessmentId,
+        undefined,
+        tx,
+      );
+      assertInterviewMutationProvenance(
+        thread,
+        provenance,
+        input.correlationId,
+      );
       assertAnswerMatchesQuestion(answer, thread.state.activeQuestion);
       const priorRevision = thread.contextRevision;
       const nextRevision = priorRevision + 1;
@@ -946,6 +982,7 @@ export class AssessmentInterviewRuntimeService {
         currentRevision,
       );
     const next = await this.runInterviewTransaction(async (tx) => {
+      await this.lockInterviewThread(input.assessmentId, tx);
       const thread = await this.readThread(input.assessmentId, tx);
       const turnFailed =
         input.allowStalled === true ||
@@ -1149,12 +1186,59 @@ export class AssessmentInterviewRuntimeService {
     correlationId: string;
     blocked: AssessmentInterviewBlockedInput;
   }): Promise<AssessmentInterviewRuntimeState> {
-    const blocked = parseBlockedAction(input.blocked);
+    const blocked = parseInterviewBlockedAction(
+      input.blocked,
+      input.correlationId,
+    );
     await this.assertAssessmentVisible(input.assessmentId, input.actor);
     const now = new Date();
-    const provenance = await this.assessmentProvenance(input.assessmentId);
     const result = await this.runInterviewTransaction(async (tx) => {
+      await this.lockInterviewThread(input.assessmentId, tx);
       const current = await this.readThread(input.assessmentId, tx);
+      const payloadFingerprint = stableJson({
+        assessmentId: input.assessmentId,
+        actorId: input.actor.userId,
+        action: blocked.action,
+        draft: blocked.draft,
+        expectedSessionRevision: blocked.expectedSessionRevision,
+      });
+      const receipt = current.privateStore.submittedBlockedRequests?.find(
+        (item) => item.clientRequestId === blocked.clientRequestId,
+      );
+      if (receipt) {
+        if (receipt.payloadFingerprint !== payloadFingerprint) {
+          throw problemException(
+            ASSESSMENT_INTERVIEW_MUTATION_PROBLEM_CODES.blockedActionIdempotencyConflict,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        return {
+          state: current.state,
+          workflowRunId:
+            current.privateStore.targetedContinuation?.workflowRunId ??
+            current.privateStore.workflowRunId ??
+            this.threadId(input.assessmentId),
+          partialCoveragePolicyDecision:
+            current.privateStore.partialCoveragePolicyDecision,
+          idempotentReplay: true,
+        };
+      }
+      assertInterviewBlockedActionAvailable(
+        current,
+        blocked,
+        input.correlationId,
+      );
+      const provenance = await this.assessmentProvenance(
+        input.assessmentId,
+        undefined,
+        tx,
+      );
+      assertInterviewMutationProvenance(
+        current,
+        provenance,
+        input.correlationId,
+      );
       const shouldResume =
         blocked.action ===
         ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext;
@@ -1187,7 +1271,19 @@ export class AssessmentInterviewRuntimeService {
         contextRevision: current.contextRevision,
         activeQuestionId: null,
         processedRevision: current.processedRevision,
-        privateStore: current.privateStore,
+        privateStore: {
+          ...current.privateStore,
+          submittedBlockedRequests: [
+            ...(current.privateStore.submittedBlockedRequests ?? []),
+            {
+              clientRequestId: blocked.clientRequestId,
+              payloadFingerprint,
+              contextRevision: current.contextRevision,
+              actorId: input.actor.userId,
+              recordedAt: now.toISOString(),
+            },
+          ],
+        },
         sourceVersion: provenance.sourceVersion,
         pgeVersion: provenance.pgeVersion,
         guidanceVersion:
@@ -1244,10 +1340,13 @@ export class AssessmentInterviewRuntimeService {
       return {
         state: nextState,
         workflowRunId,
+        idempotentReplay: false,
         partialCoveragePolicyDecision:
           current.privateStore.partialCoveragePolicyDecision,
       };
     });
+
+    if (result.idempotentReplay) return publicState(result.state);
 
     await this.runtimeEvents.recordToolWaitingInput({
       assessmentId: input.assessmentId,
@@ -1728,9 +1827,14 @@ export class AssessmentInterviewRuntimeService {
     }
   > {
     const decision = parseAgentDecision(input.decision);
-    const authoritative = await this.assessmentProvenance(input.assessmentId);
     const result = await this.runInterviewTransaction(async (tx) => {
+      await this.lockInterviewThread(input.assessmentId, tx);
       const thread = await this.readThread(input.assessmentId, tx);
+      const authoritative = await this.assessmentProvenance(
+        input.assessmentId,
+        undefined,
+        tx,
+      );
       if (decision.expectedContextRevision !== thread.contextRevision) {
         throw problemException(
           "INTERVIEW_DECISION_STALE_REVISION",
@@ -2019,6 +2123,16 @@ export class AssessmentInterviewRuntimeService {
     technicalEvidenceReportId?: string;
     workflowRunId?: string;
   }): Promise<AssessmentInterviewRuntimeState> {
+    const initialDecision = objectRecord(input.state);
+    if (
+      initialDecision?.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextReady ||
+      (typeof initialDecision?.expectedContextRevision === "number" &&
+        initialDecision.expectedContextRevision > 0 &&
+        Boolean(input.technicalEvidenceReportId?.trim()) &&
+        Boolean(input.workflowRunId?.trim()))
+    ) {
+      return this.applyInitialExistingContextDecision(input);
+    }
     const workflowRunId =
       typeof input.workflowRunId === "string" && input.workflowRunId.trim()
         ? input.workflowRunId.trim()
@@ -2220,6 +2334,255 @@ export class AssessmentInterviewRuntimeService {
     });
 
     return seedResult.state;
+  }
+
+  /**
+   * UC-M04-01 A1/BR-66/BR-67: evaluate existing Customer context without
+   * requiring a new answer. The worker proposes sufficiency, never authority.
+   * The historical initial-question endpoint also accepts this optional-question result.
+   */
+  private async applyInitialExistingContextDecision(input: {
+    assessmentId: string;
+    correlationId: string;
+    state: AssessmentInterviewRuntimeState;
+    technicalEvidenceReportId?: string;
+    workflowRunId?: string;
+  }): Promise<AssessmentInterviewRuntimeState> {
+    const proposed = objectRecord(input.state);
+    const expectedRevision = proposed?.expectedContextRevision;
+    const ready =
+      proposed?.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextReady;
+    const waiting =
+      proposed?.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer;
+    if (
+      !proposed ||
+      (!ready && !waiting) ||
+      !Number.isSafeInteger(expectedRevision) ||
+      (expectedRevision as number) < 0 ||
+      !input.workflowRunId?.trim() ||
+      !input.technicalEvidenceReportId?.trim() ||
+      (proposed.mode !== undefined &&
+        proposed.mode !== ASSESSMENT_INTERVIEW_MODES.initialInterview) ||
+      (proposed.contextRevision !== undefined &&
+        proposed.contextRevision !== expectedRevision) ||
+      (ready && proposed.activeQuestion != null) ||
+      (ready &&
+        [proposed.contextUpdates, proposed.unresolved, proposed.flags].some(
+          (value) =>
+            value !== undefined && (!Array.isArray(value) || value.length > 0),
+        ))
+    ) {
+      throw problemException(
+        ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.decisionInvalid,
+        input.correlationId,
+        { status: HttpStatus.BAD_REQUEST },
+      );
+    }
+    const workflowRunId = input.workflowRunId.trim();
+    return this.runInterviewTransaction(async (tx) => {
+      await this.lockInitialInterviewSeed(input.assessmentId, tx);
+      const existing = await this.readThread(input.assessmentId, tx);
+      if (
+        existing.contextRevision !== expectedRevision ||
+        activeBusinessContextNeed(existing.privateStore)
+      ) {
+        throw problemException(
+          ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.seedStale,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      // Resolve both the requested report and current provenance inside the transaction.
+      // A delayed event must not complete Initial for a different source/report.
+      const provenance = await this.assessmentProvenance(
+        input.assessmentId,
+        input.technicalEvidenceReportId,
+        tx,
+      );
+      const current = await this.assessmentProvenance(
+        input.assessmentId,
+        undefined,
+        tx,
+      );
+      assertInterviewMutationProvenance(
+        existing,
+        provenance,
+        input.correlationId,
+      );
+      assertInterviewMutationProvenance(existing, current, input.correlationId);
+      this.assertInitialInterviewCoverageUsable(
+        provenance.technicalCoverageState,
+        provenance.coverageLimitations,
+        provenance.partialCoveragePolicyDecision,
+        input.correlationId,
+      );
+      const context = requireExistingInitialContext(
+        input.assessmentId,
+        existing.state,
+        existing.contextRevision,
+        input.correlationId,
+      );
+      // Model-created statements or edited confirmations cannot enter through this path.
+      const proposedContext = objectRecord(proposed.confirmedContext);
+      const noContextUpdates =
+        proposed.confirmedContext == null ||
+        (proposedContext !== null &&
+          proposedContext !== undefined &&
+          (Object.keys(proposedContext).length === 0 ||
+            (Object.keys(proposedContext).length === 1 &&
+              Array.isArray(proposedContext.statements) &&
+              proposedContext.statements.length === 0)));
+      if (
+        !noContextUpdates &&
+        stableJson(proposed.confirmedContext) !== stableJson(context)
+      ) {
+        throw problemException(
+          ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.contextChanged,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      if (ready)
+        assertExistingInitialContextSufficient(context, input.correlationId);
+      const question = waiting
+        ? parsePersistableInterviewQuestion(
+            proposed.activeQuestion,
+            ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+            new Set(provenance.governedEvidenceRefs),
+            input.correlationId,
+          )
+        : undefined;
+      if (waiting && !question) {
+        throw problemException(
+          ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.decisionInvalid,
+          input.correlationId,
+          { status: HttpStatus.BAD_REQUEST },
+        );
+      }
+      const exactReplay =
+        existing.privateStore.workflowRunId === workflowRunId &&
+        existing.activeQuestionId === (question?.id ?? null) &&
+        existing.state.outcome === proposed.outcome &&
+        stableJson(existing.state.activeQuestion ?? null) ===
+          stableJson(question ?? null) &&
+        existing.processedRevision === existing.contextRevision;
+      if (exactReplay) return existing.state;
+      if (
+        !existing.exists ||
+        existing.activeQuestionId ||
+        existing.state.activeQuestion ||
+        existing.state.orchestrationRequested === true ||
+        existing.state.outcome !==
+          ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer ||
+        (existing.state.flags?.length ?? 0) > 0 ||
+        existing.privateRevisions.some(
+          (revision) =>
+            revision.contextRevision === existing.contextRevision &&
+            !revision.processedAt,
+        )
+      ) {
+        throw problemException(
+          ASSESSMENT_INTERVIEW_INITIAL_PROBLEM_CODES.seedStale,
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      const state: AssessmentInterviewRuntimeState = {
+        ...existing.state,
+        outcome: ready
+          ? ASSESSMENT_INTERVIEW_OUTCOMES.contextReady
+          : ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        activeQuestion: question,
+        assistantMessage: undefined,
+        blockedActions: [],
+        orchestrationRequested: false,
+        threadId: this.threadId(input.assessmentId),
+        // Preserve the authoritative statements, actor/time and revision exactly.
+        confirmedContext: context,
+      };
+      const guidanceVersion =
+        existing.guidanceVersion ?? this.resolveGuidanceVersion();
+      await this.persistThreadState(input.assessmentId, state, tx, {
+        contextRevision: existing.contextRevision,
+        processedRevision: existing.contextRevision,
+        activeQuestionId: question?.id ?? null,
+        privateStore: {
+          ...existing.privateStore,
+          workflowRunId,
+          partialCoveragePolicyDecision:
+            provenance.partialCoveragePolicyDecision,
+        },
+        sourceVersion: existing.sourceVersion!,
+        pgeVersion: existing.pgeVersion!,
+        guidanceVersion,
+      });
+      await this.interviewAudit.recordInterviewOutcome(
+        {
+          assessmentId: input.assessmentId,
+          outcome: state.outcome,
+          activeQuestionId: question?.id,
+          contextRevision: existing.contextRevision,
+          sessionId: this.threadId(input.assessmentId),
+          threadId: this.threadId(input.assessmentId),
+          guidanceVersion,
+          correlationId: input.correlationId,
+        },
+        tx,
+      );
+      const event = {
+        assessmentId: input.assessmentId,
+        runId: workflowRunId,
+        correlationId: input.correlationId,
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+        toolName: INTERVIEW_TOOL_NAME,
+        summary: ready
+          ? "Existing Customer context is sufficient; no new question is required."
+          : "Interview Agent question is waiting for Customer response.",
+        outputSummary: {
+          assessmentInterview: runtimeEventState(state),
+          interviewWorkflowEvent: ready
+            ? ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextReady
+            : ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
+          orchestratorAction: ready
+            ? ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.continueToEngineeringRule
+            : ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer,
+          interviewMode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
+          partialCoveragePolicyDecision:
+            provenance.partialCoveragePolicyDecision ?? null,
+        },
+        startedAt: new Date(),
+      };
+      if (ready) {
+        await this.runtimeEvents.recordToolCompleted(event, tx);
+      } else if (question) {
+        await this.interviewAudit.recordQuestionPersisted(
+          {
+            assessmentId: input.assessmentId,
+            questionId: question.id,
+            questionIntent: question.intent,
+            prompt: question.prompt,
+            control: question.control,
+            choices: question.choices,
+            whyEvidenceRefs: question.whyEvidenceRefs,
+            sessionId: this.threadId(input.assessmentId),
+            threadId: this.threadId(input.assessmentId),
+            turnId: existing.contextRevision,
+            sourceSnapshot: { ...provenance, guidanceVersion },
+            correlationId: input.correlationId,
+          },
+          tx,
+        );
+        await this.runtimeEvents.recordToolWaitingInput(
+          {
+            ...event,
+            waitingReason:
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
+          },
+          tx,
+        );
+      }
+      return state;
+    });
   }
 
   private async recordTransitionWorkflowEvent(input: {
@@ -2542,12 +2905,14 @@ export class AssessmentInterviewRuntimeService {
   private async assessmentProvenance(
     assessmentId: string,
     technicalEvidenceReportId?: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<AssessmentProvenanceSnapshot> {
     const base = await this.scannerProvenance(
       assessmentId,
       technicalEvidenceReportId,
+      tx,
     );
-    const ledgerRefs = await this.acceptedRuleEvidenceRefs(assessmentId);
+    const ledgerRefs = await this.acceptedRuleEvidenceRefs(assessmentId, tx);
     return ledgerRefs.length === 0
       ? base
       : {
@@ -2560,8 +2925,9 @@ export class AssessmentInterviewRuntimeService {
 
   private async acceptedRuleEvidenceRefs(
     assessmentId: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<string[]> {
-    const rows = await this.prisma.engineeringRuleAssessment.findMany({
+    const rows = await (tx ?? this.prisma).engineeringRuleAssessment.findMany({
       where: { assessmentId },
       select: { criteria: true },
     });
@@ -2582,40 +2948,131 @@ export class AssessmentInterviewRuntimeService {
   private async scannerProvenance(
     assessmentId: string,
     technicalEvidenceReportId?: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<AssessmentProvenanceSnapshot> {
-    const cacheKey = `${assessmentId}:${technicalEvidenceReportId ?? "latest"}`;
-    const cached = this.provenanceCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value;
+    const cacheKey = technicalEvidenceReportId
+      ? `${assessmentId}:${technicalEvidenceReportId}`
+      : null;
+    if (!tx && cacheKey) {
+      const cached = this.provenanceCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        return cached.value;
+      }
     }
-    const client = this.prisma;
-    const report = await client.technicalEvidenceReport.findFirst({
-      where: technicalEvidenceReportId
-        ? {
-            assessmentId,
-            id: technicalEvidenceReportId,
-            status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
-          }
-        : {
-            assessmentId,
-            status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
-          },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        schemaVersion: true,
-        evidencePayload: true,
-        snapshotId: true,
-        snapshot: { select: { id: true, commitSha: true } },
-      },
-    });
-    const snapshot = report?.snapshot
-      ? report.snapshot
-      : await client.repositorySnapshot.findFirst({
+    const client = tx ?? this.prisma;
+    let report:
+      | {
+          id: string;
+          schemaVersion: string;
+          evidencePayload: Prisma.JsonValue;
+          snapshotId: string;
+          snapshot: { id: string; commitSha: string };
+        }
+      | null
+      | undefined = null;
+    let snapshot: { id: string; commitSha: string } | null;
+
+    if (technicalEvidenceReportId) {
+      report = await client.technicalEvidenceReport.findFirst({
+        where: {
+          assessmentId,
+          id: technicalEvidenceReportId,
+          status: toPrismaEvidenceAcceptanceStatus(
+            TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+          ),
+        },
+        select: {
+          id: true,
+          schemaVersion: true,
+          evidencePayload: true,
+          snapshotId: true,
+          snapshot: { select: { id: true, commitSha: true } },
+        },
+      });
+      snapshot = report?.snapshot ?? null;
+      if (!snapshot) {
+        snapshot = await client.repositorySnapshot.findFirst({
           where: { assessmentId },
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           select: { id: true, commitSha: true },
         });
+      }
+    } else {
+      const activeConnection = await client.repositoryConnection.findFirst({
+        where: {
+          assessmentId,
+          status: toPrismaRepositoryConnectionStatus(
+            REPOSITORY_CONNECTION_STATUSES.active,
+          ),
+        },
+        orderBy: [{ connectedAt: "desc" }, { id: "desc" }],
+        select: { id: true },
+      });
+
+      const currentSnapshot = activeConnection
+        ? await client.repositorySnapshot.findFirst({
+            where: {
+              assessmentId,
+              connectionId: activeConnection.id,
+              status: toPrismaRepositorySnapshotStatus(
+                REPOSITORY_SNAPSHOT_STATUSES.ready,
+              ),
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: { id: true, commitSha: true },
+          })
+        : await client.repositorySnapshot.findFirst({
+            where: { assessmentId },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: { id: true, commitSha: true },
+          });
+
+      const currentScan = currentSnapshot
+        ? await client.repositoryScanJob.findFirst({
+            where: {
+              assessmentId,
+              snapshotId: currentSnapshot.id,
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: {
+              id: true,
+              snapshotId: true,
+              snapshot: { select: { id: true, commitSha: true } },
+            },
+          })
+        : await client.repositoryScanJob.findFirst({
+            where: { assessmentId },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: {
+              id: true,
+              snapshotId: true,
+              snapshot: { select: { id: true, commitSha: true } },
+            },
+          });
+
+      snapshot = currentScan?.snapshot ?? currentSnapshot ?? null;
+
+      if (currentScan) {
+        report = await client.technicalEvidenceReport.findFirst({
+          where: {
+            assessmentId,
+            scanJobId: currentScan.id,
+            snapshotId: currentScan.snapshotId,
+            status: toPrismaEvidenceAcceptanceStatus(
+              TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+            ),
+          },
+          select: {
+            id: true,
+            schemaVersion: true,
+            evidencePayload: true,
+            snapshotId: true,
+            snapshot: { select: { id: true, commitSha: true } },
+          },
+        });
+      }
+    }
+
     const evidencePayload = objectRecord(report?.evidencePayload);
     const evidenceGraph = objectRecord(
       evidencePayload?.evidence_graph ??
@@ -2737,7 +3194,7 @@ export class AssessmentInterviewRuntimeService {
     // its snapshot are immutable, so a positive snapshot can never go stale in a
     // dangerous direction. A "no report yet" snapshot must never be cached, or a
     // newly accepted report would be masked until the TTL expires.
-    if (report) {
+    if (report && !tx && cacheKey) {
       this.provenanceCache.set(cacheKey, {
         value: provenance,
         expiresAt: Date.now() + PROVENANCE_CACHE_TTL_MS,
@@ -2926,22 +3383,6 @@ function parseCustomerAnswer(
     }
   }
   throw new BadRequestException({ code: "INTERVIEW_ANSWER_INVALID" });
-}
-
-function parseBlockedAction(value: unknown): AssessmentInterviewBlockedInput {
-  const record = objectRecord(value);
-  if (
-    !record ||
-    !Object.values(ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS).includes(
-      record.action as never,
-    )
-  ) {
-    throw new BadRequestException({ code: "INTERVIEW_BLOCKED_ACTION_INVALID" });
-  }
-  return {
-    action: record.action as AssessmentInterviewBlockedInput["action"],
-    draft: typeof record.draft === "string" ? record.draft : undefined,
-  };
 }
 
 function parsePostFindingDecision(
@@ -3501,6 +3942,9 @@ function parsePrivateStore(value: unknown): PrivateInterviewStore {
     revisions,
     submittedAnswerRequests: Array.isArray(record.submittedAnswerRequests)
       ? record.submittedAnswerRequests.filter(isAnswerIdempotencyRecord)
+      : undefined,
+    submittedBlockedRequests: Array.isArray(record.submittedBlockedRequests)
+      ? record.submittedBlockedRequests.filter(isInterviewBlockedActionReceipt)
       : undefined,
     workflowRunId:
       typeof record.workflowRunId === "string" && record.workflowRunId.trim()
