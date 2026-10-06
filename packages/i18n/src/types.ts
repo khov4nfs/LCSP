@@ -1638,6 +1638,11 @@ export type PagesMessages = {
     sourceCodeUnavailable: string;
     resumePipeline: string;
     resumeQueued: string;
+    interviewMutationConflict: string;
+    interviewMutationUnconfirmed: string;
+    interviewRetainedDraft: string;
+    interviewRetryOriginal: string;
+    interviewRefreshState: string;
     answerSavedForRuntime: string;
     draftSavedForResume: string;
     blockedActionRecorded: string;

@@ -19,7 +19,11 @@ import {
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { EvidenceAcceptanceStatus, PrismaClient } from "@prisma/client";
+import {
+  EvidenceAcceptanceStatus,
+  PrismaClient,
+  type Prisma,
+} from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -279,12 +283,15 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       );
     assert.equal(answered.status, 201, JSON.stringify(answered.body));
 
+    await markInterviewBlockedFixture(prisma);
     const blocked = await httpRequest(app)
       .post("/assessments/assessment-1/interview/blocked-actions")
       .set("Authorization", `Bearer ${token}`)
       .send({
         action: ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit,
         draft: RAW_DRAFT,
+        expectedSessionRevision: 1,
+        clientRequestId: "save-draft-after-answer",
       });
     assert.equal(blocked.status, 201, JSON.stringify(blocked.body));
     const state = successBody<{
@@ -1404,12 +1411,15 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
 
   it("keeps raw saved draft out of Agent-decision runtime events", async () => {
     await seedWaitingQuestion(prisma);
+    await markInterviewBlockedFixture(prisma);
     const saved = await httpRequest(app)
       .post("/assessments/assessment-1/interview/blocked-actions")
       .set("Authorization", `Bearer ${token}`)
       .send({
         action: ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit,
         draft: RAW_DRAFT,
+        expectedSessionRevision: 0,
+        clientRequestId: "save-redacted-draft",
       });
     assert.equal(saved.status, 201, JSON.stringify(saved.body));
 
@@ -1418,6 +1428,8 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({
         action: ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext,
+        expectedSessionRevision: 0,
+        clientRequestId: "more-after-redacted-draft",
       });
     assert.equal(more.status, 201, JSON.stringify(more.body));
 
@@ -1460,11 +1472,14 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       where: { aggregateId: "assessment-1" },
     });
     await seedWaitingQuestion(prisma);
+    await markInterviewBlockedFixture(prisma);
     const blocked = await httpRequest(app)
       .post("/assessments/assessment-1/interview/blocked-actions")
       .set("Authorization", `Bearer ${token}`)
       .send({
         action: ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext,
+        expectedSessionRevision: 0,
+        clientRequestId: "more-context",
       });
     assert.equal(blocked.status, 201, JSON.stringify(blocked.body));
     assert.equal(
@@ -1483,7 +1498,138 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       /PROVIDE_MORE_CONTEXT/u,
     );
   });
+
+  it("rejects mutations pinned to old Scan A when rerun Scan B is current without accepted report, and accepts once Report B is accepted", async () => {
+    // 1. Scan A completed and Report A accepted -> Question pinned to Scan A
+    await seedWaitingQuestion(prisma, "q-scan-a");
+
+    // 2. Customer starts rerun: Scan B becomes current with QUEUED/RUNNING status and no accepted report
+    await seedRepositoryScanGraph(prisma, {
+      assessmentId: "assessment-1",
+      userId: "user-1",
+      connectionId: "connection-interview-ready",
+      snapshotId: "snapshot-scan-b",
+      scanJobId: "scan-job-b",
+    });
+
+    // Submitting answer to question pinned to Scan A must be rejected as STALE_PROVENANCE (409)
+    const staleAnswer = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        submitAnswerCommand({
+          questionRef: "q-scan-a",
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-stale-scan-a",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "Answer to stale question",
+          },
+        }),
+      );
+    assert.equal(staleAnswer.status, 409, JSON.stringify(staleAnswer.body));
+    assert.equal(problemCode(staleAnswer), "INTERVIEW_ANSWER_STALE_PROVENANCE");
+
+    // 3. Now Report B is accepted for Scan B
+    await prisma.technicalEvidenceReport.create({
+      data: {
+        id: "report-scan-b",
+        scanJobId: "scan-job-b",
+        assessmentId: "assessment-1",
+        snapshotId: "snapshot-scan-b",
+        toolsVersion: { scanner: "test" },
+        configHash: { scanner: "test" },
+        evidencePayload: {
+          evidence_graph: { coverage_state: "SUFFICIENT", coverage_notes: [] },
+        },
+        privacyFlags: { containsSourceCode: false, secretsRedacted: true },
+        schemaVersion: "v1",
+        status: EvidenceAcceptanceStatus.ACCEPTED,
+      },
+    });
+
+    // An answer still pinned to Scan A is still rejected
+    const stillStale = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        submitAnswerCommand({
+          questionRef: "q-scan-a",
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-stale-scan-a-2",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "Answer to stale question",
+          },
+        }),
+      );
+    assert.equal(stillStale.status, 409, JSON.stringify(stillStale.body));
+    assert.equal(problemCode(stillStale), "INTERVIEW_ANSWER_STALE_PROVENANCE");
+
+    // Question re-pinned to Scan B / Report B can now be answered successfully
+    const snapshotB = await prisma.repositorySnapshot.findUniqueOrThrow({
+      where: { id: "snapshot-scan-b" },
+    });
+    await prisma.assessmentInterviewThread.update({
+      where: { assessmentId: "assessment-1" },
+      data: {
+        sourceVersion: `${snapshotB.id}:${snapshotB.commitSha}`,
+        pgeVersion: "report-scan-b:v1",
+        activeQuestionId: "q-scan-b",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          threadId: "interview:assessment-1",
+          contextRevision: 0,
+          activeQuestion: {
+            id: "q-scan-b",
+            intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+            control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            prompt: "Question for Scan B",
+          },
+          answerHistory: [],
+        },
+      },
+    });
+
+    const validAnswer = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        submitAnswerCommand({
+          questionRef: "q-scan-b",
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-valid-scan-b",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "Valid answer for Scan B",
+          },
+        }),
+      );
+    assert.equal(validAnswer.status, 201, JSON.stringify(validAnswer.body));
+  });
 });
+
+/** Materialize the prior Agent BLOCKED outcome instead of abusing a waiting question. */
+async function markInterviewBlockedFixture(
+  prisma: PrismaClient,
+): Promise<void> {
+  const thread = await prisma.assessmentInterviewThread.findUniqueOrThrow({
+    where: { assessmentId: "assessment-1" },
+  });
+  await prisma.assessmentInterviewThread.update({
+    where: { assessmentId: "assessment-1" },
+    data: {
+      activeQuestionId: null,
+      stateJson: {
+        ...(thread.stateJson as Prisma.InputJsonObject),
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+        activeQuestion: null,
+        orchestrationRequested: false,
+        blockedActions: Object.values(ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS),
+      },
+    },
+  });
+}
 
 async function seedUsableTechnicalCoverage(
   prisma: PrismaClient,
@@ -1520,6 +1666,16 @@ async function seedWaitingQuestion(
   // Directly materialized Interview threads still require the same accepted,
   // usable technical-report provenance as a worker-seeded question.
   await seedUsableTechnicalCoverage(prisma);
+  const snapshot = await prisma.repositorySnapshot.findFirstOrThrow({
+    where: { assessmentId: "assessment-1" },
+    orderBy: { createdAt: "desc" },
+  });
+  const report = await prisma.technicalEvidenceReport.findFirstOrThrow({
+    where: { assessmentId: "assessment-1" },
+    orderBy: { createdAt: "desc" },
+  });
+  const sourceVersion = `${snapshot.id}:${snapshot.commitSha}`;
+  const pgeVersion = `${report.id}:${report.schemaVersion}`;
   const privateContext = {
     revisions: [],
     workflowRunId: "00000000-0000-4000-8000-000000000001",
@@ -1527,6 +1683,8 @@ async function seedWaitingQuestion(
   await prisma.assessmentInterviewThread.upsert({
     where: { assessmentId: "assessment-1" },
     update: {
+      sourceVersion,
+      pgeVersion,
       contextRevision: 0,
       activeQuestionId: questionId,
       processedRevision: 0,
@@ -1547,6 +1705,8 @@ async function seedWaitingQuestion(
     create: {
       id: "interview:assessment-1",
       assessmentId: "assessment-1",
+      sourceVersion,
+      pgeVersion,
       contextRevision: 0,
       activeQuestionId: questionId,
       processedRevision: 0,

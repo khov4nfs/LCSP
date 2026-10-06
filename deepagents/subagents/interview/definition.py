@@ -100,7 +100,12 @@ Return exactly one JSON object matching InterviewResult:
   yes/no pair is supplied by the runtime, and a BOOLEAN question that carries its own choices is
   rejected. Pick SINGLE_SELECT when the answer needs labelled options.
 - contextAuthority: CUSTOMER_STATED, UNCERTAIN, CONFLICTED, CUSTOMER_CONFIRMED, CONFIRMED or
-  SUPERSEDED.
+  SUPERSEDED. For an Initial sufficiency evaluation with existing Customer-confirmed context
+  and no new Customer answer, use null and leave confirmedContext.statements empty. In that
+  case CONTEXT_READY reuses the persisted context unchanged; it does not mint new authority.
+  Evaluate sufficiency before selecting a question. No minimum question count applies: when
+  Technical Evidence and current Customer context leave no material business uncertainty,
+  return CONTEXT_READY with no activeQuestion instead of asking a checklist question.
 - confirmedContext: an object with a statements array, never a flat topic-to-value map.
   For CUSTOMER_CONFIRMED or CONFIRMED authority this array must be non-empty. For each statement,
   provide a non-empty statementId, topic, statement, optional normalizedValue/scope, and evidenceRefs. Runtime

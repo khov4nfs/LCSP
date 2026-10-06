@@ -1682,6 +1682,11 @@ export const enPages = {
     sourceCodeUnavailable: "The referenced source code is unavailable.",
     resumePipeline: "Resume",
     resumeQueued: "Resume queued for this assessment.",
+    interviewMutationConflict: "The question, state or evidence has changed. Your draft is retained for comparison and will not be applied to a different question.",
+    interviewMutationUnconfirmed: "The action could not be confirmed. Your draft is retained. Check the current state or retry the original request.",
+    interviewRetainedDraft: "Previous input retained for comparison",
+    interviewRetryOriginal: "Retry original request",
+    interviewRefreshState: "Refresh Interview state",
     answerSavedForRuntime:
       "Answer captured for the runtime thread. The Interview Agent will evaluate sufficiency before downstream resume.",
     draftSavedForResume:

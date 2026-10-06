@@ -3,23 +3,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
-  AssessmentInterviewAnswerInput,
-  AssessmentInterviewBlockedInput,
-  AssessmentInterviewRuntimeState,
   AssessmentPostFindingDecisionInput,
 } from "@lcsp/contracts/evidence";
 import { getAssessmentArtifactAvailability } from "./assessment-artifact-client";
 import {
-  buildSubmitInterviewAnswerCommand,
   continueAssessmentPipeline,
   getAssessmentInterviewState,
   getAssessmentInterviewSourceSnippet,
   pauseAssessmentInterviewTurn,
-  recordAssessmentInterviewBlockedAction,
   resumeAssessmentInterviewTurn,
-  submitAssessmentInterviewAnswer,
   submitAssessmentPostFindingDecision,
 } from "./assessment-interview-client";
+export {
+  useSubmitAssessmentInterviewAnswerMutation,
+  useAssessmentInterviewBlockedActionMutation,
+} from "./interview-mutation-queries";
 import {
   getClassificationStatus,
   rerunClassification,
@@ -83,53 +81,6 @@ export function useAssessmentArtifactsQuery(assessmentId: string) {
     queryKey: apiQueryKeys.assessment.artifacts(assessmentId),
     queryFn: () => getAssessmentArtifactAvailability(assessmentId),
     enabled: assessmentId.length > 0,
-  });
-}
-
-export function useSubmitAssessmentInterviewAnswerMutation(
-  assessmentId: string,
-) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: {
-      answer: AssessmentInterviewAnswerInput;
-      state: AssessmentInterviewRuntimeState;
-    }) =>
-      submitAssessmentInterviewAnswer(
-        assessmentId,
-        buildSubmitInterviewAnswerCommand(
-          assessmentId,
-          input.state,
-          input.answer,
-        ),
-      ),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: apiQueryKeys.assessment.interview(assessmentId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: apiQueryKeys.assessment.artifacts(assessmentId),
-        }),
-      ]);
-    },
-  });
-}
-
-export function useAssessmentInterviewBlockedActionMutation(
-  assessmentId: string,
-) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: AssessmentInterviewBlockedInput) =>
-      recordAssessmentInterviewBlockedAction(assessmentId, input),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiQueryKeys.assessment.interview(assessmentId),
-      });
-    },
   });
 }
 

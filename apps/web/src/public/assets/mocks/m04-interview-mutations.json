@@ -1,0 +1,39 @@
+{
+  "answer": {
+    "contractVersion": "interview-technical-contract-v1.0.0",
+    "assessmentId": "assessment-m04",
+    "sessionId": "interview:assessment-m04",
+    "questionRef": "question-a",
+    "expectedSessionRevision": 1,
+    "clientRequestId": "answer-request-a",
+    "answer": { "kind": "FREE_TEXT", "text": "A person reviews the result." }
+  },
+  "blocked": {
+    "action": "SAVE_AND_EXIT",
+    "draft": "Need internal confirmation.",
+    "expectedSessionRevision": 2,
+    "clientRequestId": "blocked-request-a"
+  },
+  "success": {
+    "ok": true,
+    "data": {
+      "threadId": "interview:assessment-m04",
+      "contextRevision": 2,
+      "outcome": "WAITING_FOR_CUSTOMER",
+      "orchestrationRequested": true
+    }
+  },
+  "conflict": {
+    "ok": false,
+    "problem": {
+      "type": "about:blank",
+      "status": 409,
+      "code": "INTERVIEW_SESSION_REVISION_STALE",
+      "titleKey": "errors.title",
+      "detailKey": "errors.detail",
+      "requiredAction": "NONE",
+      "correlationId": "m04-test",
+      "meta": {}
+    }
+  }
+}

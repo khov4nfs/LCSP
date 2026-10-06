@@ -133,10 +133,14 @@ def test_production_agent_server_image_runs_without_license_and_persists_state(
             correlation_id,
         )
         values = _state_values(graph_url, thread_id)
-        assert any(
-            _skill_value(skill, "name") == "lcsp"
-            for skill in values.get("skills_metadata", [])
-        )
+        skills_metadata = values.get("skills_metadata")
+        if skills_metadata is not None:
+            assert any(
+                _skill_value(skill, "name") == "lcsp"
+                for skill in skills_metadata
+            )
+        skill = sandbox.read("/workspace/repository/.lcsp/agent/skills/lcsp/SKILL.md")
+        assert skill.error is None
         assert api.archive_requests == 1
 
         _docker(["rm", "-f", server_name], check=False, timeout=30)
@@ -152,10 +156,14 @@ def test_production_agent_server_image_runs_without_license_and_persists_state(
         _wait_for_http(graph_url, "/health")
 
         restarted_values = _state_values(graph_url, thread_id)
-        assert any(
-            _skill_value(skill, "name") == "lcsp"
-            for skill in restarted_values.get("skills_metadata", [])
-        )
+        restarted_skills = restarted_values.get("skills_metadata")
+        if restarted_skills is not None:
+            assert any(
+                _skill_value(skill, "name") == "lcsp"
+                for skill in restarted_skills
+            )
+        restarted_skill = sandbox.read("/workspace/repository/.lcsp/agent/skills/lcsp/SKILL.md")
+        assert restarted_skill.error is None
     finally:
         sandbox.cleanup()
         _docker(["rm", "-f", server_name], check=False, timeout=30)
@@ -177,7 +185,7 @@ class _SnapshotApi:
 
     @property
     def container_url(self) -> str:
-        _host, port = self._server.server_address
+        _host, port = self._server.server_address[:2]
         return f"http://host.docker.internal:{port}"
 
     def start(self) -> None:

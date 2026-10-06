@@ -10,6 +10,7 @@ from tools.common.capabilities.assessment.investigation.engineering_rule.intervi
 )
 from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
+from orchestration.result_validation import SpecialistHandoffValidationError
 
 
 class FakeApi:
@@ -1007,3 +1008,154 @@ def test_persistable_refs_mirror_the_api_governed_evidence_refs() -> None:
         "node-camel-ref",
         "edge-ref",
     }
+
+
+# UC-M04-01 A1 / CODE-M04-04: optional-question initial decision.
+class ReadyDispatcher(FakeDispatcher):
+    def dispatch(self, **kwargs):
+        self.calls.append(kwargs)
+        from contracts.handoffs import InterviewResult
+        candidate = InterviewResult.model_validate({
+            "expectedContextRevision": 2,
+            "mode": "INITIAL_INTERVIEW", "outcome": "CONTEXT_READY",
+            "contextAuthority": None, "confirmedContext": {"statements": []},
+        })
+        return {"status": "COMPLETED", "handoff": candidate.model_dump(mode="json")}
+
+
+class SavingReadyApi(FakeApi):
+    def post_interview_initial_question(self, assessment_id, payload):
+        self.seeded.append((assessment_id, dict(payload)))
+        # Only API-owned stored context, not proposed model facts, is returned.
+        self.state = {**self.state, "outcome": "CONTEXT_READY", "activeQuestion": None}
+        return dict(self.state)
+
+
+def _existing_initial_context_state():
+    context = _structured_context(revision=2)
+    context["statements"][0]["statement"] = (
+        "The AI drafts recommendations for customer onboarding. A human reviews and approves "
+        "each action affecting customers, using customer profile records and business documents."
+    )
+    return {"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 2,
+            "confirmedContext": context, "orchestrationRequested": False,
+            "answerHistory": []}
+
+
+def _prepare_existing(api, dispatcher, report=None):
+    return _boundary(api, dispatcher)._prepare_interview(
+        evidence_report=report or _report(), evidence_report_id="ter-1",
+        assessment_id="assessment-1", correlation_id="corr-zero-question",
+        workflow_run_id="10000000-0000-4000-8000-000000000004",
+    )
+
+
+def test_zero_question_initial_persists_ready_without_a_synthetic_answer():
+    api = SavingReadyApi(_existing_initial_context_state())
+    dispatcher = ReadyDispatcher()
+    context = _prepare_existing(api, dispatcher)
+    assert context.context_revision == 2
+    assert len(api.seeded) == 1
+    payload = api.seeded[0][1]
+    assert payload["outcome"] == "CONTEXT_READY"
+    assert payload["expectedContextRevision"] == 2
+    assert "activeQuestion" not in payload
+    assert "answer" not in payload
+    assert "confirmedContext" not in payload
+    assert api.state["answerHistory"] == []
+    instruction = dispatcher.calls[0]["instruction"]
+    assert "no minimum question count" in instruction
+    assert "currentConfirmedBusinessContext" in instruction
+    assert "human reviews" in instruction
+    assert dispatcher.calls[0]["idempotency_key"].endswith(":context:2")
+
+
+def test_zero_question_initial_handle_continues_engineering_only_with_saved_context(monkeypatch):
+    api = SavingReadyApi(_existing_initial_context_state())
+    api.get_accepted_technical_evidence_report = lambda _id: _report()
+    boundary = _boundary(api, ReadyDispatcher())
+    seen = []
+    def run(message, correlation, *, confirmed_context, rule_scope=None):
+        assert api.seeded and api.state["outcome"] == "CONTEXT_READY"
+        seen.append(confirmed_context.context_revision)
+    monkeypatch.setattr(boundary, "run_assessment", run)
+    boundary.handle({"assessmentId": "assessment-1", "evidenceReportId": "ter-1",
+                     "workflowRunId": "10000000-0000-4000-8000-000000000004"}, "corr-ready")
+    assert seen == [2]
+
+
+def test_existing_context_is_considered_before_asking_discovery_question_again():
+    api = SavingReadyApi(_existing_initial_context_state())
+    dispatcher = ReadyDispatcher()
+    finding = _ai_finding("MODEL_INVOCATION", "AI_PURPOSE_FEATURE_MAPPING")
+    result = _prepare_existing(api, dispatcher, _ai_report("AI_PRESENT_CONFIRMED", [finding]))
+    assert result is not None
+    assert len(dispatcher.calls) == 1
+    assert "activeQuestion" not in api.seeded[0][1]
+
+
+def test_existing_context_can_still_need_one_focused_question():
+    api = FakeApi(_existing_initial_context_state())
+    assert _prepare_existing(api, FakeDispatcher()) is None
+    assert api.seeded[0][1]["outcome"] == "WAITING_FOR_CUSTOMER"
+    assert api.seeded[0][1]["expectedContextRevision"] == 2
+    assert api.seeded[0][1]["activeQuestion"]["id"] == "question-1"
+
+
+def test_model_cannot_skip_questions_using_technical_evidence_as_customer_authority():
+    api = FakeApi({"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 0})
+    with pytest.raises(SpecialistHandoffValidationError, match="Customer-confirmed context"):
+        _prepare_existing(api, ReadyDispatcher())
+    assert api.seeded == []
+
+
+@pytest.mark.parametrize("changes", [
+    {"activeQuestion": {"id": "unexpected"}},
+    {"contextUpdates": [{"statement": "invented business fact"}]},
+    {"unresolved": [{"topic": "human approval"}]},
+    {"confirmedContext": {"statements": [{"statement": "invented"}]}},
+])
+def test_zero_question_handoff_rejects_invented_or_unresolved_context(changes):
+    class InvalidReady(ReadyDispatcher):
+        def dispatch(self, **kwargs):
+            result = super().dispatch(**kwargs)
+            result["handoff"].update(changes)
+            return result
+    api = SavingReadyApi(_existing_initial_context_state())
+    with pytest.raises(SpecialistHandoffValidationError):
+        _prepare_existing(api, InvalidReady())
+    assert api.seeded == []
+
+
+def test_zero_question_initial_does_not_continue_when_persistence_fails():
+    api = SavingReadyApi(_existing_initial_context_state())
+    def reject(*_args):
+        raise WorkerCallbackError("stale context", status_code=409)
+    api.post_interview_initial_question = reject
+    with pytest.raises(WorkerCallbackError):
+        _prepare_existing(api, ReadyDispatcher())
+
+
+def test_zero_question_initial_checks_server_returned_revision():
+    api = SavingReadyApi(_existing_initial_context_state())
+    api.post_interview_initial_question = lambda *_args: {
+        **api.state, "outcome": "CONTEXT_READY", "contextRevision": 3,
+    }
+    with pytest.raises(ValueError, match="different context revision"):
+        _prepare_existing(api, ReadyDispatcher())
+
+
+def test_existing_context_does_not_interrupt_a_pending_agent_turn():
+    api = SavingReadyApi({**_existing_initial_context_state(), "orchestrationRequested": True})
+    dispatcher = ReadyDispatcher()
+    assert _prepare_existing(api, dispatcher) is None
+    assert dispatcher.calls == [] and api.seeded == []
+
+
+def test_zero_question_initial_accepts_the_actual_typed_handoff_defaults():
+    dispatcher = ReadyDispatcher()
+    api = SavingReadyApi(_existing_initial_context_state())
+    result = _prepare_existing(api, dispatcher)
+    assert result is not None and result.context_revision == 2
+    assert api.state["confirmedContext"] == _existing_initial_context_state()["confirmedContext"]
+    assert len(dispatcher.calls) == 1
