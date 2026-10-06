@@ -1,10 +1,11 @@
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import {
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_INTERVIEW_OUTCOMES,
   INTERVIEW_PROGRESS_PHASES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
-  ASSESSMENT_RUNTIME_STAGE_CODES,
-  ASSESSMENT_TECHNICAL_COVERAGE_STATES,
   POST_FINDING_RUNTIME_PHASES,
 } from "@lcsp/contracts/evidence";
 
@@ -29,7 +30,6 @@ import {
   type NormalizedAssessmentRuntime,
 } from "../types/assessment-runtime-adapter.types";
 import { projectRuntimeThinking } from "./runtime-thinking-projection";
-import type { AssessmentStatus } from "../types/workspace.types";
 import type {
   RuntimeThinkingItem,
   WorkspaceRuntimeRepositorySnapshot,
@@ -82,9 +82,13 @@ export function selectWorkflowPresentation(
   normalized: NormalizedAssessmentRuntime,
 ) {
   const workflow = normalized.workflow;
+  const executionState =
+    normalized.canonicalAssessment?.runtime?.executionState ?? null;
   const hasActiveRun =
-    workflow.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running ||
-    workflow.status === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
+    executionState === AGENT_EXECUTION_STATES.QUEUED ||
+    executionState === AGENT_EXECUTION_STATES.RUNNING ||
+    executionState === AGENT_EXECUTION_STATES.INTERRUPTED ||
+    executionState === AGENT_EXECUTION_STATES.PAUSED;
   const activeRun = hasActiveRun ? workflow.latestRun : null;
   const activeActivity =
     workflow.recentActivity.find(
@@ -94,12 +98,11 @@ export function selectWorkflowPresentation(
     ) ?? null;
   const activeStage =
     activeRun?.stage ?? activeActivity?.stage ?? workflow.stage;
-  const activeStatus =
-    activeRun?.status ?? activeActivity?.runStatus ?? workflow.status;
+  const activeStatus = executionState;
 
   return {
     stage: workflow.stage,
-    status: workflow.status,
+    status: executionState,
     activeStage,
     activeStatus,
     currentRunId: workflow.currentRunId,
@@ -162,45 +165,31 @@ export function selectAssessmentRuntimeSidebarPresentation(
     };
   },
 ): NormalizedAssessmentSidebarPresentation {
-  const scannerStatus = input.scanner.scanFailed
-    ? ASSESSMENT_SIDEBAR_STATUSES.failed
-    : input.scanner.evidenceAccepted
-      ? ASSESSMENT_SIDEBAR_STATUSES.passed
-      : ASSESSMENT_SIDEBAR_STATUSES.running;
-  const interviewRunning =
-    normalized.interview.outcome ===
-      ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer &&
-    normalized.interview.activeQuestion !== null;
-  const interviewStatus = input.scanner.evidenceAccepted
-    ? interviewRunning
-      ? ASSESSMENT_SIDEBAR_STATUSES.running
-      : ASSESSMENT_SIDEBAR_STATUSES.waiting
-    : ASSESSMENT_SIDEBAR_STATUSES.queued;
   const workflow: NormalizedAssessmentSidebarWorkflowItem[] = [
     sidebarWorkflowItem(
       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
       "pages.appShell.assessmentSidebar.workflow.scanner",
-      scannerStatus,
+      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
     ),
     sidebarWorkflowItem(
       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
       "pages.appShell.assessmentSidebar.workflow.interview",
-      interviewStatus,
+      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
     ),
     sidebarWorkflowItem(
       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
       "pages.appShell.assessmentSidebar.workflow.rules",
-      ASSESSMENT_SIDEBAR_STATUSES.queued,
+      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
     ),
     sidebarWorkflowItem(
       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
       "pages.appShell.assessmentSidebar.workflow.ruleAnalysis",
-      ASSESSMENT_SIDEBAR_STATUSES.queued,
+      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
     ),
     sidebarWorkflowItem(
       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
       "pages.appShell.assessmentSidebar.workflow.gate",
-      ASSESSMENT_SIDEBAR_STATUSES.queued,
+      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
     ),
   ];
   const artifacts = input.scanner.evidenceAccepted
@@ -325,7 +314,9 @@ export function selectPostFindingPresentation(
   return {
     ...postFinding,
     canSelectDecision: normalized.customerActions.canSelectRemediationDecision,
-    screenProjection: postFindingScreenProjection(postFinding.phase),
+    // This is the secondary remediation-flow marker; assessment screen state
+    // remains selected exclusively by selectAssessmentScreenProjection.
+    screenProjection: postFindingFlowProjection(postFinding.phase),
   };
 }
 
@@ -347,18 +338,7 @@ export function selectComposerAvailability(
 
 export function selectInterviewHandoffPresentation(
   normalized: NormalizedAssessmentRuntime,
-  assessmentStatus: AssessmentStatus | null = null,
 ) {
-  if (assessmentStatus === ASSESSMENT_STATUS_CODES.aiNotDetected) {
-    // Terminal: governed evidence proved no AI use, so no Interview question follows.
-    return {
-      isStartupPending: false,
-      canResumeFailedTurn: false,
-      isGenuinelyPending: false,
-      messageKey: "pages.assessmentFlow.interview.aiNotDetectedDescription",
-      placeholderKey: "pages.assessmentFlow.interview.aiNotDetectedPlaceholder",
-    } as const;
-  }
   const interview = selectInterviewPresentation(normalized);
   const hasCustomerVisibleTurn =
     Boolean(interview.questionTurnProps) || interview.isBlocked;
@@ -421,7 +401,8 @@ export function selectInterviewHandoffPresentation(
   // on record). There is nothing to continue here, so Pipeline Continue must
   // stay hidden instead of offering to restart a pipeline that simply hasn't
   // been dispatched yet.
-  const isGenuinelyPending = messageKey === "pages.assessmentFlow.interview.pendingDescription";
+  const isGenuinelyPending =
+    messageKey === "pages.assessmentFlow.interview.pendingDescription";
 
   return {
     isStartupPending,
@@ -439,35 +420,23 @@ export function selectInterviewHandoffPresentation(
 export function selectAssessmentScreenProjection(
   normalized: NormalizedAssessmentRuntime,
 ): AssessmentScreenProjection {
-  const { coverage, interview, workflow } = normalized;
+  const { interview } = normalized;
+  const canonical = normalized.canonicalAssessment;
+  const lifecycleState = canonical?.lifecycle?.state;
+  const canonicalAvailable =
+    canonical?.lifecycle != null && canonical.runtime != null;
 
-  if (normalized.postFinding !== null) {
-    return postFindingScreenProjection(normalized.postFinding.phase);
-  }
-
-  // Targeted loop: Rule analysis paused + Interview running
-  if (workflow.isTargetedClarificationLoop) {
-    return ASSESSMENT_SCREEN_PROJECTIONS.f09;
-  }
-
-  // Unavailable coverage or early setup
-  if (coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable) {
+  if (!canonicalAvailable || lifecycleState === undefined) {
     return ASSESSMENT_SCREEN_PROJECTIONS.f01;
   }
 
-  // Scan in progress
   if (
-    workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.scan &&
-    workflow.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_REQUIRED_INPUT
   ) {
-    return ASSESSMENT_SCREEN_PROJECTIONS.f03;
-  }
-
-  // Scan complete, Initial Interview
-  if (
-    coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready ||
-    coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.partial
-  ) {
+    if (normalized.workflow.isTargetedClarificationLoop) {
+      return ASSESSMENT_SCREEN_PROJECTIONS.f09;
+    }
     if (
       interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer
     ) {
@@ -491,22 +460,18 @@ export function selectAssessmentScreenProjection(
       return ASSESSMENT_SCREEN_PROJECTIONS.f05;
     }
   }
-
-  // Stage-based projections
   if (
-    workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE ||
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.FAILED ||
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.CANCELLED ||
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED
   ) {
-    return ASSESSMENT_SCREEN_PROJECTIONS.f10;
+    return ASSESSMENT_SCREEN_PROJECTIONS.f01;
   }
-
-  if (workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.documents) {
-    return ASSESSMENT_SCREEN_PROJECTIONS.f14;
-  }
-
   return ASSESSMENT_SCREEN_PROJECTIONS.f03;
 }
 
-function postFindingScreenProjection(
+function postFindingFlowProjection(
   phase: NonNullable<NormalizedAssessmentRuntime["postFinding"]>["phase"],
 ): AssessmentScreenProjection {
   switch (phase) {

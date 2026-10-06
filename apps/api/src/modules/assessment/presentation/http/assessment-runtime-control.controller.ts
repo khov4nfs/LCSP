@@ -55,7 +55,7 @@ export class AssessmentRuntimeControlController {
     return resultEnvelope(
       await this.controls.request({
         assessmentId,
-        actorId: req.rbacContext.userId,
+        actor: req.rbacContext,
         correlationId: req.correlationId ?? assessmentId,
         action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
         targetRunId: body?.targetRunId,
@@ -73,7 +73,7 @@ export class AssessmentRuntimeControlController {
     return resultEnvelope(
       await this.controls.request({
         assessmentId,
-        actorId: req.rbacContext.userId,
+        actor: req.rbacContext,
         correlationId: req.correlationId ?? assessmentId,
         action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
         targetRunId: body?.targetRunId,
@@ -100,13 +100,17 @@ export class InternalAssessmentRuntimeControlController {
       ![body.assessmentId, body.targetRunId, body.correlationId].every(
         (value) => typeof value === "string" && value.trim(),
       ) ||
+      !body.threadId ||
+      !body.boundary ||
+      !body.logicalRunId ||
       (body.state === ASSESSMENT_RUNTIME_CONTROL_STATES.running &&
         (!body.context ||
           typeof body.context !== "object" ||
-          Array.isArray(body.context) ||
-          !body.threadId ||
-          !body.boundary ||
-          !body.logicalRunId))
+          Array.isArray(body.context))) ||
+      (body.state === ASSESSMENT_RUNTIME_CONTROL_STATES.stopped &&
+        (!body.checkpoint ||
+          typeof body.checkpoint !== "object" ||
+          Array.isArray(body.checkpoint)))
     ) {
       throw problemException(
         SHARED_ERROR_CODES.validationFailed,

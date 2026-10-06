@@ -39,6 +39,8 @@ const initialRuntime: WorkspaceRuntimeContextValue = {
   scanJobs: [],
   evidenceReports: [],
   postFindingStates: [],
+  canonicalAssessments: [],
+  canonicalEvents: [],
   runsByAssessmentId: {},
   recentActivityByAssessmentId: {},
   engineeringProgressByAssessmentId: {},
@@ -46,8 +48,11 @@ const initialRuntime: WorkspaceRuntimeContextValue = {
   agentStreamHistoryByAssessmentId: {},
   latestRunIdByAssessmentId: {},
   postFindingByAssessmentId: {},
-  stageLifecycleByAssessmentId: {},
+  canonicalAssessmentByAssessmentId: {},
+  canonicalEventsByAssessmentId: {},
   getAssessmentRuntime: (): WorkspaceRuntimeAssessmentTimeline => ({
+    canonicalAssessment: null,
+    canonicalEvents: [],
     currentRun: null,
     recentActivity: [],
     engineeringProgress: [],
@@ -638,8 +643,10 @@ function withAgentStreamEvents(
       connectionState: runtime.connectionState,
       lastEmittedAt: runtime.emittedAt,
       postFinding: runtime.postFindingByAssessmentId[assessmentId] ?? null,
-      stageLifecycle:
-        runtime.stageLifecycleByAssessmentId[assessmentId] ?? null,
+      canonicalAssessment:
+        runtime.canonicalAssessmentByAssessmentId[assessmentId] ?? null,
+      canonicalEvents:
+        runtime.canonicalEventsByAssessmentId[assessmentId] ?? [],
     }),
   };
 }

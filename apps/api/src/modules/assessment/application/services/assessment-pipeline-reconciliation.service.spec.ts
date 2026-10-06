@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { ASSESSMENT_PIPELINE_CONTINUE_PROBLEM_CODES } from "@lcsp/contracts/evidence";
 import { HttpException } from "@nestjs/common";
@@ -77,7 +78,12 @@ describe("AssessmentPipelineReconciliationService", () => {
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          status: { notIn: expect.any(Array) },
+          lifecycleState: {
+            notIn: [
+              ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+              ASSESSMENT_LIFECYCLE_STATES.CANCELLED,
+            ],
+          },
           updatedAt: { lte: expect.any(Date) },
           technicalEvidenceReports: {
             some: { status: EvidenceAcceptanceStatus.ACCEPTED },

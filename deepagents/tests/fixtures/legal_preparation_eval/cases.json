@@ -1,0 +1,251 @@
+{
+  "fixtureId": "legal-preparation-reviewed-candidate",
+  "fixtureVersion": "W2-EVAL-CANDIDATE-1",
+  "syntheticOnly": true,
+  "sourceCorpus": {
+    "pinsPath": "../legal_portfolio_context/pins.json",
+    "sources": [
+      {
+        "corpusVersion": "SYNTHETIC-CORPUS-V1",
+        "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+        "sourceFile": "synthetic-notice-v1.txt",
+        "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+        "byteLength": 1185,
+        "textMustContain": [
+          "“record” means a stored notice and its receipt timestamp.",
+          "retain each record for 7 days"
+        ]
+      },
+      {
+        "corpusVersion": "SYNTHETIC-CORPUS-V2",
+        "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+        "sourceFile": "synthetic-notice-v2.txt",
+        "sourceSha256": "sha256:93884394e3fe5a1b590967b9a5f92f25b5e4cc392721ccd55ad325f0a532c92b",
+        "byteLength": 1186,
+        "textMustContain": [
+          "“record” means a stored notice and its receipt timestamp.",
+          "retain each record for 14 days"
+        ]
+      }
+    ],
+    "changedChunkLocatorsBetweenVersions": ["art-5::cl-1"]
+  },
+  "validCandidates": [
+    {
+      "id": "definition-retained",
+      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "ruleId": "LP-V1-DEF-RECORD",
+      "kind": "DEFINITION",
+      "sourceRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-1::cl-1"
+        }
+      ],
+      "contextRefs": [],
+      "expected": {"refsResolve": true, "singleCorpusVersion": true}
+    },
+    {
+      "id": "qualifier-retained",
+      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "ruleId": "LP-V1-RETENTION-QUALIFIED",
+      "kind": "QUALIFIER",
+      "sourceRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-5::cl-1"
+        }
+      ],
+      "contextRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-2::cl-1"
+        },
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-3::cl-1"
+        }
+      ],
+      "expected": {"refsResolve": true, "singleCorpusVersion": true}
+    },
+    {
+      "id": "exception-retained",
+      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "ruleId": "LP-V1-RETENTION-EXCEPTION",
+      "kind": "EXCEPTION",
+      "sourceRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-3::cl-1"
+        }
+      ],
+      "contextRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-5::cl-1"
+        },
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-6::cl-1"
+        }
+      ],
+      "expected": {"refsResolve": true, "singleCorpusVersion": true}
+    },
+    {
+      "id": "cross-reference-context",
+      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "ruleId": "LP-V1-CROSS-REFERENCE",
+      "kind": "CROSS_REFERENCE",
+      "sourceRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-4::cl-1"
+        }
+      ],
+      "contextRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-1::cl-1"
+        },
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-2::cl-1"
+        },
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-3::cl-1"
+        }
+      ],
+      "expected": {"refsResolve": true, "singleCorpusVersion": true}
+    },
+    {
+      "id": "non-repository-duty-represented",
+      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "ruleId": "LP-V1-IN-PERSON-DUTY",
+      "kind": "NON_REPOSITORY_DUTY",
+      "sourceRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-6::cl-1"
+        }
+      ],
+      "contextRefs": [],
+      "expected": {
+        "refsResolve": true,
+        "singleCorpusVersion": true,
+        "mustRemainInPortfolio": true
+      }
+    }
+  ],
+  "coverage": {
+    "corpusVersion": "SYNTHETIC-CORPUS-V1",
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "coveredLocators": "ALL_ACCEPTED_PIN_LOCATORS",
+    "missingLocators": []
+  },
+  "invalidCases": [
+    {
+      "id": "fake-reference",
+      "kind": "FAKE_SOURCE_REFERENCE",
+      "sourceRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-99::cl-1"
+        }
+      ],
+      "expected": {
+        "expectedAction": "REJECT",
+        "reason": "UNRESOLVED_SOURCE_REFERENCE"
+      }
+    },
+    {
+      "id": "stale-reference",
+      "kind": "STALE_SOURCE_HASH",
+      "sourceRef": {
+        "corpusVersion": "SYNTHETIC-CORPUS-V1",
+        "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+        "locator": "art-5::cl-1"
+      },
+      "declaredSourceSha256": "sha256:a57dd52346acde35d229354404077ff8fbb94a3e2f0485602ca442614a486531",
+      "expected": {"expectedAction": "REJECT", "reason": "STALE_SOURCE_HASH"}
+    },
+    {
+      "id": "repealed-reference",
+      "kind": "REPEALED_SOURCE_REFERENCE",
+      "sourceRef": {
+        "corpusVersion": "SYNTHETIC-CORPUS-V1",
+        "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+        "locator": "art-3::cl-1"
+      },
+      "declaredLegalStatus": "REPEALED",
+      "expected": {"expectedAction": "REJECT", "reason": "REPEALED_SOURCE_REFERENCE"}
+    },
+    {
+      "id": "duplicate-rule-id",
+      "kind": "DUPLICATE_RULE_ID",
+      "ruleIds": ["LP-V1-DUPLICATE", "LP-V1-DUPLICATE"],
+      "expected": {"expectedAction": "REJECT", "reason": "DUPLICATE_RULE_ID"}
+    },
+    {
+      "id": "orphan-context-relation",
+      "kind": "ORPHAN_CONTEXT_RELATION",
+      "relation": {
+        "fromRuleId": "LP-V1-DEF-RECORD",
+        "toRuleId": "LP-V1-MISSING"
+      },
+      "expected": {"expectedAction": "REJECT", "reason": "ORPHAN_CONTEXT_RELATION"}
+    },
+    {
+      "id": "coverage-gap",
+      "kind": "COVERAGE_GAP",
+      "coverage": {
+        "corpusVersion": "SYNTHETIC-CORPUS-V1",
+        "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+        "coveredLocators": "ALL_ACCEPTED_PIN_LOCATORS",
+        "excludeLocators": ["art-6::cl-1"]
+      },
+      "expected": {"expectedAction": "REJECT", "reason": "INCOMPLETE_SOURCE_COVERAGE"}
+    },
+    {
+      "id": "mixed-corpus-versions",
+      "kind": "MIXED_CORPUS_VERSION",
+      "sourceRefs": [
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-1::cl-1"
+        },
+        {
+          "corpusVersion": "SYNTHETIC-CORPUS-V2",
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-5::cl-1"
+        }
+      ],
+      "expected": {"expectedAction": "REJECT", "reason": "MIXED_CORPUS_VERSION"}
+    },
+    {
+      "id": "failed-attempt-preserves-earlier-active",
+      "kind": "FAILED_PREPARATION_PRESERVES_ACTIVE",
+      "priorActivePortfolioVersion": "LP-PORTFOLIO-V1",
+      "attemptedPortfolioVersion": "LP-PORTFOLIO-V2-INVALID",
+      "invalidCaseId": "fake-reference",
+      "expected": {
+        "expectedAction": "REJECT_AND_PRESERVE_PREVIOUS_ACTIVE",
+        "previousActiveUnchanged": true
+      }
+    }
+  ]
+}

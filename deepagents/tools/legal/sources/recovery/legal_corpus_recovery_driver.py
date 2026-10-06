@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import json
 import os
 from contextlib import contextmanager
@@ -26,6 +25,12 @@ from tools.common.capabilities.platform.file_lock import (
     ensure_lock_file,
     release_file_lock,
 )
+from tools.legal.sources.ingest.official_source_payload import (
+    _safe_ref,
+    _source_text_path,
+    build_official_source_payload,
+    required_manifest_string,
+)
 from tools.legal.sources.recovery.artifact_store import write_recovery_artifact
 from tools.legal.corpus.partial_update.partial_update_context_builder import (
     build_partial_update_context,
@@ -40,7 +45,6 @@ DEFAULT_INDEX_CONFIG = "chromadb-vectorless-legal-retriever-v1"
 SOURCE_CRAWL_DIR = "source-crawl"
 RECOVERY_LOCK_FILE = "legal-corpus-recovery.lock"
 DEFAULT_SOURCE_CRAWL_MAX_BYTES = 20 * 1024 * 1024
-OFFICIAL_SOURCE_AUTO_TRUSTED_POLICY = "OFFICIAL_SOURCE_AUTO_TRUSTED"
 
 
 class PreparationCallbackDeliveryError(RuntimeError):
@@ -180,7 +184,7 @@ class LegalCorpusRecoveryDriver:
             manifests,
             storage_root=storage_root,
         )
-        enriched_payload = self._build_official_source_payload(
+        enriched_payload = build_official_source_payload(
             manifests,
             version,
             partial_update_contexts=partial_update_contexts,
@@ -581,96 +585,6 @@ class LegalCorpusRecoveryDriver:
         manifest["sourceEffectStatus"] = status.strip()
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    def _build_official_source_payload(
-        self,
-        manifests: list[Path],
-        version: str,
-        *,
-        partial_update_contexts: list[dict[str, Any]] | None = None,
-    ) -> dict[str, Any]:
-        """Build an ingest payload directly from official crawler artifacts."""
-        builder = _load_script_module("build_reviewed_legal_corpus.py")
-        documents: list[dict[str, Any]] = []
-        source_artifacts: list[dict[str, Any]] = []
-        document_ids: set[str] = set()
-        for manifest_path in manifests:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            document_id = required_manifest_string(
-                manifest,
-                "documentId",
-                source=str(manifest_path),
-            )
-            if document_id in document_ids:
-                raise RuntimeError(f"duplicate source crawl document {document_id}")
-            document_ids.add(document_id)
-            text_path = self._source_text_path(manifest_path, manifest)
-            text = text_path.read_text(encoding="utf-8")
-            source_artifact_ref, source_artifact_sha = self._source_artifact(
-                manifest_path,
-                manifest,
-            )
-            chunks = [
-                chunk
-                for chunk in builder.parse_chunks(document_id, text, None)
-                if chunk.get("content")
-            ]
-            chunks = _namespace_chunks(chunks, version)
-            if not chunks:
-                raise RuntimeError(f"{document_id}: source crawl produced no chunks")
-            source_effect_status = builder.normalize_source_effect_status(
-                document_id,
-                required_manifest_string(
-                    manifest,
-                    "sourceEffectStatus",
-                    source=str(manifest_path),
-                ),
-            )
-            documents.append(
-                {
-                    "documentId": document_id,
-                    "title": required_manifest_string(
-                        manifest,
-                        "title",
-                        source=str(manifest_path),
-                    ),
-                    "sourceUrl": required_manifest_string(
-                        manifest,
-                        "sourceUrl",
-                        source=str(manifest_path),
-                    ),
-                    "sourceSha256": source_artifact_sha,
-                    "sourceEffectStatus": source_effect_status,
-                    "effectiveDate": manifest.get("effectiveFrom")
-                    or manifest.get("effectiveDate"),
-                    "snapshotPath": source_artifact_ref,
-                    "chunks": chunks,
-                }
-            )
-            source_artifacts.append(
-                {
-                    "documentId": document_id,
-                    "sourceManifest": str(manifest_path),
-                    "sourceManifestSha256": _sha256_bytes(manifest_path.read_bytes()),
-                    "sourceArtifact": source_artifact_ref,
-                    "sourceArtifactSha256": source_artifact_sha,
-                    "textArtifact": str(text_path),
-                    "textArtifactSha256": _sha256_bytes(text_path.read_bytes()),
-                }
-            )
-
-        return {
-            "version": version,
-            "sourceManifest": {
-                "reviewRequired": False,
-                "trustPolicy": OFFICIAL_SOURCE_AUTO_TRUSTED_POLICY,
-                "normalizationWarnings": [],
-                "materializedRelationships": [],
-                "sourceArtifacts": source_artifacts,
-                "partialUpdateContexts": partial_update_contexts or [],
-            },
-            "documents": documents,
-        }
-
     def _build_partial_update_contexts(
         self,
         manifests: list[Path],
@@ -862,49 +776,13 @@ class LegalCorpusRecoveryDriver:
             return None
         return path
 
-    @staticmethod
-    def _source_text_path(manifest_path: Path, manifest: dict[str, Any]) -> Path:
-        """Resolve the canonical text file produced by the official crawler."""
-        text_file = required_manifest_string(
-            manifest,
-            "textFile",
-            source=str(manifest_path),
-        )
-        text_path = manifest_path.parent / text_file
-        if not text_path.is_file():
-            raise RuntimeError(f"{manifest_path}: textFile does not exist: {text_file}")
-        return text_path
-
-    @staticmethod
-    def _source_artifact(
-        manifest_path: Path,
-        manifest: dict[str, Any],
-    ) -> tuple[str, str]:
-        """Resolve the official source artifact and its declared hash."""
-        for file_key, hash_key in (
-            ("sourceFile", "sourceSha256"),
-            ("htmlFile", "htmlSha256"),
-            ("textFile", "textSha256"),
-        ):
-            value = manifest.get(file_key)
-            digest = manifest.get(hash_key)
-            if not isinstance(value, str) or not value.strip():
-                continue
-            path = manifest_path.parent / value
-            if not path.is_file():
-                continue
-            if isinstance(digest, str) and digest.strip():
-                return value, digest.strip()
-            return value, _sha256_bytes(path.read_bytes())
-        raise RuntimeError(f"{manifest_path}: no source artifact is available")
-
     def _corpus_version(self, manifests: list[Path]) -> str:
         """Derive a content-addressed corpus version from crawl artifacts."""
         digest = hashlib.sha256()
         for path in sorted(manifests):
             digest.update(path.read_bytes())
             manifest = json.loads(path.read_text(encoding="utf-8"))
-            digest.update(self._source_text_path(path, manifest).read_bytes())
+            digest.update(_source_text_path(path, manifest).read_bytes())
         return f"{DEFAULT_VERSION_PREFIX}-{digest.hexdigest()[:16]}"
 
     def _resolve_storage_root(self, message: dict[str, Any]) -> Path:
@@ -925,14 +803,6 @@ def required_string(values: dict[str, Any], key: str) -> str:
 
 def required_response_string(values: dict[str, Any], key: str, source: str) -> str:
     """Read a required non-empty string from an internal API response."""
-    value = values.get(key)
-    if not isinstance(value, str) or not value.strip():
-        raise RuntimeError(f"{source} is missing {key}")
-    return value.strip()
-
-
-def required_manifest_string(values: dict[str, Any], key: str, source: str) -> str:
-    """Read a required non-empty string from a local crawl manifest."""
     value = values.get(key)
     if not isinstance(value, str) or not value.strip():
         raise RuntimeError(f"{source} is missing {key}")
@@ -977,17 +847,6 @@ def _source_crawl_requests(message: dict[str, Any]) -> list[dict[str, Any]]:
     return requests
 
 
-def _load_script_module(filename: str):
-    """Load an AO-6 corpus build/orchestration script from the legal source tools."""
-    path = Path(__file__).resolve().parents[1] / "scripts" / filename
-    spec = importlib.util.spec_from_file_location(filename.removesuffix(".py"), path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load AO-6 script: {path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
 def _worker_root() -> Path:
     """Return the root directory of the Agent Runtime package/project."""
     return Path(__file__).resolve().parents[5]
@@ -998,40 +857,15 @@ def _sha256_text(value: str) -> str:
     return f"sha256:{hashlib.sha256(value.encode()).hexdigest()}"
 
 
-def _sha256_bytes(value: bytes) -> str:
-    """Return a tagged SHA-256 digest for source artifact bytes."""
-    return f"sha256:{hashlib.sha256(value).hexdigest()}"
-
-
 def _sha256_json(value: Any) -> str:
     """Return a tagged SHA-256 digest for canonical sorted JSON content."""
     payload = json.dumps(value, ensure_ascii=False, sort_keys=True).encode()
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
-def _safe_ref(value: str) -> str:
-    """Normalize a bounded identifier for validation/integrity manifest references."""
-    return "".join(ch if ch.isalnum() or ch in "._:-" else "-" for ch in value)[:128]
-
-
 def _safe_failure_code(error: Exception) -> str:
     """Return a bounded non-secret worker failure code for Admin projection."""
     return f"PREPARATION_{type(error).__name__.upper()}"[:120]
-
-
-def _namespace_chunks(chunks: list[dict[str, Any]], version: str) -> list[dict[str, Any]]:
-    """Make deterministic chunk IDs unique across corpus versions."""
-    prefix = _safe_ref(version)
-    mapping = {str(c["id"]): f"{prefix}::{c['id']}" for c in chunks if c.get("id")}
-    result: list[dict[str, Any]] = []
-    for chunk in chunks:
-        item = dict(chunk)
-        item["id"] = mapping.get(str(chunk.get("id") or ""), chunk.get("id"))
-        hierarchy = item.get("hierarchy")
-        if isinstance(hierarchy, dict) and hierarchy.get("parentChunkId") in mapping:
-            item["hierarchy"] = {**hierarchy, "parentChunkId": mapping[hierarchy["parentChunkId"]]}
-        result.append(item)
-    return result
 
 
 @contextmanager

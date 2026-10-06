@@ -10,7 +10,9 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
 import type { AssessmentSummary } from "../../types/workspace.types";
+import type { WorkspaceRuntimeConnectionState } from "../../types/workspace-runtime.types";
 import { AssessmentSummaryCard } from "../molecules/assessment-summary-card";
 
 type AssessmentListProps = {
@@ -25,6 +27,8 @@ type AssessmentListProps = {
   createdAtLabel: string;
   getAssessmentHref?: (assessment: AssessmentSummary) => string;
   openAssessmentLabel?: string;
+  canonicalAssessments: Record<string, CanonicalAssessmentRuntimeSnapshot>;
+  connectionState: WorkspaceRuntimeConnectionState;
 };
 
 export function AssessmentList({
@@ -39,6 +43,8 @@ export function AssessmentList({
   createdAtLabel,
   getAssessmentHref,
   openAssessmentLabel,
+  canonicalAssessments,
+  connectionState,
 }: AssessmentListProps) {
   return (
     <section
@@ -88,6 +94,8 @@ export function AssessmentList({
               createdAtLabel={createdAtLabel}
               href={getAssessmentHref?.(assessment)}
               openAssessmentLabel={openAssessmentLabel}
+              canonicalAssessment={canonicalAssessments[assessment.id] ?? null}
+              connectionState={connectionState}
             />
           ))}
         </div>

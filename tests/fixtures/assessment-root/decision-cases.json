@@ -1,0 +1,538 @@
+{
+  "fixtureId": "assessment-root-decision-cases-v1",
+  "purpose": "Synthetic authored packets for later reviewed Assessment Root live evaluation.",
+  "schemaProofBoundary": {
+    "focusedTestAsserts": [
+      "Every authored RuleDecision has the required pinned scope and structural references.",
+      "The material-fact answer with doesNotKnow=true leaves its HumanResolutionRequest OPEN and without a resolved fact.",
+      "Missing or malformed references fail where the canonical schemas define those constraints.",
+      "The same evidence identity can be referenced by decisions for more than one engineering rule."
+    ],
+    "futureSemanticEvaluation": "expectedAgentBehavior is readable review guidance for a future live eval; this packet and its test do not run an agent, classify prose, or judge semantic correctness."
+  },
+  "pinnedContext": {
+    "assessment": {
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "threadId": "22222222-2222-4222-8222-222222222222",
+      "caseRevision": 12
+    },
+    "repository": {
+      "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
+      "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+      "repositoryName": "synthetic-acme-risk-repo",
+      "files": [
+        {
+          "path": "controls/retention/customer-records.yaml",
+          "content": "retention:\n  customerRecordsDays: 30\n  statutoryHoldId: null\n",
+          "coverageGaps": [
+            "The snapshot contains no deletion log proving execution after the configured period."
+          ]
+        },
+        {
+          "path": "controls/retention/archive-records.yaml",
+          "content": "retention:\n  customerRecordsDays: 90\n  statutoryHoldId: null\n",
+          "coverageGaps": [
+            "The snapshot does not establish whether an unrecorded statutory hold exists for archived records."
+          ]
+        },
+        {
+          "path": "controls/access-review.yaml",
+          "content": "accessReview:\n  cadenceDays: 90\n  owner: platform-security\n",
+          "coverageGaps": [
+            "The snapshot does not identify the last completed review or its approver."
+          ]
+        },
+        {
+          "path": "deploy/control-plane.yaml",
+          "content": "controls:\n  retentionConfig: controls/retention/customer-records.yaml\n  accessReviewConfig: controls/access-review.yaml\n",
+          "coverageGaps": [
+            "The deployment manifest links configuration but does not prove production enforcement."
+          ]
+        },
+        {
+          "path": "telemetry/anonymous-events.yaml",
+          "content": "events:\n  payload: anonymous-service-metrics\n  containsCustomerRecords: false\n",
+          "coverageGaps": [
+            "The snapshot has no evidence about unrelated telemetry pipelines outside this repository."
+          ]
+        }
+      ],
+      "coverageGaps": [
+        "No production deletion log is present in the pinned repository snapshot.",
+        "No repository file establishes whether a legal hold exists when its identifier is absent.",
+        "The snapshot does not cover runtime behavior outside the listed configuration files."
+      ]
+    },
+    "legal": {
+      "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+      "portfolioLabel": "Synthetic Data Governance Portfolio 2026.10",
+      "contexts": [
+        {
+          "legalContextId": "CTX-CUSTOMER-RETENTION",
+          "title": "Customer record retention",
+          "limitingDefinition": "For this rule, a regulated customer record means customer-provided data stored in production after service completion; transient telemetry and source-controlled fixtures are excluded.",
+          "ruleText": "A regulated customer record must be deleted within 30 days after service completion.",
+          "exceptionText": "A documented statutory hold may extend the period only while a hold identifier is recorded for the affected records.",
+          "coverageGaps": [
+            "The portfolio does not define a default retention period when the service-completion date is absent."
+          ]
+        },
+        {
+          "legalContextId": "CTX-ACCESS-REVIEW",
+          "title": "Privileged access review",
+          "limitingDefinition": "For this rule, privileged access means production access that can read or change customer records; break-glass access without customer-record reach is excluded.",
+          "ruleText": "Privileged production access must be reviewed at least every 90 days.",
+          "exceptionText": "A temporary emergency grant may remain active during an incident only when its expiry and incident identifier are recorded.",
+          "coverageGaps": [
+            "The portfolio does not define how to assess an access review when the approver record is missing."
+          ]
+        },
+        {
+          "legalContextId": "CTX-ANONYMOUS-TELEMETRY",
+          "title": "Regulated-record scope boundary",
+          "limitingDefinition": "Anonymous service metrics with no customer-record payload are outside the regulated customer-record retention rule.",
+          "ruleText": "The customer-record retention requirement applies only to regulated customer records.",
+          "exceptionText": "No exception is needed for telemetry that remains outside the limiting definition.",
+          "coverageGaps": [
+            "The snapshot cannot establish whether a downstream telemetry processor adds customer-record fields."
+          ]
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "evidenceId": "77777777-7777-4777-8777-777777777777",
+        "sourcePath": "controls/retention/customer-records.yaml",
+        "kind": "REPOSITORY_FILE",
+        "excerpt": "customerRecordsDays: 30; statutoryHoldId: null",
+        "coverageNote": "Configuration is present; runtime deletion execution is not evidenced."
+      },
+      {
+        "evidenceId": "88888888-8888-4888-8888-888888888888",
+        "sourcePath": "controls/retention/archive-records.yaml",
+        "kind": "REPOSITORY_FILE",
+        "excerpt": "customerRecordsDays: 90; statutoryHoldId: null",
+        "coverageNote": "The configured archive period exceeds the rule limit and no hold identifier is recorded."
+      },
+      {
+        "evidenceId": "99999999-9999-4999-8999-999999999999",
+        "sourcePath": "telemetry/anonymous-events.yaml",
+        "kind": "REPOSITORY_FILE",
+        "excerpt": "payload: anonymous-service-metrics; containsCustomerRecords: false",
+        "coverageNote": "The file describes anonymous telemetry only; downstream processors are outside the snapshot."
+      },
+      {
+        "evidenceId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "sourcePath": "deploy/control-plane.yaml",
+        "kind": "REPOSITORY_FILE",
+        "excerpt": "retentionConfig and accessReviewConfig are linked from the deployment manifest",
+        "coverageNote": "This deployment evidence is intentionally shared by two rule decisions."
+      },
+      {
+        "evidenceId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        "sourcePath": "controls/access-review.yaml",
+        "kind": "REPOSITORY_FILE",
+        "excerpt": "cadenceDays: 90; owner: platform-security",
+        "coverageNote": "The configured cadence is present; completion and approval records are absent."
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "applicable-compliant",
+      "scenarioInput": {
+        "request": "Assess the customer-record retention rule for the primary production data scope.",
+        "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+        "scopeId": "scope-primary-production-data",
+        "availableEvidenceIds": ["77777777-7777-4777-8777-777777777777"],
+        "knownFacts": [
+          "The repository configures a 30-day customer-record period.",
+          "No statutory hold identifier is recorded in this configuration."
+        ],
+        "knownGaps": [
+          "Runtime deletion execution is not shown by the pinned snapshot."
+        ]
+      },
+      "expectedAgentBehavior": [
+        "The Assessment Root decides that the rule applies to the stated production scope using the limiting definition.",
+        "The Root can select COMPLIANT when every submitted criterion is MET; it must preserve the runtime-enforcement coverage gap in review notes.",
+        "The Root cites the pinned legal context and repository evidence rather than treating an agent assertion as authority."
+      ],
+      "expected": {
+        "decisions": [
+          {
+            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+            "engineeringRuleVersion": "retention-v1",
+            "scopeId": "scope-primary-production-data",
+            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
+            "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+            "caseRevision": 12,
+            "legalContextRefs": [
+              {
+                "legalContextId": "CTX-CUSTOMER-RETENTION"
+              }
+            ],
+            "applicability": "APPLICABLE",
+            "rationale": "The primary production data scope contains customer-provided records covered by the limiting definition.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "77777777-7777-4777-8777-777777777777"
+              }
+            ],
+            "criteria": [
+              {
+                "criterionId": "CR-RETENTION-WITHIN-30-DAYS",
+                "outcome": "MET",
+                "rationale": "The pinned configuration sets customer-record retention to 30 days.",
+                "references": [
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "77777777-7777-4777-8777-777777777777"
+                  }
+                ]
+              }
+            ],
+            "compliance": "COMPLIANT"
+          }
+        ],
+        "humanResolution": null
+      }
+    },
+    {
+      "id": "applicable-non-compliant",
+      "scenarioInput": {
+        "request": "Assess the customer-record retention rule for the archive data scope.",
+        "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+        "scopeId": "scope-archive-data",
+        "availableEvidenceIds": ["88888888-8888-4888-8888-888888888888"],
+        "knownFacts": [
+          "The repository configures a 90-day customer-record period.",
+          "The pinned archive configuration has no recorded statutory hold identifier."
+        ],
+        "knownGaps": [
+          "The snapshot does not establish whether an unrecorded hold exists for archived records."
+        ]
+      },
+      "expectedAgentBehavior": [
+        "The Assessment Root decides applicability before compliance and keeps the archive scope within the limiting definition.",
+        "The Root can select NON_COMPLIANT when a required criterion is NOT_MET; it must not invent a legal-hold fact from the absence of a log.",
+        "The exception text remains visible so a later governed fact resolution could change the decision rather than silently being treated as approval."
+      ],
+      "expected": {
+        "decisions": [
+          {
+            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+            "engineeringRuleVersion": "retention-v1",
+            "scopeId": "scope-archive-data",
+            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
+            "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+            "caseRevision": 12,
+            "legalContextRefs": [
+              {
+                "legalContextId": "CTX-CUSTOMER-RETENTION"
+              }
+            ],
+            "applicability": "APPLICABLE",
+            "rationale": "The archive scope contains regulated customer records, so the customer-record retention rule applies.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "88888888-8888-4888-8888-888888888888"
+              }
+            ],
+            "criteria": [
+              {
+                "criterionId": "CR-RETENTION-WITHIN-30-DAYS",
+                "outcome": "NOT_MET",
+                "rationale": "The pinned archive configuration sets customer-record retention to 90 days, exceeding the 30-day limit.",
+                "references": [
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "88888888-8888-4888-8888-888888888888"
+                  }
+                ]
+              }
+            ],
+            "compliance": "NON_COMPLIANT"
+          }
+        ],
+        "humanResolution": null
+      }
+    },
+    {
+      "id": "not-applicable",
+      "scenarioInput": {
+        "request": "Assess the customer-record retention rule for the anonymous telemetry stream.",
+        "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+        "scopeId": "scope-anonymous-telemetry",
+        "availableEvidenceIds": ["99999999-9999-4999-8999-999999999999"],
+        "knownFacts": [
+          "The pinned file describes anonymous service metrics and explicitly says it contains no customer-record payload."
+        ],
+        "knownGaps": [
+          "Downstream telemetry processors are outside the pinned snapshot."
+        ]
+      },
+      "expectedAgentBehavior": [
+        "The Assessment Root decides NOT_APPLICABLE from the limiting definition; it does not turn an out-of-scope stream into a compliance result.",
+        "The decision has no criteria and no compliance outcome, while retaining the evidence that established the scope boundary.",
+        "The downstream-processor coverage gap remains visible for a separately scoped assessment."
+      ],
+      "expected": {
+        "decisions": [
+          {
+            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+            "engineeringRuleVersion": "retention-v1",
+            "scopeId": "scope-anonymous-telemetry",
+            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
+            "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+            "caseRevision": 12,
+            "legalContextRefs": [
+              {
+                "legalContextId": "CTX-ANONYMOUS-TELEMETRY"
+              }
+            ],
+            "applicability": "NOT_APPLICABLE",
+            "rationale": "The pinned telemetry payload is anonymous service metrics outside the limiting definition of a regulated customer record.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "99999999-9999-4999-8999-999999999999"
+              }
+            ],
+            "criteria": [],
+            "compliance": null
+          }
+        ],
+        "humanResolution": null
+      }
+    },
+    {
+      "id": "material-human-fact-unknown",
+      "scenarioInput": {
+        "request": "Assess whether the archive retention exception applies when the repository has no hold identifier.",
+        "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+        "scopeId": "scope-archive-data",
+        "availableEvidenceIds": ["88888888-8888-4888-8888-888888888888"],
+        "knownFacts": [
+          "The archive configuration records a 90-day period and no hold identifier.",
+          "The legal exception requires a documented statutory hold."
+        ],
+        "materialFactStillUnknown": "Whether a statutory hold exists for the archived records even though this repository snapshot contains no hold identifier.",
+        "knownGaps": [
+          "Repository absence alone does not establish the real-world hold status."
+        ]
+      },
+      "expectedAgentBehavior": [
+        "The Assessment Root asks the human for the material fact and does not delegate approval or compliance authority to the answer.",
+        "A doesNotKnow=true answer records that the fact is still unavailable; it does not create a resolved fact or a final decision.",
+        "The request remains OPEN without a resolvedFactRef, so the genuine coverage gap is preserved for later governed handling."
+      ],
+      "expected": {
+        "decisions": [],
+        "humanResolution": {
+          "openRequest": {
+            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+            "criterionIds": ["CR-STATUTORY-HOLD-APPLIES"],
+            "question": "Does a documented statutory hold apply to the archived customer records in scope?",
+            "unresolvedFact": "Whether a statutory hold exists even though no hold identifier appears in the pinned repository snapshot.",
+            "decisionImpact": [
+              "A confirmed hold could permit the retention exception; an unknown answer cannot establish the exception."
+            ],
+            "resolutionAttempts": [
+              "Inspected the pinned archive configuration and legal context.",
+              "Found no hold identifier in the repository snapshot."
+            ],
+            "controlType": "SINGLE_CHOICE",
+            "choices": [
+              {
+                "value": "HOLD_CONFIRMED",
+                "label": "A documented statutory hold applies"
+              },
+              {
+                "value": "HOLD_NOT_CONFIRMED",
+                "label": "No documented statutory hold applies"
+              }
+            ],
+            "requestId": "33333333-3333-4333-8333-333333333333",
+            "assessmentId": "11111111-1111-4111-8111-111111111111",
+            "threadId": "22222222-2222-4222-8222-222222222222",
+            "caseRevision": 12,
+            "status": "OPEN",
+            "answers": [],
+            "createdAt": "2026-10-05T10:00:00.000Z"
+          },
+          "answer": {
+            "expectedCaseRevision": 12,
+            "doesNotKnow": true
+          },
+          "afterUnknownAnswer": {
+            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+            "criterionIds": ["CR-STATUTORY-HOLD-APPLIES"],
+            "question": "Does a documented statutory hold apply to the archived customer records in scope?",
+            "unresolvedFact": "Whether a statutory hold exists even though no hold identifier appears in the pinned repository snapshot.",
+            "decisionImpact": [
+              "A confirmed hold could permit the retention exception; an unknown answer cannot establish the exception."
+            ],
+            "resolutionAttempts": [
+              "Inspected the pinned archive configuration and legal context.",
+              "Found no hold identifier in the repository snapshot."
+            ],
+            "controlType": "SINGLE_CHOICE",
+            "choices": [
+              {
+                "value": "HOLD_CONFIRMED",
+                "label": "A documented statutory hold applies"
+              },
+              {
+                "value": "HOLD_NOT_CONFIRMED",
+                "label": "No documented statutory hold applies"
+              }
+            ],
+            "requestId": "33333333-3333-4333-8333-333333333333",
+            "assessmentId": "11111111-1111-4111-8111-111111111111",
+            "threadId": "22222222-2222-4222-8222-222222222222",
+            "caseRevision": 12,
+            "status": "OPEN",
+            "answers": [
+              {
+                "doesNotKnow": true,
+                "answeredAt": "2026-10-05T10:05:00.000Z"
+              }
+            ],
+            "createdAt": "2026-10-05T10:00:00.000Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "shared-evidence-across-two-rules",
+      "scenarioInput": {
+        "request": "Assess retention and privileged-access review controls together from the same deployment snapshot.",
+        "engineeringRuleIds": [
+          "ER-CUSTOMER-RETENTION",
+          "ER-PRIVILEGED-ACCESS-REVIEW"
+        ],
+        "scopeIds": [
+          "scope-primary-production-data",
+          "scope-production-admin-access"
+        ],
+        "sharedEvidenceId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "availableEvidenceIds": [
+          "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "77777777-7777-4777-8777-777777777777",
+          "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+        ],
+        "knownFacts": [
+          "The deployment manifest links both the retention and access-review configurations.",
+          "The linked configurations set 30-day retention and a 90-day access-review cadence."
+        ],
+        "knownGaps": [
+          "The manifest and configurations do not prove runtime enforcement, completion, or approval."
+        ]
+      },
+      "expectedAgentBehavior": [
+        "The Assessment Root may produce more than one RuleDecision from one investigation; one-rule-one-agent routing is not assumed.",
+        "Both decisions retain the same pinned deployment evidence identity while keeping rule-specific legal context and criteria separate.",
+        "The Root decides each rule independently and preserves the shared enforcement coverage gap for later review."
+      ],
+      "expected": {
+        "decisions": [
+          {
+            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+            "engineeringRuleVersion": "retention-v1",
+            "scopeId": "scope-primary-production-data",
+            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
+            "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+            "caseRevision": 12,
+            "legalContextRefs": [
+              {
+                "legalContextId": "CTX-CUSTOMER-RETENTION"
+              }
+            ],
+            "applicability": "APPLICABLE",
+            "rationale": "The deployment manifest links the in-scope retention configuration for customer records.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "77777777-7777-4777-8777-777777777777"
+              }
+            ],
+            "criteria": [
+              {
+                "criterionId": "CR-RETENTION-WITHIN-30-DAYS",
+                "outcome": "MET",
+                "rationale": "The linked retention configuration sets customer-record retention to 30 days.",
+                "references": [
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                  },
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "77777777-7777-4777-8777-777777777777"
+                  }
+                ]
+              }
+            ],
+            "compliance": "COMPLIANT"
+          },
+          {
+            "engineeringRuleId": "ER-PRIVILEGED-ACCESS-REVIEW",
+            "engineeringRuleVersion": "access-review-v1",
+            "scopeId": "scope-production-admin-access",
+            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
+            "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
+            "caseRevision": 12,
+            "legalContextRefs": [
+              {
+                "legalContextId": "CTX-ACCESS-REVIEW"
+              }
+            ],
+            "applicability": "APPLICABLE",
+            "rationale": "The production admin access scope can read or change customer records and is covered by the privileged-access definition.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+              }
+            ],
+            "criteria": [
+              {
+                "criterionId": "CR-ACCESS-REVIEW-EVERY-90-DAYS",
+                "outcome": "MET",
+                "rationale": "The linked access-review configuration sets a 90-day cadence.",
+                "references": [
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                  },
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+                  }
+                ]
+              }
+            ],
+            "compliance": "COMPLIANT"
+          }
+        ],
+        "humanResolution": null
+      }
+    }
+  ]
+}

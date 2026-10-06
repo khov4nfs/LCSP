@@ -3,9 +3,10 @@
 import {
   ASSESSMENT_FLOW_STAGES,
   ASSESSMENT_REPOSITORY_PROVIDERS,
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
 import {
-  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   ASSESSMENT_AGENT_STREAM_STAGES,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
@@ -40,12 +41,10 @@ import {
 import { useAssessmentRuntimeControl } from "@/lib/api/assessment-runtime-control-queries";
 import { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
 import { isGraphOverviewReadyFor } from "@/lib/api/evidence-graph-overview-client";
-import { useAssessmentsQuery } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
 
 import {
   PIPELINE_CONTINUE_FAILED_MESSAGE_KEY,
-  PIPELINE_CONTINUE_FINISHED_STATUSES,
   pipelineContinueMessageKey,
 } from "../../config/pipeline-continue";
 import { useAssessmentRuntimeViewModel } from "../../hooks/use-assessment-runtime-view-model";
@@ -56,7 +55,6 @@ import {
   shouldShowAgentStreamHistoryAction,
 } from "../../utils/agent-stream-projection";
 import {
-  deriveLatestAgentStreamTurnState,
   groupAgentStreamEventsByRun,
   groupAgentStreamEventsByStage,
   interleaveInterviewTranscript,
@@ -333,17 +331,7 @@ function AssessmentInterviewFlow({
   const workflow = selectWorkflowPresentation(normalized);
   const customerActions = selectCustomerActions(normalized);
   const composerAvailability = selectComposerAvailability(normalized);
-  const assessmentsQuery = useAssessmentsQuery();
-  const assessmentStatus =
-    assessmentsQuery.data?.kind === API_OUTCOME_KINDS.loaded
-      ? (assessmentsQuery.data.assessments.find(
-          (assessment) => assessment.id === assessmentId,
-        )?.status ?? null)
-      : null;
-  const interviewHandoff = selectInterviewHandoffPresentation(
-    normalized,
-    assessmentStatus,
-  );
+  const interviewHandoff = selectInterviewHandoffPresentation(normalized);
   const postFinding = selectPostFindingPresentation(normalized);
   // Kept only as an autoScrollKey signal below: Rule-analysis activity
   // itself now renders exclusively through interviewTranscript (per-turn,
@@ -353,14 +341,14 @@ function AssessmentInterviewFlow({
     () => groupAgentStreamEventsByStage(liveTimeline.agentStreamEvents ?? []),
     [liveTimeline.agentStreamEvents],
   );
+  const canonicalLifecycleState =
+    liveTimeline.canonicalAssessment?.lifecycle?.state ?? null;
+  const canonicalExecutionState =
+    liveTimeline.canonicalAssessment?.runtime?.executionState ?? null;
   const boundaryPaused =
-    groupAgentStreamEventsByRun(liveTimeline.agentStreamEvents ?? [])
-      .at(-1)
-      ?.events.some(
-        (event) =>
-          event.eventType ===
-          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused,
-      ) ?? false;
+    canonicalLifecycleState === ASSESSMENT_LIFECYCLE_STATES.PAUSED ||
+    canonicalExecutionState === AGENT_EXECUTION_STATES.INTERRUPTED ||
+    canonicalExecutionState === AGENT_EXECUTION_STATES.PAUSED;
   // Which downstream stage is actively running right now, if any — drives a
   // composer placeholder that reflects what's really happening (planning,
   // investigating, reviewing) instead of always saying "waiting on Interview"
@@ -370,14 +358,13 @@ function AssessmentInterviewFlow({
       ASSESSMENT_AGENT_STREAM_STAGES.gate,
       ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
     ] as const;
+    if (canonicalExecutionState !== AGENT_EXECUTION_STATES.RUNNING) {
+      return null;
+    }
     return (
-      priority.find(
-        (stage) =>
-          deriveLatestAgentStreamTurnState(stageEvents.byStage[stage]) ===
-          "running",
-      ) ?? null
+      priority.find((stage) => stageEvents.byStage[stage].length > 0) ?? null
     );
-  }, [stageEvents]);
+  }, [canonicalExecutionState, stageEvents]);
   const downstreamPlaceholderKey =
     runningDownstreamStage === ASSESSMENT_AGENT_STREAM_STAGES.gate
       ? "pages.assessmentFlow.interview.gatePlaceholder"
@@ -394,10 +381,10 @@ function AssessmentInterviewFlow({
   const activeRuntimeControl = useMemo(
     () =>
       selectAssessmentComposerRuntimeControl(
-        liveTimeline.agentStreamEvents ?? [],
+        liveTimeline.canonicalAssessment,
         runtimeControl.control.data,
       ),
-    [liveTimeline.agentStreamEvents, runtimeControl.control.data],
+    [liveTimeline.canonicalAssessment, runtimeControl.control.data],
   );
   const runtimeControlState = runtimeControl.stop.isPending
     ? ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested
@@ -740,16 +727,18 @@ function AssessmentInterviewFlow({
     runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.running &&
     runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested &&
     runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested &&
-    (boundaryPaused || interviewEnabled) &&
+    (canonicalLifecycleState ===
+      ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
+      canonicalLifecycleState ===
+        ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_REQUIRED_INPUT ||
+      canonicalLifecycleState === ASSESSMENT_LIFECYCLE_STATES.PAUSED ||
+      canonicalLifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED ||
+      canonicalLifecycleState === ASSESSMENT_LIFECYCLE_STATES.FAILED) &&
     !scanFailed &&
     !hasComposerDraft &&
     (boundaryPaused ||
       !(customerActions.canAnswerQuestion && activeQuestion)) &&
     !customerActions.canSubmitBlockedAction &&
-    !(
-      assessmentStatus !== null &&
-      PIPELINE_CONTINUE_FINISHED_STATUSES.has(assessmentStatus)
-    ) &&
     (boundaryPaused || !interviewHandoff.isGenuinelyPending) &&
     !submitAnswer.isPending &&
     !recordBlockedAction.isPending &&

@@ -20,6 +20,10 @@ import {
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import {
+  projectCanonicalAssessment,
+  type PersistedCanonicalAssessmentRow,
+} from "../../../../../platform/runtime-events/canonical-assessment-projection.js";
 import { cleanString, isRecord } from "@lcsp/contracts/shared";
 import type {
   AssessmentDetailDto,
@@ -64,6 +68,13 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
     ) {
       this.throwNotFound(query.correlationId);
     }
+
+    const canonical = await this.loadCanonicalAssessment(assessment.id);
+    const projection = projectCanonicalAssessment(
+      assessment.id,
+      canonical,
+      query.correlationId,
+    );
 
     const latestScan = await this.prisma.repositoryScanJob.findFirst({
       where: {
@@ -177,6 +188,8 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       assessment_id: assessment.id,
       name: assessment.name,
       status: assessment.status,
+      lifecycle: projection.lifecycle,
+      runtime: projection.runtime,
       owner_id: assessment.ownerId,
       readiness_state: readinessState,
       guardrail_status: classificationResult
@@ -219,6 +232,35 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
         locator: true,
         content: true,
         hierarchy: true,
+      },
+    });
+  }
+
+  private async loadCanonicalAssessment(
+    assessmentId: string,
+  ): Promise<PersistedCanonicalAssessmentRow | null> {
+    return this.prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      select: {
+        id: true,
+        lifecycleState: true,
+        lifecycleRevision: true,
+        blockerReason: true,
+        blockerReference: true,
+        runtime: {
+          select: {
+            threadId: true,
+            rootAgentVersion: true,
+            checkpointNamespace: true,
+            checkpointId: true,
+            currentExecutionId: true,
+            executionState: true,
+            eventSequence: true,
+            startedAt: true,
+            lastResumedAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
   }

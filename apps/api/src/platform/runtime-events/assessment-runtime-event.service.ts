@@ -1,7 +1,10 @@
 import {
+  assessmentEventSchema,
+  type AssessmentEvent,
+} from "@lcsp/contracts/assessment";
+import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   ASSESSMENT_AGENT_STREAM_STAGES,
-  ASSESSMENT_PIPELINE_LIVENESS_WINDOW_SECONDS,
   ASSESSMENT_RUNTIME_CONTROL_STATES,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_PIPELINE_CONTROL_REASONS,
@@ -34,6 +37,7 @@ import {
   type AssessmentRuntimeSnapshot,
   type AssessmentRuntimeStageCode,
   type AssessmentRuntimeSummaryValue,
+  type CanonicalAssessmentRuntimeSnapshot,
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
@@ -51,16 +55,12 @@ import {
   Observable,
   ReplaySubject,
 } from "rxjs";
-import {
-  deriveStageLifecycles,
-  type StageLifecycleInterviewThread,
-} from "./stage-lifecycle.js";
-
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
+import { STALE_REPOSITORY_SCAN_BLOCKED_REASON } from "../scan/repository-scan-staleness.js";
 import {
-  failStaleRepositoryScanJobs,
-  STALE_REPOSITORY_SCAN_BLOCKED_REASON,
-} from "../scan/repository-scan-staleness.js";
+  projectCanonicalAssessment,
+  type PersistedCanonicalAssessmentRow,
+} from "./canonical-assessment-projection.js";
 import {
   sanitizeAgentStreamIdentifier,
   sanitizeAgentStreamText,
@@ -808,11 +808,9 @@ export class AssessmentRuntimeEventService {
    */
   async buildWorkspaceSnapshot(
     ownerId?: string,
+    correlationId = "",
   ): Promise<AssessmentRuntimeSnapshot> {
     const emittedAt = new Date().toISOString();
-    await failStaleRepositoryScanJobs(this.prisma, {
-      now: new Date(emittedAt),
-    });
     const [events, repositorySnapshots, scanJobs, evidenceReports] =
       await Promise.all([
         this.safeFindMany({
@@ -881,37 +879,11 @@ export class AssessmentRuntimeEventService {
       .slice(0, 50);
     const runs = deriveRuns(recentActivity).slice(0, 20);
     const postFindingStates = deriveLatestPostFindingStates(events);
-    // Stage status comes from durable artifacts, never from the activity log:
-    // see platform/runtime-events/stage-lifecycle.ts.
-    const assessmentIds = new Set<string>([
-      ...scanJobs.map((job) => job.assessmentId),
-      ...evidenceReports.map((report) => report.assessmentId),
-      ...recentActivity.map((event) => event.assessmentId),
-    ]);
-    const interviewThreads = assessmentIds.size
-      ? await this.safeInterviewThreads([...assessmentIds])
-      : [];
-    const liveWindowStart =
-      Date.now() - ASSESSMENT_PIPELINE_LIVENESS_WINDOW_SECONDS * 1_000;
-    const stageLifecycles = deriveStageLifecycles({
-      assessmentIds,
-      scanJobs: scanJobs.map((job) => ({
-        assessmentId: job.assessmentId,
-        status: job.status,
-        updatedAt: job.updatedAt.toISOString(),
-      })),
-      evidenceReports: evidenceReports.map((report) => ({
-        assessmentId: report.assessmentId,
-        status: report.status,
-      })),
-      interviewThreads,
-      engineeringProgress,
-      liveAssessmentIds: new Set(
-        recentActivity
-          .filter((event) => Date.parse(event.emittedAt) >= liveWindowStart)
-          .map((event) => event.assessmentId),
-      ),
-    });
+    const canonicalAssessments = await this.readCanonicalAssessments(
+      ownerId,
+      correlationId,
+    );
+    const canonicalEvents = await this.readCanonicalEvents(ownerId);
 
     return {
       emittedAt,
@@ -948,33 +920,104 @@ export class AssessmentRuntimeEventService {
         createdAt: report.createdAt.toISOString(),
       })),
       postFindingStates,
-      stageLifecycles,
+      // Lifecycle is no longer inferred from V1 stage/artifact records.
+      stageLifecycles: [],
+      canonicalAssessments,
+      canonicalEvents,
     };
   }
 
-  /** Interview threads for the lifecycle projection; never fails the snapshot. */
-  private async safeInterviewThreads(
-    assessmentIds: string[],
-  ): Promise<StageLifecycleInterviewThread[]> {
-    try {
-      const threads = await this.prisma.assessmentInterviewThread.findMany({
-        where: { assessmentId: { in: assessmentIds } },
-        select: {
-          assessmentId: true,
-          contextRevision: true,
-          processedRevision: true,
-          activeQuestionId: true,
+  /** Reads only canonical ALS/AES rows; absent migrated rows remain unavailable. */
+  private async readCanonicalAssessments(
+    ownerId?: string,
+    correlationId = "",
+  ): Promise<CanonicalAssessmentRuntimeSnapshot[]> {
+    const rows = await this.prisma.assessment.findMany({
+      where: ownerId ? { ownerId } : undefined,
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        lifecycleState: true,
+        lifecycleRevision: true,
+        blockerReason: true,
+        blockerReference: true,
+        runtime: {
+          select: {
+            threadId: true,
+            rootAgentVersion: true,
+            checkpointNamespace: true,
+            checkpointId: true,
+            currentExecutionId: true,
+            executionState: true,
+            eventSequence: true,
+            startedAt: true,
+            lastResumedAt: true,
+            updatedAt: true,
+          },
         },
+      },
+    });
+    return rows.map((row) =>
+      projectCanonicalAssessment(
+        row.id,
+        row as PersistedCanonicalAssessmentRow,
+        correlationId,
+      ),
+    );
+  }
+
+  /** Canonical event history for SSE; activity projections remain secondary. */
+  private async readCanonicalEvents(
+    ownerId?: string,
+  ): Promise<AssessmentEvent[]> {
+    const rows = await this.prisma.assessmentEvent.findMany({
+      where: ownerId ? { assessment: { ownerId } } : undefined,
+      orderBy: [{ timestamp: "desc" }, { sequence: "desc" }],
+      take: 200,
+      select: {
+        eventId: true,
+        assessmentId: true,
+        threadId: true,
+        sequence: true,
+        timestamp: true,
+        eventType: true,
+        actorType: true,
+        executionId: true,
+        parentExecutionId: true,
+        taskId: true,
+        toolCallId: true,
+        tokenUsage: true,
+        technicalDetailsRef: true,
+        payload: true,
+      },
+    });
+    return rows.map((row) => {
+      const parsed = assessmentEventSchema.safeParse({
+        eventId: row.eventId,
+        assessmentId: row.assessmentId,
+        threadId: row.threadId,
+        sequence: row.sequence,
+        timestamp: row.timestamp.toISOString(),
+        eventType: row.eventType,
+        actorType: row.actorType,
+        ...(row.executionId ? { executionId: row.executionId } : {}),
+        ...(row.parentExecutionId
+          ? { parentExecutionId: row.parentExecutionId }
+          : {}),
+        ...(row.taskId ? { taskId: row.taskId } : {}),
+        ...(row.toolCallId ? { toolCallId: row.toolCallId } : {}),
+        ...(row.tokenUsage ? { tokenUsage: row.tokenUsage } : {}),
+        ...(row.technicalDetailsRef
+          ? { technicalDetailsRef: row.technicalDetailsRef }
+          : {}),
+        payload: row.payload,
       });
-      return threads.map((thread) => ({
-        assessmentId: thread.assessmentId,
-        contextRevision: thread.contextRevision,
-        processedRevision: thread.processedRevision,
-        activeQuestionId: thread.activeQuestionId,
-      }));
-    } catch {
-      return [];
-    }
+      if (!parsed.success) {
+        throw new Error("Invalid persisted assessment event");
+      }
+      return parsed.data;
+    });
   }
 
   /**

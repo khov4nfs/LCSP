@@ -19,8 +19,6 @@ export type AssessmentComposerProps = {
   submitReady?: boolean;
   resumeAvailable?: boolean;
   className?: string;
-  turnRunning?: boolean;
-  turnPaused?: boolean;
   onInterruptTurn?: () => void;
   onResumeTurn?: () => void;
   interruptingTurn?: boolean;

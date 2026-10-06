@@ -1,5 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
   ASSESSMENT_LOCK_REASONS,
   ASSESSMENT_MISSING_EVIDENCE_CODES,
 } from "@lcsp/contracts/assessment";
@@ -61,6 +63,25 @@ function buildHandler(input: {
     createdAt?: Date;
   }>;
   legalChunks?: LegalChunkFixture[];
+  canonicalError?: Error;
+  canonical?: {
+    lifecycleState: string | null;
+    lifecycleRevision: number | null;
+    blockerReason: string | null;
+    blockerReference: unknown;
+    runtime: {
+      threadId: string;
+      rootAgentVersion: string;
+      checkpointNamespace: string;
+      checkpointId: string | null;
+      currentExecutionId: string | null;
+      executionState: string;
+      eventSequence: number;
+      startedAt: Date | null;
+      lastResumedAt: Date | null;
+      updatedAt: Date;
+    } | null;
+  } | null;
 }) {
   const repository: AssessmentRepository = {
     findById: jest
@@ -104,6 +125,13 @@ function buildHandler(input: {
     repositoryScanJob: {
       findFirst: resolvedMock(scanJob),
     },
+    assessment: {
+      findUnique: input.canonicalError
+        ? jest
+            .fn<() => Promise<never>>()
+            .mockRejectedValue(input.canonicalError)
+        : resolvedMock(input.canonical ?? null),
+    },
     technicalEvidenceReport: {
       findFirst: resolvedMock(acceptedEvidenceReport),
     },
@@ -145,6 +173,167 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
     expect(result.legal_rule_match_guardrail_status).toBeNull();
     expect(result.legal_rule_match_diagnostics).toBeNull();
     expect(result.can_rerun_classification).toBe(false);
+  });
+
+  it("reads persisted lifecycle and runtime state without deriving it from V1 status", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({
+      assessment,
+      canonical: {
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        lifecycleRevision: 3,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: {
+          threadId: "22222222-2222-4222-8222-222222222222",
+          rootAgentVersion: "assessment-root-v2",
+          checkpointNamespace: assessment.id,
+          checkpointId: "44444444-4444-4444-8444-444444444444",
+          currentExecutionId: "33333333-3333-4333-8333-333333333333",
+          executionState: AGENT_EXECUTION_STATES.RUNNING,
+          eventSequence: 4,
+          startedAt: new Date("2026-09-20T00:00:00.000Z"),
+          lastResumedAt: null,
+          updatedAt: new Date("2026-09-20T00:02:00.000Z"),
+        },
+      },
+    });
+
+    const result = await handler.execute(query(assessment.id));
+
+    expect(result.lifecycle).toEqual({
+      state: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+      assessmentRevision: 3,
+    });
+    expect(result.runtime).toEqual({
+      threadId: "22222222-2222-4222-8222-222222222222",
+      rootAgentVersion: "assessment-root-v2",
+      checkpointNamespace: assessment.id,
+      checkpointId: "44444444-4444-4444-8444-444444444444",
+      currentExecutionId: "33333333-3333-4333-8333-333333333333",
+      executionState: AGENT_EXECUTION_STATES.RUNNING,
+      eventSequence: 4,
+      startedAt: "2026-09-20T00:00:00.000Z",
+      lastResumedAt: null,
+      updatedAt: "2026-09-20T00:02:00.000Z",
+    });
+  });
+
+  it("rejects invalid canonical runtime identifiers, namespace, and counters", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({
+      assessment,
+      canonical: {
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        lifecycleRevision: 3,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: {
+          threadId: "not-a-uuid",
+          rootAgentVersion: "assessment-root-v2",
+          checkpointNamespace: "wrong-namespace",
+          checkpointId: null,
+          currentExecutionId: null,
+          executionState: AGENT_EXECUTION_STATES.RUNNING,
+          eventSequence: -1,
+          startedAt: null,
+          lastResumedAt: null,
+          updatedAt: new Date("2026-09-20T00:02:00.000Z"),
+        },
+      },
+    });
+
+    await expect(handler.execute(query(assessment.id))).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("rejects a valid UUID checkpoint namespace belonging to another assessment", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({
+      assessment,
+      canonical: {
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        lifecycleRevision: 3,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: {
+          threadId: "22222222-2222-4222-8222-222222222222",
+          rootAgentVersion: "assessment-root-v2",
+          checkpointNamespace: "99999999-9999-4999-8999-999999999999",
+          checkpointId: null,
+          currentExecutionId: null,
+          executionState: AGENT_EXECUTION_STATES.QUEUED,
+          eventSequence: 0,
+          startedAt: null,
+          lastResumedAt: null,
+          updatedAt: new Date("2026-09-20T00:00:00.000Z"),
+        },
+      },
+    });
+
+    await expect(handler.execute(query(assessment.id))).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("keeps genuinely absent V1 canonical data explicitly unavailable", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({ assessment, canonical: null });
+
+    const result = await handler.execute(query(assessment.id));
+
+    expect(result.lifecycle).toBeNull();
+    expect(result.runtime).toBeNull();
+  });
+
+  it("keeps all-null V1 canonical fields explicitly unavailable", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({
+      assessment,
+      canonical: {
+        lifecycleState: null,
+        lifecycleRevision: null,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: null,
+      },
+    });
+
+    const result = await handler.execute(query(assessment.id));
+
+    expect(result.lifecycle).toBeNull();
+    expect(result.runtime).toBeNull();
+  });
+
+  it("fails closed on malformed non-null canonical lifecycle data", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({
+      assessment,
+      canonical: {
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        lifecycleRevision: null,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: null,
+      },
+    });
+
+    await expect(handler.execute(query(assessment.id))).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("propagates canonical database failures instead of treating them as absent", async () => {
+    const assessment = makeAssessment();
+    const handler = buildHandler({
+      assessment,
+      canonicalError: new Error("canonical database unavailable"),
+    });
+
+    await expect(handler.execute(query(assessment.id))).rejects.toThrow(
+      "canonical database unavailable",
+    );
   });
 
   it("unlocks immediately after accepted TechnicalEvidenceReport and waits for direct worker", async () => {

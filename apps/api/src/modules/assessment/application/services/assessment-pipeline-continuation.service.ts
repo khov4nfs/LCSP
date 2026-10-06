@@ -1,6 +1,6 @@
 import {
-  ASSESSMENT_STATUS_CODES,
-  type AssessmentStatusCode,
+  ASSESSMENT_ERROR_CODES,
+  ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
 import { AUDIT_ACTOR_TYPES, type AuditActorType } from "@lcsp/contracts/audit";
 import {
@@ -18,19 +18,13 @@ import {
   ASSESSMENT_RUNTIME_CONTROL_ACTIONS,
   ASSESSMENT_RUNTIME_CONTROL_STATES,
 } from "@lcsp/contracts/evidence";
-import { fromPrismaAssessmentStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { AssessmentRuntimeControlService } from "../../../../platform/runtime-events/assessment-runtime-control.service.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { RerunClassificationCommand } from "../../../classification/application/commands/rerun-classification/rerun-classification.command.js";
 import { AssessmentInterviewRuntimeService } from "./assessment-interview-runtime.service.js";
-
-export const FINISHED_ASSESSMENT_STATUSES = new Set<AssessmentStatusCode>([
-  ASSESSMENT_STATUS_CODES.aiNotDetected,
-  ASSESSMENT_STATUS_CODES.readyForReview,
-]);
+import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
 
 /**
  * One Customer "Continue" for a paused or stopped assessment pipeline. The API,
@@ -42,11 +36,11 @@ export const FINISHED_ASSESSMENT_STATUSES = new Set<AssessmentStatusCode>([
 @Injectable()
 export class AssessmentPipelineContinuationService {
   constructor(
-    private readonly prisma: PrismaService,
     private readonly commandBus: CommandBus,
     private readonly interviewRuntime: AssessmentInterviewRuntimeService,
     private readonly runtimeEvents: AssessmentRuntimeEventService,
     private readonly runtimeControl: AssessmentRuntimeControlService,
+    private readonly lifecycle: AssessmentLifecycleCoordinator,
   ) {}
 
   /** Whether the customer stopped the pipeline and has not continued it. */
@@ -64,18 +58,20 @@ export class AssessmentPipelineContinuationService {
       input.assessmentId,
       input.actor,
     );
-    const assessment = await this.prisma.assessment.findUnique({
-      where: { id: input.assessmentId },
-      select: { status: true },
-    });
+    const lifecycle = await this.lifecycle.current(
+      input.assessmentId,
+      input.actor,
+      input.correlationId,
+    );
     if (
-      assessment &&
-      FINISHED_ASSESSMENT_STATUSES.has(
-        fromPrismaAssessmentStatus(assessment.status),
-      )
+      !lifecycle ||
+      lifecycle.state === ASSESSMENT_LIFECYCLE_STATES.COMPLETE ||
+      lifecycle.state === ASSESSMENT_LIFECYCLE_STATES.CANCELLED
     ) {
       throw this.conflict(
-        ASSESSMENT_PIPELINE_CONTINUE_PROBLEM_CODES.completed,
+        lifecycle
+          ? ASSESSMENT_PIPELINE_CONTINUE_PROBLEM_CODES.completed
+          : ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
         input.correlationId,
       );
     }
@@ -87,7 +83,7 @@ export class AssessmentPipelineContinuationService {
     ) {
       const requested = await this.runtimeControl.request({
         assessmentId: input.assessmentId,
-        actorId: input.actor.userId,
+        actor: input.actor,
         correlationId: input.correlationId,
         action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
         targetRunId: control.targetRunId,

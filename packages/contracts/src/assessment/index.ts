@@ -7,3 +7,4 @@ export * from "./readiness.ts";
 export * from "./repository-setup.ts";
 export * from "./statuses.ts";
 export * from "./types.ts";
+export * from "./agentic-runtime.ts";

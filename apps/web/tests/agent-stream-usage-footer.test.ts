@@ -42,7 +42,6 @@ import {
   usageFooterParts,
   aggregateToolUsage,
 } from "../src/features/workspace/utils/agent-stream-usage.ts";
-import { projectAssessmentRuntimeUsage } from "../src/features/workspace/utils/assessment-runtime-usage.ts";
 
 function ev(
   sequence: number,
@@ -539,7 +538,7 @@ test("tool message explicitly linked to a step works regardless of event arrival
   );
 });
 
-test("sidebar current-run projection ignores previous-run controls and historical native turns", () => {
+test("current-run projection ignores historical native turns", () => {
   const old = [0, 1, 2].flatMap((index) =>
     stepEvents(index, { data: { runtimeRunId: "native-old" } }),
   );
@@ -548,28 +547,17 @@ test("sidebar current-run projection ignores previous-run controls and historica
     data: { runtimeRunId: "native-current" },
   });
   const events = [...old, ...current];
-  const staleControl = {
-    state: C.completed,
-    targetRunId: "native-old",
-    requestId: null,
-  };
   assert.equal(
-    projectAssessmentRuntimeUsage(events, "run-2").usage?.totalTokens,
+    projectCurrentRunUsage(events, "run-2").usage?.totalTokens,
     12000,
   );
   assert.equal(
-    projectAssessmentRuntimeUsage(events, "run-2", staleControl).usage
-      ?.totalTokens,
-    12000,
-  );
-  assert.equal(
-    projectAssessmentRuntimeUsage(events, "run-1", staleControl).usage
-      ?.totalTokens,
+    projectCurrentRunUsage(events, "run-1").usage?.totalTokens,
     20000,
   );
 });
 
-test("sidebar re-scopes a reused scan job to the newer Scanner generation despite old Interview controls", () => {
+test("current-run projection re-scopes a reused scan job to the newer generation", () => {
   const old = stepEvents(0, {
     stage: Stages.interview,
     data: { runtimeRunId: "native-old" },
@@ -578,14 +566,15 @@ test("sidebar re-scopes a reused scan job to the newer Scanner generation despit
     stage: Stages.scanner,
     data: { runtimeRunId: "native-new" },
   });
-  const staleControl = {
-    state: C.completed,
-    targetRunId: "native-old",
-    requestId: null,
-  };
   assert.equal(
-    projectAssessmentRuntimeUsage([...old, ...current], "run-1", staleControl)
-      .usage?.totalTokens,
+    projectCurrentRunUsage([...old, ...current], "run-1").usage?.totalTokens,
+    12000,
+  );
+});
+
+test("current-run projection keeps run-scoped usage without a native event id", () => {
+  assert.equal(
+    projectCurrentRunUsage(stepEvents(3), "run-1").usage?.totalTokens,
     12000,
   );
 });

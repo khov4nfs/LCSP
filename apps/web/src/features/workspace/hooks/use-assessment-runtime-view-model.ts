@@ -6,12 +6,10 @@ import {
   useAssessmentArtifactsQuery,
   useAssessmentInterviewStateQuery,
 } from "../../../lib/api/assessment-queries";
-import { useAssessmentRuntimeControl } from "@/lib/api/assessment-runtime-control-queries";
 import { useWorkspaceRuntime } from "../components/organisms/workspace-runtime-provider";
 import type { NormalizedAssessmentRuntime } from "../types/assessment-runtime-adapter.types";
 import { normalizeAssessmentRuntime } from "../utils/assessment-runtime-adapter";
-import { applyAssessmentRuntimeControlPresentation } from "../utils/assessment-runtime-control-presentation";
-import { projectAssessmentRuntimeUsage } from "../utils/assessment-runtime-usage";
+import { projectCurrentRunUsage } from "../utils/agent-stream-projection";
 
 export function useAssessmentRuntimeViewModel(
   assessmentId: string,
@@ -19,7 +17,6 @@ export function useAssessmentRuntimeViewModel(
 ): NormalizedAssessmentRuntime {
   const workspaceRuntime = useWorkspaceRuntime();
   const timeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
-  const runtimeControl = useAssessmentRuntimeControl(assessmentId);
   const subscribeAssessmentRuntime =
     workspaceRuntime.subscribeAssessmentRuntime;
   useEffect(() => {
@@ -52,16 +49,8 @@ export function useAssessmentRuntimeViewModel(
     });
     const events = timeline.agentStreamEvents ?? [];
     const runId = timeline.latestRunId ?? timeline.currentRun?.runId ?? null;
-    normalized.tokenUsage = projectAssessmentRuntimeUsage(
-      events,
-      runId,
-      runtimeControl.control.data,
-    );
-    return applyAssessmentRuntimeControlPresentation(
-      normalized,
-      events,
-      runtimeControl.control.data,
-    );
+    normalized.tokenUsage = projectCurrentRunUsage(events, runId);
+    return normalized;
   }, [
     assessmentId,
     interviewQuery,
@@ -70,6 +59,5 @@ export function useAssessmentRuntimeViewModel(
     repositorySnapshot,
     scanJobs,
     evidenceReports,
-    runtimeControl.control.data,
   ]);
 }

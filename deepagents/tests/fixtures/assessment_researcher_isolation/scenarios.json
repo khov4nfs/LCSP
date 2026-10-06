@@ -1,0 +1,243 @@
+{
+  "fixtureId": "assessment-researcher-isolation-scenarios-v1",
+  "purpose": "Synthetic W3 boundary packets for future Assessment Root and Repository Researcher verticals.",
+  "evaluationBoundary": {
+    "mode": "STRUCTURE_ONLY",
+    "agentCalls": false,
+    "providerCalls": false,
+    "databaseWrites": false,
+    "semanticPass": false,
+    "liveIsolationProof": "NOT_PROVEN"
+  },
+  "pinnedNamespaceRequirements": [
+    "assessmentId",
+    "tenantScope",
+    "rootThreadId",
+    "rootExecutionId",
+    "researcherTaskId",
+    "repositorySnapshotId",
+    "repositoryCommit",
+    "caseRevision",
+    "codebaseMemoryProjectId",
+    "codebaseMemoryIndexStamp"
+  ],
+  "sourcePinRequirements": [
+    "repositorySnapshotId",
+    "repositoryCommit",
+    "path",
+    "startLine",
+    "endLine",
+    "sourceHash",
+    "sourceRole",
+    "researcherTaskId",
+    "caseRevisionObserved"
+  ],
+  "namespaces": [
+    {
+      "id": "alpha",
+      "tenantScope": "tenant-alpha",
+      "assessmentId": "11111111-1111-4111-8111-111111111111",
+      "rootThreadId": "22222222-2222-4222-8222-222222222222",
+      "rootExecutionId": "33333333-3333-4333-8333-333333333333",
+      "researcherTaskId": "44444444-4444-4444-8444-444444444444",
+      "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+      "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "scanJobId": "66666666-6666-4666-8666-666666666666",
+      "caseRevision": 12,
+      "codebaseMemoryProjectId": "workspace-repository-alpha",
+      "codebaseMemoryIndexStamp": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sandboxNamespace": "tenant-alpha/assessment-alpha/repository"
+    },
+    {
+      "id": "beta",
+      "tenantScope": "tenant-beta",
+      "assessmentId": "77777777-7777-4777-8777-777777777777",
+      "rootThreadId": "88888888-8888-4888-8888-888888888888",
+      "rootExecutionId": "99999999-9999-4999-8999-999999999999",
+      "researcherTaskId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "repositorySnapshotId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "repositoryCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "scanJobId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      "caseRevision": 4,
+      "codebaseMemoryProjectId": "workspace-repository-beta",
+      "codebaseMemoryIndexStamp": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sandboxNamespace": "tenant-beta/assessment-beta/repository"
+    }
+  ],
+  "repositoryCanaries": [
+    {
+      "id": "alpha-canary",
+      "namespace": "alpha",
+      "path": "src/canary.txt",
+      "sourceRole": "PRODUCTION",
+      "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "contentMarker": "ALPHA_ONLY_CANARY",
+      "startLine": 1,
+      "endLine": 1
+    },
+    {
+      "id": "beta-canary",
+      "namespace": "beta",
+      "path": "src/canary.txt",
+      "sourceRole": "PRODUCTION",
+      "sourceHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "contentMarker": "BETA_ONLY_CANARY",
+      "startLine": 1,
+      "endLine": 1
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "disjoint-namespace",
+      "namespace": "alpha",
+      "case": {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "tenantScope": "tenant-alpha",
+        "caseRevision": 12
+      },
+      "researcherResult": {
+        "researcherTaskId": "44444444-4444-4444-8444-444444444444",
+        "assessmentId": "77777777-7777-4777-8777-777777777777",
+        "tenantScope": "tenant-beta",
+        "sourcePin": {
+          "repositorySnapshotId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "repositoryCommit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "path": "src/canary.txt",
+          "startLine": 1,
+          "endLine": 1,
+          "sourceHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "sourceRole": "PRODUCTION",
+          "caseRevisionObserved": 4
+        }
+      },
+      "expectedBoundaryViolations": ["NAMESPACE_MISMATCH"],
+      "stateMustRemainUnchanged": true
+    },
+    {
+      "id": "canary-overlap",
+      "namespace": "alpha",
+      "case": {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "tenantScope": "tenant-alpha",
+        "caseRevision": 12
+      },
+      "researcherResult": {
+        "researcherTaskId": "44444444-4444-4444-8444-444444444444",
+        "sourcePin": {
+          "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+          "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "path": "src/canary.txt",
+          "startLine": 1,
+          "endLine": 1,
+          "sourceHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "sourceRole": "PRODUCTION",
+          "caseRevisionObserved": 12
+        }
+      },
+      "expectedBoundaryViolations": ["SOURCE_HASH_MISMATCH"],
+      "stateMustRemainUnchanged": true
+    },
+    {
+      "id": "forged-ref",
+      "namespace": "alpha",
+      "case": {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "tenantScope": "tenant-alpha",
+        "caseRevision": 12
+      },
+      "researcherResult": {
+        "researcherTaskId": "44444444-4444-4444-8444-444444444444",
+        "evidenceRef": "source:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:src/canary.txt#L1-L1",
+        "sourcePin": {
+          "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+          "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "path": "src/canary.txt",
+          "startLine": 1,
+          "endLine": 1,
+          "sourceHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "sourceRole": "PRODUCTION",
+          "caseRevisionObserved": 12,
+          "serverMinted": false
+        }
+      },
+      "expectedBoundaryViolations": ["FORGED_SOURCE_REF"],
+      "stateMustRemainUnchanged": true
+    },
+    {
+      "id": "stale-pin",
+      "namespace": "alpha",
+      "case": {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "tenantScope": "tenant-alpha",
+        "caseRevision": 13
+      },
+      "researcherResult": {
+        "researcherTaskId": "44444444-4444-4444-8444-444444444444",
+        "sourcePin": {
+          "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
+          "repositoryCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "path": "src/alpha.py",
+          "startLine": 8,
+          "endLine": 12,
+          "sourceHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "sourceRole": "PRODUCTION",
+          "caseRevisionObserved": 12
+        }
+      },
+      "currentPins": {
+        "repositorySnapshotId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        "repositoryCommit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "caseRevision": 13
+      },
+      "expectedBoundaryViolations": ["STALE_REPOSITORY_PIN", "STALE_CASE_REVISION"],
+      "stateMustRemainUnchanged": true
+    },
+    {
+      "id": "memory-as-evidence",
+      "namespace": "alpha",
+      "case": {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "tenantScope": "tenant-alpha",
+        "caseRevision": 12
+      },
+      "researcherResult": {
+        "researcherTaskId": "44444444-4444-4444-8444-444444444444",
+        "memoryRecord": {
+          "recordId": "memory-alpha-1",
+          "ownerAgent": "investigator",
+          "trustLevel": "VERIFIED",
+          "summary": "A previous run remembered a provider invocation.",
+          "evidenceRefs": []
+        },
+        "references": [{"kind": "MEMORY", "recordId": "memory-alpha-1"}],
+        "sourcePins": []
+      },
+      "expectedBoundaryViolations": ["MEMORY_NOT_EVIDENCE"],
+      "stateMustRemainUnchanged": true
+    },
+    {
+      "id": "researcher-unauthorized-write",
+      "namespace": "alpha",
+      "case": {
+        "assessmentId": "11111111-1111-4111-8111-111111111111",
+        "tenantScope": "tenant-alpha",
+        "caseRevision": 12
+      },
+      "researcherResult": {
+        "researcherTaskId": "44444444-4444-4444-8444-444444444444",
+        "attemptedOperations": [
+          "record_case_fact",
+          "record_use_case",
+          "submit_rule_decision",
+          "ask_human",
+          "write_file",
+          "edit_file",
+          "delete",
+          "execute_mutating_shell"
+        ]
+      },
+      "expectedBoundaryViolations": ["RESEARCHER_WRITE_FORBIDDEN", "ROOT_AUTHORITY_REQUIRED"],
+      "stateMustRemainUnchanged": true
+    }
+  ]
+}

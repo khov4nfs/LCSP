@@ -5,9 +5,6 @@ import {
   ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
-  ASSESSMENT_RUNTIME_EVENT_TYPES,
-  ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
-  ASSESSMENT_STAGE_LIFECYCLE_STATES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
@@ -18,8 +15,8 @@ import {
   type AssessmentInterviewQuestion,
   type AssessmentInterviewRuntimeState,
   type AssessmentPostFindingRuntimeState,
-  type AssessmentStageLifecycleProjection,
 } from "@lcsp/contracts/evidence";
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 
@@ -48,10 +45,8 @@ import {
   type NormalizeAssessmentRuntimeParams,
 } from "../types/assessment-runtime-adapter.types";
 import {
-  RUNTIME_THINKING_PHASES,
   WORKSPACE_RUNTIME_CONNECTION_STATES,
   type WorkspaceRuntimeConnectionState,
-  type WorkspaceRuntimeRun,
   type WorkspaceRuntimeActivityItem,
   type WorkspaceRuntimeScanJob,
 } from "../types/workspace-runtime.types";
@@ -60,18 +55,6 @@ import {
   ARTIFACT_STATUSES,
   ARTIFACT_TYPES,
 } from "../../artifacts/types/artifact.types";
-import { stageLabel } from "./assessment-runtime-formatter";
-import { runtimeActivityDisplaySummary } from "./runtime-activity-summary";
-import {
-  formatRuntimeThinkingItem,
-  projectRuntimeThinking,
-  runtimeThinkingPhase,
-} from "./runtime-thinking-projection";
-import {
-  RULE_ANALYSIS_ACTIVITY_SUMMARY_TOOL,
-  RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX,
-  ENGINEERING_RULE_GATE_TOOL_NAME,
-} from "../config/runtime-activity";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import { appLocale } from "../../../lib/locale";
 
@@ -91,6 +74,8 @@ export function normalizeAssessmentRuntime(
     timeline: rawTimeline,
     coverageOverride,
   } = params;
+  const canonicalAssessment = rawTimeline?.canonicalAssessment ?? null;
+  const canonicalEvents = rawTimeline?.canonicalEvents ?? [];
 
   // 1. Unwrap interview query/data state
   const { interviewData, isLoadingInterview, isInterviewError, dataUpdatedAt } =
@@ -102,6 +87,13 @@ export function normalizeAssessmentRuntime(
 
   const contractErrors: string[] = [];
   const missingFields: string[] = [];
+
+  if (
+    canonicalAssessment !== null &&
+    canonicalAssessment.assessmentId !== assessmentId
+  ) {
+    contractErrors.push("Canonical assessment belongs to another assessment");
+  }
 
   // 2. Validate and sanitize interview state
   let sanitizedInterview: AssessmentInterviewRuntimeState | null = null;
@@ -153,12 +145,7 @@ export function normalizeAssessmentRuntime(
   const workflow = normalizeWorkflow({
     timeline: rawTimeline,
     sanitizedInterview,
-    repositorySnapshot: rawTimeline?.repositorySnapshot,
-    latestScanJob: latestSnapshotScanJob(
-      assessmentId,
-      rawTimeline?.repositorySnapshot,
-      rawTimeline?.scanJobs ?? [],
-    ),
+    canonicalAssessment,
   });
 
   // 6. Interview normalization
@@ -189,6 +176,7 @@ export function normalizeAssessmentRuntime(
 
   // 8. Customer Actions normalization
   const customerActions = normalizeCustomerActions({
+    canonicalAssessment,
     interview,
     coverage,
     contractErrors,
@@ -201,12 +189,22 @@ export function normalizeAssessmentRuntime(
     ASSESSMENT_RUNTIME_AVAILABILITIES.ready;
   if (contractErrors.length > 0) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.invalid;
-  } else if (isLoadingInterview) {
+  } else if (
+    connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.connecting
+  ) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.loading;
   } else if (
     connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected
   ) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.disconnected;
+  } else if (
+    canonicalAssessment === null ||
+    canonicalAssessment.lifecycle === null ||
+    canonicalAssessment.runtime === null
+  ) {
+    availability = ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable;
+  } else if (isLoadingInterview) {
+    availability = ASSESSMENT_RUNTIME_AVAILABILITIES.loading;
   } else if (isInterviewError) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable;
   } else if (
@@ -222,6 +220,8 @@ export function normalizeAssessmentRuntime(
   };
 
   return {
+    canonicalAssessment,
+    canonicalEvents,
     availability,
     connectionState,
     identity,
@@ -366,15 +366,12 @@ function normalizeCoverage({
 function normalizeWorkflow({
   timeline,
   sanitizedInterview,
-  repositorySnapshot,
-  latestScanJob,
+  canonicalAssessment,
 }: {
   timeline?: AdapterTimelineInput | null;
   sanitizedInterview: AssessmentInterviewRuntimeState | null;
-  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
-  latestScanJob: WorkspaceRuntimeScanJob | null;
+  canonicalAssessment: AdapterTimelineInput["canonicalAssessment"];
 }): NormalizedAssessmentWorkflow {
-  const stageLifecycle = timeline?.stageLifecycle ?? null;
   const currentRun = timeline?.currentRun ?? null;
   const latestRunId = timeline?.latestRunId ?? currentRun?.runId ?? null;
   const recentActivity = scopeRuntimeActivity(
@@ -411,7 +408,7 @@ function normalizeWorkflow({
 
   return {
     stage: currentRun?.stage ?? recentActivity[0]?.stage ?? null,
-    status: currentRun?.status ?? recentActivity[0]?.runStatus ?? null,
+    status: canonicalAssessment?.runtime?.executionState ?? null,
     currentRunId: latestRunId,
     activeTools: currentRun?.activeTools ?? [],
     recentActivity,
@@ -420,15 +417,7 @@ function normalizeWorkflow({
       timeline?.lastEmittedAt ?? recentActivity[0]?.emittedAt ?? null,
     isTargetedClarificationLoop,
     latestRun: currentRun,
-    steps: normalizeWorkflowSteps({
-      currentRun,
-      recentActivity,
-      engineeringProgress,
-      repositorySnapshot,
-      sanitizedInterview,
-      latestScanJob,
-      stageLifecycle,
-    }),
+    steps: normalizeWorkflowSteps(),
   };
 }
 
@@ -475,23 +464,7 @@ function normalizeRepository(
   };
 }
 
-function normalizeWorkflowSteps({
-  stageLifecycle,
-  currentRun,
-  recentActivity,
-  engineeringProgress,
-  repositorySnapshot,
-  sanitizedInterview,
-  latestScanJob,
-}: {
-  currentRun: WorkspaceRuntimeRun | null;
-  recentActivity: WorkspaceRuntimeActivityItem[];
-  engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>;
-  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
-  sanitizedInterview: AssessmentInterviewRuntimeState | null;
-  latestScanJob: WorkspaceRuntimeScanJob | null;
-  stageLifecycle: AssessmentStageLifecycleProjection | null;
-}): NormalizedWorkflowStep[] {
+function normalizeWorkflowSteps(): NormalizedWorkflowStep[] {
   const defaultSteps = [
     [
       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository,
@@ -526,376 +499,13 @@ function normalizeWorkflowSteps({
           {
             id,
             label: resolveMessage(appLocale, labelKey as MessageKey),
-            status:
-              id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository &&
-              repositorySnapshot
-                ? NORMALIZED_WORKFLOW_STEP_STATUSES.completed
-                : NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+            status: NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
             detail: null,
           } satisfies NormalizedWorkflowStep,
         ] as const,
     ),
   ]);
-  for (const activity of [...recentActivity].reverse()) {
-    // Customer stop/continue markers are not agent work on any step.
-    if (activity.toolName === ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME) {
-      continue;
-    }
-    const id = workflowStepIdForRuntimeActivity(activity);
-    steps.set(id, {
-      id,
-      label: steps.has(id) ? steps.get(id)!.label : stageLabel(activity.stage),
-      status: normalizeActivityStepStatus(activity),
-      // Per-rule selection/analysis lines carry internal rule IDs and reason codes;
-      // those steps get an aggregated detail below instead.
-      detail:
-        activity.summary && !runtimeThinkingPhase(activity)
-          ? runtimeActivityDisplaySummary(activity)
-          : null,
-    });
-  }
-  applyEngineeringRuleStepDetails(steps, recentActivity, engineeringProgress);
-  if (currentRun) {
-    const id = workflowStepIdForRun(currentRun);
-    steps.set(id, {
-      id,
-      label: steps.has(id)
-        ? steps.get(id)!.label
-        : stageLabel(currentRun.stage),
-      status: normalizeStepStatus(currentRun.status),
-      detail: null,
-    });
-  }
-  const interviewStepStatus = normalizeInterviewStepStatus(sanitizedInterview);
-  if (interviewStepStatus) {
-    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview;
-    const existingStep = steps.get(id);
-    steps.set(id, {
-      id,
-      label: existingStep?.label ?? stageLabel(id),
-      status: interviewStepStatus,
-      detail: existingStep?.detail ?? null,
-    });
-  }
-  applyLegacyClassificationGateProjection({
-    steps,
-    currentRun,
-    recentActivity,
-  });
-  // A rerun creates the scan job before the worker emits any runtime event, so
-  // the previous run's events would still decide this row. Follow the scan job
-  // the same way the scanner checklist does.
-  if (latestScanJob && isActiveScanJob(latestScanJob)) {
-    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
-    const existingStep = steps.get(id);
-    steps.set(id, {
-      id,
-      label: existingStep?.label ?? stageLabel(id),
-      status:
-        latestScanJob.status !== REPOSITORY_SCAN_JOB_STATUSES.running
-          ? NORMALIZED_WORKFLOW_STEP_STATUSES.waiting
-          : NORMALIZED_WORKFLOW_STEP_STATUSES.running,
-      detail: existingStep?.detail ?? null,
-    });
-  }
-  // A completed scan job is authoritative for the Scanner row. Later dispatches
-  // (rule-analysis retries) post SCAN-tagged bookkeeping such as
-  // "sandbox already hydrated" or run heartbeats; they never re-open the scan.
-  if (latestScanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.completed) {
-    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
-    const existingStep = steps.get(id);
-    if (existingStep) {
-      steps.set(id, {
-        ...existingStep,
-        status: NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
-      });
-    }
-  }
-  completeQueuedPredecessors(steps);
-  applyStageLifecycle(steps, stageLifecycle);
   return [...steps.values()];
-}
-
-/**
- * The API's artifact-derived lifecycle wins over anything inferred from the
- * activity log. Runtime events stay the technical detail; they no longer decide
- * whether a stage finished, so the sidebar and the composer cannot disagree.
- */
-function applyStageLifecycle(
-  steps: Map<string, NormalizedWorkflowStep>,
-  lifecycle: AssessmentStageLifecycleProjection | null | undefined,
-): void {
-  if (!lifecycle) return;
-  const mapping = [
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner, lifecycle.scanner],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview, lifecycle.interview],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis, lifecycle.ruleAnalysis],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate, lifecycle.gate],
-  ] as const;
-  for (const [stepId, entry] of mapping) {
-    const status = workflowStatusForLifecycle(entry.state);
-    const existing = steps.get(stepId);
-    if (status && existing) {
-      steps.set(stepId, { ...existing, status });
-    }
-  }
-}
-
-function workflowStatusForLifecycle(
-  state: AssessmentStageLifecycleProjection["scanner"]["state"],
-): NormalizedWorkflowStep["status"] | null {
-  const S = ASSESSMENT_STAGE_LIFECYCLE_STATES;
-  switch (state) {
-    case S.queued:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.queued;
-    case S.running:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.running;
-    case S.done:
-    case S.contextConfirmed:
-    case S.claimsComplete:
-    case S.ready:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
-    case S.failed:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
-    case S.waitingForCustomer:
-    case S.blocked:
-    case S.needsContext:
-    case S.partial:
-    case S.claimsPartial:
-    case S.timeout:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
-    default:
-      return null;
-  }
-}
-
-function applyEngineeringRuleStepDetails(
-  steps: Map<string, NormalizedWorkflowStep>,
-  recentActivity: WorkspaceRuntimeActivityItem[],
-  engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>,
-): void {
-  const items = projectRuntimeThinking(recentActivity, engineeringProgress);
-  const step = steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis);
-  const detail = items
-    .filter((item) => item.phase === RUNTIME_THINKING_PHASES.analysis)
-    .map(formatRuntimeThinkingItem)
-    .join(" ");
-  if (step && detail) {
-    steps.set(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis, {
-      ...step,
-      detail,
-    });
-  }
-}
-
-const TERMINAL_WORKFLOW_STEP_STATUSES = new Set<
-  NormalizedWorkflowStep["status"]
->([
-  NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
-  NORMALIZED_WORKFLOW_STEP_STATUSES.skipped,
-  NORMALIZED_WORKFLOW_STEP_STATUSES.failed,
-]);
-
-/**
- * Compatibility fallback for historical runs recorded before the API emitted an
- * explicit terminal Gate event. New runs carry `engineering_rule_gate` COMPLETED or
- * SKIPPED/NOT_REQUIRED in the Classification run, which always wins over this.
- * It also enforces the scope invariant: a non-terminal Gate never coexists with a
- * completed Classification in the same execution scope.
- */
-function applyLegacyClassificationGateProjection({
-  steps,
-  currentRun,
-  recentActivity,
-}: {
-  steps: Map<string, NormalizedWorkflowStep>;
-  currentRun: WorkspaceRuntimeRun | null;
-  recentActivity: WorkspaceRuntimeActivityItem[];
-}): void {
-  const gateStep = steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate);
-  if (
-    !gateStep ||
-    TERMINAL_WORKFLOW_STEP_STATUSES.has(gateStep.status) ||
-    hasExplicitTerminalGateEvent(recentActivity) ||
-    !hasCompletedClassificationRuntime(currentRun, recentActivity)
-  ) {
-    return;
-  }
-
-  steps.set(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate, {
-    ...gateStep,
-    status: NORMALIZED_WORKFLOW_STEP_STATUSES.skipped,
-  });
-}
-
-function hasExplicitTerminalGateEvent(
-  recentActivity: WorkspaceRuntimeActivityItem[],
-): boolean {
-  return recentActivity.some(
-    (activity) =>
-      activity.toolName === ENGINEERING_RULE_GATE_TOOL_NAME &&
-      (activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
-        activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
-        activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed),
-  );
-}
-
-function hasCompletedClassificationRuntime(
-  currentRun: WorkspaceRuntimeRun | null,
-  recentActivity: WorkspaceRuntimeActivityItem[],
-): boolean {
-  if (
-    currentRun?.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification &&
-    currentRun.status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed
-  ) {
-    return true;
-  }
-
-  return recentActivity.some(
-    (activity) =>
-      activity.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification &&
-      (activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted ||
-        activity.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed),
-  );
-}
-
-function normalizeInterviewStepStatus(
-  sanitizedInterview: AssessmentInterviewRuntimeState | null,
-): NormalizedWorkflowStep["status"] | null {
-  if (!sanitizedInterview) {
-    return null;
-  }
-
-  switch (sanitizedInterview.outcome) {
-    case ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer:
-      return sanitizedInterview.activeQuestion
-        ? NORMALIZED_WORKFLOW_STEP_STATUSES.running
-        : NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
-    case ASSESSMENT_INTERVIEW_OUTCOMES.contextReady:
-    case ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
-    case ASSESSMENT_INTERVIEW_OUTCOMES.failed:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
-    case ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
-    default:
-      return null;
-  }
-}
-
-function workflowStepIdForRun(run: WorkspaceRuntimeRun): string {
-  const activeToolName =
-    run.activeTools.find((tool) =>
-      tool.toolName.startsWith(RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX),
-    )?.toolName ??
-    null;
-  return workflowStepIdForStage(run.stage, activeToolName);
-}
-
-function workflowStepIdForRuntimeActivity(
-  activity: WorkspaceRuntimeActivityItem,
-): string {
-  return workflowStepIdForStage(activity.stage, activity.toolName);
-}
-
-function workflowStepIdForStage(
-  stage: string,
-  toolName: string | null,
-): string {
-  if (toolName === ENGINEERING_RULE_GATE_TOOL_NAME) {
-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate;
-  }
-  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.snapshot) {
-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository;
-  }
-  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.scan) {
-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
-  }
-  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.interview) {
-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview;
-  }
-  if (stage !== ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence) {
-    return stage;
-  }
-  if (
-    toolName?.startsWith(RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX) ||
-    toolName === RULE_ANALYSIS_ACTIVITY_SUMMARY_TOOL
-  ) {
-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis;
-  }
-  return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules;
-}
-
-function normalizeActivityStepStatus(
-  activity: WorkspaceRuntimeActivityItem,
-): NormalizedWorkflowStep["status"] {
-  // Only the Gate treats TOOL_SKIPPED as a terminal SKIPPED step. Rule-level
-  // SKIP decisions are progress inside the rules step.
-  if (
-    activity.toolName === ENGINEERING_RULE_GATE_TOOL_NAME &&
-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped
-  ) {
-    return NORMALIZED_WORKFLOW_STEP_STATUSES.skipped;
-  }
-  if (
-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted
-  ) {
-    return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
-  }
-  if (
-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed ||
-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed
-  ) {
-    return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
-  }
-  return normalizeStepStatus(activity.runStatus);
-}
-
-function completeQueuedPredecessors(
-  steps: Map<string, NormalizedWorkflowStep>,
-): void {
-  const orderedStages = [
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
-  ] as const;
-  const lastActiveIndex = orderedStages.reduce((lastIndex, stage, index) => {
-    const status = steps.get(stage)?.status;
-    return status && status !== NORMALIZED_WORKFLOW_STEP_STATUSES.queued
-      ? index
-      : lastIndex;
-  }, -1);
-
-  for (const stage of orderedStages.slice(0, lastActiveIndex)) {
-    const step = steps.get(stage);
-    if (!step || step.status !== NORMALIZED_WORKFLOW_STEP_STATUSES.queued) {
-      continue;
-    }
-    steps.set(stage, {
-      ...step,
-      status: NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
-    });
-  }
-}
-
-function normalizeStepStatus(status: string) {
-  switch (status) {
-    case ASSESSMENT_RUNTIME_RUN_STATUSES.running:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.running;
-    case ASSESSMENT_RUNTIME_RUN_STATUSES.waiting:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
-    case ASSESSMENT_RUNTIME_RUN_STATUSES.completed:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
-    case ASSESSMENT_RUNTIME_RUN_STATUSES.failed:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
-    default:
-      return NORMALIZED_WORKFLOW_STEP_STATUSES.unknown;
-  }
 }
 
 function normalizeInterview({
@@ -998,15 +608,6 @@ function latestSnapshotScanJob(
           job.snapshotId === repositorySnapshot.id,
       )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null
-  );
-}
-
-/** Mirrors the scanner checklist: queued waits for a worker; running means claimed. */
-function isActiveScanJob(job: WorkspaceRuntimeScanJob): boolean {
-  return (
-    job.status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
-    job.status === REPOSITORY_SCAN_JOB_STATUSES.running ||
-    job.status === REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits
   );
 }
 
@@ -1258,27 +859,53 @@ function availabilityToArtifactStatus(
 }
 
 function normalizeCustomerActions({
+  canonicalAssessment,
   interview,
   coverage,
   contractErrors,
   isLoadingInterview,
   postFinding,
 }: {
+  canonicalAssessment: AdapterTimelineInput["canonicalAssessment"];
   interview: NormalizedAssessmentInterview;
   coverage: NormalizedAssessmentCoverage;
   contractErrors: string[];
   isLoadingInterview: boolean;
   postFinding: NormalizedAssessmentPostFinding | null;
 }): NormalizedCustomerActions {
-  if (contractErrors.length > 0 || isLoadingInterview) {
+  const lifecycleState = canonicalAssessment?.lifecycle?.state;
+  const canonicalAvailable =
+    canonicalAssessment?.lifecycle != null &&
+    canonicalAssessment.runtime != null;
+  const customerInputAllowed =
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_REQUIRED_INPUT ||
+    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED;
+  const canSelectRemediationDecision =
+    canonicalAvailable &&
+    customerInputAllowed &&
+    postFinding !== null &&
+    postFinding.selectedDecision === null &&
+    postFinding.availableDecisions.length > 0;
+  const availableRemediationDecisions = canSelectRemediationDecision
+    ? (postFinding?.availableDecisions ?? [])
+    : [];
+
+  if (
+    contractErrors.length > 0 ||
+    isLoadingInterview ||
+    canonicalAssessment?.lifecycle === null ||
+    canonicalAssessment?.runtime === null ||
+    !customerInputAllowed
+  ) {
     return {
       canAnswerQuestion: false,
       canSubmitDraft: false,
       canSubmitBlockedAction: false,
       availableBlockedActions: [],
       canUseComposer: false,
-      canSelectRemediationDecision: false,
-      availableRemediationDecisions: [],
+      canSelectRemediationDecision,
+      availableRemediationDecisions,
     };
   }
 
@@ -1293,8 +920,8 @@ function normalizeCustomerActions({
       canSubmitBlockedAction: false,
       availableBlockedActions: [],
       canUseComposer: false,
-      canSelectRemediationDecision: false,
-      availableRemediationDecisions: [],
+      canSelectRemediationDecision,
+      availableRemediationDecisions,
     };
   }
 
@@ -1309,10 +936,6 @@ function normalizeCustomerActions({
   const canSubmitBlockedAction =
     isBlocked && interview.blockedActions.length > 0;
   const canUseComposer = canAnswerQuestion;
-  const canSelectRemediationDecision =
-    postFinding !== null &&
-    postFinding.selectedDecision === null &&
-    postFinding.availableDecisions.length > 0;
 
   return {
     canAnswerQuestion,
@@ -1321,8 +944,6 @@ function normalizeCustomerActions({
     availableBlockedActions: isBlocked ? interview.blockedActions : [],
     canUseComposer,
     canSelectRemediationDecision,
-    availableRemediationDecisions: canSelectRemediationDecision
-      ? postFinding.availableDecisions
-      : [],
+    availableRemediationDecisions,
   };
 }

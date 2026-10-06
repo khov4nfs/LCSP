@@ -11,6 +11,11 @@ import { randomUUID } from "node:crypto";
 import { firstValueFrom, Observable, take, toArray } from "rxjs";
 import type { CallHandler, ExecutionContext } from "@nestjs/common";
 import {
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
   ASSESSMENT_RUNTIME_CONTROL_ACTIONS as Actions,
   ASSESSMENT_RUNTIME_CONTROL_STATES as States,
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES as Events,
@@ -20,20 +25,53 @@ import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
 import { AssessmentRuntimeControlService } from "../src/platform/runtime-events/assessment-runtime-control.service.js";
 import { AssessmentRuntimeEventService } from "../src/platform/runtime-events/assessment-runtime-event.service.js";
+import { AssessmentLifecycleCoordinator } from "../src/modules/assessment/application/services/assessment-lifecycle-coordinator.service.js";
 import { RuntimeWriteFenceInterceptor } from "../src/platform/runtime-events/runtime-write-fence.interceptor.js";
 
 describe("durable acknowledged runtime controls", () => {
   const prisma = new PrismaService();
   const ownerId = `runtime-control-test-${randomUUID()}`;
+  const actor = {
+    userId: ownerId,
+    sessionId: ownerId,
+    role: AUTH_USER_ROLES.customer,
+    scope: null,
+  };
   const assessmentIds: string[] = [];
   const events = new AssessmentRuntimeEventService(prisma);
+  const outbox = new OutboxRepository(prisma);
+  const lifecycle = new AssessmentLifecycleCoordinator(prisma, outbox);
   const controls = new AssessmentRuntimeControlService(
     prisma,
-    new OutboxRepository(prisma),
+    outbox,
     events,
+    lifecycle,
   );
   let assessmentId: string;
   let runId: string;
+  let threadId: string;
+
+  const registerRun = async (id: string, logicalRunId = id) => {
+    await prisma.assessmentRuntimeTurn.create({
+      data: {
+        id,
+        assessmentId,
+        threadId,
+        boundary: "interview_context_updated",
+        logicalRunId,
+        correlationId: "control-test",
+        state: States.running,
+        contextJson: { assessment_id: assessmentId },
+      },
+    });
+    await prisma.assessmentRuntime.update({
+      where: { assessmentId },
+      data: {
+        currentExecutionId: id,
+        executionState: AGENT_EXECUTION_STATES.RUNNING,
+      },
+    });
+  };
 
   const request = (
     action: (typeof Actions)[keyof typeof Actions],
@@ -41,7 +79,7 @@ describe("durable acknowledged runtime controls", () => {
   ) =>
     controls.request({
       assessmentId,
-      actorId: ownerId,
+      actor,
       correlationId: "control-test",
       action,
       targetRunId,
@@ -50,16 +88,33 @@ describe("durable acknowledged runtime controls", () => {
     state: AssessmentRuntimeControlState,
     targetRunId = runId,
   ) =>
-    controls.acknowledge({
-      assessmentId,
-      targetRunId,
-      state,
-      correlationId: "control-test",
-      checkpoint: {
-        thread_id: "exact-thread",
-        checkpoint_id: "exact-checkpoint",
-      },
-    });
+    (async () => {
+      if (state === States.stopped) {
+        const turn = await prisma.assessmentRuntimeTurn.findUnique({
+          where: { id: targetRunId },
+          select: { state: true },
+        });
+        if (turn?.state === States.stopRequested) {
+          await prisma.assessmentRuntime.update({
+            where: { assessmentId },
+            data: { executionState: AGENT_EXECUTION_STATES.PAUSED },
+          });
+        }
+      }
+      return controls.acknowledge({
+        assessmentId,
+        targetRunId,
+        state,
+        threadId,
+        boundary: "interview_context_updated",
+        logicalRunId: targetRunId,
+        correlationId: "control-test",
+        checkpoint: {
+          thread_id: threadId,
+          checkpoint_id: "exact-checkpoint",
+        },
+      });
+    })();
 
   beforeAll(async () => {
     // This suite never resets a database or touches a pre-existing assessment.
@@ -79,27 +134,33 @@ describe("durable acknowledged runtime controls", () => {
     });
   });
   beforeEach(async () => {
-    assessmentId = `runtime-control-test-${randomUUID()}`;
+    assessmentId = randomUUID();
     runId = randomUUID();
     assessmentIds.push(assessmentId);
     await prisma.assessment.create({
       data: { id: assessmentId, ownerId, name: "Runtime control test" },
     });
-    await controls.acknowledge({
+    const initialized = await lifecycle.initialize({
       assessmentId,
-      targetRunId: runId,
-      state: States.running,
-      threadId: "exact-thread",
-      boundary: "interview_context_updated",
-      logicalRunId: runId,
+      ownerId,
+      rootAgentVersion: "assessment-root-v2",
+      checkpointNamespace: assessmentId,
       correlationId: "control-test",
-      context: {
-        assessment_id: assessmentId,
-        system_event: { original: true },
+    });
+    threadId = initialized.threadId;
+    await prisma.assessment.update({
+      where: { id: assessmentId },
+      data: {
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        lifecycleRevision: 0,
       },
     });
+    await registerRun(runId);
   });
   afterAll(async () => {
+    await prisma.assessmentEvent.deleteMany({
+      where: { assessmentId: { in: assessmentIds } },
+    });
     await prisma.outboxMessage.deleteMany({
       where: { aggregateId: { in: assessmentIds } },
     });
@@ -110,7 +171,7 @@ describe("durable acknowledged runtime controls", () => {
     await prisma.$disconnect();
   });
 
-  it("queues one exact Stop, rejects early Continue, and resumes one checkpoint", async () => {
+  it("queues one exact Stop and fails closed for unavailable Continue authority", async () => {
     const [first, duplicate] = await Promise.all([
       request(Actions.stop),
       request(Actions.stop),
@@ -126,12 +187,12 @@ describe("durable acknowledged runtime controls", () => {
     expect(stopOutbox).toHaveLength(1);
     expect(JSON.stringify(stopOutbox[0].payload)).toContain(runId);
     await acknowledge(States.stopped);
-    const [resume, duplicateResume] = await Promise.all([
-      request(Actions.resume),
-      request(Actions.resume),
-    ]);
-    expect(resume.state).toBe(States.resumeRequested);
-    expect(duplicateResume).toEqual(resume);
+    await expect(request(Actions.resume)).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(request(Actions.resume)).rejects.toMatchObject({
+      status: 409,
+    });
     expect(
       await prisma.outboxMessage.count({
         where: { aggregateId: assessmentId },
@@ -140,22 +201,16 @@ describe("durable acknowledged runtime controls", () => {
     const row = await prisma.assessmentRuntimeTurn.findUniqueOrThrow({
       where: { id: runId },
     });
+    expect(row.state).toBe(States.stopped);
     expect(row.checkpointJson).toEqual({
-      thread_id: "exact-thread",
+      thread_id: threadId,
       checkpoint_id: "exact-checkpoint",
     });
     const newRun = randomUUID();
-    await controls.acknowledge({
-      assessmentId,
-      targetRunId: newRun,
-      state: States.running,
-      threadId: "exact-thread",
-      boundary: "interview_context_updated",
-      logicalRunId: runId,
-      correlationId: "control-test",
-      context: { assessment_id: assessmentId },
+    await registerRun(newRun, runId);
+    await expect(request(Actions.resume)).rejects.toMatchObject({
+      status: 409,
     });
-    expect((await request(Actions.resume)).targetRunId).toBe(newRun);
     expect(
       await prisma.outboxMessage.count({
         where: { aggregateId: assessmentId },
@@ -205,11 +260,11 @@ describe("durable acknowledged runtime controls", () => {
       const rows = await prisma.assessmentRuntimeEvent.findMany({
         where: { assessmentId },
       });
-      expect(rows).toHaveLength(3);
+      expect(rows).toHaveLength(2);
       const replay = await firstValueFrom(
         events
           .observeAgentStreamEvents(ownerId, { assessmentId })
-          .pipe(take(3), toArray()),
+          .pipe(take(2), toArray()),
       );
       expect(
         replay.filter((event) => event.eventType === Events.runtimeStopped),
@@ -244,7 +299,7 @@ describe("durable acknowledged runtime controls", () => {
     const replay = await firstValueFrom(
       events
         .observeAgentStreamEvents(ownerId, { assessmentId })
-        .pipe(take(3), toArray()),
+        .pipe(take(2), toArray()),
     );
     expect(
       replay.filter((event) => event.eventType === Events.runtimeStopped),
@@ -295,7 +350,9 @@ describe("durable acknowledged runtime controls", () => {
     release();
     await write;
     await stopped;
-    await request(Actions.resume);
+    await expect(request(Actions.resume)).rejects.toMatchObject({
+      status: 409,
+    });
     await expect(
       firstValueFrom(fence.intercept(context, next)),
     ).rejects.toMatchObject({ status: 409 });

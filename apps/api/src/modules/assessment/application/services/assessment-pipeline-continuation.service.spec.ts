@@ -11,14 +11,14 @@ import {
   ASSESSMENT_RUNTIME_CONTROL_ACTIONS as Actions,
   type AssessmentRuntimeControlResult,
 } from "@lcsp/contracts/evidence";
-import { AssessmentStatus } from "@prisma/client";
 import type { CommandBus } from "@nestjs/cqrs";
 
-import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { AssessmentRuntimeControlService } from "../../../../platform/runtime-events/assessment-runtime-control.service.js";
 import { RerunClassificationCommand } from "../../../classification/application/commands/rerun-classification/rerun-classification.command.js";
 import type { AssessmentInterviewRuntimeService } from "./assessment-interview-runtime.service.js";
+import type { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { AssessmentPipelineContinuationService } from "./assessment-pipeline-continuation.service.js";
 
 const actor = {
@@ -29,7 +29,6 @@ const actor = {
 };
 
 describe("AssessmentPipelineContinuationService", () => {
-  let findAssessment: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
   let execute: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
   let interview: {
     assertAssessmentVisible: jest.Mock<(...args: unknown[]) => Promise<void>>;
@@ -56,6 +55,9 @@ describe("AssessmentPipelineContinuationService", () => {
   let requestControl: jest.Mock<
     (...args: unknown[]) => Promise<AssessmentRuntimeControlResult>
   >;
+  let currentLifecycle: jest.Mock<
+    (...args: unknown[]) => Promise<{ state: string; revision: number } | null>
+  >;
 
   const run = () =>
     service.continuePipeline({
@@ -65,9 +67,6 @@ describe("AssessmentPipelineContinuationService", () => {
     });
 
   beforeEach(() => {
-    findAssessment = jest
-      .fn<(...args: unknown[]) => Promise<unknown>>()
-      .mockResolvedValue({ status: AssessmentStatus.CLASSIFICATION_LOCKED });
     execute = jest
       .fn<(...args: unknown[]) => Promise<unknown>>()
       .mockResolvedValue({});
@@ -110,11 +109,17 @@ describe("AssessmentPipelineContinuationService", () => {
       jest.fn<
         (...args: unknown[]) => Promise<AssessmentRuntimeControlResult>
       >();
+    currentLifecycle = jest
+      .fn<
+        (
+          ...args: unknown[]
+        ) => Promise<{ state: string; revision: number } | null>
+      >()
+      .mockResolvedValue({
+        state: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        revision: 1,
+      });
     service = new AssessmentPipelineContinuationService(
-      {
-        // No wallet/billing model on purpose: continue must never consult one.
-        assessment: { findUnique: findAssessment },
-      } as unknown as PrismaService,
       { execute } as unknown as CommandBus,
       interview as unknown as AssessmentInterviewRuntimeService,
       {
@@ -126,25 +131,20 @@ describe("AssessmentPipelineContinuationService", () => {
         current: currentControl,
         request: requestControl,
       } as unknown as AssessmentRuntimeControlService,
+      {
+        current: currentLifecycle,
+      } as unknown as AssessmentLifecycleCoordinator,
     );
   });
 
-  it("uses native checkpoint resume before any legacy requeue or rule rerun", async () => {
+  it("fails closed when native checkpoint resume authority is unavailable", async () => {
     currentControl.mockResolvedValue({
       state: States.stopped,
       targetRunId: "native-run",
       requestId: "stop",
     });
-    const control = {
-      state: States.resumeRequested,
-      targetRunId: "native-run",
-      requestId: "resume",
-    };
-    requestControl.mockResolvedValue(control);
-    await expect(run()).resolves.toEqual({
-      action: ASSESSMENT_PIPELINE_CONTINUE_ACTIONS.checkpointResumeRequested,
-      control,
-    });
+    requestControl.mockRejectedValue(new Error("resume authority unavailable"));
+    await expect(run()).rejects.toThrow("resume authority unavailable");
     expect(requestControl).toHaveBeenCalledWith(
       expect.objectContaining({
         action: Actions.resume,
@@ -277,8 +277,9 @@ describe("AssessmentPipelineContinuationService", () => {
   });
 
   it("has nothing to continue once the assessment has finished", async () => {
-    findAssessment.mockResolvedValue({
-      status: AssessmentStatus.AI_NOT_DETECTED,
+    currentLifecycle.mockResolvedValue({
+      state: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+      revision: 2,
     });
 
     await expect(run()).rejects.toMatchObject({

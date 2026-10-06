@@ -1,5 +1,11 @@
 import type { AssessmentPostFindingRuntimeState } from "./assessment-post-finding-runtime.ts";
 import type { RuleAnalysisActivity } from "./rule-assessment.ts";
+import {
+  agentExecutionStateSchema,
+  assessmentLifecycleSchema,
+} from "../assessment/agentic-runtime.ts";
+import type { AssessmentEvent } from "../assessment/agentic-runtime.ts";
+import { z } from "zod";
 
 export const ASSESSMENT_RUNTIME_EVENT_TYPES = {
   runStarted: "RUN_STARTED",
@@ -389,6 +395,48 @@ export type AssessmentRuntimeRun = {
   updatedAt: string;
 };
 
+const canonicalRuntimeIdentifierSchema = z.string().trim().min(1).max(200);
+const canonicalRuntimeRevisionSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .max(Number.MAX_SAFE_INTEGER);
+
+/** Canonical AES projection shared by GET, workspace snapshots, and SSE. */
+export const assessmentRuntimeSchema = z.strictObject({
+  threadId: z.uuid(),
+  rootAgentVersion: canonicalRuntimeIdentifierSchema,
+  checkpointNamespace: z.uuid(),
+  checkpointId: canonicalRuntimeIdentifierSchema.nullable(),
+  currentExecutionId: z.uuid().nullable(),
+  executionState: agentExecutionStateSchema,
+  eventSequence: canonicalRuntimeRevisionSchema,
+  startedAt: z.iso.datetime().nullable(),
+  lastResumedAt: z.iso.datetime().nullable(),
+  updatedAt: z.iso.datetime(),
+});
+export type AssessmentRuntime = z.infer<typeof assessmentRuntimeSchema>;
+
+/** One canonical assessment projection; V1 rows are explicitly unavailable. */
+export const canonicalAssessmentRuntimeSnapshotSchema = z
+  .strictObject({
+    assessmentId: z.uuid(),
+    lifecycle: assessmentLifecycleSchema.nullable(),
+    runtime: assessmentRuntimeSchema.nullable(),
+  })
+  .superRefine((value, context) => {
+    if ((value.lifecycle === null) !== (value.runtime === null)) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Lifecycle and runtime canonical data must be present together",
+      });
+    }
+  });
+export type CanonicalAssessmentRuntimeSnapshot = z.infer<
+  typeof canonicalAssessmentRuntimeSnapshotSchema
+>;
+
 /**
  * Stage lifecycle derived from durable artifacts and dispatch boundaries.
  *
@@ -447,4 +495,8 @@ export type AssessmentRuntimeSnapshot = {
   postFindingStates: AssessmentPostFindingRuntimeState[];
   /** One entry per assessment the owner can see. */
   stageLifecycles: AssessmentStageLifecycleProjection[];
+  /** Canonical ALS/AES projections; null lifecycle/runtime means V1 unavailable. */
+  canonicalAssessments: CanonicalAssessmentRuntimeSnapshot[];
+  /** Strict canonical AssessmentEvent envelopes, never transport metadata. */
+  canonicalEvents: AssessmentEvent[];
 };

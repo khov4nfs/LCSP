@@ -8,11 +8,16 @@ import {
   REMEDIATION_APPROVAL_STATUSES,
   VERIFICATION_RESULT_STATUSES,
   type AssessmentAgentStreamEvent,
+  canonicalAssessmentRuntimeSnapshotSchema,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
-  type AssessmentStageLifecycleProjection,
   type AssessmentRuntimeEngineeringProgress,
 } from "@lcsp/contracts/evidence";
+import {
+  assessmentEventSchema,
+  type AssessmentEvent,
+} from "@lcsp/contracts/assessment";
+import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
 
 import {
   WORKSPACE_RUNTIME_CONNECTION_STATES,
@@ -105,14 +110,14 @@ export function parseRuntimeEvent(
   const postFindingStates = Array.isArray(payload.post_finding)
     ? payload.post_finding.map(parsePostFindingState).filter(isDefined)
     : [];
-  // Stage status the API derived from durable artifacts (scan job, accepted
-  // evidence, confirmed context, plan, claims) rather than the activity log.
-  const stageLifecycleByAssessmentId = Object.fromEntries(
-    (Array.isArray(payload.stage_lifecycles) ? payload.stage_lifecycles : [])
-      .map(parseStageLifecycle)
-      .filter(isDefined)
-      .map((lifecycle) => [lifecycle.assessmentId, lifecycle]),
-  );
+  const canonicalAssessments = Array.isArray(payload.canonical_assessments)
+    ? payload.canonical_assessments
+        .map(parseCanonicalAssessment)
+        .filter(isDefined)
+    : [];
+  const canonicalEvents = Array.isArray(payload.canonical_events)
+    ? payload.canonical_events.map(parseCanonicalEvent).filter(isDefined)
+    : [];
 
   const runsByAssessmentId = groupRunsByAssessmentId(runs);
   const recentActivityByAssessmentId =
@@ -123,6 +128,11 @@ export function parseRuntimeEvent(
   const postFindingByAssessmentId = Object.fromEntries(
     postFindingStates.map((state) => [state.assessmentId, state]),
   );
+  const canonicalAssessmentByAssessmentId = Object.fromEntries(
+    canonicalAssessments.map((assessment) => [assessment.assessmentId, assessment]),
+  );
+  const canonicalEventsByAssessmentId =
+    groupCanonicalEventsByAssessmentId(canonicalEvents);
 
   return {
     connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
@@ -134,6 +144,8 @@ export function parseRuntimeEvent(
     scanJobs,
     evidenceReports,
     postFindingStates,
+    canonicalAssessments,
+    canonicalEvents,
     runsByAssessmentId,
     recentActivityByAssessmentId,
     engineeringProgressByAssessmentId,
@@ -141,8 +153,12 @@ export function parseRuntimeEvent(
     agentStreamHistoryByAssessmentId: {},
     latestRunIdByAssessmentId,
     postFindingByAssessmentId,
-    stageLifecycleByAssessmentId,
+    canonicalAssessmentByAssessmentId,
+    canonicalEventsByAssessmentId,
     getAssessmentRuntime: (assessmentId: string) => ({
+      canonicalAssessment:
+        canonicalAssessmentByAssessmentId[assessmentId] ?? null,
+      canonicalEvents: canonicalEventsByAssessmentId[assessmentId] ?? [],
       currentRun: runsByAssessmentId[assessmentId]?.[0] ?? null,
       recentActivity: recentActivityByAssessmentId[assessmentId] ?? [],
       engineeringProgress:
@@ -160,44 +176,22 @@ export function parseRuntimeEvent(
       connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
       lastEmittedAt: payload.emitted_at as string,
       postFinding: postFindingByAssessmentId[assessmentId] ?? null,
-      stageLifecycle: stageLifecycleByAssessmentId[assessmentId] ?? null,
     }),
     subscribeAssessmentRuntime: () => () => undefined,
     loadMoreAgentStreamHistory: () => Promise.resolve(false),
   };
 }
 
-// `satisfies` keeps these keys in lockstep with the contract projection: a stale or
-// unknown stage key is a type error instead of a parser that silently returns null.
-const STAGE_LIFECYCLE_STAGES = [
-  "scanner",
-  "interview",
-  "ruleAnalysis",
-  "gate",
-] as const satisfies readonly Exclude<
-  keyof AssessmentStageLifecycleProjection,
-  "assessmentId"
->[];
-
-function parseStageLifecycle(
+function parseCanonicalAssessment(
   value: unknown,
-): AssessmentStageLifecycleProjection | null {
-  const item = parseObject(value);
-  if (item === null || typeof item.assessmentId !== "string") return null;
-  const entries: Record<string, unknown> = {};
-  for (const stage of STAGE_LIFECYCLE_STAGES) {
-    const entry = parseObject(item[stage]);
-    if (entry === null || typeof entry.state !== "string") return null;
-    entries[stage] = {
-      state: entry.state,
-      source: typeof entry.source === "string" ? entry.source : "unknown",
-      detail: typeof entry.detail === "string" ? entry.detail : null,
-    };
-  }
-  return {
-    assessmentId: item.assessmentId,
-    ...entries,
-  } as AssessmentStageLifecycleProjection;
+): CanonicalAssessmentRuntimeSnapshot | null {
+  const parsed = canonicalAssessmentRuntimeSnapshotSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseCanonicalEvent(value: unknown): AssessmentEvent | null {
+  const parsed = assessmentEventSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 function parsePostFindingState(
@@ -649,6 +643,22 @@ function groupEngineeringProgressByAssessmentId(
   return groups;
 }
 
+function groupCanonicalEventsByAssessmentId(events: AssessmentEvent[]) {
+  const groups: Record<string, AssessmentEvent[]> = {};
+  for (const event of events) {
+    groups[event.assessmentId] ??= [];
+    groups[event.assessmentId].push(event);
+  }
+  for (const assessmentId of Object.keys(groups)) {
+    groups[assessmentId]?.sort(
+      (left, right) =>
+        right.timestamp.localeCompare(left.timestamp) ||
+        right.sequence - left.sequence,
+    );
+  }
+  return groups;
+}
+
 function deriveLatestRunIds(
   runsByAssessmentId: Record<string, WorkspaceRuntimeRun[]>,
 ) {
@@ -678,6 +688,8 @@ export function runtimeFingerprint(runtime: {
   repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
+  canonicalAssessments?: import("@lcsp/contracts/evidence").CanonicalAssessmentRuntimeSnapshot[];
+  canonicalEvents?: AssessmentEvent[];
 }) {
   return JSON.stringify({
     runs: runtime.runs.map((run) => [
@@ -736,6 +748,24 @@ export function runtimeFingerprint(runtime: {
       report.rejectionReason,
       report.createdAt,
     ]),
+    canonicalAssessments: (runtime.canonicalAssessments ?? []).map(
+      (assessment) => [
+        assessment.assessmentId,
+        assessment.lifecycle?.state ?? null,
+        assessment.lifecycle?.assessmentRevision ?? null,
+        assessment.runtime?.currentExecutionId ?? null,
+        assessment.runtime?.executionState ?? null,
+        assessment.runtime?.eventSequence ?? null,
+        assessment.runtime?.updatedAt ?? null,
+      ],
+    ),
+    canonicalEvents: (runtime.canonicalEvents ?? []).map((event) => [
+      event.eventId,
+      event.assessmentId,
+      event.sequence,
+      event.timestamp,
+      event.eventType,
+    ]),
   });
 }
 
@@ -755,6 +785,8 @@ export function affectedAssessmentIds(runtime: {
   repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
+  canonicalAssessments?: import("@lcsp/contracts/evidence").CanonicalAssessmentRuntimeSnapshot[];
+  canonicalEvents?: AssessmentEvent[];
 }) {
   return new Set([
     ...runtime.runs.map((run) => run.assessmentId),
@@ -763,5 +795,9 @@ export function affectedAssessmentIds(runtime: {
     ...runtime.repositorySnapshots.map((snapshot) => snapshot.assessmentId),
     ...runtime.scanJobs.map((scanJob) => scanJob.assessmentId),
     ...runtime.evidenceReports.map((report) => report.assessmentId),
+    ...(runtime.canonicalAssessments ?? []).map(
+      (assessment) => assessment.assessmentId,
+    ),
+    ...(runtime.canonicalEvents ?? []).map((event) => event.assessmentId),
   ]);
 }

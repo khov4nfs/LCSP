@@ -22,12 +22,6 @@ import {
   groupAgentStreamEventsByRun,
   groupAgentStreamEventsByStage,
 } from "../src/features/workspace/utils/agent-stream-stages.ts";
-import { normalizeAssessmentRuntime } from "../src/features/workspace/utils/assessment-runtime-adapter.ts";
-import { applyAssessmentRuntimeControlPresentation } from "../src/features/workspace/utils/assessment-runtime-control-presentation.ts";
-import {
-  ASSESSMENT_SIDEBAR_WORKFLOW_STAGES as Steps,
-  NORMALIZED_WORKFLOW_STEP_STATUSES as Statuses,
-} from "../src/features/workspace/types/assessment-runtime-adapter.types.ts";
 
 function event(
   sequence: number,
@@ -150,82 +144,4 @@ test("reloaded history joins native control with its stages and marks abandoned 
   assert.equal(turns[0]?.superseded, true);
   assert.equal(turns[1]?.superseded, false);
   assert.equal(deriveAgentStreamRunOutcome(turns[1]!.events), Outcomes.paused);
-});
-
-test("sidebar uses an acknowledged native stop without changing finished steps or domain workflow state", () => {
-  const base = normalizeAssessmentRuntime({
-    assessmentId: "assessment",
-    interviewState: null,
-  });
-  const runtime = {
-    ...base,
-    workflow: {
-      ...base.workflow,
-      status: Runs.running,
-      steps: [
-        {
-          id: Steps.interview,
-          label: "Interview",
-          status: Statuses.completed,
-          detail: null,
-        },
-        {
-          id: Steps.ruleAnalysis,
-          label: "Rule analysis",
-          status: Statuses.running,
-          detail: null,
-        },
-        {
-          id: Steps.gate,
-          label: "Gate",
-          status: Statuses.queued,
-          detail: null,
-        },
-      ],
-    },
-  };
-  const work = [event(1, Events.modelCallStarted)];
-  const control = {
-    state: Controls.stopped,
-    targetRunId: "native-a",
-    requestId: "stop-request",
-  };
-  const shown = applyAssessmentRuntimeControlPresentation(
-    runtime,
-    work,
-    control,
-  );
-  assert.deepEqual(
-    shown.workflow.steps.map((step) => step.status),
-    [Statuses.completed, Statuses.stopped, Statuses.queued],
-  );
-  assert.equal(shown.workflow.status, Runs.running);
-  assert.equal(runtime.workflow.steps[1]?.status, Statuses.running);
-  assert.equal(
-    applyAssessmentRuntimeControlPresentation(runtime, work, {
-      ...control,
-      state: Controls.stopRequested,
-    }),
-    runtime,
-  );
-  assert.equal(
-    applyAssessmentRuntimeControlPresentation(runtime, work, {
-      ...control,
-      targetRunId: "other-native",
-    }),
-    runtime,
-  );
-  const resumed = [
-    ...work,
-    stopped(),
-    event(11, Events.modelCallStarted, { data: { runtimeRunId: "native-b" } }),
-  ];
-  assert.equal(
-    applyAssessmentRuntimeControlPresentation(runtime, resumed, {
-      ...control,
-      state: Controls.running,
-      targetRunId: "native-b",
-    }),
-    runtime,
-  );
 });

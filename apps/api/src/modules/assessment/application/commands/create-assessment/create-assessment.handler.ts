@@ -18,11 +18,13 @@ import {
   ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_NAME_MAX_LENGTH,
   ASSESSMENT_DESCRIPTION_MAX_LENGTH,
+  ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
+import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecycle-coordinator.service.js";
 import { AssessmentMapper } from "../../mappers/assessment.mapper.js";
 import {
   ASSESSMENT_REPOSITORY,
@@ -50,6 +52,7 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
     private readonly auditWriter: AuditWriterService,
     private readonly outboxRepository: OutboxRepository,
     private readonly prisma: PrismaService,
+    private readonly lifecycle: AssessmentLifecycleCoordinator,
   ) {}
 
   /**
@@ -108,6 +111,26 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
 
     await this.prisma.$transaction(async (tx) => {
       await this.assessmentRepository.saveInTx(assessment, tx);
+      await this.lifecycle.initializeInTx(
+        {
+          assessmentId: assessment.id,
+          ownerId: assessment.ownerId,
+          rootAgentVersion: "assessment-root-v2",
+          checkpointNamespace: assessment.id,
+          correlationId: command.correlationId,
+        },
+        tx,
+      );
+      await this.lifecycle.transitionInTx(
+        {
+          assessmentId: assessment.id,
+          expectedRevision: 0,
+          toState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+          correlationId: command.correlationId,
+          actorId: assessment.ownerId,
+        },
+        tx,
+      );
       await this.auditWriter.writeInTx(auditEvent, tx);
       await this.outboxRepository.enqueue(outboxEvent, tx);
     });

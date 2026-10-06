@@ -8,7 +8,7 @@ import type { MessageEvent } from "@nestjs/common";
 import {
   Controller,
   Get,
-  Logger,
+  HttpException,
   Query,
   Req,
   Sse,
@@ -22,6 +22,7 @@ import {
   interval,
   map,
   merge,
+  of,
   startWith,
 } from "rxjs";
 
@@ -29,15 +30,17 @@ import type { AuthenticatedRequest } from "../../../../common/interfaces/authent
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
-import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
+import {
+  internalServerProblem,
+  isProblemResult,
+  resultEnvelope,
+} from "../../../../platform/http/filters/error.factory.js";
 
 /**
  * Streams orchestration runtime snapshots to authorized workspace clients over Server-Sent Events.
  */
 @Controller("workspace/runtime-events")
 export class WorkspaceRuntimeEventsController {
-  private readonly logger = new Logger(WorkspaceRuntimeEventsController.name);
-
   /**
    * Creates the SSE controller with the runtime snapshot aggregation service.
    *
@@ -64,10 +67,13 @@ export class WorkspaceRuntimeEventsController {
       rbacContext.role === AUTH_USER_ROLES.customer
         ? rbacContext.userId
         : `no-assessment-owner:${rbacContext.userId}`;
+    const correlationId = request.correlationId ?? "";
     const snapshots = interval(2_000).pipe(
       startWith(0),
       exhaustMap(() =>
-        defer(() => this.runtimeEvents.buildWorkspaceSnapshot(ownerId)).pipe(
+        defer(() =>
+          this.runtimeEvents.buildWorkspaceSnapshot(ownerId, correlationId),
+        ).pipe(
           map((data): MessageEvent => ({
             type: "workspace.runtime",
             data: {
@@ -133,14 +139,12 @@ export class WorkspaceRuntimeEventsController {
               // Stage status derived from durable artifacts; the sidebar and the
               // composer both read this instead of guessing from the activity log.
               stage_lifecycles: data.stageLifecycles,
+              // Canonical ALS/AES and AssessmentEvent history are authoritative;
+              // legacy activity/stage projections remain secondary during cutover.
+              canonical_assessments: data.canonicalAssessments,
+              canonical_events: data.canonicalEvents,
             },
           })),
-          catchError((error) => {
-            this.logger.warn(
-              `Workspace runtime snapshot failed; keeping SSE stream open: ${snapshotFailureReason(error)}`,
-            );
-            return EMPTY;
-          }),
         ),
       ),
     );
@@ -156,9 +160,16 @@ export class WorkspaceRuntimeEventsController {
             data: toAgentStreamPayload(event),
           })),
         ) ?? EMPTY;
-    return agentStreamOnly === "1"
-      ? agentStream
-      : merge(snapshots, agentStream);
+    const stream =
+      agentStreamOnly === "1" ? agentStream : merge(snapshots, agentStream);
+    return stream.pipe(
+      catchError((error: unknown) =>
+        of<MessageEvent>({
+          type: "error",
+          data: toSseProblem(error, correlationId),
+        }),
+      ),
+    );
   }
 
   @Get("agent-stream-history")
@@ -189,6 +200,20 @@ export class WorkspaceRuntimeEventsController {
       next_cursor: page.nextCursor,
     });
   }
+}
+
+function toSseProblem(error: unknown, correlationId: string) {
+  const response = error instanceof HttpException ? error.getResponse() : error;
+  if (isProblemResult(response)) {
+    return {
+      ok: false as const,
+      problem: {
+        ...response.problem,
+        correlationId: response.problem.correlationId || correlationId,
+      },
+    };
+  }
+  return internalServerProblem(correlationId);
 }
 
 function toAgentStreamPayload(event: AssessmentAgentStreamEvent) {
@@ -259,12 +284,6 @@ function toPostFindingPullRequestPayload(
     branch: pullRequest.branch,
     patch_version: pullRequest.patchVersion,
   };
-}
-
-function snapshotFailureReason(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : "unknown runtime snapshot error";
 }
 
 /**

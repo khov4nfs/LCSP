@@ -8,7 +8,6 @@ import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { ARTIFACT_STATUSES } from "@/features/artifacts/types/artifact.types";
 import type {
   NormalizedAssessmentRuntime,
-  NormalizedWorkflowStep,
 } from "../../workspace/types/assessment-runtime-adapter.types";
 import { normalizeAssessmentRuntime } from "../../workspace/utils/assessment-runtime-adapter";
 import { WORKSPACE_RUNTIME_CONNECTION_STATES } from "../../workspace/types/workspace-runtime.types";
@@ -68,45 +67,6 @@ export function createAssessmentRuntimeSidebarPreview(
     },
   });
 
-  const previewSteps: NormalizedWorkflowStep[] = [
-    {
-      id: "REPOSITORY",
-      label: "Repository",
-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
-      detail: null,
-    },
-    {
-      id: "SCANNER",
-      label: "Scanner",
-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
-      detail: null,
-    },
-    {
-      id: "INTERVIEW",
-      label: "Interview",
-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
-      detail: null,
-    },
-    {
-      id: "RULES",
-      label: "Rules",
-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
-      detail: null,
-    },
-    {
-      id: "RULE_ANALYSIS",
-      label: "Rule analysis",
-      status: REPOSITORY_SCAN_JOB_STATUSES.running,
-      detail: "Reviewing findings",
-    },
-    {
-      id: "GATE",
-      label: "Gate",
-      status: REPOSITORY_SCAN_JOB_STATUSES.queued,
-      detail: null,
-    },
-  ];
-
   return {
     ...runtime,
     repository: {
@@ -116,7 +76,6 @@ export function createAssessmentRuntimeSidebarPreview(
       pinnedCommit: "9f31ca2",
       sourceState: "AVAILABLE",
     },
-    workflow: { ...runtime.workflow, steps: previewSteps },
     artifacts: {
       ...runtime.artifacts,
       items: runtime.artifacts.items.map((item) =>

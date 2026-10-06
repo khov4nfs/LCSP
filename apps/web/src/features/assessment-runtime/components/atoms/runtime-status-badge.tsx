@@ -30,6 +30,9 @@ const statusLabels: Record<NormalizedWorkflowStepStatus, string> = {
   [NORMALIZED_WORKFLOW_STEP_STATUSES.unknown]: resolveAppMessage(
     "pages.appShell.runtimePanelStatuses.unknown" as MessageKey,
   ),
+  [NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable]: resolveAppMessage(
+    "pages.appShell.runtimePanelStatuses.unavailable" as MessageKey,
+  ),
 };
 
 export function RuntimeStatusBadge({

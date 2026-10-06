@@ -4,6 +4,11 @@ import {
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
 } from "@lcsp/contracts/evidence";
+import {
+  type AgentExecutionState,
+  type AssessmentLifecycleState,
+} from "@lcsp/contracts/assessment";
+import type { MessageKey } from "@lcsp/i18n";
 import { appLocale } from "../../../lib/locale.ts";
 import {
   WORKSPACE_RUNTIME_CONNECTION_STATES,
@@ -18,6 +23,14 @@ export function connectionLabel(state: WorkspaceRuntimeConnectionState) {
     return t("pages.appShell.runtimePanelConnection.disconnected");
   }
   return t("pages.appShell.runtimePanelConnection.connecting");
+}
+
+export function canonicalLifecycleLabel(state: AssessmentLifecycleState) {
+  return t(`pages.appShell.runtimePanelCanonicalStates.${state}`);
+}
+
+export function canonicalExecutionLabel(state: AgentExecutionState) {
+  return t(`pages.appShell.runtimePanelCanonicalExecutionStates.${state}`);
 }
 
 export function runStatusLabel(status: string) {
@@ -135,5 +148,5 @@ function formatRelativeTime(value: string) {
 }
 
 function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
+  return resolveMessage(appLocale, key as MessageKey);
 }
