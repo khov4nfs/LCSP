@@ -490,6 +490,34 @@ export type PagesMessages = {
     runtimePanelRecentActivity: string;
     runtimePanelEmpty: string;
     runtimePanelViewFull: string;
+    runtimePanelCanonicalTitle: string;
+    runtimePanelCanonicalActivity: string;
+    runtimePanelCanonicalUnavailable: string;
+    runtimePanelCanonicalLoading: string;
+    runtimePanelCanonicalLifecycle: string;
+    runtimePanelCanonicalExecution: string;
+    runtimePanelCanonicalStates: {
+      CREATED: string;
+      PREPARING: string;
+      ACTIVE: string;
+      WAITING_FOR_HUMAN: string;
+      WAITING_FOR_REQUIRED_INPUT: string;
+      PAUSED: string;
+      FINALIZING: string;
+      COMPLETE: string;
+      BLOCKED: string;
+      FAILED: string;
+      CANCELLED: string;
+    };
+    runtimePanelCanonicalExecutionStates: {
+      QUEUED: string;
+      RUNNING: string;
+      INTERRUPTED: string;
+      PAUSED: string;
+      SUCCEEDED: string;
+      FAILED: string;
+      CANCELLED: string;
+    };
     runtimePanelStatuses: {
       stopped: string;
       queued: string;
@@ -499,6 +527,7 @@ export type PagesMessages = {
       completed: string;
       skipped: string;
       failed: string;
+      unavailable: string;
     };
     runtimePanelStages: {
       snapshot: string;

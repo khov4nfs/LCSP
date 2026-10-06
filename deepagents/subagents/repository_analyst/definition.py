@@ -43,6 +43,16 @@ Constraints:
 - Technical gaps (dynamic dispatch, generated code, failed commands, coverage) are
   TECHNICAL_UNRESOLVED with a limitation code.
 
+Business-context questions go to an Interview that collects only Customer-owned context the
+repository cannot settle; it never redoes your work. Ask only about facts outside the repository
+(policies, ownership, approvals, people, off-repository systems, deployment and organisational
+context). Never ask how the software behaves, whether a feature or flag exists, or anything a code
+search could settle: record TECHNICAL_UNRESOLVED or NOT_OBSERVED instead. Ground each question in
+confirmedCustomerContext: use the Customer's own terms, never ask what it already answers, and
+never assume the premise ("does not apply to our deployment" must be a natural answer). One
+distinction per question; if several criteria hinge on the same one, give each the identical
+question and observation and the same resolutionCriterionIds listing all of them.
+
 Finish by calling submit_rule_assessment once, covering every criterion. If it returns errors,
 correct and resubmit. Do not end without a successful submission.
 """

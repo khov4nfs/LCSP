@@ -42,6 +42,7 @@ _INTERVIEW_CONFIRMATION_QUESTION_SYNTHESIZED = (
 _INTERVIEW_CONFIRMATION_SYNTHESIS_REJECTED = (
     "INTERVIEW_CONFIRMATION_SYNTHESIS_REJECTED"
 )
+_INTERVIEW_CONFIRMATION_REASK_SKIPPED = "INTERVIEW_CONFIRMATION_REASK_SKIPPED"
 _CONFIRMATION_PROVENANCE_INSTRUCTION_KEY = (
     "CONFIRMATION_PROVENANCE_REQUIRES_CONFIRM_ADJUST_OR_DIRECT_ASK"
 )
@@ -544,6 +545,21 @@ def _confirmation_question_id(statement: str) -> str:
     return f"q-confirm-adjust-{digest}"
 
 
+def _customer_confirmed_synthetic_question(
+    question_id: str,
+    context: dict[str, Any],
+) -> bool:
+    private_revision = context.get("privateRevision")
+    if not (
+        isinstance(private_revision, dict)
+        and str(private_revision.get("questionId") or "") == question_id
+        and str(private_revision.get("questionControl") or "").upper() == "CONFIRM_ADJUST"
+    ):
+        return False
+    answer = private_revision.get("answer")
+    return isinstance(answer, dict) and answer.get("confirmed") is True
+
+
 def _synthesize_confirmation_question(
     decision: dict[str, Any],
     context: dict[str, Any],
@@ -552,22 +568,15 @@ def _synthesize_confirmation_question(
     if statement is None:
         return None
     question_id = _confirmation_question_id(statement)
-    private_revision = context.get("privateRevision")
-    if (
-        isinstance(private_revision, dict)
-        and str(private_revision.get("questionId") or "") == question_id
-        and str(private_revision.get("questionControl") or "").upper() == "CONFIRM_ADJUST"
-    ):
-        answer = private_revision.get("answer")
-        if isinstance(answer, dict) and answer.get("confirmed") is True:
-            _LOGGER.error(
-                "%s question_id=%s reason=confirmed_synthetic_question_rejected",
-                _INTERVIEW_CONFIRMATION_SYNTHESIS_REJECTED,
-                question_id,
-            )
-            raise RuntimeError(
-                "synthetic CONFIRM_ADJUST confirmation was rejected after customer confirmation"
-            )
+    if _customer_confirmed_synthetic_question(question_id, context):
+        _LOGGER.error(
+            "%s question_id=%s reason=confirmed_synthetic_question_rejected",
+            _INTERVIEW_CONFIRMATION_SYNTHESIS_REJECTED,
+            question_id,
+        )
+        raise RuntimeError(
+            "synthetic CONFIRM_ADJUST confirmation was rejected after customer confirmation"
+        )
 
     synthesized = {
         **decision,
@@ -611,6 +620,24 @@ def _confirmation_or_original(decision: dict[str, Any], context: dict[str, Any])
     prepared, feedback = _apply_authority_preflight(decision, context)
     if feedback is None:
         return prepared
+    if feedback.get("code") == "INTERVIEW_MINIMUM_CONTEXT_INCOMPLETE":
+        # The authority is already valid here; only planning dimensions are missing.
+        # A CONFIRM_ADJUST turn cannot supply them, so once the customer has confirmed
+        # this exact statement, re-synthesizing it only loops (and then trips the
+        # fail-closed guard in _synthesize_confirmation_question). Hand the decision
+        # to the API final guard instead: it rejects incomplete CONTEXT_READY with the
+        # missing dimensions and the existing private-correction path asks the
+        # specialist for the follow-up question.
+        statement = _confirmation_statement_text(prepared)
+        if statement is not None:
+            question_id = _confirmation_question_id(statement)
+            if _customer_confirmed_synthetic_question(question_id, context):
+                _LOGGER.warning(
+                    "%s question_id=%s reason=confirmation_cannot_supply_missing_dimensions",
+                    _INTERVIEW_CONFIRMATION_REASK_SKIPPED,
+                    question_id,
+                )
+                return prepared
     synthesized = _synthesize_confirmation_question(prepared, context)
     return synthesized if synthesized is not None else prepared
 

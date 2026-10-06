@@ -11,6 +11,7 @@ import { BillingModule } from "../billing/billing.module.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { CompleteRepositorySetupHandler } from "./application/commands/complete-repository-setup/complete-repository-setup.handler.js";
 import { CreateAssessmentHandler } from "./application/commands/create-assessment/create-assessment.handler.js";
+import { TransitionAssessmentLifecycleHandler } from "./application/commands/transition-lifecycle/transition-lifecycle.handler.js";
 import { DeleteAssessmentHandler } from "./application/commands/delete-assessment/delete-assessment.handler.js";
 import { MarkAiNotDetectedHandler } from "./application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.js";
 import { PutRuleAssessmentHandler } from "./application/commands/put-rule-assessment/put-rule-assessment.handler.js";
@@ -25,6 +26,7 @@ import { AssessmentInterviewRuntimeService } from "./application/services/assess
 import { AssessmentInterviewSnippetService } from "./application/services/assessment-interview-snippet.service.js";
 import { AssessmentPipelineContinuationService } from "./application/services/assessment-pipeline-continuation.service.js";
 import { AssessmentPipelineReconciliationService } from "./application/services/assessment-pipeline-reconciliation.service.js";
+import { AssessmentLifecycleCoordinator } from "./application/services/assessment-lifecycle-coordinator.service.js";
 import { PrismaAssessmentBillingRetention } from "./infrastructure/billing/prisma-assessment-billing-retention.js";
 import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-assessment.repository.js";
 import {
@@ -56,9 +58,11 @@ import {
     AssessmentInterviewSnippetService,
     AssessmentPipelineContinuationService,
     AssessmentPipelineReconciliationService,
+    AssessmentLifecycleCoordinator,
     AssessmentRuntimeEventService,
     WorkerApiKeyGuard,
     CreateAssessmentHandler,
+    TransitionAssessmentLifecycleHandler,
     CompleteRepositorySetupHandler,
     DeleteAssessmentHandler,
     RenameAssessmentHandler,

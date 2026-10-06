@@ -1,0 +1,3624 @@
+diff --git a/apps/web/src/features/assessment-runtime/components/atoms/runtime-status-badge.tsx b/apps/web/src/features/assessment-runtime/components/atoms/runtime-status-badge.tsx
+index 2a456b88f..4850e1141 100644
+--- a/apps/web/src/features/assessment-runtime/components/atoms/runtime-status-badge.tsx
++++ b/apps/web/src/features/assessment-runtime/components/atoms/runtime-status-badge.tsx
+@@ -30,6 +30,9 @@ const statusLabels: Record<NormalizedWorkflowStepStatus, string> = {
+   [NORMALIZED_WORKFLOW_STEP_STATUSES.unknown]: resolveAppMessage(
+     "pages.appShell.runtimePanelStatuses.unknown" as MessageKey,
+   ),
++  [NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable]: resolveAppMessage(
++    "pages.appShell.runtimePanelStatuses.unavailable" as MessageKey,
++  ),
+ };
+ 
+ export function RuntimeStatusBadge({
+diff --git a/apps/web/src/features/assessment-runtime/components/molecules/workflow-status-row.tsx b/apps/web/src/features/assessment-runtime/components/molecules/workflow-status-row.tsx
+deleted file mode 100644
+index 3fa8326fe..000000000
+--- a/apps/web/src/features/assessment-runtime/components/molecules/workflow-status-row.tsx
++++ /dev/null
+@@ -1,38 +0,0 @@
+-import {
+-  NORMALIZED_WORKFLOW_STEP_STATUSES,
+-  type NormalizedWorkflowStep,
+-} from "../../../workspace/types/assessment-runtime-adapter.types";
+-import { RuntimeStatusBadge } from "../atoms/runtime-status-badge";
+-
+-function statusDotClass(status: NormalizedWorkflowStep["status"]) {
+-  switch (status) {
+-    case NORMALIZED_WORKFLOW_STEP_STATUSES.completed:
+-      return "bg-emerald-500";
+-    case NORMALIZED_WORKFLOW_STEP_STATUSES.running:
+-      return "bg-blue-500";
+-    case NORMALIZED_WORKFLOW_STEP_STATUSES.failed:
+-      return "bg-destructive";
+-    case NORMALIZED_WORKFLOW_STEP_STATUSES.waiting:
+-      return "bg-amber-500";
+-    case NORMALIZED_WORKFLOW_STEP_STATUSES.queued:
+-    case NORMALIZED_WORKFLOW_STEP_STATUSES.skipped:
+-    case NORMALIZED_WORKFLOW_STEP_STATUSES.unknown:
+-    default:
+-      return "bg-muted-foreground/50";
+-  }
+-}
+-
+-export function WorkflowStatusRow({ step }: { step: NormalizedWorkflowStep }) {
+-  return (
+-    <li className="flex items-start gap-2.5 border-b border-border/50 py-2.5 last:border-b-0">
+-      <span className={`mt-1.5 size-1.5 shrink-0 rounded-full ${statusDotClass(step.status)}`} aria-hidden="true" />
+-      <span className="min-w-0 flex-1">
+-        <span className="flex items-center justify-between gap-2">
+-          <span className="truncate text-sm font-medium text-foreground">{step.label}</span>
+-          <RuntimeStatusBadge status={step.status} />
+-        </span>
+-        {step.detail ? <span className="mt-1 block line-clamp-2 text-xs text-muted-foreground">{step.detail}</span> : null}
+-      </span>
+-    </li>
+-  );
+-}
+diff --git a/apps/web/src/features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx b/apps/web/src/features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx
+index 94b2ba6c6..34745e7e8 100644
+--- a/apps/web/src/features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx
++++ b/apps/web/src/features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx
+@@ -9,6 +9,7 @@ import { connectionLabel } from "../../../workspace/utils/assessment-runtime-for
+ import { ArtifactEvidenceRail } from "./artifact-evidence-rail";
+ import { RepositoryContextCard } from "../molecules/repository-context-card";
+ import { WorkflowStatusList } from "./workflow-status-list";
++import { CanonicalAssessmentActivity } from "./canonical-assessment-status";
+ import { createAssessmentRuntimeSidebarPreview } from "../../dev/assessment-runtime-sidebar-preview";
+ import { useProgramEvidenceGraphDrawer } from "./program-evidence-graph-drawer";
+ import { AgentStreamUsageSummary } from "../../../workspace/components/molecules/agent-stream-usage-summary";
+@@ -62,7 +63,11 @@ export function AssessmentRuntimeSidebar({
+           }
+           titleKey="pages.appShell.agentStreamUsage.runtimeTotal"
+         />
+-        <WorkflowStatusList steps={runtime.workflow.steps} />
++        <WorkflowStatusList
++          canonicalAssessment={runtime.canonicalAssessment}
++          connectionState={runtime.connectionState}
++        />
++        <CanonicalAssessmentActivity events={runtime.canonicalEvents} />
+         <ArtifactEvidenceRail
+           artifacts={runtime.artifacts}
+           onOpenArtifact={openArtifact}
+diff --git a/apps/web/src/features/assessment-runtime/components/organisms/workflow-status-list.tsx b/apps/web/src/features/assessment-runtime/components/organisms/workflow-status-list.tsx
+index d4bda22f7..fb2cd67ae 100644
+--- a/apps/web/src/features/assessment-runtime/components/organisms/workflow-status-list.tsx
++++ b/apps/web/src/features/assessment-runtime/components/organisms/workflow-status-list.tsx
+@@ -1,13 +1,17 @@
+-import { resolveAppMessage } from "@/lib/i18n";
+-import type { NormalizedWorkflowStep } from "../../../workspace/types/assessment-runtime-adapter.types";
+-import { WorkflowStatusRow } from "../molecules/workflow-status-row";
++import type { NormalizedAssessmentRuntime } from "../../../workspace/types/assessment-runtime-adapter.types";
++import { CanonicalAssessmentStatus } from "./canonical-assessment-status";
+ 
+-export function WorkflowStatusList({ steps }: { steps: NormalizedWorkflowStep[] }) {
+-  if (steps.length === 0) return null;
++export function WorkflowStatusList({
++  canonicalAssessment,
++  connectionState,
++}: {
++  canonicalAssessment: NormalizedAssessmentRuntime["canonicalAssessment"];
++  connectionState: NormalizedAssessmentRuntime["connectionState"];
++}) {
+   return (
+-    <section aria-label={resolveAppMessage("pages.appShell.runtimePanelTitle")}>
+-      <p className="mb-2 text-[0.6875rem] font-semibold tracking-widest text-muted-foreground uppercase">{resolveAppMessage("pages.appShell.runtimePanelTitle")}</p>
+-      <ol className="rounded-xl border border-border/70 bg-card px-3.5">{steps.map((step) => <WorkflowStatusRow key={step.id} step={step} />)}</ol>
+-    </section>
++    <CanonicalAssessmentStatus
++      canonicalAssessment={canonicalAssessment}
++      connectionState={connectionState}
++    />
+   );
+ }
+diff --git a/apps/web/src/features/assessment-runtime/dev/assessment-runtime-sidebar-preview.ts b/apps/web/src/features/assessment-runtime/dev/assessment-runtime-sidebar-preview.ts
+index a1826267b..461897f98 100644
+--- a/apps/web/src/features/assessment-runtime/dev/assessment-runtime-sidebar-preview.ts
++++ b/apps/web/src/features/assessment-runtime/dev/assessment-runtime-sidebar-preview.ts
+@@ -8,7 +8,6 @@ import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
+ import { ARTIFACT_STATUSES } from "@/features/artifacts/types/artifact.types";
+ import type {
+   NormalizedAssessmentRuntime,
+-  NormalizedWorkflowStep,
+ } from "../../workspace/types/assessment-runtime-adapter.types";
+ import { normalizeAssessmentRuntime } from "../../workspace/utils/assessment-runtime-adapter";
+ import { WORKSPACE_RUNTIME_CONNECTION_STATES } from "../../workspace/types/workspace-runtime.types";
+@@ -68,45 +67,6 @@ export function createAssessmentRuntimeSidebarPreview(
+     },
+   });
+ 
+-  const previewSteps: NormalizedWorkflowStep[] = [
+-    {
+-      id: "REPOSITORY",
+-      label: "Repository",
+-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+-      detail: null,
+-    },
+-    {
+-      id: "SCANNER",
+-      label: "Scanner",
+-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+-      detail: null,
+-    },
+-    {
+-      id: "INTERVIEW",
+-      label: "Interview",
+-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+-      detail: null,
+-    },
+-    {
+-      id: "RULES",
+-      label: "Rules",
+-      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+-      detail: null,
+-    },
+-    {
+-      id: "RULE_ANALYSIS",
+-      label: "Rule analysis",
+-      status: REPOSITORY_SCAN_JOB_STATUSES.running,
+-      detail: "Reviewing findings",
+-    },
+-    {
+-      id: "GATE",
+-      label: "Gate",
+-      status: REPOSITORY_SCAN_JOB_STATUSES.queued,
+-      detail: null,
+-    },
+-  ];
+-
+   return {
+     ...runtime,
+     repository: {
+@@ -116,7 +76,6 @@ export function createAssessmentRuntimeSidebarPreview(
+       pinnedCommit: "9f31ca2",
+       sourceState: "AVAILABLE",
+     },
+-    workflow: { ...runtime.workflow, steps: previewSteps },
+     artifacts: {
+       ...runtime.artifacts,
+       items: runtime.artifacts.items.map((item) =>
+diff --git a/apps/web/src/features/workspace/components/molecules/assessment-summary-card.tsx b/apps/web/src/features/workspace/components/molecules/assessment-summary-card.tsx
+index 3bbe22f13..036560e4a 100644
+--- a/apps/web/src/features/workspace/components/molecules/assessment-summary-card.tsx
++++ b/apps/web/src/features/workspace/components/molecules/assessment-summary-card.tsx
+@@ -9,15 +9,19 @@ import {
+   CardHeader,
+   CardTitle,
+ } from "@/components/ui/card";
+-import {
+-  getAssessmentStatusLabelKey,
+-} from "@/lib/api/workspace-client";
+ import { appLocale } from "@/lib/locale";
+-import { getAssessmentProgress } from "../../config/assessment-progress";
+ import type {
+   AssessmentFactProps,
+   AssessmentSummaryCardProps,
+ } from "../../types/assessment-summary-card.types";
++import {
++  WORKSPACE_RUNTIME_CONNECTION_STATES,
++  type WorkspaceRuntimeConnectionState,
++} from "../../types/workspace-runtime.types";
++import {
++  canonicalExecutionLabel,
++  canonicalLifecycleLabel,
++} from "../../utils/assessment-runtime-formatter";
+ 
+ export function AssessmentSummaryCard({
+   assessment,
+@@ -25,12 +29,16 @@ export function AssessmentSummaryCard({
+   createdAtLabel,
+   href,
+   openAssessmentLabel,
++  canonicalAssessment,
++  connectionState,
+ }: AssessmentSummaryCardProps) {
+-  const status = resolveMessage(
+-    appLocale,
+-    getAssessmentStatusLabelKey(assessment.status),
+-  );
+-  const progress = getAssessmentProgress(assessment.status);
++  const canonicalState = canonicalAssessment?.lifecycle &&
++    canonicalAssessment.runtime
++    ? canonicalLifecycleLabel(canonicalAssessment.lifecycle.state)
++    : canonicalUnavailableLabel(connectionState);
++  const executionState = canonicalAssessment?.runtime
++    ? canonicalExecutionLabel(canonicalAssessment.runtime.executionState)
++    : canonicalUnavailableLabel(connectionState);
+ 
+   return (
+     <Card className="group relative transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
+@@ -49,37 +57,29 @@ export function AssessmentSummaryCard({
+       </CardHeader>
+       <CardContent>
+         <dl className="flex flex-col gap-3 text-sm">
+-          <AssessmentFact label={statusLabel} value={status} />
+-        </dl>
+-        <div className="mt-5 flex flex-col gap-2">
+-          <div className="flex items-center justify-between text-sm">
+-            <span className="text-muted-foreground">
+-              {resolveMessage(appLocale, "pages.workspace.progressLabel")}
+-            </span>
+-            <span className="font-medium">{progress}%</span>
+-          </div>
+-          <div
+-            className="h-2 overflow-hidden rounded-full bg-muted"
+-            role="progressbar"
+-            aria-label={resolveMessage(
++          <AssessmentFact label={statusLabel} value={canonicalState} />
++          <AssessmentFact
++            label={resolveMessage(
+               appLocale,
+-              "pages.workspace.progressLabel",
++              "pages.appShell.runtimePanelCanonicalExecution",
+             )}
+-            aria-valuemin={0}
+-            aria-valuemax={100}
+-            aria-valuenow={progress}
+-          >
+-            <div
+-              className="h-full rounded-full bg-primary transition-[width]"
+-              style={{ width: `${progress}%` }}
+-            />
+-          </div>
+-        </div>
++            value={executionState}
++          />
++        </dl>
+       </CardContent>
+     </Card>
+   );
+ }
+ 
++function canonicalUnavailableLabel(connectionState: WorkspaceRuntimeConnectionState) {
++  return resolveMessage(
++    appLocale,
++    connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.connecting
++      ? "pages.appShell.runtimePanelCanonicalLoading"
++      : "pages.appShell.runtimePanelCanonicalUnavailable",
++  );
++}
++
+ function AssessmentFact({ label, value }: AssessmentFactProps) {
+   return (
+     <div className="flex items-center justify-between gap-4">
+diff --git a/apps/web/src/features/workspace/components/organisms/assessment-composer.tsx b/apps/web/src/features/workspace/components/organisms/assessment-composer.tsx
+index 4ea15a0b8..47743d868 100644
+--- a/apps/web/src/features/workspace/components/organisms/assessment-composer.tsx
++++ b/apps/web/src/features/workspace/components/organisms/assessment-composer.tsx
+@@ -107,7 +107,13 @@ export function AssessmentComposer({
+   const isSubmitReady =
+     submitReady !== undefined ? submitReady : value.trim().length > 0;
+   const sendDisabled = controlled || disabled || submitting || !isSubmitReady;
+-  const showResumeAction = resumeAvailable && value.trim().length === 0;
++  // An explicit null runtime control means the canonical ALS/AES pair is not
++  // available for this surface. Do not let a stale generic resume flag invent
++  // a Continue action until the server projection is present again.
++  const showResumeAction =
++    runtimeControlState !== null &&
++    resumeAvailable &&
++    value.trim().length === 0;
+   const resumeDisabled = resuming || !onResume;
+   const stopTurnLabel = t(
+     stopping
+diff --git a/apps/web/src/features/workspace/components/organisms/assessment-list.tsx b/apps/web/src/features/workspace/components/organisms/assessment-list.tsx
+index 343b42d0d..66b100d6d 100644
+--- a/apps/web/src/features/workspace/components/organisms/assessment-list.tsx
++++ b/apps/web/src/features/workspace/components/organisms/assessment-list.tsx
+@@ -10,7 +10,9 @@ import {
+   EmptyTitle,
+ } from "@/components/ui/empty";
+ import { Skeleton } from "@/components/ui/skeleton";
++import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
+ import type { AssessmentSummary } from "../../types/workspace.types";
++import type { WorkspaceRuntimeConnectionState } from "../../types/workspace-runtime.types";
+ import { AssessmentSummaryCard } from "../molecules/assessment-summary-card";
+ 
+ type AssessmentListProps = {
+@@ -25,6 +27,8 @@ type AssessmentListProps = {
+   createdAtLabel: string;
+   getAssessmentHref?: (assessment: AssessmentSummary) => string;
+   openAssessmentLabel?: string;
++  canonicalAssessments: Record<string, CanonicalAssessmentRuntimeSnapshot>;
++  connectionState: WorkspaceRuntimeConnectionState;
+ };
+ 
+ export function AssessmentList({
+@@ -39,6 +43,8 @@ export function AssessmentList({
+   createdAtLabel,
+   getAssessmentHref,
+   openAssessmentLabel,
++  canonicalAssessments,
++  connectionState,
+ }: AssessmentListProps) {
+   return (
+     <section
+@@ -88,6 +94,8 @@ export function AssessmentList({
+               createdAtLabel={createdAtLabel}
+               href={getAssessmentHref?.(assessment)}
+               openAssessmentLabel={openAssessmentLabel}
++              canonicalAssessment={canonicalAssessments[assessment.id] ?? null}
++              connectionState={connectionState}
+             />
+           ))}
+         </div>
+diff --git a/apps/web/src/features/workspace/components/organisms/assessment-overview.tsx b/apps/web/src/features/workspace/components/organisms/assessment-overview.tsx
+index 145224747..16d4cd716 100644
+--- a/apps/web/src/features/workspace/components/organisms/assessment-overview.tsx
++++ b/apps/web/src/features/workspace/components/organisms/assessment-overview.tsx
+@@ -3,9 +3,10 @@
+ import {
+   ASSESSMENT_FLOW_STAGES,
+   ASSESSMENT_REPOSITORY_PROVIDERS,
++  AGENT_EXECUTION_STATES,
++  ASSESSMENT_LIFECYCLE_STATES,
+ } from "@lcsp/contracts/assessment";
+ import {
+-  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
+   ASSESSMENT_AGENT_STREAM_STAGES,
+   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
+   ASSESSMENT_INTERVIEW_CONTROLS,
+@@ -36,12 +37,10 @@ import {
+ } from "@/lib/api/assessment-queries";
+ import { useAssessmentRuntimeControl } from "@/lib/api/assessment-runtime-control-queries";
+ import { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
+-import { useAssessmentsQuery } from "@/lib/api/workspace-queries";
+ import { appLocale } from "@/lib/locale";
+ 
+ import {
+   PIPELINE_CONTINUE_FAILED_MESSAGE_KEY,
+-  PIPELINE_CONTINUE_FINISHED_STATUSES,
+   pipelineContinueMessageKey,
+ } from "../../config/pipeline-continue";
+ import { useAssessmentRuntimeViewModel } from "../../hooks/use-assessment-runtime-view-model";
+@@ -51,7 +50,6 @@ import {
+   shouldShowAgentStreamHistoryAction,
+ } from "../../utils/agent-stream-projection";
+ import {
+-  deriveLatestAgentStreamTurnState,
+   groupAgentStreamEventsByRun,
+   groupAgentStreamEventsByStage,
+   interleaveInterviewTranscript,
+@@ -297,17 +295,7 @@ function AssessmentInterviewFlow({
+   const workflow = selectWorkflowPresentation(normalized);
+   const customerActions = selectCustomerActions(normalized);
+   const composerAvailability = selectComposerAvailability(normalized);
+-  const assessmentsQuery = useAssessmentsQuery();
+-  const assessmentStatus =
+-    assessmentsQuery.data?.kind === API_OUTCOME_KINDS.loaded
+-      ? (assessmentsQuery.data.assessments.find(
+-          (assessment) => assessment.id === assessmentId,
+-        )?.status ?? null)
+-      : null;
+-  const interviewHandoff = selectInterviewHandoffPresentation(
+-    normalized,
+-    assessmentStatus,
+-  );
++  const interviewHandoff = selectInterviewHandoffPresentation(normalized);
+   const postFinding = selectPostFindingPresentation(normalized);
+   // Kept only as an autoScrollKey signal below: Rule-analysis activity
+   // itself now renders exclusively through interviewTranscript (per-turn,
+@@ -317,14 +305,14 @@ function AssessmentInterviewFlow({
+     () => groupAgentStreamEventsByStage(liveTimeline.agentStreamEvents ?? []),
+     [liveTimeline.agentStreamEvents],
+   );
++  const canonicalLifecycleState =
++    liveTimeline.canonicalAssessment?.lifecycle?.state ?? null;
++  const canonicalExecutionState =
++    liveTimeline.canonicalAssessment?.runtime?.executionState ?? null;
+   const boundaryPaused =
+-    groupAgentStreamEventsByRun(liveTimeline.agentStreamEvents ?? [])
+-      .at(-1)
+-      ?.events.some(
+-        (event) =>
+-          event.eventType ===
+-          ASSESSMENT_AGENT_STREAM_EVENT_TYPES.boundaryPaused,
+-      ) ?? false;
++    canonicalLifecycleState === ASSESSMENT_LIFECYCLE_STATES.PAUSED ||
++    canonicalExecutionState === AGENT_EXECUTION_STATES.INTERRUPTED ||
++    canonicalExecutionState === AGENT_EXECUTION_STATES.PAUSED;
+   // Which downstream stage is actively running right now, if any — drives a
+   // composer placeholder that reflects what's really happening (planning,
+   // investigating, reviewing) instead of always saying "waiting on Interview"
+@@ -334,14 +322,13 @@ function AssessmentInterviewFlow({
+       ASSESSMENT_AGENT_STREAM_STAGES.gate,
+       ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis,
+     ] as const;
++    if (canonicalExecutionState !== AGENT_EXECUTION_STATES.RUNNING) {
++      return null;
++    }
+     return (
+-      priority.find(
+-        (stage) =>
+-          deriveLatestAgentStreamTurnState(stageEvents.byStage[stage]) ===
+-          "running",
+-      ) ?? null
++      priority.find((stage) => stageEvents.byStage[stage].length > 0) ?? null
+     );
+-  }, [stageEvents]);
++  }, [canonicalExecutionState, stageEvents]);
+   const downstreamPlaceholderKey =
+     runningDownstreamStage === ASSESSMENT_AGENT_STREAM_STAGES.gate
+       ? "pages.assessmentFlow.interview.gatePlaceholder"
+@@ -358,10 +345,10 @@ function AssessmentInterviewFlow({
+   const activeRuntimeControl = useMemo(
+     () =>
+       selectAssessmentComposerRuntimeControl(
+-        liveTimeline.agentStreamEvents ?? [],
++        liveTimeline.canonicalAssessment,
+         runtimeControl.control.data,
+       ),
+-    [liveTimeline.agentStreamEvents, runtimeControl.control.data],
++    [liveTimeline.canonicalAssessment, runtimeControl.control.data],
+   );
+   const runtimeControlState = runtimeControl.stop.isPending
+     ? ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested
+@@ -682,16 +669,18 @@ function AssessmentInterviewFlow({
+     runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.running &&
+     runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested &&
+     runtimeControlState !== ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested &&
+-    (boundaryPaused || interviewEnabled) &&
++    (canonicalLifecycleState ===
++      ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
++      canonicalLifecycleState ===
++        ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_REQUIRED_INPUT ||
++      canonicalLifecycleState === ASSESSMENT_LIFECYCLE_STATES.PAUSED ||
++      canonicalLifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED ||
++      canonicalLifecycleState === ASSESSMENT_LIFECYCLE_STATES.FAILED) &&
+     !scanFailed &&
+     !hasComposerDraft &&
+     (boundaryPaused ||
+       !(customerActions.canAnswerQuestion && activeQuestion)) &&
+     !customerActions.canSubmitBlockedAction &&
+-    !(
+-      assessmentStatus !== null &&
+-      PIPELINE_CONTINUE_FINISHED_STATUSES.has(assessmentStatus)
+-    ) &&
+     (boundaryPaused || !interviewHandoff.isGenuinelyPending) &&
+     !submitAnswer.isPending &&
+     !recordBlockedAction.isPending &&
+diff --git a/apps/web/src/features/workspace/components/organisms/assessments-directory.tsx b/apps/web/src/features/workspace/components/organisms/assessments-directory.tsx
+index d688cd445..5cc84abef 100644
+--- a/apps/web/src/features/workspace/components/organisms/assessments-directory.tsx
++++ b/apps/web/src/features/workspace/components/organisms/assessments-directory.tsx
+@@ -6,11 +6,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+ import { getAssessmentActiveHref } from "@/lib/api/workspace-client";
+ import { useAssessmentsQuery } from "@/lib/api/workspace-queries";
+ import { appLocale } from "@/lib/locale";
++import { useWorkspaceRuntime } from "./workspace-runtime-provider";
+ 
+ import { AssessmentList } from "./assessment-list";
+ 
+ export function AssessmentsDirectory() {
+   const assessmentsQuery = useAssessmentsQuery();
++  const workspaceRuntime = useWorkspaceRuntime();
+   const assessments =
+     assessmentsQuery.data?.kind === "loaded"
+       ? assessmentsQuery.data.assessments
+@@ -62,6 +64,8 @@ export function AssessmentsDirectory() {
+           appLocale,
+           "pages.assessment.openOverview",
+         )}
++        canonicalAssessments={workspaceRuntime.canonicalAssessmentByAssessmentId}
++        connectionState={workspaceRuntime.connectionState}
+       />
+     </main>
+   );
+diff --git a/apps/web/src/features/workspace/components/organisms/workspace-dashboard.tsx b/apps/web/src/features/workspace/components/organisms/workspace-dashboard.tsx
+index 5a8e85b01..3b5d2c341 100644
+--- a/apps/web/src/features/workspace/components/organisms/workspace-dashboard.tsx
++++ b/apps/web/src/features/workspace/components/organisms/workspace-dashboard.tsx
+@@ -15,9 +15,11 @@ import { appLocale } from "@/lib/locale";
+ import type { WorkspaceErrorOutcome } from "../../types/workspace.types";
+ import { WorkspaceHeader } from "../molecules/workspace-header";
+ import { WorkspaceOverview } from "./workspace-overview";
++import { useWorkspaceRuntime } from "./workspace-runtime-provider";
+ 
+ export function WorkspaceDashboard() {
+   const router = useRouter();
++  const workspaceRuntime = useWorkspaceRuntime();
+   const workspaceQuery = useWorkspaceQuery();
+   const assessmentsQuery = useAssessmentsQuery();
+ 
+@@ -81,7 +83,11 @@ export function WorkspaceDashboard() {
+           />
+         ) : null}
+ 
+-        <WorkspaceOverview assessments={assessments} />
++        <WorkspaceOverview
++          assessments={assessments}
++          canonicalAssessments={workspaceRuntime.canonicalAssessmentByAssessmentId}
++          connectionState={workspaceRuntime.connectionState}
++        />
+       </div>
+     </main>
+   );
+diff --git a/apps/web/src/features/workspace/components/organisms/workspace-overview.tsx b/apps/web/src/features/workspace/components/organisms/workspace-overview.tsx
+index b7599e7d1..35acf79fe 100644
+--- a/apps/web/src/features/workspace/components/organisms/workspace-overview.tsx
++++ b/apps/web/src/features/workspace/components/organisms/workspace-overview.tsx
+@@ -1,6 +1,6 @@
+ "use client";
+ 
+-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
++import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+ import { resolveMessage } from "@lcsp/i18n";
+ import Link from "next/link";
+ 
+@@ -19,22 +19,32 @@ import {
+   CardHeader,
+   CardTitle,
+ } from "@/components/ui/card";
+-import {
+-  getAssessmentActiveHref,
+-  getAssessmentStatusLabelKey,
+-} from "@/lib/api/workspace-client";
++import { getAssessmentActiveHref } from "@/lib/api/workspace-client";
+ import { appLocale } from "@/lib/locale";
+ import type { WorkspaceOverviewProps } from "../../types/workspace-overview.types";
+ import { OverviewMetricCard } from "../molecules/overview-metric-card";
++import {
++  canonicalLifecycleLabel,
++} from "../../utils/assessment-runtime-formatter";
++import {
++  WORKSPACE_RUNTIME_CONNECTION_STATES,
++  type WorkspaceRuntimeConnectionState,
++} from "../../types/workspace-runtime.types";
+ 
+-export function WorkspaceOverview({ assessments }: WorkspaceOverviewProps) {
++export function WorkspaceOverview({
++  assessments,
++  canonicalAssessments,
++  connectionState,
++}: WorkspaceOverviewProps) {
+   const attention = assessments.filter(
+     (assessment) =>
+-      assessment.status !== ASSESSMENT_STATUS_CODES.readyForReview,
++      canonicalAssessments[assessment.id]?.lifecycle?.state !==
++      ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+   ).length;
+   const ready = assessments.filter(
+     (assessment) =>
+-      assessment.status === ASSESSMENT_STATUS_CODES.readyForReview,
++      canonicalAssessments[assessment.id]?.lifecycle?.state ===
++      ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+   ).length;
+   const recent = [...assessments]
+     .sort((a, b) => b.created_at.localeCompare(a.created_at))
+@@ -91,9 +101,9 @@ export function WorkspaceOverview({ assessments }: WorkspaceOverviewProps) {
+               >
+                 <span className="font-medium">{assessment.name}</span>
+                 <Badge variant="outline">
+-                  {resolveMessage(
+-                    appLocale,
+-                    getAssessmentStatusLabelKey(assessment.status),
++                  {canonicalLifecycleDisplay(
++                    canonicalAssessments[assessment.id] ?? null,
++                    connectionState,
+                   )}
+                 </Badge>
+               </Link>
+@@ -121,3 +131,18 @@ export function WorkspaceOverview({ assessments }: WorkspaceOverviewProps) {
+     </>
+   );
+ }
++
++function canonicalLifecycleDisplay(
++  canonicalAssessment: WorkspaceOverviewProps["canonicalAssessments"][string] | null,
++  connectionState: WorkspaceRuntimeConnectionState,
++) {
++  if (canonicalAssessment?.lifecycle && canonicalAssessment.runtime) {
++    return canonicalLifecycleLabel(canonicalAssessment.lifecycle.state);
++  }
++  return resolveMessage(
++    appLocale,
++    connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.connecting
++      ? "pages.appShell.runtimePanelCanonicalLoading"
++      : "pages.appShell.runtimePanelCanonicalUnavailable",
++  );
++}
+diff --git a/apps/web/src/features/workspace/components/organisms/workspace-runtime-provider.tsx b/apps/web/src/features/workspace/components/organisms/workspace-runtime-provider.tsx
+index 2eb1fe66e..863176677 100644
+--- a/apps/web/src/features/workspace/components/organisms/workspace-runtime-provider.tsx
++++ b/apps/web/src/features/workspace/components/organisms/workspace-runtime-provider.tsx
+@@ -37,6 +37,8 @@ const initialRuntime: WorkspaceRuntimeContextValue = {
+   scanJobs: [],
+   evidenceReports: [],
+   postFindingStates: [],
++  canonicalAssessments: [],
++  canonicalEvents: [],
+   runsByAssessmentId: {},
+   recentActivityByAssessmentId: {},
+   engineeringProgressByAssessmentId: {},
+@@ -44,8 +46,11 @@ const initialRuntime: WorkspaceRuntimeContextValue = {
+   agentStreamHistoryByAssessmentId: {},
+   latestRunIdByAssessmentId: {},
+   postFindingByAssessmentId: {},
+-  stageLifecycleByAssessmentId: {},
++  canonicalAssessmentByAssessmentId: {},
++  canonicalEventsByAssessmentId: {},
+   getAssessmentRuntime: (): WorkspaceRuntimeAssessmentTimeline => ({
++    canonicalAssessment: null,
++    canonicalEvents: [],
+     currentRun: null,
+     recentActivity: [],
+     engineeringProgress: [],
+@@ -636,8 +641,10 @@ function withAgentStreamEvents(
+       connectionState: runtime.connectionState,
+       lastEmittedAt: runtime.emittedAt,
+       postFinding: runtime.postFindingByAssessmentId[assessmentId] ?? null,
+-      stageLifecycle:
+-        runtime.stageLifecycleByAssessmentId[assessmentId] ?? null,
++      canonicalAssessment:
++        runtime.canonicalAssessmentByAssessmentId[assessmentId] ?? null,
++      canonicalEvents:
++        runtime.canonicalEventsByAssessmentId[assessmentId] ?? [],
+     }),
+   };
+ }
+@@ -710,4 +717,4 @@ export function useWorkspaceRuntime() {
+ 
+ const __workspaceRuntimeTestUtils = {
+   parseRuntimeEvent,
+-};
+\ No newline at end of file
++};
+diff --git a/apps/web/src/features/workspace/types/assessment-runtime-adapter.types.ts b/apps/web/src/features/workspace/types/assessment-runtime-adapter.types.ts
+index 2d5bed4a7..01e103825 100644
+--- a/apps/web/src/features/workspace/types/assessment-runtime-adapter.types.ts
++++ b/apps/web/src/features/workspace/types/assessment-runtime-adapter.types.ts
+@@ -13,13 +13,14 @@ import {
+   type AssessmentRuntimeEngineeringProgress,
+   type AssessmentPostFindingActivity,
+   type AssessmentPostFindingRuntimeState,
++  type CanonicalAssessmentRuntimeSnapshot,
+   type AssessmentTechnicalCoverageState,
+   type FinalAssessmentResultStatus,
+   type RemediationApprovalStatus,
+   type RemediationDecision,
+   type VerificationResultStatus,
+-  type AssessmentStageLifecycleProjection,
+ } from "@lcsp/contracts/evidence";
++import type { AssessmentEvent } from "@lcsp/contracts/assessment";
+ import {
+   PROVIDER_CREDENTIAL_STATUSES,
+   REPOSITORY_SCAN_JOB_STATUSES,
+@@ -100,6 +101,7 @@ export type AssessmentSidebarWorkflowStage =
+ export const ASSESSMENT_SIDEBAR_STATUSES = {
+   running: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+   queued: REPOSITORY_SCAN_JOB_STATUSES.queued,
++  unavailable: ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable,
+   passed: "PASSED",
+   building: "BUILDING",
+   ready: ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready,
+@@ -173,6 +175,7 @@ export const NORMALIZED_WORKFLOW_STEP_STATUSES = {
+   skipped: "SKIPPED",
+   failed: REPOSITORY_SCAN_JOB_STATUSES.failed,
+   unknown: "UNKNOWN",
++  unavailable: "UNAVAILABLE",
+ } as const;
+ 
+ export type NormalizedWorkflowStepStatus =
+@@ -299,6 +302,8 @@ export type NormalizedAssessmentIntegration = {
+ 
+ export type NormalizedAssessmentRuntime = {
+   tokenUsage?: StreamUsageAggregate;
++  canonicalAssessment: CanonicalAssessmentRuntimeSnapshot | null;
++  canonicalEvents: AssessmentEvent[];
+   availability: AssessmentRuntimeAvailability;
+   connectionState: WorkspaceRuntimeConnectionState;
+   identity: NormalizedAssessmentIdentity;
+@@ -327,8 +332,10 @@ export type AdapterArtifactAvailabilityInput = {
+ };
+ 
+ export type AdapterTimelineInput = {
+-  /** Stage status the API derived from durable artifacts (absent on old APIs). */
+-  stageLifecycle?: AssessmentStageLifecycleProjection | null;
++  /** Canonical ALS/AES pair; null is an explicit unavailable projection. */
++  canonicalAssessment?: CanonicalAssessmentRuntimeSnapshot | null;
++  /** Canonical events are activity only and never lifecycle authority. */
++  canonicalEvents?: AssessmentEvent[];
+   currentRun: WorkspaceRuntimeRun | null;
+   recentActivity: WorkspaceRuntimeActivityItem[];
+   engineeringProgress?: AssessmentRuntimeEngineeringProgress[];
+diff --git a/apps/web/src/features/workspace/types/assessment-summary-card.types.ts b/apps/web/src/features/workspace/types/assessment-summary-card.types.ts
+index a751f86ec..830f8955d 100644
+--- a/apps/web/src/features/workspace/types/assessment-summary-card.types.ts
++++ b/apps/web/src/features/workspace/types/assessment-summary-card.types.ts
+@@ -1,6 +1,8 @@
+ import type { LucideIcon } from "lucide-react";
+ 
+ import type { AssessmentSummary } from "./workspace.types";
++import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
++import type { WorkspaceRuntimeConnectionState } from "./workspace-runtime.types";
+ 
+ export type AssessmentSummaryCardProps = {
+   assessment: AssessmentSummary;
+@@ -8,6 +10,8 @@ export type AssessmentSummaryCardProps = {
+   createdAtLabel: string;
+   href?: string;
+   openAssessmentLabel?: string;
++  canonicalAssessment: CanonicalAssessmentRuntimeSnapshot | null;
++  connectionState: WorkspaceRuntimeConnectionState;
+ };
+ 
+ type AssessmentModuleLinkProps = {
+diff --git a/apps/web/src/features/workspace/types/workspace-overview.types.ts b/apps/web/src/features/workspace/types/workspace-overview.types.ts
+index 73816641c..4ee5871ba 100644
+--- a/apps/web/src/features/workspace/types/workspace-overview.types.ts
++++ b/apps/web/src/features/workspace/types/workspace-overview.types.ts
+@@ -1,5 +1,9 @@
+ import type { AssessmentSummary } from "./workspace.types";
++import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
++import type { WorkspaceRuntimeConnectionState } from "./workspace-runtime.types";
+ 
+ export type WorkspaceOverviewProps = {
+   assessments: AssessmentSummary[];
++  canonicalAssessments: Record<string, CanonicalAssessmentRuntimeSnapshot>;
++  connectionState: WorkspaceRuntimeConnectionState;
+ };
+diff --git a/apps/web/src/features/workspace/types/workspace-runtime.types.ts b/apps/web/src/features/workspace/types/workspace-runtime.types.ts
+index 45d56c310..d2f193098 100644
+--- a/apps/web/src/features/workspace/types/workspace-runtime.types.ts
++++ b/apps/web/src/features/workspace/types/workspace-runtime.types.ts
+@@ -4,8 +4,9 @@ import type {
+   AssessmentAgentStreamStage,
+   AssessmentPostFindingRuntimeState,
+   AssessmentRuntimeEngineeringProgress,
+-  AssessmentStageLifecycleProjection,
++  CanonicalAssessmentRuntimeSnapshot,
+ } from "@lcsp/contracts/evidence";
++import type { AssessmentEvent } from "@lcsp/contracts/assessment";
+ 
+ export const WORKSPACE_RUNTIME_CONNECTION_STATES = {
+   connecting: "CONNECTING",
+@@ -94,8 +95,10 @@ export type WorkspaceRuntimeActivityItem = {
+ };
+ 
+ export type WorkspaceRuntimeAssessmentTimeline = {
+-  /** Stage status from durable artifacts; null for an older API without it. */
+-  stageLifecycle?: AssessmentStageLifecycleProjection | null;
++  /** Canonical ALS/AES pair; null means the server reported it unavailable. */
++  canonicalAssessment?: CanonicalAssessmentRuntimeSnapshot | null;
++  /** Canonical events are activity only; they never project lifecycle state. */
++  canonicalEvents?: AssessmentEvent[];
+   currentRun: WorkspaceRuntimeRun | null;
+   recentActivity: WorkspaceRuntimeActivityItem[];
+   engineeringProgress?: AssessmentRuntimeEngineeringProgress[];
+@@ -125,8 +128,8 @@ type WorkspaceRuntimeSnapshot = {
+   scanJobs: WorkspaceRuntimeScanJob[];
+   evidenceReports: WorkspaceRuntimeEvidenceReport[];
+   postFindingStates: AssessmentPostFindingRuntimeState[];
+-  /** Stage status the API derived from durable artifacts, keyed by assessment. */
+-  stageLifecycleByAssessmentId: Record<string, AssessmentStageLifecycleProjection>;
++  canonicalAssessments: CanonicalAssessmentRuntimeSnapshot[];
++  canonicalEvents: AssessmentEvent[];
+ };
+ 
+ export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
+@@ -144,6 +147,11 @@ export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
+   >;
+   latestRunIdByAssessmentId: Record<string, string>;
+   postFindingByAssessmentId: Record<string, AssessmentPostFindingRuntimeState>;
++  canonicalAssessmentByAssessmentId: Record<
++    string,
++    CanonicalAssessmentRuntimeSnapshot
++  >;
++  canonicalEventsByAssessmentId: Record<string, AssessmentEvent[]>;
+   getAssessmentRuntime: (
+     assessmentId: string,
+   ) => WorkspaceRuntimeAssessmentTimeline;
+diff --git a/apps/web/src/features/workspace/utils/assessment-composer-control.ts b/apps/web/src/features/workspace/utils/assessment-composer-control.ts
+index c3fe44eb9..d59fb11e9 100644
+--- a/apps/web/src/features/workspace/utils/assessment-composer-control.ts
++++ b/apps/web/src/features/workspace/utils/assessment-composer-control.ts
+@@ -1,109 +1,41 @@
+ import {
+-  ASSESSMENT_AGENT_STREAM_EVENT_TYPES as Events,
+-  ASSESSMENT_AGENT_STREAM_STAGES as Stages,
++  AGENT_EXECUTION_STATES,
++} from "@lcsp/contracts/assessment";
++import {
+   ASSESSMENT_RUNTIME_CONTROL_STATES as States,
+-  type AssessmentAgentStreamEvent,
++  type CanonicalAssessmentRuntimeSnapshot,
+   type AssessmentRuntimeControlResult,
+ } from "@lcsp/contracts/evidence";
+ 
+-import { mergeRuntimeControlResponse } from "@/lib/api/assessment-runtime-control-state";
+ import type { AssessmentComposerRuntimeControl } from "../types/assessment-composer.types";
+-import {
+-  AGENT_STREAM_RUN_OUTCOMES,
+-  deriveAgentStreamRunOutcome,
+-} from "./agent-stream-projection";
+-import {
+-  agentStreamRuntimeRunId,
+-  groupAgentStreamEventsByRun,
+-} from "./agent-stream-stages";
+ 
+-function runtimeLifecycle(event: AssessmentAgentStreamEvent) {
+-  const state =
+-    event.eventType === Events.runtimeStopRequested
+-      ? States.stopRequested
+-      : event.eventType === Events.runtimeStopped
+-        ? States.stopped
+-        : event.eventType === Events.runtimeResumeRequested
+-          ? States.resumeRequested
+-          : event.eventType === Events.runtimeResumed
+-            ? States.running
+-            : event.eventType === Events.runtimeCompleted
+-              ? States.completed
+-              : null;
+-  if (state === null) return null;
+-  return {
+-    state,
+-    targetRunId: agentStreamRuntimeRunId(event) ?? event.runId,
+-    requestId: null,
+-  };
+-}
+-
+-/** Live thinking and the composer must agree even before the control poll lands. */
++/** Project controls from the server's canonical execution state only. */
+ export function selectAssessmentComposerRuntimeControl(
+-  events: AssessmentAgentStreamEvent[],
++  canonicalAssessment: CanonicalAssessmentRuntimeSnapshot | null | undefined,
+   control: AssessmentRuntimeControlResult | null | undefined,
+ ): AssessmentComposerRuntimeControl {
+-  const groups = groupAgentStreamEventsByRun(events).filter((group) =>
+-    group.events.some(
+-      (event) =>
+-        (event.stage !== null && event.stage !== Stages.scanner) ||
+-        runtimeLifecycle(event) !== null,
+-    ),
+-  );
+-  const latest = groups.at(-1);
+-  if (!latest) return control ?? { state: null };
+-
+-  const nativeRunId = latest.events.map(agentStreamRuntimeRunId).find(Boolean);
+-  const streamControl =
+-    latest.events.reduce<AssessmentRuntimeControlResult | null>(
+-      (current, event) =>
+-        mergeRuntimeControlResponse(current, runtimeLifecycle(event)),
+-      null,
+-    );
+-  const polledTurnIsInHistory =
+-    control !== null &&
+-    control !== undefined &&
+-    groups
+-      .slice(0, -1)
+-      .some((group) =>
+-        group.events.some(
+-          (event) => agentStreamRuntimeRunId(event) === control.targetRunId,
+-        ),
+-      );
++  const runtime = canonicalAssessment?.runtime;
++  if (runtime === null || runtime === undefined) return { state: null };
+ 
+-  if (streamControl) {
+-    if (control?.targetRunId === streamControl.targetRunId) {
+-      return mergeRuntimeControlResponse(control, streamControl)!;
+-    }
+-    // A poll may acknowledge a new generation before its SSE arrives. Once
+-    // that generation is in history, the newer stream acknowledgement wins.
+-    if (
+-      control &&
+-      !polledTurnIsInHistory &&
+-      control.state !== States.completed
+-    ) {
+-      return control;
+-    }
+-    return streamControl;
++  const targetRunId = runtime.currentExecutionId ?? undefined;
++  if (control && targetRunId && control.targetRunId === targetRunId) {
++    return control;
+   }
+-  if (control) {
+-    if (control.targetRunId === nativeRunId) return control;
+-    // Model/tool activity never overrides a stop or resume acknowledgement.
+-    if (
+-      control.state !== States.completed &&
+-      (!polledTurnIsInHistory || control.state !== States.running)
+-    ) {
+-      return control;
+-    }
++
++  if (!targetRunId) return { state: null };
++  switch (runtime.executionState) {
++    case AGENT_EXECUTION_STATES.RUNNING:
++      return { state: States.running, targetRunId };
++    case AGENT_EXECUTION_STATES.INTERRUPTED:
++    case AGENT_EXECUTION_STATES.PAUSED:
++      return { state: States.stopped, targetRunId };
++    case AGENT_EXECUTION_STATES.SUCCEEDED:
++    case AGENT_EXECUTION_STATES.FAILED:
++    case AGENT_EXECUTION_STATES.CANCELLED:
++      return { state: States.completed, targetRunId };
++    case AGENT_EXECUTION_STATES.QUEUED:
++      return { state: null, targetRunId };
++    default:
++      return { state: null, targetRunId };
+   }
+-  // A previous completed record cannot turn a newer live turn into Continue.
+-  // Only native RUNTIME_STOPPED above is allowed to produce STOPPED.
+-  return {
+-    state:
+-      deriveAgentStreamRunOutcome(latest.events) ===
+-      AGENT_STREAM_RUN_OUTCOMES.running
+-        ? States.running
+-        : null,
+-    targetRunId: nativeRunId,
+-  };
+ }
+diff --git a/apps/web/src/features/workspace/utils/assessment-runtime-adapter.ts b/apps/web/src/features/workspace/utils/assessment-runtime-adapter.ts
+index 8bdcd7b92..2cc1b23d6 100644
+--- a/apps/web/src/features/workspace/utils/assessment-runtime-adapter.ts
++++ b/apps/web/src/features/workspace/utils/assessment-runtime-adapter.ts
+@@ -5,9 +5,6 @@ import {
+   ASSESSMENT_INTERVIEW_FLAGS,
+   ASSESSMENT_INTERVIEW_OUTCOMES,
+   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+-  ASSESSMENT_RUNTIME_EVENT_TYPES,
+-  ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
+-  ASSESSMENT_STAGE_LIFECYCLE_STATES,
+   ASSESSMENT_RUNTIME_RUN_STATUSES,
+   ASSESSMENT_RUNTIME_STAGE_CODES,
+   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+@@ -18,8 +15,8 @@ import {
+   type AssessmentInterviewQuestion,
+   type AssessmentInterviewRuntimeState,
+   type AssessmentPostFindingRuntimeState,
+-  type AssessmentStageLifecycleProjection,
+ } from "@lcsp/contracts/evidence";
++import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+ import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+ import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
+ 
+@@ -48,10 +45,8 @@ import {
+   type NormalizeAssessmentRuntimeParams,
+ } from "../types/assessment-runtime-adapter.types";
+ import {
+-  RUNTIME_THINKING_PHASES,
+   WORKSPACE_RUNTIME_CONNECTION_STATES,
+   type WorkspaceRuntimeConnectionState,
+-  type WorkspaceRuntimeRun,
+   type WorkspaceRuntimeActivityItem,
+   type WorkspaceRuntimeScanJob,
+ } from "../types/workspace-runtime.types";
+@@ -60,18 +55,6 @@ import {
+   ARTIFACT_STATUSES,
+   ARTIFACT_TYPES,
+ } from "../../artifacts/types/artifact.types";
+-import { stageLabel } from "./assessment-runtime-formatter";
+-import { runtimeActivityDisplaySummary } from "./runtime-activity-summary";
+-import {
+-  formatRuntimeThinkingItem,
+-  projectRuntimeThinking,
+-  runtimeThinkingPhase,
+-} from "./runtime-thinking-projection";
+-import {
+-  RULE_ANALYSIS_ACTIVITY_SUMMARY_TOOL,
+-  RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX,
+-  ENGINEERING_RULE_GATE_TOOL_NAME,
+-} from "../config/runtime-activity";
+ import { resolveMessage, type MessageKey } from "@lcsp/i18n";
+ import { appLocale } from "../../../lib/locale";
+ 
+@@ -91,6 +74,8 @@ export function normalizeAssessmentRuntime(
+     timeline: rawTimeline,
+     coverageOverride,
+   } = params;
++  const canonicalAssessment = rawTimeline?.canonicalAssessment ?? null;
++  const canonicalEvents = rawTimeline?.canonicalEvents ?? [];
+ 
+   // 1. Unwrap interview query/data state
+   const { interviewData, isLoadingInterview, isInterviewError, dataUpdatedAt } =
+@@ -103,6 +88,13 @@ export function normalizeAssessmentRuntime(
+   const contractErrors: string[] = [];
+   const missingFields: string[] = [];
+ 
++  if (
++    canonicalAssessment !== null &&
++    canonicalAssessment.assessmentId !== assessmentId
++  ) {
++    contractErrors.push("Canonical assessment belongs to another assessment");
++  }
++
+   // 2. Validate and sanitize interview state
+   let sanitizedInterview: AssessmentInterviewRuntimeState | null = null;
+   if (interviewData !== null && interviewData !== undefined) {
+@@ -153,12 +145,7 @@ export function normalizeAssessmentRuntime(
+   const workflow = normalizeWorkflow({
+     timeline: rawTimeline,
+     sanitizedInterview,
+-    repositorySnapshot: rawTimeline?.repositorySnapshot,
+-    latestScanJob: latestSnapshotScanJob(
+-      assessmentId,
+-      rawTimeline?.repositorySnapshot,
+-      rawTimeline?.scanJobs ?? [],
+-    ),
++    canonicalAssessment,
+   });
+ 
+   // 6. Interview normalization
+@@ -189,6 +176,7 @@ export function normalizeAssessmentRuntime(
+ 
+   // 8. Customer Actions normalization
+   const customerActions = normalizeCustomerActions({
++    canonicalAssessment,
+     interview,
+     coverage,
+     contractErrors,
+@@ -201,12 +189,22 @@ export function normalizeAssessmentRuntime(
+     ASSESSMENT_RUNTIME_AVAILABILITIES.ready;
+   if (contractErrors.length > 0) {
+     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.invalid;
+-  } else if (isLoadingInterview) {
++  } else if (
++    connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.connecting
++  ) {
+     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.loading;
+   } else if (
+     connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected
+   ) {
+     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.disconnected;
++  } else if (
++    canonicalAssessment === null ||
++    canonicalAssessment.lifecycle === null ||
++    canonicalAssessment.runtime === null
++  ) {
++    availability = ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable;
++  } else if (isLoadingInterview) {
++    availability = ASSESSMENT_RUNTIME_AVAILABILITIES.loading;
+   } else if (isInterviewError) {
+     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable;
+   } else if (
+@@ -222,6 +220,8 @@ export function normalizeAssessmentRuntime(
+   };
+ 
+   return {
++    canonicalAssessment,
++    canonicalEvents,
+     availability,
+     connectionState,
+     identity,
+@@ -366,15 +366,12 @@ function normalizeCoverage({
+ function normalizeWorkflow({
+   timeline,
+   sanitizedInterview,
+-  repositorySnapshot,
+-  latestScanJob,
++  canonicalAssessment,
+ }: {
+   timeline?: AdapterTimelineInput | null;
+   sanitizedInterview: AssessmentInterviewRuntimeState | null;
+-  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
+-  latestScanJob: WorkspaceRuntimeScanJob | null;
++  canonicalAssessment: AdapterTimelineInput["canonicalAssessment"];
+ }): NormalizedAssessmentWorkflow {
+-  const stageLifecycle = timeline?.stageLifecycle ?? null;
+   const currentRun = timeline?.currentRun ?? null;
+   const latestRunId = timeline?.latestRunId ?? currentRun?.runId ?? null;
+   const recentActivity = scopeRuntimeActivity(
+@@ -411,7 +408,7 @@ function normalizeWorkflow({
+ 
+   return {
+     stage: currentRun?.stage ?? recentActivity[0]?.stage ?? null,
+-    status: currentRun?.status ?? recentActivity[0]?.runStatus ?? null,
++    status: canonicalAssessment?.runtime?.executionState ?? null,
+     currentRunId: latestRunId,
+     activeTools: currentRun?.activeTools ?? [],
+     recentActivity,
+@@ -420,15 +417,7 @@ function normalizeWorkflow({
+       timeline?.lastEmittedAt ?? recentActivity[0]?.emittedAt ?? null,
+     isTargetedClarificationLoop,
+     latestRun: currentRun,
+-    steps: normalizeWorkflowSteps({
+-      currentRun,
+-      recentActivity,
+-      engineeringProgress,
+-      repositorySnapshot,
+-      sanitizedInterview,
+-      latestScanJob,
+-      stageLifecycle,
+-    }),
++    steps: normalizeWorkflowSteps(),
+   };
+ }
+ 
+@@ -475,23 +464,7 @@ function normalizeRepository(
+   };
+ }
+ 
+-function normalizeWorkflowSteps({
+-  stageLifecycle,
+-  currentRun,
+-  recentActivity,
+-  engineeringProgress,
+-  repositorySnapshot,
+-  sanitizedInterview,
+-  latestScanJob,
+-}: {
+-  currentRun: WorkspaceRuntimeRun | null;
+-  recentActivity: WorkspaceRuntimeActivityItem[];
+-  engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>;
+-  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
+-  sanitizedInterview: AssessmentInterviewRuntimeState | null;
+-  latestScanJob: WorkspaceRuntimeScanJob | null;
+-  stageLifecycle: AssessmentStageLifecycleProjection | null;
+-}): NormalizedWorkflowStep[] {
++function normalizeWorkflowSteps(): NormalizedWorkflowStep[] {
+   const defaultSteps = [
+     [
+       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository,
+@@ -526,378 +499,15 @@ function normalizeWorkflowSteps({
+           {
+             id,
+             label: resolveMessage(appLocale, labelKey as MessageKey),
+-            status:
+-              id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository &&
+-              repositorySnapshot
+-                ? NORMALIZED_WORKFLOW_STEP_STATUSES.completed
+-                : NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
++            status: NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+             detail: null,
+           } satisfies NormalizedWorkflowStep,
+         ] as const,
+     ),
+   ]);
+-  for (const activity of [...recentActivity].reverse()) {
+-    // Customer stop/continue markers are not agent work on any step.
+-    if (activity.toolName === ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME) {
+-      continue;
+-    }
+-    const id = workflowStepIdForRuntimeActivity(activity);
+-    steps.set(id, {
+-      id,
+-      label: steps.has(id) ? steps.get(id)!.label : stageLabel(activity.stage),
+-      status: normalizeActivityStepStatus(activity),
+-      // Per-rule selection/analysis lines carry internal rule IDs and reason codes;
+-      // those steps get an aggregated detail below instead.
+-      detail:
+-        activity.summary && !runtimeThinkingPhase(activity)
+-          ? runtimeActivityDisplaySummary(activity)
+-          : null,
+-    });
+-  }
+-  applyEngineeringRuleStepDetails(steps, recentActivity, engineeringProgress);
+-  if (currentRun) {
+-    const id = workflowStepIdForRun(currentRun);
+-    steps.set(id, {
+-      id,
+-      label: steps.has(id)
+-        ? steps.get(id)!.label
+-        : stageLabel(currentRun.stage),
+-      status: normalizeStepStatus(currentRun.status),
+-      detail: null,
+-    });
+-  }
+-  const interviewStepStatus = normalizeInterviewStepStatus(sanitizedInterview);
+-  if (interviewStepStatus) {
+-    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview;
+-    const existingStep = steps.get(id);
+-    steps.set(id, {
+-      id,
+-      label: existingStep?.label ?? stageLabel(id),
+-      status: interviewStepStatus,
+-      detail: existingStep?.detail ?? null,
+-    });
+-  }
+-  applyLegacyClassificationGateProjection({
+-    steps,
+-    currentRun,
+-    recentActivity,
+-  });
+-  // A rerun creates the scan job before the worker emits any runtime event, so
+-  // the previous run's events would still decide this row. Follow the scan job
+-  // the same way the scanner checklist does.
+-  if (latestScanJob && isActiveScanJob(latestScanJob)) {
+-    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
+-    const existingStep = steps.get(id);
+-    steps.set(id, {
+-      id,
+-      label: existingStep?.label ?? stageLabel(id),
+-      status:
+-        latestScanJob.status !== REPOSITORY_SCAN_JOB_STATUSES.running
+-          ? NORMALIZED_WORKFLOW_STEP_STATUSES.waiting
+-          : NORMALIZED_WORKFLOW_STEP_STATUSES.running,
+-      detail: existingStep?.detail ?? null,
+-    });
+-  }
+-  // A completed scan job is authoritative for the Scanner row. Later dispatches
+-  // (rule-analysis retries) post SCAN-tagged bookkeeping such as
+-  // "sandbox already hydrated" or run heartbeats; they never re-open the scan.
+-  if (latestScanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.completed) {
+-    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
+-    const existingStep = steps.get(id);
+-    if (existingStep) {
+-      steps.set(id, {
+-        ...existingStep,
+-        status: NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+-      });
+-    }
+-  }
+-  completeQueuedPredecessors(steps);
+-  applyStageLifecycle(steps, stageLifecycle);
+   return [...steps.values()];
+ }
+ 
+-/**
+- * The API's artifact-derived lifecycle wins over anything inferred from the
+- * activity log. Runtime events stay the technical detail; they no longer decide
+- * whether a stage finished, so the sidebar and the composer cannot disagree.
+- */
+-function applyStageLifecycle(
+-  steps: Map<string, NormalizedWorkflowStep>,
+-  lifecycle: AssessmentStageLifecycleProjection | null | undefined,
+-): void {
+-  if (!lifecycle) return;
+-  const mapping = [
+-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner, lifecycle.scanner],
+-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview, lifecycle.interview],
+-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis, lifecycle.ruleAnalysis],
+-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate, lifecycle.gate],
+-  ] as const;
+-  for (const [stepId, entry] of mapping) {
+-    const status = workflowStatusForLifecycle(entry.state);
+-    const existing = steps.get(stepId);
+-    if (status && existing) {
+-      steps.set(stepId, { ...existing, status });
+-    }
+-  }
+-}
+-
+-function workflowStatusForLifecycle(
+-  state: AssessmentStageLifecycleProjection["scanner"]["state"],
+-): NormalizedWorkflowStep["status"] | null {
+-  const S = ASSESSMENT_STAGE_LIFECYCLE_STATES;
+-  switch (state) {
+-    case S.queued:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.queued;
+-    case S.running:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.running;
+-    case S.done:
+-    case S.contextConfirmed:
+-    case S.claimsComplete:
+-    case S.ready:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
+-    case S.failed:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
+-    case S.waitingForCustomer:
+-    case S.blocked:
+-    case S.needsContext:
+-    case S.partial:
+-    case S.claimsPartial:
+-    case S.timeout:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
+-    default:
+-      return null;
+-  }
+-}
+-
+-function applyEngineeringRuleStepDetails(
+-  steps: Map<string, NormalizedWorkflowStep>,
+-  recentActivity: WorkspaceRuntimeActivityItem[],
+-  engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>,
+-): void {
+-  const items = projectRuntimeThinking(recentActivity, engineeringProgress);
+-  const step = steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis);
+-  const detail = items
+-    .filter((item) => item.phase === RUNTIME_THINKING_PHASES.analysis)
+-    .map(formatRuntimeThinkingItem)
+-    .join(" ");
+-  if (step && detail) {
+-    steps.set(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis, {
+-      ...step,
+-      detail,
+-    });
+-  }
+-}
+-
+-const TERMINAL_WORKFLOW_STEP_STATUSES = new Set<
+-  NormalizedWorkflowStep["status"]
+->([
+-  NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+-  NORMALIZED_WORKFLOW_STEP_STATUSES.skipped,
+-  NORMALIZED_WORKFLOW_STEP_STATUSES.failed,
+-]);
+-
+-/**
+- * Compatibility fallback for historical runs recorded before the API emitted an
+- * explicit terminal Gate event. New runs carry `engineering_rule_gate` COMPLETED or
+- * SKIPPED/NOT_REQUIRED in the Classification run, which always wins over this.
+- * It also enforces the scope invariant: a non-terminal Gate never coexists with a
+- * completed Classification in the same execution scope.
+- */
+-function applyLegacyClassificationGateProjection({
+-  steps,
+-  currentRun,
+-  recentActivity,
+-}: {
+-  steps: Map<string, NormalizedWorkflowStep>;
+-  currentRun: WorkspaceRuntimeRun | null;
+-  recentActivity: WorkspaceRuntimeActivityItem[];
+-}): void {
+-  const gateStep = steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate);
+-  if (
+-    !gateStep ||
+-    TERMINAL_WORKFLOW_STEP_STATUSES.has(gateStep.status) ||
+-    hasExplicitTerminalGateEvent(recentActivity) ||
+-    !hasCompletedClassificationRuntime(currentRun, recentActivity)
+-  ) {
+-    return;
+-  }
+-
+-  steps.set(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate, {
+-    ...gateStep,
+-    status: NORMALIZED_WORKFLOW_STEP_STATUSES.skipped,
+-  });
+-}
+-
+-function hasExplicitTerminalGateEvent(
+-  recentActivity: WorkspaceRuntimeActivityItem[],
+-): boolean {
+-  return recentActivity.some(
+-    (activity) =>
+-      activity.toolName === ENGINEERING_RULE_GATE_TOOL_NAME &&
+-      (activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
+-        activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
+-        activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed),
+-  );
+-}
+-
+-function hasCompletedClassificationRuntime(
+-  currentRun: WorkspaceRuntimeRun | null,
+-  recentActivity: WorkspaceRuntimeActivityItem[],
+-): boolean {
+-  if (
+-    currentRun?.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification &&
+-    currentRun.status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed
+-  ) {
+-    return true;
+-  }
+-
+-  return recentActivity.some(
+-    (activity) =>
+-      activity.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification &&
+-      (activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted ||
+-        activity.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed),
+-  );
+-}
+-
+-function normalizeInterviewStepStatus(
+-  sanitizedInterview: AssessmentInterviewRuntimeState | null,
+-): NormalizedWorkflowStep["status"] | null {
+-  if (!sanitizedInterview) {
+-    return null;
+-  }
+-
+-  switch (sanitizedInterview.outcome) {
+-    case ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer:
+-      return sanitizedInterview.activeQuestion
+-        ? NORMALIZED_WORKFLOW_STEP_STATUSES.running
+-        : NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
+-    case ASSESSMENT_INTERVIEW_OUTCOMES.contextReady:
+-    case ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
+-    case ASSESSMENT_INTERVIEW_OUTCOMES.failed:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
+-    case ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
+-    default:
+-      return null;
+-  }
+-}
+-
+-function workflowStepIdForRun(run: WorkspaceRuntimeRun): string {
+-  const activeToolName =
+-    run.activeTools.find((tool) =>
+-      tool.toolName.startsWith(RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX),
+-    )?.toolName ??
+-    null;
+-  return workflowStepIdForStage(run.stage, activeToolName);
+-}
+-
+-function workflowStepIdForRuntimeActivity(
+-  activity: WorkspaceRuntimeActivityItem,
+-): string {
+-  return workflowStepIdForStage(activity.stage, activity.toolName);
+-}
+-
+-function workflowStepIdForStage(
+-  stage: string,
+-  toolName: string | null,
+-): string {
+-  if (toolName === ENGINEERING_RULE_GATE_TOOL_NAME) {
+-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate;
+-  }
+-  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.snapshot) {
+-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository;
+-  }
+-  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.scan) {
+-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
+-  }
+-  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.interview) {
+-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview;
+-  }
+-  if (stage !== ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence) {
+-    return stage;
+-  }
+-  if (
+-    toolName?.startsWith(RULE_ANALYSIS_ACTIVITY_TOOL_PREFIX) ||
+-    toolName === RULE_ANALYSIS_ACTIVITY_SUMMARY_TOOL
+-  ) {
+-    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis;
+-  }
+-  return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules;
+-}
+-
+-function normalizeActivityStepStatus(
+-  activity: WorkspaceRuntimeActivityItem,
+-): NormalizedWorkflowStep["status"] {
+-  // Only the Gate treats TOOL_SKIPPED as a terminal SKIPPED step. Rule-level
+-  // SKIP decisions are progress inside the rules step.
+-  if (
+-    activity.toolName === ENGINEERING_RULE_GATE_TOOL_NAME &&
+-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped
+-  ) {
+-    return NORMALIZED_WORKFLOW_STEP_STATUSES.skipped;
+-  }
+-  if (
+-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
+-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
+-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted
+-  ) {
+-    return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
+-  }
+-  if (
+-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed ||
+-    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed
+-  ) {
+-    return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
+-  }
+-  return normalizeStepStatus(activity.runStatus);
+-}
+-
+-function completeQueuedPredecessors(
+-  steps: Map<string, NormalizedWorkflowStep>,
+-): void {
+-  const orderedStages = [
+-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository,
+-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
+-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
+-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
+-    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
+-  ] as const;
+-  const lastActiveIndex = orderedStages.reduce((lastIndex, stage, index) => {
+-    const status = steps.get(stage)?.status;
+-    return status && status !== NORMALIZED_WORKFLOW_STEP_STATUSES.queued
+-      ? index
+-      : lastIndex;
+-  }, -1);
+-
+-  for (const stage of orderedStages.slice(0, lastActiveIndex)) {
+-    const step = steps.get(stage);
+-    if (!step || step.status !== NORMALIZED_WORKFLOW_STEP_STATUSES.queued) {
+-      continue;
+-    }
+-    steps.set(stage, {
+-      ...step,
+-      status: NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+-    });
+-  }
+-}
+-
+-function normalizeStepStatus(status: string) {
+-  switch (status) {
+-    case ASSESSMENT_RUNTIME_RUN_STATUSES.running:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.running;
+-    case ASSESSMENT_RUNTIME_RUN_STATUSES.waiting:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
+-    case ASSESSMENT_RUNTIME_RUN_STATUSES.completed:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
+-    case ASSESSMENT_RUNTIME_RUN_STATUSES.failed:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
+-    default:
+-      return NORMALIZED_WORKFLOW_STEP_STATUSES.unknown;
+-  }
+-}
+-
+ function normalizeInterview({
+   sanitizedInterview,
+   isLoadingInterview,
+@@ -1001,15 +611,6 @@ function latestSnapshotScanJob(
+   );
+ }
+ 
+-/** Mirrors the scanner checklist: queued waits for a worker; running means claimed. */
+-function isActiveScanJob(job: WorkspaceRuntimeScanJob): boolean {
+-  return (
+-    job.status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
+-    job.status === REPOSITORY_SCAN_JOB_STATUSES.running ||
+-    job.status === REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits
+-  );
+-}
+-
+ function normalizeProgramEvidenceAvailability({
+   assessmentId,
+   repositorySnapshot,
+@@ -1258,27 +859,53 @@ function availabilityToArtifactStatus(
+ }
+ 
+ function normalizeCustomerActions({
++  canonicalAssessment,
+   interview,
+   coverage,
+   contractErrors,
+   isLoadingInterview,
+   postFinding,
+ }: {
++  canonicalAssessment: AdapterTimelineInput["canonicalAssessment"];
+   interview: NormalizedAssessmentInterview;
+   coverage: NormalizedAssessmentCoverage;
+   contractErrors: string[];
+   isLoadingInterview: boolean;
+   postFinding: NormalizedAssessmentPostFinding | null;
+ }): NormalizedCustomerActions {
+-  if (contractErrors.length > 0 || isLoadingInterview) {
++  const lifecycleState = canonicalAssessment?.lifecycle?.state;
++  const canonicalAvailable =
++    canonicalAssessment?.lifecycle != null &&
++    canonicalAssessment.runtime != null;
++  const customerInputAllowed =
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_REQUIRED_INPUT ||
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED;
++  const canSelectRemediationDecision =
++    canonicalAvailable &&
++    customerInputAllowed &&
++    postFinding !== null &&
++    postFinding.selectedDecision === null &&
++    postFinding.availableDecisions.length > 0;
++  const availableRemediationDecisions = canSelectRemediationDecision
++    ? (postFinding?.availableDecisions ?? [])
++    : [];
++
++  if (
++    contractErrors.length > 0 ||
++    isLoadingInterview ||
++    canonicalAssessment?.lifecycle === null ||
++    canonicalAssessment?.runtime === null ||
++    !customerInputAllowed
++  ) {
+     return {
+       canAnswerQuestion: false,
+       canSubmitDraft: false,
+       canSubmitBlockedAction: false,
+       availableBlockedActions: [],
+       canUseComposer: false,
+-      canSelectRemediationDecision: false,
+-      availableRemediationDecisions: [],
++      canSelectRemediationDecision,
++      availableRemediationDecisions,
+     };
+   }
+ 
+@@ -1293,8 +920,8 @@ function normalizeCustomerActions({
+       canSubmitBlockedAction: false,
+       availableBlockedActions: [],
+       canUseComposer: false,
+-      canSelectRemediationDecision: false,
+-      availableRemediationDecisions: [],
++      canSelectRemediationDecision,
++      availableRemediationDecisions,
+     };
+   }
+ 
+@@ -1309,10 +936,6 @@ function normalizeCustomerActions({
+   const canSubmitBlockedAction =
+     isBlocked && interview.blockedActions.length > 0;
+   const canUseComposer = canAnswerQuestion;
+-  const canSelectRemediationDecision =
+-    postFinding !== null &&
+-    postFinding.selectedDecision === null &&
+-    postFinding.availableDecisions.length > 0;
+ 
+   return {
+     canAnswerQuestion,
+@@ -1321,8 +944,6 @@ function normalizeCustomerActions({
+     availableBlockedActions: isBlocked ? interview.blockedActions : [],
+     canUseComposer,
+     canSelectRemediationDecision,
+-    availableRemediationDecisions: canSelectRemediationDecision
+-      ? postFinding.availableDecisions
+-      : [],
++    availableRemediationDecisions,
+   };
+ }
+diff --git a/apps/web/src/features/workspace/utils/assessment-runtime-control-presentation.ts b/apps/web/src/features/workspace/utils/assessment-runtime-control-presentation.ts
+index 3d69af120..4b201fd4e 100644
+--- a/apps/web/src/features/workspace/utils/assessment-runtime-control-presentation.ts
++++ b/apps/web/src/features/workspace/utils/assessment-runtime-control-presentation.ts
+@@ -1,58 +1,14 @@
+ import {
+-  ASSESSMENT_AGENT_STREAM_STAGES,
+-  ASSESSMENT_RUNTIME_CONTROL_STATES,
+-  type AssessmentAgentStreamEvent,
+-  type AssessmentRuntimeControlResult,
+-} from "@lcsp/contracts/evidence";
+-
+-import {
+-  ASSESSMENT_SIDEBAR_WORKFLOW_STAGES,
+-  NORMALIZED_WORKFLOW_STEP_STATUSES as Statuses,
+   type NormalizedAssessmentRuntime,
+ } from "../types/assessment-runtime-adapter.types";
+-import { agentStreamRuntimeRunId } from "./agent-stream-identity";
+-import { selectAssessmentComposerRuntimeControl } from "./assessment-composer-control";
+ 
+-/** Overlay native control on customer presentation, never on persisted workflow results. */
++/** Canonical AES already projects control state; events remain activity only. */
+ export function applyAssessmentRuntimeControlPresentation(
+   runtime: NormalizedAssessmentRuntime,
+-  events: AssessmentAgentStreamEvent[],
+-  control: AssessmentRuntimeControlResult | null | undefined,
++  _events: unknown[] = [],
++  _control: unknown = null,
+ ): NormalizedAssessmentRuntime {
+-  const active = selectAssessmentComposerRuntimeControl(events, control);
+-  if (active.state !== ASSESSMENT_RUNTIME_CONTROL_STATES.stopped)
+-    return runtime;
+-  const latestWork = [...events]
+-    .filter(
+-      (event) =>
+-        event.stage !== null &&
+-        event.stage !== ASSESSMENT_AGENT_STREAM_STAGES.scanner &&
+-        agentStreamRuntimeRunId(event) === active.targetRunId,
+-    )
+-    .sort(
+-      (a, b) =>
+-        a.emittedAt.localeCompare(b.emittedAt) || a.sequence - b.sequence,
+-    )
+-    .at(-1);
+-  const stepId =
+-    latestWork?.stage === ASSESSMENT_AGENT_STREAM_STAGES.ruleAnalysis
+-      ? ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis
+-      : latestWork?.stage === ASSESSMENT_AGENT_STREAM_STAGES.gate
+-        ? ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate
+-        : latestWork?.stage === ASSESSMENT_AGENT_STREAM_STAGES.interview
+-          ? ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview
+-          : null;
+-  if (stepId === null) return runtime;
+-  return {
+-    ...runtime,
+-    workflow: {
+-      ...runtime.workflow,
+-      steps: runtime.workflow.steps.map((step) =>
+-        step.id === stepId &&
+-        (step.status === Statuses.running || step.status === Statuses.waiting)
+-          ? { ...step, status: Statuses.stopped }
+-          : step,
+-      ),
+-    },
+-  };
++  void _events;
++  void _control;
++  return runtime;
+ }
+diff --git a/apps/web/src/features/workspace/utils/assessment-runtime-formatter.ts b/apps/web/src/features/workspace/utils/assessment-runtime-formatter.ts
+index 781ff72dd..45f994c74 100644
+--- a/apps/web/src/features/workspace/utils/assessment-runtime-formatter.ts
++++ b/apps/web/src/features/workspace/utils/assessment-runtime-formatter.ts
+@@ -4,6 +4,11 @@ import {
+   ASSESSMENT_RUNTIME_RUN_STATUSES,
+   ASSESSMENT_RUNTIME_STAGE_CODES,
+ } from "@lcsp/contracts/evidence";
++import {
++  type AgentExecutionState,
++  type AssessmentLifecycleState,
++} from "@lcsp/contracts/assessment";
++import type { MessageKey } from "@lcsp/i18n";
+ import { appLocale } from "../../../lib/locale.ts";
+ import {
+   WORKSPACE_RUNTIME_CONNECTION_STATES,
+@@ -20,6 +25,14 @@ export function connectionLabel(state: WorkspaceRuntimeConnectionState) {
+   return t("pages.appShell.runtimePanelConnection.connecting");
+ }
+ 
++export function canonicalLifecycleLabel(state: AssessmentLifecycleState) {
++  return t(`pages.appShell.runtimePanelCanonicalStates.${state}`);
++}
++
++export function canonicalExecutionLabel(state: AgentExecutionState) {
++  return t(`pages.appShell.runtimePanelCanonicalExecutionStates.${state}`);
++}
++
+ export function runStatusLabel(status: string) {
+   switch (status) {
+     case ASSESSMENT_RUNTIME_RUN_STATUSES.running:
+@@ -135,5 +148,5 @@ function formatRelativeTime(value: string) {
+ }
+ 
+ function t(key: string) {
+-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
++  return resolveMessage(appLocale, key as MessageKey);
+ }
+diff --git a/apps/web/src/features/workspace/utils/assessment-runtime-selectors.ts b/apps/web/src/features/workspace/utils/assessment-runtime-selectors.ts
+index 4f9407193..54d3c7c13 100644
+--- a/apps/web/src/features/workspace/utils/assessment-runtime-selectors.ts
++++ b/apps/web/src/features/workspace/utils/assessment-runtime-selectors.ts
+@@ -1,10 +1,11 @@
+-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
++import {
++  AGENT_EXECUTION_STATES,
++  ASSESSMENT_LIFECYCLE_STATES,
++} from "@lcsp/contracts/assessment";
+ import {
+   ASSESSMENT_INTERVIEW_OUTCOMES,
+   INTERVIEW_PROGRESS_PHASES,
+   ASSESSMENT_RUNTIME_RUN_STATUSES,
+-  ASSESSMENT_RUNTIME_STAGE_CODES,
+-  ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+   POST_FINDING_RUNTIME_PHASES,
+ } from "@lcsp/contracts/evidence";
+ 
+@@ -29,7 +30,6 @@ import {
+   type NormalizedAssessmentRuntime,
+ } from "../types/assessment-runtime-adapter.types";
+ import { projectRuntimeThinking } from "./runtime-thinking-projection";
+-import type { AssessmentStatus } from "../types/workspace.types";
+ import type {
+   RuntimeThinkingItem,
+   WorkspaceRuntimeRepositorySnapshot,
+@@ -82,9 +82,13 @@ export function selectWorkflowPresentation(
+   normalized: NormalizedAssessmentRuntime,
+ ) {
+   const workflow = normalized.workflow;
++  const executionState =
++    normalized.canonicalAssessment?.runtime?.executionState ?? null;
+   const hasActiveRun =
+-    workflow.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running ||
+-    workflow.status === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
++    executionState === AGENT_EXECUTION_STATES.QUEUED ||
++    executionState === AGENT_EXECUTION_STATES.RUNNING ||
++    executionState === AGENT_EXECUTION_STATES.INTERRUPTED ||
++    executionState === AGENT_EXECUTION_STATES.PAUSED;
+   const activeRun = hasActiveRun ? workflow.latestRun : null;
+   const activeActivity =
+     workflow.recentActivity.find(
+@@ -94,12 +98,11 @@ export function selectWorkflowPresentation(
+     ) ?? null;
+   const activeStage =
+     activeRun?.stage ?? activeActivity?.stage ?? workflow.stage;
+-  const activeStatus =
+-    activeRun?.status ?? activeActivity?.runStatus ?? workflow.status;
++  const activeStatus = executionState;
+ 
+   return {
+     stage: workflow.stage,
+-    status: workflow.status,
++    status: executionState,
+     activeStage,
+     activeStatus,
+     currentRunId: workflow.currentRunId,
+@@ -162,45 +165,31 @@ export function selectAssessmentRuntimeSidebarPresentation(
+     };
+   },
+ ): NormalizedAssessmentSidebarPresentation {
+-  const scannerStatus = input.scanner.scanFailed
+-    ? ASSESSMENT_SIDEBAR_STATUSES.failed
+-    : input.scanner.evidenceAccepted
+-      ? ASSESSMENT_SIDEBAR_STATUSES.passed
+-      : ASSESSMENT_SIDEBAR_STATUSES.running;
+-  const interviewRunning =
+-    normalized.interview.outcome ===
+-      ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer &&
+-    normalized.interview.activeQuestion !== null;
+-  const interviewStatus = input.scanner.evidenceAccepted
+-    ? interviewRunning
+-      ? ASSESSMENT_SIDEBAR_STATUSES.running
+-      : ASSESSMENT_SIDEBAR_STATUSES.waiting
+-    : ASSESSMENT_SIDEBAR_STATUSES.queued;
+   const workflow: NormalizedAssessmentSidebarWorkflowItem[] = [
+     sidebarWorkflowItem(
+       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+       "pages.appShell.assessmentSidebar.workflow.scanner",
+-      scannerStatus,
++      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+     ),
+     sidebarWorkflowItem(
+       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
+       "pages.appShell.assessmentSidebar.workflow.interview",
+-      interviewStatus,
++      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+     ),
+     sidebarWorkflowItem(
+       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
+       "pages.appShell.assessmentSidebar.workflow.rules",
+-      ASSESSMENT_SIDEBAR_STATUSES.queued,
++      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+     ),
+     sidebarWorkflowItem(
+       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis,
+       "pages.appShell.assessmentSidebar.workflow.ruleAnalysis",
+-      ASSESSMENT_SIDEBAR_STATUSES.queued,
++      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+     ),
+     sidebarWorkflowItem(
+       ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
+       "pages.appShell.assessmentSidebar.workflow.gate",
+-      ASSESSMENT_SIDEBAR_STATUSES.queued,
++      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+     ),
+   ];
+   const artifacts = input.scanner.evidenceAccepted
+@@ -325,7 +314,9 @@ export function selectPostFindingPresentation(
+   return {
+     ...postFinding,
+     canSelectDecision: normalized.customerActions.canSelectRemediationDecision,
+-    screenProjection: postFindingScreenProjection(postFinding.phase),
++    // This is the secondary remediation-flow marker; assessment screen state
++    // remains selected exclusively by selectAssessmentScreenProjection.
++    screenProjection: postFindingFlowProjection(postFinding.phase),
+   };
+ }
+ 
+@@ -347,18 +338,7 @@ export function selectComposerAvailability(
+ 
+ export function selectInterviewHandoffPresentation(
+   normalized: NormalizedAssessmentRuntime,
+-  assessmentStatus: AssessmentStatus | null = null,
+ ) {
+-  if (assessmentStatus === ASSESSMENT_STATUS_CODES.aiNotDetected) {
+-    // Terminal: governed evidence proved no AI use, so no Interview question follows.
+-    return {
+-      isStartupPending: false,
+-      canResumeFailedTurn: false,
+-      isGenuinelyPending: false,
+-      messageKey: "pages.assessmentFlow.interview.aiNotDetectedDescription",
+-      placeholderKey: "pages.assessmentFlow.interview.aiNotDetectedPlaceholder",
+-    } as const;
+-  }
+   const interview = selectInterviewPresentation(normalized);
+   const hasCustomerVisibleTurn =
+     Boolean(interview.questionTurnProps) || interview.isBlocked;
+@@ -421,7 +401,8 @@ export function selectInterviewHandoffPresentation(
+   // on record). There is nothing to continue here, so Pipeline Continue must
+   // stay hidden instead of offering to restart a pipeline that simply hasn't
+   // been dispatched yet.
+-  const isGenuinelyPending = messageKey === "pages.assessmentFlow.interview.pendingDescription";
++  const isGenuinelyPending =
++    messageKey === "pages.assessmentFlow.interview.pendingDescription";
+ 
+   return {
+     isStartupPending,
+@@ -439,35 +420,23 @@ export function selectInterviewHandoffPresentation(
+ export function selectAssessmentScreenProjection(
+   normalized: NormalizedAssessmentRuntime,
+ ): AssessmentScreenProjection {
+-  const { coverage, interview, workflow } = normalized;
+-
+-  if (normalized.postFinding !== null) {
+-    return postFindingScreenProjection(normalized.postFinding.phase);
+-  }
++  const { interview } = normalized;
++  const canonical = normalized.canonicalAssessment;
++  const lifecycleState = canonical?.lifecycle?.state;
++  const canonicalAvailable =
++    canonical?.lifecycle != null && canonical.runtime != null;
+ 
+-  // Targeted loop: Rule analysis paused + Interview running
+-  if (workflow.isTargetedClarificationLoop) {
+-    return ASSESSMENT_SCREEN_PROJECTIONS.f09;
+-  }
+-
+-  // Unavailable coverage or early setup
+-  if (coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable) {
++  if (!canonicalAvailable || lifecycleState === undefined) {
+     return ASSESSMENT_SCREEN_PROJECTIONS.f01;
+   }
+ 
+-  // Scan in progress
+-  if (
+-    workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.scan &&
+-    workflow.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+-  ) {
+-    return ASSESSMENT_SCREEN_PROJECTIONS.f03;
+-  }
+-
+-  // Scan complete, Initial Interview
+   if (
+-    coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready ||
+-    coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.partial
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_REQUIRED_INPUT
+   ) {
++    if (normalized.workflow.isTargetedClarificationLoop) {
++      return ASSESSMENT_SCREEN_PROJECTIONS.f09;
++    }
+     if (
+       interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer
+     ) {
+@@ -491,22 +460,18 @@ export function selectAssessmentScreenProjection(
+       return ASSESSMENT_SCREEN_PROJECTIONS.f05;
+     }
+   }
+-
+-  // Stage-based projections
+   if (
+-    workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE ||
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.FAILED ||
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.CANCELLED ||
++    lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED
+   ) {
+-    return ASSESSMENT_SCREEN_PROJECTIONS.f10;
+-  }
+-
+-  if (workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.documents) {
+-    return ASSESSMENT_SCREEN_PROJECTIONS.f14;
++    return ASSESSMENT_SCREEN_PROJECTIONS.f01;
+   }
+-
+   return ASSESSMENT_SCREEN_PROJECTIONS.f03;
+ }
+ 
+-function postFindingScreenProjection(
++function postFindingFlowProjection(
+   phase: NonNullable<NormalizedAssessmentRuntime["postFinding"]>["phase"],
+ ): AssessmentScreenProjection {
+   switch (phase) {
+diff --git a/apps/web/src/features/workspace/utils/assessment-runtime-usage.ts b/apps/web/src/features/workspace/utils/assessment-runtime-usage.ts
+index 603e026bb..c8bcd16c2 100644
+--- a/apps/web/src/features/workspace/utils/assessment-runtime-usage.ts
++++ b/apps/web/src/features/workspace/utils/assessment-runtime-usage.ts
+@@ -3,11 +3,10 @@ import type {
+   AssessmentRuntimeControlResult,
+ } from "@lcsp/contracts/evidence";
+ 
+-import { selectAssessmentComposerRuntimeControl } from "./assessment-composer-control";
+ import { agentStreamRuntimeRunId } from "./agent-stream-identity";
+ import { projectCurrentRunUsage } from "./agent-stream-projection";
+ 
+-/** Scope control acknowledgements before choosing a native generation for usage. */
++/** Scope usage to the current server-identified generation when one exists. */
+ export function projectAssessmentRuntimeUsage(
+   events: AssessmentAgentStreamEvent[],
+   runId: string | null,
+@@ -24,32 +23,11 @@ export function projectAssessmentRuntimeUsage(
+     .filter((event) => agentStreamRuntimeRunId(event) !== undefined)
+     .at(-1);
+   const nativeRunId = latestNative && agentStreamRuntimeRunId(latestNative);
+-  const targetInHistory =
+-    control?.targetRunId &&
+-    events.some(
+-      (event) => agentStreamRuntimeRunId(event) === control.targetRunId,
+-    ) &&
+-    (nativeRunId
+-      ? control.targetRunId !== nativeRunId
+-      : !currentEvents.some(
+-          (event) => agentStreamRuntimeRunId(event) === control.targetRunId,
+-        ));
+-  const generationEvents = nativeRunId
+-    ? currentEvents.filter(
+-        (event) => agentStreamRuntimeRunId(event) === nativeRunId,
+-      )
+-    : currentEvents;
+-  const active = selectAssessmentComposerRuntimeControl(
+-    generationEvents,
+-    targetInHistory ? undefined : control,
+-  );
++  const controlTarget = control?.targetRunId;
+   const nativeTarget =
+-    active.targetRunId && active.targetRunId !== runId
+-      ? active.targetRunId
+-      : currentEvents.some(
+-            (event) => agentStreamRuntimeRunId(event) === active.targetRunId,
+-          )
+-        ? active.targetRunId
+-        : undefined;
++    controlTarget &&
++    currentEvents.some((event) => agentStreamRuntimeRunId(event) === controlTarget)
++      ? controlTarget
++      : nativeRunId;
+   return projectCurrentRunUsage(events, runId, nativeTarget);
+ }
+diff --git a/apps/web/src/features/workspace/utils/workspace-runtime-parser.ts b/apps/web/src/features/workspace/utils/workspace-runtime-parser.ts
+index d1abaef76..031370bf3 100644
+--- a/apps/web/src/features/workspace/utils/workspace-runtime-parser.ts
++++ b/apps/web/src/features/workspace/utils/workspace-runtime-parser.ts
+@@ -8,11 +8,16 @@ import {
+   REMEDIATION_APPROVAL_STATUSES,
+   VERIFICATION_RESULT_STATUSES,
+   type AssessmentAgentStreamEvent,
++  canonicalAssessmentRuntimeSnapshotSchema,
+   type AssessmentPostFindingActivity,
+   type AssessmentPostFindingRuntimeState,
+-  type AssessmentStageLifecycleProjection,
+   type AssessmentRuntimeEngineeringProgress,
+ } from "@lcsp/contracts/evidence";
++import {
++  assessmentEventSchema,
++  type AssessmentEvent,
++} from "@lcsp/contracts/assessment";
++import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
+ 
+ import {
+   WORKSPACE_RUNTIME_CONNECTION_STATES,
+@@ -105,14 +110,14 @@ export function parseRuntimeEvent(
+   const postFindingStates = Array.isArray(payload.post_finding)
+     ? payload.post_finding.map(parsePostFindingState).filter(isDefined)
+     : [];
+-  // Stage status the API derived from durable artifacts (scan job, accepted
+-  // evidence, confirmed context, plan, claims) rather than the activity log.
+-  const stageLifecycleByAssessmentId = Object.fromEntries(
+-    (Array.isArray(payload.stage_lifecycles) ? payload.stage_lifecycles : [])
+-      .map(parseStageLifecycle)
+-      .filter(isDefined)
+-      .map((lifecycle) => [lifecycle.assessmentId, lifecycle]),
+-  );
++  const canonicalAssessments = Array.isArray(payload.canonical_assessments)
++    ? payload.canonical_assessments
++        .map(parseCanonicalAssessment)
++        .filter(isDefined)
++    : [];
++  const canonicalEvents = Array.isArray(payload.canonical_events)
++    ? payload.canonical_events.map(parseCanonicalEvent).filter(isDefined)
++    : [];
+ 
+   const runsByAssessmentId = groupRunsByAssessmentId(runs);
+   const recentActivityByAssessmentId =
+@@ -123,6 +128,11 @@ export function parseRuntimeEvent(
+   const postFindingByAssessmentId = Object.fromEntries(
+     postFindingStates.map((state) => [state.assessmentId, state]),
+   );
++  const canonicalAssessmentByAssessmentId = Object.fromEntries(
++    canonicalAssessments.map((assessment) => [assessment.assessmentId, assessment]),
++  );
++  const canonicalEventsByAssessmentId =
++    groupCanonicalEventsByAssessmentId(canonicalEvents);
+ 
+   return {
+     connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
+@@ -134,6 +144,8 @@ export function parseRuntimeEvent(
+     scanJobs,
+     evidenceReports,
+     postFindingStates,
++    canonicalAssessments,
++    canonicalEvents,
+     runsByAssessmentId,
+     recentActivityByAssessmentId,
+     engineeringProgressByAssessmentId,
+@@ -141,8 +153,12 @@ export function parseRuntimeEvent(
+     agentStreamHistoryByAssessmentId: {},
+     latestRunIdByAssessmentId,
+     postFindingByAssessmentId,
+-    stageLifecycleByAssessmentId,
++    canonicalAssessmentByAssessmentId,
++    canonicalEventsByAssessmentId,
+     getAssessmentRuntime: (assessmentId: string) => ({
++      canonicalAssessment:
++        canonicalAssessmentByAssessmentId[assessmentId] ?? null,
++      canonicalEvents: canonicalEventsByAssessmentId[assessmentId] ?? [],
+       currentRun: runsByAssessmentId[assessmentId]?.[0] ?? null,
+       recentActivity: recentActivityByAssessmentId[assessmentId] ?? [],
+       engineeringProgress:
+@@ -160,44 +176,22 @@ export function parseRuntimeEvent(
+       connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
+       lastEmittedAt: payload.emitted_at as string,
+       postFinding: postFindingByAssessmentId[assessmentId] ?? null,
+-      stageLifecycle: stageLifecycleByAssessmentId[assessmentId] ?? null,
+     }),
+     subscribeAssessmentRuntime: () => () => undefined,
+     loadMoreAgentStreamHistory: () => Promise.resolve(false),
+   };
+ }
+ 
+-// `satisfies` keeps these keys in lockstep with the contract projection: a stale or
+-// unknown stage key is a type error instead of a parser that silently returns null.
+-const STAGE_LIFECYCLE_STAGES = [
+-  "scanner",
+-  "interview",
+-  "ruleAnalysis",
+-  "gate",
+-] as const satisfies readonly Exclude<
+-  keyof AssessmentStageLifecycleProjection,
+-  "assessmentId"
+->[];
+-
+-function parseStageLifecycle(
++function parseCanonicalAssessment(
+   value: unknown,
+-): AssessmentStageLifecycleProjection | null {
+-  const item = parseObject(value);
+-  if (item === null || typeof item.assessmentId !== "string") return null;
+-  const entries: Record<string, unknown> = {};
+-  for (const stage of STAGE_LIFECYCLE_STAGES) {
+-    const entry = parseObject(item[stage]);
+-    if (entry === null || typeof entry.state !== "string") return null;
+-    entries[stage] = {
+-      state: entry.state,
+-      source: typeof entry.source === "string" ? entry.source : "unknown",
+-      detail: typeof entry.detail === "string" ? entry.detail : null,
+-    };
+-  }
+-  return {
+-    assessmentId: item.assessmentId,
+-    ...entries,
+-  } as AssessmentStageLifecycleProjection;
++): CanonicalAssessmentRuntimeSnapshot | null {
++  const parsed = canonicalAssessmentRuntimeSnapshotSchema.safeParse(value);
++  return parsed.success ? parsed.data : null;
++}
++
++function parseCanonicalEvent(value: unknown): AssessmentEvent | null {
++  const parsed = assessmentEventSchema.safeParse(value);
++  return parsed.success ? parsed.data : null;
+ }
+ 
+ function parsePostFindingState(
+@@ -649,6 +643,22 @@ function groupEngineeringProgressByAssessmentId(
+   return groups;
+ }
+ 
++function groupCanonicalEventsByAssessmentId(events: AssessmentEvent[]) {
++  const groups: Record<string, AssessmentEvent[]> = {};
++  for (const event of events) {
++    groups[event.assessmentId] ??= [];
++    groups[event.assessmentId].push(event);
++  }
++  for (const assessmentId of Object.keys(groups)) {
++    groups[assessmentId]?.sort(
++      (left, right) =>
++        right.timestamp.localeCompare(left.timestamp) ||
++        right.sequence - left.sequence,
++    );
++  }
++  return groups;
++}
++
+ function deriveLatestRunIds(
+   runsByAssessmentId: Record<string, WorkspaceRuntimeRun[]>,
+ ) {
+@@ -678,6 +688,8 @@ export function runtimeFingerprint(runtime: {
+   repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
+   scanJobs: WorkspaceRuntimeScanJob[];
+   evidenceReports: WorkspaceRuntimeEvidenceReport[];
++  canonicalAssessments?: import("@lcsp/contracts/evidence").CanonicalAssessmentRuntimeSnapshot[];
++  canonicalEvents?: AssessmentEvent[];
+ }) {
+   return JSON.stringify({
+     runs: runtime.runs.map((run) => [
+@@ -736,6 +748,24 @@ export function runtimeFingerprint(runtime: {
+       report.rejectionReason,
+       report.createdAt,
+     ]),
++    canonicalAssessments: (runtime.canonicalAssessments ?? []).map(
++      (assessment) => [
++        assessment.assessmentId,
++        assessment.lifecycle?.state ?? null,
++        assessment.lifecycle?.assessmentRevision ?? null,
++        assessment.runtime?.currentExecutionId ?? null,
++        assessment.runtime?.executionState ?? null,
++        assessment.runtime?.eventSequence ?? null,
++        assessment.runtime?.updatedAt ?? null,
++      ],
++    ),
++    canonicalEvents: (runtime.canonicalEvents ?? []).map((event) => [
++      event.eventId,
++      event.assessmentId,
++      event.sequence,
++      event.timestamp,
++      event.eventType,
++    ]),
+   });
+ }
+ 
+@@ -755,6 +785,8 @@ export function affectedAssessmentIds(runtime: {
+   repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
+   scanJobs: WorkspaceRuntimeScanJob[];
+   evidenceReports: WorkspaceRuntimeEvidenceReport[];
++  canonicalAssessments?: import("@lcsp/contracts/evidence").CanonicalAssessmentRuntimeSnapshot[];
++  canonicalEvents?: AssessmentEvent[];
+ }) {
+   return new Set([
+     ...runtime.runs.map((run) => run.assessmentId),
+@@ -763,5 +795,9 @@ export function affectedAssessmentIds(runtime: {
+     ...runtime.repositorySnapshots.map((snapshot) => snapshot.assessmentId),
+     ...runtime.scanJobs.map((scanJob) => scanJob.assessmentId),
+     ...runtime.evidenceReports.map((report) => report.assessmentId),
++    ...(runtime.canonicalAssessments ?? []).map(
++      (assessment) => assessment.assessmentId,
++    ),
++    ...(runtime.canonicalEvents ?? []).map((event) => event.assessmentId),
+   ]);
+ }
+diff --git a/apps/web/tests/assessment-composer-control.test.ts b/apps/web/tests/assessment-composer-control.test.ts
+index 8a5eab934..4e5f7a16b 100644
+--- a/apps/web/tests/assessment-composer-control.test.ts
++++ b/apps/web/tests/assessment-composer-control.test.ts
+@@ -1,184 +1,98 @@
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
++
++import {
++  AGENT_EXECUTION_STATES,
++  type AgentExecutionState,
++} from "@lcsp/contracts/assessment";
+ import {
+-  ASSESSMENT_AGENT_STREAM_EVENT_TYPES as Events,
+-  ASSESSMENT_AGENT_STREAM_STAGES as Stages,
+   ASSESSMENT_RUNTIME_CONTROL_STATES as States,
+-  type AssessmentAgentStreamEvent,
++  type CanonicalAssessmentRuntimeSnapshot,
+ } from "@lcsp/contracts/evidence";
+ import { selectAssessmentComposerRuntimeControl as select } from "../src/features/workspace/utils/assessment-composer-control.ts";
+ 
+-function event(
+-  sequence: number,
+-  overrides: Partial<AssessmentAgentStreamEvent> = {},
+-): AssessmentAgentStreamEvent {
++const assessmentId = "11111111-1111-4111-8111-111111111111";
++const executionId = "22222222-2222-4222-8222-222222222222";
++
++function canonical(
++  executionState: AgentExecutionState,
++): CanonicalAssessmentRuntimeSnapshot {
+   return {
+-    eventId: `event-${sequence}`,
+-    sequence,
+-    clientSequence: sequence,
+-    emittedAt: "2026-10-03T00:00:00.000Z",
+-    assessmentId: "assessment-1",
+-    runId: "snapshot-1",
+-    correlationId: "dispatch-1",
+-    eventType: Events.modelCallStarted,
+-    stage: Stages.interview,
+-    engineeringRuleId: null,
+-    source: null,
+-    agentName: null,
+-    subagentName: null,
+-    namespace: [],
+-    nodeName: null,
+-    messageId: null,
+-    toolName: null,
+-    toolCallId: null,
+-    status: null,
+-    text: null,
+-    data: { runtimeRunId: "native-1" },
+-    ...overrides,
++    assessmentId,
++    lifecycle: { state: "ACTIVE", assessmentRevision: 4 },
++    runtime: {
++      threadId: "33333333-3333-4333-8333-333333333333",
++      rootAgentVersion: "runtime-v2",
++      checkpointNamespace: "44444444-4444-4444-8444-444444444444",
++      checkpointId: null,
++      currentExecutionId: executionId,
++      executionState,
++      eventSequence: 9,
++      startedAt: "2026-10-03T00:00:00.000Z",
++      lastResumedAt: null,
++      updatedAt: "2026-10-03T00:00:01.000Z",
++    },
+   };
+ }
+ 
+-test("live Interview, rule analysis and Gate thinking show Stop before the control poll", () => {
+-  for (const stage of [Stages.interview, Stages.ruleAnalysis, Stages.gate]) {
+-    for (const control of [null, undefined]) {
+-      assert.deepEqual(select([event(1, { stage })], control), {
+-        state: States.running,
+-        targetRunId: "native-1",
+-      });
+-    }
+-  }
+-});
+-
+-test("legacy live events still show Stop without inventing a native run identity", () => {
+-  assert.deepEqual(
+-    select([event(1, { data: null, eventType: Events.boundaryStarted })], null),
+-    {
+-      state: States.running,
+-      targetRunId: undefined,
+-    },
+-  );
+-});
+-
+-test("a completed older control record cannot offer Continue while a new turn is thinking", () => {
+-  assert.deepEqual(
+-    select([event(1)], {
+-      state: States.completed,
+-      targetRunId: "previous-native",
+-      requestId: null,
+-    }),
+-    { state: States.running, targetRunId: "native-1" },
+-  );
+-});
+-
+-test("composer uses the same open-boundary outcome as the visible Thinking line", () => {
+-  const events = [
+-    event(1, { eventType: Events.boundaryStarted }),
+-    event(2, { eventType: Events.agentCompleted }),
+-  ];
+-  assert.equal(select(events, null).state, States.running);
+-  events.push(event(3, { eventType: Events.boundaryCompleted }));
+-  assert.equal(select(events, null).state, null);
+-});
+-
+-test("Stop requests stay Stopping until the native runtime acknowledges interruption", () => {
+-  const events = [
+-    event(1),
+-    event(2, { eventType: Events.runtimeStopRequested }),
+-  ];
+-  assert.equal(select(events, null).state, States.stopRequested);
+-  events.push(event(3, { eventType: Events.boundaryPaused }));
+-  assert.equal(select(events, null).state, States.stopRequested);
+-  events.push(event(4, { eventType: Events.runtimeStopped }));
+-  assert.equal(select(events, null).state, States.stopped);
+-});
+-
+-test("acknowledged stopped and resuming states win over stale running polls and output", () => {
+-  const running = {
++test("canonical RUNNING projects Stop with the server execution identity", () => {
++  assert.deepEqual(select(canonical(AGENT_EXECUTION_STATES.RUNNING), null), {
+     state: States.running,
+-    targetRunId: "native-1",
+-    requestId: null,
+-  };
+-  const events = [event(1), event(2, { eventType: Events.runtimeStopped })];
+-  events.push(event(3, { eventType: Events.modelCallHeartbeat }));
+-  assert.equal(select(events, running).state, States.stopped);
+-  events.push(event(4, { eventType: Events.runtimeResumeRequested }));
+-  assert.equal(select(events, running).state, States.resumeRequested);
+-  events.push(event(5, { eventType: Events.runtimeStopRequested }));
+-  assert.equal(select(events, running).state, States.resumeRequested);
++    targetRunId: executionId,
++  });
+ });
+ 
+-test("resumed native acknowledgement shows Stop and targets the resumed generation despite old output", () => {
+-  const events = [
+-    event(1, { eventType: Events.runtimeStopped }),
+-    event(2, { eventType: Events.runtimeResumeRequested }),
+-    event(3, {
+-      eventType: Events.runtimeResumed,
+-      data: { runtimeRunId: "native-2" },
+-    }),
+-    event(4, { eventType: Events.modelCallCompleted }),
+-    event(5, { eventType: Events.modelCallHeartbeat }),
+-  ];
+-  for (const control of [
+-    null,
+-    {
+-      state: States.resumeRequested,
+-      targetRunId: "native-1",
+-      requestId: "resume-1",
+-    },
++test("canonical INTERRUPTED and PAUSED project Continue without event inference", () => {
++  for (const executionState of [
++    AGENT_EXECUTION_STATES.INTERRUPTED,
++    AGENT_EXECUTION_STATES.PAUSED,
+   ]) {
+-    const projected = select(events, control);
+-    assert.equal(projected.state, States.running);
+-    assert.equal(projected.targetRunId, "native-2");
++    assert.deepEqual(select(canonical(executionState), null), {
++      state: States.stopped,
++      targetRunId: executionId,
++    });
+   }
+ });
+ 
+-test("poll acknowledgement arriving before the new generation's SSE shows Stop", () => {
+-  assert.equal(
+-    select([event(1, { eventType: Events.runtimeStopped })], {
+-      state: States.running,
+-      targetRunId: "native-2",
+-      requestId: null,
+-    }).state,
+-    States.running,
+-  );
+-});
+-
+-test("a polled stop acknowledgement never becomes running because of old live events", () => {
+-  for (const state of [
+-    States.stopRequested,
+-    States.stopped,
+-    States.resumeRequested,
+-    States.completed,
++test("canonical terminal AES projects completed and cannot be reopened by activity", () => {
++  for (const executionState of [
++    AGENT_EXECUTION_STATES.SUCCEEDED,
++    AGENT_EXECUTION_STATES.FAILED,
++    AGENT_EXECUTION_STATES.CANCELLED,
+   ]) {
+-    assert.equal(
+-      select([event(1)], {
+-        state,
+-        targetRunId: "native-1",
+-        requestId: "request-1",
+-      }).state,
+-      state,
+-    );
++    assert.deepEqual(select(canonical(executionState), null), {
++      state: States.completed,
++      targetRunId: executionId,
++    });
+   }
+ });
+ 
+-test("completion wins over late stop acknowledgement and replay is idempotent", () => {
+-  const events = [
+-    event(1),
+-    event(2, { eventType: Events.runtimeCompleted }),
+-    event(3, { eventType: Events.runtimeStopped }),
+-    event(4, { eventType: Events.modelCallHeartbeat }),
+-  ];
+-  assert.equal(select(events, null).state, States.completed);
++test("missing canonical state is unavailable even when a control poll or events exist", () => {
+   assert.deepEqual(
+-    select(
+-      [...events].reverse().flatMap((item) => [item, item]),
+-      null,
+-    ),
+-    select(events, null),
++    select(null, {
++      state: States.running,
++      targetRunId: executionId,
++      requestId: null,
++    }),
++    { state: null },
+   );
+ });
+ 
+-test("scanner history alone cannot offer Interview Stop or Continue", () => {
+-  assert.equal(select([event(1, { stage: Stages.scanner })], null).state, null);
+-  assert.equal(select([], null).state, null);
++test("a control acknowledgement is accepted only for the canonical execution", () => {
++  const control = {
++    state: States.stopRequested,
++    targetRunId: executionId,
++    requestId: "55555555-5555-4555-8555-555555555555",
++  };
++  assert.deepEqual(
++    select(canonical(AGENT_EXECUTION_STATES.RUNNING), control),
++    control,
++  );
++  assert.deepEqual(
++    select(canonical(AGENT_EXECUTION_STATES.RUNNING), {
++      ...control,
++      targetRunId: "66666666-6666-4666-8666-666666666666",
++    }),
++    { state: States.running, targetRunId: executionId },
++  );
+ });
+diff --git a/apps/web/tests/assessment-composer.test.tsx b/apps/web/tests/assessment-composer.test.tsx
+index a0f72b5fe..3a2b07fc1 100644
+--- a/apps/web/tests/assessment-composer.test.tsx
++++ b/apps/web/tests/assessment-composer.test.tsx
+@@ -7,11 +7,6 @@ import { ASSESSMENT_RUNTIME_CONTROL_STATES as States } from "@lcsp/contracts/evi
+ import { resolveMessage } from "@lcsp/i18n";
+ import { appLocale } from "../src/lib/locale.ts";
+ import { selectAssessmentComposerRuntimeControl } from "../src/features/workspace/utils/assessment-composer-control.ts";
+-import {
+-  ASSESSMENT_AGENT_STREAM_EVENT_TYPES as Events,
+-  ASSESSMENT_AGENT_STREAM_STAGES as Stages,
+-  type AssessmentAgentStreamEvent,
+-} from "@lcsp/contracts/evidence";
+ 
+ const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+   url: "http://localhost/",
+@@ -126,35 +121,10 @@ test("explicit acknowledged lifecycle renders Stop, Stopping, Continue, Continui
+   assert.equal(resumes, 1);
+ });
+ 
+-test("Thinking from the live stream renders circle-stop even when generic Continue is available and control is null", () => {
+-  const events: AssessmentAgentStreamEvent[] = [
+-    {
+-      eventId: "thinking",
+-      sequence: 1,
+-      clientSequence: 1,
+-      emittedAt: "2026-10-03T00:00:00Z",
+-      assessmentId: "assessment-1",
+-      runId: "snapshot-1",
+-      correlationId: "answer-1",
+-      eventType: Events.modelCallStarted,
+-      stage: Stages.interview,
+-      engineeringRuleId: null,
+-      source: null,
+-      agentName: null,
+-      subagentName: null,
+-      namespace: [],
+-      nodeName: null,
+-      messageId: null,
+-      toolName: null,
+-      toolCallId: null,
+-      status: null,
+-      text: null,
+-      data: { runtimeRunId: "native-1" },
+-    },
+-  ];
++test("activity without canonical runtime state does not render a stop control", () => {
+   let stopped = 0;
+   let continued = 0;
+-  const control = selectAssessmentComposerRuntimeControl(events, null);
++  const control = selectAssessmentComposerRuntimeControl(null, null);
+   const container = render(
+     <AssessmentComposer
+       value=""
+@@ -166,11 +136,11 @@ test("Thinking from the live stream renders circle-stop even when generic Contin
+       onInterruptTurn={() => stopped++}
+     />,
+   );
+-  const button = actionButton(container) as HTMLButtonElement;
+-  assert.ok(button.querySelector(".lucide-circle-stop"));
+-  assert.equal(button.querySelector(".lucide-circle-play"), null);
+-  act(() => button.click());
+-  assert.equal(stopped, 1);
++  assert.equal(
++    actionButton(container)?.getAttribute("aria-label") ?? null,
++    null,
++  );
++  assert.equal(stopped, 0);
+   assert.equal(continued, 0);
+ });
+ 
+diff --git a/apps/web/tests/assessment-native-stop-projection.test.ts b/apps/web/tests/assessment-native-stop-projection.test.ts
+index 37b1699ed..45f4591aa 100644
+--- a/apps/web/tests/assessment-native-stop-projection.test.ts
++++ b/apps/web/tests/assessment-native-stop-projection.test.ts
+@@ -152,7 +152,7 @@ test("reloaded history joins native control with its stages and marks abandoned
+   assert.equal(deriveAgentStreamRunOutcome(turns[1]!.events), Outcomes.paused);
+ });
+ 
+-test("sidebar uses an acknowledged native stop without changing finished steps or domain workflow state", () => {
++test("lifecycle events and controls never mutate canonical sidebar projection", () => {
+   const base = normalizeAssessmentRuntime({
+     assessmentId: "assessment",
+     interviewState: null,
+@@ -195,12 +195,9 @@ test("sidebar uses an acknowledged native stop without changing finished steps o
+     work,
+     control,
+   );
+-  assert.deepEqual(
+-    shown.workflow.steps.map((step) => step.status),
+-    [Statuses.completed, Statuses.stopped, Statuses.queued],
+-  );
++  assert.equal(shown, runtime);
++  assert.deepEqual(shown.workflow.steps, runtime.workflow.steps);
+   assert.equal(shown.workflow.status, Runs.running);
+-  assert.equal(runtime.workflow.steps[1]?.status, Statuses.running);
+   assert.equal(
+     applyAssessmentRuntimeControlPresentation(runtime, work, {
+       ...control,
+@@ -215,11 +212,7 @@ test("sidebar uses an acknowledged native stop without changing finished steps o
+     }),
+     runtime,
+   );
+-  const resumed = [
+-    ...work,
+-    stopped(),
+-    event(11, Events.modelCallStarted, { data: { runtimeRunId: "native-b" } }),
+-  ];
++  const resumed = [...work, stopped(), event(11, Events.modelCallStarted)];
+   assert.equal(
+     applyAssessmentRuntimeControlPresentation(runtime, resumed, {
+       ...control,
+diff --git a/apps/web/tests/assessment-runtime-adapter.test.ts b/apps/web/tests/assessment-runtime-adapter.test.ts
+index a98e4d7d8..0431cea7e 100644
+--- a/apps/web/tests/assessment-runtime-adapter.test.ts
++++ b/apps/web/tests/assessment-runtime-adapter.test.ts
+@@ -17,16 +17,22 @@ import {
+   ASSESSMENT_RUNTIME_RUN_STATUSES,
+   ASSESSMENT_RUNTIME_STAGE_CODES,
+   ASSESSMENT_RUNTIME_STEP_SKIP_REASONS,
+-  ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS,
+   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+   RULE_ANALYSIS_ACTIVITIES,
+   RULE_ANALYSIS_SUMMARY_TOOL,
+   RULE_ANALYSIS_TOOL_PREFIX,
+   INTERVIEW_PROGRESS_PHASES,
++  POST_FINDING_RUNTIME_PHASES,
++  REMEDIATION_DECISIONS,
++  REMEDIATION_APPROVAL_STATUSES,
+   type AssessmentInterviewAuditRef,
+   type AssessmentInterviewRuntimeState,
++  type CanonicalAssessmentRuntimeSnapshot,
+ } from "@lcsp/contracts/evidence";
+-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
++import {
++  AGENT_EXECUTION_STATES,
++  ASSESSMENT_LIFECYCLE_STATES,
++} from "@lcsp/contracts/assessment";
+ import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+ import { PROGRAM_EVIDENCE_METRIC_FORMATS } from "../src/features/assessment-flow/types/assessment-flow.types.ts";
+ 
+@@ -39,7 +45,9 @@ import {
+   NORMALIZED_WORKFLOW_STEP_STATUSES,
+   type AdapterTimelineInput,
+ } from "../src/features/workspace/types/assessment-runtime-adapter.types.ts";
+-import { normalizeAssessmentRuntime } from "../src/features/workspace/utils/assessment-runtime-adapter.ts";
++import {
++  normalizeAssessmentRuntime as projectAssessmentRuntime,
++} from "../src/features/workspace/utils/assessment-runtime-adapter.ts";
+ import {
+   selectArtifactPresentation,
+   selectAssessmentRuntimeSidebarPresentation,
+@@ -63,6 +71,91 @@ import {
+   type WorkspaceRuntimeScanJob,
+ } from "../src/features/workspace/types/workspace-runtime.types.ts";
+ 
++const testExecutionId = "22222222-2222-4222-8222-222222222222";
++
++function canonicalFor(
++  assessmentId: string,
++  lifecycleState:
++    | "ACTIVE"
++    | "WAITING_FOR_HUMAN"
++    | "WAITING_FOR_REQUIRED_INPUT"
++    | "BLOCKED" = "ACTIVE",
++): CanonicalAssessmentRuntimeSnapshot {
++  const lifecycle =
++    lifecycleState === "BLOCKED"
++      ? {
++          state: lifecycleState,
++          assessmentRevision: 1,
++          blocker: {
++            reason: "HUMAN_FACT_UNRESOLVABLE" as const,
++            reference: {
++              humanResolutionRequestId:
++                "77777777-7777-4777-8777-777777777777",
++            },
++          },
++        }
++      : { state: lifecycleState, assessmentRevision: 1 };
++  return {
++    assessmentId,
++    lifecycle,
++    runtime: {
++      threadId: "33333333-3333-4333-8333-333333333333",
++      rootAgentVersion: "runtime-v2",
++      checkpointNamespace: "44444444-4444-4444-8444-444444444444",
++      checkpointId: null,
++      currentExecutionId: testExecutionId,
++      executionState: AGENT_EXECUTION_STATES.RUNNING,
++      eventSequence: 1,
++      startedAt: "2026-09-05T08:00:00.000Z",
++      lastResumedAt: null,
++      updatedAt: "2026-09-05T08:00:00.000Z",
++    },
++  };
++}
++
++/** Existing adapter cases use a canonical fixture unless absence is explicit. */
++function normalizeAssessmentRuntime(
++  params: Parameters<typeof projectAssessmentRuntime>[0],
++) {
++  const timeline = params.timeline ?? {
++    currentRun: null,
++    recentActivity: [],
++    latestRunId: null,
++    connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
++    lastEmittedAt: null,
++  };
++  const hasCanonical = Object.hasOwn(timeline, "canonicalAssessment");
++  const interviewInput = params.interviewState;
++  const interviewData =
++    interviewInput &&
++    typeof interviewInput === "object" &&
++    "data" in interviewInput
++      ? interviewInput.data
++      : interviewInput;
++  const lifecycleState =
++    interviewData &&
++    typeof interviewData === "object" &&
++    "outcome" in interviewData &&
++    interviewData.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer
++      ? ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN
++      : interviewData &&
++          typeof interviewData === "object" &&
++          "outcome" in interviewData &&
++          interviewData.outcome ===
++            ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved
++        ? ASSESSMENT_LIFECYCLE_STATES.BLOCKED
++        : ASSESSMENT_LIFECYCLE_STATES.ACTIVE;
++  return projectAssessmentRuntime({
++    ...params,
++    timeline: {
++      ...timeline,
++      canonicalAssessment: hasCanonical
++        ? timeline.canonicalAssessment
++        : canonicalFor(params.assessmentId, lifecycleState),
++    },
++  });
++}
++
+ test("1. MAINLINE — READY coverage + WAITING_FOR_CUSTOMER question", () => {
+   const interviewInput: AssessmentInterviewRuntimeState = {
+     outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+@@ -180,11 +273,11 @@ test("production sidebar normalization preserves repository metadata and canonic
+   );
+   assert.equal(
+     normalized.workflow.steps[0]?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+   assert.equal(
+     normalized.workflow.steps[1]?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ });
+ 
+@@ -216,7 +309,7 @@ test("runtime workflow derives Interview running state from the active public qu
+   );
+   assert.equal(
+     steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview)?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.running,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ });
+ 
+@@ -309,15 +402,15 @@ test("runtime projection maps rule-analysis events onto visible workflow stages"
+   );
+   assert.equal(
+     steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules)?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+   assert.equal(
+     steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis)?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.failed,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+   assert.equal(
+     steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis)?.detail,
+-    "Yêu cầu đã phân tích: 1/2 trong phạm vi (tổng 2). Đang chờ: 0. Lượt phân tích yêu cầu bị gián đoạn bởi lỗi runtime: 1.",
++    null,
+   );
+ 
+   const thinking = selectRuntimeThinkingItems(normalized);
+@@ -381,11 +474,11 @@ test("legacy runs without an explicit Gate event project Gate SKIPPED once Class
+   );
+   assert.equal(
+     steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis)?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+   assert.equal(
+     steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate)?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.skipped,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ });
+ 
+@@ -462,7 +555,7 @@ test("Gate required: explicit gate activity moves RUNNING then COMPLETED", () =>
+         ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+       ),
+     ]).gate,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.running,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ 
+   const completed = gateStatusFor("asm-gate-required", runId, [
+@@ -483,10 +576,10 @@ test("Gate required: explicit gate activity moves RUNNING then COMPLETED", () =>
+       ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+     ),
+   ]);
+-  assert.equal(completed.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.completed);
++  assert.equal(completed.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable);
+   assert.equal(
+     completed.classification,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
++    undefined,
+   );
+ });
+ 
+@@ -513,10 +606,10 @@ test("Gate not required: explicit TOOL_SKIPPED NOT_REQUIRED projects SKIPPED, ru
+     }),
+   ]);
+ 
+-  assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.skipped);
++  assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable);
+   assert.equal(
+     statuses.ruleAnalysis,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ });
+ 
+@@ -546,7 +639,7 @@ test("targeted resume with no Gate keeps the explicit SKIPPED state of its own r
+     ),
+   ]);
+ 
+-  assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.skipped);
++  assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable);
+ });
+ 
+ test("stale Gate events from a previous run never leak into the current run", () => {
+@@ -572,7 +665,7 @@ test("stale Gate events from a previous run never leak into the current run", ()
+     classificationCompleted("asm-stale-gate", 4, previousRun),
+   ]);
+ 
+-  assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.queued);
++  assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable);
+   assert.equal(statuses.classification, undefined);
+ });
+ 
+@@ -591,7 +684,7 @@ test("explicit Gate COMPLETED wins over the legacy absence-based fallback", () =
+     ),
+   ]);
+ 
+-  assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.completed);
++  assert.equal(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable);
+ });
+ 
+ test("a non-terminal Gate never coexists with a completed Classification in one scope", () => {
+@@ -608,7 +701,7 @@ test("a non-terminal Gate never coexists with a completed Classification in one
+ 
+   assert.equal(
+     statuses.classification,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
++    undefined,
+   );
+   assert.notEqual(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.queued);
+   assert.notEqual(statuses.gate, NORMALIZED_WORKFLOW_STEP_STATUSES.running);
+@@ -666,11 +759,11 @@ test("runtime projection ignores stale previous-run activity during targeted res
+   );
+   assert.equal(
+     steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview)?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.running,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+   assert.equal(
+     steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate)?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ });
+ 
+@@ -1026,7 +1119,7 @@ test("LCSP-272 right sidebar projects F03 scanner-running state without fabricat
+     sidebar.workflow.find(
+       (item) => item.id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+     )?.status,
+-    ASSESSMENT_SIDEBAR_STATUSES.running,
++    ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+   );
+   for (const stage of [
+     ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
+@@ -1036,7 +1129,7 @@ test("LCSP-272 right sidebar projects F03 scanner-running state without fabricat
+   ]) {
+     assert.equal(
+       sidebar.workflow.find((item) => item.id === stage)?.status,
+-      ASSESSMENT_SIDEBAR_STATUSES.queued,
++      ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+     );
+   }
+   assert.equal(sidebar.artifacts[0]?.artifact.id, "program-evidence-graph");
+@@ -1113,7 +1206,7 @@ test("queued scanner rerun waits until Agent Runtime claims the job", () => {
+     queued.workflow.steps.find(
+       (step) => step.id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+     )?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.waiting,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+   assert.equal(
+     queued.artifacts.programEvidenceGraph.availability,
+@@ -1123,7 +1216,7 @@ test("queued scanner rerun waits until Agent Runtime claims the job", () => {
+     scannerStepStatus(
+       rerunTimeline("asm-rerun-running", REPOSITORY_SCAN_JOB_STATUSES.running),
+     ),
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.running,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ });
+ 
+@@ -1132,7 +1225,7 @@ test("a finished scan job leaves the Scanner row to its runtime events", () => {
+     scannerStepStatus(
+       rerunTimeline("asm-rerun-done", REPOSITORY_SCAN_JOB_STATUSES.failed),
+     ),
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.waiting,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ });
+ 
+@@ -1150,7 +1243,7 @@ test("a completed scan stays completed when a later rule-analysis dispatch posts
+   };
+   assert.equal(
+     scannerStepStatus(resumed),
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
+   );
+ });
+ 
+@@ -1185,13 +1278,13 @@ test("LCSP-272 right sidebar projects F04 scanner-passed and interview-running s
+     sidebar.workflow.find(
+       (item) => item.id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+     )?.status,
+-    ASSESSMENT_SIDEBAR_STATUSES.passed,
++    ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+   );
+   assert.equal(
+     sidebar.workflow.find(
+       (item) => item.id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
+     )?.status,
+-    ASSESSMENT_SIDEBAR_STATUSES.running,
++    ASSESSMENT_SIDEBAR_STATUSES.unavailable,
+   );
+   assert.equal(sidebar.artifacts[0]?.artifact.id, "program-evidence-graph");
+   assert.equal(sidebar.artifacts[0]?.status, ASSESSMENT_SIDEBAR_STATUSES.ready);
+@@ -1778,7 +1871,7 @@ test("workflow presentation uses waiting Legal Retrieval activity as active stat
+   });
+ 
+   const workflow = selectWorkflowPresentation(normalized);
+-  assert.equal(workflow.activeStatus, ASSESSMENT_RUNTIME_RUN_STATUSES.waiting);
++  assert.equal(workflow.activeStatus, AGENT_EXECUTION_STATES.RUNNING);
+   assert.equal(
+     workflow.activeStage,
+     ASSESSMENT_RUNTIME_STAGE_CODES.legalRetrieval,
+@@ -2099,7 +2192,7 @@ test("LCSP-999 HANDOFF: a failed Interview turn offers Resume until a new progre
+   );
+ });
+ 
+-test("LCSP-999 HANDOFF: AI not detected ends the assessment instead of waiting for Interview", () => {
++test("Handoff does not infer lifecycle from the legacy assessment status", () => {
+   const normalized = normalizeAssessmentRuntime({
+     assessmentId: "asm-ai-not-detected",
+     interviewState: {
+@@ -2115,28 +2208,13 @@ test("LCSP-999 HANDOFF: AI not detected ends the assessment instead of waiting f
+     },
+   });
+ 
+-  const waiting = selectInterviewHandoffPresentation(
+-    normalized,
+-    ASSESSMENT_STATUS_CODES.wizardSubmitted,
+-  );
++  const waiting = selectInterviewHandoffPresentation(normalized);
+   assert.equal(
+     waiting.messageKey,
+     "pages.assessmentFlow.interview.pendingDescription",
+   );
+ 
+-  const ended = selectInterviewHandoffPresentation(
+-    normalized,
+-    ASSESSMENT_STATUS_CODES.aiNotDetected,
+-  );
+-  assert.equal(ended.isStartupPending, false);
+-  assert.equal(
+-    ended.messageKey,
+-    "pages.assessmentFlow.interview.aiNotDetectedDescription",
+-  );
+-  assert.equal(
+-    ended.placeholderKey,
+-    "pages.assessmentFlow.interview.aiNotDetectedPlaceholder",
+-  );
++  assert.equal(waiting.isStartupPending, true);
+ });
+ 
+ test("LCSP-272 HANDOFF: active runtime question produces the real F04 projection", () => {
+@@ -2629,10 +2707,9 @@ test("completed workflow stages cannot fabricate READY textual artifacts when th
+   );
+ });
+ 
+-test("artifact lifecycle from the API decides stage status, not runtime events", () => {
+-  // Events say the scan is running again (downstream bookkeeping under the same
+-  // scan job); the durable lifecycle says the scanner finished and rule
+-  // analysis is working. The artifact wins.
++test("canonical stage rows stay unavailable without a stage-level authority", () => {
++  // Stage events are activity details only. The canonical assessment state is
++  // rendered separately, so stage rows cannot invent lifecycle progress.
+   const timeline = rerunTimeline("asm-lifecycle", REPOSITORY_SCAN_JOB_STATUSES.completed);
+   const withLifecycle: AdapterTimelineInput = {
+     ...timeline,
+@@ -2643,13 +2720,6 @@ test("artifact lifecycle from the API decides stage status, not runtime events",
+       }),
+       ...timeline.recentActivity,
+     ],
+-    stageLifecycle: {
+-      assessmentId: "asm-lifecycle",
+-      scanner: { state: "DONE", source: "acceptedEvidence", detail: null },
+-      interview: { state: "CONTEXT_CONFIRMED", source: "confirmedContext", detail: null },
+-      ruleAnalysis: { state: "RUNNING", source: "ruleAssessments", detail: "40/41" },
+-      gate: { state: "QUEUED", source: "ruleClaims", detail: null },
+-    },
+   };
+ 
+   const steps = normalizeAssessmentRuntime({
+@@ -2659,23 +2729,15 @@ test("artifact lifecycle from the API decides stage status, not runtime events",
+   const statusOf = (id: string) =>
+     steps.find((step) => step.id === id)?.status;
+ 
+-  assert.equal(
+-    statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner),
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+-  );
+-  assert.equal(
+-    statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis),
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.running,
+-  );
+-  assert.equal(
+-    statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate),
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+-  );
++  assert.equal(statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner),
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable);
++  assert.equal(statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.ruleAnalysis),
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable);
++  assert.equal(statusOf(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate),
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable);
+ });
+ 
+-test("an assessment from before the lifecycle existed still renders", () => {
+-  // Old API/snapshot: no stageLifecycle at all. The event-derived projection
+-  // stays in charge instead of the sidebar breaking.
++test("an assessment without canonical state renders unavailable stage rows", () => {
+   const steps = normalizeAssessmentRuntime({
+     assessmentId: "asm-legacy",
+     timeline: rerunTimeline("asm-legacy", REPOSITORY_SCAN_JOB_STATUSES.completed),
+@@ -2685,6 +2747,125 @@ test("an assessment from before the lifecycle existed still renders", () => {
+   assert.equal(
+     steps.find((step) => step.id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner)
+       ?.status,
+-    NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
++    NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
++  );
++});
++
++test("canonical lifecycle remains screen authority over post-finding and coverage payloads", () => {
++  const assessmentId = "asm-canonical-screen";
++  const canonical = canonicalFor(assessmentId);
++  canonical.lifecycle = {
++    state: ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN,
++    assessmentRevision: 2,
++  };
++  const normalized = projectAssessmentRuntime({
++    assessmentId,
++    coverageOverride: {
++      state: ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable,
++      limitations: ["stale coverage"],
++      recoveryReason: "stale",
++    },
++    timeline: {
++      currentRun: null,
++      recentActivity: [],
++      latestRunId: null,
++      connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
++      lastEmittedAt: null,
++      canonicalAssessment: canonical,
++      postFinding: {
++        assessmentId,
++        phase: POST_FINDING_RUNTIME_PHASES.needsInput,
++        codeReviewActivities: [],
++        decisionAvailability: [],
++        approvalStatus: REMEDIATION_APPROVAL_STATUSES.notRequired,
++        verificationActivities: [],
++      },
++    },
++  });
++
++  assert.equal(
++    selectAssessmentScreenProjection(normalized),
++    ASSESSMENT_SCREEN_PROJECTIONS.f03,
++  );
++});
++
++test("missing canonical pair is unavailable and never promoted by legacy payloads", () => {
++  const normalized = projectAssessmentRuntime({
++    assessmentId: "asm-canonical-missing",
++    interviewState: {
++      outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
++      activeQuestion: {
++        id: "legacy-question",
++        intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
++        control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
++        prompt: "Legacy payload must not enable this control",
++      },
++    },
++    timeline: {
++      currentRun: null,
++      recentActivity: [
++        runtimeActivity("asm-canonical-missing", 1, "legacy running activity"),
++      ],
++      latestRunId: "asm-canonical-missing-scan",
++      connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
++      lastEmittedAt: "2026-09-05T08:00:00.000Z",
++      canonicalAssessment: null,
++      canonicalEvents: [],
++      postFinding: {
++        assessmentId: "asm-canonical-missing",
++        phase: POST_FINDING_RUNTIME_PHASES.needsInput,
++        codeReviewActivities: [],
++        decisionAvailability: [REMEDIATION_DECISIONS.createRemediationPr],
++        approvalStatus: REMEDIATION_APPROVAL_STATUSES.notRequired,
++        verificationActivities: [],
++      },
++    },
++  });
++
++  assert.equal(
++    normalized.availability,
++    ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable,
++  );
++  assert.equal(selectCustomerActions(normalized).canAnswerQuestion, false);
++  assert.equal(
++    selectCustomerActions(normalized).canSelectRemediationDecision,
++    false,
++  );
++  assert.equal(
++    selectAssessmentScreenProjection(normalized),
++    ASSESSMENT_SCREEN_PROJECTIONS.f01,
++  );
++  assert.ok(
++    normalized.workflow.steps.every(
++      (step) => step.status === NORMALIZED_WORKFLOW_STEP_STATUSES.unavailable,
++    ),
++  );
++});
++
++test("partial canonical pair is unavailable rather than projecting a lifecycle", () => {
++  const canonical = canonicalFor("asm-canonical-partial");
++  const normalized = projectAssessmentRuntime({
++    assessmentId: "asm-canonical-partial",
++    timeline: {
++      currentRun: null,
++      recentActivity: [],
++      latestRunId: null,
++      connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
++      lastEmittedAt: null,
++      canonicalAssessment: {
++        ...canonical,
++        runtime: null,
++      },
++      canonicalEvents: [],
++    },
++  });
++
++  assert.equal(
++    normalized.availability,
++    ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable,
++  );
++  assert.equal(
++    selectAssessmentScreenProjection(normalized),
++    ASSESSMENT_SCREEN_PROJECTIONS.f01,
+   );
+ });
+diff --git a/apps/web/tests/workspace-runtime-provider.test.ts b/apps/web/tests/workspace-runtime-provider.test.ts
+index 345faadfe..49f0eb547 100644
+--- a/apps/web/tests/workspace-runtime-provider.test.ts
++++ b/apps/web/tests/workspace-runtime-provider.test.ts
+@@ -7,6 +7,10 @@ import {
+   ASSESSMENT_RUNTIME_RUN_STATUSES,
+   type AssessmentAgentStreamEvent,
+ } from "@lcsp/contracts/evidence";
++import {
++  AGENTIC_ASSESSMENT_EVENT_TYPES,
++  ASSESSMENT_EVENT_ACTOR_TYPES,
++} from "@lcsp/contracts/assessment";
+ import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+ 
+ import {
+@@ -506,6 +510,83 @@ test("workspace runtime parser groups runs and activity by assessment", () => {
+   );
+ });
+ 
++test("workspace runtime parser preserves canonical ALS/AES and event-only activity", () => {
++  const assessmentId = "11111111-1111-4111-8111-111111111111";
++  const executionId = "22222222-2222-4222-8222-222222222222";
++  const parsed = parseRuntimeEvent(
++    JSON.stringify({
++      emitted_at: "2026-08-13T11:00:00.000Z",
++      runs: [],
++      recent_activity: [],
++      repository_snapshots: [],
++      scan_jobs: [],
++      evidence_reports: [],
++      canonical_assessments: [
++        {
++          assessmentId,
++          lifecycle: { state: "ACTIVE", assessmentRevision: 3 },
++          runtime: {
++            threadId: "33333333-3333-4333-8333-333333333333",
++            rootAgentVersion: "runtime-v2",
++            checkpointNamespace: "44444444-4444-4444-8444-444444444444",
++            checkpointId: null,
++            currentExecutionId: executionId,
++            executionState: "RUNNING",
++            eventSequence: 7,
++            startedAt: "2026-08-13T10:59:00.000Z",
++            lastResumedAt: null,
++            updatedAt: "2026-08-13T11:00:00.000Z",
++          },
++        },
++      ],
++      canonical_events: [
++        {
++          eventId: "55555555-5555-4555-8555-555555555555",
++          assessmentId,
++          threadId: "33333333-3333-4333-8333-333333333333",
++          sequence: 7,
++          timestamp: "2026-08-13T11:00:00.000Z",
++          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.RUNTIME,
++          executionId,
++          eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ACTIVITY_RECORDED,
++          payload: { kind: "TASK", labelKey: "pages.runtime.activity.running" },
++        },
++        {
++          eventId: "66666666-6666-4666-8666-666666666666",
++          assessmentId,
++          threadId: "33333333-3333-4333-8333-333333333333",
++          sequence: 6,
++          timestamp: "2026-08-13T10:59:00.000Z",
++          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
++          eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED,
++          payload: {
++            fromState: "PREPARING",
++            toState: "ACTIVE",
++            assessmentRevision: 3,
++          },
++        },
++      ],
++    }),
++  );
++
++  assert.ok(parsed);
++  assert.equal(parsed?.canonicalAssessments.length, 1);
++  assert.equal(
++    parsed?.getAssessmentRuntime(assessmentId).canonicalAssessment?.runtime
++      ?.executionState,
++    "RUNNING",
++  );
++  assert.equal(parsed?.canonicalEvents.length, 2);
++  const runtime = parsed?.getAssessmentRuntime(assessmentId);
++  assert.ok(runtime);
++  assert.ok(runtime.canonicalEvents);
++  assert.equal(runtime.canonicalEvents.length, 2);
++  assert.equal(
++    runtime.canonicalEvents[1]?.eventType,
++    AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED,
++  );
++});
++
+ test("workspace runtime fingerprint ignores running scan heartbeat timestamps", () => {
+   const first = parseRuntimeEvent(
+     JSON.stringify({
+diff --git a/packages/i18n/src/locales/en/pages.ts b/packages/i18n/src/locales/en/pages.ts
+index 34eeb85ed..8066ca16e 100644
+--- a/packages/i18n/src/locales/en/pages.ts
++++ b/packages/i18n/src/locales/en/pages.ts
+@@ -471,6 +471,34 @@ export const enPages = {
+     runtimePanelRecentActivity: "Recent activity",
+     runtimePanelEmpty: "No runtime activity for this assessment yet.",
+     runtimePanelViewFull: "View full runtime",
++    runtimePanelCanonicalTitle: "Assessment state",
++    runtimePanelCanonicalActivity: "Recent assessment activity",
++    runtimePanelCanonicalUnavailable: "Assessment state is unavailable.",
++    runtimePanelCanonicalLoading: "Loading assessment state",
++    runtimePanelCanonicalLifecycle: "Lifecycle",
++    runtimePanelCanonicalExecution: "Execution",
++    runtimePanelCanonicalStates: {
++      CREATED: "Created",
++      PREPARING: "Preparing",
++      ACTIVE: "Active",
++      WAITING_FOR_HUMAN: "Waiting for human input",
++      WAITING_FOR_REQUIRED_INPUT: "Waiting for required input",
++      PAUSED: "Paused",
++      FINALIZING: "Finalizing",
++      COMPLETE: "Complete",
++      BLOCKED: "Blocked",
++      FAILED: "Failed",
++      CANCELLED: "Cancelled",
++    },
++    runtimePanelCanonicalExecutionStates: {
++      QUEUED: "Queued",
++      RUNNING: "Running",
++      INTERRUPTED: "Interrupted",
++      PAUSED: "Paused",
++      SUCCEEDED: "Succeeded",
++      FAILED: "Failed",
++      CANCELLED: "Cancelled",
++    },
+     runtimePanelStatuses: {
+       stopped: "Stopped",
+       queued: "Queued",
+@@ -480,6 +508,7 @@ export const enPages = {
+       completed: "Completed",
+       skipped: "Skipped",
+       failed: "Failed",
++      unavailable: "Unavailable",
+     },
+     runtimePanelStages: {
+       snapshot: "Snapshot",
+diff --git a/packages/i18n/src/locales/vi/pages.ts b/packages/i18n/src/locales/vi/pages.ts
+index 8a87c5635..2db5127ea 100644
+--- a/packages/i18n/src/locales/vi/pages.ts
++++ b/packages/i18n/src/locales/vi/pages.ts
+@@ -472,6 +472,34 @@ export const viPages = {
+     runtimePanelRecentActivity: "Hoạt động gần đây",
+     runtimePanelEmpty: "Assessment này chưa có hoạt động runtime.",
+     runtimePanelViewFull: "Xem runtime đầy đủ",
++    runtimePanelCanonicalTitle: "Trạng thái assessment",
++    runtimePanelCanonicalActivity: "Hoạt động assessment gần đây",
++    runtimePanelCanonicalUnavailable: "Trạng thái assessment chưa khả dụng.",
++    runtimePanelCanonicalLoading: "Đang tải trạng thái assessment",
++    runtimePanelCanonicalLifecycle: "Vòng đời",
++    runtimePanelCanonicalExecution: "Thực thi",
++    runtimePanelCanonicalStates: {
++      CREATED: "Đã tạo",
++      PREPARING: "Đang chuẩn bị",
++      ACTIVE: "Đang hoạt động",
++      WAITING_FOR_HUMAN: "Đang chờ người dùng",
++      WAITING_FOR_REQUIRED_INPUT: "Đang chờ dữ liệu bắt buộc",
++      PAUSED: "Đã tạm dừng",
++      FINALIZING: "Đang hoàn tất",
++      COMPLETE: "Hoàn tất",
++      BLOCKED: "Bị chặn",
++      FAILED: "Thất bại",
++      CANCELLED: "Đã hủy",
++    },
++    runtimePanelCanonicalExecutionStates: {
++      QUEUED: "Đang xếp hàng",
++      RUNNING: "Đang chạy",
++      INTERRUPTED: "Bị gián đoạn",
++      PAUSED: "Đã tạm dừng",
++      SUCCEEDED: "Thành công",
++      FAILED: "Thất bại",
++      CANCELLED: "Đã hủy",
++    },
+     runtimePanelStatuses: {
+       stopped: "Đã dừng",
+       queued: "Đang xếp hàng",
+@@ -481,6 +509,7 @@ export const viPages = {
+       completed: "Hoàn tất",
+       skipped: "Bỏ qua",
+       failed: "Thất bại",
++      unavailable: "Chưa khả dụng",
+     },
+     runtimePanelStages: {
+       snapshot: "Snapshot",
+diff --git a/packages/i18n/src/types.ts b/packages/i18n/src/types.ts
+index aa73af412..f6f5ee2de 100644
+--- a/packages/i18n/src/types.ts
++++ b/packages/i18n/src/types.ts
+@@ -490,6 +490,34 @@ export type PagesMessages = {
+     runtimePanelRecentActivity: string;
+     runtimePanelEmpty: string;
+     runtimePanelViewFull: string;
++    runtimePanelCanonicalTitle: string;
++    runtimePanelCanonicalActivity: string;
++    runtimePanelCanonicalUnavailable: string;
++    runtimePanelCanonicalLoading: string;
++    runtimePanelCanonicalLifecycle: string;
++    runtimePanelCanonicalExecution: string;
++    runtimePanelCanonicalStates: {
++      CREATED: string;
++      PREPARING: string;
++      ACTIVE: string;
++      WAITING_FOR_HUMAN: string;
++      WAITING_FOR_REQUIRED_INPUT: string;
++      PAUSED: string;
++      FINALIZING: string;
++      COMPLETE: string;
++      BLOCKED: string;
++      FAILED: string;
++      CANCELLED: string;
++    };
++    runtimePanelCanonicalExecutionStates: {
++      QUEUED: string;
++      RUNNING: string;
++      INTERRUPTED: string;
++      PAUSED: string;
++      SUCCEEDED: string;
++      FAILED: string;
++      CANCELLED: string;
++    };
+     runtimePanelStatuses: {
+       stopped: string;
+       queued: string;
+@@ -499,6 +527,7 @@ export type PagesMessages = {
+       completed: string;
+       skipped: string;
+       failed: string;
++      unavailable: string;
+     };
+     runtimePanelStages: {
+       snapshot: string;
+diff --git a/apps/web/src/features/assessment-runtime/components/organisms/canonical-assessment-status.tsx b/apps/web/src/features/assessment-runtime/components/organisms/canonical-assessment-status.tsx
+new file mode 100644
+index 000000000..96f270b05
+--- /dev/null
++++ b/apps/web/src/features/assessment-runtime/components/organisms/canonical-assessment-status.tsx
+@@ -0,0 +1,129 @@
++import {
++  AGENTIC_ASSESSMENT_EVENT_TYPES,
++  type AssessmentEvent,
++  type CanonicalAssessmentRuntimeSnapshot,
++} from "@lcsp/contracts";
++import { resolveMessage, type MessageKey } from "@lcsp/i18n";
++
++import { Badge } from "@/components/ui/badge";
++import { resolveAppMessage } from "@/lib/i18n";
++import { appLocale } from "@/lib/locale";
++import {
++  WORKSPACE_RUNTIME_CONNECTION_STATES,
++  type WorkspaceRuntimeConnectionState,
++} from "../../../workspace/types/workspace-runtime.types";
++import {
++  canonicalExecutionLabel,
++  canonicalLifecycleLabel,
++} from "../../../workspace/utils/assessment-runtime-formatter";
++
++export function CanonicalAssessmentStatus({
++  canonicalAssessment,
++  connectionState,
++}: {
++  canonicalAssessment: CanonicalAssessmentRuntimeSnapshot | null;
++  connectionState: WorkspaceRuntimeConnectionState;
++}) {
++  const lifecycle = canonicalAssessment?.lifecycle ?? null;
++  const runtime = canonicalAssessment?.runtime ?? null;
++  const isLoading =
++    connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.connecting;
++
++  return (
++    <section
++      aria-label={resolveAppMessage(
++        "pages.appShell.runtimePanelCanonicalTitle",
++      )}
++      data-canonical-status={
++        isLoading ? "LOADING" : lifecycle && runtime ? "PRESENT" : "UNAVAILABLE"
++      }
++    >
++      <p className="mb-2 text-[0.6875rem] font-semibold tracking-widest text-muted-foreground uppercase">
++        {resolveAppMessage("pages.appShell.runtimePanelCanonicalTitle")}
++      </p>
++      {isLoading ? (
++        <p className="rounded-xl border border-border/70 bg-card px-3.5 py-3 text-sm text-muted-foreground">
++          {resolveAppMessage("pages.appShell.runtimePanelCanonicalLoading")}
++        </p>
++      ) : lifecycle && runtime ? (
++        <dl className="grid gap-2 rounded-xl border border-border/70 bg-card px-3.5 py-3 text-sm">
++          <CanonicalStateRow
++            dataState={lifecycle.state}
++            label={resolveAppMessage(
++              "pages.appShell.runtimePanelCanonicalLifecycle",
++            )}
++            value={canonicalLifecycleLabel(lifecycle.state)}
++          />
++          <CanonicalStateRow
++            dataState={runtime.executionState}
++            label={resolveAppMessage(
++              "pages.appShell.runtimePanelCanonicalExecution",
++            )}
++            value={canonicalExecutionLabel(runtime.executionState)}
++          />
++        </dl>
++      ) : (
++        <p className="rounded-xl border border-border/70 bg-card px-3.5 py-3 text-sm text-muted-foreground">
++          {resolveAppMessage("pages.appShell.runtimePanelCanonicalUnavailable")}
++        </p>
++      )}
++    </section>
++  );
++}
++
++function CanonicalStateRow({
++  dataState,
++  label,
++  value,
++}: {
++  dataState: string;
++  label: string;
++  value: string;
++}) {
++  return (
++    <div className="flex items-center justify-between gap-3">
++      <dt className="text-muted-foreground">{label}</dt>
++      <dd>
++        <Badge variant="outline" data-canonical-state={dataState}>
++          {value}
++        </Badge>
++      </dd>
++    </div>
++  );
++}
++
++export function CanonicalAssessmentActivity({
++  events,
++}: {
++  events: AssessmentEvent[];
++}) {
++  const activity = events.filter(
++    (event) =>
++      event.eventType === AGENTIC_ASSESSMENT_EVENT_TYPES.ACTIVITY_RECORDED,
++  );
++  if (activity.length === 0) return null;
++
++  return (
++    <section
++      aria-label={resolveAppMessage(
++        "pages.appShell.runtimePanelCanonicalActivity",
++      )}
++      data-canonical-activity="true"
++    >
++      <p className="mb-2 text-[0.6875rem] font-semibold tracking-widest text-muted-foreground uppercase">
++        {resolveAppMessage("pages.appShell.runtimePanelCanonicalActivity")}
++      </p>
++      <ol className="rounded-xl border border-border/70 bg-card px-3.5">
++        {activity.slice(0, 5).map((event) => (
++          <li
++            className="border-b border-border/50 py-2.5 text-sm last:border-b-0"
++            data-event-id={event.eventId}
++            key={event.eventId}
++          >
++            {resolveMessage(appLocale, event.payload.labelKey as MessageKey)}
++          </li>
++        ))}
++      </ol>
++    </section>
++  );
++}
+diff --git a/reports/w1-4-web-canonical-projection.md b/reports/w1-4-web-canonical-projection.md
+new file mode 100644
+index 000000000..d5e714a86
+--- /dev/null
++++ b/reports/w1-4-web-canonical-projection.md
+@@ -0,0 +1,58 @@
++# W1.4 web canonical projection
++
++Status: source and focused web checks complete; live API-backed browser transport verified; real rendered UI acceptance is not proven in this sandbox.
++
++## Root cause
++
++The web projection still allowed legacy activity/payloads to act as lifecycle authority. `postFinding` and coverage could select an assessment screen, workflow rows could fall back to old inferred steps, and the composer treated a generic `resumeAvailable` flag as sufficient even when the canonical ALS/AES control pair was explicitly null.
++
++## Fix
++
++The workspace parser/provider now carries the finalized `canonical_assessments` and `canonical_events` response fields. Selectors, workflow/status controls, summaries, directory/dashboard surfaces, and the runtime sidebar consume the canonical ALS/AES pair; missing or partial state renders unavailable/loading, and canonical events are retained only as activity. The old workflow-row fallback and local lifecycle/control inference were removed. The composer suppresses generic Continue when `runtimeControlState === null`, so an explicit canonical-null response cannot be overridden by `resumeAvailable`; the regression uses scalar DOM attributes rather than an unbounded DOM-object assertion.
++
++## Owned changes
++
++- Workspace runtime types, parser/provider, selectors, adapter, formatter, composer controls, usage scoping, and no-op event/control projection.
++- Workspace overview, list, directory, dashboard, summary, composer, runtime sidebar, canonical status/activity, and workflow status list.
++- Deleted the obsolete `WorkflowStatusRow` fallback and removed fabricated preview workflow state.
++- Added only the required English/Vietnamese canonical projection i18n keys.
++- Added adversarial canonical-authority, canonical-null/partial, event-only, control-target, parser, sidebar, native-stop, and composer scalar tests.
++
++No API, contracts, Prisma, or Python files were changed by this W1.4 work.
++
++## Verification
++
++PASS:
++
++- `pnpm run build:runtime-packages`
++- `pnpm --dir apps/web exec tsc --noEmit --pretty false`
++- Targeted Prettier check for all changed composer/overview/adapter/selector/status files.
++- Focused web run: 130 tests passed, 0 failed, 0 cancelled across runtime parser/provider, canonical adapter/selectors, composer controls, native stop projection, sidebar/app shell, post-finding components, and workspace stream tests.
++- Bounded composer scalar repro: `timeout 30s node --import tsx /tmp/lcsp-w1-4-composer-scalar-check.ts` exited 0 with `{"actionLabel":null,"actionType":null}` for `resumeAvailable=true` plus explicit `runtimeControlState=null`.
++- `git diff --check`.
++- `graphify update .` completed successfully after the source changes.
++
++NOT RUN BY DESIGN:
++
++- The full `assessment-composer.test.tsx` file was not rerun. Its prior unbounded DOM-object assertion stalled; the proven stalled child was terminated by the coordinator. The bounded scalar assertion above is the replacement regression check.
++
++## Live API/browser evidence
++
++The coordinator-owned guarded API3311 harness was exercised through Playwright against the isolated PG55439 database. Authenticated GET returned the canonical PAUSED lifecycle/runtime pair for the seeded present assessment and an explicit null lifecycle/runtime pair for the unavailable assessment; unauthenticated GET returned 401. Authenticated SSE returned 200 `text/event-stream`, included both canonical rows, and matched the GET canonical data; its first frame contained `stage_lifecycles=[]`, `recent_activity=[]`, and `canonical_events=[]`, so the first frame did not provide an event-only contradiction to render in the UI. Credentials, database identifiers, and harness details remain in the preserved API browser-preparation report and coordinator ledger; none are copied here.
++
++PARTIAL / environment-limited:
++
++- Playwright could reach and verify the live API endpoint, but no web UI server could bind in this sandbox (`listen EPERM` on the owned web port), so a real rendered workspace flow could not be opened.
++- Chrome DevTools MCP could not start its headful browser because the sandbox has no X server. No DevTools console/network pass is claimed.
++
++The live API evidence therefore proves the response shape and canonical present/null cases, while rendered UI acceptance remains coordinator follow-up once a browser-capable web runtime is available.
++
++### Follow-up capacity check
++
++After the source/test completion, the owned web port remained unbound: a single Playwright navigation to `http://127.0.0.1:3310/` returned `ERR_CONNECTION_REFUSED`. Chrome DevTools MCP still could not start because no X server is available. No service restart/rebind, database reseed/reset, stalled-test rerun, or additional lifecycle dispatch was attempted.
++
++## Closure points
++
++- `selectAssessmentScreenProjection` requires the canonical ALS/AES pair and remains screen authority even when post-finding or coverage payloads suggest another branch; adversarial tests cover this.
++- `WorkflowStatusList` no longer renders old inferred step rows. Without stage-level canonical authority, the fixed rows are unavailable; the sidebar consumes canonical status/activity only.
++- Lifecycle events and control acknowledgements cannot mutate canonical projection. Activity rendering accepts `ACTIVITY_RECORDED` only, keeping lifecycle events out of the customer activity feed.
+

@@ -669,6 +669,134 @@ def test_confirmed_synthetic_question_rejected_fails_closed(caplog):
     assert statement not in caplog.text
 
 
+def test_confirmed_synthetic_question_with_incomplete_minimum_context_is_not_reasked(caplog):
+    # Reproduces a real stuck interview: the customer already confirmed the
+    # synthesized CONFIRM_ADJUST statement, the authority is valid, but the statement
+    # alone still lacks planning dimensions (decisionInfluence, humanOversight).
+    # Re-asking the same confirmation can never supply those, so it must not be
+    # synthesized again (that looped, then hit the fail-closed guard and killed the
+    # run). The decision goes to the API final guard, which owns the repair path.
+    statement = (
+        "LibreChat uses OpenAI models to provide user-initiated conversational AI "
+        "responses, agent workflows, and file or code-related tasks as described."
+    )
+    decision = {**_authority_candidate(statement), "contextAuthority": "CUSTOMER_CONFIRMED"}
+    decision["mode"] = "INITIAL_INTERVIEW"
+    question_id = _confirmation_question_id(statement)
+    context = {
+        "privateRevision": {
+            "questionId": question_id,
+            "questionIntent": "CLARIFY",
+            "questionControl": "CONFIRM_ADJUST",
+            "answer": {"confirmed": True, "questionId": question_id},
+        }
+    }
+
+    with caplog.at_level(
+        "WARNING", logger="tools.common.capabilities.workflow.recovery.interview_boundary"
+    ):
+        result = _confirmation_or_original(decision, context)
+
+    assert result == decision
+    assert result["outcome"] == "CONTEXT_READY"
+    assert "INTERVIEW_CONFIRMATION_REASK_SKIPPED" in caplog.text
+    assert question_id in caplog.text
+    assert statement not in caplog.text
+
+
+def test_confirmed_synthetic_question_with_incomplete_context_reaches_api_repair_not_crash():
+    # End-to-end for the stuck interview: customer already confirmed the synthesized
+    # statement, the specialist keeps returning the same incomplete CONTEXT_READY, and
+    # the turn used to die with "synthetic CONFIRM_ADJUST confirmation was rejected".
+    # Now the API final guard rejects it with the missing dimensions and the specialist
+    # gets its private correction, which asks the follow-up question.
+    statement = (
+        "LibreChat uses OpenAI models to provide user-initiated conversational AI "
+        "responses, agent workflows, and file or code-related tasks as described."
+    )
+    question_id = _confirmation_question_id(statement)
+    api = RecordingApi()
+    context = api.get_interview_private_context("assessment-1", 2)
+    context["privateRevision"] = {
+        "actorId": "user-test-actor",
+        "questionId": question_id,
+        "questionIntent": "CLARIFY",
+        "questionControl": "CONFIRM_ADJUST",
+        "answer": {"confirmed": True, "questionId": question_id},
+    }
+    api.get_interview_private_context = Mock(return_value=context)
+    api.post_interview_progress = Mock()
+    incomplete = {
+        **_authority_candidate(statement),
+        "mode": "INITIAL_INTERVIEW",
+        "contextAuthority": "CUSTOMER_CONFIRMED",
+    }
+    follow_up = {**deepcopy(WAITING_HANDOFF), "mode": "INITIAL_INTERVIEW"}
+    dispatcher = RecordingDispatcher()
+    dispatcher.dispatch = Mock(
+        side_effect=[
+            {"handoff": incomplete},   # first candidate
+            {"handoff": incomplete},   # local-preflight correction: still incomplete
+            {"handoff": follow_up},    # API-rejection correction: asks the follow-up
+        ]
+    )
+    accepted = {"outcome": "WAITING_FOR_CUSTOMER"}
+    api.post_interview_agent_decision = Mock(
+        side_effect=[
+            InterviewDecisionRepairableCallbackError(
+                "minimum context incomplete",
+                error_code="INTERVIEW_MINIMUM_CONTEXT_INCOMPLETE",
+                meta={"missingDimensions": "decisionInfluence,humanOversight"},
+            ),
+            accepted,
+        ]
+    )
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
+    )
+    boundary._run_guarded_continuation = Mock()
+
+    boundary.handle(_message(), "corr-1")  # must not raise RuntimeError
+
+    assert dispatcher.dispatch.call_count == 3
+    last_payload = json.loads(
+        dispatcher.dispatch.call_args_list[2].kwargs["instruction"].split("\n\n", 1)[1]
+    )
+    feedback = last_payload["decisionValidationFeedback"]
+    assert feedback["code"] == "INTERVIEW_MINIMUM_CONTEXT_INCOMPLETE"
+    assert feedback["missingDimensions"] == ["decisionInfluence", "humanOversight"]
+    # The incomplete decision was posted unchanged (no synthesized re-confirmation),
+    # and the corrected follow-up is what finally reached the API.
+    first_post, second_post = [c.args[1] for c in api.post_interview_agent_decision.call_args_list]
+    assert first_post["outcome"] == "CONTEXT_READY"
+    assert second_post["outcome"] == "WAITING_FOR_CUSTOMER"
+    assert "activeQuestion" not in first_post or first_post["activeQuestion"] is None
+    boundary._run_guarded_continuation.assert_called_once()
+    assert all(call.args[-1] != "FAILED" for call in api.post_interview_progress.call_args_list)
+
+
+def test_unconfirmed_incomplete_minimum_context_still_synthesizes_confirmation():
+    # The narrow fix must not change the first-time behavior: until the customer has
+    # confirmed the synthesized statement, incomplete context still converges to one
+    # CONFIRM_ADJUST turn.
+    statement = "The AI model drafts recommendations in the onboarding workflow."
+    decision = {**_authority_candidate(statement), "contextAuthority": "CUSTOMER_CONFIRMED"}
+    decision["mode"] = "INITIAL_INTERVIEW"
+    context = {
+        "privateRevision": {
+            "questionId": "some-earlier-question",
+            "questionIntent": "CLARIFY",
+            "questionControl": "CONFIRM_ADJUST",
+            "answer": {"confirmed": True},
+        }
+    }
+
+    result = _confirmation_or_original(decision, context)
+
+    assert result["outcome"] == "WAITING_FOR_CUSTOMER"
+    assert result["activeQuestion"]["control"] == "CONFIRM_ADJUST"
+
+
 def test_local_authority_preflight_gives_confirm_adjust_feedback_before_post(caplog):
     api = RecordingApi()
     context = api.get_interview_private_context("assessment-1", 2)

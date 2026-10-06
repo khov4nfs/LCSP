@@ -4,8 +4,9 @@ import type {
   AssessmentAgentStreamStage,
   AssessmentPostFindingRuntimeState,
   AssessmentRuntimeEngineeringProgress,
-  AssessmentStageLifecycleProjection,
+  CanonicalAssessmentRuntimeSnapshot,
 } from "@lcsp/contracts/evidence";
+import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 
 export const WORKSPACE_RUNTIME_CONNECTION_STATES = {
   connecting: "CONNECTING",
@@ -94,8 +95,10 @@ export type WorkspaceRuntimeActivityItem = {
 };
 
 export type WorkspaceRuntimeAssessmentTimeline = {
-  /** Stage status from durable artifacts; null for an older API without it. */
-  stageLifecycle?: AssessmentStageLifecycleProjection | null;
+  /** Canonical ALS/AES pair; null means the server reported it unavailable. */
+  canonicalAssessment?: CanonicalAssessmentRuntimeSnapshot | null;
+  /** Canonical events are activity only; they never project lifecycle state. */
+  canonicalEvents?: AssessmentEvent[];
   currentRun: WorkspaceRuntimeRun | null;
   recentActivity: WorkspaceRuntimeActivityItem[];
   engineeringProgress?: AssessmentRuntimeEngineeringProgress[];
@@ -125,8 +128,8 @@ type WorkspaceRuntimeSnapshot = {
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
   postFindingStates: AssessmentPostFindingRuntimeState[];
-  /** Stage status the API derived from durable artifacts, keyed by assessment. */
-  stageLifecycleByAssessmentId: Record<string, AssessmentStageLifecycleProjection>;
+  canonicalAssessments: CanonicalAssessmentRuntimeSnapshot[];
+  canonicalEvents: AssessmentEvent[];
 };
 
 export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
@@ -144,6 +147,11 @@ export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
   >;
   latestRunIdByAssessmentId: Record<string, string>;
   postFindingByAssessmentId: Record<string, AssessmentPostFindingRuntimeState>;
+  canonicalAssessmentByAssessmentId: Record<
+    string,
+    CanonicalAssessmentRuntimeSnapshot
+  >;
+  canonicalEventsByAssessmentId: Record<string, AssessmentEvent[]>;
   getAssessmentRuntime: (
     assessmentId: string,
   ) => WorkspaceRuntimeAssessmentTimeline;

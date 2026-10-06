@@ -141,7 +141,10 @@ model OutboxMessage {
   publishedAt   DateTime?
   errorMessage  String?
   createdAt     DateTime            @default(now())
+  assessmentEvent AssessmentEvent?
 
+  // Composite event FK binds delivery to the same assessment aggregate.
+  @@unique([id, aggregateId])
   @@index([status, nextAttemptAt, createdAt])
   @@index([aggregateType, aggregateId])
 }
@@ -152,6 +155,11 @@ model Assessment {
   name                       String
   description                String?
   status                     AssessmentStatus              @default(WIZARD_IN_PROGRESS)
+  // Null until explicit V2 creation/backfill; V1 status is never translated here.
+  lifecycleState             AssessmentLifecycleState?
+  lifecycleRevision          Int?
+  blockerReason              BlockerReason?
+  blockerReference           Json?
   createdAt                  DateTime                      @default(now())
   updatedAt                  DateTime                      @updatedAt
   aiUsageFlows               AIUsageFlow[]
@@ -179,8 +187,110 @@ model Assessment {
   billingReservations        BillingReservation[]
   billingPauses              WorkflowBillingPause[]
   llmUsageEvents             LlmUsageEvent[]
+  runtime                    AssessmentRuntime?
+  events                     AssessmentEvent[]
 
   @@index([ownerId])
+}
+
+enum AssessmentLifecycleState {
+  CREATED
+  PREPARING
+  ACTIVE
+  WAITING_FOR_HUMAN
+  WAITING_FOR_REQUIRED_INPUT
+  PAUSED
+  FINALIZING
+  COMPLETE
+  BLOCKED
+  FAILED
+  CANCELLED
+}
+
+enum BlockerReason {
+  HUMAN_FACT_UNRESOLVABLE
+  REQUIRED_DOCUMENT_UNAVAILABLE
+  REQUIRED_RUNTIME_INPUT_UNAVAILABLE
+  LEGAL_PORTFOLIO_UNAVAILABLE
+  REPOSITORY_SNAPSHOT_UNAVAILABLE
+}
+
+enum AgentExecutionState {
+  QUEUED
+  RUNNING
+  INTERRUPTED
+  PAUSED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum AssessmentEventType {
+  ACTIVITY_RECORDED
+  ASSESSMENT_LIFECYCLE_CHANGED
+  EXECUTION_STATE_CHANGED
+  EVIDENCE_ACCEPTED
+  DECISION_ACCEPTED
+  HUMAN_RESOLUTION_CHANGED
+  ARTIFACT_CHANGED
+}
+
+enum AssessmentEventActorType {
+  RUNTIME
+  ASSESSMENT_ROOT
+  SUBAGENT
+  TOOL
+  API
+}
+
+/// Server-owned lifetime Root mapping; resume/retry updates execution, never identity.
+model AssessmentRuntime {
+  assessmentId        String              @id
+  threadId            String              @unique @db.Uuid
+  rootAgentVersion    String
+  checkpointNamespace String
+  checkpointId        String?
+  currentExecutionId  String?             @db.Uuid
+  executionState      AgentExecutionState @default(QUEUED)
+  leaseToken          String?             @db.Uuid
+  leaseExpiresAt      DateTime?           @db.Timestamptz(3)
+  // Increment with UPDATE ... RETURNING in the domain/event/outbox transaction.
+  eventSequence       Int                 @default(0)
+  startedAt           DateTime?           @db.Timestamptz(3)
+  lastResumedAt       DateTime?           @db.Timestamptz(3)
+  createdAt           DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime            @updatedAt @db.Timestamptz(3)
+  assessment          Assessment          @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  events              AssessmentEvent[]
+
+  // Required by the event FK: a valid thread from another assessment is invalid.
+  @@unique([assessmentId, threadId])
+}
+
+/// Canonical redacted envelope. API validates typed payload/usage before persistence.
+model AssessmentEvent {
+  eventId             String                   @id @db.Uuid
+  assessmentId        String
+  threadId            String                   @db.Uuid
+  sequence            Int
+  timestamp           DateTime                 @default(now()) @db.Timestamptz(3)
+  eventType           AssessmentEventType
+  actorType           AssessmentEventActorType
+  executionId         String?                  @db.Uuid
+  parentExecutionId   String?                  @db.Uuid
+  taskId              String?
+  toolCallId          String?
+  payload             Json
+  tokenUsage          Json?
+  technicalDetailsRef String?                  @db.Uuid
+  outboxMessageId     String                   @unique
+  assessment          Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  runtime             AssessmentRuntime        @relation(fields: [assessmentId, threadId], references: [assessmentId, threadId], onDelete: Cascade, onUpdate: Restrict)
+  outboxMessage       OutboxMessage            @relation(fields: [outboxMessageId, assessmentId], references: [id, aggregateId], onDelete: Restrict, onUpdate: Restrict)
+
+  // Ordered history/SSE cursor and publisher predecessor lookup; eventId is replay identity.
+  @@unique([assessmentId, sequence])
+  @@unique([outboxMessageId, assessmentId])
 }
 
 model PipelineReconciliation {

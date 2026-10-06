@@ -341,7 +341,18 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                         )
                     )
             except Exception as error:  # noqa: BLE001 - one rule never aborts the other rules
-                logger.warning("RULE_LOOP_ITEM_FAILED", engineering_rule_id=rule_id, error_type=type(error).__name__)
+                logger.warning(
+                    "RULE_LOOP_ITEM_FAILED",
+                    engineering_rule_id=rule_id,
+                    error_type=type(error).__name__,
+                    # API rejections carry a stable code (e.g. INTERVIEW_TARGETED_NEED_INVALID);
+                    # without it a swallowed registration failure is undiagnosable.
+                    **(
+                        {"status_code": error.status_code, "error": str(error)[:200]}
+                        if isinstance(error, WorkerCallbackError)
+                        else {}
+                    ),
+                )
 
         assessments = self._api_client.list_rule_assessments(assessment_id)
         by_rule = {row.get("engineeringRuleId"): row for row in assessments}
@@ -377,6 +388,11 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         )
         limitations = list(resolution.limitations)
         if waiting and not registered_needs:
+            logger.warning(
+                "BUSINESS_CONTEXT_NEEDS_NOT_REGISTERED",
+                assessment_id=assessment_id,
+                waiting_rules=len(waiting),
+            )
             limitations.append(ENGINEERING_LIMITATION_CODES["interview_registration_failed"])
         failed = [
             row for row in assessments if row.get("status") == RULE_ANALYSIS_STATUSES["failed"]

@@ -10,6 +10,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
+  AssessmentLifecycleState,
   EvidenceAcceptanceStatus,
   RepositoryScanJobStatus,
   type Prisma,
@@ -17,11 +18,7 @@ import {
 import { randomUUID } from "node:crypto";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { toPrismaAssessmentStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import {
-  AssessmentPipelineContinuationService,
-  FINISHED_ASSESSMENT_STATUSES,
-} from "./assessment-pipeline-continuation.service.js";
+import { AssessmentPipelineContinuationService } from "./assessment-pipeline-continuation.service.js";
 
 const DEFAULT_POLL_INTERVAL_MS = 60_000;
 const DEFAULT_QUIET_PERIOD_MS = 15 * 60_000;
@@ -83,10 +80,11 @@ export class AssessmentPipelineReconciliationService
       );
       const quietBefore = new Date(now.getTime() - quietPeriodMs);
       const eligibleAssessment: Prisma.AssessmentWhereInput = {
-        status: {
-          notIn: [...FINISHED_ASSESSMENT_STATUSES].map(
-            toPrismaAssessmentStatus,
-          ),
+        lifecycleState: {
+          notIn: [
+            AssessmentLifecycleState.COMPLETE,
+            AssessmentLifecycleState.CANCELLED,
+          ],
         },
         updatedAt: { lte: quietBefore },
         technicalEvidenceReports: {

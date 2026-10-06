@@ -46,6 +46,7 @@ from tools.legal.corpus.engineering_rules.contract.runtime_projection import (
     runtime_contract_content_hash,
 )
 
+from .need_id import canonical_need_id
 from .neutral_text import assert_neutral_customer_text
 from .values import (
     RULE_ANALYSIS_ACTIVITIES,
@@ -331,14 +332,26 @@ def register_business_needs(
     registered: list[str] = []
     if not user_id:
         return registered
+    asked: set[tuple[str, tuple[str, ...]]] = set()
     for criterion in assessment.get("criteria") or ():
         need = criterion.get("businessContextNeed")
         if criterion.get("status") != RULE_CRITERION_STATUSES["businessContextRequired"] or not need:
             continue
+        # Criteria that hinge on one Customer-owned distinction carry the identical need
+        # (same question, same resolutionCriterionIds); the Customer must be asked it once.
+        ask_key = (
+            str(need.get("question") or "").strip(),
+            tuple(sorted(str(c) for c in need.get("resolutionCriterionIds") or [criterion["criterionId"]])),
+        )
+        if ask_key in asked:
+            continue
+        asked.add(ask_key)
         assert_neutral_customer_text(need.get("question"), need.get("observation"))
+        # Rows persisted before ids were canonicalized carry spaces the API rejects.
+        need_id = canonical_need_id(need["needId"])
         payload = {
             "actorId": user_id,
-            "needId": need["needId"],
+            "needId": need_id,
             "engineeringRuleId": rule.engineering_rule_id,
             "criterionId": criterion["criterionId"],
             "authoredConditionIndex": need.get("authoredConditionIndex"),
@@ -352,10 +365,10 @@ def register_business_needs(
         }
         result = api.post_interview_targeted_need(context.assessment_id, payload)
         if isinstance(result, dict) and result.get("registered") is not False:
-            registered.append(need["needId"])
+            registered.append(need_id)
             emit_rule_activity(
                 api, context.scan_job_id, "businessContextRequested", rule.engineering_rule_id,
-                needId=need["needId"], criterionId=criterion["criterionId"],
+                needId=need_id, criterionId=criterion["criterionId"],
             )
     return registered
 
@@ -507,7 +520,7 @@ def finalize_rule_results(
         # Readiness is over the rule's REQUIRED criteria: a criterion missing from the row is unresolved.
         item["unresolvedCriterionIds"] = [cid for cid in rule.required_evidence if cid not in found]
         item["activeNeedIds"] = [
-            (c.get("businessContextNeed") or {}).get("needId")
+            canonical_need_id(str(c["businessContextNeed"]["needId"]))
             for c in criteria
             if (c.get("businessContextNeed") or {}).get("needId")
         ]

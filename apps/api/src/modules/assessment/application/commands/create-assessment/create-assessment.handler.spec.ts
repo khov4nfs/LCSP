@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
+  ASSESSMENT_LIFECYCLE_STATES,
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
@@ -11,6 +12,7 @@ import { UnprocessableEntityException } from "@nestjs/common";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import type { AssessmentRepository } from "../../ports/persistence/assessment.repository.js";
+import type { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecycle-coordinator.service.js";
 import { CreateAssessmentCommand } from "./create-assessment.command.js";
 import { CreateAssessmentHandler } from "./create-assessment.handler.js";
 
@@ -51,12 +53,28 @@ function buildHandler() {
     Promise.resolve(callback(tx)),
   );
   const prisma = { $transaction: transaction };
+  const initializeInTx = jest
+    .fn<(...args: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue({
+      assessmentId: "assessment-1",
+      threadId: "thread-1",
+      lifecycleState: ASSESSMENT_LIFECYCLE_STATES.CREATED,
+      lifecycleRevision: 0,
+    });
+  const transitionInTx = jest
+    .fn<(...args: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue({});
+  const lifecycle = {
+    initializeInTx,
+    transitionInTx,
+  } as unknown as AssessmentLifecycleCoordinator;
 
   const handler = new CreateAssessmentHandler(
     repository,
     auditWriter,
     outboxRepository,
     prisma as never,
+    lifecycle,
   );
 
   return {
@@ -66,12 +84,15 @@ function buildHandler() {
     enqueue,
     tx,
     transaction,
+    initializeInTx,
+    transitionInTx,
   };
 }
 
 describe("CreateAssessmentHandler", () => {
   it("creates an assessment with WIZARD_IN_PROGRESS status", async () => {
-    const { handler, saveInTx } = buildHandler();
+    const { handler, saveInTx, initializeInTx, transitionInTx } =
+      buildHandler();
 
     const result = await handler.execute(
       new CreateAssessmentCommand(
@@ -86,6 +107,8 @@ describe("CreateAssessmentHandler", () => {
     expect(result.assessment_id).toBeTruthy();
     expect(result.correlationId).toBe("corr-1");
     expect(saveInTx).toHaveBeenCalledTimes(1);
+    expect(initializeInTx).toHaveBeenCalledTimes(1);
+    expect(transitionInTx).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a missing name", async () => {
