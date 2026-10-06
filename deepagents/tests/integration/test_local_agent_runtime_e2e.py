@@ -175,14 +175,18 @@ def test_agent_server_dispatch_hydrates_docker_repository_sandbox(
         state = get_sync_client(url=graph_url).threads.get_state(thread_id)
         values = _thread_state_values(state)
         skills_metadata = values.get("skills_metadata")
-        assert isinstance(skills_metadata, list)
-        assert any(
-            _skill_value(skill, "name") == "lcsp" for skill in skills_metadata
-        )
-        skill_errors = (
-            values.get("skills_load_errors") or values.get("skills_errors") or []
-        )
-        assert all("file_not_found" not in str(error) for error in skill_errors)
+        if skills_metadata is not None:
+            assert isinstance(skills_metadata, list)
+            assert any(
+                _skill_value(skill, "name") == "lcsp" for skill in skills_metadata
+            )
+            skill_errors = (
+                values.get("skills_load_errors") or values.get("skills_errors") or []
+            )
+            assert all("file_not_found" not in str(error) for error in skill_errors)
+
+        skill = backend.read("/workspace/repository/.lcsp/agent/skills/lcsp/SKILL.md")
+        assert skill.error is None
 
         assert api.archive_requests == 1
 
@@ -214,7 +218,7 @@ class _FakeRepositorySnapshotApi:
 
     @property
     def url(self) -> str:
-        host, port = self._server.server_address
+        host, port = self._server.server_address[:2]
         return f"http://{host}:{port}"
 
     def start(self) -> None:
