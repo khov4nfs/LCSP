@@ -47,22 +47,13 @@ export function AssessmentComposer({
   submitReady,
   resumeAvailable = false,
   className,
-  turnRunning = false,
-  turnPaused = false,
   onInterruptTurn,
   onResumeTurn,
   interruptingTurn = false,
   resumingTurn = false,
   runtimeControlState,
 }: AssessmentComposerProps) {
-  const controlState =
-    runtimeControlState === undefined
-      ? turnPaused
-        ? States.stopped
-        : turnRunning
-          ? States.running
-          : null
-      : runtimeControlState;
+  const controlState = runtimeControlState ?? null;
   const stopping = controlState === States.stopRequested;
   const continuing = controlState === States.resumeRequested;
   const stopped = controlState === States.stopped;
@@ -107,7 +98,13 @@ export function AssessmentComposer({
   const isSubmitReady =
     submitReady !== undefined ? submitReady : value.trim().length > 0;
   const sendDisabled = controlled || disabled || submitting || !isSubmitReady;
-  const showResumeAction = resumeAvailable && value.trim().length === 0;
+  // An explicit null runtime control means the canonical ALS/AES pair is not
+  // available for this surface. Do not let a stale generic resume flag invent
+  // a Continue action until the server projection is present again.
+  const showResumeAction =
+    runtimeControlState !== null &&
+    resumeAvailable &&
+    value.trim().length === 0;
   const resumeDisabled = resuming || !onResume;
   const stopTurnLabel = t(
     stopping

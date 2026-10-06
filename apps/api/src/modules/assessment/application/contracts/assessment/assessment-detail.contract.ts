@@ -1,5 +1,6 @@
 export { ASSESSMENT_ERROR_CODES as ASSESSMENT_DETAIL_ERROR_CODES } from "@lcsp/contracts/assessment";
 import {
+  type AssessmentLifecycle,
   type AssessmentLockReason,
   type AssessmentMissingEvidenceCode,
   type AssessmentNextActionKey,
@@ -9,6 +10,7 @@ import type {
   ClassificationGuardrailStatus,
   EngineeringRuleEvaluationStatus,
 } from "@lcsp/contracts/scan";
+import type { AssessmentRuntime } from "@lcsp/contracts/evidence";
 
 export interface ReadinessState {
   classification_locked: boolean;
@@ -76,6 +78,10 @@ export interface AssessmentDetailDto {
   assessment_id: string;
   name: string;
   status: AssessmentStatusCode;
+  /** Persisted V2 lifecycle; null means canonical lifecycle data is unavailable. */
+  lifecycle: AssessmentLifecycle | null;
+  /** Persisted V2 root runtime identity/state; null means canonical runtime is unavailable. */
+  runtime: AssessmentRuntimeDto | null;
   owner_id: string;
   readiness_state: ReadinessState;
   guardrail_status: ClassificationGuardrailStatus | null;
@@ -90,3 +96,5 @@ export interface AssessmentDetailDto {
   updated_at: string;
   correlationId: string;
 }
+
+export type AssessmentRuntimeDto = AssessmentRuntime;

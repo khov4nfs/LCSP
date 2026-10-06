@@ -1,9 +1,20 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { SseStream } from "@nestjs/core/router/sse-stream.js";
+import type { OutgoingHttpHeaders } from "node:http";
+import { PassThrough } from "node:stream";
 import { Subject, firstValueFrom } from "rxjs";
 
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  AGENT_EXECUTION_STATES,
+  AGENTIC_ASSESSMENT_EVENT_TYPES,
+  ASSESSMENT_ERROR_CODES,
+  ASSESSMENT_EVENT_ACTOR_TYPES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
 import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
 
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import type { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { WorkspaceRuntimeEventsController } from "./workspace-runtime-events.controller.js";
 
@@ -16,6 +27,57 @@ const customerRequest = {
   },
   correlationId: "corr-user-1",
 } as never;
+const canonicalAssessmentId = "11111111-1111-4111-8111-111111111111";
+const canonicalEventId = "22222222-2222-4222-8222-222222222222";
+const canonicalThreadId = "33333333-3333-4333-8333-333333333333";
+
+type TestSseResponse = PassThrough & {
+  writeHead: {
+    (
+      statusCode: number,
+      reasonPhrase?: string,
+      headers?: OutgoingHttpHeaders,
+    ): void;
+    (statusCode: number, headers?: OutgoingHttpHeaders): void;
+  };
+  flushHeaders: () => void;
+};
+
+async function serializeSse(
+  controller: WorkspaceRuntimeEventsController,
+): Promise<string> {
+  const response = new PassThrough() as TestSseResponse;
+  response.writeHead = jest.fn();
+  response.flushHeaders = jest.fn();
+  const chunks: Buffer[] = [];
+  const output = new Promise<string>((resolve, reject) => {
+    response.on("data", (chunk: Buffer) => chunks.push(chunk));
+    response.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    response.on("error", reject);
+  });
+  const sse = new SseStream();
+  sse.pipe(response);
+  controller.stream(customerRequest).subscribe({
+    next: (event) =>
+      sse.writeMessage(event, (error) => {
+        if (error) response.destroy(error);
+      }),
+    error: (error: unknown) =>
+      response.destroy(
+        error instanceof Error ? error : new Error("stream failed"),
+      ),
+    complete: () => sse.end(),
+  });
+  return output;
+}
+
+function parseSseData(output: string): unknown {
+  const line = output
+    .split("\n")
+    .find((candidate) => candidate.startsWith("data: "));
+  if (!line) throw new Error("SSE data line missing");
+  return JSON.parse(line.slice("data: ".length));
+}
 
 describe("WorkspaceRuntimeEventsController", () => {
   afterEach(() => {
@@ -24,7 +86,7 @@ describe("WorkspaceRuntimeEventsController", () => {
 
   it("publishes workspace runtime metadata", async () => {
     const buildWorkspaceSnapshot = jest
-      .fn<(ownerId?: string) => Promise<unknown>>()
+      .fn<(ownerId?: string, correlationId?: string) => Promise<unknown>>()
       .mockResolvedValue({
         emittedAt: "2026-08-09T14:05:00.000Z",
         runs: [
@@ -107,6 +169,44 @@ describe("WorkspaceRuntimeEventsController", () => {
             verificationActivities: [],
           },
         ],
+        canonicalAssessments: [
+          {
+            assessmentId: canonicalAssessmentId,
+            lifecycle: {
+              state: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+              assessmentRevision: 3,
+            },
+            runtime: {
+              threadId: canonicalThreadId,
+              rootAgentVersion: "assessment-root-v2",
+              checkpointNamespace: canonicalAssessmentId,
+              checkpointId: "44444444-4444-4444-8444-444444444444",
+              currentExecutionId: "55555555-5555-4555-8555-555555555555",
+              executionState: AGENT_EXECUTION_STATES.RUNNING,
+              eventSequence: 4,
+              startedAt: "2026-08-09T14:00:00.000Z",
+              lastResumedAt: null,
+              updatedAt: "2026-08-09T14:05:00.000Z",
+            },
+          },
+        ],
+        canonicalEvents: [
+          {
+            eventId: canonicalEventId,
+            assessmentId: canonicalAssessmentId,
+            threadId: canonicalThreadId,
+            sequence: 4,
+            timestamp: "2026-08-09T14:05:00.000Z",
+            eventType:
+              AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED,
+            actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
+            payload: {
+              fromState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+              toState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+              assessmentRevision: 3,
+            },
+          },
+        ],
       });
     const controller = new WorkspaceRuntimeEventsController({
       buildWorkspaceSnapshot,
@@ -114,7 +214,10 @@ describe("WorkspaceRuntimeEventsController", () => {
 
     const event = await firstValueFrom(controller.stream(customerRequest));
 
-    expect(buildWorkspaceSnapshot).toHaveBeenCalledWith("user-1");
+    expect(buildWorkspaceSnapshot).toHaveBeenCalledWith(
+      "user-1",
+      "corr-user-1",
+    );
     expect(event.type).toBe("workspace.runtime");
     expect(event.data).toMatchObject({
       emitted_at: "2026-08-09T14:05:00.000Z",
@@ -180,6 +283,83 @@ describe("WorkspaceRuntimeEventsController", () => {
           },
         },
       ],
+      canonical_assessments: [
+        {
+          assessmentId: canonicalAssessmentId,
+          lifecycle: {
+            state: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+            assessmentRevision: 3,
+          },
+          runtime: {
+            threadId: canonicalThreadId,
+            rootAgentVersion: "assessment-root-v2",
+            checkpointNamespace: canonicalAssessmentId,
+            checkpointId: "44444444-4444-4444-8444-444444444444",
+            currentExecutionId: "55555555-5555-4555-8555-555555555555",
+            executionState: AGENT_EXECUTION_STATES.RUNNING,
+            eventSequence: 4,
+            startedAt: "2026-08-09T14:00:00.000Z",
+            lastResumedAt: null,
+            updatedAt: "2026-08-09T14:05:00.000Z",
+          },
+        },
+      ],
+      canonical_events: [
+        {
+          eventId: canonicalEventId,
+          assessmentId: canonicalAssessmentId,
+          threadId: canonicalThreadId,
+          sequence: 4,
+          timestamp: "2026-08-09T14:05:00.000Z",
+          eventType:
+            AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED,
+          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
+          payload: {
+            fromState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+            toState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+            assessmentRevision: 3,
+          },
+        },
+      ],
+    });
+  });
+
+  it("serializes canonical failures as terminal shared-problem SSE events", async () => {
+    const databaseFailure = new WorkspaceRuntimeEventsController({
+      buildWorkspaceSnapshot: jest
+        .fn<(ownerId?: string, correlationId?: string) => Promise<unknown>>()
+        .mockRejectedValue(new Error("raw-provider-database-secret")),
+    } as unknown as AssessmentRuntimeEventService);
+    const databaseOutput = await serializeSse(databaseFailure);
+    const databaseData = parseSseData(databaseOutput);
+
+    expect(databaseOutput).toContain("event: error");
+    expect(databaseOutput).not.toContain("raw-provider-database-secret");
+    expect(databaseData).toMatchObject({
+      ok: false,
+      problem: { status: 500, correlationId: "corr-user-1" },
+    });
+
+    const canonicalFailure = new WorkspaceRuntimeEventsController({
+      buildWorkspaceSnapshot: jest
+        .fn<(ownerId?: string, correlationId?: string) => Promise<unknown>>()
+        .mockRejectedValue(
+          problemException(
+            ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
+            "canonical-correlation",
+            { status: 409 },
+          ),
+        ),
+    } as unknown as AssessmentRuntimeEventService);
+    const canonicalOutput = await serializeSse(canonicalFailure);
+
+    expect(parseSseData(canonicalOutput)).toMatchObject({
+      ok: false,
+      problem: {
+        code: ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
+        status: 409,
+        correlationId: "canonical-correlation",
+      },
     });
   });
 

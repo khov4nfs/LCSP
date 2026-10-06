@@ -1,6 +1,6 @@
 "use client";
 
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { resolveMessage } from "@lcsp/i18n";
 import Link from "next/link";
 
@@ -19,22 +19,34 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  getAssessmentActiveHref,
-  getAssessmentStatusLabelKey,
-} from "@/lib/api/workspace-client";
+import { getAssessmentActiveHref } from "@/lib/api/workspace-client";
 import { appLocale } from "@/lib/locale";
 import type { WorkspaceOverviewProps } from "../../types/workspace-overview.types";
 import { OverviewMetricCard } from "../molecules/overview-metric-card";
+import { canonicalLifecycleLabel } from "../../utils/assessment-runtime-formatter";
+import {
+  WORKSPACE_RUNTIME_CONNECTION_STATES,
+  type WorkspaceRuntimeConnectionState,
+} from "../../types/workspace-runtime.types";
 
-export function WorkspaceOverview({ assessments }: WorkspaceOverviewProps) {
-  const attention = assessments.filter(
-    (assessment) =>
-      assessment.status !== ASSESSMENT_STATUS_CODES.readyForReview,
-  ).length;
+export function WorkspaceOverview({
+  assessments,
+  canonicalAssessments,
+  connectionState,
+}: WorkspaceOverviewProps) {
+  const attention = assessments.filter((assessment) => {
+    const canonicalAssessment = canonicalAssessments[assessment.id];
+    return (
+      canonicalAssessment?.lifecycle != null &&
+      canonicalAssessment.runtime != null &&
+      canonicalAssessment.lifecycle.state !==
+        ASSESSMENT_LIFECYCLE_STATES.COMPLETE
+    );
+  }).length;
   const ready = assessments.filter(
     (assessment) =>
-      assessment.status === ASSESSMENT_STATUS_CODES.readyForReview,
+      canonicalAssessments[assessment.id]?.lifecycle?.state ===
+      ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
   ).length;
   const recent = [...assessments]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -91,9 +103,9 @@ export function WorkspaceOverview({ assessments }: WorkspaceOverviewProps) {
               >
                 <span className="font-medium">{assessment.name}</span>
                 <Badge variant="outline">
-                  {resolveMessage(
-                    appLocale,
-                    getAssessmentStatusLabelKey(assessment.status),
+                  {canonicalLifecycleDisplay(
+                    canonicalAssessments[assessment.id] ?? null,
+                    connectionState,
                   )}
                 </Badge>
               </Link>
@@ -119,5 +131,21 @@ export function WorkspaceOverview({ assessments }: WorkspaceOverviewProps) {
         </CardContent>
       </Card>
     </>
+  );
+}
+
+function canonicalLifecycleDisplay(
+  canonicalAssessment:
+    WorkspaceOverviewProps["canonicalAssessments"][string] | null,
+  connectionState: WorkspaceRuntimeConnectionState,
+) {
+  if (canonicalAssessment?.lifecycle && canonicalAssessment.runtime) {
+    return canonicalLifecycleLabel(canonicalAssessment.lifecycle.state);
+  }
+  return resolveMessage(
+    appLocale,
+    connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.connecting
+      ? "pages.appShell.runtimePanelCanonicalLoading"
+      : "pages.appShell.runtimePanelCanonicalUnavailable",
   );
 }

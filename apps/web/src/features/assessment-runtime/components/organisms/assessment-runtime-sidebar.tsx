@@ -9,6 +9,7 @@ import { connectionLabel } from "../../../workspace/utils/assessment-runtime-for
 import { ArtifactEvidenceRail } from "./artifact-evidence-rail";
 import { RepositoryContextCard } from "../molecules/repository-context-card";
 import { WorkflowStatusList } from "./workflow-status-list";
+import { CanonicalAssessmentActivity } from "./canonical-assessment-status";
 import { createAssessmentRuntimeSidebarPreview } from "../../dev/assessment-runtime-sidebar-preview";
 import { useProgramEvidenceGraphDrawer } from "./program-evidence-graph-drawer";
 import { AgentStreamUsageSummary } from "../../../workspace/components/molecules/agent-stream-usage-summary";
@@ -62,7 +63,11 @@ export function AssessmentRuntimeSidebar({
           }
           titleKey="pages.appShell.agentStreamUsage.runtimeTotal"
         />
-        <WorkflowStatusList steps={runtime.workflow.steps} />
+        <WorkflowStatusList
+          canonicalAssessment={runtime.canonicalAssessment}
+          connectionState={runtime.connectionState}
+        />
+        <CanonicalAssessmentActivity events={runtime.canonicalEvents} />
         <ArtifactEvidenceRail
           artifacts={runtime.artifacts}
           onOpenArtifact={openArtifact}

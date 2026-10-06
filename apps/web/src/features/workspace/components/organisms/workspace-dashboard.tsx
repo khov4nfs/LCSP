@@ -15,9 +15,11 @@ import { appLocale } from "@/lib/locale";
 import type { WorkspaceErrorOutcome } from "../../types/workspace.types";
 import { WorkspaceHeader } from "../molecules/workspace-header";
 import { WorkspaceOverview } from "./workspace-overview";
+import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 
 export function WorkspaceDashboard() {
   const router = useRouter();
+  const workspaceRuntime = useWorkspaceRuntime();
   const workspaceQuery = useWorkspaceQuery();
   const assessmentsQuery = useAssessmentsQuery();
 
@@ -81,7 +83,11 @@ export function WorkspaceDashboard() {
           />
         ) : null}
 
-        <WorkspaceOverview assessments={assessments} />
+        <WorkspaceOverview
+          assessments={assessments}
+          canonicalAssessments={workspaceRuntime.canonicalAssessmentByAssessmentId}
+          connectionState={workspaceRuntime.connectionState}
+        />
       </div>
     </main>
   );

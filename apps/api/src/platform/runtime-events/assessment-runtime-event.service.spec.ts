@@ -12,6 +12,12 @@ import {
   REMEDIATION_APPROVAL_STATUSES,
   REMEDIATION_DECISIONS,
 } from "@lcsp/contracts/evidence";
+import {
+  AGENT_EXECUTION_STATES,
+  AGENTIC_ASSESSMENT_EVENT_TYPES,
+  ASSESSMENT_EVENT_ACTOR_TYPES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
 import { firstValueFrom } from "rxjs";
 
 import { AssessmentRuntimeEventService } from "./assessment-runtime-event.service.js";
@@ -29,7 +35,90 @@ const assessmentOwner = () => ({
   findUnique: jest
     .fn<(args?: unknown) => Promise<{ ownerId: string }>>()
     .mockResolvedValue({ ownerId: "user-1" }),
+  findMany: jest
+    .fn<(args?: unknown) => Promise<unknown[]>>()
+    .mockResolvedValue([]),
 });
+
+const emptyCanonicalProjection = () => ({
+  assessmentRuntime: {
+    findMany: jest
+      .fn<(args?: unknown) => Promise<unknown[]>>()
+      .mockResolvedValue([]),
+  },
+  assessmentEvent: {
+    findMany: jest
+      .fn<(args?: unknown) => Promise<unknown[]>>()
+      .mockResolvedValue([]),
+  },
+});
+
+function canonicalSnapshotPrisma(
+  runtimeRows: unknown[] | Promise<unknown[]> = [],
+  eventRows: unknown[] = [],
+) {
+  const assessmentRows = Array.isArray(runtimeRows)
+    ? runtimeRows.map((runtimeRow) => {
+        const row = runtimeRow as Record<string, unknown>;
+        if ("runtime" in row) return row;
+        const lifecycle = row.assessment as Record<string, unknown>;
+        return {
+          id: row.assessmentId,
+          lifecycleState: lifecycle.lifecycleState ?? null,
+          lifecycleRevision: lifecycle.lifecycleRevision ?? null,
+          blockerReason: lifecycle.blockerReason ?? null,
+          blockerReference: lifecycle.blockerReference ?? null,
+          runtime: {
+            threadId: row.threadId,
+            rootAgentVersion: row.rootAgentVersion,
+            checkpointNamespace: row.checkpointNamespace,
+            checkpointId: row.checkpointId,
+            currentExecutionId: row.currentExecutionId,
+            executionState: row.executionState,
+            eventSequence: row.eventSequence,
+            startedAt: row.startedAt,
+            lastResumedAt: row.lastResumedAt,
+            updatedAt: row.updatedAt,
+          },
+        };
+      })
+    : runtimeRows;
+  return {
+    ...emptyCanonicalProjection(),
+    assessmentRuntimeEvent: {
+      findMany: jest
+        .fn<(args?: unknown) => Promise<unknown[]>>()
+        .mockResolvedValue([]),
+    },
+    assessmentRuntime: {
+      findMany: jest
+        .fn<(args?: unknown) => Promise<unknown[]>>()
+        .mockImplementation(() => Promise.resolve(runtimeRows)),
+    },
+    assessmentEvent: {
+      findMany: jest
+        .fn<(args?: unknown) => Promise<unknown[]>>()
+        .mockResolvedValue(eventRows),
+    },
+    repositorySnapshot: emptyRepositorySnapshots(),
+    assessment: {
+      ...assessmentOwner(),
+      findMany: jest
+        .fn<(args?: unknown) => Promise<unknown[]>>()
+        .mockImplementation(() => Promise.resolve(assessmentRows)),
+    },
+    repositoryScanJob: {
+      findMany: jest
+        .fn<(args?: unknown) => Promise<unknown[]>>()
+        .mockResolvedValue([]),
+    },
+    technicalEvidenceReport: {
+      findMany: jest
+        .fn<(args?: unknown) => Promise<unknown[]>>()
+        .mockResolvedValue([]),
+    },
+  };
+}
 
 function durableAgentStreamRow(
   sequence: number,
@@ -1039,8 +1128,83 @@ describe("AssessmentRuntimeEventService", () => {
         }),
         findFirst: jest.fn().mockImplementation(freshRuntimeEvent),
       },
+      assessmentRuntime: {
+        findMany: jest
+          .fn<(args?: unknown) => Promise<unknown[]>>()
+          .mockResolvedValue([
+            {
+              assessmentId: "11111111-1111-4111-8111-111111111111",
+              threadId: "22222222-2222-4222-8222-222222222222",
+              rootAgentVersion: "assessment-root-v2",
+              checkpointNamespace: "11111111-1111-4111-8111-111111111111",
+              executionState: AGENT_EXECUTION_STATES.RUNNING,
+              eventSequence: 4,
+              currentExecutionId: "33333333-3333-4333-8333-333333333333",
+              checkpointId: "44444444-4444-4444-8444-444444444444",
+              startedAt: new Date("2026-09-20T00:00:00.000Z"),
+              lastResumedAt: null,
+              updatedAt: new Date("2026-09-20T00:02:00.000Z"),
+              assessment: {
+                lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+                lifecycleRevision: 3,
+                blockerReason: null,
+                blockerReference: null,
+              },
+            },
+          ]),
+      },
+      assessmentEvent: {
+        findMany: jest
+          .fn<(args?: unknown) => Promise<unknown[]>>()
+          .mockResolvedValue([
+            {
+              eventId: "55555555-5555-4555-8555-555555555555",
+              assessmentId: "11111111-1111-4111-8111-111111111111",
+              threadId: "22222222-2222-4222-8222-222222222222",
+              sequence: 4,
+              timestamp: new Date("2026-09-20T00:02:00.000Z"),
+              eventType:
+                AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED,
+              actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
+              executionId: null,
+              parentExecutionId: null,
+              taskId: null,
+              toolCallId: null,
+              payload: {
+                fromState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+                toState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+                assessmentRevision: 3,
+              },
+            },
+          ]),
+      },
       repositorySnapshot: emptyRepositorySnapshots(),
-      assessment: assessmentOwner(),
+      assessment: {
+        ...assessmentOwner(),
+        findMany: jest
+          .fn<(args?: unknown) => Promise<unknown[]>>()
+          .mockResolvedValue([
+            {
+              id: "11111111-1111-4111-8111-111111111111",
+              lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+              lifecycleRevision: 3,
+              blockerReason: null,
+              blockerReference: null,
+              runtime: {
+                threadId: "22222222-2222-4222-8222-222222222222",
+                rootAgentVersion: "assessment-root-v2",
+                checkpointNamespace: "11111111-1111-4111-8111-111111111111",
+                checkpointId: "44444444-4444-4444-8444-444444444444",
+                currentExecutionId: "33333333-3333-4333-8333-333333333333",
+                executionState: AGENT_EXECUTION_STATES.RUNNING,
+                eventSequence: 4,
+                startedAt: new Date("2026-09-20T00:00:00.000Z"),
+                lastResumedAt: null,
+                updatedAt: new Date("2026-09-20T00:02:00.000Z"),
+              },
+            },
+          ]),
+      },
       repositoryScanJob: {
         findMany: jest
           .fn<(args?: unknown) => Promise<unknown[]>>()
@@ -1071,10 +1235,204 @@ describe("AssessmentRuntimeEventService", () => {
         stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
       }),
     ]);
+    expect(snapshot.stageLifecycles).toEqual([]);
+    expect(snapshot.canonicalAssessments).toEqual([
+      {
+        assessmentId: "11111111-1111-4111-8111-111111111111",
+        lifecycle: {
+          state: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+          assessmentRevision: 3,
+        },
+        runtime: {
+          threadId: "22222222-2222-4222-8222-222222222222",
+          rootAgentVersion: "assessment-root-v2",
+          checkpointNamespace: "11111111-1111-4111-8111-111111111111",
+          checkpointId: "44444444-4444-4444-8444-444444444444",
+          currentExecutionId: "33333333-3333-4333-8333-333333333333",
+          executionState: AGENT_EXECUTION_STATES.RUNNING,
+          eventSequence: 4,
+          startedAt: "2026-09-20T00:00:00.000Z",
+          lastResumedAt: null,
+          updatedAt: "2026-09-20T00:02:00.000Z",
+        },
+      },
+    ]);
+    expect(snapshot.canonicalEvents).toEqual([
+      expect.objectContaining({
+        eventId: "55555555-5555-4555-8555-555555555555",
+        assessmentId: "11111111-1111-4111-8111-111111111111",
+        sequence: 4,
+        eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ASSESSMENT_LIFECYCLE_CHANGED,
+        actorType: ASSESSMENT_EVENT_ACTOR_TYPES.API,
+      }),
+    ]);
+  });
+
+  it("fails closed on malformed non-null canonical snapshot lifecycle data", async () => {
+    const prisma = canonicalSnapshotPrisma([
+      {
+        assessmentId: "11111111-1111-4111-8111-111111111111",
+        threadId: "22222222-2222-4222-8222-222222222222",
+        rootAgentVersion: "assessment-root-v2",
+        checkpointNamespace: "11111111-1111-4111-8111-111111111111",
+        checkpointId: null,
+        currentExecutionId: null,
+        executionState: AGENT_EXECUTION_STATES.QUEUED,
+        eventSequence: 0,
+        startedAt: null,
+        lastResumedAt: null,
+        updatedAt: new Date("2026-09-20T00:00:00.000Z"),
+        assessment: {
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+          lifecycleRevision: null,
+          blockerReason: null,
+          blockerReference: null,
+        },
+      },
+    ]);
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await expect(
+      service.buildWorkspaceSnapshot("user-1"),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("keeps all-null V1 canonical rows explicitly unavailable", async () => {
+    const assessmentId = "11111111-1111-4111-8111-111111111111";
+    const prisma = canonicalSnapshotPrisma([
+      {
+        id: assessmentId,
+        lifecycleState: null,
+        lifecycleRevision: null,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: null,
+      },
+    ]);
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    const snapshot = await service.buildWorkspaceSnapshot("user-1");
+
+    expect(snapshot.canonicalAssessments).toEqual([
+      { assessmentId, lifecycle: null, runtime: null },
+    ]);
+  });
+
+  it.each([
+    [
+      "lifecycle-only",
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        lifecycleRevision: 1,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: null,
+      },
+    ],
+    [
+      "runtime-only",
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        lifecycleState: null,
+        lifecycleRevision: null,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: {
+          threadId: "22222222-2222-4222-8222-222222222222",
+          rootAgentVersion: "assessment-root-v2",
+          checkpointNamespace: "11111111-1111-4111-8111-111111111111",
+          checkpointId: null,
+          currentExecutionId: null,
+          executionState: AGENT_EXECUTION_STATES.QUEUED,
+          eventSequence: 0,
+          startedAt: null,
+          lastResumedAt: null,
+          updatedAt: new Date("2026-09-20T00:00:00.000Z"),
+        },
+      },
+    ],
+  ])("rejects %s canonical pairs", async (_name, row) => {
+    const service = new AssessmentRuntimeEventService(
+      canonicalSnapshotPrisma([row]) as never,
+    );
+
+    await expect(
+      service.buildWorkspaceSnapshot("user-1"),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("rejects a valid UUID checkpoint namespace belonging to another assessment", async () => {
+    const prisma = canonicalSnapshotPrisma([
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+        lifecycleRevision: 1,
+        blockerReason: null,
+        blockerReference: null,
+        runtime: {
+          threadId: "22222222-2222-4222-8222-222222222222",
+          rootAgentVersion: "assessment-root-v2",
+          checkpointNamespace: "99999999-9999-4999-8999-999999999999",
+          checkpointId: null,
+          currentExecutionId: null,
+          executionState: AGENT_EXECUTION_STATES.QUEUED,
+          eventSequence: 0,
+          startedAt: null,
+          lastResumedAt: null,
+          updatedAt: new Date("2026-09-20T00:00:00.000Z"),
+        },
+      },
+    ]);
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await expect(
+      service.buildWorkspaceSnapshot("user-1"),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("fails closed on malformed canonical runtime identity and sequence data", async () => {
+    const prisma = canonicalSnapshotPrisma([
+      {
+        assessmentId: "11111111-1111-4111-8111-111111111111",
+        threadId: "not-a-uuid",
+        rootAgentVersion: "assessment-root-v2",
+        checkpointNamespace: "not-a-uuid",
+        checkpointId: null,
+        currentExecutionId: null,
+        executionState: AGENT_EXECUTION_STATES.QUEUED,
+        eventSequence: -1,
+        startedAt: null,
+        lastResumedAt: null,
+        updatedAt: new Date("2026-09-20T00:00:00.000Z"),
+        assessment: {
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+          lifecycleRevision: 1,
+          blockerReason: null,
+          blockerReference: null,
+        },
+      },
+    ]);
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await expect(
+      service.buildWorkspaceSnapshot("user-1"),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("propagates canonical snapshot database failures", async () => {
+    const failure = new Error("canonical snapshot database unavailable");
+    const prisma = canonicalSnapshotPrisma(Promise.reject(failure));
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await expect(service.buildWorkspaceSnapshot("user-1")).rejects.toThrow(
+      "canonical snapshot database unavailable",
+    );
   });
 
   it("builds orchestration activity from scan jobs and evidence reports when runtime events are absent", async () => {
     const prisma = {
+      ...emptyCanonicalProjection(),
       assessmentRuntimeEvent: {
         findMany: jest
           .fn<(args?: unknown) => Promise<unknown[]>>()
@@ -1166,6 +1524,7 @@ describe("AssessmentRuntimeEventService", () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-08-14T08:02:00.000Z"));
     const prisma = {
+      ...emptyCanonicalProjection(),
       assessmentRuntimeEvent: {
         findMany: jest
           .fn<(args?: unknown) => Promise<unknown[]>>()
@@ -1213,6 +1572,7 @@ describe("AssessmentRuntimeEventService", () => {
 
   it("derives the latest post-finding state from runtime event output summaries", async () => {
     const prisma = {
+      ...emptyCanonicalProjection(),
       assessmentRuntimeEvent: {
         findMany: jest
           .fn<(args?: unknown) => Promise<unknown[]>>()
@@ -1605,6 +1965,7 @@ describe("AssessmentRuntimeEventService", () => {
 
   it("does not build synthetic scan activity when persisted worker activity exists", async () => {
     const prisma = {
+      ...emptyCanonicalProjection(),
       assessmentRuntimeEvent: {
         findMany: jest
           .fn<(args?: unknown) => Promise<unknown[]>>()
@@ -1851,6 +2212,7 @@ describe("AssessmentRuntimeEventService", () => {
           );
         });
       return {
+        ...emptyCanonicalProjection(),
         assessmentRuntimeEvent: {
           findMany,
           findFirst: jest.fn().mockImplementation(freshRuntimeEvent),

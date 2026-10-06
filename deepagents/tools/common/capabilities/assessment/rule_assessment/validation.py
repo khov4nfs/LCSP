@@ -24,6 +24,7 @@ from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     MODEL_SELECTABLE_LIMITATION_CODES,
 )
 
+from .need_id import canonical_need_id
 from .neutral_text import assert_neutral_customer_text
 from .evidence_refs import parse_canonical_ref, parse_verified_evidence_ref
 from .values import (
@@ -300,7 +301,9 @@ def _accept_need(
     if errors:
         return None, errors
     body: dict[str, Any] = {
-        "needId": f"need:{rule_id}:{criterion_id}:{hashlib.sha256(question.encode('utf-8')).hexdigest()[:12]}",
+        "needId": canonical_need_id(
+            f"need:{rule_id}:{criterion_id}:{hashlib.sha256(question.encode('utf-8')).hexdigest()[:12]}"
+        ),
         "question": question,
         "observation": observation,
         "resolutionCriterionIds": resolves,

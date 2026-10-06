@@ -7,11 +7,6 @@ import { ASSESSMENT_RUNTIME_CONTROL_STATES as States } from "@lcsp/contracts/evi
 import { resolveMessage } from "@lcsp/i18n";
 import { appLocale } from "../src/lib/locale.ts";
 import { selectAssessmentComposerRuntimeControl } from "../src/features/workspace/utils/assessment-composer-control.ts";
-import {
-  ASSESSMENT_AGENT_STREAM_EVENT_TYPES as Events,
-  ASSESSMENT_AGENT_STREAM_STAGES as Stages,
-  type AssessmentAgentStreamEvent,
-} from "@lcsp/contracts/evidence";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
@@ -126,35 +121,10 @@ test("explicit acknowledged lifecycle renders Stop, Stopping, Continue, Continui
   assert.equal(resumes, 1);
 });
 
-test("Thinking from the live stream renders circle-stop even when generic Continue is available and control is null", () => {
-  const events: AssessmentAgentStreamEvent[] = [
-    {
-      eventId: "thinking",
-      sequence: 1,
-      clientSequence: 1,
-      emittedAt: "2026-10-03T00:00:00Z",
-      assessmentId: "assessment-1",
-      runId: "snapshot-1",
-      correlationId: "answer-1",
-      eventType: Events.modelCallStarted,
-      stage: Stages.interview,
-      engineeringRuleId: null,
-      source: null,
-      agentName: null,
-      subagentName: null,
-      namespace: [],
-      nodeName: null,
-      messageId: null,
-      toolName: null,
-      toolCallId: null,
-      status: null,
-      text: null,
-      data: { runtimeRunId: "native-1" },
-    },
-  ];
+test("activity without canonical runtime state does not render a stop control", () => {
   let stopped = 0;
   let continued = 0;
-  const control = selectAssessmentComposerRuntimeControl(events, null);
+  const control = selectAssessmentComposerRuntimeControl(null, null);
   const container = render(
     <AssessmentComposer
       value=""
@@ -166,11 +136,11 @@ test("Thinking from the live stream renders circle-stop even when generic Contin
       onInterruptTurn={() => stopped++}
     />,
   );
-  const button = actionButton(container) as HTMLButtonElement;
-  assert.ok(button.querySelector(".lucide-circle-stop"));
-  assert.equal(button.querySelector(".lucide-circle-play"), null);
-  act(() => button.click());
-  assert.equal(stopped, 1);
+  assert.equal(
+    actionButton(container)?.getAttribute("aria-label") ?? null,
+    null,
+  );
+  assert.equal(stopped, 0);
   assert.equal(continued, 0);
 });
 
@@ -192,7 +162,7 @@ test("a running turn replaces send with a stop button", () => {
       value=""
       onValueChange={() => {}}
       onSubmit={() => {}}
-      turnRunning
+      runtimeControlState={States.running}
       onInterruptTurn={() => {}}
     />,
   );
@@ -211,7 +181,7 @@ test("clicking the stop button calls onInterruptTurn, not onSubmit", () => {
       value=""
       onValueChange={() => {}}
       onSubmit={() => submitted++}
-      turnRunning
+      runtimeControlState={States.running}
       onInterruptTurn={() => interrupted++}
     />,
   );
@@ -231,7 +201,7 @@ test("a paused turn shows a play-style button distinct from the stop button", ()
       value=""
       onValueChange={() => {}}
       onSubmit={() => {}}
-      turnRunning
+      runtimeControlState={States.running}
       onInterruptTurn={() => {}}
     />,
   );
@@ -243,7 +213,7 @@ test("a paused turn shows a play-style button distinct from the stop button", ()
       value=""
       onValueChange={() => {}}
       onSubmit={() => {}}
-      turnPaused
+      runtimeControlState={States.stopped}
       onResumeTurn={() => {}}
     />,
   );
@@ -262,7 +232,7 @@ test("clicking the play button calls onResumeTurn", () => {
       value=""
       onValueChange={() => {}}
       onSubmit={() => {}}
-      turnPaused
+      runtimeControlState={States.stopped}
       onResumeTurn={() => resumed++}
     />,
   );
@@ -287,7 +257,7 @@ test("once the turn ends, the composer reverts to the plain send button", () => 
         value=""
         onValueChange={() => {}}
         onSubmit={() => {}}
-        turnRunning
+        runtimeControlState={States.running}
         onInterruptTurn={() => {}}
       />,
     );
@@ -300,8 +270,7 @@ test("once the turn ends, the composer reverts to the plain send button", () => 
         value=""
         onValueChange={() => {}}
         onSubmit={() => {}}
-        turnRunning={false}
-        turnPaused={false}
+        runtimeControlState={null}
       />,
     );
   });

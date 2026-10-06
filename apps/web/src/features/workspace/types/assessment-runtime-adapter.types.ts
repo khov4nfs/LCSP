@@ -13,13 +13,14 @@ import {
   type AssessmentRuntimeEngineeringProgress,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
+  type CanonicalAssessmentRuntimeSnapshot,
   type AssessmentTechnicalCoverageState,
   type FinalAssessmentResultStatus,
   type RemediationApprovalStatus,
   type RemediationDecision,
   type VerificationResultStatus,
-  type AssessmentStageLifecycleProjection,
 } from "@lcsp/contracts/evidence";
+import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 import {
   PROVIDER_CREDENTIAL_STATUSES,
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -100,6 +101,7 @@ export type AssessmentSidebarWorkflowStage =
 export const ASSESSMENT_SIDEBAR_STATUSES = {
   running: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
   queued: REPOSITORY_SCAN_JOB_STATUSES.queued,
+  unavailable: ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable,
   passed: "PASSED",
   building: "BUILDING",
   ready: ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready,
@@ -173,6 +175,7 @@ export const NORMALIZED_WORKFLOW_STEP_STATUSES = {
   skipped: "SKIPPED",
   failed: REPOSITORY_SCAN_JOB_STATUSES.failed,
   unknown: "UNKNOWN",
+  unavailable: "UNAVAILABLE",
 } as const;
 
 export type NormalizedWorkflowStepStatus =
@@ -299,6 +302,8 @@ export type NormalizedAssessmentIntegration = {
 
 export type NormalizedAssessmentRuntime = {
   tokenUsage?: StreamUsageAggregate;
+  canonicalAssessment: CanonicalAssessmentRuntimeSnapshot | null;
+  canonicalEvents: AssessmentEvent[];
   availability: AssessmentRuntimeAvailability;
   connectionState: WorkspaceRuntimeConnectionState;
   identity: NormalizedAssessmentIdentity;
@@ -327,8 +332,10 @@ export type AdapterArtifactAvailabilityInput = {
 };
 
 export type AdapterTimelineInput = {
-  /** Stage status the API derived from durable artifacts (absent on old APIs). */
-  stageLifecycle?: AssessmentStageLifecycleProjection | null;
+  /** Canonical ALS/AES pair; null is an explicit unavailable projection. */
+  canonicalAssessment?: CanonicalAssessmentRuntimeSnapshot | null;
+  /** Canonical events are activity only and never lifecycle authority. */
+  canonicalEvents?: AssessmentEvent[];
   currentRun: WorkspaceRuntimeRun | null;
   recentActivity: WorkspaceRuntimeActivityItem[];
   engineeringProgress?: AssessmentRuntimeEngineeringProgress[];

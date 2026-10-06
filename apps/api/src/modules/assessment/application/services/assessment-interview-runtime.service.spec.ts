@@ -2158,7 +2158,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
 
       expect(controlRequest).toHaveBeenCalledWith({
         assessmentId: "assessment-1",
-        actorId: actor.userId,
+        actor,
         correlationId: "corr-pause-1",
         action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
       });

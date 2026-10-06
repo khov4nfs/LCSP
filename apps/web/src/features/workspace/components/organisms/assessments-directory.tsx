@@ -6,11 +6,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAssessmentActiveHref } from "@/lib/api/workspace-client";
 import { useAssessmentsQuery } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
+import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 
 import { AssessmentList } from "./assessment-list";
 
 export function AssessmentsDirectory() {
   const assessmentsQuery = useAssessmentsQuery();
+  const workspaceRuntime = useWorkspaceRuntime();
   const assessments =
     assessmentsQuery.data?.kind === "loaded"
       ? assessmentsQuery.data.assessments
@@ -62,6 +64,8 @@ export function AssessmentsDirectory() {
           appLocale,
           "pages.assessment.openOverview",
         )}
+        canonicalAssessments={workspaceRuntime.canonicalAssessmentByAssessmentId}
+        connectionState={workspaceRuntime.connectionState}
       />
     </main>
   );

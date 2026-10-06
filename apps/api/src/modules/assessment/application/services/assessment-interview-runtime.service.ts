@@ -1149,7 +1149,7 @@ export class AssessmentInterviewRuntimeService {
     await this.assertAssessmentVisible(input.assessmentId, input.actor);
     return this.runtimeControl.request({
       assessmentId: input.assessmentId,
-      actorId: input.actor.userId,
+      actor: input.actor,
       correlationId: input.correlationId,
       action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
     });
@@ -1171,7 +1171,7 @@ export class AssessmentInterviewRuntimeService {
     ) {
       return this.runtimeControl.request({
         assessmentId: input.assessmentId,
-        actorId: input.actor.userId,
+        actor: input.actor,
         correlationId: input.correlationId,
         action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
         targetRunId: current.targetRunId,
