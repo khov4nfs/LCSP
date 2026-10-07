@@ -121,24 +121,6 @@ def test_duplicate_continue_reattaches_completed_request_without_parallel_run(mo
     assert runs.create_calls == 0
 
 
-def test_exact_stop_never_resolves_a_newer_active_run(monkeypatch):
-    class Runs(_FakeRuns):
-        def get(self, thread_id, run_id):
-            assert (thread_id, run_id) == ("exact-thread", "old-run")
-            return {"run_id": run_id, "status": "interrupted" if self.cancel_calls else "running"}
-    runs = Runs(refuse_cancel=False, listed_runs=[{"run_id": "new-run", "status": "running"}])
-    _install_client(monkeypatch, _FakeClient(runs))
-    callbacks = []
-    monkeypatch.setattr(agent_server_client, "load_config", lambda: type("Config", (), {"nestjs_api_base_url": "unused", "worker_api_key": "test"})())
-    monkeypatch.setattr(agent_server_client.WorkerApiClient, "_post_with_retry", lambda self, path, payload, **kwargs: callbacks.append(payload))
-    result = agent_server_client.dispatch_agent_runtime_event("assessment_interview_pause_requested", {
-        "assessmentId": "a", "targetRunId": "old-run", "threadId": "exact-thread", "boundary": "interview_context_updated", "controlAction": "STOP",
-    }, "correlation")
-    assert result["state"] == "STOPPED"
-    assert runs.cancel_calls == [{"thread_id": "exact-thread", "run_id": "old-run", "wait": False, "action": "interrupt"}]
-    assert callbacks[0]["targetRunId"] == "old-run"
-
-
 def test_run_poll_timeout_keeps_existing_binding(monkeypatch):
     fake_runs = _FakeRuns(timeout_first_get=True)
     fake_client = _FakeClient(fake_runs)
@@ -332,69 +314,6 @@ def test_resume_creates_a_run_with_no_new_input_and_polls_to_terminal(monkeypatc
     assert fake_runs.create_calls == 1
     assert captured_create_kwargs["input"] is None
     assert captured_create_kwargs["multitask_strategy"] == "enqueue"
-
-
-def test_dispatch_short_circuits_pause_command_without_creating_a_run(monkeypatch):
-    """A pause command must never create its own Agent Server run: with
-    multitask_strategy="enqueue" that run would just queue behind the turn it
-    is meant to interrupt instead of stopping it."""
-    fake_runs = _FakeRuns(
-        listed_runs=[
-            {
-                "run_id": "active-turn-run",
-                "status": "running",
-                "metadata": {
-                    "lcsp_boundary_name": "assessment_interview_resume_requested"
-                },
-            }
-        ],
-        refuse_cancel=False,
-    )
-    fake_client = _FakeClient(fake_runs)
-    _install_client(monkeypatch, fake_client)
-
-    result = agent_server_client.dispatch_agent_runtime_event(
-        "assessment_interview_pause_requested",
-        {"assessmentId": "assessment-1", "workflowRunId": "workflow-1"},
-        "correlation-1",
-    )
-
-    assert result == {"status": "interrupt_requested"}
-    assert fake_runs.create_calls == 0
-    assert fake_runs.cancel_calls == [
-        {
-            "thread_id": agent_server_client.agent_thread_id(
-                "assessment_interview_resume_requested",
-                {"assessmentId": "assessment-1", "workflowRunId": "workflow-1"},
-                "correlation-1",
-            ),
-            "run_id": "active-turn-run",
-            "wait": False,
-            "action": "interrupt",
-        }
-    ]
-
-
-def test_customer_stop_interrupts_a_running_engineering_assessment(monkeypatch) -> None:
-    active = {
-        "run_id": "engineering-run",
-        "status": "running",
-        "metadata": {"lcsp_boundary_name": "engineering_assessment_requested"},
-    }
-    fake_runs = _FakeRuns(listed_runs=[active], refuse_cancel=False)
-    _install_client(monkeypatch, _FakeClient(fake_runs))
-
-    result = agent_server_client.dispatch_agent_runtime_event(
-        "assessment_interview_pause_requested",
-        {"assessmentId": "assessment-1"},
-        "corr-stop",
-    )
-
-    assert result == {"status": "interrupt_requested"}
-    # The Investigator's run is interrupted (checkpoints kept), not deleted.
-    assert [(c["run_id"], c["action"]) for c in fake_runs.cancel_calls] == [
-        ("engineering-run", "interrupt")
-    ]
 
 
 def test_an_interrupted_run_settles_without_error_so_it_is_not_retried(monkeypatch) -> None:

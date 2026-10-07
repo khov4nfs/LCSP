@@ -37,7 +37,6 @@ def test_legal_runtime_is_grouped_by_capability() -> None:
         "reviewed_input",
         "partial_update",
         "relationships",
-        "engineering_rules",
         "models",
     }
     assert _py(corpus) == set()

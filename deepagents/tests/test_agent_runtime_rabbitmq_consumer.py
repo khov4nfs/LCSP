@@ -512,8 +512,17 @@ def test_scan_terminal_failure_payload_never_uses_model_call_limit_error(monkeyp
     assert channel.nacked == [("delivery-limit", False)]
 
 
-def test_delivery_timeout_prevents_indefinite_unacked_slot():
+def test_delivery_timeout_prevents_indefinite_unacked_slot(monkeypatch):
+    monkeypatch.setattr(rabbitmq_consumer, "_worker_client_or_none", lambda: None)
     channel = FakeChannel()
+    settled = Event()
+    original_nack = channel.basic_nack
+
+    def basic_nack(delivery_tag, requeue):
+        original_nack(delivery_tag, requeue)
+        settled.set()
+
+    monkeypatch.setattr(channel, "basic_nack", basic_nack)
     handler = rabbitmq_consumer._delivery_handler(
         "scan_requested",
         connection=FakeConnection(),
@@ -534,7 +543,7 @@ def test_delivery_timeout_prevents_indefinite_unacked_slot():
         json.dumps({"scanJobId": "scan-hangs"}).encode("utf-8"),
     )
 
-    time.sleep(0.05)
+    assert settled.wait(1)
 
     assert channel.acked == []
     assert channel.nacked == [("delivery-hangs", False)]

@@ -189,6 +189,7 @@ model Assessment {
   llmUsageEvents             LlmUsageEvent[]
   runtime                    AssessmentRuntime?
   events                     AssessmentEvent[]
+  domainCase                 AssessmentCase?
 
   @@index([ownerId])
 }
@@ -295,6 +296,7 @@ model AssessmentRuntime {
   updatedAt           DateTime            @updatedAt @db.Timestamptz(3)
   assessment          Assessment          @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
   events              AssessmentEvent[]
+  humanRequests       AssessmentHumanRequest[]
 
   // Required by the event FK: a valid thread from another assessment is invalid.
   @@unique([assessmentId, threadId])
@@ -1778,6 +1780,7 @@ model LegalPortfolioVersion {
   contextRelations     LegalRuleContextRelation[]
   activation           LegalPortfolioActivationRecord? @relation("ActivationTarget")
   supersededByActivations LegalPortfolioActivationRecord[] @relation("ActivationPrevious")
+  assessmentCases      AssessmentCase[]
 
   // Lets child rows prove they share the portfolio's corpus (composite FK).
   @@unique([id, legalCorpusVersionId])
@@ -1824,6 +1827,8 @@ model EngineeringRule {
   createdAt             DateTime                   @default(now())
   portfolio             LegalPortfolioVersion      @relation(fields: [portfolioVersionId], references: [id], onDelete: Restrict)
   legalRuleLinks        EngineeringRuleLegalRule[]
+  assessmentDecisions   AssessmentRuleDecision[]
+  assessmentCoverage    AssessmentDecisionCoverage[]
 
   @@unique([portfolioVersionId, engineeringRuleId])
   @@unique([id, portfolioVersionId])
@@ -1901,4 +1906,231 @@ model LegalPortfolioActivationRecord {
   preparationRun                   LegalPreparationRun             @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
 
   @@index([previousActivePortfolioVersionId])
+}
+
+// ---------------------------------------------------------------------------------------------
+// W3 assessment domain. Authoritative, revisioned, provenance-validated state of one assessment's
+// Root run. Rows are written only by the API assessment-domain boundary; nothing here is a legal
+// judgment by deterministic code. Raw-SQL guards in the migration enforce pins, immutability and
+// the decision-resolution transition table.
+// ---------------------------------------------------------------------------------------------
+
+enum AssessmentEvidenceType {
+  REPOSITORY_SOURCE
+  SEARCH_COVERAGE
+}
+
+enum AssessmentRecordState {
+  ACCEPTED
+  INVALIDATED
+}
+
+enum AssessmentFactKind {
+  FACT
+  USE_CASE
+}
+
+enum AssessmentFactAuthority {
+  EVIDENCE_CITED
+  HUMAN_PROVIDED
+}
+
+enum AssessmentDecisionRecordState {
+  ACCEPTED
+  SUPERSEDED
+  INVALIDATED
+}
+
+enum DecisionResolutionState {
+  PENDING
+  INVESTIGATING
+  WAITING_FOR_INPUT
+  RESOLVED
+  INVALIDATED
+}
+
+enum HumanResolutionRequestStatus {
+  OPEN
+  RESOLVED
+  SUPERSEDED
+  CANCELLED
+}
+
+enum RuleDecisionApplicability {
+  APPLICABLE
+  NOT_APPLICABLE
+}
+
+enum RuleDecisionComplianceOutcome {
+  COMPLIANT
+  NON_COMPLIANT
+}
+
+enum AssessmentArtifactKind {
+  FINAL_REPORT
+}
+
+/// One per assessment. Pins are set once and never rewritten (DB trigger): a superseding legal
+/// basis or a new repository requires a new assessment.
+model AssessmentCase {
+  assessmentId            String                       @id
+  caseRevision            Int                          @default(0)
+  legalPortfolioVersionId String?
+  repositorySnapshotId    String?
+  repositoryScanJobId     String?
+  repositoryCommit        String?
+  pinnedAt                DateTime?                    @db.Timestamptz(3)
+  createdAt               DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime                     @updatedAt @db.Timestamptz(3)
+  assessment              Assessment                   @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  portfolio               LegalPortfolioVersion?       @relation(fields: [legalPortfolioVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facts                   AssessmentCaseFact[]
+  evidence                AssessmentEvidence[]
+  decisions               AssessmentRuleDecision[]
+  coverage                AssessmentDecisionCoverage[]
+  humanRequests           AssessmentHumanRequest[]
+  artifacts               AssessmentArtifact[]
+
+  // Lets children prove they use the case's own pinned portfolio (composite FK).
+  @@unique([assessmentId, legalPortfolioVersionId])
+}
+
+model AssessmentEvidence {
+  evidenceId       String                 @id @db.Uuid
+  assessmentId     String
+  type             AssessmentEvidenceType
+  state            AssessmentRecordState  @default(ACCEPTED)
+  repositoryCommit String
+  contentSha256    String
+  payload          Json
+  createdAt        DateTime               @default(now()) @db.Timestamptz(3)
+  invalidatedAt    DateTime?              @db.Timestamptz(3)
+  assessmentCase   AssessmentCase         @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  factLinks        AssessmentCaseFactEvidence[]
+
+  @@unique([evidenceId, assessmentId])
+  @@index([assessmentId, state])
+}
+
+model AssessmentCaseFact {
+  factId         String                  @id @db.Uuid
+  assessmentId   String
+  caseRevision   Int
+  kind           AssessmentFactKind
+  authority      AssessmentFactAuthority
+  state          AssessmentRecordState   @default(ACCEPTED)
+  statement      String
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
+  invalidatedAt  DateTime?               @db.Timestamptz(3)
+  assessmentCase AssessmentCase          @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  evidenceLinks  AssessmentCaseFactEvidence[]
+
+  // Every accepted fact is exactly one case revision.
+  @@unique([assessmentId, caseRevision])
+  @@unique([factId, assessmentId])
+}
+
+model AssessmentCaseFactEvidence {
+  assessmentId String
+  factId       String             @db.Uuid
+  evidenceId   String             @db.Uuid
+  fact         AssessmentCaseFact @relation(fields: [factId, assessmentId], references: [factId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  evidence     AssessmentEvidence @relation(fields: [evidenceId, assessmentId], references: [evidenceId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([factId, evidenceId])
+  @@index([evidenceId])
+}
+
+/// Latest ACCEPTED decision per (assessment, rule, scope) plus immutable history.
+model AssessmentRuleDecision {
+  decisionId             String                        @id @db.Uuid
+  assessmentId           String
+  portfolioVersionId     String
+  engineeringRuleId      String
+  engineeringRuleVersion String
+  scopeId                String
+  decisionRevision       Int
+  state                  AssessmentDecisionRecordState @default(ACCEPTED)
+  applicability          RuleDecisionApplicability
+  compliance             RuleDecisionComplianceOutcome?
+  repositoryCommit       String
+  caseRevision           Int
+  idempotencyKey         String
+  requestDigest          String
+  decision               Json
+  createdAt              DateTime                      @default(now()) @db.Timestamptz(3)
+  supersededAt           DateTime?                     @db.Timestamptz(3)
+  invalidatedAt          DateTime?                     @db.Timestamptz(3)
+  assessmentCase         AssessmentCase                @relation(fields: [assessmentId, portfolioVersionId], references: [assessmentId, legalPortfolioVersionId], onDelete: Cascade, onUpdate: Restrict)
+  engineeringRule        EngineeringRule               @relation(fields: [portfolioVersionId, engineeringRuleId], references: [portfolioVersionId, engineeringRuleId], onDelete: Restrict, onUpdate: Restrict)
+  currentFor             AssessmentDecisionCoverage[]
+
+  @@unique([assessmentId, engineeringRuleId, scopeId, decisionRevision])
+  @@unique([assessmentId, idempotencyKey])
+  @@unique([decisionId, assessmentId])
+  @@index([assessmentId, state])
+}
+
+/// Decision-resolution coverage: one row per EngineeringRule of the pinned portfolio, created in
+/// the preparation transaction so the Root provably covers the whole portfolio.
+model AssessmentDecisionCoverage {
+  assessmentId           String
+  engineeringRuleId      String
+  portfolioVersionId     String
+  engineeringRuleVersion String
+  resolutionState        DecisionResolutionState @default(PENDING)
+  currentDecisionId      String?                 @db.Uuid
+  decisionRevision       Int                     @default(0)
+  updatedAt              DateTime                @updatedAt @db.Timestamptz(3)
+  assessmentCase         AssessmentCase          @relation(fields: [assessmentId, portfolioVersionId], references: [assessmentId, legalPortfolioVersionId], onDelete: Cascade, onUpdate: Restrict)
+  engineeringRule        EngineeringRule         @relation(fields: [portfolioVersionId, engineeringRuleId], references: [portfolioVersionId, engineeringRuleId], onDelete: Restrict, onUpdate: Restrict)
+  currentDecision        AssessmentRuleDecision? @relation(fields: [currentDecisionId, assessmentId], references: [decisionId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@id([assessmentId, engineeringRuleId])
+  @@index([assessmentId, resolutionState])
+}
+
+model AssessmentHumanRequest {
+  requestId          String                       @id @db.Uuid
+  assessmentId       String
+  threadId           String                       @db.Uuid
+  status             HumanResolutionRequestStatus @default(OPEN)
+  caseRevision       Int
+  engineeringRuleId  String
+  criterionIds       Json
+  question           String
+  unresolvedFact     String
+  decisionImpact     Json
+  resolutionAttempts Json
+  controlType        String
+  choices            Json
+  answers            Json                         @default("[]")
+  resolvedFactId     String?                      @db.Uuid
+  createdAt          DateTime                     @default(now()) @db.Timestamptz(3)
+  resolvedAt         DateTime?                    @db.Timestamptz(3)
+  assessmentCase     AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  runtime            AssessmentRuntime            @relation(fields: [assessmentId, threadId], references: [assessmentId, threadId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([assessmentId, status])
+}
+
+/// Artifact metadata only; bytes live in the one protected blob store. W4 owns generation.
+model AssessmentArtifact {
+  artifactId              String                 @id @db.Uuid
+  assessmentId            String
+  kind                    AssessmentArtifactKind
+  lifecycleState          ArtifactLifecycleState @default(BUILDING)
+  legalPortfolioVersionId String
+  repositorySnapshotId    String
+  repositoryCommit        String
+  caseRevision            Int
+  schemaVersion           String
+  contentSha256           String?
+  sizeBytes               Int?
+  storageRef              String?
+  createdAt               DateTime               @default(now()) @db.Timestamptz(3)
+  activatedAt             DateTime?              @db.Timestamptz(3)
+  assessmentCase          AssessmentCase         @relation(fields: [assessmentId, legalPortfolioVersionId], references: [assessmentId, legalPortfolioVersionId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@index([assessmentId, lifecycleState])
 }

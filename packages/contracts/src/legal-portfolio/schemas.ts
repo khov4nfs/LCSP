@@ -314,6 +314,9 @@ export type LegalPortfolioValidateResult = z.infer<
 export const legalPreparationClaimRequestSchema = z
   .object({ preparationRunId: z.string().uuid() })
   .strict();
+export type LegalPreparationClaimRequest = z.infer<
+  typeof legalPreparationClaimRequestSchema
+>;
 
 /**
  * The one pinned immutable corpus a Legal Preparation run is allowed to read.

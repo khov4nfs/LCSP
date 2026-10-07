@@ -1,8 +1,7 @@
-import { HttpStatus, Inject } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
+  ASSESSMENT_LIFECYCLE_STATES,
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import {
@@ -14,10 +13,13 @@ import {
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SNAPSHOT_STATUSES,
 } from "@lcsp/contracts/github-integration";
+import { HttpStatus, Inject } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { AssessmentRuntimePreparation } from "../../services/assessment-runtime-preparation.service.js";
 import {
   ASSESSMENT_REPOSITORY,
   type AssessmentRepository,
@@ -34,6 +36,7 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
     private readonly assessments: AssessmentRepository,
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
+    private readonly runtimePreparation: AssessmentRuntimePreparation,
   ) {}
 
   async execute(
@@ -121,6 +124,22 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
           tx,
         );
       });
+    }
+
+    // V2 assessments (canonical lifecycle) pin the repository snapshot and enter ACTIVE here;
+    // the call is idempotent so a retried completion also covers a late legal portfolio.
+    const lifecycle = await this.prisma.assessment.findUnique({
+      where: { id: assessment.id },
+      select: { lifecycleState: true },
+    });
+    if (lifecycle?.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.PREPARING) {
+      await this.prisma.$transaction((tx) =>
+        this.runtimePreparation.prepareInTx(tx, {
+          assessmentId: assessment.id,
+          snapshotId: snapshot.id,
+          correlationId: command.correlationId,
+        }),
+      );
     }
 
     return {

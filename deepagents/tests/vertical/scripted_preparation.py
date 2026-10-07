@@ -4,7 +4,7 @@ Used by tests/legal-portfolio-vertical.mjs. The model is scripted; everything el
 the Deep Agent graph, tool surface, WorkerApiClient HTTP calls, API, validator and PostgreSQL.
 
 usage: scripted_preparation.py <apiBase> <workerKey> <runId> <seedJson> <mode>
-modes: valid | stale | orphan | no-submit | bridge
+modes: valid | stale | orphan | no-submit
 """
 
 from __future__ import annotations
@@ -93,29 +93,6 @@ def main() -> int:
     seed = json.loads(open(seed_path, encoding="utf-8").read())
     hashes: dict[str, str] = seed["hashes"]
     api = WorkerApiClient(base, key)
-
-    if mode == "bridge":
-        from unittest.mock import MagicMock
-
-        from tools.common.capabilities.assessment.investigation.engineering_rule.rule_sources import (
-            resolve_engineering_rules,
-        )
-
-        retriever = MagicMock()
-        resolution = resolve_engineering_rules(
-            api_client=api, retriever=retriever, workflow_run_id="vertical", correlation_id="vertical"
-        )
-        print(json.dumps({
-            "status": resolution.status,
-            "reason": resolution.reason,
-            "portfolioVersionId": resolution.catalog_version_id,
-            "corpusVersionId": resolution.corpus_version_id,
-            "engineeringRuleIds": sorted(rule.engineering_rule_id for rule in resolution.rules),
-            "legalRuleIds": sorted(rule["legalRuleId"] for rule in resolution.legal_rules),
-            "indexedChunks": len(retriever.index_corpus.call_args.args[1]) if retriever.index_corpus.called else 0,
-            "limitations": list(resolution.limitations),
-        }))
-        return 0
 
     packet = build_packet(hashes)
     if mode == "stale":

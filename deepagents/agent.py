@@ -21,7 +21,6 @@ from middleware.model_governance import (
 )
 from middleware.usage_metering import AgentRoleMiddleware
 from middleware.runtime_context import inject_lcsp_runtime_context
-from middleware.specialist_handoff_validation import validate_lcsp_specialist_task_handoff
 from middleware.system_event_dispatch import dispatch_agent_runtime_system_event
 from model_policy import effective_model_configs, resolve_agent_model
 from orchestration.context import LCSPRunContext
@@ -81,7 +80,6 @@ def create_root_agent(*, checkpointer=None, store=None):
         system_prompt=SYSTEM_PROMPT,
         middleware=[
             dispatch_agent_runtime_system_event,
-            validate_lcsp_specialist_task_handoff,
             inject_lcsp_runtime_context,
             AgentRoleMiddleware("root"),
             *MODEL_GOVERNANCE_MIDDLEWARE,
