@@ -42,6 +42,7 @@ disable_langsmith_tracing_by_default()
 from langchain.chat_models import init_chat_model
 from model_routes_config import read_model_routes
 from provider_credentials import (
+    apx_base_url,
     credential_init_kwargs,
     inception_base_url,
     llm7_base_url,
@@ -85,6 +86,15 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
         "openai_compatible_chat_completions",
         lambda: {
             "base_url": inception_base_url(),
+            "use_responses_api": False,
+            "timeout": llm_provider_timeout_seconds(),
+        },
+    ),
+    "apx": (
+        "openai",
+        "openai_compatible_chat_completions",
+        lambda: {
+            "base_url": apx_base_url(),
             "use_responses_api": False,
             "timeout": llm_provider_timeout_seconds(),
         },

@@ -1,4 +1,3 @@
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { CorpusPreparationTerminalStatus } from "@lcsp/contracts/legal-rule-catalog";
 import {
   Body,
@@ -14,9 +13,6 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 
-import type { ApproveRuleCatalogVersionRequest } from "../../application/contracts/approve-catalog-version.contract.js";
-import type { CreateRuleCatalogVersionRequest } from "../../application/contracts/create-catalog-version.contract.js";
-import type { DraftLegalRuleRequest } from "../../application/contracts/draft-legal-rule.contract.js";
 import type {
   ApproveLegalCorpusRequest,
   IngestLegalCorpusRequest,
@@ -25,21 +21,15 @@ import type {
 import type { RegisterOfficialSourceSnapshotRequest } from "../../application/contracts/official-source-snapshot.contract.js";
 import type { ResumeWaitingRunsRequest } from "../../application/contracts/resume-waiting-runs.contract.js";
 
-import { ApproveRuleCatalogVersionCommand } from "../../application/commands/approve-rule-catalog-version/approve-rule-catalog-version.command.js";
-import { DraftLegalRuleCommand } from "../../application/commands/draft-legal-rule/draft-legal-rule.command.js";
 import { ResumeWaitingRunsCommand } from "../../application/commands/resume-waiting-runs/resume-waiting-runs.command.js";
 import { GetActiveLegalCorpusQuery } from "../../application/queries/get-active-legal-corpus/get-active-legal-corpus.query.js";
-import { GetActiveRuleCatalogQuery } from "../../application/queries/get-active-rule-catalog/get-active-rule-catalog.query.js";
 
 import { randomUUID } from "node:crypto";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
-import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
-import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { LegalCorpusService } from "../../application/services/legal-corpus.service.js";
 import { OfficialSourceSnapshotService } from "../../application/services/official-source-snapshot.service.js";
-import { RuleCatalogVersionService } from "../../application/services/rule-catalog-version.service.js";
 import { AdminCorpusVersionsService } from "../../application/services/admin-corpus-versions.service.js";
 
 @Controller("internal/legal-rule-catalog")
@@ -49,39 +39,9 @@ export class LegalRuleCatalogController {
     private readonly queryBus: QueryBus,
     private readonly legalCorpus: LegalCorpusService,
     private readonly officialSourceSnapshots: OfficialSourceSnapshotService,
-    private readonly catalogVersions: RuleCatalogVersionService,
     @Optional()
     private readonly adminCorpusVersions?: AdminCorpusVersionsService,
   ) {}
-
-  @Post("versions")
-  @HttpCode(201)
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.admin)
-  async createVersion(
-    @Body() body: CreateRuleCatalogVersionRequest,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.catalogVersions.createDraft(
-        body.version,
-        req.correlationId || randomUUID(),
-      ),
-    );
-  }
-
-  @Post("corpus")
-  @HttpCode(201)
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.admin)
-  async ingestCorpus(@Body() body: IngestLegalCorpusRequest) {
-    return resultEnvelope(
-      await this.legalCorpus.ingestDraft({
-        ...body,
-        ingestionRunId: body.ingestionRunId || randomUUID(),
-      }),
-    );
-  }
 
   @Post("corpus/validated-draft")
   @HttpCode(201)
@@ -190,62 +150,6 @@ export class LegalRuleCatalogController {
     );
   }
 
-  @Post("rules")
-  @HttpCode(201)
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.admin)
-  async draftRule(
-    @Body() body: DraftLegalRuleRequest,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const { userId } = req.rbacContext;
-    const correlationId = req.correlationId || randomUUID();
-
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new DraftLegalRuleCommand(
-          body.legalRuleId,
-          body.ruleFamily,
-          body.requiredFacts,
-          body.optionalFacts,
-          body.blockingFacts,
-          body.unknownFactPolicy,
-          body.citationLocatorRefs,
-          userId,
-          body.legalRuleCatalogVersionId,
-          correlationId,
-        ),
-      ),
-    );
-  }
-
-  @Post("rules/recover-from-active-corpus")
-  @HttpCode(200)
-  @UseGuards(WorkerApiKeyGuard)
-  async recoverRulesFromActiveCorpus(
-    @Body() body: { idempotencyKey?: string },
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const correlationId = req.correlationId || randomUUID();
-    return resultEnvelope(
-      await this.catalogVersions.recoverApprovedRulesFromActiveCorpus({
-        idempotencyKey:
-          body.idempotencyKey?.trim() ||
-          `legal-rule-source-recovery:${correlationId}`,
-        correlationId,
-      }),
-    );
-  }
-
-  @Get("active")
-  @HttpCode(200)
-  @UseGuards(WorkerApiKeyGuard)
-  async getActiveCatalog() {
-    return resultEnvelope(
-      await this.queryBus.execute(new GetActiveRuleCatalogQuery()),
-    );
-  }
-
   @Get("corpus/active")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)
@@ -290,32 +194,6 @@ export class LegalRuleCatalogController {
       await this.officialSourceSnapshots.get(
         { snapshotRef, snapshotId },
         req.correlationId || randomUUID(),
-      ),
-    );
-  }
-
-  @Post("versions/:versionId/approve")
-  @HttpCode(200)
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.admin)
-  async approveVersion(
-    @Param("versionId") versionId: string,
-    @Body() body: ApproveRuleCatalogVersionRequest,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const { userId } = req.rbacContext;
-    const correlationId = req.correlationId || randomUUID();
-
-    // Passing some default values for scopeDescription since they are not in the contract body
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new ApproveRuleCatalogVersionCommand(
-          versionId,
-          "Approved via API", // default scopeDescription
-          null, // no comments provided in the basic API body yet
-          userId,
-          correlationId,
-        ),
       ),
     );
   }

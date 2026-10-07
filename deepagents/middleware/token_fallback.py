@@ -21,9 +21,11 @@ from middleware.failure_policy import (
 )
 from orchestration.agent_stream import model_wait_heartbeat, note_model_step
 from provider_credentials import (
+    APX_DEFAULT_BASE_URL,
     INCEPTION_DEFAULT_BASE_URL,
     LLM7_DEFAULT_BASE_URL,
     NO_SDK_RETRY_MAX_RETRIES,
+    apx_base_url,
     inception_base_url,
     llm7_base_url,
     provider_token_source,
@@ -175,6 +177,14 @@ def model_provider(model) -> str | None:
             or base_url.startswith(f"{default_inception}/")
         ):
             return "inception"
+        configured_apx = apx_base_url()
+        default_apx = APX_DEFAULT_BASE_URL.rstrip("/")
+        if (
+            base_url == configured_apx
+            or base_url == default_apx
+            or base_url.startswith(f"{default_apx}/")
+        ):
+            return "apx"
         configured_llm7 = llm7_base_url()
         default_llm7 = LLM7_DEFAULT_BASE_URL.rstrip("/")
         if base_url == configured_llm7 or base_url == default_llm7 or base_url.startswith(

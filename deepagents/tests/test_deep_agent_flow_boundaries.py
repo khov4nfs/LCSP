@@ -19,21 +19,10 @@ from subagents import (
     FLOW_SUBAGENTS,
     INTERVIEW_TOOLS,
     REPOSITORY_ANALYST_TOOLS,
-    TRIAGE_TOOLS,
 )
 
 
-TRIAGE_TOOL_NAMES: tuple[str, ...] = (
-    "maintain_legal_catalog",
-    "get_legal_rule_triage_work_items",
-    "persist_legal_rule_triage_result",
-    "finish_legal_rule_triage_execution",
-)
 INTERVIEW_TOOL_NAMES: tuple[str, ...] = ()
-TRIAGE_TOOL_PACKAGES: set[str] = {
-    "maintain_legal_catalog",
-    "legal_rule_triage",
-}
 COMMON_TOOL_NAMES: tuple[str, ...] = (
     "get_legal_corpus_readiness",
     "retrieve_verified_episodes",
@@ -86,14 +75,11 @@ def _assessment_authored_tool_layout() -> dict[str, tuple[str, ...]]:
 
 def test_specialist_tools_are_strictly_isolated() -> None:
     expected = {
-        "triage": TRIAGE_TOOL_NAMES,
         "interview": INTERVIEW_TOOL_NAMES,
         "repository-analyst": EXPECTED_ROLE_TOOL_NAMES["repository-analyst"],
     }
     for role, tool_names in expected.items():
         assert len(tool_names) == len(set(tool_names))
-    for tool_name in EXPECTED_ROLE_TOOL_NAMES["repository-analyst"]:
-        assert tool_name not in TRIAGE_TOOL_NAMES
     # The analyst reports through the governed submit tool only; Interview never sees it.
     assert "submit_rule_assessment" not in INTERVIEW_TOOL_NAMES
     # LCSP-285: Interview must not have EngineeringRule retrieval or verified episode tools
@@ -102,37 +88,23 @@ def test_specialist_tools_are_strictly_isolated() -> None:
 
 
 def test_subagents_receive_fixed_minimal_tool_surfaces() -> None:
-    assert _names(TRIAGE_TOOLS) == TRIAGE_TOOL_NAMES
     assert _names(INTERVIEW_TOOLS) == INTERVIEW_TOOL_NAMES
     assert _names(REPOSITORY_ANALYST_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["repository-analyst"]
 
     by_name = {item["name"]: item for item in FLOW_SUBAGENTS}
-    assert tuple(by_name) == ("triage", "interview", "repository-analyst")
-    assert _names(by_name["triage"]["tools"]) == TRIAGE_TOOL_NAMES
+    assert tuple(by_name) == ("interview", "repository-analyst")
     assert _names(by_name["interview"]["tools"]) == INTERVIEW_TOOL_NAMES
     assert _names(by_name["repository-analyst"]["tools"]) == EXPECTED_ROLE_TOOL_NAMES["repository-analyst"]
-
-
-def test_triage_is_specialist_not_assessment_pipeline_node() -> None:
-    assert "triage" not in EXPECTED_ROLE_TOOL_NAMES
-    triage_prompt = str(
-        next(item for item in FLOW_SUBAGENTS if item["name"] == "triage")["system_prompt"]
-    )
-    assert "business owner of Legal Rule Triage" in triage_prompt
-    assert "ENGINEERING_RULE_CANDIDATE" in triage_prompt
-    assert "persist_legal_rule_triage_result" in triage_prompt
-    assert "Never use Assessment business context" in triage_prompt
 
 
 def test_subagent_definitions_are_owned_by_role_directories() -> None:
     subagents_root = PROJECT_ROOT / "subagents"
     assert _directory_names(subagents_root) == {
-        "triage",
         "interview",
         "repository_analyst",
     }
     assert not (PROJECT_ROOT / "subagents.py").exists()
-    for role in ("triage", "interview", "repository_analyst"):
+    for role in ("interview", "repository_analyst"):
         assert (subagents_root / role / "definition.py").is_file()
 
 
@@ -154,12 +126,6 @@ def test_agent_facing_assessment_tools_follow_node_tool_code_layout() -> None:
         for tool_name in tool_names:
             assert (PROJECT_ROOT / "tools" / node / tool_name / "code.py").is_file()
 
-    assert (
-        PROJECT_ROOT / "tools" / "triage" / "maintain_legal_catalog" / "code.py"
-    ).is_file()
-    assert (
-        PROJECT_ROOT / "tools" / "triage" / "legal_rule_triage" / "code.py"
-    ).is_file()
 
 
 def test_assessment_authored_tool_modules_own_their_agentic_port_calls() -> None:
@@ -193,59 +159,10 @@ def test_assessment_authored_tool_modules_own_their_agentic_port_calls() -> None
             assert getattr(authored_tool, "name") == tool_name
 
 
-def test_triage_tool_is_bounded_to_approved_legal_sources() -> None:
-    code_path = PROJECT_ROOT / "tools" / "triage" / "maintain_legal_catalog" / "code.py"
-    source = code_path.read_text(encoding="utf-8")
-
-    assert "MaintainLegalCatalogInput" in source
-    assert "MaintainLegalCatalogService" in source
-    assert "max_runs" in source
-    assert "correlation_id" in source
-    assert "source_url" not in source
-    assert "document_id" not in source
-    assert "gateway_document_id" not in source
-
-    module = importlib.import_module("tools.triage.maintain_legal_catalog.code")
-    assert getattr(module.maintain_legal_catalog, "name") == "maintain_legal_catalog"
-
-
-def test_triage_rule_tools_are_bounded_to_authoritative_legal_inputs() -> None:
-    code_path = PROJECT_ROOT / "tools" / "triage" / "legal_rule_triage" / "code.py"
-    source = code_path.read_text(encoding="utf-8")
-
-    assert "GetLegalRuleTriageWorkItemsInput" in source
-    assert "PersistLegalRuleTriageResultInput" in source
-    assert "FinishLegalRuleTriageExecutionInput" in source
-    assert "affected_rule_ids" in source
-    assert "legal_rule_id" in source
-    assert "legal_rule_catalog_version_id" in source
-    assert "legal_corpus_version_id" in source
-    assert "triage_execution_id" in source
-    assert "idempotency_key" in source
-    assert "assessment_id" in source
-    assert "source_code" not in source
-    assert "repository" not in source
-
-    module = importlib.import_module("tools.triage.legal_rule_triage.code")
-    assert (
-        getattr(module.get_legal_rule_triage_work_items, "name")
-        == "get_legal_rule_triage_work_items"
-    )
-    assert (
-        getattr(module.persist_legal_rule_triage_result, "name")
-        == "persist_legal_rule_triage_result"
-    )
-    assert (
-        getattr(module.finish_legal_rule_triage_execution, "name")
-        == "finish_legal_rule_triage_execution"
-    )
-
-
 def test_tools_tree_contains_only_authored_agent_capabilities() -> None:
     assert _directory_names(PROJECT_ROOT / "tools") == {
         "common",
         "legal",
-        "triage",
     }
     assert _directory_names(PROJECT_ROOT / "tools" / "common") == set(
         COMMON_TOOL_NAMES
@@ -262,7 +179,7 @@ def test_tools_tree_contains_only_authored_agent_capabilities() -> None:
         "workflow",
     }
     assert not (PROJECT_ROOT / "tools" / "resolver").exists()
-    assert _directory_names(PROJECT_ROOT / "tools" / "triage") == TRIAGE_TOOL_PACKAGES
+    assert not (PROJECT_ROOT / "tools" / "triage").exists()
 
 
 def test_common_tools_own_non_model_callable_implementation_domains() -> None:
@@ -360,20 +277,6 @@ def test_common_tools_own_non_model_callable_implementation_domains() -> None:
     ).is_file()
     assert (
         legal / "sources" / "extraction" / "official_text_extraction.py"
-    ).is_file()
-    assert (
-        PROJECT_ROOT
-        / "tools"
-        / "triage"
-        / "maintain_legal_catalog"
-        / "service.py"
-    ).is_file()
-    assert (
-        PROJECT_ROOT
-        / "tools"
-        / "triage"
-        / "legal_rule_triage"
-        / "service.py"
     ).is_file()
     assert (
         common

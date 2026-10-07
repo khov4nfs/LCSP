@@ -668,27 +668,6 @@ def test_resume_waiting_runs_uses_internal_legal_catalog_endpoint(client):
         )
 
 
-def test_recover_legal_rules_from_active_corpus_uses_internal_worker_endpoint(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "ok": True,
-            "data": {"id": "catalog-1", "ruleCount": 3},
-        }
-        mock_post.return_value = mock_resp
-
-        response = client.recover_legal_rules_from_active_corpus(
-            {"idempotencyKey": "recover-legal-rules-1"}
-        )
-
-        assert response["id"] == "catalog-1"
-        assert response["ruleCount"] == 3
-        assert mock_post.call_args.args[0] == (
-            "http://testserver/internal/legal-rule-catalog/rules/recover-from-active-corpus"
-        )
-
-
 def test_profile_already_exists_is_an_idempotent_callback_result(client):
     payload = TechnicalProfileCallbackPayload(
         evidence_report_id="ter-1",

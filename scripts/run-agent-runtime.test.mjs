@@ -90,6 +90,7 @@ test("docker worker env forwards every provider credential pool the worker rotat
     assert.match(workerEnv, new RegExp(`"${name}"`, "u"), `${name} is not forwarded`);
   }
   assert.match(workerEnv, /"INCEPTION_BASE_URL"/u);
+  assert.match(workerEnv, /"APX_BASE_URL"/u);
   assert.match(workerEnv, /"LLM_PROVIDER_TIMEOUT_SECONDS"/u);
   // The timeout is shared by every provider; per-provider variants are not forwarded.
   assert.doesNotMatch(workerEnv, /LLM_PROVIDER_TIMEOUT_SECONDS_/u);

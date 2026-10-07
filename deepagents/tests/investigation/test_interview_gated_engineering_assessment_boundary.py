@@ -77,8 +77,6 @@ def _boundary(api, dispatcher):
         api_client=api,
         interview_dispatcher=dispatcher,
         retriever=SimpleNamespace(),
-        rule_service=SimpleNamespace(),
-        triage_trigger_publisher=lambda _payload: None,
     )
 
 

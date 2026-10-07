@@ -215,6 +215,39 @@ enum BlockerReason {
   REPOSITORY_SNAPSHOT_UNAVAILABLE
 }
 
+enum ArtifactLifecycleState {
+  BUILDING
+  ACTIVE
+  SUPERSEDED
+  INVALID
+}
+
+enum LegalPortfolioCoverageState {
+  COVERED_BY_ENGINEERING_RULES
+  NON_ASSESSABLE
+}
+
+enum LegalContextRelationKind {
+  DEFINITION
+  SCOPE
+  QUALIFIER
+  EXCEPTION
+  CROSS_REFERENCE
+}
+
+enum LegalPreparationFailureReason {
+  MODEL_ERROR
+  NO_SUBMISSION
+  PORTFOLIO_VALIDATION_FAILED
+  CORPUS_UNAVAILABLE
+  RUNTIME_ERROR
+}
+
+enum LegalPortfolioValidationOutcome {
+  PASSED
+  FAILED
+}
+
 enum AgentExecutionState {
   QUEUED
   RUNNING
@@ -359,6 +392,7 @@ enum AuditResourceType {
   GITHUB_APP_INSTALL_STATE
   HTTP_ROUTE
   LEGAL_RULE
+  LEGAL_PORTFOLIO_VERSION
   LEGAL_RULE_CATALOG_VERSION
   LEGAL_RULE_MATCH
   OUTBOX
@@ -413,6 +447,7 @@ enum OutboxAggregateType {
   CLASSIFICATION_RESULT
   DOCUMENT_REQUEST
   LEGAL_CORPUS_VERSION
+  LEGAL_PORTFOLIO_VERSION
   LEGAL_RULE_MATCH
   REPOSITORY_SCAN_JOB
   REPOSITORY_SNAPSHOT
@@ -1012,6 +1047,8 @@ model LegalCorpusVersion {
   retrievalIndexes     LegalRetrievalIndex[]
   discardReceipts      CorpusDiscardReceipt[]
   preparation          CorpusPreparation?        @relation("CorpusPreparationTarget")
+  portfolioPreparationRuns LegalPreparationRun[]
+  portfolioVersions    LegalPortfolioVersion[]
 
   @@index([status, createdAt])
 }
@@ -1119,7 +1156,10 @@ model LegalDocumentChunk {
   createdAt             DateTime            @default(now())
   corpusVersion         LegalCorpusVersion  @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
   sourceDocument        LegalSourceDocument @relation(fields: [legalSourceDocumentId], references: [id], onDelete: Cascade)
+  portfolioProvenance   LegalRuleProvenance[]
+  portfolioContextRelations LegalRuleContextRelation[]
 
+  @@unique([id, legalCorpusVersionId])
   @@unique([legalCorpusVersionId, documentId, locator])
   @@index([legalCorpusVersionId, documentId])
   @@index([legalCorpusVersionId, legalStatus])
@@ -1688,4 +1728,177 @@ enum CorpusPreparationStatus {
   COMPLETED
   FAILED
   BLOCKED
+}
+
+// ---------------------------------------------------------------------------
+// W2 legal portfolio (expand-only). One Legal Preparation run authors one
+// complete LegalRule + EngineeringRule portfolio against one pinned immutable
+// corpus. The activation transaction is the only writer of the ACTIVE pointer.
+// V1 LegalRuleCatalogVersion / LegalRule / approval rows are untouched.
+// ---------------------------------------------------------------------------
+
+model LegalPreparationRun {
+  id                   String              @id @default(uuid())
+  idempotencyKey       String              @unique
+  legalCorpusVersionId String
+  requestedBy          String
+  correlationId        String
+  executionState       AgentExecutionState @default(QUEUED)
+  failureReason        LegalPreparationFailureReason?
+  outboxEventId        String?
+  createdAt            DateTime            @default(now())
+  startedAt            DateTime?
+  completedAt          DateTime?
+  corpusVersion        LegalCorpusVersion  @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Restrict)
+  portfolio            LegalPortfolioVersion?
+  activationRecord     LegalPortfolioActivationRecord?
+
+  @@index([legalCorpusVersionId])
+  @@index([executionState, createdAt])
+}
+
+model LegalPortfolioVersion {
+  id                   String                    @id @default(uuid())
+  version              String                    @unique
+  legalCorpusVersionId String
+  preparationRunId     String                    @unique
+  lifecycleState       ArtifactLifecycleState    @default(BUILDING)
+  portfolioDigest      String
+  validationOutcome    LegalPortfolioValidationOutcome?
+  validationFailures   Json                      @default("[]")
+  createdAt            DateTime                  @default(now())
+  validatedAt          DateTime?
+  activatedAt          DateTime?
+  supersededAt         DateTime?
+  corpusVersion        LegalCorpusVersion        @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Restrict)
+  preparationRun       LegalPreparationRun       @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+  rules                LegalPortfolioRule[]
+  engineeringRules     EngineeringRule[]
+  provenance           LegalRuleProvenance[]
+  contextRelations     LegalRuleContextRelation[]
+  activation           LegalPortfolioActivationRecord? @relation("ActivationTarget")
+  supersededByActivations LegalPortfolioActivationRecord[] @relation("ActivationPrevious")
+
+  // Lets child rows prove they share the portfolio's corpus (composite FK).
+  @@unique([id, legalCorpusVersionId])
+  @@index([lifecycleState])
+  @@index([legalCorpusVersionId])
+}
+
+model LegalPortfolioRule {
+  id                      String                      @id @default(uuid())
+  portfolioVersionId      String
+  legalRuleId             String
+  title                   String
+  proposition             String
+  applicabilityConditions Json
+  qualifiers              Json
+  exceptions              Json
+  nonRepositoryDuty       Boolean
+  coverageState           LegalPortfolioCoverageState
+  nonAssessableReason     String?
+  contentDigest           String
+  ordinal                 Int
+  portfolio               LegalPortfolioVersion       @relation(fields: [portfolioVersionId], references: [id], onDelete: Restrict)
+  engineeringRuleLinks    EngineeringRuleLegalRule[]
+  provenance              LegalRuleProvenance[]
+  outgoingRelations       LegalRuleContextRelation[]  @relation("RelationFrom")
+
+  @@unique([portfolioVersionId, legalRuleId])
+  @@unique([id, portfolioVersionId])
+}
+
+model EngineeringRule {
+  id                    String                     @id @default(uuid())
+  portfolioVersionId    String
+  engineeringRuleId     String
+  engineeringRuleVersion String
+  concept               String
+  legalIntent           String
+  applicabilityGuidance String
+  criteria              Json
+  contract              Json
+  sourceFingerprint     String
+  contentDigest         String
+  ordinal               Int
+  createdAt             DateTime                   @default(now())
+  portfolio             LegalPortfolioVersion      @relation(fields: [portfolioVersionId], references: [id], onDelete: Restrict)
+  legalRuleLinks        EngineeringRuleLegalRule[]
+
+  @@unique([portfolioVersionId, engineeringRuleId])
+  @@unique([id, portfolioVersionId])
+}
+
+// Same-portfolio ownership is enforced by the composite foreign keys.
+model EngineeringRuleLegalRule {
+  portfolioVersionId   String
+  engineeringRuleRowId String
+  portfolioRuleId      String
+  engineeringRule      EngineeringRule    @relation(fields: [engineeringRuleRowId, portfolioVersionId], references: [id, portfolioVersionId], onDelete: Restrict)
+  legalRule            LegalPortfolioRule @relation(fields: [portfolioRuleId, portfolioVersionId], references: [id, portfolioVersionId], onDelete: Restrict)
+
+  @@id([engineeringRuleRowId, portfolioRuleId])
+  @@index([portfolioRuleId])
+}
+
+// Server-resolved proof: the chunk must belong to the portfolio's own corpus.
+model LegalRuleProvenance {
+  id                   String                @id @default(uuid())
+  portfolioVersionId   String
+  portfolioRuleId      String
+  legalCorpusVersionId String
+  chunkId              String
+  documentId           String
+  locator              String
+  contentSha256        String
+  sourceEffectStatus   String
+  ordinal              Int
+  portfolio            LegalPortfolioVersion @relation(fields: [portfolioVersionId, legalCorpusVersionId], references: [id, legalCorpusVersionId], onDelete: Restrict)
+  rule                 LegalPortfolioRule    @relation(fields: [portfolioRuleId, portfolioVersionId], references: [id, portfolioVersionId], onDelete: Restrict)
+  chunk                LegalDocumentChunk    @relation(fields: [chunkId, legalCorpusVersionId], references: [id, legalCorpusVersionId], onDelete: Restrict)
+
+  @@unique([portfolioRuleId, chunkId])
+  @@index([portfolioVersionId])
+}
+
+// Exactly one of toRuleId / toChunkId (CHECK in the migration). toRuleId also
+// carries a raw composite FK (toRuleId, portfolioVersionId) in the migration.
+model LegalRuleContextRelation {
+  id                 String                   @id @default(uuid())
+  portfolioVersionId String
+  relationId         String
+  kind               LegalContextRelationKind
+  fromRuleId         String
+  toRuleId           String?
+  toChunkId          String?
+  legalCorpusVersionId String
+  relationDigest     String
+  ordinal            Int
+  portfolio          LegalPortfolioVersion    @relation(fields: [portfolioVersionId, legalCorpusVersionId], references: [id, legalCorpusVersionId], onDelete: Restrict)
+  fromRule           LegalPortfolioRule       @relation("RelationFrom", fields: [fromRuleId, portfolioVersionId], references: [id, portfolioVersionId], onDelete: Restrict)
+  toChunk            LegalDocumentChunk?      @relation(fields: [toChunkId, legalCorpusVersionId], references: [id, legalCorpusVersionId], onDelete: Restrict)
+
+  @@unique([portfolioVersionId, relationId])
+  @@index([fromRuleId])
+}
+
+// Mechanical activation audit. Not an approval: no human approver, no
+// approve/reject lifecycle. Failure records the INVALID candidate's result.
+model LegalPortfolioActivationRecord {
+  id                               String                          @id @default(uuid())
+  portfolioVersionId               String                          @unique
+  preparationRunId                 String                          @unique
+  idempotencyKey                   String                          @unique
+  requestDigest                    String
+  validationOutcome                LegalPortfolioValidationOutcome
+  validationFailures               Json                            @default("[]")
+  previousActivePortfolioVersionId String?
+  outboxEventId                    String?
+  correlationId                    String
+  createdAt                        DateTime                        @default(now())
+  portfolio                        LegalPortfolioVersion           @relation("ActivationTarget", fields: [portfolioVersionId], references: [id], onDelete: Restrict)
+  previousActive                   LegalPortfolioVersion?          @relation("ActivationPrevious", fields: [previousActivePortfolioVersionId], references: [id], onDelete: Restrict)
+  preparationRun                   LegalPreparationRun             @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+
+  @@index([previousActivePortfolioVersionId])
 }

@@ -35,12 +35,12 @@ const SNAPSHOT_ID = "snapshot-lcsp-278-release";
 const BLOCKED_SNAPSHOT_ID = "snapshot-lcsp-278-blocked";
 const CONNECTION_ID = "connection-lcsp-278-release";
 const BLOCKED_CONNECTION_ID = "connection-lcsp-278-blocked";
-const CORPUS_ID = "corpus-lcsp-278-release";
-const CATALOG_ID = "catalog-lcsp-278-release";
+// The portfolio API pins a corpus by its UUID primary key, like every production corpus.
+const CORPUS_ID = "a2780000-0000-4000-8000-000000000278";
+const CORPUS_VERSION = "corpus-lcsp-278-release";
 const DOCUMENT_ROW_ID = "doc-row-lcsp-278-release";
 const DOCUMENT_ID = "LAW-LCSP-278";
 const CHUNK_ID = "chunk_lcsp278_release";
-const LEGAL_RULE_ID = "LEGAL-LCSP-278-RELEASE";
 const COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567";
 
 async function main(): Promise<void> {
@@ -110,17 +110,14 @@ async function deleteCheckpointFixtures(tableName: string): Promise<void> {
 }
 
 async function deleteLegalFixtures(): Promise<void> {
-  await prisma.legalRule.deleteMany({
-    where: { legalRuleCatalogVersionId: CATALOG_ID },
+  await prisma.legalRetrievalIndex.deleteMany({
+    where: { legalCorpusVersionId: CORPUS_ID },
   });
   await prisma.legalDocumentChunk.deleteMany({
     where: { legalCorpusVersionId: CORPUS_ID },
   });
   await prisma.legalSourceDocument.deleteMany({
     where: { legalCorpusVersionId: CORPUS_ID },
-  });
-  await prisma.legalRuleCatalogVersion.deleteMany({
-    where: { id: CATALOG_ID },
   });
   await prisma.legalCorpusVersion.deleteMany({
     where: { id: CORPUS_ID },
@@ -130,12 +127,13 @@ async function deleteLegalFixtures(): Promise<void> {
 async function seedLegalFixtures(): Promise<void> {
   const content =
     "AI recommendation systems must preserve human approval authority before automated action.";
-  const contentSha256 = createHash("sha256").update(content).digest("hex");
+  // Production corpus hashes carry the sha256: prefix.
+  const contentSha256 = `sha256:${createHash("sha256").update(content).digest("hex")}`;
 
   await prisma.legalCorpusVersion.create({
     data: {
       id: CORPUS_ID,
-      version: CORPUS_ID,
+      version: CORPUS_VERSION,
       status: LegalRuleLifecycleStatus.APPROVED,
       sourceManifest: { source: "lcsp-278-release-vertical" },
       approvedAt: new Date("2026-08-25T00:00:00.000Z"),
@@ -170,36 +168,16 @@ async function seedLegalFixtures(): Promise<void> {
       legalStatus: "ACTIVE",
     },
   });
-  await prisma.legalRuleCatalogVersion.create({
+  await prisma.legalRetrievalIndex.create({
     data: {
-      id: CATALOG_ID,
-      version: CATALOG_ID,
-      status: LegalRuleLifecycleStatus.APPROVED,
-      ruleRefs: [LEGAL_RULE_ID],
-      approvedAt: new Date("2026-08-25T00:00:00.000Z"),
-    },
-  });
-  await prisma.legalRule.create({
-    data: {
-      legalRuleId: LEGAL_RULE_ID,
-      legalRuleCatalogVersionId: CATALOG_ID,
-      ruleFamily: "AI_RECOMMENDATION_HUMAN_APPROVAL",
-      requiredFacts: {
-        concept: "approval authority",
-        requiredEvidence: ["CONTROL"],
-      },
-      optionalFacts: {},
-      blockingFacts: {},
-      unknownFactPolicy: "BLOCK_ON_UNKNOWN",
-      citationLocatorRefs: [
-        {
-          legalCorpusVersionId: CORPUS_ID,
-          documentId: DOCUMENT_ID,
-          locator: "Article 1",
-        },
-      ],
-      status: LegalRuleLifecycleStatus.APPROVED,
-      authoredBy: "lcsp-278-release-seed",
+      id: "idx-lcsp-278-release",
+      legalCorpusVersionId: CORPUS_ID,
+      version: "index-lcsp-278-release",
+      status: "VALID",
+      configHash: contentSha256,
+      contentHash: contentSha256,
+      validationManifestRef: "retrieval-validation:lcsp-278-release",
+      validatedAt: new Date("2026-08-25T00:00:00.000Z"),
     },
   });
 }

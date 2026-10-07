@@ -14,7 +14,7 @@ def test_exact_provider_ids_and_clients() -> None:
 @pytest.mark.parametrize("alias", ["google", "gemini", "Google-AI", "LLM7", " openai", "unknown", ""])
 def test_no_aliasing_or_normalization(alias) -> None:
     for call in (mp.canonical_provider, mp.provider_client, mp.provider_init_kwargs):
-        with pytest.raises(RuntimeError, match="supported: openai, anthropic, google_genai, llm7, inception"):
+        with pytest.raises(RuntimeError, match="supported: openai, anthropic, google_genai, llm7, inception, apx"):
             call(alias)
     assert not hasattr(mp, "PROVIDER_ALIASES")
 
@@ -24,8 +24,10 @@ def test_adapter_kwargs_are_transport_only(monkeypatch) -> None:
     assert mp.provider_init_kwargs("google_genai")["request_timeout"] == 7
     assert mp.provider_init_kwargs("openai")["use_responses_api"] is True
     assert mp.provider_init_kwargs("inception")["use_responses_api"] is False
+    assert mp.provider_init_kwargs("apx")["use_responses_api"] is False
+    assert mp.provider_init_kwargs("apx")["base_url"] == "https://api.apmix.ai/v1"
     assert mp.provider_init_kwargs("anthropic") == {}
-    for provider in ("openai", "google_genai", "llm7", "inception"):
+    for provider in ("openai", "google_genai", "llm7", "inception", "apx"):
         assert not {"reasoning", "thinking_level", "temperature", "model"} & set(
             mp.provider_init_kwargs(provider)
         )

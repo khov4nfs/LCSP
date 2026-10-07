@@ -292,6 +292,8 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
   [AUDIT_RESOURCE_TYPES.githubAppInstallState]:
     PrismaAuditResourceType.GITHUB_APP_INSTALL_STATE,
   [AUDIT_RESOURCE_TYPES.httpRoute]: PrismaAuditResourceType.HTTP_ROUTE,
+  [AUDIT_RESOURCE_TYPES.legalPortfolioVersion]:
+    PrismaAuditResourceType.LEGAL_PORTFOLIO_VERSION,
   [AUDIT_RESOURCE_TYPES.legalRule]: PrismaAuditResourceType.LEGAL_RULE,
   [AUDIT_RESOURCE_TYPES.legalRuleCatalogVersion]:
     PrismaAuditResourceType.LEGAL_RULE_CATALOG_VERSION,
@@ -330,6 +332,8 @@ const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
     PrismaOutboxAggregateType.DOCUMENT_REQUEST,
   [OUTBOX_AGGREGATE_TYPES.legalCorpusVersion]:
     PrismaOutboxAggregateType.LEGAL_CORPUS_VERSION,
+  [OUTBOX_AGGREGATE_TYPES.legalPortfolioVersion]:
+    PrismaOutboxAggregateType.LEGAL_PORTFOLIO_VERSION,
   [OUTBOX_AGGREGATE_TYPES.legalRuleMatch]:
     PrismaOutboxAggregateType.LEGAL_RULE_MATCH,
   [OUTBOX_AGGREGATE_TYPES.repositoryScanJob]:
@@ -360,6 +364,8 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
     OUTBOX_AGGREGATE_TYPES.documentRequest,
   [PrismaOutboxAggregateType.LEGAL_CORPUS_VERSION]:
     OUTBOX_AGGREGATE_TYPES.legalCorpusVersion,
+  [PrismaOutboxAggregateType.LEGAL_PORTFOLIO_VERSION]:
+    OUTBOX_AGGREGATE_TYPES.legalPortfolioVersion,
   [PrismaOutboxAggregateType.LEGAL_RULE_MATCH]:
     OUTBOX_AGGREGATE_TYPES.legalRuleMatch,
   [PrismaOutboxAggregateType.REPOSITORY_SCAN_JOB]:

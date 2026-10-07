@@ -71,8 +71,8 @@ def test_legal_runtime_is_grouped_by_capability() -> None:
     assert _py(retrieval / "legal_basis") == {
         "chromadb_citation_retriever.py",
         "legal_match_builder.py",
-        "normative_chunk_filter.py",
         "rule_applicability_evaluator.py",
+        "structural_chunk_filter.py",
     }
 
     assert _dirs(sources) == {

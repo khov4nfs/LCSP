@@ -3,10 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain.agents.middleware import ModelResponse, ModelRetryMiddleware, PIIMiddleware
 
-from middleware.model_governance import (
-    MODEL_GOVERNANCE_MIDDLEWARE,
-    TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE,
-)
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import UsageMeteringMiddleware
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.token_fallback import TokenFallbackMiddleware
@@ -58,10 +55,7 @@ def test_usage_metering_is_the_innermost_governed_model_boundary() -> None:
 
 
 def test_lcsp_effective_middleware_has_no_model_call_limit() -> None:
-    middleware = (
-        *MODEL_GOVERNANCE_MIDDLEWARE,
-        *TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE,
-    )
+    middleware = MODEL_GOVERNANCE_MIDDLEWARE
     assert "ModelCallLimitMiddleware" not in {
         type(item).__name__ for item in middleware
     }
