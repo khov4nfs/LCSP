@@ -13,6 +13,8 @@ export class FinishAssessmentRootHandler implements ICommandHandler<FinishAssess
       leaseToken: command.leaseToken,
       correlationId: command.correlationId,
       toState: command.toState,
+      checkpointId: command.checkpointId,
+      requestIds: command.requestIds,
     });
   }
 }

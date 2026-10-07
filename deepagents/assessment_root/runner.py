@@ -7,6 +7,7 @@ import uuid
 from typing import Any, Callable
 
 from langchain_core.callbacks import BaseCallbackHandler
+from langgraph.types import Command
 
 from assessment_root.agent import create_assessment_root_agent
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
@@ -98,6 +99,8 @@ def run_assessment_root(
     final_state = EXECUTION_SUCCEEDED
     error_type: str | None = None
     run: RootRun | None = None
+    checkpoint_id: str | None = None
+    request_ids: list[str] | None = None
     try:
         # The factory hydrates the pinned repository for THIS thread and returns the backend
         # plus the context manager that exposes it to nested agents/graph tools.
@@ -116,31 +119,55 @@ def run_assessment_root(
             checkpointer=checkpointer,
             governance=governance,
         )
+        config = {
+            "configurable": {"thread_id": run.thread_id},
+            "recursion_limit": recursion_limit,
+            "callbacks": [run.trace, TaskLineage(client, run.execution_id), *(extra_callbacks or [])],
+        }
         with activation or contextlib.nullcontext():
-            agent.invoke(
-                {"messages": [{"role": "user", "content": _START_MESSAGE}]},
-                config={
-                    # The server thread is the one and only checkpoint key of this assessment.
-                    "configurable": {"thread_id": run.thread_id},
-                    "recursion_limit": recursion_limit,
-                    "callbacks": [
-                        run.trace,
-                        TaskLineage(client, run.execution_id),
-                        *(extra_callbacks or []),
-                    ],
-                },
-            )
+            packet: Any = {"messages": [{"role": "user", "content": _START_MESSAGE}]}
+            if checkpointer is not None:
+                saved = agent.get_state(config)
+                expected = claim.get("resumeCheckpointId")
+                actual = saved.config.get("configurable", {}).get("checkpoint_id") if saved.config else None
+                if expected and actual != expected:
+                    raise RuntimeError("server checkpoint binding does not match native Root checkpoint")
+                pending = [item for task in saved.tasks for item in task.interrupts]
+                if pending and context["openHumanRequestIds"]:
+                    # Crash after native persistence but before API settlement: bind the durable
+                    # interrupt without running/resuming blocked graph work.
+                    checkpoint_id = actual
+                    request_ids = sorted({request_id for item in pending for request_id in item.value["requestIds"]})
+                    final_state = EXECUTION_INTERRUPTED
+                elif pending:
+                    if not expected:
+                        raise RuntimeError("human resume lacks server checkpoint authorization")
+                    packet = Command(resume={item.id: {"resolved": True} for item in pending})
+                elif saved.next:
+                    # A killed worker resumes native pending work rather than adding a new turn.
+                    packet = None
+            if final_state != EXECUTION_INTERRUPTED:
+                output = agent.invoke(packet, config=config)
+                interrupts = output.get("__interrupt__", ())
+                if interrupts:
+                    saved = agent.get_state(config)
+                    checkpoint_id = saved.config["configurable"]["checkpoint_id"]
+                    request_ids = sorted({request_id for item in interrupts for request_id in item.value["requestIds"]})
+                    final_state = EXECUTION_INTERRUPTED
+                elif client.context()["openHumanRequestIds"]:
+                    raise RuntimeError("open human blockers without a native interrupt")
     except Exception as error:  # noqa: BLE001 - settled as an execution failure below
         final_state = EXECUTION_FAILED
         error_type = type(error).__name__
         logger.error("ASSESSMENT_ROOT_RUN_FAILED", error_type=error_type, assessment_id=assessment_id)
-    refreshed = client.context()
-    if final_state == EXECUTION_SUCCEEDED and refreshed["openHumanRequestIds"]:
-        final_state = EXECUTION_INTERRUPTED
-    client.finish(final_state)
+    if final_state == EXECUTION_INTERRUPTED:
+        client.finish(final_state, checkpoint_id=checkpoint_id, request_ids=request_ids)
+    else:
+        client.finish(final_state)
     return {
         "state": final_state,
         "executionId": claim["executionId"],
         "threadId": claim["threadId"],
         "errorType": error_type,
+        "checkpointId": checkpoint_id,
     }

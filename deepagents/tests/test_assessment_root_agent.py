@@ -15,12 +15,13 @@ import pytest
 from deepagents.backends import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
+from pydantic import ValidationError
 
 from assessment_root.agent import create_assessment_root_agent, root_permissions
 from assessment_root.client import AssessmentApiError
 from assessment_root.researcher import RESEARCHER_NAME
 from assessment_root.runner import run_assessment_root
-from assessment_root.tools import ROOT_TOOL_NAMES, RootRun, build_root_tools
+from assessment_root.tools import ROOT_TOOL_NAMES, RootRun, SearchTrace, build_root_tools
 from test_native_researcher_task_preparation import ScriptedModel
 
 ASSESSMENT = "11111111-1111-4111-8111-111111111111"
@@ -133,13 +134,13 @@ class FakeClient:
 
     def post_human_request(self, body: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("human", body))
-        return {"requestId": "99999999-9999-4999-8999-999999999999", "caseRevision": self.case_revision}
+        return {"requestId": "99999999-9999-4999-8999-999999999999", "caseRevision": self.case_revision, "requestRevision": 0}
 
     def post_activity(self, body: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("activity", body))
         return {"eventId": "e", "sequence": 1}
 
-    def finish(self, state: str) -> dict[str, Any]:
+    def finish(self, state: str, **metadata: Any) -> dict[str, Any]:
         self.calls.append(("finish", state))
         return {"executionState": state}
 
@@ -192,6 +193,84 @@ def test_cite_rejects_missing_files_and_out_of_range_without_calling_the_api(tmp
     assert not any(kind == "evidence" for kind, _ in client.calls)
 
 
+def test_search_trace_marks_result_truncation_and_reports_dropped_calls(monkeypatch) -> None:
+    monkeypatch.setattr("assessment_root.tools._MAX_TRACE", 1)
+    trace = SearchTrace()
+    trace.on_tool_start({"name": "grep"}, "", run_id="first", inputs={"pattern": "notice"})
+    trace.on_tool_end('{"hasMore":true,"results":[]}', run_id="first")
+    trace.on_tool_start({"name": "glob"}, "", run_id="second", inputs={"pattern": "**/*"})
+    trace.on_tool_end("one result", run_id="second")
+
+    entries, dropped = trace.snapshot_and_reset()
+
+    assert len(entries) == 1 and entries[0]["truncated"] is True
+    assert dropped == 1
+    assert trace.snapshot_and_reset() == ([], 0)
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        ('{"has_more":false,"truncated":false}', False),
+        ('{"hasMore":true,"results":[]}', True),
+        ('{"note":"not truncated","has_more":false}', False),
+        ("[truncated; narrow the query]", True),
+    ],
+)
+def test_search_trace_requires_affirmative_truncation_metadata(output, expected) -> None:
+    trace = SearchTrace()
+    trace.on_tool_start({"name": "grep"}, "", run_id="search", inputs={"pattern": "notice"})
+    trace.on_tool_end(output, run_id="search")
+
+    entries, _ = trace.snapshot_and_reset()
+
+    assert entries[0]["truncated"] is expected
+
+
+@pytest.mark.parametrize(
+    ("output", "count"),
+    [
+        ("No matches found", 0),
+        ("No files found", 0),
+        ("(no results)", 0),
+        ("[]", 0),
+        ("['/README.md', '/src/notices.py']", 2),
+        ('["/README.md", "/src/notices.py"]', 2),
+        ("/README.md\n/src/notices.py", 2),
+        ("/src/notices.py:1: No matches found", 1),
+    ],
+)
+def test_search_trace_counts_native_search_outputs(output, count) -> None:
+    trace = SearchTrace()
+    trace.on_tool_start({"name": "grep"}, "", run_id="search", inputs={"pattern": "notify"})
+    trace.on_tool_end(output, run_id="search")
+    entries, _ = trace.snapshot_and_reset()
+    assert entries[0]["resultCount"] == count
+
+
+def test_search_coverage_rejects_agent_fabricated_scope_and_query_fields(tmp_path) -> None:
+    client = FakeClient()
+    tools = _tools(_run(tmp_path, client))
+    schema = tools["record_search_coverage"].args_schema
+
+    assert set(schema.model_fields) == {
+        "inspected_entry_points",
+        "known_gaps",
+        "direct_source_fallbacks",
+    }
+    with pytest.raises(ValidationError):
+        schema.model_validate(
+            {
+                "scopes": [{"kind": "SOURCE_DIRECTORY", "path": "."}],
+                "queries": [],
+                "repository_commit": COMMIT,
+            }
+        )
+    out = json.loads(tools["record_search_coverage"].invoke({"known_gaps": ["I searched everything"]}))
+    assert out["code"] == "NO_SEARCH_ACTIVITY"
+    assert not any(kind == "evidence" for kind, _ in client.calls)
+
+
 def test_tool_schemas_expose_no_identity_pin_or_lifecycle_fields(tmp_path) -> None:
     tools = _tools(_run(tmp_path, FakeClient()))
     assert set(tools) == set(ROOT_TOOL_NAMES)
@@ -225,7 +304,11 @@ def test_submit_decision_binds_pins_versions_and_idempotency_from_server_state(t
     assert decision["repositorySnapshotId"] == PINS["repositorySnapshotId"]
     assert decision["repositoryCommit"] == COMMIT and decision["scopeId"] == "ASSESSMENT"
     assert request["expectedDecisionRevision"] == 0
-    assert request["idempotencyKey"].startswith(f"{EXECUTION}:ER-1:")
+    assert request["idempotencyKey"].startswith(f"decision:{THREAD}:")
+    tools["submit_rule_decision"].invoke(args)
+    replay = [b for kind, b in client.calls if kind == "decision"][-1]
+    assert replay["idempotencyKey"] == request["idempotencyKey"]
+    assert replay["expectedDecisionRevision"] == 1
     # Semantic content is exactly what the model authored.
     assert decision["applicability"] == "APPLICABLE" and decision["compliance"] == "COMPLIANT"
     assert decision["rationale"] == "The duty applies."
@@ -267,12 +350,24 @@ def test_search_coverage_is_built_from_the_runtime_trace_not_from_model_text(tmp
     client = FakeClient()
     run = _run(tmp_path, client)
     tools = _tools(run)
-    run.trace.entries.extend(
-        [
-            {"tool": "grep", "args": {"pattern": "keep_days", "path": "/src"}, "resultCount": 3, "truncated": False},
-            {"tool": "read_file", "args": {"file_path": "/src/retention.py"}, "resultCount": 4, "truncated": False},
-        ]
+    run.trace.on_tool_start(
+        {"name": "search_code_graph"},
+        "",
+        run_id="graph",
+        inputs={"name_pattern": "notify"},
     )
+    run.trace.on_tool_end("(no results)", run_id="graph")
+    run.trace.on_tool_start(
+        {"name": "grep"}, "", run_id="grep", inputs={"pattern": "notify", "path": "/src"}
+    )
+    run.trace.on_tool_end(
+        '{"results":[{"path":"src/notices.py"},{"path":"src/legacy.py"}],"hasMore":true}',
+        run_id="grep",
+    )
+    run.trace.on_tool_start(
+        {"name": "read_file"}, "", run_id="read", inputs={"file_path": "/src/retention.py"}
+    )
+    run.trace.on_tool_end("RETENTION_DAYS = 7", run_id="read")
     out = json.loads(
         tools["record_search_coverage"].invoke(
             {
@@ -285,15 +380,41 @@ def test_search_coverage_is_built_from_the_runtime_trace_not_from_model_text(tmp
     assert out["ok"] is True
     body = next(b for kind, b in client.calls if kind == "evidence")
     assert body["type"] == "SEARCH_COVERAGE"
+    assert body["repositoryCommit"] == COMMIT
     assert {"kind": "SOURCE_DIRECTORY", "path": "src"} in body["scopes"]
     assert {"kind": "SOURCE_FILE", "path": "src/retention.py"} in body["scopes"]
-    assert body["queries"] == [{"tool": "grep", "query": "keep_days", "resultCount": 3, "truncated": False}]
+    assert {"kind": "GRAPH_INDEX", "path": "."} in body["scopes"]
+    assert body["queries"] == [
+        {"tool": "search_code_graph", "query": "notify", "resultCount": 0, "truncated": False},
+        {"tool": "grep", "query": "notify", "resultCount": 2, "truncated": True},
+    ]
     # Only paths that were actually read can be claimed as inspected / fallback reads.
     assert body["inspectedEntryPoints"] == ["src/retention.py"]
     assert body["directSourceFallbacks"] == [{"path": "src/retention.py", "reason": "graph had no node"}]
     assert body["knownGaps"] == ["dynamic dispatch not traced"]
     again = json.loads(tools["record_search_coverage"].invoke({}))
     assert again["code"] == "NO_SEARCH_ACTIVITY"  # the trace was consumed
+
+
+def test_failed_search_is_recorded_as_a_coverage_gap(tmp_path) -> None:
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+    run.trace.on_tool_start(
+        {"name": "search_code_graph"}, "", run_id="graph", inputs={"name_pattern": "notice"}
+    )
+    run.trace.on_tool_end(
+        "Codebase Memory graph is unavailable: no repository sandbox is active.", run_id="graph"
+    )
+
+    out = json.loads(tools["record_search_coverage"].invoke({}))
+    body = next(body for kind, body in client.calls if kind == "evidence")
+
+    assert out["ok"] is True
+    assert body["queries"] == [
+        {"tool": "search_code_graph", "query": "notice", "resultCount": 0, "truncated": False}
+    ]
+    assert body["knownGaps"] == ["The search_code_graph search did not return a usable result."]
 
 
 # ---- the agent graph ------------------------------------------------------------------------------
@@ -369,7 +490,7 @@ def test_runner_binds_the_server_thread_and_settles_the_execution(tmp_path) -> N
     )
 
 
-def test_runner_reports_an_open_human_request_as_an_interrupt_not_a_failure(tmp_path) -> None:
+def test_runner_rejects_transitional_wait_without_a_native_checkpoint(tmp_path) -> None:
     client = FakeClient(open_requests=["99999999-9999-4999-8999-999999999999"])
     model = RootScriptedModel(responses=[AIMessage(content="waiting")])
     result = run_assessment_root(
@@ -379,7 +500,7 @@ def test_runner_reports_an_open_human_request_as_an_interrupt_not_a_failure(tmp_
         model=model,
         governance=(),
     )
-    assert result["state"] == "INTERRUPTED" and ("finish", "INTERRUPTED") in client.calls
+    assert result["state"] == "FAILED" and ("finish", "FAILED") in client.calls
 
 
 def test_runner_settles_a_crash_as_a_failed_execution_with_the_same_thread(tmp_path) -> None:
@@ -441,10 +562,12 @@ def test_boundary_is_registered_once_and_rejects_malformed_commands() -> None:
         boundary.handle({}, "corr")
 
 
-def test_boundary_skips_a_held_lease_and_a_stale_delivery_without_error() -> None:
+def test_boundary_skips_a_held_lease_and_a_stale_delivery_without_error(monkeypatch) -> None:
     from types import SimpleNamespace
 
     from assessment_root.boundary import AssessmentRootBoundary
+    import contextlib
+    monkeypatch.setattr("assessment_root.boundary.postgres_checkpointer", lambda: contextlib.nullcontext(InMemorySaver()))
 
     for code in ("ASSESSMENT_EXECUTION_LEASE_HELD", "ASSESSMENT_NOT_ACTIVE"):
         def runner(client, assessment_id, **kwargs):  # noqa: ANN001
@@ -454,3 +577,86 @@ def test_boundary_skips_a_held_lease_and_a_stale_delivery_without_error() -> Non
             SimpleNamespace(nestjs_api_base_url="http://x", worker_api_key="k"), client=FakeClient(), runner=runner
         )
         assert boundary.handle({"assessmentId": ASSESSMENT}, "corr")["state"] == "SKIPPED"
+
+
+def test_root_human_tool_uses_native_interrupt_and_replays_the_same_request(tmp_path) -> None:
+    from langgraph.types import Command
+
+    class HumanClient(FakeClient):
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            if self.case_revision == 0:
+                self.open_requests = [result["requestId"]]
+            return result
+
+    client = HumanClient()
+    run = _run(tmp_path, client)
+    saver = InMemorySaver()
+    model = RootScriptedModel(responses=[_call("open_human_request", {
+        "engineering_rule_id": "ER-1", "question": "Who owns the operational policy?",
+        "unresolved_fact": "Operational policy owner", "decision_impact": ["Determines responsibility"],
+        "resolution_attempts": ["Reviewed the available sources and accepted facts"],
+    }, "human-call"), AIMessage(content="Investigating the confirmed owner.")])
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
+    config = {"configurable": {"thread_id": THREAD}}
+    result = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
+    assert result["__interrupt__"][0].value["requestIds"] == client.open_requests
+    checkpoint_id = agent.get_state(config).config["configurable"]["checkpoint_id"]
+    assert checkpoint_id
+    client.open_requests = []
+    client.case_revision = 1
+    agent.invoke(Command(resume={result["__interrupt__"][0].id: {"resolved": True}}), config)
+    calls = [body for kind, body in client.calls if kind == "human"]
+    assert len(calls) == 2 and calls[0]["idempotencyKey"] == calls[1]["idempotencyKey"]
+    assert run.case_revision == 1 and not agent.get_state(config).next
+
+
+@pytest.mark.parametrize("rejected", [False, True])
+def test_unresolvable_fact_tool_blocks_then_resumes_without_reapplying_the_claim(tmp_path, rejected) -> None:
+    from langgraph.types import Command
+
+    class BlockedClient(FakeClient):
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            if self.case_revision == 0:
+                self.open_requests = [result["requestId"]]
+            return result
+
+        def report_unresolvable_human_fact(self, body):
+            self.calls.append(("unresolvable", body))
+            if rejected:
+                raise AssessmentApiError(409, "ASSESSMENT_EVIDENCE_REFERENCE_INVALID")
+            return {"lifecycleState": "BLOCKED"}
+
+    client = BlockedClient()
+    run = _run(tmp_path, client)
+    saver = InMemorySaver()
+    model = RootScriptedModel(responses=[_call("report_human_fact_unresolvable", {
+        "engineering_rule_id": "ER-1", "question": "Who owned the historical operational policy?",
+        "unresolved_fact": "Historical policy owner", "decision_impact": ["Determines responsibility"],
+        "resolution_attempts": ["Reviewed all accepted sources"],
+        "unavailability_rationale": "The records were permanently destroyed and no other source exists under the contract.",
+        "evidence_ids": ["66666666-6666-4666-8666-666666666666"],
+    }, "blocked-call"), AIMessage(content="Investigating newly recovered facts.")])
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
+    config = {"configurable": {"thread_id": THREAD}}
+    result = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
+    assert result["__interrupt__"][0].value["requestIds"] == client.open_requests
+    if rejected:
+        assert result["__interrupt__"][0].value["claimRejected"]["code"] == "ASSESSMENT_EVIDENCE_REFERENCE_INVALID"
+    claim = next(body for kind, body in client.calls if kind == "unresolvable")
+    assert claim["expectedCaseRevision"] == 0 and claim["expectedRequestRevision"] == 0
+    assert "lifecycleState" not in claim and "threadId" not in claim
+    client.open_requests = []
+    client.case_revision = 1
+    agent.invoke(Command(resume={result["__interrupt__"][0].id: {"resolved": True}}), config)
+    assert sum(kind == "unresolvable" for kind, _ in client.calls) == 1
+    assert run.case_revision == 1 and not agent.get_state(config).next
+
+
+def test_production_root_requires_a_durable_checkpointer(monkeypatch) -> None:
+    from assessment_root.boundary import postgres_checkpointer
+    monkeypatch.delenv("LANGGRAPH_CHECKPOINT_DATABASE_URL", raising=False)
+    with pytest.raises(RuntimeError, match="required"):
+        with postgres_checkpointer():
+            pass

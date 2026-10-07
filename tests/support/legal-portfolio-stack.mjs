@@ -16,7 +16,7 @@ export const sha = (text) => createHash("sha256").update(text).digest("hex");
 export const contentHash = (text) => `sha256:${sha(text)}`; // corpus representation of chunk hashes
 const { Client } = createRequire(path.join(apiDir, "package.json"))("pg");
 
-export async function startStack({ database, apiPort, dbPort = Number(process.env.LCSP_W2_PG_PORT ?? 55441) }) {
+export async function startStack({ database, apiPort, dbPort = Number(process.env.LCSP_W2_PG_PORT ?? 55441), resetDatabase = true }) {
   const host = "127.0.0.1";
   const databaseUrl = `postgresql://postgres:postgres@${host}:${dbPort}/${database}?schema=public`;
   const base = `http://${host}:${apiPort}`;
@@ -24,8 +24,13 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
   const adminClient = new Client({ connectionString: `postgresql://postgres:postgres@${host}:${dbPort}/postgres` });
   await adminClient.connect();
   try {
-    await adminClient.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
-    await adminClient.query(`CREATE DATABASE "${database}"`);
+    if (resetDatabase) {
+      await adminClient.query(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
+      await adminClient.query(`CREATE DATABASE "${database}"`);
+    } else {
+      const existing = await adminClient.query("SELECT 1 FROM pg_database WHERE datname=$1", [database]);
+      assert.equal(existing.rowCount, 1, "Resume requires the existing disposable database");
+    }
   } finally {
     await adminClient.end();
   }
@@ -124,7 +129,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
     return corpusId;
   }
 
-  return { db, q, base, post, get, stop, seedCorpus, databaseUrl };
+  return { db, q, base, post, get, stop, seedCorpus, databaseUrl, logs: log };
 }
 
 /** Runs a Python script with the repo PYTHONPATH; resolves with the last JSON line it prints. */

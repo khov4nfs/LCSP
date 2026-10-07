@@ -5,7 +5,11 @@ import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   ASSESSMENT_LIFECYCLE_STATES,
+  BLOCKER_REASONS,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
+  assessmentBlockerSchema,
   type AgentExecutionState,
+  type BlockerReason,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
@@ -26,6 +30,8 @@ export interface AuthorizedRootRun {
   executionId: string;
   lifecycleState: string;
   lifecycleRevision: number;
+  blockerReason: BlockerReason | null;
+  blockerReference: Prisma.JsonValue | null;
 }
 
 const ROOT_ACTOR = {
@@ -59,7 +65,28 @@ export class AssessmentRuntimeAuthority {
           { status: HttpStatus.NOT_FOUND },
         );
       }
-      if (row.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE) {
+      const blockedRequestId = humanFactBlockerRequestId(row);
+      const blockedHumanWait =
+        row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED &&
+        blockedRequestId !== null &&
+        (await tx.assessmentHumanRequest.count({
+          where: {
+            assessmentId: input.assessmentId,
+            requestId: blockedRequestId,
+            threadId: row.threadId,
+            status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+          },
+        })) === 1;
+      const recoveringHumanInterrupt =
+        (row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
+          blockedHumanWait) &&
+        row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
+        row.leaseExpiresAt !== null &&
+        row.leaseExpiresAt <= new Date();
+      if (
+        row.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE &&
+        !recoveringHumanInterrupt
+      ) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
           input.correlationId,
@@ -126,6 +153,7 @@ export class AssessmentRuntimeAuthority {
         leaseExpiresAt: leaseExpiresAt.toISOString(),
         checkpointNamespace: row.checkpointNamespace,
         executionState: AGENT_EXECUTION_STATES.RUNNING,
+        resumeCheckpointId: resumesSameExecution ? row.checkpointId : null,
       };
     });
   }
@@ -181,6 +209,8 @@ export class AssessmentRuntimeAuthority {
       executionId: row.currentExecutionId,
       lifecycleState: row.lifecycleState ?? "",
       lifecycleRevision: row.lifecycleRevision ?? 0,
+      blockerReason: row.blockerReason,
+      blockerReference: row.blockerReference,
     };
   }
 
@@ -217,18 +247,78 @@ export class AssessmentRuntimeAuthority {
     leaseToken: string | undefined;
     correlationId: string;
     toState: AgentExecutionState;
+    checkpointId?: string;
+    requestIds?: string[];
   }): Promise<{ executionState: AgentExecutionState }> {
     return this.prisma.$transaction(async (tx) => {
       const run = await this.authorizeInTx(tx, {
         ...input,
         requireActive: false,
       });
+      if (
+        ![
+          AGENT_EXECUTION_STATES.INTERRUPTED,
+          AGENT_EXECUTION_STATES.PAUSED,
+          AGENT_EXECUTION_STATES.SUCCEEDED,
+          AGENT_EXECUTION_STATES.FAILED,
+          AGENT_EXECUTION_STATES.CANCELLED,
+        ].some((state) => state === input.toState)
+      ) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+          input.correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
+      if (input.toState === AGENT_EXECUTION_STATES.INTERRUPTED) {
+        const requests = await tx.assessmentHumanRequest.findMany({
+          where: {
+            assessmentId: input.assessmentId,
+            status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+          },
+        });
+        const ids = new Set(input.requestIds);
+        const blockedRequestId = humanFactBlockerRequestId(run);
+        const blockedHumanWait =
+          run.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED &&
+          blockedRequestId !== null &&
+          ids.has(blockedRequestId);
+        if (
+          !input.checkpointId ||
+          requests.length === 0 ||
+          requests.length !== ids.size ||
+          (run.lifecycleState !==
+            ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN &&
+            !blockedHumanWait) ||
+          requests.some(
+            (request) =>
+              !ids.has(request.requestId) ||
+              request.threadId !== run.threadId ||
+              (request.checkpointId &&
+                request.checkpointId !== input.checkpointId),
+          )
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.CHECKPOINT_INVALID,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        await tx.assessmentHumanRequest.updateMany({
+          where: {
+            assessmentId: input.assessmentId,
+            status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+          },
+          data: { checkpointId: input.checkpointId },
+        });
+      }
       await tx.assessmentRuntime.update({
         where: { assessmentId: input.assessmentId },
         data: {
           executionState: input.toState,
           leaseToken: null,
           leaseExpiresAt: null,
+          ...(input.checkpointId ? { checkpointId: input.checkpointId } : {}),
         },
       });
       await this.events.appendInTx(tx, {
@@ -251,8 +341,11 @@ export class AssessmentRuntimeAuthority {
 interface LockedRuntimeRow {
   lifecycleState: string | null;
   lifecycleRevision: number | null;
+  blockerReason: BlockerReason | null;
+  blockerReference: Prisma.JsonValue | null;
   threadId: string;
   checkpointNamespace: string;
+  checkpointId: string | null;
   currentExecutionId: string | null;
   executionState: AgentExecutionState;
   leaseToken: string | null;
@@ -265,19 +358,49 @@ async function lockAssessmentAndRuntime(
   assessmentId: string,
 ): Promise<LockedRuntimeRow | undefined> {
   const assessment = await tx.$queryRaw<
-    Array<{ lifecycleState: string | null; lifecycleRevision: number | null }>
+    Array<
+      Pick<
+        LockedRuntimeRow,
+        | "lifecycleState"
+        | "lifecycleRevision"
+        | "blockerReason"
+        | "blockerReference"
+      >
+    >
   >(
-    Prisma.sql`SELECT "lifecycleState", "lifecycleRevision" FROM "Assessment"
+    Prisma.sql`SELECT "lifecycleState", "lifecycleRevision", "blockerReason", "blockerReference" FROM "Assessment"
       WHERE "id" = ${assessmentId} FOR UPDATE`,
   );
   if (!assessment[0]) return undefined;
   const runtime = await tx.$queryRaw<
-    Array<Omit<LockedRuntimeRow, "lifecycleState" | "lifecycleRevision">>
+    Array<
+      Omit<
+        LockedRuntimeRow,
+        | "lifecycleState"
+        | "lifecycleRevision"
+        | "blockerReason"
+        | "blockerReference"
+      >
+    >
   >(
-    Prisma.sql`SELECT "threadId", "checkpointNamespace", "currentExecutionId", "executionState",
+    Prisma.sql`SELECT "threadId", "checkpointNamespace", "checkpointId", "currentExecutionId", "executionState",
         "leaseToken", "leaseExpiresAt"
       FROM "AssessmentRuntime" WHERE "assessmentId" = ${assessmentId} FOR UPDATE`,
   );
   if (!runtime[0]) return undefined;
   return { ...assessment[0], ...runtime[0] };
+}
+
+function humanFactBlockerRequestId(row: {
+  blockerReason: unknown;
+  blockerReference: unknown;
+}): string | null {
+  const blocker = assessmentBlockerSchema.safeParse({
+    reason: row.blockerReason,
+    reference: row.blockerReference,
+  });
+  return blocker.success &&
+    blocker.data.reason === BLOCKER_REASONS.HUMAN_FACT_UNRESOLVABLE
+    ? blocker.data.reference.humanResolutionRequestId
+    : null;
 }

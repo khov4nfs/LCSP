@@ -11,6 +11,8 @@ export class FinishAssessmentRootCommand extends Command<
     public readonly leaseToken: string,
     public readonly toState: AgentExecutionState,
     public readonly correlationId: string,
+    public readonly checkpointId?: string,
+    public readonly requestIds?: string[],
   ) {
     super();
   }

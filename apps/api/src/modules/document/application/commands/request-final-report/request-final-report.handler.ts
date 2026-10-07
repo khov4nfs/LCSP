@@ -54,7 +54,7 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
   ): Promise<FinalReportRequestDto> {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: command.assessmentId },
-      select: { id: true },
+      select: { id: true, lifecycleState: true },
     });
 
     if (!assessment) {
@@ -62,6 +62,13 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
         DOCUMENT_ERROR_CODES.assessmentNotFound,
         command.correlationId,
         { status: HttpStatus.NOT_FOUND },
+      );
+    }
+    if (assessment.lifecycleState !== null) {
+      throw problemException(
+        DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+        command.correlationId,
+        { status: HttpStatus.CONFLICT },
       );
     }
 

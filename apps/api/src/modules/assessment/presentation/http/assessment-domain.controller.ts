@@ -8,6 +8,8 @@ import {
   type RootActivityRequest,
   type StartRuleInvestigationRequest,
   type SubmitRuleDecisionRequest,
+  type RequestAssessmentFinalization,
+  type SubmitAssessmentFinalReportRequest,
   acceptCaseFactRequestSchema,
   acceptEvidenceRequestSchema,
   claimAssessmentRootRequestSchema,
@@ -15,11 +17,13 @@ import {
   rootActivityRequestSchema,
   startRuleInvestigationRequestSchema,
   submitRuleDecisionRequestSchema,
+  requestAssessmentFinalizationSchema,
+  submitAssessmentFinalReportRequestSchema,
+  openAssessmentHumanRequestSchema,
+  type OpenAssessmentHumanRequest,
+  reportUnresolvableHumanFactRequestSchema,
+  type ReportUnresolvableHumanFactRequest,
 } from "@lcsp/contracts/assessment-domain";
-import {
-  type OpenHumanResolutionRequest,
-  openHumanResolutionRequestSchema,
-} from "@lcsp/contracts/assessment";
 import {
   Body,
   Controller,
@@ -45,9 +49,12 @@ import { ClaimAssessmentRootCommand } from "../../application/commands/claim-ass
 import { FinishAssessmentRootCommand } from "../../application/commands/finish-assessment-root/finish-assessment-root.command.js";
 import { HeartbeatAssessmentRootCommand } from "../../application/commands/heartbeat-assessment-root/heartbeat-assessment-root.command.js";
 import { OpenHumanRequestCommand } from "../../application/commands/open-human-request/open-human-request.command.js";
+import { ReportUnresolvableHumanFactCommand } from "../../application/commands/report-unresolvable-human-fact/report-unresolvable-human-fact.command.js";
 import { RecordRootActivityCommand } from "../../application/commands/record-root-activity/record-root-activity.command.js";
+import { RequestAssessmentFinalizationCommand } from "../../application/commands/request-assessment-finalization/request-assessment-finalization.command.js";
 import { StartRuleInvestigationCommand } from "../../application/commands/start-rule-investigation/start-rule-investigation.command.js";
 import { SubmitRuleDecisionCommand } from "../../application/commands/submit-rule-decision/submit-rule-decision.command.js";
+import { SubmitAssessmentFinalReportCommand } from "../../application/commands/submit-assessment-final-report/submit-assessment-final-report.command.js";
 import { GetPinnedPortfolioQuery } from "../../application/queries/get-pinned-portfolio/get-pinned-portfolio.query.js";
 import { GetRootContextQuery } from "../../application/queries/get-root-context/get-root-context.query.js";
 import {
@@ -140,6 +147,8 @@ export class AssessmentDomainController {
           lease,
           body.state,
           this.correlation(req),
+          body.checkpointId,
+          body.requestIds,
         ),
       ),
     );
@@ -295,16 +304,94 @@ export class AssessmentDomainController {
     @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
     @Body(
       requestPipe(
-        openHumanResolutionRequestSchema,
+        openAssessmentHumanRequestSchema,
         ASSESSMENT_DOMAIN_ERROR_CODES.HUMAN_REQUEST_INVALID,
       ),
     )
-    body: OpenHumanResolutionRequest,
+    body: OpenAssessmentHumanRequest,
     @Req() req: AuthenticatedRequest,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
         new OpenHumanRequestCommand(
+          assessmentId,
+          lease,
+          body,
+          this.correlation(req),
+        ),
+      ),
+    );
+  }
+
+  @Post("human-fact-unresolvable")
+  @UseGuards(AssessmentLeaseGuard)
+  @HttpCode(200)
+  async reportUnresolvableHumanFact(
+    @Param(
+      "assessmentId",
+      bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Body(bodyPipe(reportUnresolvableHumanFactRequestSchema))
+    body: ReportUnresolvableHumanFactRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ReportUnresolvableHumanFactCommand(
+          assessmentId,
+          lease,
+          body,
+          this.correlation(req),
+        ),
+      ),
+    );
+  }
+
+  @Post("finalization")
+  @UseGuards(AssessmentLeaseGuard)
+  @HttpCode(200)
+  async requestFinalization(
+    @Param(
+      "assessmentId",
+      bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Body(bodyPipe(requestAssessmentFinalizationSchema))
+    body: RequestAssessmentFinalization,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new RequestAssessmentFinalizationCommand(
+          assessmentId,
+          lease,
+          body,
+          this.correlation(req),
+        ),
+      ),
+    );
+  }
+
+  @Post("final-report")
+  @UseGuards(AssessmentLeaseGuard)
+  @HttpCode(200)
+  async finalReport(
+    @Param(
+      "assessmentId",
+      bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Body(bodyPipe(submitAssessmentFinalReportRequestSchema))
+    body: SubmitAssessmentFinalReportRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new SubmitAssessmentFinalReportCommand(
           assessmentId,
           lease,
           body,

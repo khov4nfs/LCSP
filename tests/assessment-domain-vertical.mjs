@@ -5,10 +5,33 @@
 // native task() researcher. Only the model is scripted: this proves plumbing, authority, isolation,
 // pins, atomicity and concurrency - NOT reasoning quality.
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import {
+  AGENTIC_ASSESSMENT_EVENT_TYPES,
+  ASSESSMENT_LIFECYCLE_STATES,
+  RULE_DECISION_REFERENCE_TYPES,
+} from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_ARTIFACT_KINDS,
+  ASSESSMENT_COMPLETION_BLOCKER_CODES,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
+  ASSESSMENT_EVIDENCE_TYPES,
+  SEARCH_COVERAGE_SCOPE_KINDS,
+} from "@lcsp/contracts/assessment-domain";
+import {
+  DOCUMENT_ERROR_CODES,
+  DOCUMENT_REQUEST_STATUSES,
+} from "@lcsp/contracts/document";
 
 import {
   contentHash,
@@ -18,8 +41,23 @@ import {
   workerKey,
 } from "./support/legal-portfolio-stack.mjs";
 
+const requireApi = createRequire(path.join(root, "apps/api/package.json"));
+const {
+  ArtifactLifecycleState,
+  AssessmentArtifactKind,
+  ClassificationGuardrailStatus,
+  DocumentRequestStatus,
+  DocumentType,
+  EvidenceAcceptanceStatus,
+} = requireApi("@prisma/client");
+
 const database = "lcsp_w3_vertical";
 const apiPort = Number(process.env.LCSP_W3_API_PORT ?? 3413);
+const artifactStoragePath = mkdtempSync(
+  path.join(tmpdir(), "lcsp-w4-artifacts-"),
+);
+const previousArtifactStoragePath = process.env.LCSP_ARTIFACT_STORAGE_PATH;
+process.env.LCSP_ARTIFACT_STORAGE_PATH = artifactStoragePath;
 let checks = 0;
 const ok = (value, message) => {
   assert.ok(value, message);
@@ -58,6 +96,9 @@ const { q, base, post, stop, seedCorpus } = await startStack({
 });
 const { hashSecret } = await import(
   path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
+);
+const { canonicalJson } = await import(
+  path.join(root, "apps/api/dist/src/modules/assessment/domain/domain-ids.js")
 );
 
 /** HTTP helper for non-portfolio routes. */
@@ -421,6 +462,16 @@ try {
     ).rows[0].t,
     threadA,
   );
+  const legacyReport = await customerHttp(
+    "POST",
+    `/assessments/${A.id}/documents/final-report`,
+    owner.token,
+  );
+  eq(legacyReport.status, 409, "canonical assessment uses the artifact path");
+  eq(
+    legacyReport.body.problem.code,
+    DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+  );
 
   // ---- isolation: B has its own thread, namespace and lease; A's data is invisible to it ---------
   const B = await newAssessment("W3 vertical B");
@@ -462,6 +513,23 @@ try {
   eq(
     ctxB.body.data.coverage.every((c) => c.resolutionState === "PENDING"),
     true,
+  );
+  const blockedFinalization = await runtime(B.id, "finalization", {
+    lease: winner.leaseToken,
+    body: {},
+  });
+  eq(blockedFinalization.status, 200);
+  eq(
+    blockedFinalization.body.data.lifecycleState,
+    ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+  );
+  ok(
+    blockedFinalization.body.data.blockers.some(
+      (blocker) =>
+        blocker.code ===
+        ASSESSMENT_COMPLETION_BLOCKER_CODES.DECISION_UNRESOLVED,
+    ),
+    "pending required rules block finalization",
   );
   // B's lease cannot be used on A and vice versa
   eq(
@@ -546,6 +614,25 @@ try {
     },
   });
   eq(wrongCommit.body.problem.code, "ASSESSMENT_EVIDENCE_PIN_MISMATCH");
+  const staleCoverage = await runtime(B.id, "evidence", {
+    lease: winner.leaseToken,
+    body: {
+      type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
+      repositoryCommit: "d".repeat(40),
+      scopes: [
+        { kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY, path: "src" },
+      ],
+      queries: [],
+      inspectedEntryPoints: [],
+      knownGaps: [],
+      directSourceFallbacks: [],
+    },
+  });
+  eq(
+    staleCoverage.body.problem.code,
+    ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_PIN_MISMATCH,
+    "stale SEARCH_COVERAGE is rejected before evidence persistence",
+  );
   eq(
     (
       await runtime(B.id, "finish", {
@@ -671,9 +758,260 @@ try {
     /cannot be ACTIVE|decision coverage/,
   );
 
+  // ---- W4 Completion Gate and immutable Root-authored report ------------------------------------
+  const finalizer = (await runtime(A.id, "claim")).body.data;
+  ok(finalizer.leaseToken, "Root lease is required for finalization");
+  const finalization = await runtime(A.id, "finalization", {
+    lease: finalizer.leaseToken,
+    body: {},
+  });
+  eq(finalization.status, 200, JSON.stringify(finalization.body));
+  eq(finalization.body.data, {
+    lifecycleState: ASSESSMENT_LIFECYCLE_STATES.FINALIZING,
+    blockers: [],
+  });
+  const reportRequest = {
+    kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+    summary: "The assessment findings are complete.",
+    findings: ["ER-DEF", "ER-RET", "ER-XREF"].map((engineeringRuleId) => ({
+      engineeringRuleId,
+      summary: "The finding follows the accepted rule decision.",
+      recommendations: [],
+    })),
+  };
+  for (const summary of [
+    "The outcome remains UNKNOWN.",
+    "There is an unresolved question.",
+  ]) {
+    const invalidReport = await runtime(A.id, "final-report", {
+      lease: finalizer.leaseToken,
+      body: { ...reportRequest, summary },
+    });
+    eq(invalidReport.status, 422);
+    eq(
+      invalidReport.body.problem.code,
+      ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
+    );
+  }
+  eq(
+    (await lifecycle(A.id)).lifecycleState,
+    ASSESSMENT_LIFECYCLE_STATES.FINALIZING,
+  );
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
+        [A.id, AssessmentArtifactKind.FINAL_REPORT],
+      )
+    ).rows[0].n,
+    0,
+  );
+  const finalReport = await runtime(A.id, "final-report", {
+    lease: finalizer.leaseToken,
+    body: reportRequest,
+  });
+  eq(finalReport.status, 200, JSON.stringify(finalReport.body));
+  eq(
+    [finalReport.body.data.lifecycleState, finalReport.body.data.replayed],
+    [ASSESSMENT_LIFECYCLE_STATES.COMPLETE, false],
+  );
+  const artifact = (
+    await q(
+      `SELECT "artifactId" AS id, "lifecycleState" AS state, "contentSha256" AS hash, "sizeBytes" AS size, "storageRef" AS ref, "schemaVersion" AS schema, "legalPortfolioVersionId" AS portfolio, "repositorySnapshotId" AS snapshot, "repositoryCommit" AS commit, "caseRevision" AS "caseRevision", "reportRequestDigest" AS "requestDigest" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
+      [A.id, AssessmentArtifactKind.FINAL_REPORT],
+    )
+  ).rows[0];
+  eq(
+    [artifact.id, artifact.state],
+    [finalReport.body.data.artifactId, ArtifactLifecycleState.ACTIVE],
+  );
+  ok(
+    artifact.hash && artifact.size > 0 && artifact.ref,
+    "artifact metadata persisted",
+  );
+  const manifest = JSON.parse(artifact.ref);
+  const storageRoot =
+    process.env.LCSP_ARTIFACT_STORAGE_PATH ??
+    path.join(root, "tmp", "lcsp-storage");
+  const content = readFileSync(
+    path.join(storageRoot, "chunks", manifest.chunks[0]),
+    "utf8",
+  );
+  eq(
+    createHash("sha256").update(content).digest("hex"),
+    artifact.hash.replace(/^sha256:/u, ""),
+  );
+  const reportArtifact = JSON.parse(content);
+  eq(
+    [
+      reportArtifact.artifactId,
+      reportArtifact.assessmentId,
+      reportArtifact.kind,
+      reportArtifact.schemaVersion,
+    ],
+    [
+      artifact.id,
+      A.id,
+      ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+      artifact.schema,
+    ],
+  );
+  eq(reportArtifact.pins, {
+    legalPortfolioVersionId: artifact.portfolio,
+    repositorySnapshotId: artifact.snapshot,
+    repositoryScanJobId: pinned.job,
+    repositoryCommit: COMMIT,
+  });
+  eq(
+    [
+      reportArtifact.kind,
+      reportArtifact.assessmentId,
+      reportArtifact.caseRevision,
+      reportArtifact.findings.length,
+      reportArtifact.pins.repositoryCommit,
+    ],
+    [ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT, A.id, 1, 3, COMMIT],
+  );
+  const fingerprintInput = reportArtifact.findings.map(
+    ({ decisionId, decisionRevision, decision }) => ({
+      decisionId,
+      decisionRevision,
+      decision,
+    }),
+  );
+  eq(
+    reportArtifact.decisionFingerprint,
+    `sha256:${createHash("sha256").update(canonicalJson(fingerprintInput)).digest("hex")}`,
+  );
+  const referencedEvidence = new Set();
+  const referencedFacts = new Set();
+  for (const { decision } of reportArtifact.findings) {
+    for (const reference of [
+      ...decision.references,
+      ...decision.criteria.flatMap((criterion) => criterion.references),
+    ]) {
+      if (
+        reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
+      ) {
+        referencedEvidence.add(reference.evidenceId);
+      } else {
+        referencedFacts.add(reference.factId);
+      }
+    }
+  }
+  eq(reportArtifact.provenance.evidenceIds, [...referencedEvidence].sort());
+  eq(reportArtifact.provenance.factIds, [...referencedFacts].sort());
+  eq(Boolean(artifact.requestDigest), true);
+  await rejects(
+    "published final artifact is immutable",
+    `UPDATE "AssessmentArtifact" SET "contentSha256"=$2 WHERE "artifactId"=$1`,
+    [artifact.id, contentHash("tampered final report")],
+    /published artifact is immutable/,
+  );
+  await rejects(
+    "published final artifact request identity is immutable",
+    `UPDATE "AssessmentArtifact" SET "reportRequestDigest"=$2 WHERE "artifactId"=$1`,
+    [artifact.id, `${artifact.requestDigest}-tampered`],
+    /published artifact is immutable/,
+  );
+  ok(
+    !/\b(?:UNKNOWN|PARTIAL|NEEDS_CONTEXT|TBD)\b|open questions?|unresolved decision/i.test(
+      content,
+    ),
+    "final artifact contains no unresolved outcome language",
+  );
+  const replayedReport = await runtime(A.id, "final-report", {
+    lease: finalizer.leaseToken,
+    body: reportRequest,
+  });
+  eq(replayedReport.status, 200);
+  eq(replayedReport.body.data.replayed, true);
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
+        [A.id, AssessmentArtifactKind.FINAL_REPORT],
+      )
+    ).rows[0].n,
+    1,
+  );
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "AssessmentEvent" WHERE "assessmentId"=$1 AND "eventType"=$2`,
+        [A.id, AGENTIC_ASSESSMENT_EVENT_TYPES.ARTIFACT_CHANGED],
+      )
+    ).rows[0].n,
+    2,
+  );
+  eq(
+    (await lifecycle(A.id)).lifecycleState,
+    ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+  );
+  const classificationId = randomUUID();
+  const legacyRequestId = randomUUID();
+  await q(
+    `INSERT INTO "ClassificationResult"(id,"assessmentId",status,"guardrailStatus") VALUES ($1,$2,$3,$4)`,
+    [
+      classificationId,
+      A.id,
+      EvidenceAcceptanceStatus.ACCEPTED,
+      ClassificationGuardrailStatus.PASSED,
+    ],
+  );
+  await q(
+    `INSERT INTO "DocumentRequest"(id,"assessmentId","requestedById","classificationResultId","documentType",status,"correlationId","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,now())`,
+    [
+      legacyRequestId,
+      A.id,
+      owner.id,
+      classificationId,
+      DocumentType.FINAL_REPORT,
+      DocumentRequestStatus.QUEUED,
+      randomUUID(),
+    ],
+  );
+  const legacyContext = await http(
+    "GET",
+    `/internal/document-requests/${legacyRequestId}/generation-context`,
+  );
+  eq(legacyContext.status, 409);
+  eq(
+    legacyContext.body.problem.code,
+    DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+  );
+  const legacyCallback = await http(
+    "POST",
+    `/internal/document-requests/${legacyRequestId}/callback`,
+    {
+      status: DOCUMENT_REQUEST_STATUSES.ready,
+      document_url: "https://example.invalid/legacy-final-report.pdf",
+    },
+  );
+  eq(legacyCallback.status, 409);
+  eq(
+    legacyCallback.body.problem.code,
+    DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+  );
+  eq(
+    (
+      await q(
+        `SELECT status,"documentUrl" AS url FROM "DocumentRequest" WHERE id=$1`,
+        [legacyRequestId],
+      )
+    ).rows[0],
+    { status: DocumentRequestStatus.QUEUED, url: null },
+  );
+
   console.log(
-    `PASS: ${checks} W3 vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
+    `PASS: ${checks} W3/W4 vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
   );
 } finally {
   await stop();
+  rmSync(artifactStoragePath, { recursive: true, force: true });
+  if (previousArtifactStoragePath === undefined) {
+    delete process.env.LCSP_ARTIFACT_STORAGE_PATH;
+  } else {
+    process.env.LCSP_ARTIFACT_STORAGE_PATH = previousArtifactStoragePath;
+  }
 }
