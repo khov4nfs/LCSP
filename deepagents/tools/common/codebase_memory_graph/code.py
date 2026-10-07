@@ -12,13 +12,9 @@ from __future__ import annotations
 import json
 from typing import Any, Literal
 
-from langchain.tools import ToolRuntime, tool
+from langchain.tools import tool
 from pydantic import ConfigDict, Field
 
-from tools.common.capabilities.assessment.rule_assessment.evidence_refs import (
-    cite_verified_source,
-    has_rule_execution,
-)
 from tools.common.capabilities.platform.codebase_memory import (
     CODEBASE_MEMORY_PROJECT,
     codebase_memory_cli,
@@ -26,7 +22,6 @@ from tools.common.capabilities.platform.codebase_memory import (
 from tools.common.capabilities.platform.repository_sandbox import (
     current_repository_backend,
 )
-from orchestration.context import coerce_run_context
 from tools.common.runtime_envelope import RuntimeInjectedInput
 
 _MAX_OUTPUT_CHARS = 12_000
@@ -115,47 +110,6 @@ def trace_call_path(
     )
 
 
-class GetCodeSnippetRequest(RuntimeInjectedInput):
-    model_config = ConfigDict(extra="forbid")
-
-    qualified_name: str = Field(
-        description="Qualified name returned by search_code_graph or trace_call_path."
-    )
-
-
-def _snippet_range(output: str) -> tuple[str, int, int] | None:
-    try:
-        body = json.loads(output)
-        path = body.get("file_path") or body.get("path") or body.get("file")
-        start = body.get("start_line") or body.get("startLine")
-        end = body.get("end_line") or body.get("endLine")
-        return str(path), int(start), int(end)
-    except (ValueError, TypeError, AttributeError):
-        return None
-
-
-@tool(args_schema=GetCodeSnippetRequest)
-def get_code_snippet(qualified_name: str, runtime: ToolRuntime = None) -> str:
-    """Return the exact source of one symbol with its file and line range.
-
-    Inside a rule task the result also ends with an evidenceRef citing that range.
-    """
-    output = _run("get_code_snippet", {"qualified_name": qualified_name})
-    context = coerce_run_context(getattr(runtime, "context", None))
-    if not has_rule_execution(context):
-        return output
-    located = _snippet_range(output)
-    if located is None:
-        return output
-    try:
-        citation = cite_verified_source(
-            context, *located, getattr(context, "repository_path", None)
-        )
-    except Exception:  # noqa: BLE001 - navigation still works without a citable ref
-        return output
-    return f"{output}\n\nevidenceRef: {citation['evidenceRef']}"
-
-
 class SearchCodeTextRequest(RuntimeInjectedInput):
     model_config = ConfigDict(extra="forbid")
 
@@ -187,7 +141,6 @@ def get_repository_architecture(aspects: list[str] | None = None) -> str:
 CODEBASE_MEMORY_GRAPH_TOOLS = [
     search_code_graph,
     trace_call_path,
-    get_code_snippet,
     search_code_text,
     get_repository_architecture,
 ]
@@ -195,8 +148,8 @@ CODEBASE_MEMORY_GRAPH_TOOLS = [
 CODEBASE_MEMORY_GRAPH_GUIDANCE = (
     "The repository is already indexed into a Codebase Memory graph. Navigate it "
     "with the graph tools first: search_code_graph to locate implementations, "
-    "trace_call_path to follow callers/callees across files, get_code_snippet for "
-    "exact source, search_code_text for text matches grouped by symbol, and "
+    "trace_call_path to follow callers/callees across files, "
+    "search_code_text for text matches grouped by symbol, and "
     "get_repository_architecture for an overview. Use grep/read_file only to "
     "confirm details the graph points you to; direct source wins on conflict."
 )

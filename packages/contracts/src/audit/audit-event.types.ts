@@ -27,6 +27,7 @@ export type AuditActorType =
 
 export const AUDIT_ACTOR_IDS = {
   assessmentOrchestrator: "assessment-orchestrator",
+  assessmentRootAgent: "assessment-root-agent",
   aiUsageFlowWorker: "ai-usage-flow-worker",
   classificationResultWorker: "classification-result-worker",
   conflictDetectionWorker: "conflict-detection-worker",

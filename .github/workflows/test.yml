@@ -364,8 +364,8 @@ jobs:
           tests/integration/test_local_agent_runtime_e2e.py
           tests/integration/test_production_agent_server_image_e2e.py
 
-  lcsp-278-production-vertical:
-    name: Production Interview vertical
+  assessment-domain-vertical:
+    name: Assessment Root vertical
     needs: changes
     if: needs.changes.outputs.api == 'true' || needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
@@ -375,31 +375,18 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: lcsp_api_release_test
+          POSTGRES_DB: postgres
         ports:
           - 55437:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d lcsp_api_release_test"
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/lcsp_api_release_test?schema=public
-      LCSP_API_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/lcsp_api_release_test?schema=public
-      LCSP_TEST_POSTGRES_PORT: 55437
-      LCSP_TEST_POSTGRES_DB: lcsp_api_release_test
-      LANGGRAPH_CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/lcsp_checkpoint_release_test
-      LCSP_TEST_CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/lcsp_checkpoint_release_test
-      LCSP_API_BASE_URL: http://127.0.0.1:3101
-      WORKER_API_KEY: test-only-worker-api-key-at-least-32-chars
-      PORT: 3101
+      LCSP_W2_PG_PORT: 55437
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/postgres?schema=public
       NODE_ENV: test
-      RABBITMQ_URL: amqp://guest:guest@127.0.0.1:5672
-      MFA_SECRET_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: ci-kek-v1
-      GITHUB_CLI_CREDENTIAL_KEK_KEYRING: '{"ci-kek-v1":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc="}'
-      LEGAL_CHROMA_PATH: /tmp/lcsp-278-release-chroma
-      LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR: /tmp/lcsp-278-release-snapshot-cache
     steps:
       - uses: actions/checkout@v4
 
@@ -419,47 +406,23 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Create checkpoint database
-        run: docker exec ${{ job.services.postgres.id }} createdb -U postgres lcsp_checkpoint_release_test
-
-      - name: Generate Prisma client
-        run: pnpm --filter @lcsp/api prisma:generate
-
-      - name: Apply disposable API schema
-        run: |
-          node apps/api/test/scripts/assert-disposable-database.mjs
-          node apps/api/test/scripts/reset-disposable-database-schema.mjs
-
-      - name: Seed release vertical starting state
-        run: pnpm --filter @lcsp/api exec tsx test/scripts/seed-lcsp-278-release-vertical.ts
-
-      - name: Install Python worker dependencies
+      - name: Install Python dependencies
         working-directory: deepagents
-        run: python -m pip install -e ".[dev]"
-
-      - name: Start Nest API
         run: |
-          pnpm --filter @lcsp/api start > /tmp/lcsp-278-api.log 2>&1 &
-          echo $! > /tmp/lcsp-278-api.pid
-          for attempt in {1..60}; do
-            if curl -fsS "$LCSP_API_BASE_URL/health" >/dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          cat /tmp/lcsp-278-api.log
-          exit 1
+          python -m pip install uv==0.10.6
+          uv sync --frozen --extra dev
 
-      - name: Test production release vertical
-        working-directory: deepagents
-        run: pytest tests/test_assessment_interview_production_vertical.py -q
-
-      - name: Stop Nest API
-        if: always()
+      - name: Build contracts and API
         run: |
-          if [ -f /tmp/lcsp-278-api.pid ]; then
-            kill "$(cat /tmp/lcsp-278-api.pid)" || true
-          fi
+          pnpm --filter @lcsp/api prisma:generate
+          pnpm --filter @lcsp/contracts build
+          pnpm --filter @lcsp/api build
+
+      - name: Legal Portfolio vertical
+        run: node tests/legal-portfolio-vertical.mjs
+
+      - name: Assessment Root vertical
+        run: node tests/assessment-domain-vertical.mjs
 
   admin-playwright-e2e:
     name: Billing and Admin Playwright E2E release gate

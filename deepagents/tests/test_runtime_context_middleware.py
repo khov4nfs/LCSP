@@ -7,7 +7,7 @@ from langchain.messages import SystemMessage
 
 from middleware.runtime_context import inject_lcsp_runtime_context
 from orchestration.context import LCSPRunContext
-from subagents.repository_analyst.definition import SYSTEM_PROMPT
+SYSTEM_PROMPT = "Assessment host prompt."
 
 
 @pytest.mark.parametrize("as_mapping", [False, True])

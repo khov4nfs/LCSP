@@ -1,16 +1,9 @@
 import re
 from pathlib import Path
 
-from tools.common.capabilities.assessment.investigation.engineering_rule.engineering_assessment_boundary import (
-    EngineeringAssessmentBoundary,
-)
 from tools.legal.sources.recovery.legal_corpus_recovery_boundary import LegalCorpusRecoveryBoundary
 from tools.common.capabilities.reporting.report.final_report.final_report_boundary import FinalReportBoundary
 from tools.common.capabilities.reporting.gap.gap_analysis_boundary import GapAnalysisBoundary
-from tools.common.capabilities.evidence.repository_analysis.boundary import RepositoryAnalysisBoundary
-from tools.common.capabilities.evidence.repository_analysis.targeted_boundary import (
-    TargetedRepositoryAnalysisBoundary,
-)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -27,13 +20,6 @@ def test_worker_source_events_match_the_shared_contracts():
     )
 
     expected = {
-        RepositoryAnalysisBoundary: event_value(github_contract, "scanTriggered"),
-        TargetedRepositoryAnalysisBoundary: event_value(
-            github_contract, "targetedReanalysisRequested"
-        ),
-        EngineeringAssessmentBoundary: event_value(
-            scan_contract, "evidenceAccepted"
-        ),
         LegalCorpusRecoveryBoundary: event_value(
             legal_matching_contract, "LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND"
         ),

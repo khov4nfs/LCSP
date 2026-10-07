@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from types import MappingProxyType
 from unittest.mock import Mock
 from uuid import uuid4
+
+import pytest
 
 from tools.common import runtime_envelope
 from tools.common.runtime_envelope import (
@@ -34,3 +37,30 @@ def test_remote_cqrs_tool_posts_direct_agentic_tool_contract(monkeypatch) -> Non
     _, kwargs = post.call_args
     assert kwargs["headers"]["X-Worker-Api-Key"] == "worker-key"
     assert kwargs["json"]["tool_name"] == "get_gap_evidence_trace"
+
+
+@pytest.mark.parametrize("mapping_type", [dict, MappingProxyType])
+def test_local_tool_normalizes_registry_mappings_to_dict(monkeypatch, mapping_type) -> None:
+    from tools.common.capabilities import agentic_evidence
+
+    payload = {"status": "READY"}
+    monkeypatch.setattr(runtime_envelope, "_get_api_client", lambda: Mock(rbac_client=Mock()))
+    monkeypatch.setattr(agentic_evidence, "bind_runtime_handlers", Mock())
+    monkeypatch.setattr(agentic_evidence.ApiRbacToolAuthorizer, "authorize", Mock())
+    monkeypatch.setattr(
+        agentic_evidence.AgenticToolRegistry,
+        "invoke_model_tool",
+        Mock(return_value=mapping_type(payload)),
+    )
+    result = dispatch_agentic_tool(
+        "propose_gap_remediation",
+        TrustedAgenticToolRequest(
+            assessment_id=str(uuid4()),
+            user_id="user-1",
+            correlation_id=str(uuid4()),
+            artifact_versions={"gapRowRef": "gap:test-row-1"},
+            input={"rowRef": "gap-row:abcdef", "templateId": "remediation:collect-evidence"},
+        ),
+    )
+    assert isinstance(result, dict)
+    assert result == payload

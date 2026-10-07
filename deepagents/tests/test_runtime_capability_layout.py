@@ -65,18 +65,13 @@ def test_dispatch_runtime_groups_support_capabilities() -> None:
     assert {getattr(tool, "name", "") for tool in CODEBASE_MEMORY_GRAPH_TOOLS} == {
         "search_code_graph",
         "trace_call_path",
-        "get_code_snippet",
         "search_code_text",
         "get_repository_architecture",
     }
     assert subject_repository_tools.SUBJECT_REPOSITORY_ROOT == "/workspace/repository"
-    from tools.common.submit_rule_assessment import (
-        cite_repository_source,
-        submit_rule_assessment,
-    )
-
-    assert submit_rule_assessment.name == "submit_rule_assessment"
-    assert cite_repository_source.name == "cite_repository_source"
+    # The per-rule submit/cite tools are gone: the Assessment Root's governed tools live in
+    # assessment_root/tools.py and mint evidence only through the API.
+    assert not (PROJECT_ROOT / "tools" / "common" / "submit_rule_assessment").exists()
 
 
 def _assert_import_blocked(module_name: str) -> None:

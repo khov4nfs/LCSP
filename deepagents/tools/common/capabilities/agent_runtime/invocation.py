@@ -25,9 +25,6 @@ from orchestration.agent_stream import (
     activate_agent_stream,
     publish_agent_stream_event,
 )
-from tools.common.capabilities.workflow.recovery.interview_pause_boundary import (
-    INTERVIEW_PAUSE_COMMAND,
-)
 from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
     LEGAL_CORPUS_RECOVERY_COMMAND,
 )
@@ -45,40 +42,16 @@ class AgentInvocationBoundary:
 
 AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
     AgentInvocationBoundary(
-        "scan_requested",
-        "tools.common.capabilities.evidence.repository_analysis.boundary:RepositoryAnalysisBoundary",
-        "repository-analysis.triggered",
-        "command.scan.requested.v1",
-    ),
-    AgentInvocationBoundary(
-        "targeted_reanalysis_requested",
-        "tools.common.capabilities.evidence.repository_analysis.targeted_boundary:TargetedRepositoryAnalysisBoundary",
-        "repository-analysis.targeted",
-        "command.scan.targeted-reanalysis.v1",
-    ),
-    AgentInvocationBoundary(
-        "engineering_assessment_requested",
-        "tools.common.capabilities.assessment.investigation.engineering_rule.interview_gated_boundary:InterviewGatedEngineeringAssessmentBoundary",
-        "investigation.evidence-accepted",
-        "event.technical-evidence.accepted.v1",
-    ),
-    AgentInvocationBoundary(
-        "assessment_interview_resume_requested",
-        "tools.common.capabilities.workflow.recovery.interview_boundary:AssessmentInterviewResumeBoundary",
-        "assessment.interview-answer-submitted",
-        "command.assessment-interview.resume-agent.v1",
-    ),
-    AgentInvocationBoundary(
-        "assessment_interview_pause_requested",
-        "tools.common.capabilities.workflow.recovery.interview_pause_boundary:AssessmentInterviewPauseBoundary",
-        "assessment.interview-pause-requested",
-        INTERVIEW_PAUSE_COMMAND,
-    ),
-    AgentInvocationBoundary(
         "legal_change_detection_requested",
         "tools.legal.sources.change_detection.legal_change_detector_boundary:LegalChangeDetectorBoundary",
         "legal.legal-change-detector",
         "cron.legal-catalog.check-updates.v1",
+    ),
+    AgentInvocationBoundary(
+        "assessment_root_requested",
+        "assessment_root.boundary:AssessmentRootBoundary",
+        "assessment.root-run",
+        "command.assessment.root.requested.v1",
     ),
     AgentInvocationBoundary(
         "legal_portfolio_preparation_requested",
@@ -177,8 +150,6 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
 # Gate, so each of those invocations names its own stage instead.
 _BOUNDARY_STREAM_STAGES = {
     "scan_requested": AGENT_STREAM_STAGES["scanner"],
-    "targeted_reanalysis_requested": AGENT_STREAM_STAGES["scanner"],
-    "assessment_interview_resume_requested": AGENT_STREAM_STAGES["interview"],
 }
 _BOUNDARY_INDEX = {boundary.name: boundary for boundary in AGENT_INVOCATION_BOUNDARIES}
 if len(_BOUNDARY_INDEX) != len(AGENT_INVOCATION_BOUNDARIES):

@@ -26,7 +26,6 @@ import { OutboxMessageEntity } from "./outbox-message.entity.js";
 import { OutboxRepository } from "./outbox.repository.js";
 import type { RabbitMqMessageHeaders } from "./rabbitmq.client.js";
 import { RabbitMqClient } from "./rabbitmq.client.js";
-import { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 
 /**
  * Polls transactional outbox messages, publishes them to RabbitMQ, and records retry or DLQ outcomes.
@@ -44,14 +43,12 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
    * @param rabbitMqClient - RabbitMQ client used to publish event payloads.
    * @param configService - Runtime configuration source for polling and messaging settings.
    * @param auditWriter - Audit writer used to record retry and DLQ transitions.
-   * @param snapshotCreatedAutoScanService - Local handler that triggers trusted scans for snapshot-created events.
    */
   constructor(
     private readonly outboxRepository: OutboxRepository,
     private readonly rabbitMqClient: RabbitMqClient,
     private readonly configService: ConfigService,
     private readonly auditWriter: AuditWriterService,
-    private readonly snapshotCreatedAutoScanService: SnapshotCreatedAutoScanService,
   ) {}
 
   /**
@@ -124,7 +121,6 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
             }
 
             try {
-              await this.snapshotCreatedAutoScanService.handle(message);
               const payload = message.payload;
               const headers = contextHeaders(payload);
               if (headers) {

@@ -1,1 +1,0 @@
-"""Repository Analyst subagent package."""

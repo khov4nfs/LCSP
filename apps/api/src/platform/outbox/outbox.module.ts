@@ -2,12 +2,11 @@ import { Global, Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { CqrsModule } from "@nestjs/cqrs";
 
+import { OutboxDlqController } from "./outbox-dlq.controller.js";
+import { OutboxDlqService } from "./outbox-dlq.service.js";
 import { OutboxPublisherService } from "./outbox-publisher.service.js";
 import { OutboxRepository } from "./outbox.repository.js";
 import { RabbitMqClient } from "./rabbitmq.client.js";
-import { OutboxDlqController } from "./outbox-dlq.controller.js";
-import { OutboxDlqService } from "./outbox-dlq.service.js";
-import { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 
 /**
  * Registers transactional-outbox persistence, publishing, DLQ recovery, and RabbitMQ infrastructure globally.
@@ -19,7 +18,6 @@ import { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.ser
   providers: [
     OutboxRepository,
     OutboxDlqService,
-    SnapshotCreatedAutoScanService,
     {
       provide: RabbitMqClient,
       inject: [ConfigService],

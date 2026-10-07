@@ -41,12 +41,7 @@ class AgentServerRunError(NonRetryableAgentBoundaryError):
 # run: with multitask_strategy="enqueue" that run would simply queue behind the
 # very run it exists to stop, arriving only after that run already finished.
 _INTERRUPT_TARGET_BOUNDARIES_BY_COMMAND_BOUNDARY: dict[str, tuple[str, ...]] = {
-    # The customer's stop covers whatever the assessment is running: an
-    # Interview turn, or the per-rule Repository Analyst engineering assessment.
-    "assessment_interview_pause_requested": (
-        "assessment_interview_resume_requested",
-        "engineering_assessment_requested",
-    ),
+    # W4 registers the Assessment Root pause command here.
 }
 # Run status LangGraph reports after ``runs.cancel(action="interrupt")``.
 _INTERRUPTED_RUN_STATUS = "interrupted"

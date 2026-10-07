@@ -29,7 +29,6 @@ from middleware.provider_fallback import (
     provider_circuit_breaker_failure,
     provider_fallback_failure,
 )
-from tools.common.capabilities.evidence.repository_analysis.boundary import _terminal
 
 
 class _ProviderError(Exception):
@@ -147,22 +146,3 @@ def test_provider_fallback_is_still_refused_for_a_malformed_request() -> None:
 
 
 # -- the Scanner boundary --------------------------------------------------
-
-
-def test_the_scan_is_retryable_when_only_the_model_route_was_down() -> None:
-    """The snapshot, repository and callback were all fine; the scan can rerun."""
-    assert not _terminal(_model_unavailable())
-
-
-def test_our_own_api_rejecting_the_callback_is_still_terminal() -> None:
-    """Redelivering a payload our API rejected cannot converge."""
-    request = httpx.Request("POST", "http://api/internal/scan-jobs/1/callback")
-    for status in (400, 404, 409, 422):
-        response = httpx.Response(status, request=request)
-        error = httpx.HTTPStatusError("rejected", request=request, response=response)
-        assert _terminal(error), status
-
-
-def test_a_model_outage_never_becomes_a_non_retryable_boundary_error() -> None:
-    """is_terminal_boundary_error drives queue redelivery and reservation release."""
-    assert not is_terminal_boundary_error(_model_unavailable())

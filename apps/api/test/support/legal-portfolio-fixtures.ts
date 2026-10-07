@@ -8,7 +8,7 @@ import {
 import type {
   CorpusChunkSnapshot,
   CorpusSnapshot,
-} from "../../src/modules/legal-portfolio/application/services/legal-portfolio-integrity.validator.js";
+} from "../../src/modules/legal-portfolio/domain/legal-portfolio-integrity.validator.js";
 
 /** Same hierarchy as the prepared synthetic notice fixture (art-1 .. art-6). */
 export const FIXTURE_DOCUMENT_ID = "SYNTHETIC-NOTICE-INSTRUMENT";

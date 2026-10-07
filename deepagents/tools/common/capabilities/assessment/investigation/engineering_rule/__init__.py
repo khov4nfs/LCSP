@@ -1,1 +1,0 @@
-"""EngineeringRule investigation capability runtime."""
