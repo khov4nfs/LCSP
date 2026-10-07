@@ -14,7 +14,6 @@ describe("AdminCorpusVersionsController", () => {
       detail: jest
         .fn<() => Promise<unknown>>()
         .mockResolvedValue({ id: "corpus-1" }),
-      discardDraft: jest.fn<(input: unknown) => Promise<unknown>>(),
     };
     const controller = new AdminCorpusVersionsController(service as never);
 
@@ -33,33 +32,19 @@ describe("AdminCorpusVersionsController", () => {
     });
   });
 
-  it("passes authenticated actor context into audited draft discard", async () => {
-    const service = {
-      list: jest.fn<() => Promise<unknown>>(),
-      detail: jest.fn<() => Promise<unknown>>(),
-      discardDraft: jest
-        .fn<(input: unknown) => Promise<unknown>>()
-        .mockResolvedValue({ id: "corpus-1", status: "REJECTED" }),
-    };
-    const controller = new AdminCorpusVersionsController(service as never);
-
-    await controller.discard("corpus-1", undefined, undefined, {
-      correlationId: "corr-1",
-      rbacContext: { userId: "admin-1" },
-    } as never);
-    expect(service.discardDraft).toHaveBeenCalledWith({
-      versionId: "corpus-1",
-      actorId: "admin-1",
-      idempotencyKey: "",
-      correlationId: "corr-1",
-    });
+  it("exposes no publish or discard write route", () => {
+    expect(AdminCorpusVersionsController.prototype).not.toHaveProperty(
+      "publish",
+    );
+    expect(AdminCorpusVersionsController.prototype).not.toHaveProperty(
+      "discard",
+    );
   });
 
   it("treats an omitted prepare body as an invalid idempotency request", async () => {
     const service = {
       list: jest.fn<() => Promise<unknown>>(),
       detail: jest.fn<() => Promise<unknown>>(),
-      discardDraft: jest.fn<(input: unknown) => Promise<unknown>>(),
       prepare: jest
         .fn<(input: unknown) => Promise<unknown>>()
         .mockResolvedValue({ id: "prep-1" }),

@@ -13,7 +13,7 @@ def test_arbitrary_model_strings_pass_through_every_adapter(monkeypatch, set_mod
     seen = []
     monkeypatch.setattr(mp, "init_chat_model", lambda spec, **kw: seen.append(spec) or object())
     for provider, key in (("openai", "openai"), ("google_genai", "google_genai"), ("llm7", "openai"),
-                          ("inception", "openai"), ("anthropic", "anthropic")):
+                          ("inception", "openai"), ("apx", "openai"), ("anthropic", "anthropic")):
         _one_route(set_model_routes, provider)
         mp.resolve_agent_model("root")
         assert seen[-1] == f"{key}:Future-Model-X9"  # case preserved, no catalog

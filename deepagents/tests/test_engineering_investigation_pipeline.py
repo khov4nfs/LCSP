@@ -28,9 +28,6 @@ from tools.common.capabilities.assessment.evaluation.engineering_rule.rule_evalu
 from tools.common.capabilities.assessment.investigation.engineering_rule.result import (
     EngineeringInvestigationResult,
 )
-from tools.common.capabilities.assessment.investigation.engineering_rule.rule_sources import (
-    resolve_engineering_rules,
-)
 from tools.common.capabilities.assessment.rule_assessment.absence_policy import (
     absence_may_finalize,
 )
@@ -150,28 +147,6 @@ def _finalize(rules, assessments, applicability) -> list:
         applicability=applicability,
         commit_sha=_COMMIT_SHA,
     )
-
-
-class _NoRecovery:
-    """Legal preparation is deferred to Triage; the assessment loop never recovers."""
-
-    def run(self, payload, correlation_id):
-        raise RuntimeError("legal preparation is deferred to Triage")
-
-
-def _api_client(rules=None):
-    api_client = MagicMock()
-    api_client.get_active_legal_rule_catalog.return_value = {
-        "versionId": "catalog-v1",
-        "rules": rules
-        if rules is not None
-        else [{"legalRuleId": "rule-1", "status": "APPROVED"}],
-    }
-    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
-    api_client.get_legal_corpus_chunks.return_value = {
-        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
-    }
-    return api_client
 
 
 def test_finalize_returns_direct_compliant_rule_evaluation() -> None:
@@ -382,87 +357,6 @@ def test_not_applicable_rules_never_reach_analysis() -> None:
 
     assert evaluation.status == "NOT_APPLICABLE"
     assert evaluation.evidence_refs == ()
-
-
-def test_resolve_keeps_healthy_rules_when_one_compilation_fails() -> None:
-    api_client = _api_client(
-        [
-            {"legalRuleId": "rule-bad", "status": "APPROVED"},
-            {"legalRuleId": "rule-good", "status": "APPROVED"},
-        ]
-    )
-    good = _rule("eng-good")
-    rule_service = MagicMock()
-    rule_service.get_or_compile.side_effect = [
-        ValueError("unresolvable"),
-        ([good], False),
-    ]
-
-    resolution = resolve_engineering_rules(
-        api_client=api_client,
-        retriever=MagicMock(),
-        rule_service=rule_service,
-        recovery_driver=_NoRecovery(),
-        workflow_run_id="workflow-1",
-        correlation_id="corr-1",
-    )
-
-    assert resolution.status == "READY"
-    assert resolution.rules == (good,)
-    assert (
-        ENGINEERING_LIMITATION_CODES["engineering_rule_compilation_failed"]
-        in resolution.limitations
-    )
-
-
-def test_resolve_waits_when_no_approved_source_rules_exist() -> None:
-    api_client = _api_client([{"legalRuleId": "rule-1", "status": "DRAFT"}])
-    rule_service = MagicMock()
-
-    resolution = resolve_engineering_rules(
-        api_client=api_client,
-        retriever=MagicMock(),
-        rule_service=rule_service,
-        recovery_driver=_NoRecovery(),
-        workflow_run_id="workflow-1",
-        correlation_id="corr-1",
-    )
-
-    # No approved legal rules means Triage has work pending: WAIT, don't fail.
-    assert resolution.status == "WAITING"
-    assert resolution.rules == ()
-    assert resolution.limitations == (
-        ENGINEERING_LIMITATION_CODES["no_engineering_rule_source_rules"],
-    )
-    rule_service.get_or_compile.assert_not_called()
-
-
-def test_resolve_deduplicates_compilation_failure_to_machine_code() -> None:
-    api_client = _api_client(
-        [
-            {"legalRuleId": "rule-1", "status": "APPROVED"},
-            {"legalRuleId": "rule-2", "status": "APPROVED"},
-        ]
-    )
-    rule_service = MagicMock()
-    rule_service.get_or_compile.side_effect = RuntimeError("provider failure detail")
-
-    resolution = resolve_engineering_rules(
-        api_client=api_client,
-        retriever=MagicMock(),
-        rule_service=rule_service,
-        recovery_driver=_NoRecovery(),
-        workflow_run_id="workflow-1",
-        correlation_id="corr-1",
-    )
-
-    assert resolution.status == "BLOCKED"
-    assert resolution.rules == ()
-    assert resolution.limitations == (
-        ENGINEERING_LIMITATION_CODES["engineering_rule_compilation_failed"],
-        ENGINEERING_LIMITATION_CODES["no_engineering_rule_candidates"],
-    )
-    assert rule_service.get_or_compile.call_count == 2
 
 
 def test_technical_evidence_display_keeps_source_location_without_source_body() -> None:

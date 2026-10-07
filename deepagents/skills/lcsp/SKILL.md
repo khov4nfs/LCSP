@@ -21,11 +21,9 @@ bounded, schema-compatible outputs.
 
 ## Specialized Skills
 
-- For approved LegalRule chunk classification and Candidate-to-EngineeringRule
-  preparation, use the `legal-rule-triage` skill. It owns the reasoning boundary
-  between legal context and reusable technical investigation rules.
-- Keep LegalRule triage independent from any customer Assessment. Assessment
-  agents consume already-prepared EngineeringRules and must not create replacements.
+- Legal authoring is not an Assessment skill: the separate Legal Preparation Deep Agent
+  authors the LegalRule/EngineeringRule portfolio. Assessment agents consume the pinned
+  ACTIVE portfolio and must not create, broaden or replace its rules.
 
 ## Retrieval Strategy
 

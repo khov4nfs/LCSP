@@ -7,11 +7,8 @@ import { LegalBasisRetrievalController } from "./presentation/http/legal-basis-r
 import { CitationSetValidationController } from "./presentation/http/citation-set-validation.controller.js";
 import { AdminSourceCatalogController } from "./presentation/http/admin-source-catalog.controller.js";
 import { AdminCorpusVersionsController } from "./presentation/http/admin-corpus-versions.controller.js";
-import { DraftLegalRuleHandler } from "./application/commands/draft-legal-rule/draft-legal-rule.handler.js";
-import { ApproveRuleCatalogVersionHandler } from "./application/commands/approve-rule-catalog-version/approve-rule-catalog-version.handler.js";
 import { ResumeWaitingRunsHandler } from "./application/commands/resume-waiting-runs/resume-waiting-runs.handler.js";
 import { GetAdminSourceCatalogHandler } from "./application/queries/get-admin-source-catalog/get-admin-source-catalog.handler.js";
-import { GetActiveRuleCatalogHandler } from "./application/queries/get-active-rule-catalog/get-active-rule-catalog.handler.js";
 import { GetActiveLegalCorpusHandler } from "./application/queries/get-active-legal-corpus/get-active-legal-corpus.handler.js";
 import { GetLegalCorpusReadinessHandler } from "./application/queries/get-legal-corpus-readiness/get-legal-corpus-readiness.handler.js";
 import { RetrieveLegalBasisHandler } from "./application/queries/retrieve-legal-basis/retrieve-legal-basis.handler.js";
@@ -21,15 +18,11 @@ import { AdminCorpusVersionsService } from "./application/services/admin-corpus-
 import { CitationLocatorValidatorService } from "./application/services/citation-locator-validator.service.js";
 import { LegalCorpusService } from "./application/services/legal-corpus.service.js";
 import { OfficialSourceSnapshotService } from "./application/services/official-source-snapshot.service.js";
-import { RuleCatalogVersionService } from "./application/services/rule-catalog-version.service.js";
 import { OutboxModule } from "../../platform/outbox/outbox.module.js";
 
 const Handlers = [
-  DraftLegalRuleHandler,
-  ApproveRuleCatalogVersionHandler,
   ResumeWaitingRunsHandler,
   GetAdminSourceCatalogHandler,
-  GetActiveRuleCatalogHandler,
   GetActiveLegalCorpusHandler,
   GetLegalCorpusReadinessHandler,
   RetrieveLegalBasisHandler,
@@ -53,7 +46,6 @@ const Handlers = [
     CitationLocatorValidatorService,
     LegalCorpusService,
     OfficialSourceSnapshotService,
-    RuleCatalogVersionService,
   ],
 })
 export class LegalRuleCatalogModule {}

@@ -1,0 +1,1178 @@
+{
+  "generatedAt": "2026-10-06T17:41:25.931Z",
+  "model": "apx:claude-sonnet-4-6-free",
+  "usage": {
+    "modelCalls": 5,
+    "toolCalls": [
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/INDEX.md'}",
+        "output": "@@ lines 1-25 of 25 @@\n# Pinned corpus live-synthetic-v1\n\nlegalCorpusVersionId: a74ab81a-f675-410a-8923-69dbb21998c4\ndocuments: 1\nchunks: 15\n\nCite a source exactly as `documentId` + `locator` + `conte"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-1.md'}",
+        "output": "@@ lines 1-8 of 8 @@\ndocumentId: SYNTHETIC-NOTICE-INSTRUMENT\nlocator: art-1\ncontentSha256: sha256:23c8e407995b44f5140686438837e86b0893cdb536b93d23ddb9e58d1414af7b\nlegalStatus: IN_FORCE\nsourceEffectSta"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-1__cl-1.md'}",
+        "output": "@@ lines 1-8 of 8 @@\ndocumentId: SYNTHETIC-NOTICE-INSTRUMENT\nlocator: art-1::cl-1\ncontentSha256: sha256:6454d5dfce7ca41db7af4c2db9114bba5bffd1554bfa892a6a2fb7aab0e04682\nlegalStatus: IN_FORCE\nsourceEff"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-2.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-2__cl-1.md'}",
+        "output": "@@ lines 1-9 of 9 @@\ndocumentId: SYNTHETIC-NOTICE-INSTRUMENT\nlocator: art-2::cl-1\ncontentSha256: sha256:87674bc449c5da27128417aa67fd79b1bcf21188b968ae720588985a1785904a\nlegalStatus: IN_FORCE\nsourceEff"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-3.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-3__cl-1.md'}",
+        "output": "@@ lines 1-8 of 8 @@\ndocumentId: SYNTHETIC-NOTICE-INSTRUMENT\nlocator: art-3\ncontentSha256: sha256:6a3e3e28802717eff3b111632083057d149c37c4d09ec7a4892429dc3e5656b5\nlegalStatus: IN_FORCE\nsourceEffectSta"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-4.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-4__cl-1.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-4__cl-1__pt-a.md'}",
+        "output": "@@ lines 1-9 of 9 @@\ndocumentId: SYNTHETIC-NOTICE-INSTRUMENT\nlocator: art-4::cl-1::pt-a\ncontentSha256: sha256:488c174e0fc05084beb772662b8ddb0a5bf3fac2821c795d1b23d171f157ea5d\nlegalStatus: IN_FORCE\nsou"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-5.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-5__cl-1.md'}",
+        "output": "@@ lines 1-8 of 8 @@\ndocumentId: SYNTHETIC-NOTICE-INSTRUMENT\nlocator: art-5\ncontentSha256: sha256:1349601e140534059e0eec3a82198f01ddc484c23f2c775dc88c98f20766ebad\nlegalStatus: IN_FORCE\nsourceEffectSta"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-5__cl-1__pt-a.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-5__cl-1__pt-b.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-6.md'}",
+        "output": "@@ lines 1-8 of 8 @@\ndocumentId: SYNTHETIC-NOTICE-INSTRUMENT\nlocator: art-5::cl-1::pt-b\ncontentSha256: sha256:61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458\nlegalStatus: IN_FORCE\nsou"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/corpus/SYNTHETIC-NOTICE-INSTRUMENT/art-6__cl-1.md'}",
+        "output": "@@ lines 1-9 of 9 @@\ndocumentId: SYNTHETIC-NOTICE-INSTRUMENT\nlocator: art-6::cl-1\ncontentSha256: sha256:4ca54657d2e573b17f0545d6c627d06defc1931fa7101901e79bcb07b53eb5a8\nlegalStatus: IN_FORCE\nsourceEff"
+      },
+      {
+        "tool": "validate_legal_portfolio",
+        "input": "{'packet': {'legalRules': [{'legalRuleId': 'LR-001', 'title': 'Definition of Record', 'proposition': \"In this synthetic instrument, 'record'",
+        "output": "{\"outcome\": \"PASSED\", \"failures\": []}"
+      },
+      {
+        "tool": "submit_legal_portfolio",
+        "input": "{'packet': {'legalRules': [{'legalRuleId': 'LR-001', 'title': 'Definition of Record', 'proposition': \"In this synthetic instrument, 'record'",
+        "output": "{\"preparationRunId\": \"d751f7fb-d1c2-403b-ad44-51a7c6d856ad\", \"portfolioVersionId\": \"9b21137b-6455-4a57-81d2-b674e057eed3\", \"version\": \"live-synthetic-v1.p1\", \"lifecycleState\": \"ACTIVE\", \"validation\": "
+      }
+    ],
+    "inputTokens": 64452,
+    "outputTokens": 12634,
+    "seconds": 199.6,
+    "profileKey": "apx:claude-sonnet-4-6-free"
+  },
+  "runId": "d751f7fb-d1c2-403b-ad44-51a7c6d856ad",
+  "run": {
+    "executionState": "SUCCEEDED",
+    "failureReason": null
+  },
+  "result": {
+    "state": "SUCCEEDED",
+    "submission": {
+      "preparationRunId": "d751f7fb-d1c2-403b-ad44-51a7c6d856ad",
+      "portfolioVersionId": "9b21137b-6455-4a57-81d2-b674e057eed3",
+      "version": "live-synthetic-v1.p1",
+      "lifecycleState": "ACTIVE",
+      "validation": {
+        "outcome": "PASSED",
+        "failures": []
+      },
+      "activationRecordId": "72a24a8d-4880-4f9f-a504-9a4fc9b7de75",
+      "previousActivePortfolioVersionId": null,
+      "replayed": false
+    },
+    "failureReason": null
+  },
+  "activePortfolio": {
+    "portfolioVersionId": "9b21137b-6455-4a57-81d2-b674e057eed3",
+    "version": "live-synthetic-v1.p1",
+    "legalCorpusVersionId": "a74ab81a-f675-410a-8923-69dbb21998c4",
+    "portfolioDigest": "b7fd72e7cb7d24a094ac9b63220f7fe5be06ac6080b052a24437d0eb81e00301",
+    "lifecycleState": "ACTIVE",
+    "activatedAt": "2026-10-06T17:41:07.964Z",
+    "legalRules": [
+      {
+        "legalRuleId": "LR-001",
+        "title": "Definition of Record",
+        "proposition": "In this synthetic instrument, 'record' means a stored notice and its receipt timestamp.",
+        "applicabilityConditions": [],
+        "qualifiers": [],
+        "exceptions": [],
+        "nonRepositoryDuty": false,
+        "coverage": {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "nonAssessableReason": null
+        },
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-1::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-1::cl-1",
+            "contentSha256": "sha256:6454d5dfce7ca41db7af4c2db9114bba5bffd1554bfa892a6a2fb7aab0e04682",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "legalRuleId": "LR-002",
+        "title": "Applicability to Operators Offering Public Notice Service",
+        "proposition": "This instrument applies only to operators offering the notice service to the public. Private household use is outside this scope.",
+        "applicabilityConditions": [],
+        "qualifiers": [],
+        "exceptions": [],
+        "nonRepositoryDuty": false,
+        "coverage": {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "nonAssessableReason": null
+        },
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-2::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-2::cl-1",
+            "contentSha256": "sha256:87674bc449c5da27128417aa67fd79b1bcf21188b968ae720588985a1785904a",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "legalRuleId": "LR-003",
+        "title": "Exception for Temporary Test Records",
+        "proposition": "The retention duty in Article 5 does not apply to a temporary test record.",
+        "applicabilityConditions": [],
+        "qualifiers": [],
+        "exceptions": [],
+        "nonRepositoryDuty": false,
+        "coverage": {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "nonAssessableReason": null
+        },
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-3::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-3::cl-1",
+            "contentSha256": "sha256:efe8ff082b8a80fdae0e5a1322c41fde82b92491a50d8109cb9673a951b1cc58",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "legalRuleId": "LR-004",
+        "title": "Receipt Timestamp Timing",
+        "proposition": "A receipt timestamp is recorded when the notice is received, not when it is drafted. The receipt timestamp begins the retention period.",
+        "applicabilityConditions": [],
+        "qualifiers": [],
+        "exceptions": [],
+        "nonRepositoryDuty": false,
+        "coverage": {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "nonAssessableReason": null
+        },
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-4::cl-1::pt-a",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-4::cl-1::pt-a",
+            "contentSha256": "sha256:488c174e0fc05084beb772662b8ddb0a5bf3fac2821c795d1b23d171f157ea5d",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "legalRuleId": "LR-005",
+        "title": "Seven-Day Retention Duty",
+        "proposition": "An operator within Article 2 must retain each record for 7 days, subject to Article 3.",
+        "applicabilityConditions": [
+          "The operator must be offering the notice service to the public (not private household use)"
+        ],
+        "qualifiers": [],
+        "exceptions": [
+          "Does not apply to temporary test records"
+        ],
+        "nonRepositoryDuty": false,
+        "coverage": {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "nonAssessableReason": null
+        },
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-5::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-5::cl-1",
+            "contentSha256": "sha256:bd8cd881b48df3173ecf660da32079a9f63b775ffe6adf5fba9434d30d1a25ea",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "legalRuleId": "LR-006",
+        "title": "Retention of Notice Text with Timestamp",
+        "proposition": "Keep the notice text with its receipt timestamp.",
+        "applicabilityConditions": [
+          "The operator must be offering the notice service to the public (not private household use)"
+        ],
+        "qualifiers": [],
+        "exceptions": [
+          "Does not apply to temporary test records"
+        ],
+        "nonRepositoryDuty": false,
+        "coverage": {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "nonAssessableReason": null
+        },
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-5::cl-1::pt-a",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-5::cl-1::pt-a",
+            "contentSha256": "sha256:eecf13d5d761815a81b1a94dbba9307a1000cdc43caa6335b1693f815612772b",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "legalRuleId": "LR-007",
+        "title": "Preservation Without Removing Limiting Language",
+        "proposition": "Preserve the notice text without removing its limiting language.",
+        "applicabilityConditions": [
+          "The operator must be offering the notice service to the public (not private household use)"
+        ],
+        "qualifiers": [],
+        "exceptions": [
+          "Does not apply to temporary test records"
+        ],
+        "nonRepositoryDuty": false,
+        "coverage": {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "nonAssessableReason": null
+        },
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-5::cl-1::pt-b",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-5::cl-1::pt-b",
+            "contentSha256": "sha256:61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "legalRuleId": "LR-008",
+        "title": "Appointment for Annual Public Information Session",
+        "proposition": "The operator must appoint a person to attend the annual public information session in person. Attendance is recorded in the session register maintained by the organizer.",
+        "applicabilityConditions": [
+          "The operator must be offering the notice service to the public (not private household use)"
+        ],
+        "qualifiers": [],
+        "exceptions": [],
+        "nonRepositoryDuty": true,
+        "coverage": {
+          "state": "NON_ASSESSABLE",
+          "nonAssessableReason": "This duty requires in-person attendance at an annual session and appointment of a person, which cannot be assessed through repository analysis. The attendance is recorded in an external session register maintained by a separate organizer."
+        },
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-6::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-6::cl-1",
+            "contentSha256": "sha256:4ca54657d2e573b17f0545d6c627d06defc1931fa7101901e79bcb07b53eb5a8",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      }
+    ],
+    "engineeringRules": [
+      {
+        "engineeringRuleId": "ER-001",
+        "legalRuleIds": [
+          "LR-001"
+        ],
+        "concept": "Record Definition Recognition",
+        "legalIntent": "Ensure that the system recognizes and implements the definition of 'record' as a stored notice with its receipt timestamp.",
+        "applicabilityGuidance": "Applies to any system component that creates, stores, or processes records as defined by the legal instrument.",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "The system must store notices together with their receipt timestamps as a unified record structure."
+          }
+        ],
+        "investigationGoals": [
+          "Identify data structures, classes, or database schemas that represent notices",
+          "Verify that receipt timestamps are stored alongside notice content"
+        ],
+        "startingNodeTypes": [
+          "class",
+          "interface",
+          "type",
+          "database_schema",
+          "table"
+        ],
+        "targetNodeTypes": [
+          "field",
+          "property",
+          "column",
+          "attribute"
+        ],
+        "edgeStrategies": [
+          "Follow HAS_FIELD, HAS_PROPERTY, HAS_COLUMN edges from notice-related types",
+          "Examine storage and persistence layers"
+        ],
+        "graphQueries": [
+          {
+            "name": "Find notice data structures",
+            "startNodeTypes": [
+              "class",
+              "interface",
+              "type"
+            ],
+            "direction": "FORWARD",
+            "followEdges": [
+              "HAS_FIELD",
+              "HAS_PROPERTY",
+              "CONTAINS"
+            ],
+            "stopNodeTypes": [
+              "field",
+              "property"
+            ],
+            "semanticTypes": [
+              "notice",
+              "record",
+              "message"
+            ]
+          }
+        ],
+        "keywords": [
+          "notice",
+          "record",
+          "timestamp",
+          "receipt",
+          "received",
+          "stored"
+        ],
+        "commonApis": [
+          "Date",
+          "Timestamp",
+          "DateTime",
+          "Instant",
+          "ZonedDateTime"
+        ],
+        "commonLibraries": [
+          "java.time",
+          "datetime",
+          "moment",
+          "luxon"
+        ],
+        "patterns": [
+          "Data structures containing both notice content and timestamp fields",
+          "Classes or types named Record, Notice, or similar with timestamp properties"
+        ],
+        "requiredEvidence": [
+          "Data structure definition showing notice content field and receipt timestamp field stored together"
+        ],
+        "supportingEvidence": [
+          "Database schema with notice and timestamp columns in same table",
+          "Constructor or factory methods that initialize both fields together",
+          "Documentation or comments explaining the record structure"
+        ],
+        "negativeEvidence": [
+          "Notice stored without timestamp",
+          "Timestamp stored separately from notice content"
+        ],
+        "unresolvedConditions": [],
+        "engineeringRuleVersion": "live-synthetic-v1",
+        "sourceFingerprint": "d31b0a5294446714cba63855ed5cec4e5200c98adcbb68debcc940199b172e90",
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-1::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-1::cl-1",
+            "contentSha256": "sha256:6454d5dfce7ca41db7af4c2db9114bba5bffd1554bfa892a6a2fb7aab0e04682",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "engineeringRuleId": "ER-002",
+        "legalRuleIds": [
+          "LR-002"
+        ],
+        "concept": "Public Service Scope Identification",
+        "legalIntent": "Determine whether the system is offered to the public (in scope) or is for private household use (out of scope).",
+        "applicabilityGuidance": "This rule helps establish whether the legal obligations apply to the system under assessment.",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "The system must be identifiable as either offering notice service to the public or being for private household use."
+          }
+        ],
+        "investigationGoals": [
+          "Identify configuration, documentation, or code indicating the intended audience",
+          "Look for deployment configurations suggesting public-facing services",
+          "Find authentication, access control, or user management indicating public access"
+        ],
+        "startingNodeTypes": [
+          "configuration_file",
+          "documentation",
+          "readme",
+          "deployment",
+          "service"
+        ],
+        "targetNodeTypes": [
+          "setting",
+          "property",
+          "comment",
+          "description"
+        ],
+        "edgeStrategies": [
+          "Examine deployment and configuration files for public endpoint definitions",
+          "Review documentation for service description and intended users"
+        ],
+        "graphQueries": [
+          {
+            "name": "Find service configuration",
+            "startNodeTypes": [
+              "configuration_file",
+              "service"
+            ],
+            "direction": "FORWARD",
+            "followEdges": [
+              "HAS_SETTING",
+              "DEFINES",
+              "CONFIGURES"
+            ],
+            "stopNodeTypes": [
+              "setting",
+              "endpoint"
+            ],
+            "semanticTypes": [
+              "public",
+              "service",
+              "deployment"
+            ]
+          }
+        ],
+        "keywords": [
+          "public",
+          "service",
+          "household",
+          "private",
+          "user",
+          "customer",
+          "deployment",
+          "endpoint"
+        ],
+        "commonApis": [],
+        "commonLibraries": [],
+        "patterns": [
+          "Public API endpoints or web services",
+          "User registration or authentication for external users",
+          "Documentation describing public access"
+        ],
+        "requiredEvidence": [
+          "Configuration or documentation indicating the service is offered to the public"
+        ],
+        "supportingEvidence": [
+          "Public-facing endpoints or domains",
+          "Terms of service or user agreements for public users",
+          "Marketing or product documentation describing public availability"
+        ],
+        "negativeEvidence": [
+          "Documentation stating private household use only",
+          "Internal-only deployment configurations"
+        ],
+        "unresolvedConditions": [],
+        "engineeringRuleVersion": "live-synthetic-v1",
+        "sourceFingerprint": "30d45e48c27acb3879484a0b800a68a50edbc33851793ba0d5edfe85066df24a",
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-2::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-2::cl-1",
+            "contentSha256": "sha256:87674bc449c5da27128417aa67fd79b1bcf21188b968ae720588985a1785904a",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "engineeringRuleId": "ER-003",
+        "legalRuleIds": [
+          "LR-003"
+        ],
+        "concept": "Temporary Test Record Identification",
+        "legalIntent": "Identify which records are temporary test records (exempt from retention) versus production records (subject to retention).",
+        "applicabilityGuidance": "Applies to systems that distinguish between test and production data.",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "The system must be able to identify or distinguish temporary test records from production records."
+          }
+        ],
+        "investigationGoals": [
+          "Find flags, markers, or separate storage for test records",
+          "Identify test mode configurations or environments",
+          "Look for record metadata indicating test status"
+        ],
+        "startingNodeTypes": [
+          "class",
+          "interface",
+          "type",
+          "field",
+          "property",
+          "function",
+          "method"
+        ],
+        "targetNodeTypes": [
+          "field",
+          "property",
+          "parameter",
+          "variable"
+        ],
+        "edgeStrategies": [
+          "Look for boolean flags or enum values indicating test status",
+          "Examine record creation logic for test vs production paths",
+          "Check configuration for test mode settings"
+        ],
+        "graphQueries": [
+          {
+            "name": "Find test indicators",
+            "startNodeTypes": [
+              "field",
+              "property"
+            ],
+            "direction": "BOTH",
+            "followEdges": [
+              "HAS_TYPE",
+              "USES",
+              "REFERENCES"
+            ],
+            "stopNodeTypes": [
+              "type",
+              "class"
+            ],
+            "semanticTypes": [
+              "test",
+              "temporary",
+              "flag"
+            ]
+          }
+        ],
+        "keywords": [
+          "test",
+          "temporary",
+          "temp",
+          "mock",
+          "sample",
+          "demo",
+          "staging"
+        ],
+        "commonApis": [],
+        "commonLibraries": [],
+        "patterns": [
+          "Boolean field named isTest, isTemporary, or similar",
+          "Enum with TEST or TEMPORARY values",
+          "Separate test database or storage location",
+          "Configuration-based test mode"
+        ],
+        "requiredEvidence": [
+          "Mechanism to identify or flag records as temporary test records"
+        ],
+        "supportingEvidence": [
+          "Code that handles test records differently from production records",
+          "Documentation explaining test record handling",
+          "Test environment configurations"
+        ],
+        "negativeEvidence": [
+          "No distinction between test and production records"
+        ],
+        "unresolvedConditions": [],
+        "engineeringRuleVersion": "live-synthetic-v1",
+        "sourceFingerprint": "8163018131e65ae56fc0aaf5e2a870c2c1ba08f2dc25f3b4c9fbe5eca0b0f7f1",
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-3::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-3::cl-1",
+            "contentSha256": "sha256:efe8ff082b8a80fdae0e5a1322c41fde82b92491a50d8109cb9673a951b1cc58",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "engineeringRuleId": "ER-004",
+        "legalRuleIds": [
+          "LR-004"
+        ],
+        "concept": "Receipt Timestamp Recording at Reception",
+        "legalIntent": "Ensure the receipt timestamp is recorded when the notice is received by the system, not when it is drafted or created by the sender.",
+        "applicabilityGuidance": "Applies to any code path that receives and processes incoming notices.",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "The system must record the receipt timestamp at the point when the notice is received, not using a timestamp from the notice content or creation time."
+          }
+        ],
+        "investigationGoals": [
+          "Identify where notices are received (API endpoints, message handlers, etc.)",
+          "Verify that timestamps are generated at reception time",
+          "Ensure timestamps are not copied from incoming message metadata"
+        ],
+        "startingNodeTypes": [
+          "function",
+          "method",
+          "endpoint",
+          "handler"
+        ],
+        "targetNodeTypes": [
+          "call",
+          "assignment",
+          "expression"
+        ],
+        "edgeStrategies": [
+          "Follow CALLS edges to timestamp generation functions",
+          "Look for timestamp assignment in receive handlers",
+          "Trace data flow from reception point to storage"
+        ],
+        "graphQueries": [
+          {
+            "name": "Find notice reception points",
+            "startNodeTypes": [
+              "endpoint",
+              "handler",
+              "method"
+            ],
+            "direction": "FORWARD",
+            "followEdges": [
+              "CALLS",
+              "INVOKES",
+              "ASSIGNS"
+            ],
+            "stopNodeTypes": [
+              "function",
+              "method"
+            ],
+            "semanticTypes": [
+              "receive",
+              "handle",
+              "process",
+              "timestamp"
+            ]
+          }
+        ],
+        "keywords": [
+          "receive",
+          "received",
+          "timestamp",
+          "now",
+          "current",
+          "intake",
+          "inbound"
+        ],
+        "commonApis": [
+          "System.currentTimeMillis",
+          "Date.now",
+          "Instant.now",
+          "Clock.systemUTC",
+          "datetime.now"
+        ],
+        "commonLibraries": [
+          "java.time",
+          "datetime",
+          "moment",
+          "luxon"
+        ],
+        "patterns": [
+          "Timestamp generated using current time APIs at reception",
+          "Timestamp assignment in message receive handlers",
+          "Server-side timestamp generation, not client-provided"
+        ],
+        "requiredEvidence": [
+          "Code that generates current timestamp when notice is received"
+        ],
+        "supportingEvidence": [
+          "API endpoint or message handler that assigns receipt timestamp",
+          "Comments or documentation explaining timestamp recording at reception",
+          "Rejection or overwriting of client-provided timestamps"
+        ],
+        "negativeEvidence": [
+          "Using timestamp from incoming message payload as receipt timestamp",
+          "Recording timestamp at notice draft/creation time instead of reception"
+        ],
+        "unresolvedConditions": [],
+        "engineeringRuleVersion": "live-synthetic-v1",
+        "sourceFingerprint": "67c5304ba3353e757e90ad99fc07e9fb4cbde1616a1f9797b0c54fbbfad109f2",
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-4::cl-1::pt-a",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-4::cl-1::pt-a",
+            "contentSha256": "sha256:488c174e0fc05084beb772662b8ddb0a5bf3fac2821c795d1b23d171f157ea5d",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "engineeringRuleId": "ER-005",
+        "legalRuleIds": [
+          "LR-005",
+          "LR-006"
+        ],
+        "concept": "Seven-Day Record Retention",
+        "legalIntent": "Ensure that each record (notice with receipt timestamp) is retained for at least 7 days from the receipt timestamp, except for temporary test records.",
+        "applicabilityGuidance": "Applies to all production records; does not apply to temporary test records.",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "Production records must be retained for at least 7 days from their receipt timestamp."
+          },
+          {
+            "criterionId": "C-2",
+            "statement": "The retention period must begin from the receipt timestamp, not from any other date."
+          },
+          {
+            "criterionId": "C-3",
+            "statement": "Temporary test records may be excluded from the 7-day retention requirement."
+          }
+        ],
+        "investigationGoals": [
+          "Identify record deletion, archival, or cleanup logic",
+          "Verify retention period is at least 7 days",
+          "Confirm retention period is calculated from receipt timestamp",
+          "Check that test records are handled separately if applicable"
+        ],
+        "startingNodeTypes": [
+          "function",
+          "method",
+          "job",
+          "scheduler",
+          "cron"
+        ],
+        "targetNodeTypes": [
+          "call",
+          "expression",
+          "condition"
+        ],
+        "edgeStrategies": [
+          "Follow deletion or cleanup logic",
+          "Trace retention period calculations",
+          "Look for scheduled tasks that purge old records"
+        ],
+        "graphQueries": [
+          {
+            "name": "Find cleanup logic",
+            "startNodeTypes": [
+              "function",
+              "method"
+            ],
+            "direction": "FORWARD",
+            "followEdges": [
+              "CALLS",
+              "INVOKES",
+              "CONTAINS"
+            ],
+            "stopNodeTypes": [
+              "call",
+              "expression"
+            ],
+            "semanticTypes": [
+              "delete",
+              "cleanup",
+              "purge",
+              "archive",
+              "retention"
+            ]
+          }
+        ],
+        "keywords": [
+          "delete",
+          "remove",
+          "purge",
+          "cleanup",
+          "expire",
+          "retention",
+          "archive",
+          "days",
+          "7"
+        ],
+        "commonApis": [
+          "DELETE",
+          "drop",
+          "remove",
+          "clear",
+          "expire"
+        ],
+        "commonLibraries": [],
+        "patterns": [
+          "Scheduled jobs that delete records older than 7 days",
+          "Retention policies configured to 7 days or more",
+          "TTL (time-to-live) settings of at least 7 days",
+          "Deletion logic that checks age against receipt timestamp"
+        ],
+        "requiredEvidence": [
+          "Retention period of at least 7 days from receipt timestamp",
+          "Logic that preserves records for the required duration"
+        ],
+        "supportingEvidence": [
+          "Configuration files with retention settings >= 7 days",
+          "Scheduled tasks that run no more frequently than every 7 days for cleanup",
+          "Database TTL or expiration settings >= 7 days",
+          "Code comments explaining 7-day retention requirement"
+        ],
+        "negativeEvidence": [
+          "Retention period less than 7 days",
+          "Deletion based on creation time rather than receipt timestamp",
+          "No retention mechanism (records deleted immediately or arbitrarily)"
+        ],
+        "unresolvedConditions": [],
+        "engineeringRuleVersion": "live-synthetic-v1",
+        "sourceFingerprint": "4778d10b25e6f0afcfe40430a8f2c99f661df61793fb965a71221f53dd968ffe",
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-5::cl-1",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-5::cl-1",
+            "contentSha256": "sha256:bd8cd881b48df3173ecf660da32079a9f63b775ffe6adf5fba9434d30d1a25ea",
+            "sourceEffectStatus": "IN_FORCE"
+          },
+          {
+            "chunkId": "live-synthetic-v1-art-5::cl-1::pt-a",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-5::cl-1::pt-a",
+            "contentSha256": "sha256:eecf13d5d761815a81b1a94dbba9307a1000cdc43caa6335b1693f815612772b",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      },
+      {
+        "engineeringRuleId": "ER-006",
+        "legalRuleIds": [
+          "LR-007"
+        ],
+        "concept": "Preservation of Notice Text Integrity",
+        "legalIntent": "Ensure that stored notice text is preserved without removing or modifying its limiting language or qualifiers.",
+        "applicabilityGuidance": "Applies to all stored production notices (except temporary test records).",
+        "criteria": [
+          {
+            "criterionId": "C-1",
+            "statement": "Notice text must be stored without modification that would remove limiting language."
+          },
+          {
+            "criterionId": "C-2",
+            "statement": "The system must not strip, sanitize, or transform notice content in ways that alter limiting language, qualifiers, or conditions."
+          }
+        ],
+        "investigationGoals": [
+          "Identify text processing, sanitization, or transformation logic",
+          "Verify that notice content is stored verbatim or with only safe transformations",
+          "Check for stripping, filtering, or modification of text content"
+        ],
+        "startingNodeTypes": [
+          "function",
+          "method",
+          "class"
+        ],
+        "targetNodeTypes": [
+          "call",
+          "expression",
+          "transformation"
+        ],
+        "edgeStrategies": [
+          "Follow data flow from notice reception to storage",
+          "Look for text processing functions between input and persistence",
+          "Examine sanitization, validation, or transformation logic"
+        ],
+        "graphQueries": [
+          {
+            "name": "Find text processing",
+            "startNodeTypes": [
+              "function",
+              "method"
+            ],
+            "direction": "FORWARD",
+            "followEdges": [
+              "CALLS",
+              "INVOKES",
+              "TRANSFORMS"
+            ],
+            "stopNodeTypes": [
+              "function",
+              "call"
+            ],
+            "semanticTypes": [
+              "sanitize",
+              "filter",
+              "strip",
+              "transform",
+              "clean"
+            ]
+          }
+        ],
+        "keywords": [
+          "sanitize",
+          "strip",
+          "remove",
+          "clean",
+          "filter",
+          "escape",
+          "encode",
+          "transform",
+          "modify"
+        ],
+        "commonApis": [
+          "strip",
+          "trim",
+          "replace",
+          "filter",
+          "sanitize",
+          "removeHtmlTags",
+          "clean"
+        ],
+        "commonLibraries": [
+          "DOMPurify",
+          "sanitize-html",
+          "bleach",
+          "OWASP Java HTML Sanitizer"
+        ],
+        "patterns": [
+          "Notice text stored verbatim without content modification",
+          "Only encoding transformations (e.g., HTML escaping for display, not storage)",
+          "No removal of conditional phrases, qualifiers, or limiting language"
+        ],
+        "requiredEvidence": [
+          "Notice text stored without content-altering transformations",
+          "Code showing verbatim or safe storage of notice content"
+        ],
+        "supportingEvidence": [
+          "Comments or documentation stating content is preserved as-is",
+          "Validation logic that does not modify content",
+          "Use of parameterized queries or safe serialization that preserves content"
+        ],
+        "negativeEvidence": [
+          "Text stripping or sanitization that removes portions of content",
+          "Regex replacements or filters that alter notice text",
+          "Removal of special characters or phrases that could be limiting language"
+        ],
+        "unresolvedConditions": [],
+        "engineeringRuleVersion": "live-synthetic-v1",
+        "sourceFingerprint": "ca5bcda99d6602f16784d6284c1827017d705e4057303317dbee30666fc14709",
+        "sources": [
+          {
+            "chunkId": "live-synthetic-v1-art-5::cl-1::pt-b",
+            "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+            "locator": "art-5::cl-1::pt-b",
+            "contentSha256": "sha256:61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      }
+    ],
+    "contextRelations": [
+      {
+        "relationId": "REL-001",
+        "kind": "DEFINITION",
+        "fromLegalRuleId": "LR-005",
+        "toLegalRuleId": "LR-001",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-002",
+        "kind": "DEFINITION",
+        "fromLegalRuleId": "LR-006",
+        "toLegalRuleId": "LR-001",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-003",
+        "kind": "DEFINITION",
+        "fromLegalRuleId": "LR-007",
+        "toLegalRuleId": "LR-001",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-004",
+        "kind": "SCOPE",
+        "fromLegalRuleId": "LR-005",
+        "toLegalRuleId": "LR-002",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-005",
+        "kind": "SCOPE",
+        "fromLegalRuleId": "LR-006",
+        "toLegalRuleId": "LR-002",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-006",
+        "kind": "SCOPE",
+        "fromLegalRuleId": "LR-007",
+        "toLegalRuleId": "LR-002",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-007",
+        "kind": "SCOPE",
+        "fromLegalRuleId": "LR-008",
+        "toLegalRuleId": "LR-002",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-008",
+        "kind": "EXCEPTION",
+        "fromLegalRuleId": "LR-005",
+        "toLegalRuleId": "LR-003",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-009",
+        "kind": "EXCEPTION",
+        "fromLegalRuleId": "LR-006",
+        "toLegalRuleId": "LR-003",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-010",
+        "kind": "EXCEPTION",
+        "fromLegalRuleId": "LR-007",
+        "toLegalRuleId": "LR-003",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-011",
+        "kind": "CROSS_REFERENCE",
+        "fromLegalRuleId": "LR-005",
+        "toLegalRuleId": null,
+        "toSourceRef": {
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-4::cl-1",
+          "contentSha256": "sha256:315d2575bfb3a13eb71e1e0dd4245805690fb888c5a2a351114da6a74b896b08"
+        }
+      },
+      {
+        "relationId": "REL-012",
+        "kind": "QUALIFIER",
+        "fromLegalRuleId": "LR-005",
+        "toLegalRuleId": "LR-004",
+        "toSourceRef": null
+      },
+      {
+        "relationId": "REL-013",
+        "kind": "CROSS_REFERENCE",
+        "fromLegalRuleId": "LR-003",
+        "toLegalRuleId": null,
+        "toSourceRef": {
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-5",
+          "contentSha256": "sha256:1349601e140534059e0eec3a82198f01ddc484c23f2c775dc88c98f20766ebad"
+        }
+      },
+      {
+        "relationId": "REL-014",
+        "kind": "CROSS_REFERENCE",
+        "fromLegalRuleId": "LR-003",
+        "toLegalRuleId": null,
+        "toSourceRef": {
+          "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+          "locator": "art-6",
+          "contentSha256": "sha256:7bbeb8a28f292b450c3abc7112d11ed8b634b6fbe2e63cff88ad3cc5b6e463bf"
+        }
+      }
+    ]
+  },
+  "validationFailures": [],
+  "fixtureChunks": [
+    {
+      "locator": "art-1",
+      "content": "Điều 1. Defined term"
+    },
+    {
+      "locator": "art-1::cl-1",
+      "content": "1. In this synthetic instrument, “record” means a stored notice and its receipt timestamp."
+    },
+    {
+      "locator": "art-2",
+      "content": "Điều 2. Scope"
+    },
+    {
+      "locator": "art-2::cl-1",
+      "content": "1. This instrument applies only to operators offering the notice service to the public.\nPrivate household use is outside this scope."
+    },
+    {
+      "locator": "art-3",
+      "content": "Điều 3. Exception"
+    },
+    {
+      "locator": "art-3::cl-1",
+      "content": "1. The retention duty in Article 5 does not apply to a temporary test record.\nThis exception does not remove the in-person duty in Article 6."
+    },
+    {
+      "locator": "art-4",
+      "content": "Điều 4. Cross-reference"
+    },
+    {
+      "locator": "art-4::cl-1",
+      "content": "1. For the duty in Article 5, read “record” as defined in Article 1, within Article 2 and subject to Article 3.\na) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted."
+    },
+    {
+      "locator": "art-4::cl-1::pt-a",
+      "content": "a) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted."
+    },
+    {
+      "locator": "art-5",
+      "content": "Điều 5. Retention duty"
+    },
+    {
+      "locator": "art-5::cl-1",
+      "content": "1. An operator within Article 2 must retain each record for 7 days, subject to Article 3.\na) Keep the notice text with its receipt timestamp.\nb) Preserve the notice text without removing its limiting language."
+    },
+    {
+      "locator": "art-5::cl-1::pt-a",
+      "content": "a) Keep the notice text with its receipt timestamp."
+    },
+    {
+      "locator": "art-5::cl-1::pt-b",
+      "content": "b) Preserve the notice text without removing its limiting language."
+    },
+    {
+      "locator": "art-6",
+      "content": "Điều 6. In-person duty"
+    },
+    {
+      "locator": "art-6::cl-1",
+      "content": "1. The operator must appoint a person to attend the annual public information session in person.\nAttendance is recorded in the session register maintained by the organizer."
+    }
+  ]
+}

@@ -21,8 +21,9 @@ Scan job (worker)
                     │  accepted technical evidence event
                     ▼
 Engineering assessment (deterministic Python per-rule loop = the single orchestrator)
-  resolve pinned READY EngineeringRules
-     └ not READY -> ENGINEERING_RULE_NOT_READY -> LEGAL_MAINTENANCE / triage handoff
+  read the pinned ACTIVE LegalPortfolioVersion (DB; the only legal source)
+     └ none ACTIVE / no EngineeringRules -> BLOCKED with a typed limitation; assessment
+       never prepares, recovers or compiles legal output
   deterministic applicability (RuleApplicabilityEvaluator)
      MATCHED | NOT_GATED           -> eligible
      NOT_APPLICABLE                -> stop, no analysis
@@ -45,9 +46,10 @@ Engineering assessment (deterministic Python per-rule loop = the single orchestr
 
 The important boundaries:
 
-- **EngineeringRules are prepared/pinned inputs.** Legal corpus -> LegalRule ->
-  EngineeringRule compilation is LEGAL_MAINTENANCE (Workflow A, `triage`) and is separate
-  from per-assessment reasoning. There is no Legal Agent in the assessment runtime.
+- **LegalRules/EngineeringRules are pinned inputs.** The separate Legal Preparation Deep
+  Agent (`legal_preparation/`) authors one portfolio per pinned corpus; the API validates it
+  mechanically and activates it atomically. There is no human approval, no triage subagent,
+  no compile/cache/bundle path and no Legal Agent in the assessment runtime.
 - **One orchestrator.** The Python loop is the only assessment orchestrator. The root
   model does not sequence assessment work and `instructions.md` describes no alternative
   flow. There is no Planner, no Scanner rule pass, no Investigator, no RuleDiscoveryTask
@@ -58,9 +60,8 @@ The important boundaries:
 
 ## Root supervisor concerns
 
-The root is now the LEGAL_MAINTENANCE supervisor. It delegates to `triage` with the
-built-in `task` tool and mirrors that work with `write_todos`
-(`TodoListMiddleware`). It has no assessment role.
+The root holds no legal or assessment authority. It may use the built-in `task` tool for
+bounded general-purpose work and mirrors it with `write_todos` (`TodoListMiddleware`).
 
 - **Runtime context.** `orchestration.context.LCSPRunContext` (frozen, set by the
   dispatcher, never by a model): assessment/organization/user/workflow/checkpoint ids,
@@ -75,7 +76,7 @@ built-in `task` tool and mirrors that work with `write_todos`
 
 ## Subagents
 
-`subagents/__init__.FLOW_SUBAGENTS = [triage, interview, repository-analyst]`. Each has
+`subagents/__init__.FLOW_SUBAGENTS = [interview, repository-analyst]`. Each has
 its own `definition.py` (name, model, prompt, minimal tools, middleware).
 
 ### Repository Analyst
@@ -95,10 +96,6 @@ Customer-owned business context only; never reads source. One distinction at a t
 customer-safe neutral text, no rule ids or citations. The governed answer carries
 server-owned identity (`sourceNeedId` = needId, `engineeringRuleId`, `resolvedCriterionIds`),
 advances `contextRevision`, and resumes only the rule that owns the need.
-
-### Triage (LEGAL_MAINTENANCE)
-
-Unchanged and separate; see `instructions.md` Workflow A.
 
 ## Rule assessment contract
 
@@ -194,7 +191,7 @@ lifecycle; it is presentation only.
 ```text
 tools/
 ├── common/         # graph tools, submit_rule_assessment, cite_repository_source, ...
-├── legal/  triage/ # LEGAL_MAINTENANCE
+├── legal/          # source acquisition, hierarchy, hashes, retrieval index (no semantics)
 └── orchestration/
 ```
 
@@ -234,7 +231,7 @@ version: 1                      # must be integer 1
 
 routes:                         # routeId -> transport provider + opaque model + options
   primary:
-    provider: llm7              # exactly: openai | anthropic | google_genai | llm7 | inception
+    provider: llm7              # exactly: openai | anthropic | google_genai | llm7 | inception | apx
     model: minimax-m2.7         # any non-blank string, kept byte-for-byte
     options: {}                 # optional; absent = provider default
   fallback:
@@ -285,10 +282,10 @@ mapping keys are rejected at any level. Worked changes (edit the file, restart w
   overridden with the optional `USAGE_RECOVERY_STORE_PATH`. Model execution never reserves,
   prices, or debits credits; the customer wallet / SePay top-up flow is independent of it.
 
-Provider adapters (`openai`, `anthropic`, `google_genai`, `llm7`, `inception`; exact ids, no
+Provider adapters (`openai`, `anthropic`, `google_genai`, `llm7`, `inception`, `apx`; exact ids, no
 aliases, so `google` or `gemini` is rejected) only describe transport: LangChain provider key,
 client protocol (OpenAI Responses API, or Chat Completions for the OpenAI-compatible
-LLM7/Inception endpoints), base URL (`LLM7_BASE_URL`, `INCEPTION_BASE_URL`), shared timeout
+LLM7/Inception endpoints), base URL (`LLM7_BASE_URL`, `INCEPTION_BASE_URL`, `APX_BASE_URL`), shared timeout
 and credential lookup. They accept any model string.
 
 Role names resolved by the runtime:
@@ -296,14 +293,12 @@ Role names resolved by the runtime:
 | Role                 | Where it is used                                                                          |
 | -------------------- | ----------------------------------------------------------------------------------------- |
 | `root`               | `lcsp-agent` supervisor and its governed `general-purpose` subagent                       |
-| `triage`             | Legal triage subagent                                                                     |
 | `interview`          | Customer business-context Interview subagent                                              |
 | `repository-analyst` | Repository Analyst subagent and the scan-time AI-discovery task                           |
 | `narrator`           | final report narrator, classification proposer/rationale narrator, AI-usage-flow proposer |
-| `legal-chunk-triage` | offline legal corpus maintenance: chunk triage                                            |
-| `legal-compiler`     | offline legal corpus maintenance: EngineeringRule compiler                                |
+| `legal-preparation`  | Legal Preparation Deep Agent (portfolio authoring)                                        |
 
-Any role not listed in `roles` (including the two legal maintenance roles) falls back to
+Any role not listed in `roles` falls back to
 `roles.default`.
 
 Audit identity: the resolved `{role, routeId, provider, model, options}` is canonicalised and
@@ -401,8 +396,8 @@ cooldown. A fallback route whose provider has no credential env var fails closed
 Fallback happens only after the current route's key pool is exhausted by credential, quota,
 transient HTTP, timeout, or connection failures. The next route then performs its own full
 key rotation before the chain advances again. Schema/request failures and HTTP 400/404/422
-never cross routes. LLM7 always uses `LLM7_API_KEY` and Inception always uses
-`INCEPTION_API_KEY`; neither borrows `OPENAI_API_KEY`. Routing transitions are reported in
+never cross routes. LLM7 always uses `LLM7_API_KEY`, Inception always uses
+`INCEPTION_API_KEY` and APX always uses `APX_API_KEY`; none borrows `OPENAI_API_KEY`. Routing transitions are reported in
 infrastructure logs only, never in the assessment stream.
 
 ## Live Deep Agents stream to workspace Chat

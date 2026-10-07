@@ -45,6 +45,12 @@ class InternalPath(StrEnum):
     )
     ASSESSMENT_AI_NOT_DETECTED = "/internal/assessment-interviews/{assessment_id}/ai-not-detected"
     LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-rule-catalog/source-snapshots"
+    LEGAL_PORTFOLIO_PREPARATIONS = "/internal/legal-portfolio/preparations"
+    LEGAL_PORTFOLIO_CLAIMS = "/internal/legal-portfolio/claims"
+    LEGAL_PORTFOLIO_VALIDATIONS = "/internal/legal-portfolio/validations"
+    LEGAL_PORTFOLIO_SUBMISSIONS = "/internal/legal-portfolio/submissions"
+    LEGAL_PORTFOLIO_FAILURES = "/internal/legal-portfolio/failures"
+    LEGAL_PORTFOLIO_ACTIVE = "/internal/legal-portfolio/active"
 
 
 class CallbackLogEvent(StrEnum):

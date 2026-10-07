@@ -4,7 +4,6 @@ import {
   AUTH_USER_ROLES,
 } from "@lcsp/contracts/auth";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { LEGAL_RULE_ERROR_CODES } from "@lcsp/contracts/legal-rule-catalog";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import * as assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -150,10 +149,10 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
       assert.equal(resReadiness.status, 401);
       assert.equal(problemCode(resReadiness), AUTH_ERROR_CODES.sessionInvalid);
 
-      // 5. Admin legal rule catalog mutation endpoint
+      // 5. Admin legal preparation trigger (the only remaining admin legal write)
       const resVersionMutation = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/versions")
-        .send({ version: "v2026.09.01" })
+        .post("/admin/corpus-versions/prepare")
+        .send({ idempotencyKey: "prep-unauth-1" })
         .set("Accept", "application/json");
 
       assert.equal(resVersionMutation.status, 401);
@@ -201,11 +200,11 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
       assert.equal(resReadiness.status, 403);
       assert.equal(problemCode(resReadiness), RBAC_REASON_CODES.denied);
 
-      // 5. Admin mutation endpoint
+      // 5. Admin legal preparation trigger
       const resVersionMutation = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/versions")
+        .post("/admin/corpus-versions/prepare")
         .set("Authorization", `Bearer ${customerSessionToken}`)
-        .send({ version: "v2026.09.01" })
+        .send({ idempotencyKey: "prep-customer-1" })
         .set("Accept", "application/json");
 
       assert.equal(resVersionMutation.status, 403);
@@ -254,32 +253,24 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
   });
 
   describe("Section 3: Legal Rule Catalog & Corpus Lifecycle Mutations", () => {
-    it("allows Admin to create draft catalog version and rejects duplicates with 409", async () => {
-      const versionTag = `v${Date.now()}`;
-
-      // 1. Create draft catalog version via Admin API
-      const createRes = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/versions")
-        .set("Authorization", `Bearer ${adminSessionToken}`)
-        .send({ version: versionTag })
-        .set("Accept", "application/json");
-
-      assert.equal(createRes.status, 201);
-      const createdData = successBody<{ version: string }>(createRes);
-      assert.equal(createdData.version, versionTag);
-
-      // 2. Attempt duplicate version creation -> 409 Conflict
-      const duplicateRes = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/versions")
-        .set("Authorization", `Bearer ${adminSessionToken}`)
-        .send({ version: versionTag })
-        .set("Accept", "application/json");
-
-      assert.equal(duplicateRes.status, 409);
-      assert.equal(
-        problemCode(duplicateRes),
-        LEGAL_RULE_ERROR_CODES.catalogVersionAlreadyApproved,
-      );
+    it("exposes no human legal authoring, approval, publish or discard route to Admin", async () => {
+      const retiredRoutes = [
+        "/internal/legal-rule-catalog/versions",
+        "/internal/legal-rule-catalog/rules",
+        "/internal/legal-rule-catalog/rules/recover-from-active-corpus",
+        "/internal/legal-rule-catalog/versions/any/approve",
+        "/internal/legal-rule-catalog/corpus",
+        "/admin/corpus-versions/any/publish",
+        "/admin/corpus-versions/any/discard",
+      ];
+      for (const route of retiredRoutes) {
+        const response = await httpRequest(app)
+          .post(route)
+          .set("Authorization", `Bearer ${adminSessionToken}`)
+          .send({})
+          .set("Accept", "application/json");
+        assert.equal(response.status, 404, `${route} must not exist`);
+      }
     });
   });
 

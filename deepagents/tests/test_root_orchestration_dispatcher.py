@@ -6,7 +6,7 @@ import pytest
 
 from model_policy import resolve_agent_model
 
-from contracts.handoffs import TriageResult
+from contracts.handoffs import InterviewResult
 from orchestration.context import LCSPRunContext
 from orchestration.dispatcher import RootSubagentDispatcher
 from orchestration.lifecycle import RootSubagentReservation
@@ -50,91 +50,18 @@ def test_specialist_selection_is_attributed_to_target_not_enclosing_scanner(monk
     assert events[0]["stage"] == stage
 
 
-def _definition() -> dict:
-    return {
-        "name": "triage",
+def _definition(name: str = "interview", *, handoff: bool = True) -> dict:
+    definition = {
+        "name": name,
         "model": "test-model",
         "tools": [],
-        "system_prompt": "triage prompt",
+        "system_prompt": f"{name} prompt",
         "middleware": [],
-        "response_format": TriageResult,
+        "response_format": InterviewResult,
     }
-
-
-def test_root_dispatcher_owns_triage_begin_and_complete_transitions() -> None:
-    lifecycle = MagicMock()
-    reservation = RootSubagentReservation(
-        subagent_type="triage",
-        status="OWNER",
-        execution_id="triage:owner",
-        trigger="ENGINEERING_RULE_NOT_READY",
-    )
-    lifecycle.reserve_subagent.return_value = reservation
-    lifecycle.owner_instruction.return_value = "ROOT OWNS TRIAGE"
-    lifecycle.complete_subagent.return_value = {
-        "status": "COMPLETE",
-        "assessmentReconciliation": {"resumedAssessmentCount": 2},
-    }
-    specialist = MagicMock()
-    specialist.invoke.return_value = {
-        "structured_response": {
-            "status": "READY",
-            "triage_execution_id": "triage:owner",
-            "trigger": "ENGINEERING_RULE_NOT_READY",
-            "idempotency_key": "legal-triage:key",
-            "legal_rule_catalog_version_id": "catalog-1",
-            "legal_corpus_version_id": "corpus-1",
-            "triaged_rule_ids": ["RULE-1"],
-            "candidate_chunk_ids": ["chunk-1"],
-            "context_only_chunk_ids": [],
-            "rejected_chunk_ids": [],
-            "engineering_rule_ids": ["ENG-1"],
-            "limitations": [],
-        }
-    }
-    factory = MagicMock(return_value=specialist)
-    dispatcher = RootSubagentDispatcher(
-        lifecycle=lifecycle,
-        agent_factory=factory,
-        subagents={"triage": _definition()},
-    )
-
-    result = dispatcher.dispatch(
-        subagent_type="triage",
-        instruction="Run bounded legal preparation.",
-        affected_rule_ids=["RULE-1"],
-        idempotency_key="legal-triage:key",
-        trigger="ENGINEERING_RULE_NOT_READY",
-        metadata={"correlationId": "corr-1"},
-        thread_id="triage:legal-triage:key",
-    )
-
-    lifecycle.reserve_subagent.assert_called_once_with(
-        subagent_type="triage",
-        affected_rule_ids=["RULE-1"],
-        idempotency_key="legal-triage:key",
-        trigger="ENGINEERING_RULE_NOT_READY",
-    )
-    factory.assert_called_once()
-    assert factory.call_args.kwargs["response_format"] is TriageResult
-    invoke_input = specialist.invoke.call_args.args[0]
-    invoke_config = specialist.invoke.call_args.kwargs["config"]
-    assert invoke_input["messages"][0]["content"].startswith("ROOT OWNS TRIAGE")
-    assert "Run bounded legal preparation." in invoke_input["messages"][0]["content"]
-    assert "configurable" not in invoke_config
-    assert invoke_config["metadata"]["lcsp_thread_id"] == "triage:legal-triage:key"
-    assert invoke_config["metadata"]["lcsp_thread_checkpointing"] == "disabled"
-    lifecycle.complete_subagent.assert_called_once_with(reservation)
-    lifecycle.fail_subagent.assert_not_called()
-    assert result["status"] == "COMPLETED"
-    assert result["executionId"] == "triage:owner"
-    assert result["orchestration"]["assessmentReconciliation"]["resumedAssessmentCount"] == 2
-    assert result["handoff"]["engineering_rule_ids"] == ["ENG-1"]
-    assert result["checkpointing"] == {
-        "threadId": "triage:legal-triage:key",
-        "enabled": False,
-    }
-    assert result["episode"] == {"captured": False}
+    if not handoff:
+        definition.pop("response_format")
+    return definition
 
 
 def test_dispatcher_has_no_root_reentry_path() -> None:
@@ -149,31 +76,16 @@ def test_dispatcher_has_no_root_reentry_path() -> None:
 def test_direct_dispatch_passes_context_and_explicit_checkpointer() -> None:
     lifecycle = MagicMock()
     reservation = RootSubagentReservation(
-        subagent_type="triage",
+        subagent_type="repository-analyst",
         status="OWNER",
-        execution_id="triage:owner",
-        trigger="SCHEDULED",
+        execution_id="repository-analyst:owner",
+        trigger="RULE_ANALYSIS",
     )
     lifecycle.reserve_subagent.return_value = reservation
     lifecycle.owner_instruction.return_value = ""
     lifecycle.complete_subagent.return_value = {"status": "COMPLETE"}
     specialist = MagicMock()
-    specialist.invoke.return_value = {
-        "structured_response": {
-            "status": "READY",
-            "triage_execution_id": "triage:owner",
-            "trigger": "SCHEDULED",
-            "idempotency_key": None,
-            "legal_rule_catalog_version_id": "catalog-1",
-            "legal_corpus_version_id": "corpus-1",
-            "triaged_rule_ids": ["RULE-1"],
-            "candidate_chunk_ids": ["chunk-1"],
-            "context_only_chunk_ids": [],
-            "rejected_chunk_ids": [],
-            "engineering_rule_ids": ["ENG-1"],
-            "limitations": [],
-        }
-    }
+    specialist.invoke.return_value = {"messages": []}
     checkpointer = object()
     factory = MagicMock(return_value=specialist)
     context = LCSPRunContext(
@@ -185,15 +97,15 @@ def test_direct_dispatch_passes_context_and_explicit_checkpointer() -> None:
     dispatcher = RootSubagentDispatcher(
         lifecycle=lifecycle,
         agent_factory=factory,
-        subagents={"triage": _definition()},
+        subagents={"repository-analyst": _definition("repository-analyst", handoff=False)},
         enable_thread_checkpointing=True,
         checkpointer=checkpointer,
     )
 
     result = dispatcher.dispatch(
-        subagent_type="triage",
-        instruction="Run scheduled maintenance.",
-        trigger="SCHEDULED",
+        subagent_type="repository-analyst",
+        instruction="Analyze one pinned rule.",
+        trigger="RULE_ANALYSIS",
         thread_id="workflow-1",
         context=context,
     )
@@ -209,25 +121,25 @@ def test_direct_dispatch_passes_context_and_explicit_checkpointer() -> None:
 def test_direct_dispatch_requires_checkpointer_when_thread_checkpointing_enabled() -> None:
     lifecycle = MagicMock()
     reservation = RootSubagentReservation(
-        subagent_type="triage",
+        subagent_type="repository-analyst",
         status="OWNER",
-        execution_id="triage:owner",
-        trigger="SCHEDULED",
+        execution_id="repository-analyst:owner",
+        trigger="RULE_ANALYSIS",
     )
     lifecycle.reserve_subagent.return_value = reservation
     lifecycle.owner_instruction.return_value = ""
     dispatcher = RootSubagentDispatcher(
         lifecycle=lifecycle,
         agent_factory=MagicMock(),
-        subagents={"triage": _definition()},
+        subagents={"repository-analyst": _definition("repository-analyst", handoff=False)},
         enable_thread_checkpointing=True,
     )
 
     with pytest.raises(RuntimeError, match="explicit checkpointer"):
         dispatcher.dispatch(
-            subagent_type="triage",
-            instruction="Run scheduled maintenance.",
-            trigger="SCHEDULED",
+            subagent_type="repository-analyst",
+            instruction="Analyze one pinned rule.",
+            trigger="RULE_ANALYSIS",
             thread_id="workflow-1",
             )
     lifecycle.fail_subagent.assert_called_once_with(reservation)
@@ -282,108 +194,60 @@ def test_repository_analyst_dispatch_passes_trusted_context_and_needs_no_handoff
 def test_root_dispatcher_does_not_auto_promote_verified_episode() -> None:
     lifecycle = MagicMock()
     reservation = RootSubagentReservation(
-        subagent_type="triage",
+        subagent_type="repository-analyst",
         status="OWNER",
-        execution_id="triage:owner",
-        trigger="SCHEDULED",
+        execution_id="repository-analyst:owner",
+        trigger="RULE_ANALYSIS",
     )
     lifecycle.reserve_subagent.return_value = reservation
-    lifecycle.owner_instruction.return_value = "ROOT OWNS TRIAGE"
+    lifecycle.owner_instruction.return_value = ""
     lifecycle.complete_subagent.return_value = {"status": "COMPLETE"}
     specialist = MagicMock()
-    specialist.invoke.return_value = {
-        "structured_response": {
-            "status": "READY",
-            "triage_execution_id": "triage:owner",
-            "trigger": "SCHEDULED",
-            "idempotency_key": None,
-            "legal_rule_catalog_version_id": "catalog-1",
-            "legal_corpus_version_id": "corpus-1",
-            "triaged_rule_ids": ["RULE-1"],
-            "candidate_chunk_ids": ["chunk-1"],
-            "context_only_chunk_ids": [],
-            "rejected_chunk_ids": [],
-            "engineering_rule_ids": ["ENG-1"],
-            "limitations": [],
-        }
-    }
+    specialist.invoke.return_value = {"messages": []}
     dispatcher = RootSubagentDispatcher(
         lifecycle=lifecycle,
         agent_factory=MagicMock(return_value=specialist),
-        subagents={"triage": _definition()},
+        subagents={"repository-analyst": _definition("repository-analyst", handoff=False)},
     )
 
     result = dispatcher.dispatch(
-        subagent_type="triage",
-        instruction="Run scheduled maintenance.",
+        subagent_type="repository-analyst",
+        instruction="Analyze one pinned rule.",
         affected_rule_ids=["RULE-1"],
         metadata={
             "assessment_id": "assessment-1",
             "artifact_versions": {"legalRuleCatalogVersionId": "catalog-1"},
         },
         thread_id="workflow-1",
-        trigger="SCHEDULED",
+        trigger="RULE_ANALYSIS",
     )
 
     assert result["episode"] == {"captured": False}
 
 
-def test_root_dispatcher_does_not_create_second_triage_when_policy_reports_running() -> None:
-    lifecycle = MagicMock()
-    lifecycle.reserve_subagent.return_value = RootSubagentReservation(
-        subagent_type="triage",
-        status="ALREADY_RUNNING",
-        execution_id="triage:active",
-        trigger="ENGINEERING_RULE_NOT_READY",
-    )
-    factory = MagicMock()
-    dispatcher = RootSubagentDispatcher(
-        lifecycle=lifecycle,
-        agent_factory=factory,
-        subagents={"triage": _definition()},
-    )
-
-    result = dispatcher.dispatch(
-        subagent_type="triage",
-        instruction="Run.",
-        affected_rule_ids=["RULE-2"],
-        idempotency_key="legal-triage:key2",
-        trigger="ENGINEERING_RULE_NOT_READY",
-    )
-
-    assert result == {
-        "status": "ALREADY_RUNNING",
-        "subagentType": "triage",
-        "executionId": "triage:active",
-        "subagentStarted": False,
-    }
-    factory.assert_not_called()
-    lifecycle.complete_subagent.assert_not_called()
-
-
 def test_root_dispatcher_releases_specialist_policy_when_agent_fails() -> None:
     lifecycle = MagicMock()
     reservation = RootSubagentReservation(
-        subagent_type="triage",
+        subagent_type="interview",
         status="OWNER",
-        execution_id="triage:owner",
-        trigger="SCHEDULED",
+        execution_id="interview:owner",
+        trigger="INTERVIEW",
     )
     lifecycle.reserve_subagent.return_value = reservation
-    lifecycle.owner_instruction.return_value = "ROOT OWNS TRIAGE"
+    lifecycle.owner_instruction.return_value = ""
     specialist = MagicMock()
     specialist.invoke.side_effect = RuntimeError("model failed")
     dispatcher = RootSubagentDispatcher(
         lifecycle=lifecycle,
         agent_factory=MagicMock(return_value=specialist),
-        subagents={"triage": _definition()},
+        subagents={"interview": _definition()},
     )
 
     with pytest.raises(RuntimeError, match="model failed"):
         dispatcher.dispatch(
-            subagent_type="triage",
-            instruction="Run scheduled maintenance.",
-            trigger="SCHEDULED",
+            subagent_type="interview",
+            instruction="Interview the customer.",
+            trigger="INTERVIEW",
             )
 
     lifecycle.fail_subagent.assert_called_once_with(reservation)
@@ -394,33 +258,33 @@ def test_root_dispatcher_releases_specialist_policy_when_agent_fails() -> None:
 def test_root_dispatcher_fails_policy_when_structured_handoff_is_missing(result) -> None:
     lifecycle = MagicMock()
     reservation = RootSubagentReservation(
-        subagent_type="triage",
+        subagent_type="interview",
         status="OWNER",
-        execution_id="triage:owner",
-        trigger="SCHEDULED",
+        execution_id="interview:owner",
+        trigger="INTERVIEW",
     )
     lifecycle.reserve_subagent.return_value = reservation
-    lifecycle.owner_instruction.return_value = "ROOT OWNS TRIAGE"
+    lifecycle.owner_instruction.return_value = ""
     specialist = MagicMock()
     specialist.invoke.return_value = result
     dispatcher = RootSubagentDispatcher(
         lifecycle=lifecycle,
         agent_factory=MagicMock(return_value=specialist),
-        subagents={"triage": _definition()},
+        subagents={"interview": _definition()},
     )
 
     with pytest.raises(RuntimeError, match="structured_response"):
         dispatcher.dispatch(
-            subagent_type="triage",
-            instruction="Run scheduled maintenance.",
-            trigger="SCHEDULED",
+            subagent_type="interview",
+            instruction="Interview the customer.",
+            trigger="INTERVIEW",
             )
 
     lifecycle.fail_subagent.assert_called_once_with(reservation)
     lifecycle.complete_subagent.assert_not_called()
 
 
-@pytest.mark.parametrize("subagent_type", ["triage", "interview", "repository-analyst"])
+@pytest.mark.parametrize("subagent_type", ["interview", "repository-analyst"])
 def test_default_agent_factory_builds_each_specialist_definition(monkeypatch, subagent_type) -> None:
     """Assessment 7976a135 regression: the real factory must accept real definitions.
 

@@ -1,4 +1,4 @@
-"""Rebuild, validate, activate, and resume workflows for the legal corpus."""
+"""Acquire, validate, and activate the official-source legal corpus, then start preparation."""
 
 from __future__ import annotations
 
@@ -53,12 +53,11 @@ class PreparationCallbackDeliveryError(RuntimeError):
 
 @dataclass(frozen=True)
 class LegalCorpusRecoveryResult:
-    """Terminal corpus recovery identifiers and resumed workflow count."""
+    """Terminal corpus acquisition identifiers."""
 
     status: str
     corpus_version_id: str
     retrieval_index_id: str | None
-    resumed_run_count: int
 
 
 class LegalCorpusRecoveryDriver:
@@ -66,8 +65,9 @@ class LegalCorpusRecoveryDriver:
 
     Recovery crawls bounded official-source requests, builds legal chunks from
     crawler text artifacts, ingests the validated draft, verifies exact retrieval
-    coverage, registers the retrieval index, activates the corpus, then resumes
-    workflows waiting for the newly active version.
+    coverage, registers the retrieval index, starts the Legal Preparation run that
+    authors the LegalRule/EngineeringRule portfolio, and activates the corpus source. It
+    never authors, recovers or approves legal semantics.
     """
 
     def __init__(
@@ -157,12 +157,6 @@ class LegalCorpusRecoveryDriver:
         idempotency_key: str,
     ) -> dict[str, Any]:
         """Run recovery while holding the per-core corpus recovery lock."""
-        if bool(message.get("recoverLegalRulesOnly")):
-            return self._run_legal_rule_only_recovery(
-                message=message,
-                correlationId=correlationId,
-                idempotency_key=idempotency_key,
-            )
         storage_root = self._resolve_storage_root(message)
         pending_callback = self._load_pending_preparation_callback(
             message, storage_root=storage_root
@@ -200,39 +194,17 @@ class LegalCorpusRecoveryDriver:
         draft = self._api_client.ingest_validated_legal_corpus_draft(enriched_payload)
         corpus_id = required_response_string(draft, "id", "corpus ingest response")
         if bool(draft.get("noChanges")):
-            catalog = self._recover_legal_rule_catalog(
-                idempotency_key=idempotency_key,
-                version=version,
-                correlationId=correlationId,
-                storage_root=storage_root,
-            )
-            resumed = self._api_client.resume_waiting_runs(
-                corpus_id,
-                {
-                    "maxRuns": int(message.get("maxRuns") or 500),
-                    "idempotencyKey": f"{idempotency_key}:resume:{version}",
-                },
-            )
-            resumed_count = int(
-                (resumed.get("result") or {}).get("resumedRunCount") or 0
-            )
             logger.info(
                 "LEGAL_CORPUS_RECOVERY_SKIPPED_UNCHANGED",
                 corpus_version_id=corpus_id,
                 corpus_version=str(draft.get("version") or ""),
                 change_set=draft.get("changeSet") or {},
-                legal_rule_catalog_version_id=catalog.get("id"),
-                legal_rule_count=catalog.get("ruleCount"),
-                resumed_run_count=resumed_count,
                 correlationId=correlationId,
             )
             return {
                 "status": "READY",
                 "corpusVersionId": corpus_id,
-                "legalRuleCatalogVersionId": catalog.get("id"),
-                "legalRuleCount": catalog.get("ruleCount"),
                 "retrievalIndexId": None,
-                "resumedRunCount": resumed_count,
                 "correlationId": correlationId,
                 "noChanges": True,
             }
@@ -258,77 +230,11 @@ class LegalCorpusRecoveryDriver:
             index=index,
             storage_root=storage_root,
         )
-        if bool(message.get("deferActivation")):
-            # Rule-source recovery is part of governed preparation.  Activation
-            # remains deferred, but the authoritative catalog snapshot must be
-            # available before the API is told that preparation is complete.
-            catalog = self._recover_legal_rule_catalog(
-                idempotency_key=idempotency_key,
-                version=version,
-                correlationId=correlationId,
-                storage_root=storage_root,
-            )
-            preparation_id = message.get("preparationId")
-            if isinstance(preparation_id, str) and preparation_id.strip():
-                completion_payload = {
-                    "preparationId": preparation_id,
-                    "status": "COMPLETED",
-                    "readiness": {
-                        "SOURCE_PARSING": "PASSED",
-                        "RETRIEVAL_VALIDATION": "PASSED",
-                    "INTEGRITY_MANIFEST": "PASSED",
-                    "RULE_SNAPSHOT": "UNAVAILABLE",
-                    "DIFF_REVIEW": "UNAVAILABLE",
-                    "applicable": {
-                        "RULE_SNAPSHOT": False,
-                        "DIFF_REVIEW": False,
-                    },
-                },
-                    "integrityManifestRef": f"integrity-manifest:{_safe_ref(version)}",
-                    "retrievalValidationRef": validation_ref,
-                }
-                completion_result = {
-                    "status": "PREPARED",
-                    "corpusVersionId": corpus_id,
-                    "retrievalIndexId": index.get("id"),
-                    "resumedRunCount": 0,
-                    "correlationId": correlationId,
-                    "legalRuleCatalogVersionId": catalog.get("id"),
-                    "legalRuleCount": catalog.get("ruleCount"),
-                }
-                self._store_pending_preparation_callback(
-                    message,
-                    storage_root=storage_root,
-                    corpus_version_id=corpus_id,
-                    payload=completion_payload,
-                    result=completion_result,
-                )
-                try:
-                    self._api_client.complete_legal_corpus_preparation(
-                        corpus_id,
-                        completion_payload,
-                    )
-                except Exception as exc:
-                    raise PreparationCallbackDeliveryError(
-                        "preparation completion callback delivery failed"
-                    ) from exc
-                self._clear_pending_preparation_callback(message, storage_root=storage_root)
-            logger.info(
-                "LEGAL_CORPUS_PREPARATION_COMPLETED",
-                corpus_version_id=corpus_id,
-                retrieval_index_id=index.get("id"),
-                correlationId=correlationId,
-            )
-            return {
-                "status": "PREPARED",
-                "corpusVersionId": corpus_id,
-                "retrievalIndexId": index.get("id"),
-                "resumedRunCount": 0,
-                "correlationId": correlationId,
-                "legalRuleCatalogVersionId": catalog.get("id"),
-                "legalRuleCount": catalog.get("ruleCount"),
-            }
-
+        # The single canonical preparation trigger: the pinned corpus is now
+        # immutable and its retrieval index is valid. Idempotent per corpus pipeline.
+        self._api_client.start_legal_preparation(
+            corpus_id, f"{idempotency_key}:legal-preparation:{version}"
+        )
         approved = self._legal_dispatcher.dispatch(
             "activate_validated_corpus_version",
             corpus_version_id=corpus_id,
@@ -353,41 +259,56 @@ class LegalCorpusRecoveryDriver:
             activation=approved,
             storage_root=storage_root,
         )
-        catalog = self._recover_legal_rule_catalog(
-            idempotency_key=idempotency_key,
-            version=version,
-            correlationId=correlationId,
-            storage_root=storage_root,
-        )
-        resumed = self._api_client.resume_waiting_runs(
-            active_corpus_id,
-            {
-                "maxRuns": int(message.get("maxRuns") or 500),
-                "idempotencyKey": f"{idempotency_key}:resume:{version}",
-            },
-        )
-        resumed_count = int((resumed.get("result") or {}).get("resumedRunCount") or 0)
         retrieval_index_id = (
             str(index.get("id")) if isinstance(index.get("id"), str) else None
         )
+        result = {
+            "status": "READY",
+            "corpusVersionId": active_corpus_id,
+            "retrievalIndexId": retrieval_index_id,
+            "correlationId": correlationId,
+        }
+        preparation_id = message.get("preparationId")
+        if isinstance(preparation_id, str) and preparation_id.strip():
+            # Admin "prepare" is a trigger and a history record only: the corpus is already
+            # activated automatically above, so the callback just closes the preparation row.
+            completion_payload = {
+                "preparationId": preparation_id,
+                "status": "COMPLETED",
+                "readiness": {
+                    "SOURCE_PARSING": "PASSED",
+                    "RETRIEVAL_VALIDATION": "PASSED",
+                    "INTEGRITY_MANIFEST": "PASSED",
+                    "RULE_SNAPSHOT": "UNAVAILABLE",
+                    "DIFF_REVIEW": "UNAVAILABLE",
+                    "applicable": {"RULE_SNAPSHOT": False, "DIFF_REVIEW": False},
+                },
+                "integrityManifestRef": integrity_ref,
+                "retrievalValidationRef": validation_ref,
+            }
+            self._store_pending_preparation_callback(
+                message,
+                storage_root=storage_root,
+                corpus_version_id=corpus_id,
+                payload=completion_payload,
+                result=result,
+            )
+            try:
+                self._api_client.complete_legal_corpus_preparation(
+                    corpus_id, completion_payload
+                )
+            except Exception as exc:
+                raise PreparationCallbackDeliveryError(
+                    "preparation completion callback delivery failed"
+                ) from exc
+            self._clear_pending_preparation_callback(message, storage_root=storage_root)
         logger.info(
             "LEGAL_CORPUS_RECOVERY_COMPLETED",
             corpus_version_id=active_corpus_id,
-            legal_rule_catalog_version_id=catalog.get("id"),
-            legal_rule_count=catalog.get("ruleCount"),
             retrieval_index_id=retrieval_index_id,
-            resumed_run_count=resumed_count,
             correlationId=correlationId,
         )
-        return {
-            "status": "READY",
-            "corpusVersionId": active_corpus_id,
-            "legalRuleCatalogVersionId": catalog.get("id"),
-            "legalRuleCount": catalog.get("ruleCount"),
-            "retrievalIndexId": retrieval_index_id,
-            "resumedRunCount": resumed_count,
-            "correlationId": correlationId,
-        }
+        return result
 
     def _validate_retrieval_index(
         self, corpus_version_id: str, payload: dict[str, Any]
@@ -398,86 +319,6 @@ class LegalCorpusRecoveryDriver:
             corpus_version_id=corpus_version_id,
             payload=payload,
         )
-
-    def _run_legal_rule_only_recovery(
-        self,
-        *,
-        message: dict[str, Any],
-        correlationId: str,
-        idempotency_key: str,
-    ) -> dict[str, Any]:
-        """Recover LegalRule rows from the active corpus without local crawl files."""
-        catalog = self._recover_legal_rule_catalog(
-            idempotency_key=idempotency_key,
-            version="active-corpus",
-            correlationId=correlationId,
-            storage_root=self._resolve_storage_root(message),
-        )
-        corpus_id = str(catalog.get("corpusVersionId") or "")
-        resumed_count = 0
-        if corpus_id and int(message.get("maxRuns") or 0) > 0:
-            resumed = self._api_client.resume_waiting_runs(
-                corpus_id,
-                {
-                    "maxRuns": int(message.get("maxRuns") or 500),
-                    "idempotencyKey": f"{idempotency_key}:resume:active-corpus",
-                },
-            )
-            resumed_count = int(
-                (resumed.get("result") or {}).get("resumedRunCount") or 0
-            )
-        logger.info(
-            "LEGAL_RULE_ONLY_RECOVERY_COMPLETED",
-            legal_rule_catalog_version_id=catalog.get("id"),
-            legal_rule_count=catalog.get("ruleCount"),
-            corpus_version_id=corpus_id or None,
-            resumed_run_count=resumed_count,
-            correlationId=correlationId,
-        )
-        return {
-            "status": "READY",
-            "corpusVersionId": corpus_id or None,
-            "legalRuleCatalogVersionId": catalog.get("id"),
-            "legalRuleCount": catalog.get("ruleCount"),
-            "retrievalIndexId": None,
-            "resumedRunCount": resumed_count,
-            "correlationId": correlationId,
-            "legalRuleOnly": True,
-        }
-
-    def _recover_legal_rule_catalog(
-        self,
-        *,
-        idempotency_key: str,
-        version: str,
-        correlationId: str,
-        storage_root: Path | None = None,
-    ) -> dict[str, Any]:
-        """Recover approved LegalRule source rows after corpus chunks are ready."""
-        response = self._api_client.recover_legal_rules_from_active_corpus(
-            {
-                "idempotencyKey": f"{idempotency_key}:legal-rules:{version}",
-            }
-        )
-        rule_count = int(response.get("ruleCount") or 0)
-        if rule_count <= 0:
-            raise RuntimeError(
-                "legal rule source recovery produced no approved LegalRule rows"
-            )
-        logger.info(
-            "LEGAL_RULE_SOURCE_RECOVERY_COMPLETED",
-            legal_rule_catalog_version_id=response.get("id"),
-            legal_rule_count=rule_count,
-            corpus_version_id=response.get("corpusVersionId"),
-            no_changes=bool(response.get("noChanges")),
-            correlationId=correlationId,
-        )
-        self._store_legal_rule_catalog_artifact(
-            version=version,
-            catalog=response,
-            storage_root=storage_root,
-        )
-        return response
 
     def _resolve_source_manifests(
         self,
@@ -713,28 +554,6 @@ class LegalCorpusRecoveryDriver:
                 "corpusVersionId": corpus_id,
                 "activation": activation,
             },
-            storage_root=storage_root,
-        )
-
-    def _store_legal_rule_catalog_artifact(
-        self,
-        *,
-        version: str,
-        catalog: dict[str, Any],
-        storage_root: Path | None,
-    ) -> None:
-        """Store recovered LegalRule catalog data needed after DB reset."""
-        payload = {"recoveryVersion": version, "catalog": catalog}
-        try:
-            active_catalog = self._api_client.get_active_legal_rule_catalog()
-        except Exception:
-            active_catalog = None
-        if isinstance(active_catalog, dict):
-            payload["activeCatalog"] = active_catalog
-        write_recovery_artifact(
-            "legal-rule-catalog",
-            str(catalog.get("version") or catalog.get("id") or version),
-            payload,
             storage_root=storage_root,
         )
 
