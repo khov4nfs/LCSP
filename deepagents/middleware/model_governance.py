@@ -198,7 +198,6 @@ MODEL_GOVERNANCE_MIDDLEWARE = (
     UsageMeteringMiddleware(),
 )
 
-TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE = MODEL_GOVERNANCE_MIDDLEWARE
 
 
 def governed_general_purpose_subagent(model, *, role: str) -> dict:

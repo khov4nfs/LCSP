@@ -48,7 +48,7 @@ from tools.common.capabilities.assessment.rule_assessment.values import (
     RULE_CRITERION_STATUSES,
     RULE_EVIDENCE_KINDS,
 )
-from tools.common.capabilities.platform.api_client import WorkerApiClient
+from tools.common.capabilities.platform.api_client import WorkerApiClient, WorkerCallbackError
 from tools.common.capabilities.platform.callback_schemas import ScanCallbackPayload
 from tools.common.capabilities.workflow.recovery.interview_boundary import (
     AssessmentInterviewResumeBoundary,
@@ -56,18 +56,6 @@ from tools.common.capabilities.workflow.recovery.interview_boundary import (
 )
 from tools.common.capabilities.assessment.investigation.engineering_rule.interview_gated_boundary import (
     InterviewGatedEngineeringAssessmentBoundary,
-)
-from tools.legal.corpus.engineering_rules.contract.models import (
-    EngineeringRule,
-    GraphQueryTemplate,
-    build_legal_reasoning_contract,
-)
-from tools.legal.corpus.engineering_rules.registry.cache import EngineeringRuleCache
-from tools.legal.corpus.engineering_rules.orchestration.service import (
-    EngineeringRuleService,
-)
-from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import (
-    ChromaDbCitationRetriever,
 )
 
 
@@ -109,8 +97,7 @@ SCAN_JOB_ID = "scan-lcsp-278-release"
 BLOCKED_SCAN_JOB_ID = "scan-lcsp-278-blocked"
 SNAPSHOT_ID = "snapshot-lcsp-278-release"
 BLOCKED_SNAPSHOT_ID = "snapshot-lcsp-278-blocked"
-CORPUS_ID = "corpus-lcsp-278-release"
-CATALOG_ID = "catalog-lcsp-278-release"
+CORPUS_ID = "a2780000-0000-4000-8000-000000000278"
 LEGAL_RULE_ID = "LEGAL-LCSP-278-RELEASE"
 # Precompiled ids embed their legal rule so the deterministic applicability
 # gate (``legal_rule_id_index``) routes them to the parent LegalRule.
@@ -363,7 +350,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
     assert accepted_event["evidenceReportId"] == report_id
     assert "source_code" not in json.dumps(accepted_event)
 
-    _seed_engineering_rule_cache(api, report_id)
+    _seed_active_legal_portfolio(api)
     config = SimpleNamespace(
         nestjs_api_base_url=API_BASE_URL,
         worker_api_key=WORKER_KEY,
@@ -682,7 +669,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
     )
     assert accepted_event["assessmentId"] == BLOCKED_ASSESSMENT_ID
 
-    _seed_engineering_rule_cache(api, report_id)
+    _seed_active_legal_portfolio(api)
     config = SimpleNamespace(
         nestjs_api_base_url=API_BASE_URL,
         worker_api_key=WORKER_KEY,
@@ -908,61 +895,82 @@ def _post_scan_callback(
     return str(result.evidence_report_id)
 
 
-def _seed_engineering_rule_cache(api: WorkerApiClient, report_id: str) -> None:
-    retriever = ChromaDbCitationRetriever()
-    cache = EngineeringRuleCache()
-    service = EngineeringRuleService(retriever=retriever, cache=cache)
-    corpus = api.get_legal_corpus_chunks(CORPUS_ID)
-    chunks = [item for item in corpus.get("chunks", []) if isinstance(item, dict)]
-    retriever.index_corpus(CORPUS_ID, chunks)
-    catalog = api.get_active_legal_rule_catalog()
-    legal_rule = next(
-        rule
-        for rule in catalog.get("rules", [])
-        if isinstance(rule, dict) and rule.get("legalRuleId") == LEGAL_RULE_ID
-    )
-    legal_context, fingerprint = service.resolve_source_identity(
-        legal_rule=legal_rule,
-        legal_corpus_version_id=CORPUS_ID,
-    )
-    rule = EngineeringRule(
-        engineering_rule_id=ENGINEERING_RULE_ID,
-        legal_rule_id=LEGAL_RULE_ID,
-        legal_rule_catalog_version_id=CATALOG_ID,
-        legal_corpus_version_id=CORPUS_ID,
-        concept="approval authority",
-        legal_intent={"requires": "human approval authority"},
-        investigation_goals=("inspect approval authority",),
-        starting_node_types=("AI_MODEL_INVOCATION",),
-        target_node_types=("AI_MODEL_INVOCATION",),
-        edge_strategies=(),
-        graph_queries=(
-            GraphQueryTemplate(
-                name="approval_authority_ai_invocation",
-                start_node_types=("AI_MODEL_INVOCATION",),
-            ),
-        ),
-        keywords=("approval", "authority", "recommendation"),
-        required_evidence=("CONTROL",),
-        source_chunk_ids=tuple(str(item["id"]) for item in legal_context),
-        source_locators=tuple(str(item["locator"]) for item in legal_context),
-        legal_reasoning_contract=build_legal_reasoning_contract(
-            legal_rule=legal_rule,
-            legal_rule_catalog_version_id=CATALOG_ID,
-            legal_corpus_version_id=CORPUS_ID,
-            legal_context=legal_context,
-            required_evidence=("CONTROL",),
-            supporting_evidence=(),
-            negative_evidence=(),
-        ),
-        source_fingerprint=fingerprint,
-        compiler_model="lcsp-278-release-seed",
-        compiler_version="lcsp-278-release-seed",
-        prompt_version="lcsp-278-release-seed",
-    )
-    cache.put(fingerprint, [rule])
-    # The deterministic applicability gate replaces EngineeringRulePlanner: a
-    # legal rule authoring no facts is NOT_GATED, so the rule is eligible.
+def _seed_active_legal_portfolio(api: WorkerApiClient) -> None:
+    """Activate one portfolio for the pinned corpus through the production submit boundary.
+
+    Assessment reads only the ACTIVE ``LegalPortfolioVersion``; there is no cache, bundle or
+    catalog to seed. The packet cites every non-repealed pinned chunk so the mechanical
+    completeness gate passes without any legal meaning being invented here.
+    """
+    try:
+        active = api.get_active_legal_portfolio()
+    except WorkerCallbackError as error:
+        if getattr(error, "status_code", None) != 404:
+            raise
+        active = None
+    if isinstance(active, dict) and active.get("legalCorpusVersionId") == CORPUS_ID:
+        return  # both release-gate tests share one pinned corpus and its ACTIVE portfolio
+    chunks = [
+        item
+        for item in api.get_legal_corpus_chunks(CORPUS_ID).get("chunks", [])
+        if isinstance(item, dict) and item.get("legalStatus") != "REPEALED"
+    ]
+    assert chunks, "the pinned release corpus must expose chunks"
+    refs = [
+        {
+            "documentId": str(item["documentId"]),
+            "locator": str(item["locator"]),
+            "contentSha256": str(item["contentSha256"]),
+        }
+        for item in chunks
+    ]
+    packet = {
+        "legalRules": [
+            {
+                "legalRuleId": LEGAL_RULE_ID,
+                "title": "Approval authority",
+                "proposition": "A human approval authority is required before the AI recommendation is acted on.",
+                "applicabilityConditions": [],
+                "qualifiers": [],
+                "exceptions": [],
+                "nonRepositoryDuty": False,
+                "sourceRefs": refs,
+                "coverage": {"state": "COVERED_BY_ENGINEERING_RULES", "nonAssessableReason": None},
+            }
+        ],
+        "engineeringRules": [
+            {
+                "engineeringRuleId": ENGINEERING_RULE_ID,
+                "legalRuleIds": [LEGAL_RULE_ID],
+                "concept": "approval authority",
+                "legalIntent": "A human approves the recommendation before action.",
+                "applicabilityGuidance": "Applies to AI-assisted recommendations that lead to an action.",
+                "criteria": [{"criterionId": "C-1", "statement": "An approval authority is identifiable."}],
+                "investigationGoals": ["inspect approval authority"],
+                "startingNodeTypes": ["AI_MODEL_INVOCATION"],
+                "targetNodeTypes": ["AI_MODEL_INVOCATION"],
+                "edgeStrategies": [],
+                "graphQueries": [],
+                "keywords": ["approval", "authority", "recommendation"],
+                "commonApis": [],
+                "commonLibraries": [],
+                "patterns": [],
+                "requiredEvidence": ["CONTROL"],
+                "supportingEvidence": [],
+                "negativeEvidence": [],
+                "unresolvedConditions": [],
+                "sourceRefs": refs,
+            }
+        ],
+        "contextRelations": [],
+    }
+    run = api.start_legal_preparation(CORPUS_ID, f"lcsp-278-release-seed:{CORPUS_ID}")
+    run_id = str(run["preparationRunId"])
+    api.claim_legal_preparation(run_id)
+    result = api.submit_legal_portfolio(run_id, f"lcsp-278-release-seed-submit:{run_id}", packet)
+    assert (result.get("validation") or {}).get("outcome") == "PASSED", result
+    # The deterministic applicability gate: a LegalRule authoring no facts is NOT_GATED,
+    # so the rule is eligible.
     gate = evaluate_applicability(
         [{"legalRuleId": LEGAL_RULE_ID}],
         ai_discovery=None,

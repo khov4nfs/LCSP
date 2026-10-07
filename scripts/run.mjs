@@ -824,6 +824,8 @@ function dockerWorkerEnv() {
     "LLM7_BASE_URL",
     "INCEPTION_API_KEY",
     "INCEPTION_BASE_URL",
+    "APX_API_KEY",
+    "APX_BASE_URL",
     ...providerTimeoutKeys,
     "LCSP_LANGSMITH_TRACING",
     "LCSP_AGENT_RUNTIME_JOBS_PER_WORKER",

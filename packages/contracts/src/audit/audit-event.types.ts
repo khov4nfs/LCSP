@@ -56,6 +56,7 @@ export const AUDIT_RESOURCE_TYPES = {
   documentRequest: "DOCUMENT_REQUEST",
   githubAppInstallState: "GITHUB_APP_INSTALL_STATE",
   httpRoute: "HTTP_ROUTE",
+  legalPortfolioVersion: "LEGAL_PORTFOLIO_VERSION",
   legalRule: "LEGAL_RULE",
   legalRuleCatalogVersion: "LEGAL_RULE_CATALOG_VERSION",
   legalRuleMatch: "LEGAL_RULE_MATCH",

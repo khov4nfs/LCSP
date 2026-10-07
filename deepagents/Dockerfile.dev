@@ -1,8 +1,3 @@
-# The local development image deliberately excludes governed runtime reports.
-# In particular, the precompiled EngineeringRule bundle is a production artefact
-# with exact corpus hashes and approval provenance. Do not manufacture one just
-# to make a developer image build; production uses Dockerfile, which keeps its
-# required COPY gate intact.
 FROM ghcr.io/astral-sh/uv:0.10.6 AS uv
 
 # Use the newer Debian base for local development so native agent/runtime

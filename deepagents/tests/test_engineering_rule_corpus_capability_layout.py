@@ -28,7 +28,9 @@ def _py(path: Path) -> set[str]:
 def test_engineering_rule_corpus_is_grouped_by_lifecycle() -> None:
     rules = PROJECT_ROOT / "tools" / "legal" / "corpus" / "engineering_rules"
 
-    assert _dirs(rules) == {"contract", "compilation", "registry", "orchestration"}
+    # Only the EngineeringRule contract remains: authoring is the Legal Preparation agent's,
+    # and there is no compiler, cache, precompiled registry or assessment-time service.
+    assert _dirs(rules) == {"contract"}
     assert _py(rules) == set()
     assert _py(rules / "contract") == {
         "models.py",
@@ -36,18 +38,6 @@ def test_engineering_rule_corpus_is_grouped_by_lifecycle() -> None:
         "runtime_projection.py",
         "validator.py",
     }
-    assert _py(rules / "compilation") == {
-        "chunk_triage.py",
-        "compiler.py",
-        "fingerprint.py",
-    }
-    assert _py(rules / "registry") == {
-        "cache.py",
-        "precompiled_contract_overrides.py",
-        "precompiled_export.py",
-        "precompiled_registry.py",
-    }
-    assert _py(rules / "orchestration") == {"service.py"}
 
 
 def _assert_import_blocked(module_name: str) -> None:
@@ -61,11 +51,14 @@ def _assert_import_blocked(module_name: str) -> None:
 def test_canonical_engineering_rule_imports_resolve() -> None:
     for module_name in (
         "tools.legal.corpus.engineering_rules.contract.models",
+    ):
+        assert importlib.import_module(module_name) is not None
+    for retired in (
         "tools.legal.corpus.engineering_rules.compilation.compiler",
         "tools.legal.corpus.engineering_rules.registry.precompiled_registry",
         "tools.legal.corpus.engineering_rules.orchestration.service",
     ):
-        assert importlib.import_module(module_name) is not None
+        _assert_import_blocked(retired)
 
 
 def test_moved_lifecycle_relative_imports_are_not_supported() -> None:

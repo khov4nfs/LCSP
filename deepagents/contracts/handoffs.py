@@ -214,38 +214,8 @@ class ResolverResult(BaseModel):
         return self
 
 
-class TriageResult(BaseModel):
-    """Typed Legal Triage-to-root handoff."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    status: Literal["READY", "PARTIAL", "NEEDS_INPUT", "ALREADY_RUNNING", "FAILED"]
-    triage_execution_id: str | None = Field(default=None, max_length=240)
-    trigger: Literal["SCHEDULED", "ENGINEERING_RULE_NOT_READY"] | None = None
-    idempotency_key: str | None = Field(default=None, max_length=240)
-    legal_rule_catalog_version_id: str | None = Field(default=None, max_length=240)
-    legal_corpus_version_id: str | None = Field(default=None, max_length=240)
-    triaged_rule_ids: list[str] = Field(default_factory=list, max_length=500)
-    candidate_chunk_ids: list[str] = Field(default_factory=list, max_length=1_000)
-    context_only_chunk_ids: list[str] = Field(default_factory=list, max_length=1_000)
-    rejected_chunk_ids: list[str] = Field(default_factory=list, max_length=1_000)
-    engineering_rule_ids: list[str] = Field(default_factory=list, max_length=500)
-    limitations: list[str] = Field(default_factory=list, max_length=100)
-
-    @model_validator(mode="after")
-    def validate_status_payload(self) -> Self:
-        if self.status in {"READY", "PARTIAL"} and not self.triage_execution_id:
-            raise ValueError("owned Triage output requires triage_execution_id")
-        if self.status == "ALREADY_RUNNING" and not self.triage_execution_id:
-            raise ValueError("ALREADY_RUNNING Triage output requires active triage_execution_id")
-        if self.status in {"NEEDS_INPUT", "FAILED"} and not self.limitations:
-            raise ValueError("blocked Triage output requires limitations")
-        return self
-
-
 SPECIALIST_RESPONSE_FORMATS: dict[str, type[BaseModel]] = {
     "interview": InterviewResult,
-    "triage": TriageResult,
 }
 
 
@@ -258,5 +228,4 @@ __all__ = [
     "ResolverConflictValue",
     "ResolverResult",
     "SPECIALIST_RESPONSE_FORMATS",
-    "TriageResult",
 ]

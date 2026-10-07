@@ -15,7 +15,6 @@ REQUIRED_VALIDATION_POLICIES = {
     "failClosedOnMissingEvidence": True,
     "separateApplicabilityFromCompliance": True,
     "deterministicValidatorsBeforeLlmTrust": True,
-    "humanLegalSignoffRequired": True,
     "plannerAuthority": LEGAL_REASONING_PLANNER_AUTHORITY,
 }
 

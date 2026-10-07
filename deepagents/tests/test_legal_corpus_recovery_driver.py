@@ -32,6 +32,12 @@ class FakeApiClient:
             "validationManifestRef": payload["validationManifestRef"],
         }
 
+    def start_legal_preparation(
+        self, legal_corpus_version_id: str, idempotency_key: str
+    ) -> dict:
+        self.calls.append(("start_preparation", (legal_corpus_version_id, idempotency_key)))
+        return {"preparationRunId": "run-1", "executionState": "QUEUED"}
+
     def activate_validated_corpus_version(
         self, corpus_version_id: str, payload: dict
     ) -> dict:
@@ -39,19 +45,6 @@ class FakeApiClient:
         return {
             "artifactVersions": {"corpusVersionId": corpus_version_id},
             "status": "APPROVED",
-        }
-
-    def resume_waiting_runs(self, corpus_version_id: str, payload: dict) -> dict:
-        self.calls.append(("resume", (corpus_version_id, payload)))
-        return {"result": {"resumedRunCount": 1}}
-
-    def recover_legal_rules_from_active_corpus(self, payload: dict) -> dict:
-        self.calls.append(("recover_rules", payload))
-        return {
-            "id": "catalog-1",
-            "status": "APPROVED",
-            "ruleCount": 3,
-            "corpusVersionId": "corpus-1",
         }
 
     def complete_legal_corpus_preparation(
@@ -81,7 +74,7 @@ class FakeSourceCrawlDispatcher:
         return SimpleNamespace(manifest_path=manifest)
 
 
-def test_recovery_driver_ingests_indexes_activates_and_resumes(
+def test_recovery_driver_ingests_indexes_starts_preparation_and_activates(
     tmp_path: Path,
     monkeypatch,
 ):
@@ -114,8 +107,7 @@ def test_recovery_driver_ingests_indexes_activates_and_resumes(
     assert [name for name, _payload in api_client.calls] == [
         "ingest",
         "register_index",
-        "recover_rules",
-        "resume",
+        "start_preparation",
     ]
     ingest_payload = api_client.calls[0][1]
     assert isinstance(ingest_payload, dict)
@@ -134,7 +126,8 @@ def test_recovery_driver_ingests_indexes_activates_and_resumes(
     assert list(
         (artifact_root / "legal-corpus-activation").glob("VN-LEGAL-CORPUS-*.json")
     )
-    assert list((artifact_root / "legal-rule-catalog").glob("*.json"))
+    # No LegalRule catalog is recovered or stored: preparation authors the portfolio.
+    assert not (artifact_root / "legal-rule-catalog").exists()
 
 
 def test_recovery_driver_skips_validation_activation_when_corpus_unchanged(
@@ -178,14 +171,8 @@ def test_recovery_driver_skips_validation_activation_when_corpus_unchanged(
 
     assert result["noChanges"] is True
     assert result["corpusVersionId"] == "corpus-active"
-    assert result["legalRuleCatalogVersionId"] == "catalog-1"
-    assert result["legalRuleCount"] == 3
-    assert result["resumedRunCount"] == 1
-    assert [name for name, _payload in api_client.calls] == [
-        "ingest",
-        "recover_rules",
-        "resume",
-    ]
+    assert "legalRuleCatalogVersionId" not in result and "resumedRunCount" not in result
+    assert [name for name, _payload in api_client.calls] == ["ingest"]
     assert [name for name, _payload in dispatcher.calls] == [
         "fetch_official_source_snapshot",
     ]
@@ -239,8 +226,7 @@ def test_recovery_driver_runs_source_crawl_pipeline_when_manifests_are_missing(
     assert [name for name, _payload in api_client.calls] == [
         "ingest",
         "register_index",
-        "recover_rules",
-        "resume",
+        "start_preparation",
     ]
     assert len(dispatcher.calls) == 2
     tool_name, crawl_payload = dispatcher.calls[0]
@@ -385,30 +371,7 @@ def test_recovery_driver_reads_source_crawl_requests_from_environment(
     assert not list(crawl_dir.glob("*.hierarchy-review.json"))
 
 
-def test_recovery_driver_can_recover_rules_from_active_corpus_without_artifacts(
-    tmp_path: Path,
-) -> None:
-    api_client = FakeApiClient()
-    driver = LegalCorpusRecoveryDriver(api_client=api_client)
-
-    result = driver.run(
-        {
-            "idempotencyKey": "vp-1:command.legal-corpus.recovery.requested.v1",
-            "storageRoot": str(tmp_path / ".corpus"),
-            "recoverLegalRulesOnly": True,
-            "maxRuns": 0,
-        },
-        "corr-1",
-    )
-
-    assert result["status"] == "READY"
-    assert result["legalRuleOnly"] is True
-    assert result["legalRuleCatalogVersionId"] == "catalog-1"
-    assert result["legalRuleCount"] == 3
-    assert [name for name, _payload in api_client.calls] == ["recover_rules"]
-
-
-def test_deferred_preparation_reports_non_applicable_checks_and_recovers_rules(
+def test_admin_prepare_activates_automatically_then_closes_the_preparation(
     tmp_path: Path, monkeypatch
 ) -> None:
     api_client = FakeApiClient()
@@ -421,7 +384,6 @@ def test_deferred_preparation_reports_non_applicable_checks_and_recovers_rules(
             "idempotencyKey": "prep-1",
             "preparationId": "preparation-1",
             "targetCorpusVersionId": "corpus-1",
-            "deferActivation": True,
             "storageRoot": str(tmp_path / ".corpus"),
             "sourceCrawlRequests": [
                 {
@@ -434,9 +396,19 @@ def test_deferred_preparation_reports_non_applicable_checks_and_recovers_rules(
         "corr-1",
     )
 
-    assert result["status"] == "PREPARED"
+    assert result["status"] == "READY"
     names = [name for name, _payload in api_client.calls]
-    assert names == ["ingest", "register_index", "recover_rules", "complete_preparation"]
+    assert names == [
+        "ingest",
+        "register_index",
+        "start_preparation",
+        "complete_preparation",
+    ]
+    # No person publishes: the corpus is activated before the preparation row is closed.
+    assert dispatcher.calls[-1][0] == "activate_validated_corpus_version"
+    corpus_id, preparation_key = api_client.calls[2][1]
+    assert corpus_id == "corpus-1"
+    assert ":legal-preparation:" in preparation_key  # derived per pipeline run + corpus version
     callback = api_client.calls[-1][1]
     assert isinstance(callback, tuple)
     assert callback[1]["readiness"]["RULE_SNAPSHOT"] == "UNAVAILABLE"
@@ -456,7 +428,6 @@ def test_completion_callback_failure_is_replayed_without_reingest(tmp_path: Path
         "idempotencyKey": "prep-2",
         "preparationId": "preparation-2",
         "targetCorpusVersionId": "corpus-1",
-        "deferActivation": True,
         "storageRoot": str(tmp_path / ".corpus"),
         "sourceCrawlRequests": [
             {
@@ -470,7 +441,7 @@ def test_completion_callback_failure_is_replayed_without_reingest(tmp_path: Path
         driver.run(message, "corr-1")
 
     result = driver.run(message, "corr-1")
-    assert result["status"] == "PREPARED"
+    assert result["status"] == "READY"
     assert [name for name, _payload in api_client.calls].count("ingest") == 1
     assert [name for name, _payload in api_client.calls].count("complete_preparation") == 2
 

@@ -41,6 +41,7 @@ export const OUTBOX_AGGREGATE_TYPES = {
   classificationResult: "CLASSIFICATION_RESULT",
   documentRequest: "DOCUMENT_REQUEST",
   legalCorpusVersion: "LEGAL_CORPUS_VERSION",
+  legalPortfolioVersion: "LEGAL_PORTFOLIO_VERSION",
   legalRuleMatch: "LEGAL_RULE_MATCH",
   repositoryScanJob: "REPOSITORY_SCAN_JOB",
   repositorySnapshot: "REPOSITORY_SNAPSHOT",

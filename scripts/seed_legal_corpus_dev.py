@@ -26,10 +26,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import find_dotenv, load_dotenv
 
-from tools.legal.retrieval.legal_basis.normative_chunk_filter import (
-    legal_chunk_normative_class,
-    is_legal_database_chunk,
-)
+from tools.legal.retrieval.legal_basis.structural_chunk_filter import is_legal_database_chunk
 
 
 SEED_VERSION = "legal-corpus-dev-seed/1.0.0"
@@ -167,17 +164,9 @@ def merge_and_validate_payloads(
 
                 # Chroma exact-context metadata requires the owning document ID.
                 chunk["documentId"] = document_id
-                chunk["normativeClass"] = legal_chunk_normative_class(chunk)
                 if not is_legal_database_chunk(chunk):
                     excluded_chunk_count += 1
                     continue
-                hierarchy = (
-                    dict(chunk.get("hierarchy") or {})
-                    if isinstance(chunk.get("hierarchy"), dict)
-                    else {}
-                )
-                hierarchy["normativeClass"] = chunk["normativeClass"]
-                chunk["hierarchy"] = hierarchy
                 normalized_chunks.append(chunk)
 
             if not normalized_chunks:
@@ -189,7 +178,8 @@ def merge_and_validate_payloads(
             documents.append(document)
 
     manifest = {
-        "reviewRequired": True,
+        "reviewRequired": False,
+        "trustPolicy": "OFFICIAL_SOURCE_AUTO_TRUSTED",
         "normalizationWarnings": [],
         "sourceArtifacts": source_artifacts,
         "developmentSeed": {
@@ -199,8 +189,7 @@ def merge_and_validate_payloads(
             "governance": "DEVELOPMENT_ONLY_DIRECT_SEED_NOT_PRODUCTION_APPROVAL",
             "chunkSelectionPolicy": (
                 "Persist only hierarchy-addressable legal chunks; exclude formal "
-                "headers/preamble. Mark context-only chunks separately from "
-                "EngineeringRule source candidates."
+                "headers/preamble. No semantic classification is applied."
             ),
         },
     }

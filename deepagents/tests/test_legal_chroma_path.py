@@ -3,7 +3,6 @@ from pathlib import Path
 from tools.legal.retrieval.index import chroma_path
 from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
 from tools.legal.corpus.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
-from tools.legal.corpus.engineering_rules.registry.cache import EngineeringRuleCache
 from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
 from tools.legal.retrieval.index.legal_retrieval_index_builder import (
     ChromaLegalIndexStore,
@@ -19,7 +18,6 @@ def test_default_legal_chroma_path_uses_project_root_chroma(
 
     assert chroma_path.default_legal_chroma_path() == tmp_path / ".chroma"
     assert ChromaDbCitationRetriever()._chroma_path == str(tmp_path / ".chroma")
-    assert EngineeringRuleCache()._chroma_path == str(tmp_path / ".chroma")
 
     builder = LegalRetrievalIndexBuilder(
         storage_root=tmp_path / "storage",

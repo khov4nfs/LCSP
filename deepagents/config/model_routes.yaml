@@ -4,16 +4,22 @@
 version: 1
 
 # A route = transport provider + model id (+ optional trusted inference options).
-# provider must be exactly one of: openai, anthropic, google_genai, llm7, inception.
+# provider must be exactly one of: openai, anthropic, google_genai, llm7, inception, apx.
 # options (e.g. temperature, reasoning, max_output_tokens, context_window_tokens) are passed through;
 # omit them to get provider defaults. Credential/endpoint/header-like keys are rejected.
 routes:
   primary:
     provider: llm7
-    model: GLM-5.3-Flash
+    model: minimax-m2.7
   fallback:
     provider: google_genai
     model: gemini-3.5-flash-lite
+  fallback-01:
+    provider: inception
+    model: mercury-2.5
+  fallback-02:
+    provider: apx
+    model: claude-sonnet-4-6-free
 
 # Role -> route. `default` is required and used for any role not listed.
 # legal-chunk-triage historically used the triage model and legal-compiler the repository-analyst

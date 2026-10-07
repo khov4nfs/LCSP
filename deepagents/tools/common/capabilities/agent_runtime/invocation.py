@@ -31,9 +31,6 @@ from tools.common.capabilities.workflow.recovery.interview_pause_boundary import
 from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
     LEGAL_CORPUS_RECOVERY_COMMAND,
 )
-from tools.triage.legal_rule_triage.contracts import (
-    LEGAL_RULE_TRIAGE_REQUEST_COMMAND,
-)
 
 
 @dataclass(frozen=True)
@@ -78,16 +75,16 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         INTERVIEW_PAUSE_COMMAND,
     ),
     AgentInvocationBoundary(
-        "legal_rule_triage_requested",
-        "tools.triage.legal_rule_triage.boundary:LegalRuleTriageBoundary",
-        "legal.engineering-rule-readiness",
-        LEGAL_RULE_TRIAGE_REQUEST_COMMAND,
-    ),
-    AgentInvocationBoundary(
         "legal_change_detection_requested",
         "tools.legal.sources.change_detection.legal_change_detector_boundary:LegalChangeDetectorBoundary",
         "legal.legal-change-detector",
         "cron.legal-catalog.check-updates.v1",
+    ),
+    AgentInvocationBoundary(
+        "legal_portfolio_preparation_requested",
+        "legal_preparation.boundary:LegalPreparationBoundary",
+        "legal.legal-portfolio-preparation",
+        "command.legal-portfolio.preparation.requested.v1",
     ),
     AgentInvocationBoundary(
         "legal_corpus_recovery_requested",

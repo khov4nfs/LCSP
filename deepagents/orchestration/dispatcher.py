@@ -128,8 +128,6 @@ class RootSubagentDispatcher:
 
         specialist = self._agent_factory(**agent_kwargs)
         config: dict[str, Any] = {"metadata": dict(metadata or {})}
-        if subagent_type == "triage":
-            config["recursion_limit"] = 2400
         from .interview_progress import active_progress
         progress = active_progress.get()
         if progress is not None:

@@ -23,6 +23,7 @@ import { EvidenceModule } from "./modules/evidence/evidence.module.js";
 import { DocumentModule } from "./modules/document/document.module.js";
 import { GitHubIntegrationModule } from "./modules/github-integration/github-integration.module.js";
 import { HealthModule } from "./modules/health/health.module.js";
+import { LegalPortfolioModule } from "./modules/legal-portfolio/legal-portfolio.module.js";
 import { LegalRuleCatalogModule } from "./modules/legal-rule-catalog/legal-rule-catalog.module.js";
 import { ReconciliationModule } from "./modules/reconciliation/reconciliation.module.js";
 import { ScanModule } from "./modules/scan/scan.module.js";
@@ -118,6 +119,7 @@ function findUpwards(
     ScanModule,
     ClassificationModule,
     AuditFeatureModule,
+    LegalPortfolioModule,
     LegalRuleCatalogModule,
     HealthModule,
   ],

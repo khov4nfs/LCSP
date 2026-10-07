@@ -23,10 +23,8 @@ from middleware.usage_metering import AgentRoleMiddleware
 from middleware.runtime_context import inject_lcsp_runtime_context
 from middleware.specialist_handoff_validation import validate_lcsp_specialist_task_handoff
 from middleware.system_event_dispatch import dispatch_agent_runtime_system_event
-from middleware.triage_singleton import guard_triage_singleton_task
 from model_policy import effective_model_configs, resolve_agent_model
 from orchestration.context import LCSPRunContext
-from subagents import TRIAGE_SUBAGENT
 from tools.mcp import load_optional_mcp_tools
 from tools.common.capabilities.platform.repository_sandbox import (
     REPOSITORY_SKILLS,
@@ -83,7 +81,6 @@ def create_root_agent(*, checkpointer=None, store=None):
         system_prompt=SYSTEM_PROMPT,
         middleware=[
             dispatch_agent_runtime_system_event,
-            guard_triage_singleton_task,
             validate_lcsp_specialist_task_handoff,
             inject_lcsp_runtime_context,
             AgentRoleMiddleware("root"),
@@ -92,9 +89,8 @@ def create_root_agent(*, checkpointer=None, store=None):
         ],
         context_schema=LCSPRunContext,
         subagents=[
-            # LEGAL_MAINTENANCE only. repository-analyst / interview are run by the
-            # deterministic assessment loop through RootSubagentDispatcher, never `task`.
-            {**TRIAGE_SUBAGENT, "model": resolve_agent_model("triage")},
+            # repository-analyst / interview are run by the deterministic assessment loop
+            # through RootSubagentDispatcher, never `task`. Legal authoring is not a subagent.
             governed_general_purpose_subagent(root_model, role="root"),
         ],
         checkpointer=checkpointer,

@@ -69,6 +69,34 @@ def test_inception_credentials_are_isolated_from_openai(monkeypatch):
     }
 
 
+def test_apx_credentials_are_isolated_from_openai(monkeypatch):
+    monkeypatch.setenv("APX_API_KEY", "apx-one,apx-two")
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
+
+    assert provider_tokens("apx") == ("apx-one", "apx-two")
+    assert credential_init_kwargs("apx") == {"api_key": "apx-one", "max_retries": 0}
+
+
+def test_apx_chat_openai_is_detected_and_rotates_with_its_gateway(monkeypatch):
+    monkeypatch.setenv("APX_API_KEY", "apx-first,apx-second")
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
+    model = ChatOpenAI(
+        model="gpt-5.6-luna",
+        base_url="https://api.apmix.ai/v1",
+        use_responses_api=False,
+        **credential_init_kwargs("apx"),
+    )
+    assert model_provider(model) == "apx"
+
+    handler = MagicMock(side_effect=[QuotaError(), ModelResponse(result=[])])
+    TokenFallbackMiddleware().wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), handler)
+
+    fallback = handler.call_args.args[0].model
+    assert fallback.openai_api_key.get_secret_value() == "apx-second"
+    assert str(fallback.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
+    assert fallback.use_responses_api is False
+
+
 def test_llm7_chat_openai_rotation_preserves_gateway_policy(monkeypatch):
     monkeypatch.setenv("LLM7_API_KEY", "llm7-first,llm7-second")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
@@ -176,7 +204,7 @@ def _install_fake_cooldown_clock(monkeypatch, *, start: float = 1_000.0):
 
 
 @pytest.mark.parametrize(
-    "provider", ["openai", "google_genai", "llm7", "inception", "anthropic"]
+    "provider", ["openai", "google_genai", "llm7", "inception", "apx", "anthropic"]
 )
 @pytest.mark.parametrize("asynchronous", [False, True])
 @pytest.mark.asyncio
@@ -186,6 +214,7 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
         "google_genai": "GOOGLE_API_KEY",
         "llm7": "LLM7_API_KEY",
         "inception": "INCEPTION_API_KEY",
+        "apx": "APX_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
     }[provider]
     monkeypatch.setenv(name, "first-test-token,second-test-token,")
@@ -211,6 +240,13 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
             use_responses_api=False,
             **credential_init_kwargs(provider),
         )
+    elif provider == "apx":
+        model = ChatOpenAI(
+            model="gpt-5.6-luna",
+            base_url="https://api.apmix.ai/v1",
+            use_responses_api=False,
+            **credential_init_kwargs(provider),
+        )
     elif provider == "anthropic":
         model = ChatAnthropic(
             model="claude-sonnet-5",
@@ -233,7 +269,7 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
     fallback = handler.call_args.args[0].model
     key = (
         fallback.openai_api_key
-        if provider in {"openai", "llm7", "inception"}
+        if provider in {"openai", "llm7", "inception", "apx"}
         else fallback.anthropic_api_key
         if provider == "anthropic"
         else fallback.google_api_key
@@ -252,6 +288,12 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
     elif provider == "inception":
         assert str(fallback.openai_api_base).rstrip("/") == "https://api.inceptionlabs.ai/v1"
         assert fallback.temperature == 0.75
+        assert fallback.use_responses_api is False
+        assert fallback.max_retries == 0
+        assert fallback.root_client is not model.root_client
+    elif provider == "apx":
+        assert model_provider(model) == "apx"
+        assert str(fallback.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
         assert fallback.use_responses_api is False
         assert fallback.max_retries == 0
         assert fallback.root_client is not model.root_client

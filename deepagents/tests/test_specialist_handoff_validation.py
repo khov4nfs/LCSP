@@ -1,4 +1,4 @@
-"""Handoff validation for the remaining structured specialists (Interview, Triage).
+"""Handoff validation for the remaining structured specialists (Interview).
 
 Repository analysis has no structured handoff: it reports through the governed
 ``submit_rule_assessment`` tool (covered by tests/rule_assessment/).
@@ -41,24 +41,14 @@ def _interview(**overrides) -> dict:
     }
 
 
-def _triage(**overrides) -> dict:
-    return {
-        "status": "READY",
-        "triage_execution_id": "triage:1",
-        "trigger": "SCHEDULED",
-        **overrides,
-    }
-
-
-@pytest.mark.parametrize("removed", ["planner", "investigator"])
+@pytest.mark.parametrize("removed", ["planner", "investigator", "triage"])
 def test_deleted_specialist_handoff_types_are_unknown(removed) -> None:
     with pytest.raises(SpecialistHandoffValidationError, match="unknown"):
         validate_specialist_handoff(removed, {"status": "READY"})
 
 
-def test_valid_interview_and_triage_handoffs_pass() -> None:
+def test_valid_interview_handoff_passes() -> None:
     assert validate_specialist_handoff("interview", _interview()).outcome == "WAITING_FOR_CUSTOMER"
-    assert validate_specialist_handoff("triage", _triage()).status == "READY"
 
 
 def test_schema_failure_is_bounded_and_does_not_echo_model_values() -> None:
@@ -71,8 +61,6 @@ def test_schema_failure_is_bounded_and_does_not_echo_model_values() -> None:
 
 @pytest.mark.parametrize("verdict", ["COMPLIANT", "NON_COMPLIANT"])
 def test_handoffs_reject_final_compliance_verdicts(verdict) -> None:
-    with pytest.raises(SpecialistHandoffValidationError, match="forbidden"):
-        validate_specialist_handoff("triage", _triage(limitations=[verdict]))
     with pytest.raises(SpecialistHandoffValidationError, match="forbidden"):
         validate_specialist_handoff(
             "interview", _interview(rationale=f"Result is {verdict}.")
@@ -114,11 +102,6 @@ def test_legacy_investigator_resolution_mode_is_rejected() -> None:
         validate_specialist_handoff(
             "interview", _interview(mode="INVESTIGATOR_RESOLUTION")
         )
-
-
-def test_owned_triage_output_requires_an_execution_id() -> None:
-    with pytest.raises(SpecialistHandoffValidationError):
-        validate_specialist_handoff("triage", _triage(triage_execution_id=None))
 
 
 def test_targeted_frontier_is_repaired_only_from_trusted_need_metadata() -> None:

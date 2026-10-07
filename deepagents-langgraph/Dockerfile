@@ -14,8 +14,6 @@ COPY deepagents/pyproject.toml deepagents/uv.lock /app/deepagents/
 RUN cd /app/deepagents \
     && uv sync --frozen --no-dev --no-install-project
 
-COPY reports/legal-corpus-ocr/lcsp-precompiled-engineering-rules-vn-2026-08.json \
-    /app/reports/legal-corpus-ocr/lcsp-precompiled-engineering-rules-vn-2026-08.json
 COPY deepagents /app/deepagents
 
 RUN cd /app/deepagents \

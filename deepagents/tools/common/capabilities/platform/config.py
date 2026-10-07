@@ -46,7 +46,7 @@ def default_legal_source_storage_root() -> str:
 def resolve_legal_source_storage_root(configured: str | None = None) -> str:
     """Anchor the legal source storage root to the repository, not the process cwd.
 
-    Recovery artifacts double as triage completion markers, so this must resolve to one
+    Source-acquisition artifacts are shared across processes, so this must resolve to one
     durable store for every process. A relative `LEGAL_SOURCE_STORAGE_ROOT` used as-is
     splits it per working directory: the consumer, the compiled agent and an operator
     shell each got their own `.corpus` and could not see each other's completed work.

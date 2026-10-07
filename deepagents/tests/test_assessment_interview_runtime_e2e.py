@@ -264,8 +264,8 @@ def _evidence_report_with_graph() -> dict:
     }
 
 
-def test_specialist_contracts_are_interview_and_triage_only() -> None:
-    assert set(SPECIALIST_RESPONSE_FORMATS) == {"interview", "triage"}
+def test_specialist_contracts_are_interview_only() -> None:
+    assert set(SPECIALIST_RESPONSE_FORMATS) == {"interview"}
     assert SPECIALIST_RESPONSE_FORMATS["interview"] is InterviewResult
     # The Repository Analyst delivers its result through the governed
     # submit_rule_assessment tool, never through a response_format handoff.
@@ -293,8 +293,6 @@ def test_e2e_a_initial_interview_gates_per_rule_analysis() -> None:
         api_client=waiting_api,
         interview_dispatcher=dispatcher,
         retriever=SimpleNamespace(),
-        rule_service=SimpleNamespace(),
-        triage_trigger_publisher=lambda _payload: None,
     )
 
     gated = boundary._prepare_interview(
@@ -323,8 +321,6 @@ def test_e2e_a_initial_interview_gates_per_rule_analysis() -> None:
         api_client=ready_api,
         interview_dispatcher=dispatcher,
         retriever=SimpleNamespace(),
-        rule_service=SimpleNamespace(),
-        triage_trigger_publisher=lambda _payload: None,
     )
     confirmed = ready_boundary._prepare_interview(
         evidence_report=_evidence_report(),

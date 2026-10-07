@@ -2,16 +2,16 @@
 
 The reusable authority is::
 
-    Legal Corpus -> LegalRule -> EngineeringRule compilation / precompiled registry
+    Legal Corpus -> Legal Preparation agent -> ACTIVE LegalPortfolioVersion
 
-Assessment stages (Scanner, Interview, Repository Analyst) consume the compiled
+Assessment stages (Scanner, Interview, Repository Analyst) consume the portfolio's
 EngineeringRule, they never re-read or reinterpret legal text. Before this module the
-Scanner rebuilt a lossy subset of each precompiled template on its own and dropped
+Scanner rebuilt a lossy subset of each rule on its own and dropped
 the parts that say *how to look for the evidence*: ``legalIntent``, the node types,
 the edge strategies, the graph queries and ``unresolvedConditions``. Everything that
 follows (which discovery tasks exist, which graph a provider should walk, when a
 rule is unresolved rather than absent) needs those fields, so this is the one place
-that converts an EngineeringRule, or a precompiled template, into what runtime reads.
+that converts an EngineeringRule into what runtime reads.
 
 The projection is lossless for the technical contract and carries only governed
 provenance identifiers (versions, fingerprints, chunk ids and grounding hashes). It
@@ -31,7 +31,7 @@ from .models import EngineeringRule, GraphQueryTemplate
 RUNTIME_CONTRACT_VERSION = "1.0.0"
 
 PROVENANCE_ORIGINS = {
-    "precompiledBundle": "PRECOMPILED_BUNDLE",
+    "portfolio": "LEGAL_PORTFOLIO",
     "compiled": "COMPILED",
 }
 
@@ -310,92 +310,11 @@ def runtime_contract_content_hash(rule: Any) -> str:
     ).hexdigest()
 
 
-def precompiled_engineering_rule_id(legal_rule_id: str, template_id: str) -> str:
-    """Must match PrecompiledEngineeringRuleRegistry.materialize exactly."""
-    return f"{legal_rule_id}::PRECOMPILED::{template_id}"
-
-
-def runtime_contract_from_template(
-    template: Mapping[str, Any],
-    *,
-    bundle: Mapping[str, Any],
-    contract_version: str,
-) -> EngineeringRuleRuntimeContract | None:
-    """A precompiled template as a runtime contract, without inventing legal grounding.
-
-    Goes through ``EngineeringRule.from_dict`` so the template is parsed by the same
-    code the runtime rules are; the technical fields are taken as the (already
-    overlaid) template carries them. The Scanner has no legal context at scan time,
-    so nothing that needs it (the legal reasoning contract) is built here.
-    """
-    template_id = str(template.get("templateId") or "").strip()
-    legal_rule_id = str(template.get("legalRuleId") or "").strip()
-    if not template_id or not legal_rule_id:
-        return None
-    hashes = template.get("groundingContextHashes") or {}
-    fingerprint = hashlib.sha256(
-        json.dumps(
-            {
-                "bundleId": bundle.get("bundleId"),
-                "templateId": template_id,
-                "legalRuleId": legal_rule_id,
-                "groundingContextHashes": dict(sorted(dict(hashes).items())),
-                "contractVersion": contract_version,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
-    ).hexdigest()
-    rule = EngineeringRule.from_dict(
-        {
-            "engineeringRuleId": precompiled_engineering_rule_id(legal_rule_id, template_id),
-            "legalRuleId": legal_rule_id,
-            "concept": template.get("concept"),
-            "legalIntent": template.get("legalIntent") or {},
-            "investigationGoals": template.get("investigationGoals") or [],
-            "startingNodeTypes": template.get("startingNodeTypes") or [],
-            "targetNodeTypes": template.get("targetNodeTypes") or [],
-            "edgeStrategies": template.get("edgeStrategies") or [],
-            "graphQueries": template.get("graphQueries") or [],
-            "keywords": template.get("keywords") or [],
-            "commonApis": template.get("commonApis") or [],
-            "commonLibraries": template.get("commonLibraries") or [],
-            "patterns": template.get("patterns") or [],
-            "requiredEvidence": template.get("requiredEvidence") or [],
-            "supportingEvidence": template.get("supportingEvidence") or [],
-            "negativeEvidence": template.get("negativeEvidence") or [],
-            "unresolvedConditions": template.get("unresolvedConditions") or [],
-            "sourceFingerprint": fingerprint,
-            "compilerModel": str(bundle.get("compilerModel") or "precompiled"),
-            "compilerVersion": str(bundle.get("compilerVersion") or ""),
-            "promptVersion": str(bundle.get("promptVersion") or ""),
-            "schemaVersion": str(bundle.get("engineeringRuleSchemaVersion") or ""),
-        }
-    )
-    return runtime_contract_from_engineering_rule(
-        rule,
-        contract_version=contract_version,
-        provenance={
-            "origin": PROVENANCE_ORIGINS["precompiledBundle"],
-            "bundleId": bundle.get("bundleId"),
-            "templateId": template_id,
-            "matchCitationChunkIds": [
-                str(item) for item in template.get("matchCitationChunkIds") or ()
-            ],
-            "groundingContextHashes": {
-                str(key): str(value) for key, value in dict(hashes).items()
-            },
-        },
-    )
-
-
 __all__ = [
     "EngineeringRuleRuntimeContract",
     "GraphQueryContract",
     "PROVENANCE_ORIGINS",
     "RUNTIME_CONTRACT_VERSION",
-    "precompiled_engineering_rule_id",
     "runtime_contract_content_hash",
     "runtime_contract_from_engineering_rule",
-    "runtime_contract_from_template",
 ]

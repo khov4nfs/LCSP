@@ -1,6 +1,6 @@
 """Validate LCSP specialist handoffs at the Deep Agents task boundary.
 
-Only Interview and Triage return typed handoffs. The Repository Analyst has no handoff:
+Only Interview returns a typed handoff. The Repository Analyst has no handoff:
 it persists through the governed ``submit_rule_assessment`` tool, so nothing is validated
 here for it.
 """
@@ -58,7 +58,7 @@ def _handoff_subagent_type(request: ToolCallRequest) -> str | None:
         return None
 
     subagent_type = str(args.get("subagent_type") or "")
-    return subagent_type if subagent_type in {"interview", "triage"} else None
+    return subagent_type if subagent_type in {"interview"} else None
 
 
 def _validate_task_result(
@@ -72,9 +72,6 @@ def _validate_task_result(
         raise RuntimeError(f"{subagent_type} task did not return a ToolMessage handoff")
 
     payload = _parse_json_handoff(subagent_type, content)
-    if _is_triage_already_running_short_circuit(subagent_type, payload):
-        return result
-
     validate_specialist_handoff(subagent_type, payload)
     return result
 
@@ -102,17 +99,6 @@ def _parse_json_handoff(subagent_type: str, content: str) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError(f"{subagent_type} task handoff must be a JSON object")
     return payload
-
-
-def _is_triage_already_running_short_circuit(
-    subagent_type: str,
-    payload: dict[str, Any],
-) -> bool:
-    return (
-        subagent_type == "triage"
-        and payload.get("status") == "ALREADY_RUNNING"
-        and payload.get("subagentStarted") is False
-    )
 
 
 __all__ = [

@@ -19,8 +19,6 @@ from contracts.handoffs import InterviewResult
 from middleware.interview_runtime_context import inject_interview_runtime_context
 from middleware.runtime_context import inject_lcsp_runtime_context
 from middleware.specialist_handoff_validation import validate_lcsp_specialist_task_handoff
-from middleware.triage_progress import require_triage_progress
-from middleware.triage_singleton import guard_triage_singleton_task
 from orchestration.agent_stream import (
     AgentStreamInterrupted, active_agent_stream_cancel, invoke_with_stream,
 )
@@ -31,9 +29,7 @@ from subagents.interview.definition import SUBAGENT
 @pytest.mark.parametrize("middleware,slot", [
     (inject_interview_runtime_context, "model"),
     (inject_lcsp_runtime_context, "model"),
-    (require_triage_progress, "model"),
     (validate_lcsp_specialist_task_handoff, "tool"),
-    (guard_triage_singleton_task, "tool"),
 ])
 def test_production_middleware_supports_both_execution_modes(middleware, slot):
     assert getattr(type(middleware), f"wrap_{slot}_call") is not getattr(AgentMiddleware, f"wrap_{slot}_call")

@@ -974,16 +974,6 @@ class WorkerApiClient:
             raise WorkerCallbackError("Legal corpus ingest response was invalid.")
         return data
 
-    def recover_legal_rules_from_active_corpus(self, payload: dict) -> dict:
-        """Create approved LegalRule source rows from active corpus candidate chunks."""
-        data = self._post_with_retry(
-            "/internal/legal-rule-catalog/rules/recover-from-active-corpus",
-            payload,
-        )
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal rule recovery response was invalid.")
-        return data
-
     def register_validated_retrieval_index(
         self, corpus_version_id: str, payload: dict
     ) -> dict:
@@ -1022,12 +1012,77 @@ class WorkerApiClient:
             raise WorkerCallbackError("Legal corpus preparation callback response was invalid.")
         return data
 
-    def get_active_legal_rule_catalog(self) -> dict:
-        """Fetch the active legal rule catalog/version metadata."""
-        path = "/internal/legal-rule-catalog/active"
-        data = self._get_with_retry(path)
+    def start_legal_preparation(
+        self, legal_corpus_version_id: str, idempotency_key: str
+    ) -> dict:
+        """Idempotently start one Legal Preparation run for one pinned corpus."""
+        data = self._post_with_retry(
+            InternalPath.LEGAL_PORTFOLIO_PREPARATIONS,
+            {
+                "legalCorpusVersionId": legal_corpus_version_id,
+                "idempotencyKey": idempotency_key,
+            },
+            redact=False,
+        )
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal rule catalog response was invalid.")
+            raise WorkerCallbackError("Legal preparation start response was invalid.")
+        return data
+
+    def claim_legal_preparation(self, preparation_run_id: str) -> dict:
+        """Claim one Legal Preparation run; returns only its pinned corpus bundle."""
+        data = self._post_with_retry(
+            InternalPath.LEGAL_PORTFOLIO_CLAIMS,
+            {"preparationRunId": preparation_run_id},
+            redact=False,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal preparation claim response was invalid.")
+        return data
+
+    def validate_legal_portfolio(self, preparation_run_id: str, packet: dict) -> dict:
+        """Dry-run mechanical validation of a complete portfolio packet."""
+        data = self._post_with_retry(
+            InternalPath.LEGAL_PORTFOLIO_VALIDATIONS,
+            {"preparationRunId": preparation_run_id, "packet": packet},
+            redact=False,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal portfolio validation response was invalid.")
+        return data
+
+    def submit_legal_portfolio(
+        self, preparation_run_id: str, idempotency_key: str, packet: dict
+    ) -> dict:
+        """Submit one complete portfolio: validate and atomically activate."""
+        data = self._post_with_retry(
+            InternalPath.LEGAL_PORTFOLIO_SUBMISSIONS,
+            {
+                "preparationRunId": preparation_run_id,
+                "idempotencyKey": idempotency_key,
+                "packet": packet,
+            },
+            redact=False,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal portfolio submission response was invalid.")
+        return data
+
+    def fail_legal_preparation(self, preparation_run_id: str, reason: str) -> dict:
+        """Record that a Legal Preparation execution could not produce a submission."""
+        data = self._post_with_retry(
+            InternalPath.LEGAL_PORTFOLIO_FAILURES,
+            {"preparationRunId": preparation_run_id, "reason": reason},
+            redact=False,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal preparation failure response was invalid.")
+        return data
+
+    def get_active_legal_portfolio(self) -> dict:
+        """Fetch the single ACTIVE legal portfolio (the only runtime reader)."""
+        data = self._get_with_retry(InternalPath.LEGAL_PORTFOLIO_ACTIVE)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal portfolio response was invalid.")
         return data
 
     def get_active_legal_corpus(self) -> dict:

@@ -118,7 +118,6 @@ describe("LegalRuleCatalogController official source snapshots", () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
       adminCorpusVersions as never,
     );
     await expect(
@@ -142,5 +141,18 @@ describe("LegalRuleCatalogController official source snapshots", () => {
         status: "COMPLETED",
       }),
     );
+  });
+
+  it("exposes no human legal authoring, approval or recovery write route", () => {
+    for (const retired of [
+      "createVersion",
+      "ingestCorpus",
+      "draftRule",
+      "approveVersion",
+      "recoverRulesFromActiveCorpus",
+      "getActiveCatalog",
+    ]) {
+      expect(LegalRuleCatalogController.prototype).not.toHaveProperty(retired);
+    }
   });
 });

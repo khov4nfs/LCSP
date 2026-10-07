@@ -12,16 +12,14 @@ import model_policy
 from middleware.agent_run_budget import AgentRunBudgetMiddleware
 from middleware.tool_scope import AllowedToolsMiddleware
 from middleware.interview_runtime_context import inject_interview_runtime_context
-from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware
-from middleware.triage_progress import require_triage_progress
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import effective_model_configs, resolve_role
 from subagents import FLOW_SUBAGENTS
 from contracts.handoffs import (
     InterviewResult,
     SPECIALIST_RESPONSE_FORMATS,
-    TriageResult,
 )
 
 
@@ -34,7 +32,7 @@ def _tool_names(subagent: dict[str, object]) -> tuple[str, ...]:
 
 def test_subagents_follow_deep_agents_dictionary_contract() -> None:
     by_name = {item["name"]: item for item in FLOW_SUBAGENTS}
-    assert tuple(by_name) == ("triage", "interview", "repository-analyst")
+    assert tuple(by_name) == ("interview", "repository-analyst")
 
     for name, subagent in by_name.items():
         assert {
@@ -51,9 +49,6 @@ def test_subagents_follow_deep_agents_dictionary_contract() -> None:
         if name == "interview":
             expected_prefix = [inject_interview_runtime_context]
             expected_governance = MODEL_GOVERNANCE_MIDDLEWARE
-        elif name == "triage":
-            expected_prefix = [require_triage_progress]
-            expected_governance = TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE
         else:
             expected_prefix = [inject_lcsp_runtime_context]
             expected_governance = MODEL_GOVERNANCE_MIDDLEWARE
@@ -87,12 +82,6 @@ def test_subagents_follow_deep_agents_dictionary_contract() -> None:
 def test_pipeline_roles_do_not_receive_customer_context_or_resolver_tools() -> None:
     by_name = {item["name"]: item for item in FLOW_SUBAGENTS}
 
-    assert _tool_names(by_name["triage"]) == (
-        "maintain_legal_catalog",
-        "get_legal_rule_triage_work_items",
-        "persist_legal_rule_triage_result",
-        "finish_legal_rule_triage_execution",
-    )
     # Repository exploration comes from native Deep Agents filesystem/shell/task tools
     # plus typed queries over the pre-indexed Codebase Memory graph, not PGE wrappers.
     assert _tool_names(by_name["interview"]) == ()
@@ -117,13 +106,11 @@ def test_pipeline_roles_do_not_receive_customer_context_or_resolver_tools() -> N
 def test_only_customer_facing_specialists_expose_pydantic_response_formats() -> None:
     by_name = {item["name"]: item for item in FLOW_SUBAGENTS}
 
-    assert by_name["triage"]["response_format"] is TriageResult
     assert by_name["interview"]["response_format"] is InterviewResult
     # The analyst reports through the governed submit_rule_assessment tool, never free JSON.
     assert "response_format" not in by_name["repository-analyst"]
     assert SPECIALIST_RESPONSE_FORMATS == {
         "interview": InterviewResult,
-        "triage": TriageResult,
     }
 
 
@@ -282,7 +269,7 @@ def test_agent_definitions_and_tools_hold_no_concrete_model_constants() -> None:
 def test_retired_planner_and_investigator_are_not_resurrected() -> None:
     assert not (PROJECT_ROOT / "subagents" / "planner").exists()
     assert not (PROJECT_ROOT / "subagents" / "investigator").exists()
-    assert {item["name"] for item in FLOW_SUBAGENTS} == {"triage", "interview", "repository-analyst"}
+    assert {item["name"] for item in FLOW_SUBAGENTS} == {"interview", "repository-analyst"}
 
 
 def test_root_agent_uses_checked_in_instructions_context_and_todos() -> None:
@@ -296,12 +283,13 @@ def test_root_agent_uses_checked_in_instructions_context_and_todos() -> None:
     assert "validate_lcsp_specialist_task_handoff" in source
     assert "MODEL_GOVERNANCE_MIDDLEWARE" in source
 
-    assert "LEGAL_MAINTENANCE" in instructions
-    assert "triage" in instructions
+    assert "no legal authority" in instructions
+    assert "`triage`" not in instructions
+    assert "LEGAL_MAINTENANCE" not in instructions
     assert "repository-analyst" in instructions
     assert "planner" not in instructions.lower()
     assert "write_todos" in instructions
-    assert "deterministic gate" in instructions
+    assert "completion gate" in instructions
 
 
 def test_multi_tenant_agent_has_no_deployment_shared_model_memory() -> None:

@@ -14,7 +14,6 @@ import {
   seedAuthWorkspaceFixture,
 } from "./support/auth-workspace-test-helpers.js";
 
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   LEGAL_CORPUS_TRUST_POLICIES,
   LEGAL_RULE_LIFECYCLE_STATUSES,
@@ -25,9 +24,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
   const SYSTEM_ACTOR = "legal-corpus-activation-service";
   let app: INestApplication;
   let prisma: PrismaClient;
-  let authorToken: string;
-  let approverToken: string;
-  const orgId = "org-1";
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
@@ -64,80 +60,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
 
-    const hashFn = (
-      await import("../src/modules/auth/infrastructure/security/security.utils.js")
-    ).hashSecret;
-    const passwordHash = hashFn("CorrectHorseBatteryStaple!");
-
-    const authorUserId = "user-author";
-    await prisma.user.create({
-      data: {
-        id: authorUserId,
-        email: "author@acme.test",
-        passwordHash,
-        emailVerified: true,
-        failedLoginCount: 0,
-        role: AUTH_USER_ROLES.admin,
-      },
-    });
-    const signInAuthor = await httpRequest(app).post("/auth/sign-in").send({
-      email: "author@acme.test",
-      password: "CorrectHorseBatteryStaple!",
-      organization_id: orgId,
-    });
-    authorToken = String(
-      successBody<{ session_token?: string }>(signInAuthor).session_token ?? "",
-    );
-
-    const approverUserId = "user-approver";
-    await prisma.user.create({
-      data: {
-        id: approverUserId,
-        email: "approver@acme.test",
-        passwordHash,
-        emailVerified: true,
-        failedLoginCount: 0,
-        role: AUTH_USER_ROLES.admin,
-      },
-    });
-    const signInApprover = await httpRequest(app).post("/auth/sign-in").send({
-      email: "approver@acme.test",
-      password: "CorrectHorseBatteryStaple!",
-      organization_id: orgId,
-    });
-    approverToken = String(
-      successBody<{ session_token?: string }>(signInApprover).session_token ??
-        "",
-    );
-
-    const restrictedUserId = "user-restricted";
-    await prisma.user.create({
-      data: {
-        id: restrictedUserId,
-        email: "restricted@acme.test",
-        passwordHash,
-        emailVerified: true,
-        failedLoginCount: 0,
-        role: AUTH_USER_ROLES.customer,
-      },
-    });
-
-    await prisma.legalRuleCatalogVersion.create({
-      data: {
-        id: "cat-version-1",
-        version: "v1.0.0",
-        ruleRefs: [],
-      },
-    });
     await seedApprovedCorpus(prisma);
-
-    const signInRestricted = await httpRequest(app).post("/auth/sign-in").send({
-      email: "restricted@acme.test",
-      password: "CorrectHorseBatteryStaple!",
-      organization_id: orgId,
-    });
-    void successBody<{ session_token?: string }>(signInRestricted)
-      .session_token;
   });
 
   afterAll(async () => {
@@ -145,50 +68,16 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     await prisma.$disconnect();
   });
 
-  describe("POST /internal/legal-rule-catalog/rules (Draft)", () => {
-    const payload = {
-      legalRuleId: "RULE-TEST-001",
-      legalRuleCatalogVersionId: "cat-version-1",
-      ruleFamily: "SECURITY",
-      requiredFacts: {},
-      unknownFactPolicy: "BLOCK",
-      citationLocatorRefs: [
-        {
-          legalCorpusVersionId: "corpus-v1",
-          documentId: "LAW-TEST",
-          locator: "art-1",
-        },
-      ],
-    };
-
-    it("T01: Returns 201 when called by author", async () => {
-      const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/rules")
-        .set("Authorization", `Bearer ${authorToken}`)
-        .send(payload);
-
-      assert.equal(response.status, 201);
-      const body = successBody<{ legalRuleId: string; status: string }>(
-        response,
-      );
-      assert.equal(body.legalRuleId, "RULE-TEST-001");
-      assert.equal(body.status, "DRAFT");
-    });
-  });
-
   describe("legal corpus ingest and approval", () => {
     it("stores immutable chunk locators as DRAFT and activates them through the worker-only validated activation endpoint", async () => {
       const content = "Điều 1. Test corpus content.";
       const sourceSha = sha256("source");
       const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-draft-v1",
-          sourceManifest: reviewManifest(
-            [{ documentId: "LAW-DRAFT", sourceSha256: sourceSha }],
-            "user-approver",
-          ),
+          sourceManifest: autoTrustedManifest(),
           documents: [
             {
               documentId: "LAW-DRAFT",
@@ -257,11 +146,11 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       assert.equal(outbox.length, 1);
     });
 
-    it("fails closed when Legal Operator sign-off is missing", async () => {
+    it("fails closed when the manifest is not official-source auto-trusted", async () => {
       const content = "Điều 1. Unsigned corpus content.";
       const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-unsigned-v1",
           sourceManifest: { reviewRequired: true },
@@ -289,11 +178,11 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       assert.equal(response.status, 422);
     });
 
-    it("accepts official-source auto-trusted corpus without Legal Operator sign-off", async () => {
+    it("accepts an official-source auto-trusted corpus; no person signs a corpus off", async () => {
       const content = "Điều 1. Auto trusted official corpus content.";
       const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-official-auto-trusted-v1",
           sourceManifest: {
@@ -334,19 +223,11 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
 
     it("fails closed when a document omits its chunk list", async () => {
       const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-missing-chunks-v1",
-          sourceManifest: reviewManifest(
-            [
-              {
-                documentId: "LAW-MISSING-CHUNKS",
-                sourceSha256: sha256("missing-chunks-source"),
-              },
-            ],
-            "user-approver",
-          ),
+          sourceManifest: autoTrustedManifest(),
           documents: [
             {
               documentId: "LAW-MISSING-CHUNKS",
@@ -395,19 +276,11 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       const content = "Điều 1. Real content here.";
       const wrongHash = sha256("totally-different-content");
       const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-hash-mismatch-v1",
-          sourceManifest: reviewManifest(
-            [
-              {
-                documentId: "LAW-HASH-MISMATCH",
-                sourceSha256: sha256("hash-mismatch-source"),
-              },
-            ],
-            "user-approver",
-          ),
+          sourceManifest: autoTrustedManifest(),
           documents: [
             {
               documentId: "LAW-HASH-MISMATCH",
@@ -436,60 +309,17 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       assert.equal(corpus, null);
     });
 
-    it("fails closed when document sourceSha256 does not match signoff", async () => {
-      const content = "Điều 1. Source hash mismatch.";
-      const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
-        .send({
-          version: "corpus-source-hash-mismatch-v1",
-          sourceManifest: reviewManifest(
-            [
-              {
-                documentId: "LAW-SOURCE-HASH-MISMATCH",
-                sourceSha256: sha256("signed-source-hash"),
-              },
-            ],
-            "user-approver",
-          ),
-          documents: [
-            {
-              documentId: "LAW-SOURCE-HASH-MISMATCH",
-              title: "Source hash mismatch legal source",
-              sourceUrl: "https://example.test/source-hash-mismatch-law",
-              sourceSha256: sha256("different-actual-hash"),
-              sourceEffectStatus: "ACTIVE",
-              chunks: [
-                {
-                  id: "chunk-source-hash-mismatch-v1",
-                  locator: "art-1",
-                  content,
-                  contentSha256: sha256(content),
-                  hierarchy: { article: "1" },
-                  legalStatus: "ACTIVE",
-                },
-              ],
-            },
-          ],
-        });
-
-      assert.equal(response.status, 422);
-    });
-
     it("fails closed when version already exists", async () => {
       const content = "Điều 1. Duplicate version test.";
       const sourceSha = sha256("duplicate-source");
 
       // First ingest succeeds
       const first = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-duplicate-v1",
-          sourceManifest: reviewManifest(
-            [{ documentId: "LAW-DUPLICATE", sourceSha256: sourceSha }],
-            "user-approver",
-          ),
+          sourceManifest: autoTrustedManifest(),
           documents: [
             {
               documentId: "LAW-DUPLICATE",
@@ -514,14 +344,11 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
 
       // Second ingest with same version should fail
       const second = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-duplicate-v1",
-          sourceManifest: reviewManifest(
-            [{ documentId: "LAW-DUPLICATE", sourceSha256: sourceSha }],
-            "user-approver",
-          ),
+          sourceManifest: autoTrustedManifest(),
           documents: [
             {
               documentId: "LAW-DUPLICATE",
@@ -551,14 +378,11 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
 
       // Create and approve corpus
       const ingest = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-already-approved-v1",
-          sourceManifest: reviewManifest(
-            [{ documentId: "LAW-APPROVED", sourceSha256: sourceSha }],
-            "user-approver",
-          ),
+          sourceManifest: autoTrustedManifest(),
           documents: [
             {
               documentId: "LAW-APPROVED",
@@ -633,14 +457,11 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       const content = "Điều 1. Missing retrieval validation.";
       const sourceSha = sha256("blocked-source");
       const ingest = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
+        .post("/internal/legal-rule-catalog/corpus/validated-draft")
+        .set("x-worker-api-key", WORKER_KEY)
         .send({
           version: "corpus-blocked-v1",
-          sourceManifest: reviewManifest(
-            [{ documentId: "LAW-BLOCKED", sourceSha256: sourceSha }],
-            "user-approver",
-          ),
+          sourceManifest: autoTrustedManifest(),
           documents: [
             {
               documentId: "LAW-BLOCKED",
@@ -680,47 +501,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         where: { id: draft.id },
       });
       assert.equal(stored?.status, LEGAL_RULE_LIFECYCLE_STATUSES.draft);
-    });
-  });
-
-  describe("POST /internal/legal-rule-catalog/versions/:id/approve", () => {
-    let versionId: string;
-
-    beforeEach(async () => {
-      await httpRequest(app)
-        .post("/internal/legal-rule-catalog/rules")
-        .set("Authorization", `Bearer ${authorToken}`)
-        .send({
-          legalRuleId: "RULE-TEST-002",
-          legalRuleCatalogVersionId: "cat-version-1",
-          ruleFamily: "RISK",
-          requiredFacts: {},
-          unknownFactPolicy: "BLOCK",
-          citationLocatorRefs: [
-            {
-              legalCorpusVersionId: "corpus-v1",
-              documentId: "LAW-TEST",
-              locator: "art-1",
-            },
-          ],
-        });
-
-      versionId = "cat-version-1";
-    });
-
-    it("T04: Returns 200 when called by approver", async () => {
-      const response = await httpRequest(app)
-        .post(`/internal/legal-rule-catalog/versions/${versionId}/approve`)
-        .set("Authorization", `Bearer ${approverToken}`)
-        .send({
-          scopeDescription: "Approved for release",
-        });
-
-      assert.equal(response.status, 200);
-      assert.equal(
-        successBody<{ status: string }>(response).status,
-        LEGAL_RULE_LIFECYCLE_STATUSES.approved,
-      );
     });
   });
 });
@@ -822,26 +602,12 @@ async function seedDraftCorpus(
   return { id: corpus.id };
 }
 
-function reviewManifest(
-  documents: Array<{ documentId: string; sourceSha256: string }>,
-  reviewedBy: string,
-) {
+function autoTrustedManifest() {
   return {
-    reviewRequired: true,
+    reviewRequired: false,
+    trustPolicy: LEGAL_CORPUS_TRUST_POLICIES.officialSourceAutoTrusted,
     normalizationWarnings: [],
-    reviewSignoff: {
-      state: "APPROVED",
-      reviewedBy,
-      documents: documents.map((document) => ({
-        documentId: document.documentId,
-        reviewState: "APPROVED",
-        reviewedBy,
-        reviewedAt: "2026-08-11T00:00:00+07:00",
-        reviewedSourceSha256: document.sourceSha256,
-        reviewedTextSha256: sha256(`reviewed:${document.documentId}`),
-        hierarchyReviewSha256: sha256(`hierarchy:${document.documentId}`),
-      })),
-    },
+    sourceArtifacts: [],
   };
 }
 

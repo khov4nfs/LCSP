@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Optional } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   CORPUS_VERSION_READINESS_CHECKS,
   CORPUS_VERSION_READINESS_STATES,
@@ -34,17 +34,12 @@ import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
-import {
-  acquireLegalCorpusLifecycleLock,
-  LegalCorpusService,
-} from "./legal-corpus.service.js";
 
 @Injectable()
 export class AdminCorpusVersionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
-    @Optional() private readonly legalCorpus?: LegalCorpusService,
     private readonly outbox: OutboxRepository = undefined as never,
   ) {}
 
@@ -236,7 +231,6 @@ export class AdminCorpusVersionsService {
               preparationId: preparation.id,
               targetCorpusVersionId: target.id,
               targetVersion,
-              deferActivation: true,
               baseCorpusVersionId: base?.id ?? null,
               sourceCrawlRequests,
             },
@@ -448,10 +442,6 @@ export class AdminCorpusVersionsService {
     // never be promoted to READY in this read model.
     const readinessProjection = readReadinessProjection(manifest);
     const readiness = readinessProjection.aggregate;
-    const trustedIntegrityRef = resolveTrustedIntegrityRef(version, manifest);
-    const hasValidRetrievalIndex = hasValidatedRetrievalIndex(
-      version.retrievalIndexes,
-    );
     return {
       ...this.summary(
         {
@@ -514,258 +504,10 @@ export class AdminCorpusVersionsService {
           validation: CORPUS_VERSION_READINESS_STATES.unavailable,
         },
       ],
-      actions: {
-        canPublish:
-          version.status ===
-            toPrismaLegalRuleLifecycleStatus(
-              LEGAL_RULE_LIFECYCLE_STATUSES.draft,
-            ) &&
-          readiness === CORPUS_VERSION_READINESS_STATES.ready &&
-          hasValidRetrievalIndex &&
-          trustedIntegrityRef !== null,
-        canDiscard:
-          version.status ===
-          toPrismaLegalRuleLifecycleStatus(LEGAL_RULE_LIFECYCLE_STATUSES.draft),
-      },
+      // Activation is automatic after mechanical validation; no person publishes or
+      // discards legal output, so neither action is ever available.
+      actions: { canPublish: false, canDiscard: false },
     };
-  }
-
-  async discardDraft(input: {
-    versionId: string;
-    actorId: string;
-    idempotencyKey: string;
-    correlationId: string;
-  }) {
-    if (!input.idempotencyKey.trim()) {
-      throw problemException(
-        LEGAL_RULE_ERROR_CODES.corpusIngestInvalid,
-        input.correlationId,
-        { status: HttpStatus.UNPROCESSABLE_ENTITY },
-      );
-    }
-    const existingReceipt =
-      typeof this.prisma.corpusDiscardReceipt?.findUnique === "function"
-        ? await this.prisma.corpusDiscardReceipt.findUnique({
-            where: {
-              actorId_idempotencyKey: {
-                actorId: input.actorId,
-                idempotencyKey: input.idempotencyKey,
-              },
-            },
-          })
-        : null;
-    if (existingReceipt) {
-      if (existingReceipt.corpusVersionId !== input.versionId) {
-        throw problemException(
-          LEGAL_RULE_ERROR_CODES.corpusVersionAlreadyApproved,
-          input.correlationId,
-          { status: HttpStatus.CONFLICT },
-        );
-      }
-      return this.detail(input.versionId);
-    }
-    const version = await this.prisma.legalCorpusVersion.findUnique({
-      where: { id: input.versionId },
-    });
-    if (!version) {
-      throw problemException(
-        LEGAL_RULE_ERROR_CODES.corpusVersionNotFound,
-        input.correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
-    }
-    if (
-      version.status !==
-      toPrismaLegalRuleLifecycleStatus(LEGAL_RULE_LIFECYCLE_STATUSES.draft)
-    ) {
-      throw problemException(
-        LEGAL_RULE_ERROR_CODES.corpusVersionAlreadyApproved,
-        input.correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
-    }
-    try {
-      await this.prisma.$transaction(async (tx) => {
-        await acquireLegalCorpusLifecycleLock(tx);
-        if (typeof tx.corpusDiscardReceipt?.create === "function") {
-          await tx.corpusDiscardReceipt.create({
-            data: {
-              corpusVersionId: input.versionId,
-              actorId: input.actorId,
-              idempotencyKey: input.idempotencyKey,
-            },
-          });
-        }
-        const discarded = await tx.legalCorpusVersion.updateMany({
-          where: {
-            id: input.versionId,
-            status: toPrismaLegalRuleLifecycleStatus(
-              LEGAL_RULE_LIFECYCLE_STATUSES.draft,
-            ),
-          },
-          data: {
-            status: toPrismaLegalRuleLifecycleStatus(
-              LEGAL_RULE_LIFECYCLE_STATUSES.rejected,
-            ),
-          },
-        });
-        if (discarded.count !== 1) {
-          throw problemException(
-            LEGAL_RULE_ERROR_CODES.corpusIngestInvalid,
-            input.correlationId,
-            {
-              status: HttpStatus.CONFLICT,
-              meta: { reason: "CORPUS_NOT_DRAFT" },
-            },
-          );
-        }
-        await this.auditWriter.writeInTx(
-          {
-            eventType: LEGAL_RULE_EVENT_TYPES.corpusVersionDiscarded,
-            actorId: input.actorId,
-            actor: { id: input.actorId, type: AUDIT_ACTOR_TYPES.user },
-            resourceType: AUDIT_RESOURCE_TYPES.legalRuleCatalogVersion,
-            resourceId: input.versionId,
-            decision: AUDIT_DECISIONS.allow,
-            correlationId: input.correlationId,
-            redactionStatus: AUDIT_REDACTION_STATUSES.none,
-            payload: { corpusVersionRef: `corpus-version:${input.versionId}` },
-          },
-          tx,
-        );
-      });
-    } catch (error) {
-      if (
-        isUniqueConstraintError(error) &&
-        typeof this.prisma.corpusDiscardReceipt?.findUnique === "function"
-      ) {
-        const replay = await this.prisma.corpusDiscardReceipt.findUnique({
-          where: {
-            actorId_idempotencyKey: {
-              actorId: input.actorId,
-              idempotencyKey: input.idempotencyKey,
-            },
-          },
-        });
-        if (replay?.corpusVersionId === input.versionId)
-          return this.detail(input.versionId);
-      }
-      throw error;
-    }
-    return this.detail(input.versionId);
-  }
-
-  async publish(input: {
-    versionId: string;
-    actorId: string;
-    idempotencyKey: string;
-    correlationId: string;
-  }) {
-    if (!this.legalCorpus) {
-      throw new Error("LegalCorpusService is required for publish");
-    }
-    const version = await this.prisma.legalCorpusVersion.findUnique({
-      where: { id: input.versionId },
-      include: {
-        retrievalIndexes: {
-          orderBy: [{ validatedAt: "desc" }, { createdAt: "desc" }],
-        },
-      },
-    });
-    if (!version) {
-      throw problemException(
-        LEGAL_RULE_ERROR_CODES.corpusVersionNotFound,
-        input.correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
-    }
-    const replay =
-      typeof this.prisma.corpusApprovalRecord?.findUnique === "function"
-        ? await this.prisma.corpusApprovalRecord.findUnique({
-            where: { idempotencyKey: input.idempotencyKey },
-            select: { legalCorpusVersionId: true },
-          })
-        : null;
-    if (replay) {
-      if (replay.legalCorpusVersionId !== input.versionId) {
-        throw problemException(
-          LEGAL_RULE_ERROR_CODES.corpusVersionAlreadyApproved,
-          input.correlationId,
-          { status: HttpStatus.CONFLICT },
-        );
-      }
-      return this.detail(input.versionId);
-    }
-    if (
-      version.status !==
-      toPrismaLegalRuleLifecycleStatus(LEGAL_RULE_LIFECYCLE_STATUSES.draft)
-    ) {
-      throw problemException(
-        LEGAL_RULE_ERROR_CODES.corpusVersionAlreadyApproved,
-        input.correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
-    }
-    const manifest = isRecord(version.sourceManifest)
-      ? version.sourceManifest
-      : {};
-    const readiness = readReadinessProjection(manifest).aggregate;
-    const index = findValidatedRetrievalIndex(version.retrievalIndexes);
-    const integrityManifestRef = resolveTrustedIntegrityRef(version, manifest);
-    if (
-      readiness !== CORPUS_VERSION_READINESS_STATES.ready ||
-      !index ||
-      !integrityManifestRef
-    ) {
-      throw problemException(
-        LEGAL_RULE_ERROR_CODES.corpusIngestInvalid,
-        input.correlationId,
-        { status: HttpStatus.CONFLICT, meta: { reason: "CORPUS_NOT_READY" } },
-      );
-    }
-    const previous = await this.prisma.legalCorpusVersion.findFirst({
-      where: {
-        status: toPrismaLegalRuleLifecycleStatus(
-          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
-        ),
-      },
-      orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
-      select: { id: true },
-    });
-    try {
-      await this.legalCorpus.activateValidatedCorpusVersion({
-        corpusVersionId: input.versionId,
-        integrityManifestRef,
-        retrievalValidationRef: index.validationManifestRef!,
-        idempotencyKey: input.idempotencyKey,
-        scopeDescription: "Activated by Admin",
-        comments: null,
-        correlationId: input.correlationId,
-        initiatingAdminActorId: input.actorId,
-      });
-      return this.detail(input.versionId);
-    } catch (error) {
-      try {
-        await this.auditWriter.write({
-          eventType: LEGAL_RULE_EVENT_TYPES.corpusVersionActivated,
-          actorId: input.actorId,
-          actor: { id: input.actorId, type: AUDIT_ACTOR_TYPES.user },
-          resourceType: AUDIT_RESOURCE_TYPES.legalRuleCatalogVersion,
-          resourceId: input.versionId,
-          decision: AUDIT_DECISIONS.deny,
-          correlationId: input.correlationId,
-          redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          payload: {
-            targetVersionId: input.versionId,
-            previousActiveVersionId: previous?.id ?? null,
-            result: CORPUS_PREPARATION_STATUSES.failed,
-          },
-        });
-      } catch {
-        // Preserve the canonical activation error when secondary audit fails.
-      }
-      throw error;
-    }
   }
 
   private async isCurrentActive(versionId: string): Promise<boolean> {
@@ -828,12 +570,6 @@ function arrayLength(value: unknown): number | null {
   return Array.isArray(value) ? value.length : null;
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002"
-  );
-}
 function snapshotChange(
   changeSet: Record<string, unknown> | null,
   ...keys: string[]
@@ -884,42 +620,6 @@ function readReadinessProjection(manifest: Record<string, unknown>) {
           ? CORPUS_VERSION_READINESS_STATES.pending
           : CORPUS_VERSION_READINESS_STATES.unavailable;
   return { items, aggregate };
-}
-
-function findValidatedRetrievalIndex<
-  T extends {
-    status: string;
-    validatedAt: Date | null;
-    validationManifestRef: string | null;
-  },
->(indexes: T[]): T | null {
-  return (
-    indexes.find(
-      (index) =>
-        index.status === "VALID" &&
-        index.validatedAt !== null &&
-        index.validationManifestRef !== null,
-    ) ?? null
-  );
-}
-
-function hasValidatedRetrievalIndex(
-  indexes: Array<{
-    status: string;
-    validatedAt: Date | null;
-    validationManifestRef: string | null;
-  }>,
-): boolean {
-  return findValidatedRetrievalIndex(indexes) !== null;
-}
-
-function resolveTrustedIntegrityRef(
-  version: { integrityManifestRef: string | null },
-  manifest: Record<string, unknown>,
-): string | null {
-  if (version.integrityManifestRef) return version.integrityManifestRef;
-  const validation = isRecord(manifest.validation) ? manifest.validation : {};
-  return stringOrNull(validation.integrityManifestRef);
 }
 
 function inferGovernedSourceRequest(document: {

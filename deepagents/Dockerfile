@@ -7,8 +7,6 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY deepagents /app/deepagents
-COPY reports/legal-corpus-ocr/lcsp-precompiled-engineering-rules-vn-2026-08.json \
-    /app/reports/legal-corpus-ocr/lcsp-precompiled-engineering-rules-vn-2026-08.json
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir "/app/deepagents" \

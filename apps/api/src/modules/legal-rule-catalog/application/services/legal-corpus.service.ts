@@ -57,45 +57,8 @@ import type {
   LegalCorpusDocumentInput,
 } from "../contracts/legal-corpus.contract.js";
 
-const INDEPENDENT_AUDIT_PRINCIPAL_POLICY =
-  "TECHNICAL_AUDIT_PRINCIPALS_INDEPENDENT";
 const SAFE_MANIFEST_REF = /^[a-z][a-z0-9-]{0,63}:[A-Za-z0-9._:-]{1,180}$/;
 const LEGAL_CORPUS_ACTIVATION_SERVICE = "legal-corpus-activation-service";
-const LEGAL_CHUNK_NORMATIVE_CLASSES = {
-  engineeringRuleCandidate: "ENGINEERING_RULE_CANDIDATE",
-  contextOnly: "CONTEXT_ONLY",
-  excludeFromDatabase: "EXCLUDE_FROM_DATABASE",
-} as const;
-const LEGAL_CONTEXT_ONLY_ARTICLE_TITLE_TERMS = [
-  "phạm vi điều chỉnh",
-  "đối tượng áp dụng",
-  "giải thích từ ngữ",
-  "nguyên tắc cơ bản",
-  "chính sách của nhà nước",
-] as const;
-const LEGAL_ENGINEERING_OBLIGATION_TERMS = [
-  "phải",
-  "không được",
-  "bị nghiêm cấm",
-  "nghiêm cấm",
-  "có trách nhiệm",
-  "nghĩa vụ",
-  "bảo đảm",
-  "duy trì",
-  "thiết lập",
-  "kiểm tra",
-  "giám sát",
-  "đánh giá",
-  "quản lý rủi ro",
-  "thông báo",
-  "công bố",
-  "báo cáo",
-  "lưu trữ",
-  "ghi nhận",
-  "kiểm soát",
-  "can thiệp",
-  "tuân thủ",
-] as const;
 const OUTBOX_VISIBLE_STATUSES = [
   OUTBOX_STATUSES.pending,
   OUTBOX_STATUSES.published,
@@ -106,29 +69,6 @@ const LEGAL_CORPUS_CHANGE_MODES = {
   partialUpdate: "PARTIAL_UPDATE",
   noChanges: "NO_CHANGES",
 } as const;
-
-interface LegalReviewDocumentSignoff {
-  documentId: string;
-  reviewState: "APPROVED";
-  reviewedBy: string;
-  reviewedAt: string;
-  reviewedSourceSha256: string;
-  reviewedTextSha256: string;
-  hierarchyReviewSha256: string;
-}
-
-interface LegalReviewSignoff {
-  state: "APPROVED";
-  reviewedBy: string;
-  identityPolicy: string | null;
-  approvalActorMayDiffer: boolean;
-  documents: LegalReviewDocumentSignoff[];
-}
-
-interface ReviewTargetDocument {
-  documentId: string;
-  sourceSha256: string;
-}
 
 @Injectable()
 export class LegalCorpusService {
@@ -993,6 +933,11 @@ export class LegalCorpusService {
     });
   }
 
+  /**
+   * Structural gate only: empty chunks, formal headings and law preambles are not retrievable
+   * law. Whether a provision imposes a duty is the Legal Preparation agent's interpretation,
+   * never a term list here.
+   */
   private selectDatabaseLegalChunks(
     input: IngestLegalCorpusRequest,
   ): IngestLegalCorpusRequest {
@@ -1001,57 +946,15 @@ export class LegalCorpusService {
       sourceManifest: {
         ...input.sourceManifest,
         chunkSelectionPolicy:
-          "Persist only hierarchy-addressable legal chunks; exclude formal headers/preamble. Context-only chunks are retained but not EngineeringRule source candidates.",
+          "Persist only hierarchy-addressable legal chunks; exclude formal headers/preamble. No semantic classification is applied.",
       },
       documents: input.documents.map((document) => ({
         ...document,
-        chunks: (Array.isArray(document.chunks) ? document.chunks : [])
-          .map((chunk) => {
-            const normativeClass = this.legalChunkNormativeClass(chunk);
-            return {
-              ...chunk,
-              hierarchy: {
-                ...chunk.hierarchy,
-                normativeClass,
-              },
-            };
-          })
-          .filter(
-            (chunk) =>
-              chunk.hierarchy.normativeClass !==
-              LEGAL_CHUNK_NORMATIVE_CLASSES.excludeFromDatabase,
-          ),
+        chunks: (Array.isArray(document.chunks) ? document.chunks : []).filter(
+          (chunk) => isLegalDatabaseChunk(chunk.content),
+        ),
       })),
     };
-  }
-
-  private legalChunkNormativeClass(
-    chunk: LegalCorpusDocumentInput["chunks"][number],
-  ) {
-    const rawContent = chunk.content;
-    const content = normalizeLegalText(rawContent);
-    if (!content) return LEGAL_CHUNK_NORMATIVE_CLASSES.excludeFromDatabase;
-    if (isLegalHeadingOnly(rawContent) || isLegalPreambleOnly(rawContent)) {
-      return LEGAL_CHUNK_NORMATIVE_CLASSES.excludeFromDatabase;
-    }
-    const articleTitle = normalizeLegalText(
-      typeof chunk.hierarchy.articleTitle === "string"
-        ? chunk.hierarchy.articleTitle
-        : "",
-    );
-    if (
-      LEGAL_CONTEXT_ONLY_ARTICLE_TITLE_TERMS.some((term) =>
-        articleTitle.includes(term),
-      )
-    ) {
-      return LEGAL_CHUNK_NORMATIVE_CLASSES.contextOnly;
-    }
-    if (
-      LEGAL_ENGINEERING_OBLIGATION_TERMS.some((term) => content.includes(term))
-    ) {
-      return LEGAL_CHUNK_NORMATIVE_CLASSES.engineeringRuleCandidate;
-    }
-    return LEGAL_CHUNK_NORMATIVE_CLASSES.contextOnly;
   }
 
   private validateIngest(input: IngestLegalCorpusRequest): void {
@@ -1084,137 +987,36 @@ export class LegalCorpusService {
       );
     }
 
-    this.requireApprovedReviewSignoff(
+    this.requireOfficialSourceAutoTrust(
       input.sourceManifest,
-      input.documents.map((document) => ({
-        documentId: document.documentId,
-        sourceSha256: document.sourceSha256,
-      })),
       "legal-corpus-ingest",
     );
   }
 
-  private requireApprovedReviewSignoff(
+  /**
+   * Source ingestion is trusted only through the mechanical official-source gate (hashes,
+   * hierarchy, retrieval index). No person signs a corpus or any LegalRule off.
+   */
+  private requireOfficialSourceAutoTrust(
     sourceManifest: unknown,
-    targetDocuments: ReviewTargetDocument[],
     correlationId: string,
-  ): LegalReviewSignoff {
-    const invalid = (reason: string): never => {
-      throw problemException(
-        LEGAL_RULE_ERROR_CODES.corpusIngestInvalid,
-        correlationId,
-        {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-          meta: { reason },
-        },
-      );
-    };
-
-    if (!isRecord(sourceManifest)) {
-      return invalid("legal_operator_signoff_required");
-    }
+  ): void {
     if (
+      isRecord(sourceManifest) &&
       sourceManifest.reviewRequired === false &&
       sourceManifest.trustPolicy ===
         LEGAL_CORPUS_TRUST_POLICIES.officialSourceAutoTrusted
     ) {
-      return {
-        state: "APPROVED",
-        reviewedBy: LEGAL_CORPUS_TRUST_POLICIES.officialSourceAutoTrusted,
-        identityPolicy: null,
-        approvalActorMayDiffer: false,
-        documents: [],
-      };
+      return;
     }
-    if (sourceManifest.reviewRequired !== true) {
-      return invalid("legal_operator_signoff_required");
-    }
-    const warnings = sourceManifest.normalizationWarnings;
-    if (Array.isArray(warnings) && warnings.length > 0) {
-      return invalid("normalization_warnings_unresolved");
-    }
-
-    const rawSignoff = sourceManifest.reviewSignoff;
-    if (!isRecord(rawSignoff) || rawSignoff.state !== "APPROVED") {
-      return invalid("legal_operator_signoff_not_approved");
-    }
-    const reviewedBy = stringValue(rawSignoff.reviewedBy);
-    const rawDocuments = rawSignoff.documents;
-    if (!reviewedBy || !Array.isArray(rawDocuments)) {
-      return invalid("legal_operator_signoff_invalid");
-    }
-
-    const identityPolicy = stringValue(rawSignoff.identityPolicy) || null;
-    const approvalActorMayDiffer =
-      rawSignoff.approvalActorMayDiffer === true &&
-      identityPolicy === INDEPENDENT_AUDIT_PRINCIPAL_POLICY;
-    if (rawSignoff.approvalActorMayDiffer === true && !approvalActorMayDiffer) {
-      return invalid("legal_operator_identity_policy_invalid");
-    }
-
-    const documents: LegalReviewDocumentSignoff[] = [];
-    for (const rawDocument of rawDocuments) {
-      if (!isRecord(rawDocument)) {
-        return invalid("legal_operator_document_signoff_invalid");
-      }
-      const documentId = stringValue(rawDocument.documentId);
-      const documentReviewedBy = stringValue(rawDocument.reviewedBy);
-      const reviewedAt = stringValue(rawDocument.reviewedAt);
-      const reviewedSourceSha256 = stringValue(
-        rawDocument.reviewedSourceSha256,
-      );
-      const reviewedTextSha256 = stringValue(rawDocument.reviewedTextSha256);
-      const hierarchyReviewSha256 = stringValue(
-        rawDocument.hierarchyReviewSha256,
-      );
-      if (
-        !documentId ||
-        rawDocument.reviewState !== "APPROVED" ||
-        documentReviewedBy !== reviewedBy ||
-        !reviewedAt ||
-        !isSha256(reviewedSourceSha256) ||
-        !isSha256(reviewedTextSha256) ||
-        !isSha256(hierarchyReviewSha256)
-      ) {
-        return invalid("legal_operator_document_signoff_invalid");
-      }
-      documents.push({
-        documentId,
-        reviewState: "APPROVED",
-        reviewedBy: documentReviewedBy,
-        reviewedAt,
-        reviewedSourceSha256,
-        reviewedTextSha256,
-        hierarchyReviewSha256,
-      });
-    }
-
-    const signoffByDocumentId = new Map(
-      documents.map((document) => [document.documentId, document]),
+    throw problemException(
+      LEGAL_RULE_ERROR_CODES.corpusIngestInvalid,
+      correlationId,
+      {
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+        meta: { reason: "official_source_auto_trust_required" },
+      },
     );
-    if (
-      documents.length !== targetDocuments.length ||
-      signoffByDocumentId.size !== targetDocuments.length
-    ) {
-      return invalid("legal_operator_signoff_document_set_mismatch");
-    }
-    for (const targetDocument of targetDocuments) {
-      const signoff = signoffByDocumentId.get(targetDocument.documentId);
-      if (!signoff) {
-        return invalid("legal_operator_signoff_document_set_mismatch");
-      }
-      if (signoff.reviewedSourceSha256 !== targetDocument.sourceSha256) {
-        return invalid("legal_operator_signoff_source_hash_mismatch");
-      }
-    }
-
-    return {
-      state: "APPROVED",
-      reviewedBy,
-      identityPolicy,
-      approvalActorMayDiffer,
-      documents,
-    };
   }
 }
 
@@ -1226,8 +1028,12 @@ function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^sha256:[a-f0-9]{64}$/i.test(value);
 }
 
-function normalizeLegalText(value: string): string {
-  return value.toLocaleLowerCase("vi-VN").split(/\s+/u).join(" ").trim();
+function isLegalDatabaseChunk(content: string): boolean {
+  return (
+    content.trim().length > 0 &&
+    !isLegalHeadingOnly(content) &&
+    !isLegalPreambleOnly(content)
+  );
 }
 
 function isLegalHeadingOnly(content: string): boolean {
@@ -1252,8 +1058,4 @@ function isLegalPreambleOnly(content: string): boolean {
   return /quốc hội|cộng hòa xã hội chủ nghĩa việt nam|độc lập\s*-\s*tự do|luật số|căn cứ hiến pháp|quốc hội ban hành|chủ tịch quốc hội/iu.test(
     lines.join(" "),
   );
-}
-
-function stringValue(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
 }

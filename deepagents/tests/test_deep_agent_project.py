@@ -44,25 +44,10 @@ def test_remote_mcp_tools_are_optional_by_default(monkeypatch) -> None:
     }
 
 
-def test_legal_catalog_schedule_exports_application_owned_config() -> None:
-    schedule_path = PROJECT_ROOT / "schedules" / "legal_catalog_daily.py"
-    source = schedule_path.read_text()
-    tree = ast.parse(source)
-
-    assigned_names = {
-        target.id
-        for node in tree.body
-        if isinstance(node, ast.Assign)
-        for target in node.targets
-        if isinstance(target, ast.Name)
-    }
-
-    assert "LEGAL_CATALOG_MAINTENANCE_CRON" in assigned_names
-    assert "LEGAL_CATALOG_MAINTENANCE_TIMEZONE" in assigned_names
-    assert "LEGAL_CATALOG_MAINTENANCE_PROMPT" in assigned_names
-    assert "_".join(("define", "schedule")) not in source
-    assert "os.getenv" not in source
-    assert "load_config" not in source
+def test_legacy_legal_maintenance_prompt_schedule_is_deleted() -> None:
+    # The registered deterministic change detector enqueues the canonical preparation command;
+    # an unwired LLM maintenance prompt/schedule is not a production path.
+    assert not (PROJECT_ROOT / "schedules" / "legal_catalog_daily.py").exists()
 
 
 def test_authored_agent_tools_have_explicit_input_schema() -> None:
@@ -91,7 +76,6 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
     assert tool_packages == {
         "common",
         "legal",
-        "triage",
     }
     assert not (PROJECT_ROOT / "runtime").exists()
     assert (PROJECT_ROOT / "orchestration").is_dir()
@@ -117,9 +101,9 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
         for path in (PROJECT_ROOT / "skills").iterdir()
         if path.is_dir() and not path.name.startswith("__")
     }
-    assert skill_packages == {"interview-context", "lcsp", "legal-rule-triage"}
+    assert skill_packages == {"interview-context", "lcsp"}
     assert (PROJECT_ROOT / "skills" / "lcsp" / "SKILL.md").is_file()
-    assert (PROJECT_ROOT / "skills" / "legal-rule-triage" / "SKILL.md").is_file()
+    assert not (PROJECT_ROOT / "skills" / "legal-rule-triage").exists()
     assert not (PROJECT_ROOT / "skills" / "deep_agent_skills").exists()
     assert not (PROJECT_ROOT / "src").exists()
     assert not (PROJECT_ROOT / "scripts").exists()
@@ -141,7 +125,7 @@ def test_all_former_consumers_remain_internal_agent_runtime_invocation_boundarie
         "engineering_assessment_requested",
         "assessment_interview_resume_requested",
         "assessment_interview_pause_requested",
-        "legal_rule_triage_requested",
+        "legal_portfolio_preparation_requested",
         "legal_change_detection_requested",
         "agent_runtime_health_requested",
         "final_report_requested",
@@ -152,9 +136,10 @@ def test_all_former_consumers_remain_internal_agent_runtime_invocation_boundarie
         "boundary_source": "agent-runtime.health",
         "source_event": "internal.agent-runtime.health.v1",
     } in manifest
+    assert "legal_rule_triage_requested" not in {entry["name"] for entry in manifest}
     assert {
-        "name": "legal_rule_triage_requested",
-        "target": "tools.triage.legal_rule_triage.boundary:LegalRuleTriageBoundary",
-        "boundary_source": "legal.engineering-rule-readiness",
-        "source_event": "command.legal-rule-triage.requested.v1",
+        "name": "legal_portfolio_preparation_requested",
+        "target": "legal_preparation.boundary:LegalPreparationBoundary",
+        "boundary_source": "legal.legal-portfolio-preparation",
+        "source_event": "command.legal-portfolio.preparation.requested.v1",
     } in manifest
