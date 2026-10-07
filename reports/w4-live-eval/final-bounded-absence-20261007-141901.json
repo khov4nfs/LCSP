@@ -1,0 +1,594 @@
+{
+  "generatedAt": "2026-10-07T14:19:43.824Z",
+  "fixture": {
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "hashes": {
+      "art-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-1::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-b": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+    },
+    "chunks": [
+      {
+        "locator": "art-2::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      }
+    ],
+    "packet": {
+      "legalRules": [
+        {
+          "legalRuleId": "LR-XREF",
+          "title": "Deletion notification",
+          "proposition": "Notice services must notify the recipient when their notice record is deleted.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-4::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-2::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "COVERED_BY_ENGINEERING_RULES",
+            "nonAssessableReason": null
+          }
+        }
+      ],
+      "engineeringRules": [
+        {
+          "engineeringRuleId": "ER-XREF",
+          "legalRuleIds": [
+            "LR-XREF"
+          ],
+          "concept": "Deletion notification",
+          "legalIntent": "Notice services must notify the recipient when their notice record is deleted.",
+          "applicabilityGuidance": "Applies to a system that stores and deletes notice records.",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "statement": "The deletion path sends a notification to the notice recipient."
+            }
+          ],
+          "investigationGoals": [
+            "The deletion path sends a notification to the notice recipient."
+          ],
+          "startingNodeTypes": [],
+          "targetNodeTypes": [],
+          "edgeStrategies": [],
+          "graphQueries": [],
+          "keywords": [],
+          "commonApis": [],
+          "commonLibraries": [],
+          "patterns": [],
+          "requiredEvidence": [
+            "Accepted repository source or authenticated bounded search coverage"
+          ],
+          "supportingEvidence": [],
+          "negativeEvidence": [],
+          "unresolvedConditions": [],
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-4::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ]
+        }
+      ],
+      "contextRelations": []
+    },
+    "files": {
+      "README.md": "The notice service deletes notice records. All application logic is in src/notices.py; there are no external notification hooks or services.\n",
+      "src/notices.py": "def delete_notice(record, store):\n    store.delete(record['id'])\n"
+    },
+    "fixture": "bounded-absence"
+  },
+  "result": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "ed034e79-7b77-418a-ab3d-b6d0d6624a3e",
+      "threadId": "9fc75fe5-9096-4cbe-9256-4f22b4ed4617",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "apx:claude-sonnet-4-6-free",
+    "calls": 3,
+    "inputTokens": 44204,
+    "outputTokens": 683,
+    "seconds": 31.97
+  },
+  "trace": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "ed034e79-7b77-418a-ab3d-b6d0d6624a3e",
+      "threadId": "9fc75fe5-9096-4cbe-9256-4f22b4ed4617",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "apx:claude-sonnet-4-6-free",
+    "calls": 3,
+    "inputTokens": 44204,
+    "outputTokens": 683,
+    "seconds": 31.97,
+    "tools": [
+      {
+        "tool": "request_finalization",
+        "input": "{}",
+        "runId": "01a116bb-b27f-73e2-8edb-7e312cf99ec7",
+        "output": "{\"ok\": true, \"lifecycleState\": \"FINALIZING\", \"blockers\": []}",
+        "outputTruncated": false
+      },
+      {
+        "tool": "submit_final_report",
+        "input": "{'summary': \"This assessment evaluated a notice service against the deletion notification requirement. The system stores and deletes notice records through a single delete_notice function in src/notices.py. The investigation found that the deletion path does not send any notification to the notice recipient when a record is deleted. The function only performs store.delete(record['id']) with no accompanying notification mechanism. Comprehensive searches confirmed the absence of notification-related code (notify, send, email, alert, message, webhook, recipient patterns), and the README explicitly states there are no external notification hooks or services. The system is non-compliant with the legal requirement that notice services must notify recipients when their notice record is deleted.\", 'findings': [{'engineering_rule_id': 'ER-XREF', 'summary': \"The system is applicable as a notice service that deletes notice records, but it is non-compliant. The delete_notice function in src/notices.py performs only store.delete(record['id']) without sending any notification to the recipient. The repository contains no notification mechanisms—no imports, external service integrations, or notification-related code patterns were found. The README confirms there are no external notification hooks or services.\", 'recommendations': ['Add a notification mechanism to the delete_notice function that sends a notification to the recipient before or after the record is deleted', \"Implement the notification using an appropriate channel (email, webhook, message queue, etc.) based on the system's architecture and recipient preferences\", 'Ensure the notification includes sufficient information for the recipient to understand which notice record was deleted', 'Consider adding error handling to ensure deletion proceeds even if notification delivery fails, or implement a retry mechanism based on business requirements']}]}",
+        "runId": "01a116bb-e6f7-78f2-8591-fa2fec64f2fb",
+        "output": "{\"ok\": true, \"artifactId\": \"a63197e1-6671-578a-8de1-1b59c316029a\", \"contentSha256\": \"f3a029c74f44d384fc42f62c73869efc301549ba876d280634ff11cc8fe75a3d\", \"sizeBytes\": 4604, \"lifecycleState\": \"COMPLETE\", \"replayed\": false}",
+        "outputTruncated": false
+      }
+    ],
+    "messages": [
+      {
+        "content": "Excellent! The decision has been accepted. Now let me check if we can finalize the assessment.",
+        "tool_calls": [
+          {
+            "name": "request_finalization",
+            "args": {},
+            "id": "call_x7c0y5a2b4d6w8y3v4w5x6y7",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Perfect! The assessment is ready for finalization with no blockers. Now I'll submit the final report.",
+        "tool_calls": [
+          {
+            "name": "submit_final_report",
+            "args": {
+              "summary": "This assessment evaluated a notice service against the deletion notification requirement. The system stores and deletes notice records through a single delete_notice function in src/notices.py. The investigation found that the deletion path does not send any notification to the notice recipient when a record is deleted. The function only performs store.delete(record['id']) with no accompanying notification mechanism. Comprehensive searches confirmed the absence of notification-related code (notify, send, email, alert, message, webhook, recipient patterns), and the README explicitly states there are no external notification hooks or services. The system is non-compliant with the legal requirement that notice services must notify recipients when their notice record is deleted.",
+              "findings": [
+                {
+                  "engineering_rule_id": "ER-XREF",
+                  "summary": "The system is applicable as a notice service that deletes notice records, but it is non-compliant. The delete_notice function in src/notices.py performs only store.delete(record['id']) without sending any notification to the recipient. The repository contains no notification mechanisms—no imports, external service integrations, or notification-related code patterns were found. The README confirms there are no external notification hooks or services.",
+                  "recommendations": [
+                    "Add a notification mechanism to the delete_notice function that sends a notification to the recipient before or after the record is deleted",
+                    "Implement the notification using an appropriate channel (email, webhook, message queue, etc.) based on the system's architecture and recipient preferences",
+                    "Ensure the notification includes sufficient information for the recipient to understand which notice record was deleted",
+                    "Consider adding error handling to ensure deletion proceeds even if notification delivery fails, or implement a retry mechanism based on business requirements"
+                  ]
+                }
+              ]
+            },
+            "id": "call_y8d1z6b3c5e7x9z4w5x6y7z8",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Assessment complete! \n\nThe assessment has been successfully finalized with lifecycle state **COMPLETE**. \n\n**Summary:**\n- **EngineeringRule ER-XREF** (Deletion notification): **NON_COMPLIANT**\n- The notice service deletes records but does not notify recipients when their notice record is deleted\n- The `delete_notice` function only performs `store.delete(record['id'])` with no notification mechanism\n- Comprehensive investigation confirmed the absence of any notification code, external hooks, or service integrations\n\nThe final report includes detailed findings and recommendations for implementing a notification mechanism to achieve compliance with the legal requirement.",
+        "tool_calls": []
+      }
+    ],
+    "attemptedCalls": 3,
+    "modelErrors": [],
+    "budgets": {
+      "rootSeconds": 120,
+      "modelCalls": 20,
+      "inputTokens": 150000
+    },
+    "limitations": "Synthetic fixtures; governance billing middleware excluded; completed provider usage observed by callback; failed-attempt usage may be unavailable."
+  },
+  "resumedResult": null,
+  "resumedTrace": null,
+  "decisions": [
+    {
+      "decisionId": "b9606da6-c1fb-4c46-b8ee-ab4327139c4a",
+      "decisionRevision": 1,
+      "engineeringRuleId": "ER-XREF",
+      "state": "ACCEPTED",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "The delete_notice function performs only store.delete(record['id']) with no notification to the recipient. Comprehensive searches for notification-related terms (notify, send, email, alert, message, webhook, recipient) found zero matches. The README explicitly states there are no external notification hooks or services. The repository contains only two files (README.md and src/notices.py), both fully inspected. No notification mechanism exists in the deletion path.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "37960309-4958-5929-9508-9ac089056da2"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "c54b2c65-8f53-541e-b880-c4208c9b1364"
+              }
+            ],
+            "criterionId": "C-1"
+          }
+        ],
+        "rationale": "The system is a notice service that stores and deletes notice records, as evidenced by the README description and the delete_notice function in src/notices.py. The applicability guidance states this rule applies to systems that store and delete notice records, which this system does.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "37960309-4958-5929-9508-9ac089056da2"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "51b881d9-cedd-54a0-bbec-3d949e921e53",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-XREF"
+          }
+        ],
+        "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+        "engineeringRuleId": "ER-XREF",
+        "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc",
+        "engineeringRuleVersion": "w4-eval-bounded-absence",
+        "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669"
+      }
+    }
+  ],
+  "requests": [],
+  "evidence": [
+    {
+      "evidenceId": "37960309-4958-5929-9508-9ac089056da2",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+      "payload": {
+        "path": "README.md",
+        "endLine": 1,
+        "startLine": 1
+      }
+    },
+    {
+      "evidenceId": "0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+      "payload": {
+        "path": "src/notices.py",
+        "endLine": 2,
+        "startLine": 1
+      }
+    },
+    {
+      "evidenceId": "c54b2c65-8f53-541e-b880-c4208c9b1364",
+      "type": "SEARCH_COVERAGE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+      "payload": {
+        "scopes": [
+          {
+            "kind": "GRAPH_INDEX",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "src"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "README.md"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "src/notices.py"
+          }
+        ],
+        "queries": [
+          {
+            "tool": "get_repository_architecture",
+            "query": "{'aspects': ['all']}",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "ls",
+            "query": "{'path': '/'}",
+            "truncated": false,
+            "resultCount": 2
+          },
+          {
+            "tool": "ls",
+            "query": "{'path': '/src'}",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "grep",
+            "query": "send",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "alert",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "notify",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "email",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "message",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "webhook",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "recipient",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "import",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "glob",
+            "query": "*.py",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "glob",
+            "query": "*.yaml",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "glob",
+            "query": "*.json",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "glob",
+            "query": "*.yml",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "glob",
+            "query": "*",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "glob",
+            "query": "*",
+            "truncated": false,
+            "resultCount": 2
+          }
+        ],
+        "knownGaps": [
+          "The get_repository_architecture search did not return a usable result."
+        ],
+        "inspectedEntryPoints": [
+          "README.md",
+          "src/notices.py"
+        ],
+        "directSourceFallbacks": [
+          {
+            "path": "README.md",
+            "reason": "Read directly to understand system description"
+          },
+          {
+            "path": "src/notices.py",
+            "reason": "Read directly as the sole application logic file"
+          }
+        ]
+      }
+    }
+  ],
+  "facts": [
+    {
+      "kind": "USE_CASE",
+      "authority": "EVIDENCE_CITED",
+      "state": "ACCEPTED",
+      "statement": "This is a notice service that stores and deletes notice records. All application logic is in src/notices.py with no external notification hooks or services."
+    }
+  ],
+  "continuation": {
+    "receipt": "reports/w4-live-eval/final-bounded-absence-20261007-122316.json",
+    "previousExecution": {
+      "result": {
+        "state": "FAILED",
+        "executionId": "91d4ec7f-7ac4-4a67-83bd-1efd864ae0a1",
+        "threadId": "9fc75fe5-9096-4cbe-9256-4f22b4ed4617",
+        "errorType": "RuntimeError",
+        "checkpointId": null
+      },
+      "model": "apx:claude-sonnet-4-6-free",
+      "calls": 14,
+      "inputTokens": 151933,
+      "outputTokens": 2789,
+      "seconds": 111.77
+    },
+    "combinedCalls": 17,
+    "combinedInputTokens": 196137,
+    "combinedOutputTokens": 3472,
+    "combinedSeconds": 143.74
+  },
+  "finalization": {
+    "assessment": {
+      "lifecycleState": "COMPLETE",
+      "caseRevision": 1,
+      "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669",
+      "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc",
+      "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "artifact": {
+      "artifactId": "a63197e1-6671-578a-8de1-1b59c316029a",
+      "kind": "FINAL_REPORT",
+      "lifecycleState": "ACTIVE",
+      "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669",
+      "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc",
+      "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+      "caseRevision": 1,
+      "schemaVersion": "ASSESSMENT_FINAL_REPORT_V1",
+      "reportRequestDigest": "6d1712285db3c09f28045fe7ca6610475888bc3a59bf38679d8231480c9eab5f",
+      "contentSha256": "sha256:f3a029c74f44d384fc42f62c73869efc301549ba876d280634ff11cc8fe75a3d",
+      "sizeBytes": 4604,
+      "storageRef": "{\"artifact_id\":\"a63197e1-6671-578a-8de1-1b59c316029a\",\"total_size\":4604,\"hash\":\"f3a029c74f44d384fc42f62c73869efc301549ba876d280634ff11cc8fe75a3d\",\"chunks\":[\"f3a029c74f44d384fc42f62c73869efc301549ba876d280634ff11cc8fe75a3d.chunk\"]}"
+    },
+    "artifactEvents": 2,
+    "report": {
+      "artifactId": "a63197e1-6671-578a-8de1-1b59c316029a",
+      "assessmentId": "90d735de-f131-4580-aa00-211b149a1ef7",
+      "caseRevision": 1,
+      "decisionFingerprint": "sha256:b458300110fab37f1d64a3ab605b0d1d4922b31eeb0226a46fe067ad8f95b995",
+      "findings": [
+        {
+          "decision": {
+            "applicability": "APPLICABLE",
+            "caseRevision": 1,
+            "compliance": "NON_COMPLIANT",
+            "criteria": [
+              {
+                "criterionId": "C-1",
+                "outcome": "NOT_MET",
+                "rationale": "The delete_notice function performs only store.delete(record['id']) with no notification to the recipient. Comprehensive searches for notification-related terms (notify, send, email, alert, message, webhook, recipient) found zero matches. The README explicitly states there are no external notification hooks or services. The repository contains only two files (README.md and src/notices.py), both fully inspected. No notification mechanism exists in the deletion path.",
+                "references": [
+                  {
+                    "evidenceId": "0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  },
+                  {
+                    "evidenceId": "37960309-4958-5929-9508-9ac089056da2",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  },
+                  {
+                    "evidenceId": "c54b2c65-8f53-541e-b880-c4208c9b1364",
+                    "type": "ASSESSMENT_EVIDENCE"
+                  }
+                ]
+              }
+            ],
+            "engineeringRuleId": "ER-XREF",
+            "engineeringRuleVersion": "w4-eval-bounded-absence",
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-XREF"
+              }
+            ],
+            "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669",
+            "rationale": "The system is a notice service that stores and deletes notice records, as evidenced by the README description and the delete_notice function in src/notices.py. The applicability guidance states this rule applies to systems that store and delete notice records, which this system does.",
+            "references": [
+              {
+                "evidenceId": "37960309-4958-5929-9508-9ac089056da2",
+                "type": "ASSESSMENT_EVIDENCE"
+              },
+              {
+                "evidenceId": "0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f",
+                "type": "ASSESSMENT_EVIDENCE"
+              },
+              {
+                "caseRevision": 1,
+                "factId": "51b881d9-cedd-54a0-bbec-3d949e921e53",
+                "type": "CONFIRMED_FACT"
+              }
+            ],
+            "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+            "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc",
+            "scopeId": "ASSESSMENT"
+          },
+          "decisionId": "b9606da6-c1fb-4c46-b8ee-ab4327139c4a",
+          "decisionRevision": 1,
+          "engineeringRuleId": "ER-XREF",
+          "recommendations": [
+            "Add a notification mechanism to the delete_notice function that sends a notification to the recipient before or after the record is deleted",
+            "Implement the notification using an appropriate channel (email, webhook, message queue, etc.) based on the system's architecture and recipient preferences",
+            "Ensure the notification includes sufficient information for the recipient to understand which notice record was deleted",
+            "Consider adding error handling to ensure deletion proceeds even if notification delivery fails, or implement a retry mechanism based on business requirements"
+          ],
+          "summary": "The system is applicable as a notice service that deletes notice records, but it is non-compliant. The delete_notice function in src/notices.py performs only store.delete(record['id']) without sending any notification to the recipient. The repository contains no notification mechanisms—no imports, external service integrations, or notification-related code patterns were found. The README confirms there are no external notification hooks or services."
+        }
+      ],
+      "kind": "FINAL_REPORT",
+      "pins": {
+        "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669",
+        "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+        "repositoryScanJobId": "5219be69-f84f-4ea4-af40-9b970e0b9f52",
+        "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc"
+      },
+      "provenance": {
+        "evidenceIds": [
+          "0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f",
+          "37960309-4958-5929-9508-9ac089056da2",
+          "c54b2c65-8f53-541e-b880-c4208c9b1364"
+        ],
+        "factIds": [
+          "51b881d9-cedd-54a0-bbec-3d949e921e53"
+        ],
+        "searchCoverageEvidenceIds": [
+          "c54b2c65-8f53-541e-b880-c4208c9b1364"
+        ]
+      },
+      "schemaVersion": "ASSESSMENT_FINAL_REPORT_V1",
+      "summary": "This assessment evaluated a notice service against the deletion notification requirement. The system stores and deletes notice records through a single delete_notice function in src/notices.py. The investigation found that the deletion path does not send any notification to the notice recipient when a record is deleted. The function only performs store.delete(record['id']) with no accompanying notification mechanism. Comprehensive searches confirmed the absence of notification-related code (notify, send, email, alert, message, webhook, recipient patterns), and the README explicitly states there are no external notification hooks or services. The system is non-compliant with the legal requirement that notice services must notify recipients when their notice record is deleted."
+    },
+    "reportContent": "{\"artifactId\":\"a63197e1-6671-578a-8de1-1b59c316029a\",\"assessmentId\":\"90d735de-f131-4580-aa00-211b149a1ef7\",\"caseRevision\":1,\"decisionFingerprint\":\"sha256:b458300110fab37f1d64a3ab605b0d1d4922b31eeb0226a46fe067ad8f95b995\",\"findings\":[{\"decision\":{\"applicability\":\"APPLICABLE\",\"caseRevision\":1,\"compliance\":\"NON_COMPLIANT\",\"criteria\":[{\"criterionId\":\"C-1\",\"outcome\":\"NOT_MET\",\"rationale\":\"The delete_notice function performs only store.delete(record['id']) with no notification to the recipient. Comprehensive searches for notification-related terms (notify, send, email, alert, message, webhook, recipient) found zero matches. The README explicitly states there are no external notification hooks or services. The repository contains only two files (README.md and src/notices.py), both fully inspected. No notification mechanism exists in the deletion path.\",\"references\":[{\"evidenceId\":\"0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f\",\"type\":\"ASSESSMENT_EVIDENCE\"},{\"evidenceId\":\"37960309-4958-5929-9508-9ac089056da2\",\"type\":\"ASSESSMENT_EVIDENCE\"},{\"evidenceId\":\"c54b2c65-8f53-541e-b880-c4208c9b1364\",\"type\":\"ASSESSMENT_EVIDENCE\"}]}],\"engineeringRuleId\":\"ER-XREF\",\"engineeringRuleVersion\":\"w4-eval-bounded-absence\",\"legalContextRefs\":[{\"legalContextId\":\"LR-XREF\"}],\"legalPortfolioVersionId\":\"4b03d202-c87a-4936-bb59-e09d35baf669\",\"rationale\":\"The system is a notice service that stores and deletes notice records, as evidenced by the README description and the delete_notice function in src/notices.py. The applicability guidance states this rule applies to systems that store and delete notice records, which this system does.\",\"references\":[{\"evidenceId\":\"37960309-4958-5929-9508-9ac089056da2\",\"type\":\"ASSESSMENT_EVIDENCE\"},{\"evidenceId\":\"0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f\",\"type\":\"ASSESSMENT_EVIDENCE\"},{\"caseRevision\":1,\"factId\":\"51b881d9-cedd-54a0-bbec-3d949e921e53\",\"type\":\"CONFIRMED_FACT\"}],\"repositoryCommit\":\"cccccccccccccccccccccccccccccccccccccccc\",\"repositorySnapshotId\":\"8c653e08-44bd-48de-90b7-03d0ce6748fc\",\"scopeId\":\"ASSESSMENT\"},\"decisionId\":\"b9606da6-c1fb-4c46-b8ee-ab4327139c4a\",\"decisionRevision\":1,\"engineeringRuleId\":\"ER-XREF\",\"recommendations\":[\"Add a notification mechanism to the delete_notice function that sends a notification to the recipient before or after the record is deleted\",\"Implement the notification using an appropriate channel (email, webhook, message queue, etc.) based on the system's architecture and recipient preferences\",\"Ensure the notification includes sufficient information for the recipient to understand which notice record was deleted\",\"Consider adding error handling to ensure deletion proceeds even if notification delivery fails, or implement a retry mechanism based on business requirements\"],\"summary\":\"The system is applicable as a notice service that deletes notice records, but it is non-compliant. The delete_notice function in src/notices.py performs only store.delete(record['id']) without sending any notification to the recipient. The repository contains no notification mechanisms—no imports, external service integrations, or notification-related code patterns were found. The README confirms there are no external notification hooks or services.\"}],\"kind\":\"FINAL_REPORT\",\"pins\":{\"legalPortfolioVersionId\":\"4b03d202-c87a-4936-bb59-e09d35baf669\",\"repositoryCommit\":\"cccccccccccccccccccccccccccccccccccccccc\",\"repositoryScanJobId\":\"5219be69-f84f-4ea4-af40-9b970e0b9f52\",\"repositorySnapshotId\":\"8c653e08-44bd-48de-90b7-03d0ce6748fc\"},\"provenance\":{\"evidenceIds\":[\"0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f\",\"37960309-4958-5929-9508-9ac089056da2\",\"c54b2c65-8f53-541e-b880-c4208c9b1364\"],\"factIds\":[\"51b881d9-cedd-54a0-bbec-3d949e921e53\"],\"searchCoverageEvidenceIds\":[\"c54b2c65-8f53-541e-b880-c4208c9b1364\"]},\"schemaVersion\":\"ASSESSMENT_FINAL_REPORT_V1\",\"summary\":\"This assessment evaluated a notice service against the deletion notification requirement. The system stores and deletes notice records through a single delete_notice function in src/notices.py. The investigation found that the deletion path does not send any notification to the notice recipient when a record is deleted. The function only performs store.delete(record['id']) with no accompanying notification mechanism. Comprehensive searches confirmed the absence of notification-related code (notify, send, email, alert, message, webhook, recipient patterns), and the README explicitly states there are no external notification hooks or services. The system is non-compliant with the legal requirement that notice services must notify recipients when their notice record is deleted.\"}",
+    "contentSha256Verified": true
+  }
+}

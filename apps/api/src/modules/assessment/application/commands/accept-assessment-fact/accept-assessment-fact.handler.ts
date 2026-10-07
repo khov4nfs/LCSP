@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_ACTIVITY_KINDS,
@@ -15,6 +14,11 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import {
+  canonicalJson,
+  deterministicUuid,
+} from "../../../domain/domain-ids.js";
+import { AssessmentEvidenceInvalidation } from "../../services/assessment-evidence-invalidation.service.js";
 import { AssessmentEventAppender } from "../../services/assessment-event-appender.service.js";
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
 import {
@@ -33,6 +37,7 @@ export class AcceptAssessmentFactHandler implements ICommandHandler<AcceptAssess
     private readonly authority: AssessmentRuntimeAuthority,
     private readonly support: AssessmentCaseSupport,
     private readonly events: AssessmentEventAppender,
+    private readonly invalidation: AssessmentEvidenceInvalidation,
   ) {}
 
   async execute(
@@ -47,11 +52,28 @@ export class AcceptAssessmentFactHandler implements ICommandHandler<AcceptAssess
         input.correlationId,
         true,
       );
+      const evidenceIds = [...new Set(request.evidenceIds)].sort();
+      const factId = deterministicUuid(
+        `${input.assessmentId}:${canonicalJson({ kind: request.kind, statement: request.statement, evidenceIds })}`,
+      );
       await this.support.lockCase(tx, input.assessmentId);
       const current = await tx.assessmentCase.findUniqueOrThrow({
         where: { assessmentId: input.assessmentId },
         select: { caseRevision: true },
       });
+      const replay = await tx.assessmentCaseFact.findUnique({
+        where: { factId },
+      });
+      if (replay && replay.state === ASSESSMENT_RECORD_STATES.ACCEPTED) {
+        return { factId, caseRevision: current.caseRevision };
+      }
+      if (replay) {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.EVIDENCE_REFERENCE_INVALID,
+          input.correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
       if (current.caseRevision !== request.expectedCaseRevision) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.CASE_REVISION_STALE,
@@ -62,7 +84,6 @@ export class AcceptAssessmentFactHandler implements ICommandHandler<AcceptAssess
           },
         );
       }
-      const evidenceIds = [...new Set(request.evidenceIds)];
       const evidence = await tx.assessmentEvidence.findMany({
         where: {
           assessmentId: input.assessmentId,
@@ -87,7 +108,11 @@ export class AcceptAssessmentFactHandler implements ICommandHandler<AcceptAssess
         where: { assessmentId: input.assessmentId },
         data: { caseRevision: revision },
       });
-      const factId = randomUUID();
+      await this.invalidation.invalidateCaseRevisionInTx(
+        tx,
+        input.assessmentId,
+        revision,
+      );
       await tx.assessmentCaseFact.create({
         data: {
           factId,

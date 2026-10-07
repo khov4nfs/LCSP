@@ -1918,6 +1918,7 @@ model LegalPortfolioActivationRecord {
 enum AssessmentEvidenceType {
   REPOSITORY_SOURCE
   SEARCH_COVERAGE
+  HUMAN_ANSWER
 }
 
 enum AssessmentRecordState {
@@ -2106,11 +2107,16 @@ model AssessmentHumanRequest {
   choices            Json
   answers            Json                         @default("[]")
   resolvedFactId     String?                      @db.Uuid
+  requestRevision    Int                          @default(0)
+  idempotencyKey     String?
+  requestDigest      String?
+  checkpointId       String?                      @db.Uuid
   createdAt          DateTime                     @default(now()) @db.Timestamptz(3)
   resolvedAt         DateTime?                    @db.Timestamptz(3)
   assessmentCase     AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
   runtime            AssessmentRuntime            @relation(fields: [assessmentId, threadId], references: [assessmentId, threadId], onDelete: Cascade, onUpdate: Restrict)
 
+  @@unique([assessmentId, idempotencyKey])
   @@index([assessmentId, status])
 }
 
@@ -2125,6 +2131,7 @@ model AssessmentArtifact {
   repositoryCommit        String
   caseRevision            Int
   schemaVersion           String
+  reportRequestDigest     String?
   contentSha256           String?
   sizeBytes               Int?
   storageRef              String?
@@ -2132,5 +2139,6 @@ model AssessmentArtifact {
   activatedAt             DateTime?              @db.Timestamptz(3)
   assessmentCase          AssessmentCase         @relation(fields: [assessmentId, legalPortfolioVersionId], references: [assessmentId, legalPortfolioVersionId], onDelete: Cascade, onUpdate: Restrict)
 
+  @@unique([assessmentId, kind])
   @@index([assessmentId, lifecycleState])
 }

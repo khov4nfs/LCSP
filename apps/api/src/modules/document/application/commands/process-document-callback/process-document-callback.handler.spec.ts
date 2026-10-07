@@ -1,6 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { NotFoundException } from "@nestjs/common";
-import { DOCUMENT_REQUEST_STATUSES } from "@lcsp/contracts/document";
+import {
+  DOCUMENT_REQUEST_STATUSES,
+  DOCUMENT_TYPES,
+} from "@lcsp/contracts/document";
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+import { ConflictException } from "@nestjs/common";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { ProcessDocumentCallbackHandler } from "./process-document-callback.handler.js";
@@ -10,6 +15,8 @@ type DocumentRequestProjection = {
   id: string;
   assessmentId: string;
   correlationId?: string;
+  documentType: string;
+  assessment: { lifecycleState: string | null };
 };
 
 function buildHandler(options?: {
@@ -21,6 +28,8 @@ function buildHandler(options?: {
           id: "dr-1",
           assessmentId: "asmt-1",
           correlationId: "corr-1",
+          documentType: DOCUMENT_TYPES.gapAnalysis,
+          assessment: { lifecycleState: null },
         }
       : options.request;
 
@@ -76,5 +85,30 @@ describe("ProcessDocumentCallbackHandler", () => {
     expect(createAuthAudit).toHaveBeenCalledTimes(1);
     expect(result.processed).toBe(true);
     expect(result.document_request_id).toBe("dr-1");
+  });
+
+  it("rejects a legacy final-report callback for a canonical assessment", async () => {
+    const { handler, update, createAuthAudit } = buildHandler({
+      request: {
+        id: "dr-1",
+        assessmentId: "asmt-1",
+        correlationId: "corr-1",
+        documentType: DOCUMENT_TYPES.finalReport,
+        assessment: {
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+        },
+      },
+    });
+    const command = new ProcessDocumentCallbackCommand(
+      {
+        document_request_id: "dr-1",
+        status: DOCUMENT_REQUEST_STATUSES.ready,
+      },
+      "corr-1",
+    );
+
+    await expect(handler.execute(command)).rejects.toThrow(ConflictException);
+    expect(update).not.toHaveBeenCalled();
+    expect(createAuthAudit).not.toHaveBeenCalled();
   });
 });

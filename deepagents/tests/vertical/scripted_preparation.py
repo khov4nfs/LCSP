@@ -94,7 +94,7 @@ def main() -> int:
     hashes: dict[str, str] = seed["hashes"]
     api = WorkerApiClient(base, key)
 
-    packet = build_packet(hashes)
+    packet = seed.get("packet") or build_packet(hashes)
     if mode == "stale":
         packet["legalRules"][1]["sourceRefs"][0]["contentSha256"] = "sha256:" + "f" * 64
     elif mode == "orphan":

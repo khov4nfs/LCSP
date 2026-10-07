@@ -5,4 +5,6 @@ export const DOCUMENT_ERROR_CODES = {
   classificationRequired: "CLASSIFICATION_REQUIRED",
   documentNotFound: "DOCUMENT_NOT_FOUND",
   downloadUrlInvalid: "DOCUMENT_DOWNLOAD_URL_INVALID",
+  finalReportRequiresAssessmentArtifact:
+    "FINAL_REPORT_REQUIRES_ASSESSMENT_ARTIFACT",
 } as const;

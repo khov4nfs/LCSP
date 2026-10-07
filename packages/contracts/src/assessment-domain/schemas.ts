@@ -3,19 +3,25 @@ import { z } from "zod";
 import {
   ASSESSMENT_ACTIVITY_KINDS,
   ASSESSMENT_EVENT_ACTOR_TYPES,
+  AGENT_EXECUTION_STATES,
+  ASSESSMENT_LIFECYCLE_STATES,
   agentExecutionStateSchema,
   assessmentLifecycleStateSchema,
   decisionResolutionStateSchema,
   humanResolutionRequestStatusSchema,
   openHumanResolutionRequestSchema,
+  answerHumanResolutionRequestSchema,
   ruleDecisionSchema,
 } from "../assessment/agentic-runtime.ts";
 import {
+  ASSESSMENT_ARTIFACT_KINDS,
+  ASSESSMENT_COMPLETION_BLOCKER_CODES,
   ASSESSMENT_DECISION_RECORD_STATES,
   ASSESSMENT_DOMAIN_LIMITS,
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_FACT_KINDS,
+  ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
   ASSESSMENT_RECORD_STATES,
   SEARCH_COVERAGE_SCOPE_KINDS,
 } from "./constants.ts";
@@ -184,7 +190,108 @@ export type StartRuleInvestigationRequest = z.infer<
 >;
 
 export const openAssessmentHumanRequestSchema =
-  openHumanResolutionRequestSchema;
+  openHumanResolutionRequestSchema.extend({
+    idempotencyKey: z.string().min(8).max(128),
+  });
+export type OpenAssessmentHumanRequest = z.infer<
+  typeof openAssessmentHumanRequestSchema
+>;
+export const openAssessmentHumanRequestResultSchema = z.strictObject({
+  requestId: uuidSchema,
+  caseRevision: revisionSchema,
+  requestRevision: revisionSchema,
+});
+export type OpenAssessmentHumanRequestResult = z.infer<
+  typeof openAssessmentHumanRequestResultSchema
+>;
+
+/** Root-authored dependency claim. Shape/provenance validation does not judge obtainability. */
+export const reportUnresolvableHumanFactRequestSchema = z.strictObject({
+  humanResolutionRequestId: uuidSchema,
+  expectedCaseRevision: revisionSchema,
+  expectedRequestRevision: revisionSchema,
+  rationale: privateTextSchema,
+  evidenceIds: z
+    .array(uuidSchema)
+    .min(1)
+    .max(ASSESSMENT_DOMAIN_LIMITS.MAX_EVIDENCE_REFERENCES),
+});
+export type ReportUnresolvableHumanFactRequest = z.infer<
+  typeof reportUnresolvableHumanFactRequestSchema
+>;
+export const reportUnresolvableHumanFactResultSchema = z.strictObject({
+  requestId: uuidSchema,
+  caseRevision: revisionSchema,
+  lifecycleState: z.literal(ASSESSMENT_LIFECYCLE_STATES.BLOCKED),
+  replayed: z.boolean(),
+});
+export type ReportUnresolvableHumanFactResult = z.infer<
+  typeof reportUnresolvableHumanFactResultSchema
+>;
+
+const answerAuthorityShape = {
+  expectedRequestRevision: revisionSchema,
+  idempotencyKey: z.string().min(8).max(128),
+};
+/** Reuses the frozen fact-only answer contract; adds request CAS and replay identity. */
+export const answerAssessmentHumanRequestSchema = z.discriminatedUnion(
+  "doesNotKnow",
+  [
+    answerHumanResolutionRequestSchema.options[0].extend(answerAuthorityShape),
+    answerHumanResolutionRequestSchema.options[1].extend(answerAuthorityShape),
+  ],
+);
+export type AnswerAssessmentHumanRequest = z.infer<
+  typeof answerAssessmentHumanRequestSchema
+>;
+
+export const humanAnswerAuditSchema = z.strictObject({
+  idempotencyKey: z.string().min(8).max(128),
+  requestDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  actorId: z.string().min(1),
+  answeredAt: z.iso.datetime(),
+  caseRevision: revisionSchema,
+  requestRevision: revisionSchema,
+  doesNotKnow: z.boolean(),
+  answer: privateTextSchema.nullable(),
+});
+export type HumanAnswerAudit = z.infer<typeof humanAnswerAuditSchema>;
+
+export const assessmentHumanRequestViewSchema = z.strictObject({
+  ...openHumanResolutionRequestSchema.omit({ expectedCaseRevision: true })
+    .shape,
+  requestId: uuidSchema,
+  requestRevision: revisionSchema,
+  openedCaseRevision: revisionSchema,
+  status: humanResolutionRequestStatusSchema,
+  checkpointId: uuidSchema.nullable(),
+  resolvedFactId: uuidSchema.nullable(),
+  answers: z.array(humanAnswerAuditSchema),
+});
+export type AssessmentHumanRequestView = z.infer<
+  typeof assessmentHumanRequestViewSchema
+>;
+
+export const assessmentHumanRequestsResultSchema = z.strictObject({
+  caseRevision: revisionSchema,
+  requests: z.array(assessmentHumanRequestViewSchema),
+});
+export type AssessmentHumanRequestsResult = z.infer<
+  typeof assessmentHumanRequestsResultSchema
+>;
+
+export const answerAssessmentHumanRequestResultSchema = z.strictObject({
+  requestId: uuidSchema,
+  requestRevision: revisionSchema,
+  caseRevision: revisionSchema,
+  status: humanResolutionRequestStatusSchema,
+  factId: uuidSchema.nullable(),
+  resumed: z.boolean(),
+  replayed: z.boolean(),
+});
+export type AnswerAssessmentHumanRequestResult = z.infer<
+  typeof answerAssessmentHumanRequestResultSchema
+>;
 export const humanRequestRecordSchema = z.strictObject({
   requestId: uuidSchema,
   assessmentId: uuidSchema,
@@ -200,9 +307,24 @@ export type HumanRequestRecord = z.infer<typeof humanRequestRecordSchema>;
 export const claimAssessmentRootRequestSchema = z.strictObject({
   assessmentId: uuidSchema,
 });
-export const finishAssessmentRootRequestSchema = z.object({
-  state: agentExecutionStateSchema,
-});
+export const finishAssessmentRootRequestSchema = z
+  .object({
+    state: agentExecutionStateSchema,
+    checkpointId: uuidSchema.optional(),
+    requestIds: z.array(uuidSchema).min(1).max(100).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.state === AGENT_EXECUTION_STATES.INTERRUPTED &&
+      (!value.checkpointId || !value.requestIds?.length)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "A human interrupt requires its native checkpoint and blockers",
+      });
+    }
+  });
 export type FinishAssessmentRootRequest = z.infer<
   typeof finishAssessmentRootRequestSchema
 >;
@@ -214,6 +336,7 @@ export const assessmentRootClaimSchema = z.strictObject({
   leaseExpiresAt: z.iso.datetime(),
   checkpointNamespace: z.string().min(1),
   executionState: agentExecutionStateSchema,
+  resumeCheckpointId: uuidSchema.nullable(),
 });
 export type AssessmentRootClaim = z.infer<typeof assessmentRootClaimSchema>;
 
@@ -235,6 +358,105 @@ export const assessmentRootContextSchema = z.strictObject({
   openHumanRequestIds: z.array(uuidSchema),
 });
 export type AssessmentRootContext = z.infer<typeof assessmentRootContextSchema>;
+
+export const assessmentCompletionBlockerSchema = z.strictObject({
+  code: z.enum(ASSESSMENT_COMPLETION_BLOCKER_CODES),
+  reference: identifierSchema.optional(),
+});
+export type AssessmentCompletionBlocker = z.infer<
+  typeof assessmentCompletionBlockerSchema
+>;
+
+export const assessmentCompletionGateResultSchema = z.strictObject({
+  lifecycleState: assessmentLifecycleStateSchema,
+  blockers: z.array(assessmentCompletionBlockerSchema),
+});
+export type AssessmentCompletionGateResult = z.infer<
+  typeof assessmentCompletionGateResultSchema
+>;
+
+export const requestAssessmentFinalizationSchema = z.strictObject({});
+export type RequestAssessmentFinalization = z.infer<
+  typeof requestAssessmentFinalizationSchema
+>;
+
+const finalReportFindingRequestSchema = z.strictObject({
+  engineeringRuleId: identifierSchema,
+  summary: privateTextSchema,
+  recommendations: z.array(privateTextSchema).max(20),
+});
+
+/** Root-authored narrative only. Rule outcomes and provenance are reloaded from accepted state. */
+export const submitAssessmentFinalReportRequestSchema = z
+  .strictObject({
+    kind: z.literal(ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT),
+    summary: privateTextSchema,
+    findings: z
+      .array(finalReportFindingRequestSchema)
+      .min(1)
+      .max(ASSESSMENT_DOMAIN_LIMITS.MAX_COVERAGE_ITEMS),
+  })
+  .superRefine((value, ctx) => {
+    const seen = new Set<string>();
+    for (const [index, finding] of value.findings.entries()) {
+      if (seen.has(finding.engineeringRuleId)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["findings", index, "engineeringRuleId"],
+          message: "Duplicate final report finding",
+        });
+      }
+      seen.add(finding.engineeringRuleId);
+    }
+  });
+export type SubmitAssessmentFinalReportRequest = z.infer<
+  typeof submitAssessmentFinalReportRequestSchema
+>;
+
+export const assessmentFinalReportArtifactSchema = z.strictObject({
+  schemaVersion: z.literal(ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION),
+  artifactId: uuidSchema,
+  assessmentId: uuidSchema,
+  kind: z.literal(ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT),
+  pins: z.strictObject({
+    legalPortfolioVersionId: uuidSchema,
+    repositorySnapshotId: identifierSchema,
+    repositoryScanJobId: identifierSchema,
+    repositoryCommit: commitSchema,
+  }),
+  caseRevision: revisionSchema,
+  decisionFingerprint: sha256Schema,
+  summary: privateTextSchema,
+  findings: z.array(
+    z.strictObject({
+      engineeringRuleId: identifierSchema,
+      decisionId: uuidSchema,
+      decisionRevision: revisionSchema,
+      decision: ruleDecisionSchema,
+      summary: privateTextSchema,
+      recommendations: z.array(privateTextSchema).max(20),
+    }),
+  ),
+  provenance: z.strictObject({
+    evidenceIds: z.array(uuidSchema),
+    factIds: z.array(uuidSchema),
+    searchCoverageEvidenceIds: z.array(uuidSchema),
+  }),
+});
+export type AssessmentFinalReportArtifact = z.infer<
+  typeof assessmentFinalReportArtifactSchema
+>;
+
+export const assessmentFinalReportResultSchema = z.strictObject({
+  artifactId: uuidSchema,
+  contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  sizeBytes: z.number().int().positive(),
+  lifecycleState: assessmentLifecycleStateSchema,
+  replayed: z.boolean(),
+});
+export type AssessmentFinalReportResult = z.infer<
+  typeof assessmentFinalReportResultSchema
+>;
 
 export const rootActivityRequestSchema = z.strictObject({
   executionId: uuidSchema,

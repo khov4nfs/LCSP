@@ -84,8 +84,13 @@ class AssessmentRuntimeClient:
     def heartbeat(self) -> dict[str, Any]:
         return self._call("POST", "/heartbeat")
 
-    def finish(self, state: str) -> dict[str, Any]:
-        result = self._call("POST", "/finish", {"state": state})
+    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None) -> dict[str, Any]:
+        body: dict[str, Any] = {"state": state}
+        if checkpoint_id is not None:
+            body["checkpointId"] = checkpoint_id
+        if request_ids is not None:
+            body["requestIds"] = request_ids
+        result = self._call("POST", "/finish", body)
         self.lease_token = None
         return result
 
@@ -113,6 +118,15 @@ class AssessmentRuntimeClient:
 
     def post_human_request(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/human-requests", body)
+
+    def report_unresolvable_human_fact(self, body: dict[str, Any]) -> dict[str, Any]:
+        return self._call("POST", "/human-fact-unresolvable", body)
+
+    def request_finalization(self) -> dict[str, Any]:
+        return self._call("POST", "/finalization", {})
+
+    def post_final_report(self, body: dict[str, Any]) -> dict[str, Any]:
+        return self._call("POST", "/final-report", body)
 
     def post_activity(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/activity", body)
