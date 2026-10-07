@@ -1,36 +1,37 @@
-import { HttpStatus, Inject } from "@nestjs/common";
-import { CommandHandler } from "@nestjs/cqrs";
-import type { ICommandHandler } from "@nestjs/cqrs";
 import {
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { HttpStatus, Inject } from "@nestjs/common";
+import type { ICommandHandler } from "@nestjs/cqrs";
+import { CommandHandler } from "@nestjs/cqrs";
 
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import {
+  ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
-  ASSESSMENT_NAME_MAX_LENGTH,
-  ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_LIFECYCLE_STATES,
+  ASSESSMENT_NAME_MAX_LENGTH,
 } from "@lcsp/contracts/assessment";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
-import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecycle-coordinator.service.js";
+import type { CreateAssessmentDto } from "../../contracts/assessment/create-assessment.contract.js";
+import { AssessmentRuntimePreparation } from "../../services/assessment-runtime-preparation.service.js";
 import { AssessmentMapper } from "../../mappers/assessment.mapper.js";
 import {
   ASSESSMENT_REPOSITORY,
   type AssessmentRepository,
 } from "../../ports/persistence/assessment.repository.js";
-import type { CreateAssessmentDto } from "../../contracts/assessment/create-assessment.contract.js";
+import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecycle-coordinator.service.js";
 import { CreateAssessmentCommand } from "./create-assessment.command.js";
 
 /**
@@ -53,6 +54,7 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
     private readonly outboxRepository: OutboxRepository,
     private readonly prisma: PrismaService,
     private readonly lifecycle: AssessmentLifecycleCoordinator,
+    private readonly runtimePreparation: AssessmentRuntimePreparation,
   ) {}
 
   /**
@@ -121,6 +123,8 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
         },
         tx,
       );
+      // Pins the then-ACTIVE legal portfolio; the repository snapshot pins at setup completion.
+      await this.runtimePreparation.createCaseInTx(tx, assessment.id);
       await this.lifecycle.transitionInTx(
         {
           assessmentId: assessment.id,

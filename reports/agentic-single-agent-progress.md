@@ -2,25 +2,29 @@
 
 ## Current position
 
-2026-10-06: continuing consolidated W1 integration acceptance in `/home/khovan/Workplaces/LCSP`. Branch `develop`; HEAD `c6ce6d954f02a755beffe3f62df2f5cc3e8bfa24`. Intentionally dirty; 67 tracked changed paths and 75 untracked files before this report. No implementation restarted.
+2026-10-07: W3 (LCSP-353) convention audit and regression gate completed in `/home/khovan/Workplaces/LCSP` and published as PR #360 on `feat/LCSP-353-implement-isolated-assessment-root-and-domain-runtime`. The CI diagnosis used PR head `26bc93ede1ea32f8be06f276518508cc188c8c12`. The user subsequently authorized updating the PR description and fixing CI; the repair evidence is recorded below. The W1/W2 logs are historical. No Wave restarted.
 
 ## Current authorized Wave
 
-W2 (LCSP-352) authorized by user `continue W2` on 2026-10-06 after W1 GATE PASS. W3+ remain unauthorized.
+W3 (LCSP-353) authorized by user `continue W3` on 2026-10-07 after W2 GATE PASS (PR #359 merged, CI green). W4+ remain unauthorized.
 
 ## Current Gate
 
-W1 holistic integration: PASS (see "W1 browser acceptance" below).
+W3 local convention/regression gate: PASS. See `Codebase convention verification` below for implementation evidence, exact commands, skips and proof limits. PR #360 CI repair is recorded separately below; local PASS is not a claim that the new remote head's checks have completed.
 
 ## Jira Wave
 
-LCSP-351 — Close canonical foundation integration gate. No Jira mutation performed.
+LCSP-353 — Assessment domain and isolated Root runtime. No Jira mutation performed in this convention audit.
 
 ## Architecture authority
 
 Read the complete `docs/architecture/LCSP_AGENTIC_MIGRATION_HANDOFF.md` and `reports/architecture-freeze-migration-manifest.md`; inspected the W1 gate and coordinator ledger. Freeze wins for architecture; current source/executable evidence wins for implementation. Historical worker state is not authority. User correction permits direct repository tooling and makes SourceNerve availability irrelevant to the gate.
 
-## Preserved user WIP
+## Historical W1 starting snapshot (2026-10-06)
+
+The sections through the first W1 execution log describe the initial W1 handoff, not the current W3 gate.
+
+### Preserved user WIP
 
 All nine original files in handoff §2 were independently SHA256-checked against its recorded hashes: 9/9 PASS. No overlap or modification. Hash check used Python hashlib over the nine handoff table paths. Original WIP intent concerns legacy need-ID/Interview/resume behavior and the architecture plan.
 
@@ -187,3 +191,114 @@ Behaviour: admin prepare auto-activates the validated corpus (no deferActivation
 User-WIP overlap: `engineering_assessment_boundary.py` further narrowed (triage dispatch/recovery/rule_service removed). `model_routes.yaml` untouched (unused roles triage/legal-chunk-triage/legal-compiler remain).
 Evidence: A static gate `pnpm run check:legal-v1-retired` (added to `lint`) 0 refs/1475 files; B/C/D/E W2 vertical PASS 58 (auto activation, invalid preserves ACTIVE, assessment reads ACTIVE only); DB guarantees 29/29; F: Python 1599 passed + 1 pre-existing env failure (untracked evidence/scanner node_modules dir), API e2e 295 passed, API unit 1242 passed with only DB-less billing suites failing (no Postgres on their port; same as W1) and portfolio/prisma specs 35/35 on disposable DB, web 29+617 passed, contracts 6/6, typecheck/check:imports/check:contracts/check:agentic-tools green; G import/registration searches in the gate.
 Known gaps: web admin publish/discard UI+BFF remain (DEFER_TO_W5, disabled); noChanges admin prepare leaves its DRAFT row (pre-existing); Legal Preparation not metered (W3).
+
+
+## W3 log (LCSP-353 — assessment domain and isolated Root runtime) — started 2026-10-07
+Authorization: user `continue W3`. Working tree: `develop` (clean at start, HEAD 1647b8d6c). No commit/push/branch change without authorization.
+Plan (freeze §11 W3): W3.1 contracts (case/evidence/coverage/tool packets); W3.2 persistence (AssessmentCase+facts, AssessmentEvidence incl. SEARCH_COVERAGE, HumanResolutionRequest, RuleDecision+history, per-rule decision coverage (DRS), AssessmentArtifact metadata, DB guards); W3.3 API (authority-checked case/evidence/request/decision tools, DecisionValidator, runtime preparation PREPARING->ACTIVE with pinned inputs, root claim/lease); W3.4 Python `create_assessment_root_agent` bound to server threadId + bounded Repository Researcher via native task(); W3.5 repository runtime keeps deterministic snapshot/sandbox/index/source-ref, retire model-driven Scanner + callback decision gates; W3.6 W3 vertical + gate evidence.
+Scope boundary: semantic decision flow/HITL resume/absence sufficiency/completion gate/report are W4; web projection W5; schema drop W6.
+
+### W3.1–W3.4 built (2026-10-07) — vertical PASS, retirement (W3.5) next
+Contracts `packages/contracts/src/assessment-domain/**` (value sets + strict schemas, registered in check-contract-literals; export `./assessment-domain`). Persistence: Prisma models AssessmentCase (pins set-once), AssessmentEvidence (incl. SEARCH_COVERAGE subtype), AssessmentCaseFact(+Evidence links), AssessmentRuleDecision (accepted + immutable history), AssessmentDecisionCoverage (DRS, one row per pinned EngineeringRule), AssessmentHumanRequest, AssessmentArtifact; migration `20261007120000_assessment_domain_expand` with CHECKs, partial unique indexes and triggers (pin immutability/ACTIVE-portfolio-only, evidence/fact/decision immutability, exhaustive DRS + ALCS transition tables, ACTIVE requires pins + full coverage).
+API (`modules/assessment/`): nine Root command handlers and two query handlers coordinate shared AssessmentEventAppender (sole non-lifecycle event writer), AssessmentRuntimeAuthority (server-issued thread/execution/lease), AssessmentRuntimePreparation (pins, full decision coverage, PREPARING->ACTIVE via coordinator.transitionVerifiedInTx, single Root command) and AssessmentEvidenceInvalidation. Pure DecisionValidator lives in `domain/`; Prisma case/context support lives in `infrastructure/persistence/`. `AssessmentDomainController` under `/internal/assessment-runtime/:assessmentId` uses worker authentication, Zod transport validation and CommandBus/QueryBus. Lease-header shape is guarded before body parsing; persisted lease authority is checked inside handlers. GetPinnedPortfolioHandler dispatches GetLegalPortfolioVersionQuery to read the pinned (possibly SUPERSEDED) portfolio. Both former monolithic services are deleted; see the convention section for final module wiring.
+Python `deepagents/assessment_root/*`: `create_assessment_root_agent` (only assessment entrypoint; thread = server threadId; general-purpose subagent disabled; read-only repo permissions), governed tools (identity/pins/hash/idempotency bound server-side; rejections returned as structured feedback), runtime-authenticated search-trace for coverage, `repository-researcher` native task() subagent with no governed tools, TaskLineage (SUBAGENT activity under the Root execution), runner, boundary registered as `assessment_root_requested`.
+Evidence so far: `node tests/assessment-domain-vertical.mjs` PASS 82 (real API+PG+Python Root, scripted model): unique thread per assessment, ACTIVE only after pins+full coverage, validator rejects bad packet with mechanical codes and Root self-corrects, 3/3 rules RESOLVED, evidence/facts/decisions pinned, gap-free event sequence on one thread, researcher events descend from Root execution, restart reloads server state on new execution/same thread, A/B isolation + concurrent claim (one 200/one 409), cross-lease/spoofing/forged-ID rejections, supersession keeps A pinned while new assessment pins new ACTIVE, DB guards. Python offline 14/14, DecisionValidator spec 6/6, handler specs updated.
+
+### W3.5 retirement of V1 model-driven Scanner + callback decision gates — DONE (2026-10-07)
+Inventory method: reachability analysis (import graph + boundary registry strings) over candidate V1 directories; deleted only modules with zero production reachability after the five V1 registrations were removed.
+
+DELETE_NOW (done, 92 production files + ~45 tests):
+- Python boundary registrations: `scan_requested`, `targeted_reanalysis_requested`, `engineering_assessment_requested`, `assessment_interview_resume_requested`, `assessment_interview_pause_requested` (only `assessment_root_requested` + legal preparation/recovery/gap/report/health remain).
+- `evidence/repository_analysis/*` (AI-discovery scanner, targeted reanalysis), `package_signals.py`.
+- `assessment/{investigation,planning,evaluation,claims,rule_assessment}/*` (per-rule loop, InterviewGated boundary, rule_sources bridge, claim/classification/conflict/AI-usage engines), `workflow/recovery/*` (interview boundaries, post-guard continuation).
+- `orchestration/{dispatcher,lifecycle,interview_progress,technical_coverage_policy,result_validation}.py`, `middleware/{tool_scope,specialist_handoff_validation,interview_runtime_context}.py`, `subagents/*`, `contracts/*` (handoffs), `skills/interview-context/*`, `tools/common/{submit_rule_assessment,retrieve_verified_episodes,retrieve_legal_basis,get_legal_corpus_readiness}`, `tools/legal/corpus/engineering_rules/*` (V1 EngineeringRule contract), V1 `get_code_snippet` ref-minting tool, interview ledger coupling in `runtime_envelope.py`, `scripts/repair_interview_coverage_policy.py`.
+- API: `SnapshotCreatedAutoScanService` (Scanner kick-off) and its wiring/specs.
+- CI: "Production Interview vertical" job + `seed-lcsp-278-release-vertical.ts` replaced by "Assessment Root vertical" (runs W2 + W3 verticals on real Postgres/API/Python).
+- Static gate `check:legal-v1-retired` extended (16 patterns: retired boundary names/classes, SnapshotCreatedAutoScanService, submit_rule_assessment/analyze_rule/TechnicalCoveragePolicy) — 0 references.
+- W2 `_to_v1_rule` read bridge removed; W2 vertical step 5 now covered by W3 vertical (`get_pinned_portfolio` through the Root API).
+
+DEFER (recorded, not hidden):
+- DEFER_TO_W4: Interview API/web/runtime service + Interview resume/pause *API* surface, human-request answer/interrupt-resume, Root pause command registration (empty `_INTERRUPT_TARGET_BOUNDARIES_BY_COMMAND_BOUNDARY` placeholder), `scan_requested`-keyed scan-job claim/timeout/thread-id infra in `agent_server_client.py`, `rabbitmq_consumer.py`, `system_event_dispatch.py` (dead branches: no boundary uses them).
+- DEFER_TO_W5: user-facing scan trigger/rerun/targeted-reanalysis API handlers + UI (they still publish `scanTriggered`/`targetedReanalysisRequested` events that no Python boundary consumes — such scans no longer start; `RepositoryScanJob` remains only as the snapshot-archive hydration ticket for Root), gap/final-report boundaries.
+- Known gaps: Root/Legal-Preparation usage metering with real governance middleware not exercised in vertical (`governance=()`); real PostgresSaver restart and Docker `sandbox_backend_factory` hydration not exercised live.
+
+Verification (2026-10-07): Python 1157 passed/7 skipped; API tsc clean; web tsc clean; contracts build; `check:imports`, `check:contracts`, `check:agentic-tools`, `check:legal-v1-retired` pass; W2 vertical PASS 54; W3 vertical PASS 82; API jest unit: 181 suites pass, DB-dependent suites run separately against disposable Postgres (see below).
+
+## W3 GATE — PASS (2026-10-07)
+Fresh post-CQRS convention verification: Python 1159 pass/7 skip; API build, root typecheck and zero-warning touched-module lint pass; legal-portfolio/assessment/common-pipe/outbox Jest 30 suites/359 tests pass on a fully migrated disposable database; API e2e 45 suites/294 tests pass (3 suites/21 tests skipped); check:imports/contracts/agentic-tools/legal-v1-retired pass; W2 vertical 54 checks; W3 vertical 82 checks. Earlier broad API unit evidence (181 suites) is historical and is not presented as a full-unit rerun after CQRS. Exact commands and execution-order limits are recorded below.
+Gate rows (all evidenced by W3 vertical unless noted): unique assessment↔thread; descendant (researcher) refs/lineage events; researcher cannot mutate (read-only tools, permissions test); survival across restart (new execution, same thread, server state); disjoint A/B namespaces; one immutable ACTIVE portfolio pinned and covering every EngineeringRule (DB guards); V1 Scanner/per-rule loop retired (static gate, 0 references).
+Removed e2e test: `pin-commit-snapshot` "auto-chains a trusted scan job" (asserted retired Scanner kick-off).
+Recorded gaps (not gate rows): real governance/usage metering for Root, PostgresSaver restart, Docker sandbox hydration live; W4/W5 DEFERs listed in W3.5 block.
+No commit/push/branch performed. STOP — awaiting user `continue` for W4.
+
+## Codebase convention verification
+
+Scope: current authorized W3 (LCSP-353), 2026-10-07, including the Legal Portfolio CQRS changes in the current dirty tree. Bounded to added/materially changed production files, their callers, module wiring and relevant tests. Discovery used the checkout's Codebase Memory graph and Graphify; conclusions used direct source reads. Nearby `create-assessment` and `complete-repository-setup` handlers, Legal Corpus query handlers and existing module wiring supplied the production patterns. No unrelated legacy-wide refactor or W4 work.
+
+**Root cause:** the original Assessment Domain controller/service bypassed CQRS and mixed transport parsing, orchestration and Prisma. The Legal Portfolio CQRS handoff removed its monolith but left Prisma loaders/activation/mappers in application services and its pure integrity validator in application. It also lost the old submit error's `problem.meta.issues` paths when validation moved to ZodValidationPipe. Root finish used an inline transport schema, and route IDs/lease-header shape did not receive runtime Zod validation.
+
+**Fix:** retain the existing CQRS decomposition; move persistence-only helpers into infrastructure and pure validators into domain; use the shared schemas at HTTP boundaries. ZodValidationPipe supports opt-in, at-most-20 comma-separated issue paths. Only Legal Portfolio submit enables it, restoring the prior response without exposing input values; existing callers still omit issue metadata. Root validation retains 422 ASSESSMENT_DOMAIN_REQUEST_INVALID; Legal Portfolio retains 400 LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID, and HTTP status equals problem.status. Worker authentication and malformed-lease rejection run before body pipes; persisted lease/thread/execution authority remains in handlers.
+
+Implementation evidence:
+
+- Assessment commands (9): `claim-assessment-root`, `heartbeat-assessment-root`, `finish-assessment-root`, `accept-assessment-evidence`, `accept-assessment-fact`, `start-rule-investigation`, `submit-rule-decision`, `open-human-request`, `record-root-activity`. Each has its command and `@CommandHandler` / `ICommandHandler` implementation. Reads are `get-root-context` and `get-pinned-portfolio`, each with its query and `@QueryHandler` / `IQueryHandler`. Existing create/setup handlers reuse AssessmentRuntimePreparation.
+- Legal Portfolio commands (4): `start-legal-preparation`, `claim-legal-preparation`, `fail-legal-preparation`, `submit-legal-portfolio`. Queries (3): `validate-legal-portfolio`, `get-active-legal-portfolio`, `get-legal-portfolio-version`. The validation query is read-only. Submit owns integrity validation, serializable retry and activation orchestration; it preserves idempotency, advisory locking, rollback and the prior ACTIVE portfolio on rejection.
+- Both HTTP controllers inject CommandBus/QueryBus and dispatch one command/query per endpoint; presentation contains guards, Zod pipes, correlation IDs and result-envelope mapping, with no Prisma or semantic/lifecycle decision logic. The old AssessmentDomainService and LegalPortfolioService are deleted, with no forwarding aliases.
+- `assessment.module.ts` and `legal-portfolio.module.ts` import CqrsModule and register their handlers and required helpers locally. Assessment imports LegalPortfolioModule; its GetPinnedPortfolioHandler calls GetLegalPortfolioVersionQuery through QueryBus, preserving the immutable pinned version even after supersession. It does not inject Legal Portfolio implementation services. AppModule remains module composition.
+- Pure `decision-validator`, `domain-ids`, `customer-safe-text`, `rule-criteria` and `legal-portfolio-integrity.validator` live in domain; direct inspection and the import scan found no Nest/Prisma/infrastructure/presentation dependency in these files. Validation checks mechanical identities, provenance, revisions and coverage, not legal meaning.
+- `legal-corpus-snapshot.service.ts`, `legal-portfolio-read-model.service.ts`, `legal-portfolio-activation.service.ts`, `legal-portfolio.mappers.ts` and `assessment-case-support.service.ts` live in their feature's `infrastructure/persistence/`. Their Prisma projections/transactions and caller imports were inspected. Cohesive application coordination remains in AssessmentRuntimeAuthority, AssessmentRuntimePreparation, AssessmentEventAppender and AssessmentEvidenceInvalidation. No replacement all-use-case service or speculative single-implementation port was introduced.
+- All Legal Portfolio request bodies use the existing shared contract schemas. Every Root body, assessmentId route parameter and lease-header shape uses a shared Zod schema or schema field. `LegalPreparationClaimRequest` and `FinishAssessmentRootRequest` derive from schemas in packages/contracts; finish no longer duplicates a local schema. Its accepted vocabulary remains the existing execution-state contract. New closed value sets use `as const`; the literal/enum scan found only permitted Zod enums over canonical constants. Persisted closed vocabularies use Prisma enums. Human-request controlType remains the frozen open identifier contract rather than inventing a closed enum.
+- Nest/supertest controller checks use the real pipes, guards and problem filter: malformed inputs never dispatch; submit exposes bounded paths, other Legal Portfolio endpoints omit them; unauthorized worker requests return 401; malformed Root IDs/finish bodies return 422 and malformed lease headers return 403 before body parsing. Shared-pipe tests verify status consistency and absence of submitted secret values.
+- No apps/web production file was added/materially changed by W3. Next/BFF Zod, Atomic Design placement, shadcn reuse and RHF + Zod forms are **not applicable** to this Wave; no fresh browser verification is claimed.
+- The Python retirement edit in `runtime_envelope.invoke_tool` left a Mapping return followed by unreachable dict conversion. It now preserves dict results and materializes other Mappings; the authored-tool check covers both dict and MappingProxyType. A full-suite failure in the broker timeout test came from an unmocked worker HTTP notification plus a fixed 50 ms sleep. The test now isolates that notifier and waits for the actual nack Event; production broker behavior was not changed.
+- The migrated Legal Portfolio integration harness had synchronous Zod throws behind Jest `.rejects`; async wrappers restore the controller's promise behavior. The initial two harness failures were repaired before the fresh passing run.
+
+Fresh checks (all shell commands invoked with RTK; PASS means completed exit 0):
+
+| Command / environment | Result |
+|---|---|
+| `rtk docker exec lcsp-api-test-postgres-55441-lcsp_w2_base psql -U postgres -d postgres -c 'CREATE DATABASE lcsp_w3_convention_20261007'`; `rtk pnpm --dir apps/api exec cross-env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55441/lcsp_w3_convention_20261007?schema=public pnpm exec prisma migrate deploy` | PASS; fresh disposable DB, all 98 ordered migrations applied, including W3 SQL guards |
+| `rtk pnpm --dir apps/api exec cross-env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55441/lcsp_w3_convention_20261007?schema=public PHASE25_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55441/lcsp_w3_convention_20261007?schema=public NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./jest.config.ts --runInBand src/modules/legal-portfolio src/modules/assessment src/common/pipes src/platform/outbox` | PASS; 30 suites, 359 tests, no skips; includes legal-portfolio unit/integration and assessment suites |
+| `rtk pnpm --dir apps/api run build` | PASS; runtime packages and API rebuilt after the final persistence-helper relocation |
+| `rtk pnpm run typecheck` | PASS; root contracts/API/Web typecheck |
+| `rtk pnpm --dir apps/api exec eslint src/modules/assessment src/modules/legal-portfolio src/common/pipes/zod-validation.pipe.ts src/common/pipes/zod-validation.pipe.spec.ts --max-warnings=0` | PASS; zero warnings |
+| `rtk proxy node tests/legal-portfolio-vertical.mjs` | PASS; 54 checks on built API + migrated disposable PostgreSQL + Python Legal Preparation agent |
+| `rtk proxy node tests/assessment-domain-vertical.mjs` | PASS; 82 checks on built API + migrated disposable PostgreSQL + Python Root; both verticals rerun after final helper relocation |
+| `rtk pnpm --filter @lcsp/api test:e2e` | PASS; 45 suites/294 tests passed, 3 suites/21 tests skipped; executed after CQRS and transport repairs. The subsequent AssessmentCaseSupport path-only relocation was covered by the final build, focused Jest and both verticals |
+| `rtk uv run --project deepagents --extra dev pytest deepagents/tests/test_agent_runtime_rabbitmq_consumer.py -q` | PASS; 52 tests after deterministic timeout-test repair |
+| `rtk uv run --project deepagents --extra dev pytest deepagents/tests -q` | PASS; 1159 passed, 7 skipped; final run after both Python repairs |
+| `rtk pnpm run check:imports` | PASS |
+| `rtk pnpm run check:contracts` | PASS |
+| `rtk pnpm run check:agentic-tools` | PASS; 1 Python remediation tool, 9 Nest CQRS tools, 1 runtime-control command |
+| `rtk pnpm run check:legal-v1-retired` | PASS; 1492 production files, 16 patterns, zero retired references |
+| Changed-use-case direct literal union / enum scan; pure-domain forbidden-import scan; `rtk proxy git diff --check` | PASS; no TS enum/direct literal union violation, no forbidden pure-domain import, no whitespace error |
+| `rtk proxy graphify update .` | PASS; AST-only graph refresh. Existing missing SQL parser / smoke-fixture parse warnings are not SQL or fixture acceptance |
+
+Proof limits: verticals use real API, PostgreSQL and native Python agents with SCRIPTED model output. They do not establish live-provider metering, real PostgresSaver crash/checkpoint recovery, Docker sandbox hydration or browser acceptance. Existing W4/W5 deferred surfaces remain recorded above. The standard API e2e harness uses its disposable db-push database; raw SQL constraints are separately covered by ordered migrate-deploy and the verticals. Skipped e2e/Python tests remain skipped, not passed. No remote CI run for this uncommitted head is claimed.
+
+Convention result: **PASS for the inspected current-wave changes**, supported by source, transport tests, migrated persistence tests and vertical execution. The obsolete LegalPortfolioService known-violation entry is closed by its inspected CQRS replacement and fresh checks. At that gate closure no commit, push, PR, deployment or next-Wave action had been performed. The subsequent PR/CI work is recorded below; W4 still requires the user's explicit `continue`.
+
+### W3 PR #360 CI repair (2026-10-07)
+
+Authorization: user requested "update PR description and fix ci failed". Verified a clean feature branch matching PR head `26bc93ede1ea32f8be06f276518508cc188c8c12` before editing. Updated the PR description with the final W3 behavior, CQRS/convention changes, migration rollout, local evidence and deferred scope, then read it back from GitHub.
+
+**Root cause:** [Assessment Root vertical job 112639012651](https://github.com/khovan123/LCSP/actions/runs/37574083501/job/112639012651) failed at Prisma generation: the new job omitted DATABASE_URL, which prisma.config.ts requires. Source/caller inspection also found the scripts launch `deepagents/.venv/bin/python`, while that job installed dependencies globally and never created the virtual environment. [Docker sandbox job 112639012759](https://github.com/khovan123/LCSP/actions/runs/37574083501/job/112639012759) failed one hydration assertion that expected the intentionally retired interview-context skill to be present. Other checks on that original head completed successfully.
+
+**Fix:** the Root vertical job supplies the URL of its own disposable PostgreSQL service and uses `uv==0.10.6` plus `uv sync --frozen --extra dev` to create `.venv` from the committed lockfile, matching the Docker images' package-manager version. The existing stack helper still overrides DATABASE_URL for each named W2/W3 disposable database. Docker hydration now asserts the retired skill entrypoint is absent, while retaining the active LCSP skill, repository contents, marker, hydration idempotency, mountpoint and Git checks. No production runtime, contract, persistence authority or frontend behavior changed.
+
+The first repair commit `cdd563f5c` reached 23 successful remote checks, including Docker, API unit/e2e, Python, Web and Playwright. Only Root dependency installation remained pending. Its initial fresh-venv pip install repeated dependency resolution; a disposable local `pip install --dry-run -e './deepagents[dev]'` reproduced repeated backtracking across OpenTelemetry exporters/proto/instrumentation versions and was terminated after diagnosis. The follow-up uses the reviewed lockfile rather than changing dependency constraints or weakening the job. The pending older run is superseded, not counted as a passing Root vertical.
+
+| Fresh local command / check | Result |
+|---|---|
+| `rtk pnpm run build:runtime-packages` | PASS |
+| `rtk proxy env NODE_ENV=test DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55437/postgres?schema=public pnpm --filter @lcsp/api prisma:generate` | PASS; generation accepts the job's explicit URL |
+| Same explicit environment with `pnpm --filter @lcsp/api build` | PASS |
+| YAML parse and service/URL port consistency assertion | PASS |
+| `uv==0.10.6 sync --project deepagents --python deepagents/.venv/bin/python --frozen --extra dev` with `UV_PROJECT_ENVIRONMENT=/tmp/lcsp353-ci-locked-venv` | PASS; pristine virtual environment, 193 pinned packages installed using the local package cache |
+| `rtk proxy env PYTHONPATH=deepagents:deepagents/tests /tmp/lcsp353-ci-locked-venv/bin/python -m pytest deepagents/tests/test_assessment_root_agent.py deepagents/tests/test_runtime_envelope.py -q` | PASS 17, no skips, in that fresh locked environment |
+| Same explicit environment with `node tests/legal-portfolio-vertical.mjs` and `node tests/assessment-domain-vertical.mjs` | PASS 54 / 82; real API, migrated named disposable DBs on the helper's local default port 55441, native Python agents, scripted models |
+| `rtk docker build -f deepagents/Dockerfile.dev -t lcsp-agent-runtime:lcsp353-ci-fix .`; `rtk docker build -f deepagents-langgraph/Dockerfile -t lcsp-agent-runtime-server:lcsp353-ci-fix .` | PASS; fresh source images with task-specific tags |
+| `rtk proxy env LCSP_DOCKER_SANDBOX_E2E=1 LCSP_PRODUCTION_AGENT_SERVER_IMAGE_E2E=1 LCSP_REPOSITORY_SANDBOX_IMAGE=lcsp-agent-runtime:lcsp353-ci-fix LCSP_PRODUCTION_AGENT_SERVER_IMAGE=lcsp-agent-runtime-server:lcsp353-ci-fix uv run --project deepagents --extra dev pytest deepagents/tests/integration/test_codebase_memory_runtime_e2e.py deepagents/tests/integration/test_docker_sandbox_e2e.py deepagents/tests/integration/test_local_agent_runtime_e2e.py deepagents/tests/integration/test_production_agent_server_image_e2e.py -q` | PASS 7, no skips, including real Docker hydration and production-image health-graph persistence/restart |
+| `rtk proxy graphify update .`; `rtk proxy git diff --check` | PASS |
+
+Convention verification delta: inspected only the changed CI setup and integration expectation; no new production module, handler, domain, BFF or UI implementation. Existing W3 CQRS/layer/Zod evidence remains applicable. The Docker health graph's persistence/restart check is not Assessment Root PostgresSaver crash-recovery proof. Final remote acceptance must use the pushed PR head's rollup; historical failing jobs and these local checks cannot substitute for it. W4 has not started.

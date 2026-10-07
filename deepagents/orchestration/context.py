@@ -38,7 +38,7 @@ class LCSPRunContext:
     criterion_ids: tuple[str, ...] = ()  # the rule's requiredEvidence
     context_revision: int = 0
     prior_evidence_refs: tuple[str, ...] = ()  # accepted refs from a previous result (resume)
-    rule_execution_id: str | None = None  # fresh per analyze_rule attempt; scopes minted evidence refs
+    rule_execution_id: str | None = None
 
 
 def coerce_run_context(value: Any) -> LCSPRunContext | None:

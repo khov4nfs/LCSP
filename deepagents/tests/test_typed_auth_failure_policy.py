@@ -412,20 +412,11 @@ async def test_model_retry_never_resends_typed_auth_failure_on_same_credential(a
 
 def test_non_retryable_boundary_failures_are_terminal_at_the_boundary():
     from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
-    from tools.common.capabilities.workflow.recovery.interview_boundary import (
-        InterviewTechnicalCoverageRecoveryRequired,
-    )
 
     # Never redelivered by the broker.
     assert is_terminal_boundary_error(NonRetryableAgentBoundaryError("scan job is terminal")) is True
-    assert is_terminal_boundary_error(
-        InterviewTechnicalCoverageRecoveryRequired("technical coverage recovery required")
-    ) is True
     # Model-stack routing is unchanged: these are boundary outcomes, not model errors.
     assert is_terminal_task_error(NonRetryableAgentBoundaryError("scan job is terminal")) is False
-    assert is_terminal_task_error(
-        InterviewTechnicalCoverageRecoveryRequired("technical coverage recovery required")
-    ) is False
 
 
 def test_invoke_boundary_propagates_handler_failures(monkeypatch):
@@ -441,6 +432,6 @@ def test_invoke_boundary_propagates_handler_failures(monkeypatch):
     monkeypatch.setattr(invocation, "_run_boundary_handler", failing_handler)
 
     with pytest.raises(RuntimeError) as caught:
-        invocation.invoke_boundary("engineering_assessment_requested", {}, "corr-fail")
+        invocation.invoke_boundary("legal_portfolio_preparation_requested", {}, "corr-fail")
 
     assert caught.value is error

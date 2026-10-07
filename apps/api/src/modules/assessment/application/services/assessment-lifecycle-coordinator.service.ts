@@ -1,6 +1,6 @@
 import {
-  AGENTIC_ASSESSMENT_EVENT_TYPES,
   AGENT_EXECUTION_STATES,
+  AGENTIC_ASSESSMENT_EVENT_TYPES,
   AGENTIC_RUNTIME_TRANSITION_GUARDS,
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
@@ -11,19 +11,19 @@ import {
   assessmentEventSchema,
   assessmentLifecycleChangedPayloadSchema,
   isAgenticRuntimeTransitionAllowed,
-  type AssessmentEvent,
   type AgenticRuntimeTransitionGuard,
   type AssessmentBlocker,
+  type AssessmentEvent,
   type AssessmentLifecycleState,
 } from "@lcsp/contracts/assessment";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { ASSESSMENT_RUNTIME_CONTROL_STATES } from "@lcsp/contracts/evidence";
 import {
   AUDIT_ACTOR_IDS,
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
   type AuditActorType,
 } from "@lcsp/contracts/audit";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { ASSESSMENT_RUNTIME_CONTROL_STATES } from "@lcsp/contracts/evidence";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
@@ -72,7 +72,7 @@ export type AssessmentLifecycleInitializationResult = {
   lifecycleRevision: 0;
 };
 
-type LifecycleEventActor = {
+export type LifecycleEventActor = {
   id: string;
   type: AuditActorType;
 };
@@ -193,6 +193,21 @@ export class AssessmentLifecycleCoordinator {
       id: input.actorId,
       type: AUDIT_ACTOR_TYPES.user,
     });
+  }
+
+  /**
+   * Transition for an OWNING server boundary that has already verified the named guard
+   * conditions from authoritative state (for example the runtime-preparation service proving
+   * pinned inputs and full decision coverage). Callers never forward guards from a client or
+   * an agent; the table in the contracts still decides whether the transition is legal.
+   */
+  async transitionVerifiedInTx(
+    input: AssessmentLifecycleTransitionInput,
+    tx: Prisma.TransactionClient,
+    verifiedGuards: readonly AgenticRuntimeTransitionGuard[],
+    actor: LifecycleEventActor,
+  ): Promise<AssessmentLifecycleTransitionResult> {
+    return this.transitionWithGuards(input, tx, verifiedGuards, actor);
   }
 
   private async transitionWithGuards(

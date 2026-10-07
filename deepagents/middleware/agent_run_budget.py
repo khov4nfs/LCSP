@@ -90,7 +90,7 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         finalize_tools: frozenset[str] = frozenset(),
     ) -> None:
         super().__init__()
-        # Governed completion tools (e.g. submit_rule_assessment) stay callable at finalize.
+        # Governed completion tools stay callable at finalize.
         self.finalize_tools = frozenset(finalize_tools)
         self.finalize_after = max(
             1,

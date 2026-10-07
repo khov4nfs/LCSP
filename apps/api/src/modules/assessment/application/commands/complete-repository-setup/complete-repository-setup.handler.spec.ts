@@ -22,6 +22,7 @@ function buildHandler(input?: {
   assessmentStatus?: string;
   hasConnection?: boolean;
   hasSnapshot?: boolean;
+  lifecycleState?: string | null;
 }) {
   const assessment = Assessment.rehydrate({
     id: "assessment-1",
@@ -65,21 +66,30 @@ function buildHandler(input?: {
     .mockResolvedValue(
       input?.hasSnapshot === false ? null : { id: "snapshot-1", commitSha },
     );
+  const lifecycleFindUnique = jest
+    .fn<(args: unknown) => Promise<{ lifecycleState: string | null }>>()
+    .mockResolvedValue({ lifecycleState: input?.lifecycleState ?? null });
   const prisma = {
     repositoryConnection: { findFirst: connectionFindFirst },
     repositorySnapshot: { findFirst: snapshotFindFirst },
+    assessment: { findUnique: lifecycleFindUnique },
     $transaction: transaction,
   };
+  const prepareInTx = jest
+    .fn<(...args: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue({ result: "ACTIVATED" });
   const handler = new CompleteRepositorySetupHandler(
     repository,
     prisma as never,
     { writeInTx } as unknown as AuditWriterService,
+    { prepareInTx } as never,
   );
 
   return {
     assessment,
     connectionFindFirst,
     handler,
+    prepareInTx,
     saveInTx,
     snapshotFindFirst,
     transaction,
@@ -174,5 +184,25 @@ describe("CompleteRepositorySetupHandler", () => {
     expect(result.status).toBe(ASSESSMENT_STATUS_CODES.wizardSubmitted);
     expect(context.transaction).not.toHaveBeenCalled();
     expect(context.writeInTx).not.toHaveBeenCalled();
+  });
+  it("pins the snapshot and prepares a V2 assessment that is still PREPARING", async () => {
+    const context = buildHandler({ lifecycleState: "PREPARING" });
+    await context.handler.execute(
+      new CompleteRepositorySetupCommand("assessment-1", "user-1", "corr-v2"),
+    );
+    expect(context.prepareInTx).toHaveBeenCalledTimes(1);
+    expect(context.prepareInTx).toHaveBeenCalledWith(expect.anything(), {
+      assessmentId: "assessment-1",
+      snapshotId: "snapshot-1",
+      correlationId: "corr-v2",
+    });
+  });
+
+  it("does not touch the runtime for a V1 assessment without a canonical lifecycle", async () => {
+    const context = buildHandler({ lifecycleState: null });
+    await context.handler.execute(
+      new CompleteRepositorySetupCommand("assessment-1", "user-1", "corr-v1"),
+    );
+    expect(context.prepareInTx).not.toHaveBeenCalled();
   });
 });

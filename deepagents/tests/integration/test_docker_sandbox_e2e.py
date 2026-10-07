@@ -163,11 +163,10 @@ def test_docker_sandbox_hydrates_repository_snapshot_without_removing_mountpoint
         skill = backend.read("/workspace/repository/.lcsp/agent/skills/lcsp/SKILL.md")
         assert skill.error is None
         assert "name: lcsp" in skill.file_data["content"]
-        reference = backend.read(
-            "/workspace/repository/.lcsp/agent/skills/interview-context/"
-            "references/protected-boundaries.md"
+        retired_skill = backend.read(
+            "/workspace/repository/.lcsp/agent/skills/interview-context/SKILL.md"
         )
-        assert reference.error is None
+        assert retired_skill.error == "file_not_found"
 
         git_probe = backend.execute(
             "test -d /workspace/repository/.git "

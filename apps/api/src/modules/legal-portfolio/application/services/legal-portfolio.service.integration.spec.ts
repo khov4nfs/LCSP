@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
+import type { z } from "zod";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import {
@@ -8,7 +9,12 @@ import {
   LEGAL_PORTFOLIO_EVENT_TYPES,
   LEGAL_PORTFOLIO_FAILURE_CODES,
   legalPortfolioReadModelSchema,
+  legalPortfolioSubmitRequestSchema,
+  legalPortfolioValidateRequestSchema,
+  legalPreparationClaimRequestSchema,
   legalPreparationCorpusBundleSchema,
+  legalPreparationFailRequestSchema,
+  legalPreparationStartRequestSchema,
 } from "@lcsp/contracts/legal-portfolio";
 
 import {
@@ -21,7 +27,22 @@ import {
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
-import { LegalPortfolioService } from "./legal-portfolio.service.js";
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { ClaimLegalPreparationCommand } from "../commands/claim-legal-preparation/claim-legal-preparation.command.js";
+import { ClaimLegalPreparationHandler } from "../commands/claim-legal-preparation/claim-legal-preparation.handler.js";
+import { FailLegalPreparationCommand } from "../commands/fail-legal-preparation/fail-legal-preparation.command.js";
+import { FailLegalPreparationHandler } from "../commands/fail-legal-preparation/fail-legal-preparation.handler.js";
+import { StartLegalPreparationCommand } from "../commands/start-legal-preparation/start-legal-preparation.command.js";
+import { StartLegalPreparationHandler } from "../commands/start-legal-preparation/start-legal-preparation.handler.js";
+import { SubmitLegalPortfolioCommand } from "../commands/submit-legal-portfolio/submit-legal-portfolio.command.js";
+import { SubmitLegalPortfolioHandler } from "../commands/submit-legal-portfolio/submit-legal-portfolio.handler.js";
+import { GetActiveLegalPortfolioHandler } from "../queries/get-active-legal-portfolio/get-active-legal-portfolio.handler.js";
+import { GetActiveLegalPortfolioQuery } from "../queries/get-active-legal-portfolio/get-active-legal-portfolio.query.js";
+import { ValidateLegalPortfolioHandler } from "../queries/validate-legal-portfolio/validate-legal-portfolio.handler.js";
+import { ValidateLegalPortfolioQuery } from "../queries/validate-legal-portfolio/validate-legal-portfolio.query.js";
+import { LegalCorpusSnapshotLoader } from "../../infrastructure/persistence/legal-corpus-snapshot.service.js";
+import { LegalPortfolioActivation } from "../../infrastructure/persistence/legal-portfolio-activation.service.js";
+import { LegalPortfolioReadModelLoader } from "../../infrastructure/persistence/legal-portfolio-read-model.service.js";
 
 /**
  * Real PostgreSQL proof of the portfolio boundary: atomic activation, one ACTIVE
@@ -33,16 +54,88 @@ const loopback = /@(127\.0\.0\.1|localhost)[:/]/u.test(databaseUrl);
 const describeDatabase = databaseUrl && loopback ? describe : describe.skip;
 const RUN = randomUUID().slice(0, 8);
 
-describeDatabase("LegalPortfolioService PostgreSQL integration", () => {
+type Body = { body: unknown; correlationId: string };
+
+/**
+ * Drives the real handlers exactly as the controller does: the Zod pipe validates the raw body,
+ * then one Command/Query handler runs against PostgreSQL.
+ */
+function buildPortfolioUseCases(
+  prisma: PrismaService,
+  outbox: OutboxRepository,
+  audit: AuditWriterService,
+) {
+  const parse = <S extends z.ZodTypeAny>(schema: S, body: unknown) =>
+    new ZodValidationPipe<z.infer<S>>(
+      schema,
+      LEGAL_PORTFOLIO_ERROR_CODES.submitRequestInvalid,
+    ).transform(body);
+  const corpus = new LegalCorpusSnapshotLoader(prisma);
+  const start = new StartLegalPreparationHandler(prisma, outbox);
+  const claim = new ClaimLegalPreparationHandler(prisma);
+  const fail = new FailLegalPreparationHandler(prisma);
+  const submit = new SubmitLegalPortfolioHandler(
+    prisma,
+    corpus,
+    new LegalPortfolioActivation(outbox, audit),
+  );
+  const validate = new ValidateLegalPortfolioHandler(prisma, corpus);
+  const active = new GetActiveLegalPortfolioHandler(
+    new LegalPortfolioReadModelLoader(prisma),
+  );
+  return {
+    startPreparation: async (i: Body & { requestedBy: string }) =>
+      start.execute(
+        new StartLegalPreparationCommand(
+          parse(legalPreparationStartRequestSchema, i.body),
+          i.requestedBy,
+          i.correlationId,
+        ),
+      ),
+    claimPreparation: async (i: Body) =>
+      claim.execute(
+        new ClaimLegalPreparationCommand(
+          parse(legalPreparationClaimRequestSchema, i.body),
+          i.correlationId,
+        ),
+      ),
+    failPreparation: async (i: Body) =>
+      fail.execute(
+        new FailLegalPreparationCommand(
+          parse(legalPreparationFailRequestSchema, i.body),
+          i.correlationId,
+        ),
+      ),
+    submit: async (i: Body & { actorId: string }) =>
+      submit.execute(
+        new SubmitLegalPortfolioCommand(
+          parse(legalPortfolioSubmitRequestSchema, i.body),
+          i.actorId,
+          i.correlationId,
+        ),
+      ),
+    validate: async (i: Body) =>
+      validate.execute(
+        new ValidateLegalPortfolioQuery(
+          parse(legalPortfolioValidateRequestSchema, i.body),
+          i.correlationId,
+        ),
+      ),
+    getActivePortfolio: (correlationId: string) =>
+      active.execute(new GetActiveLegalPortfolioQuery(correlationId)),
+  };
+}
+
+describeDatabase("Legal portfolio use cases PostgreSQL integration", () => {
   let prisma: PrismaClient;
   let outbox: OutboxRepository;
-  let service: LegalPortfolioService;
+  let service: ReturnType<typeof buildPortfolioUseCases>;
 
   beforeAll(async () => {
     prisma = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
     await prisma.$connect();
     outbox = new OutboxRepository(prisma as unknown as PrismaService);
-    service = new LegalPortfolioService(
+    service = buildPortfolioUseCases(
       prisma as unknown as PrismaService,
       outbox,
       new AuditWriterService(prisma as unknown as PrismaService),

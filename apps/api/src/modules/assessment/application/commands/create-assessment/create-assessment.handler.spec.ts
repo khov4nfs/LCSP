@@ -69,12 +69,16 @@ function buildHandler() {
     transitionInTx,
   } as unknown as AssessmentLifecycleCoordinator;
 
+  const createCaseInTx = jest
+    .fn<(...args: unknown[]) => Promise<unknown>>()
+    .mockResolvedValue({ legalPortfolioVersionId: null });
   const handler = new CreateAssessmentHandler(
     repository,
     auditWriter,
     outboxRepository,
     prisma as never,
     lifecycle,
+    { createCaseInTx } as never,
   );
 
   return {
@@ -86,6 +90,7 @@ function buildHandler() {
     transaction,
     initializeInTx,
     transitionInTx,
+    createCaseInTx,
   };
 }
 

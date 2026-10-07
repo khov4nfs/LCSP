@@ -45,6 +45,41 @@ describe("ZodValidationPipe", () => {
       expect(response.ok).toBe(false);
       expect(response.problem.code).toBe(AUTH_ERROR_CODES.validationFailed);
       expect(response.problem.status).toBe(HttpStatus.BAD_REQUEST);
+      expect(response.problem).not.toHaveProperty("meta.issues");
+    }
+  });
+
+  it("keeps the configured HTTP status and bounded issue paths without input values", () => {
+    const fields = Object.fromEntries(
+      Array.from({ length: 25 }, (_, index) => [`field${index}`, z.string()]),
+    );
+    const detailed = new ZodValidationPipe(
+      z.object(fields),
+      AUTH_ERROR_CODES.validationFailed,
+      HttpStatus.UNPROCESSABLE_ENTITY,
+      true,
+    );
+    try {
+      detailed.transform({ field0: { privateValue: "secret" } });
+      throw new Error("Expected validation failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpException);
+      const exception = error as HttpException;
+      expect(exception.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+      expect(exception.getResponse()).toMatchObject({
+        ok: false,
+        problem: {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          code: AUTH_ERROR_CODES.validationFailed,
+          meta: {
+            issues: Array.from(
+              { length: 20 },
+              (_, index) => `field${index}`,
+            ).join(","),
+          },
+        },
+      });
+      expect(JSON.stringify(exception.getResponse())).not.toContain("secret");
     }
   });
 

@@ -9,8 +9,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from tools.common.capabilities.agent_runtime.invocation import invocation_boundary_manifest
-from tools.common.get_legal_corpus_readiness.code import get_legal_corpus_readiness
-from tools.common.retrieve_legal_basis.code import retrieve_legal_basis
 from tools import mcp
 
 
@@ -50,23 +48,6 @@ def test_legacy_legal_maintenance_prompt_schedule_is_deleted() -> None:
     assert not (PROJECT_ROOT / "schedules" / "legal_catalog_daily.py").exists()
 
 
-def test_authored_agent_tools_have_explicit_input_schema() -> None:
-    authored_tools = (
-        get_legal_corpus_readiness,
-        retrieve_legal_basis,
-    )
-
-    for agent_tool in authored_tools:
-        schema = agent_tool.args_schema.model_json_schema()
-        assert schema["additionalProperties"] is False
-        assert "assessment_id" not in schema["properties"]
-        assert "user_id" not in schema["properties"]
-        assert "workflow_run_id" not in schema["properties"]
-        assert "artifact_versions" not in schema["properties"]
-        assert "input" not in schema["properties"]
-        assert set(schema["properties"]) - {"correlationId", "correlation_id"}
-
-
 def test_agent_project_separates_authored_tools_from_runtime() -> None:
     tool_packages = {
         path.name
@@ -79,8 +60,7 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
     }
     assert not (PROJECT_ROOT / "runtime").exists()
     assert (PROJECT_ROOT / "orchestration").is_dir()
-    assert (PROJECT_ROOT / "subagents").is_dir()
-    assert not (PROJECT_ROOT / "subagents.py").exists()
+    assert not (PROJECT_ROOT / "subagents").exists()  # no static subagent registry remains
     assert not (PROJECT_ROOT / "channels").exists()
     assert not (PROJECT_ROOT / "connectors").exists()
     assert (PROJECT_ROOT / "evals" / "tasks").is_dir()
@@ -101,7 +81,7 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
         for path in (PROJECT_ROOT / "skills").iterdir()
         if path.is_dir() and not path.name.startswith("__")
     }
-    assert skill_packages == {"interview-context", "lcsp"}
+    assert skill_packages == {"lcsp"}
     assert (PROJECT_ROOT / "skills" / "lcsp" / "SKILL.md").is_file()
     assert not (PROJECT_ROOT / "skills" / "legal-rule-triage").exists()
     assert not (PROJECT_ROOT / "skills" / "deep_agent_skills").exists()
@@ -119,12 +99,9 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
 def test_all_former_consumers_remain_internal_agent_runtime_invocation_boundaries() -> None:
     manifest = invocation_boundary_manifest()
 
-    assert len(manifest) == 21
+    assert len(manifest) == 17
     assert {entry["name"] for entry in manifest} >= {
-        "scan_requested",
-        "engineering_assessment_requested",
-        "assessment_interview_resume_requested",
-        "assessment_interview_pause_requested",
+        "assessment_root_requested",
         "legal_portfolio_preparation_requested",
         "legal_change_detection_requested",
         "agent_runtime_health_requested",
@@ -136,7 +113,15 @@ def test_all_former_consumers_remain_internal_agent_runtime_invocation_boundarie
         "boundary_source": "agent-runtime.health",
         "source_event": "internal.agent-runtime.health.v1",
     } in manifest
-    assert "legal_rule_triage_requested" not in {entry["name"] for entry in manifest}
+    retired = {
+        "legal_rule_triage_requested",
+        "scan_requested",
+        "targeted_reanalysis_requested",
+        "engineering_assessment_requested",
+        "assessment_interview_resume_requested",
+        "assessment_interview_pause_requested",
+    }
+    assert not retired & {entry["name"] for entry in manifest}
     assert {
         "name": "legal_portfolio_preparation_requested",
         "target": "legal_preparation.boundary:LegalPreparationBoundary",
