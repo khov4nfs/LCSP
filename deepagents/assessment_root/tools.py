@@ -8,6 +8,7 @@ to the model as structured, scalar feedback so it can correct itself, never rais
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import re
@@ -18,6 +19,7 @@ from typing import Any, Literal
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.tools import StructuredTool
+from langgraph.types import interrupt
 from pydantic import BaseModel, ConfigDict, Field
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
@@ -40,17 +42,83 @@ def _repo_path(value: Any) -> str:
     return "/".join(parts) or "."
 
 
-class SearchTrace(BaseCallbackHandler):
-    """Records what the Root and its task descendants actually executed.
+def _result_count(output: Any) -> int:
+    content = getattr(output, "content", output)
+    if isinstance(content, list):
+        text = "\n".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and isinstance(block.get("text"), str)
+        )
+    else:
+        text = str(content or "")
+    text = text.strip()
+    if text.startswith("Codebase Memory ") and (
+        " is unavailable:" in text or " failed:" in text
+    ):
+        return 0
+    if text in {"(no results)", "No matches found", "No files found"}:
+        return 0
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        payload = None
+        if text.startswith("["):
+            try:
+                payload = ast.literal_eval(text)
+            except (ValueError, SyntaxError):
+                pass
+    if isinstance(payload, list):
+        return len(payload)
+    if isinstance(payload, dict) and isinstance(payload.get("results"), list):
+        return len(payload["results"])
+    return len([line for line in text.splitlines() if line.strip()])
 
-    Search-coverage evidence is built from this runtime-authenticated trace, never from text the
-    model typed, so an agent cannot claim to have searched somewhere it did not.
+
+def _is_truncated(text: str) -> bool:
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        payload = None
+    if isinstance(payload, dict) and any(
+        payload.get(key) is True for key in ("truncated", "has_more", "hasMore")
+    ):
+        return True
+    lowered = text.lower()
+    if re.search(r"\b(?:truncated|has[_ ]?more)\s*[:=]\s*(?:true|1|yes)\b", lowered):
+        return True
+    return any(
+        marker in lowered
+        for marker in (
+            "[truncated",
+            "output truncated",
+            "results truncated",
+            "truncated results",
+            "result limit reached",
+            "has more results",
+        )
+    )
+
+
+class SearchTrace(BaseCallbackHandler):
+    """Records search/read operations actually executed by the Root and its task descendants.
+
+    Query/scope/read facts come from this trace. Gap notes are descriptive Root-authored caveats,
+    not proof of which searches ran or whether their results were sufficient.
     """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._open: dict[str, dict[str, Any]] = {}
         self.entries: list[dict[str, Any]] = []
+        self.dropped_entries = 0
+
+    def record(self, entry: dict[str, Any]) -> None:
+        with self._lock:
+            if len(self.entries) >= _MAX_TRACE:
+                self.dropped_entries += 1
+                return
+            self.entries.append(entry)
 
     def on_tool_start(self, serialized, input_str, *, run_id, inputs=None, **kwargs):  # noqa: ANN001
         name = (serialized or {}).get("name") or kwargs.get("name")
@@ -63,17 +131,37 @@ class SearchTrace(BaseCallbackHandler):
     def on_tool_end(self, output, *, run_id, **kwargs):  # noqa: ANN001
         with self._lock:
             entry = self._open.pop(str(run_id), None)
-            if entry is None or len(self.entries) >= _MAX_TRACE:
-                return
-            text = str(getattr(output, "content", output) or "")
-            entry["resultCount"] = len([line for line in text.splitlines() if line.strip()])
-            entry["truncated"] = "truncat" in text.lower()
-            self.entries.append(entry)
+        if entry is None:
+            return
+        content = getattr(output, "content", output)
+        if isinstance(content, list):
+            text = "\n".join(
+                block.get("text", "")
+                for block in content
+                if isinstance(block, dict) and isinstance(block.get("text"), str)
+            )
+        else:
+            text = str(content or "")
+        entry["resultCount"] = _result_count(output)
+        entry["truncated"] = _is_truncated(text)
+        entry["failed"] = "Codebase Memory " in text and (
+            " is unavailable:" in text or " failed:" in text
+        )
+        self.record(entry)
 
-    def snapshot_and_reset(self) -> list[dict[str, Any]]:
+    def on_tool_error(self, error, *, run_id, **kwargs):  # noqa: ANN001
+        with self._lock:
+            entry = self._open.pop(str(run_id), None)
+        if entry is None:
+            return
+        entry.update(resultCount=0, truncated=False, failed=True)
+        self.record(entry)
+
+    def snapshot_and_reset(self) -> tuple[list[dict[str, Any]], int]:
         with self._lock:
             taken, self.entries = self.entries, []
-            return taken
+            dropped, self.dropped_entries = self.dropped_entries, 0
+            return taken, dropped
 
 
 @dataclass
@@ -123,7 +211,8 @@ class RecordSearchCoverageArgs(_Args):
         description="Entry-point files you read, a subset of files you actually read.",
     )
     known_gaps: list[str] = Field(
-        default_factory=list, description="What this search could NOT cover or could not rule out."
+        default_factory=list,
+        description="Root-authored caveats about what searches could not cover; not proof a search ran.",
     )
     direct_source_fallbacks: list[dict[str, str]] = Field(
         default_factory=list,
@@ -178,6 +267,22 @@ class OpenHumanRequestArgs(_Args):
     resolution_attempts: list[str] = Field(min_length=1, description="How you already tried to settle it from sources.")
     control_type: str = "FREE_TEXT"
     choices: list[dict[str, str]] = Field(default_factory=list, description="[{value, label}] when a fixed set applies.")
+
+
+class ReportUnresolvableHumanFactArgs(OpenHumanRequestArgs):
+    unavailability_rationale: str = Field(min_length=1, description="Why accepted evidence establishes that this material fact is permanently unobtainable under the contract; an unknown answer alone is insufficient.")
+    evidence_ids: list[str] = Field(min_length=1, description="Accepted evidence IDs supporting the unavailability claim.")
+
+
+class FinalReportFindingArgs(_Args):
+    engineering_rule_id: str
+    summary: str = Field(min_length=1)
+    recommendations: list[str] = Field(default_factory=list)
+
+
+class SubmitFinalReportArgs(_Args):
+    summary: str = Field(min_length=1)
+    findings: list[FinalReportFindingArgs] = Field(min_length=1)
 
 
 # ---- tool construction ----------------------------------------------------------------------------
@@ -318,7 +423,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         if end_line > len(lines):
             return {"ok": False, "code": "RANGE_OUT_OF_BOUNDS", "path": normalized, "lineCount": len(lines)}
         excerpt = "\n".join(lines[start_line - 1 : end_line]).encode("utf-8")
-        run.trace.entries.append(
+        run.trace.record(
             {"tool": "read_file", "args": {"file_path": normalized}, "resultCount": end_line - start_line + 1, "truncated": False}
         )
         result = client.post_evidence(
@@ -338,17 +443,25 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         known_gaps: list[str] | None = None,
         direct_source_fallbacks: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
-        """Record what the searches you ran since the last record actually covered (runtime-authenticated)."""
+        """Record trace-authenticated searches plus Root-authored descriptive coverage caveats."""
         if not run.pins:
             run.adopt_context(client.context())
-        entries = run.trace.snapshot_and_reset()
+        entries, dropped_count = run.trace.snapshot_and_reset()
         scopes: dict[tuple[str, str], None] = {}
         queries: list[dict[str, Any]] = []
         read_paths: set[str] = set()
+        trace_gaps = list(known_gaps or [])
+        if dropped_count:
+            trace_gaps.append(
+                f"Search trace omitted {dropped_count} tool result(s) after its runtime limit."
+            )
         for entry in entries:
             args = entry.get("args") or {}
             tool = entry["tool"]
             if tool in _READ_TOOLS:
+                if entry.get("failed"):
+                    trace_gaps.append(f"The {tool} read did not return a usable result.")
+                    continue
                 path = _repo_path(args.get("file_path") or args.get("path"))
                 read_paths.add(path)
                 scopes[(_SCOPE_FILE, path)] = None
@@ -365,22 +478,30 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                     "truncated": bool(entry.get("truncated", False)),
                 }
             )
+            if entry.get("failed"):
+                trace_gaps.append(f"The {tool} search did not return a usable result.")
         entry_points = [_repo_path(p) for p in (inspected_entry_points or []) if _repo_path(p) in read_paths]
         fallbacks = [
             {"path": _repo_path(item.get("path")), "reason": str(item.get("reason") or "direct read")[:500]}
             for item in (direct_source_fallbacks or [])
             if _repo_path(item.get("path")) in read_paths
         ]
+        limits = 200
+        for label, values in (("scope", list(scopes)), ("query", queries), ("entry point", entry_points), ("direct-source fallback", fallbacks)):
+            if len(values) > limits:
+                trace_gaps.append(
+                    f"Coverage {label} list was capped at {limits} of {len(values)} records."
+                )
         if not scopes:
             return {"ok": False, "code": "NO_SEARCH_ACTIVITY", "hint": "Run searches before recording coverage."}
         body = {
             "type": "SEARCH_COVERAGE",
             "repositoryCommit": run.pins["repositoryCommit"],
-            "scopes": [{"kind": kind, "path": path} for (kind, path) in scopes],
-            "queries": queries[:200],
-            "inspectedEntryPoints": entry_points,
-            "knownGaps": [str(g)[:2000] for g in (known_gaps or [])],
-            "directSourceFallbacks": fallbacks,
+            "scopes": [{"kind": kind, "path": path} for (kind, path) in list(scopes)[:limits]],
+            "queries": queries[:limits],
+            "inspectedEntryPoints": entry_points[:limits],
+            "knownGaps": [str(g)[:2000] for g in trace_gaps[:limits]],
+            "directSourceFallbacks": fallbacks[:limits],
         }
         return {"ok": True, **client.post_evidence(body)}
 
@@ -453,12 +574,50 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         ).hexdigest()[:24]
         request = {
             "expectedDecisionRevision": run.decision_revisions.get(args.engineering_rule_id, 0),
-            "idempotencyKey": f"{run.execution_id}:{args.engineering_rule_id}:{digest}",
+            "idempotencyKey": f"decision:{run.thread_id}:{digest}",
             "decision": decision,
         }
         result = client.post_decision(request)
         run.decision_revisions[args.engineering_rule_id] = int(result["decisionRevision"])
         return {"ok": True, **result}
+
+    def persist_human_request(
+        engineering_rule_id: str,
+        question: str,
+        unresolved_fact: str,
+        decision_impact: list[str],
+        resolution_attempts: list[str],
+        criterion_ids: list[str] | None = None,
+        control_type: str = "FREE_TEXT",
+        choices: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        content = {
+            "engineeringRuleId": engineering_rule_id,
+            "criterionIds": criterion_ids or [],
+            "question": question,
+            "unresolvedFact": unresolved_fact,
+            "decisionImpact": decision_impact,
+            "resolutionAttempts": resolution_attempts,
+            "controlType": control_type,
+            "choices": choices or [],
+        }
+        # Native interrupt replays this tool. Stable server-thread/content identity makes the
+        # pre-interrupt request write idempotent across new processes and execution attempts.
+        digest = hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()[:32]
+        return client.post_human_request({
+            **content,
+            "expectedCaseRevision": run.case_revision,
+            "idempotencyKey": f"human:{run.thread_id}:{digest}",
+        })
+
+    def resolved_human_request(result: dict[str, Any]) -> dict[str, Any]:
+        # Resume values are not facts: only the authenticated API ledger is authoritative.
+        context = client.context()
+        run.adopt_context(context)
+        if result["requestId"] in context["openHumanRequestIds"]:
+            raise RuntimeError("human request resumed without an authoritative resolution")
+        return {"ok": True, "requestId": result["requestId"], "caseRevision": run.case_revision,
+                "facts": context["facts"], "instruction": "Continue investigation using the accepted facts; re-evaluate stale decisions."}
 
     def open_human_request(
         engineering_rule_id: str,
@@ -471,25 +630,70 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         choices: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """Ask the customer a material fact only they can supply, after investigating the sources."""
-        result = client.post_human_request(
+        result = persist_human_request(engineering_rule_id, question, unresolved_fact,
+            decision_impact, resolution_attempts, criterion_ids, control_type, choices)
+        interrupt({"requestIds": [result["requestId"]]})
+        return resolved_human_request(result)
+
+    def report_human_fact_unresolvable(
+        engineering_rule_id: str,
+        question: str,
+        unresolved_fact: str,
+        decision_impact: list[str],
+        resolution_attempts: list[str],
+        unavailability_rationale: str,
+        evidence_ids: list[str],
+        criterion_ids: list[str] | None = None,
+        control_type: str = "FREE_TEXT",
+        choices: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        """Report a material human fact proven permanently unobtainable under the contract; do not submit an unknown verdict."""
+        result = persist_human_request(engineering_rule_id, question, unresolved_fact,
+            decision_impact, [*resolution_attempts, unavailability_rationale],
+            criterion_ids, control_type, choices)
+        # A later valid answer replays this native tool. Resolution is server-owned and must
+        # clear the old dependency instead of reapplying the historical blocker claim.
+        context = client.context()
+        run.adopt_context(context)
+        if result["requestId"] in context["openHumanRequestIds"]:
+            pending: dict[str, Any] = {"requestIds": [result["requestId"]]}
+            try:
+                client.report_unresolvable_human_fact({
+                    "humanResolutionRequestId": result["requestId"],
+                    "expectedCaseRevision": run.case_revision,
+                    "expectedRequestRevision": result["requestRevision"],
+                    "rationale": unavailability_rationale,
+                    "evidenceIds": sorted(set(evidence_ids)),
+                })
+            except Exception as error:  # The durable question still requires a native checkpoint.
+                pending["claimRejected"] = {"code": error.code if isinstance(error, AssessmentApiError) else type(error).__name__}
+            interrupt(pending)
+        return resolved_human_request(result)
+
+    def request_finalization() -> dict[str, Any]:
+        """Ask the mechanical Completion Gate to inventory blockers and enter FINALIZING when none remain."""
+        return {"ok": True, **client.request_finalization()}
+
+    def submit_final_report(summary: str, findings: list[dict[str, Any]]) -> dict[str, Any]:
+        """Submit Root-authored report narrative; the API binds accepted decisions, pins and provenance."""
+        args = SubmitFinalReportArgs.model_validate(
+            {"summary": summary, "findings": findings}
+        )
+        result = client.post_final_report(
             {
-                "engineeringRuleId": engineering_rule_id,
-                "criterionIds": criterion_ids or [],
-                "question": question,
-                "unresolvedFact": unresolved_fact,
-                "decisionImpact": decision_impact,
-                "resolutionAttempts": resolution_attempts,
-                "controlType": control_type,
-                "choices": choices or [],
-                "expectedCaseRevision": run.case_revision,
+                "kind": "FINAL_REPORT",
+                "summary": args.summary,
+                "findings": [
+                    {
+                        "engineeringRuleId": finding.engineering_rule_id,
+                        "summary": finding.summary,
+                        "recommendations": finding.recommendations,
+                    }
+                    for finding in args.findings
+                ],
             }
         )
-        return {
-            "ok": True,
-            "waiting": True,
-            "instruction": "The assessment is now waiting for the customer. Stop and end your turn.",
-            **result,
-        }
+        return {"ok": True, **result}
 
     def tool(func, schema: type[BaseModel] | None, name: str) -> StructuredTool:
         return StructuredTool.from_function(
@@ -513,6 +717,9 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         tool(accept_case_fact, AcceptFactArgs, "accept_case_fact"),
         tool(submit_rule_decision, SubmitDecisionArgs, "submit_rule_decision"),
         tool(open_human_request, OpenHumanRequestArgs, "open_human_request"),
+        tool(report_human_fact_unresolvable, ReportUnresolvableHumanFactArgs, "report_human_fact_unresolvable"),
+        tool(request_finalization, _NoArgs, "request_finalization"),
+        tool(submit_final_report, SubmitFinalReportArgs, "submit_final_report"),
     ]
 
 
@@ -526,6 +733,9 @@ ROOT_TOOL_NAMES = (
     "accept_case_fact",
     "submit_rule_decision",
     "open_human_request",
+    "report_human_fact_unresolvable",
+    "request_finalization",
+    "submit_final_report",
 )
 
 

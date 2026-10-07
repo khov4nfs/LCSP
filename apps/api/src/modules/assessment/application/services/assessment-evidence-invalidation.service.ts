@@ -8,6 +8,42 @@ import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class AssessmentEvidenceInvalidation {
+  /** Every decision carries the case revision it reasoned over; a changed case makes
+   * those accepted packets stale without changing their historical semantic content. */
+  async invalidateCaseRevisionInTx(
+    tx: Prisma.TransactionClient,
+    assessmentId: string,
+    caseRevision: number,
+  ) {
+    const decisions = await tx.assessmentRuleDecision.findMany({
+      where: {
+        assessmentId,
+        caseRevision: { lt: caseRevision },
+        state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
+      },
+      select: { decisionId: true, engineeringRuleId: true },
+    });
+    for (const decision of decisions) {
+      await tx.assessmentRuleDecision.update({
+        where: { decisionId: decision.decisionId },
+        data: {
+          state: ASSESSMENT_DECISION_RECORD_STATES.INVALIDATED,
+          invalidatedAt: new Date(),
+        },
+      });
+      await tx.assessmentDecisionCoverage.update({
+        where: {
+          assessmentId_engineeringRuleId: {
+            assessmentId,
+            engineeringRuleId: decision.engineeringRuleId,
+          },
+        },
+        data: { resolutionState: DECISION_RESOLUTION_STATES.INVALIDATED },
+      });
+    }
+    return decisions.map((row) => row.decisionId);
+  }
+
   /**
    * A pinned source changed or evidence was found invalid: mark the evidence, every fact that
    * cites it and every ACCEPTED decision that references either INVALIDATED, and send affected

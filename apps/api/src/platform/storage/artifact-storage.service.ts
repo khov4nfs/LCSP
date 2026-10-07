@@ -70,6 +70,46 @@ export class ArtifactStorageService {
     return reconstructed;
   }
 
+  async writeImmutableArtifact(
+    artifactId: string,
+    content: string,
+  ): Promise<{ manifest: ChunkedManifest; sizeBytes: number }> {
+    const hash = crypto.createHash("sha256").update(content).digest("hex");
+    const chunkId = `${hash}.chunk`;
+    const chunkPath = path.join(this.storagePath, "chunks", chunkId);
+    try {
+      await fs.promises.writeFile(chunkPath, content, {
+        encoding: "utf8",
+        flag: "wx",
+        mode: 0o600,
+      });
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        Reflect.get(error, "code") !== "EEXIST"
+      ) {
+        throw error;
+      }
+      const existing = await fs.promises.readFile(chunkPath, "utf8");
+      if (existing !== content) {
+        throw new Error("Immutable artifact chunk hash collision", {
+          cause: error,
+        });
+      }
+    }
+
+    const manifest: ChunkedManifest = {
+      artifact_id: artifactId,
+      total_size: Buffer.byteLength(content, "utf8"),
+      hash,
+      chunks: [chunkId],
+    };
+    if ((await this.readAndReconstruct(manifest)) !== content) {
+      throw new Error("Stored artifact did not verify");
+    }
+    return { manifest, sizeBytes: manifest.total_size };
+  }
+
   async readJsonArtifactReference(
     reference: string,
   ): Promise<StoredJsonArtifact> {

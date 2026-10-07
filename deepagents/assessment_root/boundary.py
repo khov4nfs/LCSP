@@ -44,11 +44,10 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
 
 @contextlib.contextmanager
 def postgres_checkpointer():
-    """The LangGraph checkpointer keyed by the server thread; absent URL => no persistence."""
+    """Production HITL requires the durable LangGraph checkpointer on the server thread."""
     url = os.getenv("LANGGRAPH_CHECKPOINT_DATABASE_URL")
     if not url:
-        yield None
-        return
+        raise RuntimeError("LANGGRAPH_CHECKPOINT_DATABASE_URL is required for Assessment Root")
     from langgraph.checkpoint.postgres import PostgresSaver
 
     with PostgresSaver.from_conn_string(url) as saver:

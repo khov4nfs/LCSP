@@ -5,6 +5,7 @@ import {
   DOCUMENT_REQUEST_STATUSES,
   DOCUMENT_TYPES,
 } from "@lcsp/contracts/document";
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { CLASSIFICATION_GUARDRAIL_STATUSES } from "@lcsp/contracts/scan";
 import { ConflictException, NotFoundException } from "@nestjs/common";
 
@@ -14,7 +15,7 @@ import type { OutboxRepository } from "../../../../../platform/outbox/outbox.rep
 import { RequestFinalReportCommand } from "./request-final-report.command.js";
 import { RequestFinalReportHandler } from "./request-final-report.handler.js";
 
-type AssessmentRecord = { id: string };
+type AssessmentRecord = { id: string; lifecycleState: string | null };
 type ClassificationResultRecord = { id: string; guardrailStatus: string };
 type CreateDocumentRequestFn = () => Promise<{ id: string }>;
 type AdvisoryLockFn = () => Promise<number>;
@@ -25,7 +26,9 @@ function buildHandler(options?: {
   existing?: { id: string } | null;
 }) {
   const assessment: AssessmentRecord | null =
-    options?.assessment === undefined ? { id: "asmt-1" } : options.assessment;
+    options?.assessment === undefined
+      ? { id: "asmt-1", lifecycleState: null }
+      : options.assessment;
   const evidence: ClassificationResultRecord | null =
     options?.evidence === undefined
       ? {
@@ -119,6 +122,24 @@ describe("RequestFinalReportHandler", () => {
         },
       });
     }
+  });
+
+  it("blocks the legacy final-report request for a canonical assessment", async () => {
+    const { handler, command, findEvidence } = buildHandler({
+      assessment: {
+        id: "asmt-1",
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+      },
+    });
+
+    await expect(handler.execute(command)).rejects.toMatchObject({
+      response: {
+        problem: {
+          code: DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+        },
+      },
+    });
+    expect(findEvidence).not.toHaveBeenCalled();
   });
 
   it("throws CLASSIFICATION_GUARDRAIL_NOT_PASSED when guardrail is degraded", async () => {

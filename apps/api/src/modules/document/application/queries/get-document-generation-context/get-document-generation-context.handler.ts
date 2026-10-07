@@ -1,9 +1,14 @@
-import { NotFoundException } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
+
+import { HttpStatus, NotFoundException } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { EvidenceAcceptanceStatus } from "@prisma/client";
 
 import { cleanString, isRecord } from "@lcsp/contracts/shared";
+import { DOCUMENT_ERROR_CODES, DOCUMENT_TYPES } from "@lcsp/contracts/document";
+import { fromPrismaDocumentType } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type { DocumentGenerationContextDto } from "../../contracts/document/document-generation-context.contract.js";
 import { GetDocumentGenerationContextQuery } from "./get-document-generation-context.query.js";
 
@@ -37,7 +42,12 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
         where: {
           id: documentRequest.assessmentId,
         },
-        select: { id: true, name: true, description: true },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          lifecycleState: true,
+        },
       }),
       this.prisma.classificationResult.findFirst({
         where: {
@@ -53,6 +63,17 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
       }),
     ]);
     if (!assessment) this.notFound("Assessment");
+    if (
+      assessment.lifecycleState !== null &&
+      fromPrismaDocumentType(documentRequest.documentType) ===
+        DOCUMENT_TYPES.finalReport
+    ) {
+      throw problemException(
+        DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+        randomUUID(),
+        { status: HttpStatus.CONFLICT },
+      );
+    }
     if (!classification) this.notFound("ClassificationResult");
 
     const classificationData = isRecord(classification.classificationData)

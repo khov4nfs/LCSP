@@ -8,6 +8,7 @@ import {
 import {
   DOCUMENT_ERROR_CODES,
   DOCUMENT_EVENT_TYPES,
+  DOCUMENT_TYPES,
 } from "@lcsp/contracts/document";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
@@ -15,6 +16,7 @@ import { Prisma } from "@prisma/client";
 import * as crypto from "node:crypto";
 
 import {
+  fromPrismaDocumentType,
   toPrismaAuditResourceType,
   toPrismaAuthDecision,
   toPrismaDocumentRequestStatus,
@@ -61,6 +63,8 @@ export class ProcessDocumentCallbackHandler implements ICommandHandler<ProcessDo
         id: true,
         assessmentId: true,
         correlationId: true,
+        documentType: true,
+        assessment: { select: { lifecycleState: true } },
       },
     });
 
@@ -69,6 +73,17 @@ export class ProcessDocumentCallbackHandler implements ICommandHandler<ProcessDo
         DOCUMENT_ERROR_CODES.documentNotFound,
         command.correlationId,
         { status: HttpStatus.NOT_FOUND },
+      );
+    }
+    if (
+      request.assessment.lifecycleState !== null &&
+      fromPrismaDocumentType(request.documentType) ===
+        DOCUMENT_TYPES.finalReport
+    ) {
+      throw problemException(
+        DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+        command.correlationId,
+        { status: HttpStatus.CONFLICT },
       );
     }
 

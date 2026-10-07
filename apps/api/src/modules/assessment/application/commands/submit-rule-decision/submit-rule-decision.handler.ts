@@ -69,9 +69,18 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         },
       });
       if (replay) {
-        if (replay.requestDigest !== requestDigest) {
+        // Native tool replay reloads the current revision. The immutable semantic packet,
+        // rather than its pre-write CAS value, identifies the already accepted effect.
+        if (canonicalJson(replay.decision) !== canonicalJson(decision)) {
           throw problemException(
             ASSESSMENT_DOMAIN_ERROR_CODES.IDEMPOTENCY_CONFLICT,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (replay.state !== ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.DECISION_REVISION_STALE,
             input.correlationId,
             { status: HttpStatus.CONFLICT },
           );

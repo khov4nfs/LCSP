@@ -1,10 +1,13 @@
-/** MW-qa-003: Manager-only golden path across the direct EngineeringRule API boundary. */
+/** MW-qa-003: Manager evidence path and canonical final-report authority boundary. */
 
 import * as assert from "node:assert/strict";
 
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_STATUS_CODES,
+  ASSESSMENT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { DOCUMENT_REQUEST_STATUSES } from "@lcsp/contracts/document";
+import { DOCUMENT_ERROR_CODES } from "@lcsp/contracts/document";
 import {
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -19,10 +22,14 @@ import {
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import {
+  AssessmentArtifactKind,
+  DocumentType,
+  PrismaClient,
+} from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import { toPrismaDocumentRequestStatus } from "../src/infrastructure/prisma/prisma-enum-mappers.js";
+import { isProblemResult } from "../src/platform/http/filters/error.factory.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
@@ -62,7 +69,7 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
     await prisma?.$disconnect();
   });
 
-  it("lets an approved Manager complete the direct assessment path without legacy profile stages", async () => {
+  it("allows Manager evidence submission while canonical final reports require the immutable artifact path", async () => {
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
       email: "manager@acme.test",
       password: "CorrectHorseBatteryStaple!",
@@ -175,36 +182,46 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
     assert.equal(await prisma.verifiedProfile.count(), 0);
     assert.equal(await prisma.legalRuleMatch.count(), 0);
 
+    const beforeReport = await prisma.assessment.findUniqueOrThrow({
+      where: { id: assessmentId },
+      select: { lifecycleState: true, lifecycleRevision: true },
+    });
     const report = await httpRequest(app)
       .post(`/assessments/${assessmentId}/documents/final-report`)
       .set("Authorization", `Bearer ${token}`)
       .send({});
-    assert.equal(report.status, 202, JSON.stringify(report.body));
-    const documentRequestId = successBody<{ document_request_id: string }>(
-      report,
-    ).document_request_id;
-    await prisma.documentRequest.update({
-      where: { id: documentRequestId },
-      data: {
-        status: toPrismaDocumentRequestStatus(DOCUMENT_REQUEST_STATUSES.ready),
-        documentUrl: "https://example.test/files/manager-final-report.pdf",
-      },
-    });
-
-    const ready = await httpRequest(app)
-      .get(`/assessments/${assessmentId}/documents/${documentRequestId}`)
-      .set("Authorization", `Bearer ${token}`);
-    assert.equal(ready.status, 200);
-    const downloadUrl = successBody<{ download_url: string }>(
-      ready,
-    ).download_url;
-    assert.ok(downloadUrl);
-    assert.doesNotMatch(downloadUrl, /session_token/i);
-    const download = await httpRequest(app).get(downloadUrl);
-    assert.equal(download.status, 302);
+    assert.equal(report.status, 409, JSON.stringify(report.body));
+    const result: unknown = report.body;
+    assert.ok(isProblemResult(result));
+    assert.equal(result.problem.status, report.status);
     assert.equal(
-      download.headers.location,
-      "https://example.test/files/manager-final-report.pdf",
+      result.problem.code,
+      DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+    );
+    assert.equal(
+      await prisma.documentRequest.count({
+        where: { assessmentId, documentType: DocumentType.FINAL_REPORT },
+      }),
+      0,
+    );
+    assert.equal(
+      await prisma.assessmentArtifact.count({
+        where: { assessmentId, kind: AssessmentArtifactKind.FINAL_REPORT },
+      }),
+      0,
+    );
+    assert.equal(
+      await prisma.assessmentRuleDecision.count({ where: { assessmentId } }),
+      0,
+    );
+    const afterReport = await prisma.assessment.findUniqueOrThrow({
+      where: { id: assessmentId },
+      select: { lifecycleState: true, lifecycleRevision: true },
+    });
+    assert.deepEqual(afterReport, beforeReport);
+    assert.notEqual(
+      afterReport.lifecycleState,
+      ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
     );
 
     const manager = await prisma.user.findUniqueOrThrow({

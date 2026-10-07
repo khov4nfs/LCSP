@@ -50,6 +50,7 @@ describe("durable acknowledged runtime controls", () => {
   let assessmentId: string;
   let runId: string;
   let threadId: string;
+  let fixtureCreated = false;
 
   const registerRun = async (id: string, logicalRunId = id) => {
     await prisma.assessmentRuntimeTurn.create({
@@ -132,6 +133,7 @@ describe("durable acknowledged runtime controls", () => {
         failedLoginCount: 0,
       },
     });
+    fixtureCreated = true;
   });
   beforeEach(async () => {
     assessmentId = randomUUID();
@@ -158,17 +160,21 @@ describe("durable acknowledged runtime controls", () => {
     await registerRun(runId);
   });
   afterAll(async () => {
-    await prisma.assessmentEvent.deleteMany({
-      where: { assessmentId: { in: assessmentIds } },
-    });
-    await prisma.outboxMessage.deleteMany({
-      where: { aggregateId: { in: assessmentIds } },
-    });
-    await prisma.assessment.deleteMany({
-      where: { id: { in: assessmentIds }, ownerId },
-    });
-    await prisma.user.delete({ where: { id: ownerId } });
-    await prisma.$disconnect();
+    try {
+      if (!fixtureCreated) return;
+      await prisma.assessmentEvent.deleteMany({
+        where: { assessmentId: { in: assessmentIds } },
+      });
+      await prisma.outboxMessage.deleteMany({
+        where: { aggregateId: { in: assessmentIds } },
+      });
+      await prisma.assessment.deleteMany({
+        where: { id: { in: assessmentIds }, ownerId },
+      });
+      await prisma.user.deleteMany({ where: { id: ownerId } });
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 
   it("queues one exact Stop and fails closed for unavailable Continue authority", async () => {
