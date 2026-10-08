@@ -1,0 +1,1365 @@
+{
+  "runId": "31572b33-a7fa-464f-adc5-1aa3ed0cb21b",
+  "phases": {
+    "QUIESCE": {
+      "cancelled": 0,
+      "byEventType": {}
+    },
+    "ARCHIVE": {
+      "archivedBySource": {
+        "ASSESSMENT": 0,
+        "ASSESSMENT_INTERVIEW_THREAD": 0,
+        "ENGINEERING_RULE_ASSESSMENT": 0,
+        "ASSESSMENT_RUNTIME_TURN": 0,
+        "ASSESSMENT_RUNTIME_EVENT": 0,
+        "PIPELINE_RECONCILIATION": 0,
+        "REPOSITORY_SCAN_JOB": 0,
+        "TECHNICAL_EVIDENCE_REPORT": 0,
+        "TECHNICAL_PROFILE": 0,
+        "AI_USAGE_FLOW": 0,
+        "CONFLICT_RECORD": 0,
+        "TARGETED_REANALYSIS_REQUEST": 0,
+        "TARGETED_REANALYSIS_CHECKPOINT": 0,
+        "VERIFIED_AGENT_EPISODE": 0,
+        "VERIFIED_PROFILE": 0,
+        "CLASSIFICATION_RESULT": 0,
+        "CLASSIFICATION_REVIEW_REQUEST": 0,
+        "LEGAL_RULE_MATCH": 0,
+        "DECISION_MODEL_DECISION": 0,
+        "DECISION_MODEL_EVENT": 0,
+        "LEGAL_RULE_CATALOG_VERSION": 0,
+        "LEGAL_RULE": 0,
+        "RULE_APPROVAL_RECORD": 0,
+        "CORPUS_APPROVAL_RECORD": 0,
+        "CORPUS_DISCARD_RECEIPT": 0,
+        "CORPUS_PREPARATION": 0
+      },
+      "reports": {
+        "archived": 0,
+        "byClass": {},
+        "byReason": {},
+        "undetermined": [],
+        "copyFailed": []
+      },
+      "filesystemArtifacts": 0,
+      "closedInFlight": {
+        "ASSESSMENT_RUNTIME_TURN": 0,
+        "TARGETED_REANALYSIS_REQUEST": 0,
+        "TARGETED_REANALYSIS_CHECKPOINT": 0,
+        "REPOSITORY_SCAN_JOB": 0,
+        "DOCUMENT_REQUEST": 0
+      },
+      "terminalAssessmentsArchived": 0
+    },
+    "BACKFILL": {
+      "backfilled": 0,
+      "pinnedSnapshot": 0,
+      "byReason": {},
+      "skipped": 0
+    }
+  },
+  "validation": {
+    "runId": "31572b33-a7fa-464f-adc5-1aa3ed0cb21b",
+    "kind": "REHEARSAL",
+    "generatedAt": "2026-10-08T08:00:37.629Z",
+    "phases": [
+      "PREFLIGHT",
+      "QUIESCE",
+      "ARCHIVE",
+      "BACKFILL"
+    ],
+    "checks": [
+      {
+        "id": "ACTIVE_LEGAL_PORTFOLIO",
+        "title": "Exactly one ACTIVE legal portfolio with engineering rules is pinned from",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "activeCount": 1,
+          "id": "163aa7ca-57f3-4562-8054-44dcd8d9ca87",
+          "version": "w6-portfolio",
+          "engineeringRuleCount": 3
+        },
+        "expected": {
+          "activeCount": 1,
+          "engineeringRuleCount": ">0"
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.ASSESSMENT",
+        "title": "Every live ASSESSMENT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 60,
+          "archived": 60,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.ASSESSMENT_INTERVIEW_THREAD",
+        "title": "Every live ASSESSMENT_INTERVIEW_THREAD row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 36,
+          "archived": 36,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.ENGINEERING_RULE_ASSESSMENT",
+        "title": "Every live ENGINEERING_RULE_ASSESSMENT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 12,
+          "archived": 12,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.ASSESSMENT_RUNTIME_TURN",
+        "title": "Every live ASSESSMENT_RUNTIME_TURN row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 60,
+          "archived": 60,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.ASSESSMENT_RUNTIME_EVENT",
+        "title": "Every live ASSESSMENT_RUNTIME_EVENT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 120,
+          "archived": 120,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.PIPELINE_RECONCILIATION",
+        "title": "Every live PIPELINE_RECONCILIATION row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 15,
+          "archived": 15,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.REPOSITORY_SCAN_JOB",
+        "title": "Every live REPOSITORY_SCAN_JOB row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 42,
+          "archived": 42,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.TECHNICAL_EVIDENCE_REPORT",
+        "title": "Every live TECHNICAL_EVIDENCE_REPORT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 32,
+          "archived": 32,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.TECHNICAL_PROFILE",
+        "title": "Every live TECHNICAL_PROFILE row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 32,
+          "archived": 32,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.AI_USAGE_FLOW",
+        "title": "Every live AI_USAGE_FLOW row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 22,
+          "archived": 22,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.CONFLICT_RECORD",
+        "title": "Every live CONFLICT_RECORD row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 22,
+          "archived": 22,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.TARGETED_REANALYSIS_REQUEST",
+        "title": "Every live TARGETED_REANALYSIS_REQUEST row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 7,
+          "archived": 7,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.TARGETED_REANALYSIS_CHECKPOINT",
+        "title": "Every live TARGETED_REANALYSIS_CHECKPOINT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 7,
+          "archived": 7,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.VERIFIED_AGENT_EPISODE",
+        "title": "Every live VERIFIED_AGENT_EPISODE row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 10,
+          "archived": 10,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.VERIFIED_PROFILE",
+        "title": "Every live VERIFIED_PROFILE row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 22,
+          "archived": 22,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.CLASSIFICATION_RESULT",
+        "title": "Every live CLASSIFICATION_RESULT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 22,
+          "archived": 22,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.CLASSIFICATION_REVIEW_REQUEST",
+        "title": "Every live CLASSIFICATION_REVIEW_REQUEST row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 22,
+          "archived": 22,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.LEGAL_RULE_MATCH",
+        "title": "Every live LEGAL_RULE_MATCH row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 22,
+          "archived": 22,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.DECISION_MODEL_DECISION",
+        "title": "Every live DECISION_MODEL_DECISION row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 9,
+          "archived": 9,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.DECISION_MODEL_EVENT",
+        "title": "Every live DECISION_MODEL_EVENT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 9,
+          "archived": 9,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.LEGAL_RULE_CATALOG_VERSION",
+        "title": "Every live LEGAL_RULE_CATALOG_VERSION row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 1,
+          "archived": 1,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.LEGAL_RULE",
+        "title": "Every live LEGAL_RULE row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 3,
+          "archived": 3,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.RULE_APPROVAL_RECORD",
+        "title": "Every live RULE_APPROVAL_RECORD row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 1,
+          "archived": 1,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.CORPUS_APPROVAL_RECORD",
+        "title": "Every live CORPUS_APPROVAL_RECORD row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 1,
+          "archived": 1,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.CORPUS_DISCARD_RECEIPT",
+        "title": "Every live CORPUS_DISCARD_RECEIPT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 1,
+          "archived": 1,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.CORPUS_PREPARATION",
+        "title": "Every live CORPUS_PREPARATION row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 1,
+          "archived": 1,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.DOCUMENT_REQUEST",
+        "title": "Every live DOCUMENT_REQUEST row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 36,
+          "archived": 36,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_COVERAGE.READINESS_EXPORT",
+        "title": "Every live READINESS_EXPORT row is archived with an identical hash",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "live": 26,
+          "archived": 26,
+          "missing": 0,
+          "mismatched": 0
+        },
+        "expected": {
+          "missing": 0,
+          "mismatched": 0
+        }
+      },
+      {
+        "id": "ARCHIVE_PAYLOAD_HASHES",
+        "title": "Every archived payload still hashes to its recorded sha256",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "ARCHIVE_RECORD_IDS",
+        "title": "Every archive record id equals its deterministic definition",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "ARCHIVE_ASSESSMENT_FK",
+        "title": "Archived ASSESSMENT records point at their own assessment",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "CLOSURE.ASSESSMENT_RUNTIME_TURN",
+        "title": "No ASSESSMENT_RUNTIME_TURN row is still in flight; closed rows are archived first",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "inFlightRemaining": 0,
+          "closed_ok": 18,
+          "closed_bad": 0
+        },
+        "expected": {
+          "inFlightRemaining": 0,
+          "closed_bad": 0
+        }
+      },
+      {
+        "id": "CLOSURE.TARGETED_REANALYSIS_REQUEST",
+        "title": "No TARGETED_REANALYSIS_REQUEST row is still in flight; closed rows are archived first",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "inFlightRemaining": 0,
+          "closed_ok": 2,
+          "closed_bad": 0
+        },
+        "expected": {
+          "inFlightRemaining": 0,
+          "closed_bad": 0
+        }
+      },
+      {
+        "id": "CLOSURE.TARGETED_REANALYSIS_CHECKPOINT",
+        "title": "No TARGETED_REANALYSIS_CHECKPOINT row is still in flight; closed rows are archived first",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "inFlightRemaining": 0,
+          "closed_ok": 2,
+          "closed_bad": 0
+        },
+        "expected": {
+          "inFlightRemaining": 0,
+          "closed_bad": 0
+        }
+      },
+      {
+        "id": "CLOSURE.REPOSITORY_SCAN_JOB",
+        "title": "No REPOSITORY_SCAN_JOB row is still in flight; closed rows are archived first",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "inFlightRemaining": 0,
+          "closed_ok": 5,
+          "closed_bad": 0
+        },
+        "expected": {
+          "inFlightRemaining": 0,
+          "closed_bad": 0
+        }
+      },
+      {
+        "id": "CLOSURE.DOCUMENT_REQUEST",
+        "title": "No DOCUMENT_REQUEST row is still in flight; closed rows are archived first",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "inFlightRemaining": 0,
+          "closed_ok": 6,
+          "closed_bad": 0
+        },
+        "expected": {
+          "inFlightRemaining": 0,
+          "closed_bad": 0
+        }
+      },
+      {
+        "id": "OUTBOX_NO_UNDELIVERED_LEGACY_MESSAGE",
+        "title": "No retired V1 command or event can still be delivered",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "OUTBOX_NO_UNCLASSIFIED_UNDELIVERED_MESSAGE",
+        "title": "Every undelivered message type is positively classified (fail closed)",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "OUTBOX_CANCELLED_ARCHIVED_AND_AUDITED",
+        "title": "Every cancelled legacy message has an archived original and an audit event",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "cancelled": 72,
+          "archived": 72,
+          "audited": 72
+        },
+        "expected": "cancelled = archived = audited"
+      },
+      {
+        "id": "ASSESSMENT_SUMMARY_COVERAGE",
+        "title": "Each archived V1 assessment has exactly one summary of the right disposition",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "v1_assessments": 60,
+          "summaries": 60,
+          "terminal_ok": 30,
+          "non_terminal_ok": 30,
+          "owner_mismatch": 0,
+          "digest_mismatch": 0,
+          "count_mismatch": 0
+        },
+        "expected": "summaries = archived assessments = terminal_ok + non_terminal_ok"
+      },
+      {
+        "id": "ASSESSMENT_SUMMARY_IDENTITY",
+        "title": "Tenant, record count and per-assessment digest match the archive",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "ownerMismatch": 0,
+          "countMismatch": 0,
+          "digestMismatch": 0
+        },
+        "expected": {
+          "ownerMismatch": 0,
+          "countMismatch": 0,
+          "digestMismatch": 0
+        }
+      },
+      {
+        "id": "TERMINAL_V1_HAS_NO_V2_STATE",
+        "title": "Archived terminal V1 assessments have no canonical lifecycle, runtime or case",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_HAS_LIFECYCLE",
+        "title": "Every backfilled assessment has canonical state",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_HAS_RUNTIME",
+        "title": "Every backfilled assessment has one runtime",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_THREAD_MATCHES_SUMMARY",
+        "title": "Runtime thread equals the summary's fresh V2 thread",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_UNIQUE_THREADS",
+        "title": "No two runtimes share a thread",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_NO_V1_THREAD_REUSE",
+        "title": "No V2 thread reuses a V1 runtime-turn thread id",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_HAS_PORTFOLIO_PIN",
+        "title": "Every backfilled case pins the ACTIVE legal portfolio",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_PIN_IS_VALID_SNAPSHOT",
+        "title": "A pinned snapshot belongs to the assessment and matches its commit",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_COVERAGE_COMPLETE",
+        "title": "A pinned case has one coverage row per engineering rule",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "BACKFILL_PROMOTES_NO_V1_SEMANTICS",
+        "title": "No V1 decision, fact, evidence or question was promoted into a PREPARING assessment",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "MIGRATION_ENQUEUED_NO_ROOT_COMMAND",
+        "title": "No migration run enqueued an Assessment Root command: re-evaluation is never a migration side effect",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "UNSTARTED_ASSESSMENTS_HAVE_NO_AI_EFFECT",
+        "title": "Migrated assessments nobody started have no Root command, lease, Root event, usage or reservation",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "unstarted": 30,
+          "withEffect": 0
+        },
+        "expected": {
+          "withEffect": 0
+        }
+      },
+      {
+        "id": "REEVALUATION_LEDGER_MATCHES_ROOT_COMMANDS",
+        "title": "Every operator re-evaluation has exactly one Root command, and every re-evaluation Root command has a ledger row",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.ASSESSMENT",
+        "title": "Sampled ASSESSMENT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.ASSESSMENT_INTERVIEW_THREAD",
+        "title": "Sampled ASSESSMENT_INTERVIEW_THREAD rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.ENGINEERING_RULE_ASSESSMENT",
+        "title": "Sampled ENGINEERING_RULE_ASSESSMENT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 12,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.ASSESSMENT_RUNTIME_TURN",
+        "title": "Sampled ASSESSMENT_RUNTIME_TURN rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.ASSESSMENT_RUNTIME_EVENT",
+        "title": "Sampled ASSESSMENT_RUNTIME_EVENT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.PIPELINE_RECONCILIATION",
+        "title": "Sampled PIPELINE_RECONCILIATION rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 15,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.REPOSITORY_SCAN_JOB",
+        "title": "Sampled REPOSITORY_SCAN_JOB rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.TECHNICAL_EVIDENCE_REPORT",
+        "title": "Sampled TECHNICAL_EVIDENCE_REPORT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.TECHNICAL_PROFILE",
+        "title": "Sampled TECHNICAL_PROFILE rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.AI_USAGE_FLOW",
+        "title": "Sampled AI_USAGE_FLOW rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 22,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.CONFLICT_RECORD",
+        "title": "Sampled CONFLICT_RECORD rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 22,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.TARGETED_REANALYSIS_REQUEST",
+        "title": "Sampled TARGETED_REANALYSIS_REQUEST rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 7,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.TARGETED_REANALYSIS_CHECKPOINT",
+        "title": "Sampled TARGETED_REANALYSIS_CHECKPOINT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 7,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.VERIFIED_AGENT_EPISODE",
+        "title": "Sampled VERIFIED_AGENT_EPISODE rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 10,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.VERIFIED_PROFILE",
+        "title": "Sampled VERIFIED_PROFILE rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 22,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.CLASSIFICATION_RESULT",
+        "title": "Sampled CLASSIFICATION_RESULT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 22,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.CLASSIFICATION_REVIEW_REQUEST",
+        "title": "Sampled CLASSIFICATION_REVIEW_REQUEST rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 22,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.LEGAL_RULE_MATCH",
+        "title": "Sampled LEGAL_RULE_MATCH rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 22,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.DECISION_MODEL_DECISION",
+        "title": "Sampled DECISION_MODEL_DECISION rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 9,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.DECISION_MODEL_EVENT",
+        "title": "Sampled DECISION_MODEL_EVENT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 9,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.LEGAL_RULE_CATALOG_VERSION",
+        "title": "Sampled LEGAL_RULE_CATALOG_VERSION rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 1,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.LEGAL_RULE",
+        "title": "Sampled LEGAL_RULE rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 3,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.RULE_APPROVAL_RECORD",
+        "title": "Sampled RULE_APPROVAL_RECORD rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 1,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.CORPUS_APPROVAL_RECORD",
+        "title": "Sampled CORPUS_APPROVAL_RECORD rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 1,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.CORPUS_DISCARD_RECEIPT",
+        "title": "Sampled CORPUS_DISCARD_RECEIPT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 1,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.CORPUS_PREPARATION",
+        "title": "Sampled CORPUS_PREPARATION rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 1,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.DOCUMENT_REQUEST",
+        "title": "Sampled DOCUMENT_REQUEST rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "SAMPLED_RECONCILIATION.READINESS_EXPORT",
+        "title": "Sampled READINESS_EXPORT rows re-hash and match their live source independently",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "sampled": 25,
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        },
+        "expected": {
+          "hashMismatches": 0,
+          "contentMismatches": 0
+        }
+      },
+      {
+        "id": "V2_ARTIFACTS_UNCHANGED_BY_MIGRATION",
+        "title": "The migration never wrote, replaced or reconstructed a V2 AssessmentArtifact",
+        "status": "PASS",
+        "blocking": false,
+        "observed": {
+          "before": {
+            "rows": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "now": {
+            "rows": 0,
+            "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "expected": "identical while the rollback boundary is open"
+      },
+      {
+        "id": "SHARED_LEARNING_STORE_NOT_SEEDED",
+        "title": "No V1 memory was promoted into the shared learning store",
+        "status": "PASS",
+        "blocking": false,
+        "observed": null,
+        "expected": "absent or empty at migration time"
+      },
+      {
+        "id": "RESTORE_POINT_RECORDED",
+        "title": "A pre-first-V2-write restore point is recorded for this cutover",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "ref": "pg_dump:20261008075952_82952/restore-point.dump",
+          "digest": "01550f89cfbf4fcbf57455c39be8310a1f5f0fe86f5f722f584c1d4a02c63b20"
+        },
+        "expected": "ref and digest recorded"
+      },
+      {
+        "id": "RESTORE_POINT_RESTORE_VERIFIED",
+        "title": "The restore point was restored and compared successfully",
+        "status": "PASS",
+        "blocking": true,
+        "observed": "2026-10-08T08:00:09.360Z",
+        "expected": "verified before the boundary closes"
+      },
+      {
+        "id": "REPORT_LOCATIONS_RESOLVED",
+        "title": "No report reference points at a location nobody configured or attested",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "REPORT_NO_PRESENT_BUT_UNCOPIED_ARTIFACT",
+        "title": "No persisted legacy artifact is left uncopied",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "REPORT_COPIED_AND_BLOBS_AGREE",
+        "title": "Every copied artifact has a verified blob and every blob belongs to a copied artifact",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "REPORT_COPIED_COUNT_MATCHES_BLOBS",
+        "title": "Byte-copied artifact records equal stored blobs",
+        "status": "PASS",
+        "blocking": true,
+        "observed": {
+          "copied": 2,
+          "blobs": 2
+        },
+        "expected": "copied = blobs"
+      },
+      {
+        "id": "REPORT_BLOB_BYTES_VERIFIED",
+        "title": "Every stored blob re-reads from storage with the recorded hash and size",
+        "status": "PASS",
+        "blocking": true,
+        "observed": 0,
+        "expected": 0
+      },
+      {
+        "id": "REPORT_INVALID_OR_ORPHANED_REFERENCES",
+        "title": "References that point nowhere are accounted for, never repaired or invented",
+        "status": "WARN",
+        "blocking": false,
+        "observed": 2,
+        "expected": "accounted (non-blocking)"
+      }
+    ],
+    "summary": {
+      "pass": 92,
+      "fail": 0,
+      "warn": 1,
+      "blockingFailures": 0
+    },
+    "artifactReconciliation": {
+      "total": 62,
+      "byClass": {
+        "ARTIFACT_PRESENT_AND_COPIED": 18,
+        "ARTIFACT_PRESENT_BUT_COPY_FAILED": 0,
+        "NO_LEGACY_ARTIFACT_PRESENT": 21,
+        "METADATA_ONLY_LEGACY_RECORD": 21,
+        "INVALID_OR_ORPHANED_LEGACY_REFERENCE": 2
+      },
+      "byReason": {
+        "COPIED_AND_VERIFIED": 2,
+        "INLINE_CONTENT_ARCHIVED": 16,
+        "PLACEHOLDER_UPLOADER_NEVER_PERSISTED": 21,
+        "OPERATOR_ATTESTED_NON_PERSISTING": 0,
+        "NO_ARTIFACT_REFERENCE": 9,
+        "READY_WITHOUT_REFERENCE": 2,
+        "NO_INLINE_CONTENT": 10,
+        "MALFORMED_REFERENCE": 0,
+        "UNSUPPORTED_REFERENCE_SCHEME": 0,
+        "REFERENCE_OUTSIDE_ALLOWED_ROOT": 0,
+        "REFERENCE_TARGET_MISSING": 2,
+        "LOCATION_NOT_CONFIGURED": 0,
+        "COPY_IO_ERROR": 0,
+        "COPY_SIZE_LIMIT_EXCEEDED": 0,
+        "COPY_VERIFICATION_MISMATCH": 0
+      },
+      "uploaderEvidence": {
+        "sourcePath": "deepagents/tools/common/capabilities/reporting/report/delivery/storage_uploader.py",
+        "baselineCommit": "87ae8c4eb358c17318e71a53c3125d75975b9d98",
+        "sha256": "e3789784a7101ab16f1b552a27ff70420a2c38e41a6661e382076f8362eaf842",
+        "behavior": "PLACEHOLDER_RETURNS_MOCK_URL_WITHOUT_PERSISTING",
+        "callers": [
+          "deepagents/tools/common/capabilities/reporting/gap/gap_analysis_boundary.py",
+          "deepagents/tools/common/capabilities/reporting/report/final_report/final_report_boundary.py"
+        ]
+      },
+      "limitation": "The V1 report uploader was a placeholder that returned a mock URL without persisting bytes. Historical V1 reports are therefore archived as metadata and classified; no historical artifact was regenerated, fabricated, or given a synthetic hash or storage reference."
+    }
+  }
+}

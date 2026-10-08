@@ -9,15 +9,12 @@ import {
   Param,
   Post,
   Req,
-  Res,
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
-import type { Response } from "express";
 
-import { createCorrelationId } from "../../../../platform/security/crypto.utils.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
@@ -25,11 +22,8 @@ import { resultEnvelope } from "../../../../platform/http/filters/error.factory.
 import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
 import { PinSnapshotCommand } from "../../application/commands/pin-snapshot/pin-snapshot.command.js";
-import { TriggerScanCommand } from "../../application/commands/trigger-scan/trigger-scan.command.js";
 import type { PinSnapshotDto } from "../../application/contracts/github-integration/pin-snapshot.contract.js";
-import type { TriggerScanDto } from "../../application/contracts/github-integration/trigger-scan.contract.js";
 import { PinSnapshotRequest } from "./dto/pin-snapshot.request.js";
-import { TriggerScanRequest } from "./dto/trigger-scan.request.js";
 import {
   GitHubCliRepositoryConnectionRequest,
   GitHubRepositoryDiscoveryRequest,
@@ -46,18 +40,14 @@ import {
   ACTIVE_PROVIDER_CREDENTIAL_RESOLVER,
   type ActiveProviderCredentialResolver,
 } from "../../application/ports/security/active-provider-credential.resolver.js";
-import {
-  ScanTriggerGuard,
-  type ScanTriggerRequestContext,
-} from "./scan-trigger.guard.js";
 
-interface GitHubIntegrationRequest extends ScanTriggerRequestContext {
+interface GitHubIntegrationRequest {
   rbacContext?: RbacRequestContext;
   correlationId?: string;
 }
 
 /**
- * Exposes GitHub App connection, repository snapshot pinning, and scan-trigger HTTP operations.
+ * Exposes GitHub repository connection, credential and snapshot pinning HTTP operations (V1 scan triggering is retired).
  */
 @Controller()
 export class GitHubIntegrationController {
@@ -268,43 +258,5 @@ export class GitHubIntegrationController {
         ),
       ),
     );
-  }
-
-  /**
-   * Triggers a repository scan either from a trusted worker key or a manually RBAC-authorized user request.
-   *
-   * @param assessmentId - Assessment whose pinned snapshot should be scanned.
-   * @param body - Snapshot identifier, idempotency key, and optional requested trigger source.
-   * @param request - Guard-enriched request containing trusted/manual source and optional RBAC context.
-   * @param response - Express response used to distinguish newly created jobs (201) from idempotent duplicates (200).
-   * @returns Standard result envelope containing scan-job trigger metadata.
-   */
-  @Post("assessments/:assessmentId/scan-jobs")
-  @UseGuards(ScanTriggerGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer)
-  async triggerScan(
-    @Param("assessmentId") assessmentId: string,
-    @Body() body: TriggerScanRequest,
-    @Req() request: GitHubIntegrationRequest,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const context = request.rbacContext;
-    const result = await this.commandBus.execute<
-      TriggerScanCommand,
-      TriggerScanDto
-    >(
-      new TriggerScanCommand(
-        assessmentId,
-        body.snapshot_id,
-        request.scanTriggerSource as TriggerScanCommand["triggerSource"],
-        body.idempotency_key,
-        context?.userId ?? null,
-        context?.role ?? null,
-        context?.scope ?? undefined,
-        request.correlationId ?? createCorrelationId(),
-      ),
-    );
-    response.status(result.is_new ? 201 : 200);
-    return resultEnvelope(result);
   }
 }

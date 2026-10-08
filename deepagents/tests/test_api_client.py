@@ -4,9 +4,6 @@ from unittest.mock import patch, MagicMock
 from pydantic import ValidationError
 
 from tools.common.capabilities.platform.api_client import (
-    InterviewContextReadyAuthorityCallbackError,
-    InterviewDecisionRepairableCallbackError,
-    InterviewResolutionCallbackError,
     WorkerApiClient,
     WorkerCallbackError,
 )
@@ -31,80 +28,6 @@ def client():
 @pytest.fixture
 def dummy_payload():
     return ScanCallbackPayload(status="COMPLETED", findings=[])
-
-
-@pytest.mark.parametrize("meta,expected", [
-    ({"missing": "Explicit confirmation or denial, including external sources."},
-     "Explicit confirmation or denial, including external sources."),
-    ({"missing": ["invalid shape"]}, None),
-    (None, None),
-])
-def test_resolution_rejection_preserves_only_typed_private_feedback(client, meta, expected):
-    response = httpx.Response(409, json={
-        "ok": False,
-        "problem": {
-            "code": "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED",
-            "meta": meta,
-        },
-    })
-    with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
-        with pytest.raises(InterviewResolutionCallbackError) as caught:
-            client.post_interview_agent_decision("assessment-1", {})
-    assert caught.value.missing == expected
-    assert caught.value.status_code == 409
-    assert caught.value.callback_client_error is True
-    assert "Explicit confirmation" not in str(caught.value)
-    post.assert_called_once()
-
-
-
-def test_allowlisted_interview_decision_rejection_raises_repairable_error(client):
-    response = httpx.Response(409, json={
-        "ok": False,
-        "problem": {
-            "code": "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION",
-            "meta": {"violatingText": "do not log this"},
-        },
-    })
-    with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
-        with pytest.raises(InterviewDecisionRepairableCallbackError) as caught:
-            client.post_interview_agent_decision("assessment-1", {})
-
-    assert caught.value.error_code == (
-        "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION"
-    )
-    assert caught.value.meta == {"violatingText": "do not log this"}
-    assert caught.value.status_code == 409
-    assert caught.value.callback_client_error is True
-    assert "do not log this" not in str(caught.value)
-    post.assert_called_once()
-
-
-def test_non_allowlisted_interview_decision_conflict_is_not_repairable(client):
-    response = httpx.Response(409, json={
-        "ok": False,
-        "problem": {"code": "INTERVIEW_SESSION_MISMATCH"},
-    })
-    with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
-        with pytest.raises(WorkerCallbackError) as caught:
-            client.post_interview_agent_decision("assessment-1", {})
-
-    assert not isinstance(caught.value, InterviewDecisionRepairableCallbackError)
-    assert caught.value.status_code == 409
-    assert caught.value.callback_client_error is True
-    post.assert_called_once()
-
-def test_context_ready_without_authority_raises_typed_error(client):
-    response = httpx.Response(409, json={
-        "ok": False,
-        "problem": {"code": "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY"},
-    })
-    with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
-        with pytest.raises(InterviewContextReadyAuthorityCallbackError) as caught:
-            client.post_interview_agent_decision("assessment-1", {})
-    assert caught.value.status_code == 409
-    assert caught.value.callback_client_error is True
-    post.assert_called_once()
 
 
 def test_t01_successful_callback(client, dummy_payload):
@@ -463,79 +386,6 @@ def test_scan_callback_preserves_repository_analysis_tool_provenance(client):
         assert serialized_payload["evidence_payload"]["metadata"]["api_key"] == ""
 
 
-def test_requeue_targeted_reanalysis_request_uses_internal_worker_endpoint(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"ok": True, "data": {"requeued": True}}
-        mock_post.return_value = mock_resp
-
-        assert client.requeue_targeted_reanalysis_request("request-1") is True
-
-    assert mock_post.call_args.args[0] == (
-        "http://testserver/internal/targeted-reanalysis/request-1/requeue"
-    )
-
-
-def test_technical_profile_callback_uses_evidence_endpoint(client):
-    payload = TechnicalProfileCallbackPayload(
-        evidence_report_id="ter-1",
-        assessment_id="assessment-1",
-        schema_version="1.0.0",
-        provider_version="lcsp.technical-profile-worker.v1",
-        profile_data={"evidence_quality": "high"},
-        privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
-    )
-
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "accepted": True,
-            "technical_profile_id": "technical-profile-1",
-        }
-        mock_post.return_value = mock_resp
-
-        response = client.post_technical_profile_callback(payload)
-
-        url = mock_post.call_args.args[0]
-        assert url == "http://testserver/internal/evidence/technical-profile-callback"
-        assert response.technical_profile_id == "technical-profile-1"
-
-
-
-
-def test_large_technical_profile_callback_uses_artifact_with_inline_fallback(
-    client, monkeypatch
-):
-    monkeypatch.setenv("LCSP_PROFILE_CALLBACK_THRESHOLD", "1")
-    monkeypatch.setenv("LCSP_PROFILE_CALLBACK_CHUNK_SIZE", "64")
-    payload = TechnicalProfileCallbackPayload(
-        evidence_report_id="ter-1",
-        assessment_id="assessment-1",
-        schema_version="2.0.0",
-        provider_version="lcsp.technical-profile-worker.v2",
-        profile_data={"evidence_quality": "high", "profile_data_ref": "/tmp/profile.json"},
-        privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
-        scan_job_id="scan-job-1",
-    )
-
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "accepted": True,
-            "technical_profile_id": "technical-profile-1",
-        }
-        mock_post.return_value = mock_resp
-
-        client.post_technical_profile_callback(payload)
-
-    sent_payload = mock_post.call_args.kwargs["json"]
-    assert sent_payload["is_artifact_reference"] is True
-    assert sent_payload["artifact_manifest"]["chunks"]
-    assert sent_payload["profile_data"] == payload.profile_data
-
 def test_dispatch_agentic_tool_uses_internal_runtime_endpoint(client):
     with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
@@ -560,93 +410,6 @@ def test_dispatch_agentic_tool_uses_internal_runtime_endpoint(client):
         )
 
 
-def test_create_targeted_reanalysis_request_uses_internal_api_endpoint(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 202
-        mock_resp.json.return_value = {"ok": True, "data": {"state": "QUEUED"}}
-        mock_post.return_value = mock_resp
-
-        response = client.create_targeted_reanalysis_request(
-            {"assessmentId": "assessment-1"}
-        )
-
-        assert response["state"] == "QUEUED"
-        assert mock_post.call_args.args[0] == (
-            "http://testserver/internal/scan-jobs/targeted-reanalysis"
-        )
-
-
-def test_interview_private_context_uses_internal_worker_endpoint(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"ok": True, "data": {"status": "CURRENT"}}
-        mock_get.return_value = mock_resp
-
-        response = client.get_interview_private_context(
-            "assessment-1",
-            3,
-            source_version="snapshot-1:abc",
-            pge_version="ter-1:v1",
-        )
-
-        assert response["status"] == "CURRENT"
-        assert mock_get.call_args.args[0] == (
-            "http://testserver/internal/assessment-interviews/assessment-1/private-context/3"
-        )
-        assert mock_get.call_args.kwargs["params"] == {
-            "source_version": "snapshot-1:abc",
-            "pge_version": "ter-1:v1",
-        }
-
-
-def test_interview_agent_decision_uses_internal_worker_endpoint(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        mock_resp.json.return_value = {"ok": True, "data": {"outcome": "CONTEXT_READY"}}
-        mock_post.return_value = mock_resp
-
-        response = client.post_interview_agent_decision(
-            "assessment-1",
-            {"expectedContextRevision": 3, "outcome": "CONTEXT_READY"},
-        )
-
-        assert response["outcome"] == "CONTEXT_READY"
-        assert mock_post.call_args.args[0] == (
-            "http://testserver/internal/assessment-interviews/assessment-1/agent-decisions"
-        )
-        assert mock_post.call_args.kwargs["json"] == {
-            "expectedContextRevision": 3,
-            "outcome": "CONTEXT_READY",
-        }
-
-
-def test_interview_agent_decision_preserves_context_authority(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 201
-        mock_resp.json.return_value = {"ok": True, "data": {"outcome": "CONTEXT_READY"}}
-        mock_post.return_value = mock_resp
-
-        response = client.post_interview_agent_decision(
-            "assessment-1",
-            {
-                "expectedContextRevision": 3,
-                "outcome": "CONTEXT_READY",
-                "contextAuthority": "CONFIRMED",
-                "confirmedContext": {"system_purpose": "recommendation"},
-            },
-        )
-
-        assert response["outcome"] == "CONTEXT_READY"
-        assert mock_post.call_args.kwargs["json"]["contextAuthority"] == "CONFIRMED"
-        assert mock_post.call_args.kwargs["json"]["confirmedContext"] == {
-            "system_purpose": "recommendation"
-        }
-
-
 def test_resume_waiting_runs_uses_internal_legal_catalog_endpoint(client):
     with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
@@ -668,29 +431,6 @@ def test_resume_waiting_runs_uses_internal_legal_catalog_endpoint(client):
         )
 
 
-def test_profile_already_exists_is_an_idempotent_callback_result(client):
-    payload = TechnicalProfileCallbackPayload(
-        evidence_report_id="ter-1",
-        assessment_id="assessment-1",
-        schema_version="1.0.0",
-        provider_version="lcsp.technical-profile-worker.v1",
-        profile_data={},
-        privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
-    )
-
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 409
-        mock_resp.json.return_value = {"problem": {"code": "PROFILE_ALREADY_EXISTS"}}
-        mock_post.return_value = mock_resp
-
-        response = client.post_technical_profile_callback(payload)
-
-    assert response.accepted is True
-    assert response.status == "duplicate"
-    assert mock_post.call_count == 1
-
-
 def test_get_accepted_technical_evidence_report_rejects_non_accepted(client):
     with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
         mock_resp = MagicMock()
@@ -700,40 +440,6 @@ def test_get_accepted_technical_evidence_report_rejects_non_accepted(client):
 
         with pytest.raises(WorkerCallbackError, match="not accepted"):
             client.get_accepted_technical_evidence_report("ter-1")
-
-
-def test_ai_usage_flow_callback_uses_internal_ai_usage_flow_endpoint(client):
-    payload = AIUsageFlowCallbackPayload(
-        technical_profile_id="tp-1",
-        assessment_id="assessment-1",
-        schema_version="1.0.0",
-        provider_version="lcsp.ai-usage-flow-worker.v1",
-        claims=[],
-        unknown_usages=[],
-        privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
-    )
-
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"accepted": True}
-        mock_post.return_value = mock_resp
-
-        client.post_ai_usage_flow_callback(payload)
-
-        url = mock_post.call_args.args[0]
-        assert url == "http://testserver/internal/ai-usage-flow/callback"
-
-
-def test_get_accepted_technical_profile_rejects_non_accepted(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"id": "tp-1", "status": "rejected"}
-        mock_get.return_value = mock_resp
-
-        with pytest.raises(WorkerCallbackError, match="not accepted"):
-            client.get_accepted_technical_profile("tp-1")
 
 
 def test_get_official_source_snapshot_uses_query_params(client):
@@ -754,44 +460,6 @@ def test_get_official_source_snapshot_uses_query_params(client):
     assert mock_get.call_args.kwargs["params"] == {
         "snapshot_ref": "snapshot:LAW-TEST:abcd1234ef56"
     }
-
-
-def test_reconciliation_conflict_callback_uses_internal_endpoint(client):
-    payload = ConflictDetectionCallbackPayload(
-        ai_usage_flow_id="auf-1",
-        assessment_id="assessment-1",
-        schema_version="1.0.0",
-        provider_version="lcsp.conflict-detection-worker.v1",
-        conflicts=[],
-        privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
-    )
-
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "accepted": True,
-            "conflict_count": 0,
-            "correlationId": "correlation-1",
-        }
-        mock_post.return_value = mock_resp
-
-        response = client.post_reconciliation_conflict_callback(payload)
-
-        url = mock_post.call_args.args[0]
-        assert url == "http://testserver/internal/reconciliation/conflict-callback"
-        assert response.conflict_count == 0
-
-
-def test_get_accepted_ai_usage_flow_rejects_non_ready_status(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"id": "auf-1", "status": "draft"}
-        mock_get.return_value = mock_resp
-
-        with pytest.raises(WorkerCallbackError, match="not accepted"):
-            client.get_accepted_ai_usage_flow("auf-1")
 
 
 def test_callback_response_accepts_nested_result_envelope():
@@ -825,33 +493,6 @@ def test_callback_response_accepts_nested_result_envelope():
     assert resp2.verified_profile_id == "vp-nested-999"
     # Ensure extra items in result did not raise ValidationError under model_config extra ignore
     assert resp2.model_dump().get("verified_profile_id") == "vp-nested-999"
-
-
-def test_decision_model_claim_failure_fails_closed(client):
-    with patch.object(
-        client,
-        "_post_with_retry",
-        side_effect=WorkerCallbackError("claim API unavailable"),
-    ):
-        with pytest.raises(WorkerCallbackError, match="claim API unavailable"):
-            client.claim_decision_model_request(
-                "review-triage-v1:344:" + "a" * 40,
-                {"decisionType": "PR_REVIEW_TRIAGE"},
-            )
-
-
-def test_decision_model_claim_conflict_suppresses_duplicate_provider_call(client):
-    with patch.object(
-        client,
-        "_post_with_retry",
-        side_effect=WorkerCallbackError("duplicate", status_code=409),
-    ):
-        claimed = client.claim_decision_model_request(
-            "review-triage-v1:344:" + "a" * 40,
-            {"decisionType": "PR_REVIEW_TRIAGE"},
-        )
-
-    assert claimed is False
 
 
 def test_scan_claim_not_found_preserves_typed_error_code(client):

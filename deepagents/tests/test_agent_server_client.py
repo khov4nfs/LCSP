@@ -76,23 +76,6 @@ def _install_client(monkeypatch, fake_client):
     monkeypatch.setattr(agent_server_client, "get_sync_client", lambda **_kwargs: fake_client)
     monkeypatch.setattr(agent_server_client.time, "sleep", lambda _seconds: None)
     monkeypatch.setattr(agent_server_client, "_ScanRunObserver", _NullObserver)
-    fake_client.control_reports = []
-    monkeypatch.setattr(
-        agent_server_client, "report_runtime_control",
-        lambda *args, **kwargs: fake_client.control_reports.append((args, kwargs)),
-    )
-
-
-def test_native_terminal_state_retires_the_registered_generation(monkeypatch):
-    client = _FakeClient(_FakeRuns())
-    _install_client(monkeypatch, client)
-    agent_server_client.dispatch_agent_runtime_event(
-        "assessment_interview_resume_requested", {"assessmentId": "a"}, "correlation"
-    )
-    args, _ = client.control_reports[0]
-    assert args[1] == "created-run"
-    assert args[2]["system_event"] == {"assessmentId": "a"}
-    assert args[3] == "COMPLETED"
 
 
 def test_checkpoint_continue_preserves_frozen_event_and_checkpoint(monkeypatch):

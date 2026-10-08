@@ -2,10 +2,6 @@ import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
 import { LegalRuleCatalogController } from "./presentation/http/legal-rule-catalog.controller.js";
-import { LegalCorpusReadinessController } from "./presentation/http/legal-corpus-readiness.controller.js";
-import { LegalBasisRetrievalController } from "./presentation/http/legal-basis-retrieval.controller.js";
-import { CitationSetValidationController } from "./presentation/http/citation-set-validation.controller.js";
-import { AdminSourceCatalogController } from "./presentation/http/admin-source-catalog.controller.js";
 import { AdminCorpusVersionsController } from "./presentation/http/admin-corpus-versions.controller.js";
 import { ResumeWaitingRunsHandler } from "./application/commands/resume-waiting-runs/resume-waiting-runs.handler.js";
 import { GetAdminSourceCatalogHandler } from "./application/queries/get-admin-source-catalog/get-admin-source-catalog.handler.js";
@@ -31,14 +27,7 @@ const Handlers = [
 
 @Module({
   imports: [CqrsModule, OutboxModule],
-  controllers: [
-    LegalRuleCatalogController,
-    AdminSourceCatalogController,
-    AdminCorpusVersionsController,
-    LegalCorpusReadinessController,
-    LegalBasisRetrievalController,
-    CitationSetValidationController,
-  ],
+  controllers: [LegalRuleCatalogController, AdminCorpusVersionsController],
   providers: [
     ...Handlers,
     AdminSourceCatalogService,

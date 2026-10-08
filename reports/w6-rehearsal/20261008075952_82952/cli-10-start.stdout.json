@@ -1,0 +1,313 @@
+{
+  "runId": "dd0f215c-29d3-45c6-8655-c261e522f1e2",
+  "preflight": {
+    "generatedAt": "2026-10-08T08:00:23.748Z",
+    "activePortfolio": {
+      "activeCount": 1,
+      "id": "163aa7ca-57f3-4562-8054-44dcd8d9ca87",
+      "version": "w6-portfolio",
+      "engineeringRuleCount": 3
+    },
+    "assessments": {
+      "total": 60,
+      "terminal": 30,
+      "nonTerminal": 30,
+      "alreadyV2": 0
+    },
+    "assessmentsByLegacyStatus": {
+      "AI_NOT_DETECTED": 12,
+      "CLASSIFICATION_LOCKED": 6,
+      "EVIDENCE_REQUIRED": 6,
+      "READY_FOR_REVIEW": 18,
+      "SCAN_IN_PROGRESS": 6,
+      "WIZARD_IN_PROGRESS": 6,
+      "WIZARD_SUBMITTED": 6
+    },
+    "outbox": {
+      "undelivered": [
+        {
+          "eventType": "audit.export-requested",
+          "status": "PENDING",
+          "count": 1,
+          "disposition": "RETAIN"
+        },
+        {
+          "eventType": "command.assessment-interview.pause-agent.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.assessment-interview.pause-agent.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.assessment-interview.pause-agent.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.assessment-interview.resume-agent.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.assessment-interview.resume-agent.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.assessment-interview.resume-agent.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.billing.sepay-reconcile.v1",
+          "status": "PENDING",
+          "count": 1,
+          "disposition": "RETAIN"
+        },
+        {
+          "eventType": "command.legal-chunks.build.v1",
+          "status": "PENDING",
+          "count": 1,
+          "disposition": "RETAIN"
+        },
+        {
+          "eventType": "command.legal-corpus.recovery.requested.v1",
+          "status": "PENDING",
+          "count": 1,
+          "disposition": "RETAIN"
+        },
+        {
+          "eventType": "command.legal-matching.requested.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.legal-matching.requested.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.legal-matching.requested.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.legal-source.ingest.v1",
+          "status": "PENDING",
+          "count": 1,
+          "disposition": "RETAIN"
+        },
+        {
+          "eventType": "command.scan.requested.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.scan.requested.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.scan.requested.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.scan.targeted-reanalysis.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.scan.targeted-reanalysis.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "command.scan.targeted-reanalysis.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "document.final-report-requested",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "document.final-report-requested",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "document.final-report-requested",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "document.gap-analysis-requested",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "document.gap-analysis-requested",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "document.gap-analysis-requested",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.ai-usage-flow.ready.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.ai-usage-flow.ready.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.ai-usage-flow.ready.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.assessment.created.v1",
+          "status": "PENDING",
+          "count": 1,
+          "disposition": "RETAIN"
+        },
+        {
+          "eventType": "event.classification-result.ready.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.classification-result.ready.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.classification-result.ready.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.reconciliation.all-conflicts-resolved.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.reconciliation.all-conflicts-resolved.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.reconciliation.all-conflicts-resolved.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.repository-snapshot.created.v1",
+          "status": "PENDING",
+          "count": 1,
+          "disposition": "RETAIN"
+        },
+        {
+          "eventType": "event.technical-evidence.accepted.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.technical-evidence.accepted.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.technical-evidence.accepted.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.technical-profile.ready.v1",
+          "status": "DLQ",
+          "count": 1,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.technical-profile.ready.v1",
+          "status": "FAILED",
+          "count": 2,
+          "disposition": "CANCEL"
+        },
+        {
+          "eventType": "event.technical-profile.ready.v1",
+          "status": "PENDING",
+          "count": 3,
+          "disposition": "CANCEL"
+        }
+      ],
+      "legacyUndelivered": 72,
+      "unclassifiedUndelivered": 0
+    },
+    "inFlight": {
+      "ASSESSMENT_RUNTIME_TURN": 18,
+      "TARGETED_REANALYSIS_REQUEST": 2,
+      "TARGETED_REANALYSIS_CHECKPOINT": 2,
+      "REPOSITORY_SCAN_JOB": 5,
+      "DOCUMENT_REQUEST": 6
+    },
+    "reportReferences": {
+      "total": 36,
+      "byOutcome": {
+        "NO_LEGACY_ARTIFACT_PRESENT/PLACEHOLDER_UPLOADER_NEVER_PERSISTED": 21,
+        "METADATA_ONLY_LEGACY_RECORD/NO_ARTIFACT_REFERENCE": 9,
+        "READ_REQUIRED": 4,
+        "METADATA_ONLY_LEGACY_RECORD/READY_WITHOUT_REFERENCE": 2
+      },
+      "unresolvedHosts": {}
+    },
+    "unsettledV1Reservations": {
+      "count": 0,
+      "credits": "0"
+    },
+    "blockers": []
+  }
+}

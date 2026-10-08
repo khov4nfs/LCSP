@@ -1,0 +1,41 @@
+{
+  "runId": "c5f96ec3-59c9-4e27-a274-27649a0fa2b0",
+  "preflight": {
+    "generatedAt": "2026-10-08T08:01:59.067Z",
+    "activePortfolio": {
+      "activeCount": 1,
+      "id": "163aa7ca-57f3-4562-8054-44dcd8d9ca87",
+      "version": "w6-portfolio",
+      "engineeringRuleCount": 3
+    },
+    "assessments": {
+      "total": 0,
+      "terminal": 0,
+      "nonTerminal": 0,
+      "alreadyV2": 0
+    },
+    "assessmentsByLegacyStatus": {},
+    "outbox": {
+      "undelivered": [],
+      "legacyUndelivered": 0,
+      "unclassifiedUndelivered": 0
+    },
+    "inFlight": {
+      "ASSESSMENT_RUNTIME_TURN": 0,
+      "TARGETED_REANALYSIS_REQUEST": 0,
+      "TARGETED_REANALYSIS_CHECKPOINT": 0,
+      "REPOSITORY_SCAN_JOB": 0,
+      "DOCUMENT_REQUEST": 0
+    },
+    "reportReferences": {
+      "total": 0,
+      "byOutcome": {},
+      "unresolvedHosts": {}
+    },
+    "unsettledV1Reservations": {
+      "count": 0,
+      "credits": "0"
+    },
+    "blockers": []
+  }
+}

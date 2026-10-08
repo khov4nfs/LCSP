@@ -52,6 +52,47 @@ export const viPages = {
     controlPending: "Đang chờ hệ thống xác nhận…",
     facts: "Thông tin đã xác nhận",
   },
+  legacyArchive: {
+    title: "Đánh giá từ nền tảng cũ",
+    readOnlyNotice:
+      "Đánh giá này đã hoàn tất trên phiên bản nền tảng trước đây. Dữ liệu được lưu ở chế độ chỉ đọc để bạn tra cứu và sẽ không được đánh giá lại tại đây.",
+    notArchived: "Trạng thái đánh giá chuẩn hiện không khả dụng.",
+    loading: "Đang tải đánh giá đã lưu trữ…",
+    requestFailed: "Không thể tải đánh giá đã lưu trữ.",
+    retry: "Thử lại",
+    legacyStatus: "Kết quả trên nền tảng cũ",
+    statuses: {
+      READY_FOR_REVIEW: "Hoàn tất – sẵn sàng để xem xét",
+      AI_NOT_DETECTED: "Hoàn tất – không phát hiện việc sử dụng AI",
+    },
+    lastUpdated: "Cập nhật lần cuối",
+    archivedOn: "Lưu trữ lúc",
+    reportsHeading: "Báo cáo và tệp xuất",
+    noReports: "Không có báo cáo nào được tạo cho đánh giá này.",
+    documentTypes: {
+      FINAL_REPORT: "Báo cáo cuối cùng",
+      GAP_ANALYSIS: "Phân tích khoảng cách",
+      READINESS_EXPORT: "Tệp xuất mức độ sẵn sàng",
+      OTHER: "Báo cáo",
+    },
+    availability: {
+      DOWNLOADABLE: "Có thể tải xuống",
+      NOT_RETAINED: "Không được lưu giữ",
+      METADATA_ONLY: "Không có tài liệu nào được tạo",
+      UNAVAILABLE: "Không khả dụng",
+    },
+    availabilityDetail: {
+      DOWNLOADABLE: "Tệp gốc được giữ nguyên vẹn và có thể tải xuống.",
+      NOT_RETAINED:
+        "Nền tảng trước đây không lưu tài liệu này nên không thể cung cấp. Hệ thống không tạo lại tài liệu.",
+      METADATA_ONLY: "Yêu cầu này không tạo ra tài liệu nào.",
+      UNAVAILABLE: "Không thể xác định vị trí của tài liệu này.",
+    },
+    download: "Tải xuống",
+    requestedOn: "Yêu cầu lúc",
+    size: "Kích thước",
+    integrity: "SHA-256",
+  },
   accountLifecycle: {
     inviteTitle: "Tạo người dùng",
     inviteDescription:

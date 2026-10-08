@@ -52,6 +52,48 @@ export const enPages = {
     controlPending: "Waiting for the runtime to acknowledge…",
     facts: "Confirmed facts",
   },
+  legacyArchive: {
+    title: "Assessment from the previous platform",
+    readOnlyNotice:
+      "This assessment was completed on the previous version of the platform. It is kept read-only for your records and is not re-evaluated here.",
+    notArchived: "Canonical assessment state is unavailable.",
+    loading: "Loading archived assessment…",
+    requestFailed: "The archived assessment could not be loaded.",
+    retry: "Retry",
+    legacyStatus: "Outcome on the previous platform",
+    statuses: {
+      READY_FOR_REVIEW: "Completed – ready for review",
+      AI_NOT_DETECTED: "Completed – no AI use detected",
+    },
+    lastUpdated: "Last updated",
+    archivedOn: "Archived",
+    reportsHeading: "Reports and exports",
+    noReports: "No reports were produced for this assessment.",
+    documentTypes: {
+      FINAL_REPORT: "Final report",
+      GAP_ANALYSIS: "Gap analysis",
+      READINESS_EXPORT: "Readiness export",
+      OTHER: "Report",
+    },
+    availability: {
+      DOWNLOADABLE: "Available to download",
+      NOT_RETAINED: "Not retained",
+      METADATA_ONLY: "No document was generated",
+      UNAVAILABLE: "Unavailable",
+    },
+    availabilityDetail: {
+      DOWNLOADABLE:
+        "The original file was preserved unchanged and can be downloaded.",
+      NOT_RETAINED:
+        "The previous platform did not store this document, so it cannot be provided. Nothing has been regenerated.",
+      METADATA_ONLY: "This request did not produce a document.",
+      UNAVAILABLE: "The location of this document could not be resolved.",
+    },
+    download: "Download",
+    requestedOn: "Requested",
+    size: "Size",
+    integrity: "SHA-256",
+  },
   accountLifecycle: {
     inviteTitle: "Create user",
     inviteDescription:

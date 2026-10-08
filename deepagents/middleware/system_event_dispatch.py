@@ -19,7 +19,6 @@ from orchestration.runtime_control import (
     active_runtime_run_id,
     hosted_checkpoint_scope,
 )
-from tools.common.capabilities.agent_runtime.runtime_control import report_runtime_control
 from orchestration.agent_stream import (
     AgentStreamInterrupted,
     active_agent_stream_cancel,
@@ -104,7 +103,7 @@ class _SystemEventDispatchMiddleware(AgentMiddleware):
 
 
 def _dispatch_hosted_system_event(state, runtime, configured):
-    """Apply the same native cancellation/registration scope in langgraph dev."""
+    """Apply the same native cancellation scope in langgraph dev."""
     context = _context(getattr(runtime, "context", None))
     run_id = configured.get("run_id")
     thread_id = configured.get("thread_id")
@@ -123,12 +122,6 @@ def _dispatch_hosted_system_event(state, runtime, configured):
     run_token = active_runtime_run_id.set(run_id)
     execution_token = active_native_execution_scope.set(execution_scope)
     try:
-        control = report_runtime_control(thread_id, run_id, frozen_context, "RUNNING")
-        if control.get("state") in {"STOP_REQUESTED", "STOPPED", "RESUME_REQUESTED", "COMPLETED"}:
-            # Re-execution of the same cancelled generation is not Continue.
-            # A fresh native generation is required to resume its checkpoints.
-            active_agent_stream_cancel.get().set()
-            raise asyncio.CancelledError("Native runtime generation already stopped")
         with hosted_checkpoint_scope(thread_id, frozen_context["logical_run_id"]):
             try:
                 return _dispatch_system_event(state, runtime)

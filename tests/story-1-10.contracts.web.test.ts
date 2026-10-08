@@ -27,6 +27,7 @@ test("shared contracts expose canonical workflow value sets", () => {
     "PUBLISHED",
     "FAILED",
     "DLQ",
+    OUTBOX_STATUSES.cancelled,
   ]);
   assert.deepEqual(Object.values(REPOSITORY_CONNECTION_STATUSES), [
     "ACTIVE",

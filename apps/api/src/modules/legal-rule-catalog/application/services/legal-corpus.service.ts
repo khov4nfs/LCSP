@@ -15,20 +15,16 @@ import {
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
 import {
-  LEGAL_MATCHING_REQUEST_COMMAND,
   LEGAL_CORPUS_TRUST_POLICIES,
   LEGAL_RULE_EVENT_TYPES,
   LEGAL_RULE_ERROR_CODES,
   LEGAL_RULE_LIFECYCLE_STATUSES,
-  RESUME_WAITING_RUNS_TOOL,
 } from "@lcsp/contracts/legal-rule-catalog";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
-  OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
 import { LegalRetrievalIndexStatus, Prisma } from "@prisma/client";
-import { VERIFIED_PROFILE_STATUSES } from "@lcsp/contracts/scan";
 
 export async function acquireLegalCorpusLifecycleLock(
   tx: Prisma.TransactionClient,
@@ -44,10 +40,7 @@ export async function acquireLegalCorpusLifecycleLock(
   }
 }
 
-import {
-  toPrismaLegalRuleLifecycleStatus,
-  toPrismaVerifiedProfileStatus,
-} from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { toPrismaLegalRuleLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
@@ -59,11 +52,6 @@ import type {
 
 const SAFE_MANIFEST_REF = /^[a-z][a-z0-9-]{0,63}:[A-Za-z0-9._:-]{1,180}$/;
 const LEGAL_CORPUS_ACTIVATION_SERVICE = "legal-corpus-activation-service";
-const OUTBOX_VISIBLE_STATUSES = [
-  OUTBOX_STATUSES.pending,
-  OUTBOX_STATUSES.published,
-  OUTBOX_STATUSES.failed,
-] as const;
 const LEGAL_CORPUS_CHANGE_MODES = {
   fullBuild: "FULL_BUILD",
   partialUpdate: "PARTIAL_UPDATE",
@@ -438,12 +426,6 @@ export class LegalCorpusService {
             tx,
           );
         }
-
-        await this.enqueueWaitingLegalMatchingRunsAfterActivation(tx, {
-          corpusVersionId: corpus.id,
-          correlationId: input.correlationId,
-          activationIdempotencyKey: input.idempotencyKey,
-        });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -636,107 +618,6 @@ export class LegalCorpusService {
         manualApprovalRequired: false,
       },
     };
-  }
-
-  private async enqueueWaitingLegalMatchingRunsAfterActivation(
-    tx: Prisma.TransactionClient,
-    input: {
-      corpusVersionId: string;
-      correlationId: string;
-      activationIdempotencyKey: string;
-    },
-  ): Promise<void> {
-    const catalog = await tx.legalRuleCatalogVersion.findFirst({
-      where: {
-        status: toPrismaLegalRuleLifecycleStatus(
-          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
-        ),
-        approvedAt: { not: null },
-      },
-      orderBy: { approvedAt: "desc" },
-      select: { id: true },
-    });
-    if (!catalog) {
-      return;
-    }
-
-    const approvedProfiles = await tx.verifiedProfile.findMany({
-      where: {
-        status: toPrismaVerifiedProfileStatus(
-          VERIFIED_PROFILE_STATUSES.approved,
-        ),
-      },
-      orderBy: [{ approvedAt: "asc" }, { createdAt: "asc" }],
-      take: RESUME_WAITING_RUNS_TOOL.maxRuns,
-      select: {
-        id: true,
-        assessmentId: true,
-      },
-    });
-    if (approvedProfiles.length === 0) {
-      return;
-    }
-
-    const profileIds = approvedProfiles.map((profile) => profile.id);
-    const [existingMatches, existingCommands] = await Promise.all([
-      tx.legalRuleMatch.findMany({
-        where: {
-          verifiedProfileId: { in: profileIds },
-          corpusVersionId: input.corpusVersionId,
-        },
-        select: { verifiedProfileId: true },
-      }),
-      tx.outboxMessage.findMany({
-        where: {
-          aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
-          aggregateId: { in: profileIds },
-          eventType: LEGAL_MATCHING_REQUEST_COMMAND,
-          status: { in: [...OUTBOX_VISIBLE_STATUSES] },
-        },
-        select: { aggregateId: true },
-      }),
-    ]);
-
-    const matchedProfileIds = new Set(
-      existingMatches.map((match) => match.verifiedProfileId),
-    );
-    const commandedProfileIds = new Set(
-      existingCommands.map((message) => message.aggregateId),
-    );
-
-    for (const profile of approvedProfiles) {
-      if (
-        matchedProfileIds.has(profile.id) ||
-        commandedProfileIds.has(profile.id)
-      ) {
-        continue;
-      }
-
-      const event = buildOutboxMessageInput({
-        aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
-        aggregateId: profile.id,
-        eventType: LEGAL_MATCHING_REQUEST_COMMAND,
-        assessmentId: profile.assessmentId,
-        correlationId: input.correlationId,
-        causationId: input.corpusVersionId,
-        actor: {
-          id: LEGAL_CORPUS_ACTIVATION_SERVICE,
-          type: AUDIT_ACTOR_TYPES.system,
-        },
-        result: LEGAL_MATCHING_REQUEST_COMMAND,
-        redactionStatus: AUDIT_REDACTION_STATUSES.none,
-        idempotencyKey: `${profile.id}:${LEGAL_MATCHING_REQUEST_COMMAND}:${input.corpusVersionId}`,
-        payload: {
-          verifiedProfileId: profile.id,
-          assessmentId: profile.assessmentId,
-          corpusVersionId: input.corpusVersionId,
-          legalRuleCatalogVersionId: catalog.id,
-          checkpointRef: `corpus-activation:${input.activationIdempotencyKey}:${profile.id}`,
-          correlationId: input.correlationId,
-        },
-      });
-      await this.outboxRepository.enqueue(event, tx);
-    }
   }
 
   async getApprovedChunks(corpusVersionId: string) {

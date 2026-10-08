@@ -5,11 +5,7 @@ import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { ProcessScanCallbackHandler } from "./application/commands/process-scan-callback/process-scan-callback.handler.js";
 import { GetScanJobHandler } from "./application/queries/get-scan-job/get-scan-job.handler.js";
 import { EvidenceSchemaValidatorService } from "./application/services/scan/evidence-schema-validator.service.js";
-import {
-  InternalScanController,
-  InternalTargetedReanalysisController,
-  ScanController,
-} from "./presentation/http/scan.controller.js";
+import { InternalAgentStreamController } from "./presentation/http/internal-agent-stream.controller.js";
 import { WorkerApiKeyGuard } from "./presentation/http/worker-api-key.guard.js";
 import { RerunScanHandler } from "./application/commands/rerun-scan/rerun-scan.handler.js";
 import { RequestTargetedReanalysisHandler } from "./application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.js";
@@ -20,11 +16,7 @@ import { AssessmentRuntimeEventService } from "../../platform/runtime-events/ass
  */
 @Module({
   imports: [CqrsModule, RbacModule],
-  controllers: [
-    ScanController,
-    InternalScanController,
-    InternalTargetedReanalysisController,
-  ],
+  controllers: [InternalAgentStreamController],
   providers: [
     GetScanJobHandler,
     ProcessScanCallbackHandler,

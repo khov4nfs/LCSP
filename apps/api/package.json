@@ -15,6 +15,7 @@
     "start:dev": "cross-env NODE_OPTIONS=--experimental-strip-types nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
+    "legacy-migration": "node dist/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.js",
     "seed:google-admins": "cross-env DOTENV_CONFIG_PATH=../../.env tsx scripts/seed-google-admins.ts",
     "seed:google-customers": "cross-env DOTENV_CONFIG_PATH=../../.env tsx scripts/seed-google-customers.ts",
     "demo:readiness-export-pdf": "pnpm run prisma:generate && cross-env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public NODE_ENV=test node --loader ts-node/esm scripts/demo-readiness-export-pdf.ts",

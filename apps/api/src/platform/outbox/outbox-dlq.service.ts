@@ -1,4 +1,5 @@
 import { Injectable, HttpStatus } from "@nestjs/common";
+import { isRetiredOutboxEventType } from "@lcsp/contracts/legacy-migration";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import {
@@ -158,6 +159,10 @@ export class OutboxDlqService {
     message: OutboxMessageEntity,
     correlationId: string,
   ): Promise<void> {
+    // W6 fence: retired V1 traffic is never replayable, regardless of its aggregate's state.
+    if (isRetiredOutboxEventType(message.eventType)) {
+      this.unsafeReplay(correlationId);
+    }
     if (message.aggregateType === OUTBOX_AGGREGATE_TYPES.repositoryScanJob) {
       const job = await this.prisma.repositoryScanJob.findUnique({
         where: { id: message.aggregateId },

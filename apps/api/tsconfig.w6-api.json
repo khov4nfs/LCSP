@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false, "incremental": false, "noEmit": false, "emitDeclarationOnly": false,
+    "declaration": false, "declarationMap": false, "sourceMap": false,
+    "outDir": "./tmp/w6-api", "rootDir": "."
+  },
+  "include": ["src/main.ts", "src/**/*.json"],
+  "exclude": ["node_modules", "dist", "**/*.spec.ts"]
+}

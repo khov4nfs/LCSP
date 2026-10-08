@@ -1,0 +1,28 @@
+{
+  "runId": "8b676202-5418-45e7-b4a1-67384156670b",
+  "mode": "BATCH",
+  "requested": 5,
+  "started": [
+    "53d8770b-75a6-4ce4-88a6-df4803618512",
+    "b56c96a9-390b-44a4-8877-83f5606a51fd"
+  ],
+  "alreadyStarted": [],
+  "deferred": [
+    {
+      "assessmentId": "f38b9b06-82c9-40ea-8e6c-aa433dc201fb",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "08e98bd8-8f46-47b5-8b9e-c13c61904535",
+      "reason": "GLOBAL_CAP_REACHED"
+    }
+  ],
+  "failed": [],
+  "notReady": [],
+  "stopReason": "GLOBAL_CAP_REACHED",
+  "remainingEligible": 14,
+  "load": {
+    "inFlight": 2,
+    "queued": 2
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "composite": false, "noEmit": true, "incremental": false, "declaration": false, "declarationMap": false, "emitDeclarationOnly": false },
+  "include": [
+    "next-env.d.ts",
+    "src/lib/server/legacy-archive-proxy.ts",
+    "src/lib/api/legacy-archive-queries.ts",
+    "src/app/api/legacy-archive/**/*.ts",
+    "src/features/workspace/components/organisms/assessment-overview.tsx",
+    "src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+    "src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+    "tests/legacy-archive-*.test.ts"
+  ],
+  "exclude": []
+}

@@ -192,7 +192,7 @@ def test_native_server_stop_resume_fences_old_provider_and_reuses_completed_work
     from tools.common.capabilities.agent_runtime.local_server import LocalAgentRuntime
     middleware, _, _ = metering
     started, release, returned = Event(), Event(), Event()
-    calls, acknowledgements = [], []
+    calls = []
     class State(TypedDict):
         value: int
     def completed(state):
@@ -221,7 +221,6 @@ def test_native_server_stop_resume_fences_old_provider_and_reuses_completed_work
     root_builder.add_edge("dispatch", END)
     runtime = LocalAgentRuntime()
     runtime.graph = root_builder.compile(checkpointer=InMemorySaver())
-    monkeypatch.setattr(runtime, "_report_control", lambda _thread, run_id, _context, state: acknowledgements.append((run_id, state)))
     context = {"logical_run_id": "one-logical-turn"}
     def wait_terminal(run_id):
         deadline = time.monotonic() + 1
@@ -237,7 +236,6 @@ def test_native_server_stop_resume_fences_old_provider_and_reuses_completed_work
         runtime.cancel_run("exact-thread", first["run_id"])
         assert wait_terminal(first["run_id"])["status"] == "interrupted"
         assert not returned.is_set()
-        assert (first["run_id"], "STOPPED") in acknowledgements
         checkpoint = runtime.get_state("exact-thread")["checkpoint"]
         payload = {"input": None, "context": context, "checkpoint_id": checkpoint["checkpoint_id"], "metadata": {"lcsp_resume_request_id": "same-continue"}, "multitask_strategy": "reject"}
         resumed = runtime.create_run("exact-thread", payload)
@@ -254,12 +252,11 @@ def test_native_server_stop_resume_fences_old_provider_and_reuses_completed_work
         runtime.close()
 
 
-def test_stop_acknowledgement_waits_for_nested_checkpoint_cleanup(monkeypatch):
+def test_stop_waits_for_nested_checkpoint_cleanup():
     from tools.common.capabilities.agent_runtime.local_server import LocalAgentRuntime
     class State(TypedDict):
         value: int
     started, cleanup, release = Event(), Event(), Event()
-    acknowledgements = []
     class NestedGraph:
         async def astream(self, _input, **_kwargs):
             started.set()
@@ -288,20 +285,17 @@ def test_stop_acknowledgement_waits_for_nested_checkpoint_cleanup(monkeypatch):
     builder.add_edge("dispatch", END)
     runtime = LocalAgentRuntime()
     runtime.graph = builder.compile(checkpointer=InMemorySaver())
-    monkeypatch.setattr(runtime, "_report_control", lambda _thread, _run, _context, state: acknowledgements.append(state))
     try:
         run = runtime.create_run("cleanup-thread", {"input": {"value": 0}})
         assert started.wait(1)
         runtime.cancel_run("cleanup-thread", run["run_id"])
         assert cleanup.wait(1)
         assert runtime.get_run("cleanup-thread", run["run_id"])["status"] == "running"
-        assert "STOPPED" not in acknowledgements
         release.set()
         deadline = time.monotonic() + 1
         while runtime.get_run("cleanup-thread", run["run_id"])["status"] == "running" and time.monotonic() < deadline:
             time.sleep(.01)
         assert runtime.get_run("cleanup-thread", run["run_id"])["status"] == "interrupted"
-        assert "STOPPED" in acknowledgements
     finally:
         release.set()
         runtime.close()

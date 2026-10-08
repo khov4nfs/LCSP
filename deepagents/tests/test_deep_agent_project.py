@@ -96,17 +96,47 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
     assert not (PROJECT_ROOT / "tools" / "classification").exists()
 
 
-def test_all_former_consumers_remain_internal_agent_runtime_invocation_boundaries() -> None:
+LIVE_BOUNDARIES = {
+    "legal_change_detection_requested",
+    "assessment_root_requested",
+    "legal_portfolio_preparation_requested",
+    "legal_corpus_recovery_requested",
+    "legal_source_ingest_requested",
+    "official_text_extraction_requested",
+    "ocr_fallback_requested",
+    "ocr_quality_requested",
+    "reviewed_corpus_input_requested",
+    "legal_chunk_build_requested",
+    "vbpl_effected_chunk_set_requested",
+    "chunk_integrity_requested",
+    "legal_retrieval_index_requested",
+    "audit_export_requested",
+    "agent_runtime_health_requested",
+}
+# Retired V1 commands/events (W6): no boundary may consume them again.
+RETIRED_EVENTS = {
+    "command.scan.requested.v1",
+    "command.scan.targeted-reanalysis.v1",
+    "command.assessment-interview.pause-agent.v1",
+    "command.assessment-interview.resume-agent.v1",
+    "command.legal-matching.requested.v1",
+    "event.technical-evidence.accepted.v1",
+    "event.technical-profile.ready.v1",
+    "event.ai-usage-flow.ready.v1",
+    "event.classification-result.ready.v1",
+    "event.reconciliation.all-conflicts-resolved.v1",
+    "document.final-report-requested",
+    "document.gap-analysis-requested",
+}
+
+
+def test_worker_consumes_exactly_the_live_boundaries() -> None:
     manifest = invocation_boundary_manifest()
 
-    assert len(manifest) == 17
-    assert {entry["name"] for entry in manifest} >= {
-        "assessment_root_requested",
-        "legal_portfolio_preparation_requested",
-        "legal_change_detection_requested",
-        "agent_runtime_health_requested",
-        "final_report_requested",
-    }
+    # An exact allowlist: adding or restoring a boundary is a reviewed change.
+    assert {entry["name"] for entry in manifest} == LIVE_BOUNDARIES
+    assert len(manifest) == len(LIVE_BOUNDARIES)
+    assert not RETIRED_EVENTS & {entry["source_event"] for entry in manifest}
     assert {
         "name": "agent_runtime_health_requested",
         "target": "tools.common.capabilities.agent_runtime.health_boundary:AgentRuntimeHealthBoundary",
@@ -120,6 +150,8 @@ def test_all_former_consumers_remain_internal_agent_runtime_invocation_boundarie
         "engineering_assessment_requested",
         "assessment_interview_resume_requested",
         "assessment_interview_pause_requested",
+        "gap_analysis_requested",
+        "final_report_requested",
     }
     assert not retired & {entry["name"] for entry in manifest}
     assert {

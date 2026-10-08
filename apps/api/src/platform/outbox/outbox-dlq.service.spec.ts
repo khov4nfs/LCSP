@@ -6,6 +6,7 @@ import {
 } from "@lcsp/contracts/outbox";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
+import { LEGACY_OUTBOX_EVENT_TYPES } from "@lcsp/contracts/legacy-migration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { jest } from "@jest/globals";
 import { Test, TestingModule } from "@nestjs/testing";
@@ -139,12 +140,40 @@ describe("OutboxDlqService", () => {
     ).rejects.toThrow(NotFoundException);
   });
 
+  it.each(Object.values(LEGACY_OUTBOX_EVENT_TYPES))(
+    "never replays the retired V1 event %s",
+    async (eventType) => {
+      findMessageById.mockResolvedValue({
+        id: "1",
+        aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+        status: OUTBOX_STATUSES.dlq,
+        eventType,
+        aggregateId: "123",
+      } as OutboxMessageEntity);
+
+      await expect(
+        service.replayMessage("1", "actor-1", "corr-1"),
+      ).rejects.toMatchObject({
+        response: {
+          problem: { code: OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget },
+        },
+      });
+      expect(resetMessageForReplay).not.toHaveBeenCalled();
+      expect(writeAudit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqReplayDenied,
+          decision: AUDIT_DECISIONS.deny,
+        }),
+      );
+    },
+  );
+
   it("rejects replay for a terminal repository scan job", async () => {
     findMessageById.mockResolvedValue({
       id: "1",
       aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
       status: OUTBOX_STATUSES.dlq,
-      eventType: "command.scan.requested.v1",
+      eventType: "TEST",
       aggregateId: "scan-job-1",
     } as OutboxMessageEntity);
     repositoryScanJobFindUnique.mockResolvedValue({

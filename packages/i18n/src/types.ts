@@ -87,6 +87,42 @@ export type PagesMessages = {
     controlPending: string;
     facts: string;
   };
+  legacyArchive: {
+    title: string;
+    readOnlyNotice: string;
+    notArchived: string;
+    loading: string;
+    requestFailed: string;
+    retry: string;
+    legacyStatus: string;
+    statuses: { READY_FOR_REVIEW: string; AI_NOT_DETECTED: string };
+    lastUpdated: string;
+    archivedOn: string;
+    reportsHeading: string;
+    noReports: string;
+    documentTypes: {
+      FINAL_REPORT: string;
+      GAP_ANALYSIS: string;
+      READINESS_EXPORT: string;
+      OTHER: string;
+    };
+    availability: {
+      DOWNLOADABLE: string;
+      NOT_RETAINED: string;
+      METADATA_ONLY: string;
+      UNAVAILABLE: string;
+    };
+    availabilityDetail: {
+      DOWNLOADABLE: string;
+      NOT_RETAINED: string;
+      METADATA_ONLY: string;
+      UNAVAILABLE: string;
+    };
+    download: string;
+    requestedOn: string;
+    size: string;
+    integrity: string;
+  };
   accountLifecycle: {
     inviteTitle: string;
     inviteDescription: string;

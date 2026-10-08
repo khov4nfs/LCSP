@@ -28,10 +28,11 @@ import {
   ASSESSMENT_EVIDENCE_TYPES,
   SEARCH_COVERAGE_SCOPE_KINDS,
 } from "@lcsp/contracts/assessment-domain";
+import { DOCUMENT_REQUEST_STATUSES } from "@lcsp/contracts/document";
 import {
-  DOCUMENT_ERROR_CODES,
-  DOCUMENT_REQUEST_STATUSES,
-} from "@lcsp/contracts/document";
+  LEGACY_ROUTE_RETIRED_ERROR_CODE,
+  LEGACY_ROUTE_RETIRED_STATUS,
+} from "@lcsp/contracts/legacy-migration";
 
 import {
   contentHash,
@@ -467,11 +468,12 @@ try {
     `/assessments/${A.id}/documents/final-report`,
     owner.token,
   );
-  eq(legacyReport.status, 409, "canonical assessment uses the artifact path");
   eq(
-    legacyReport.body.problem.code,
-    DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
+    legacyReport.status,
+    LEGACY_ROUTE_RETIRED_STATUS,
+    "retired V1 report route cannot bypass the canonical artifact path",
   );
+  eq(legacyReport.body.problem.code, LEGACY_ROUTE_RETIRED_ERROR_CODE);
 
   // ---- isolation: B has its own thread, namespace and lease; A's data is invisible to it ---------
   const B = await newAssessment("W3 vertical B");
@@ -988,11 +990,8 @@ try {
     "GET",
     `/internal/document-requests/${legacyRequestId}/generation-context`,
   );
-  eq(legacyContext.status, 409);
-  eq(
-    legacyContext.body.problem.code,
-    DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
-  );
+  eq(legacyContext.status, LEGACY_ROUTE_RETIRED_STATUS);
+  eq(legacyContext.body.problem.code, LEGACY_ROUTE_RETIRED_ERROR_CODE);
   const legacyCallback = await http(
     "POST",
     `/internal/document-requests/${legacyRequestId}/callback`,
@@ -1001,11 +1000,8 @@ try {
       document_url: "https://example.invalid/legacy-final-report.pdf",
     },
   );
-  eq(legacyCallback.status, 409);
-  eq(
-    legacyCallback.body.problem.code,
-    DOCUMENT_ERROR_CODES.finalReportRequiresAssessmentArtifact,
-  );
+  eq(legacyCallback.status, LEGACY_ROUTE_RETIRED_STATUS);
+  eq(legacyCallback.body.problem.code, LEGACY_ROUTE_RETIRED_ERROR_CODE);
   eq(
     (
       await q(

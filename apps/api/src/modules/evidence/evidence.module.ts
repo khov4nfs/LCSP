@@ -12,13 +12,7 @@ import { RetrieveVerifiedAgentEpisodesHandler } from "./application/queries/retr
 import { AssessmentArtifactProjectionService } from "./application/services/evidence/assessment-artifact-projection.service.js";
 import { EvidenceRedactorService } from "./application/services/evidence/evidence-redactor.service.js";
 import { ProgramEvidenceGraphDetailService } from "./application/services/evidence/program-evidence-graph-detail.service.js";
-import { VerifiedAgentEpisodeConsolidationWorker } from "./application/services/verified-agent-episode-consolidation.worker.js";
 import { VerifiedAgentEpisodeDeduplicationService } from "./application/services/verified-agent-episode-deduplication.service.js";
-import { InternalAgenticToolDispatchController } from "./presentation/http/agentic-tool-dispatch.controller.js";
-import {
-  EvidenceController,
-  InternalEvidenceController,
-} from "./presentation/http/evidence.controller.js";
 
 /**
  * Nest evidence module owns persistence/read boundaries only. Program graph traversal,
@@ -27,11 +21,7 @@ import {
  */
 @Module({
   imports: [CqrsModule, RbacModule],
-  controllers: [
-    EvidenceController,
-    InternalEvidenceController,
-    InternalAgenticToolDispatchController,
-  ],
+  controllers: [],
   providers: [
     GetEvidenceHandler,
     AcceptTechnicalProfileHandler,
@@ -42,7 +32,6 @@ import {
     EvidenceRedactorService,
     ProgramEvidenceGraphDetailService,
     VerifiedAgentEpisodeDeduplicationService,
-    VerifiedAgentEpisodeConsolidationWorker,
     WorkerApiKeyGuard,
     AssessmentRuntimeEventService,
   ],

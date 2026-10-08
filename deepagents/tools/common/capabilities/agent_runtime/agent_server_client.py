@@ -16,7 +16,6 @@ from tools.common.capabilities.agent_runtime.boundary import (
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
-from tools.common.capabilities.agent_runtime.runtime_control import report_runtime_control
 
 
 DEFAULT_AGENT_SERVER_URL = "http://127.0.0.1:2024"
@@ -179,7 +178,6 @@ def dispatch_agent_runtime_event(
         run_id=run_id,
         run=run,
         observer=observer,
-        runtime_context=context,
         timeout_seconds=(
             max(0.001, budget - (time.monotonic() - started_at))
             if budget is not None
@@ -233,7 +231,6 @@ def _poll_run_until_terminal(
     run: Mapping[str, Any],
     observer: "_ScanRunObserver",
     timeout_seconds: float | None,
-    runtime_context: Mapping[str, Any] | None = None,
 ) -> Any:
     """Poll a created/reused run to a terminal state and return its result values."""
     deadline_seconds = _run_budget_seconds(timeout_seconds)
@@ -327,11 +324,6 @@ def _poll_run_until_terminal(
         # A customer stop, not a failure: settle the delivery without a retry
         # so the stopped work does not restart until the customer continues.
         return {"status": "INTERRUPTED", "runId": run_id}
-    if runtime_context is not None:
-        # The hosted middleware registers RUNNING; only native terminal state
-        # may retire that registration. Stop acknowledgement remains in the
-        # exact-target control delivery, after interruption and checkpoint drain.
-        report_runtime_control(thread_id, run_id, runtime_context, "COMPLETED")
     state = client.threads.get_state(thread_id)
     if last_status != "success":
         _raise_for_terminal_run(last_status, state)
@@ -471,7 +463,6 @@ def resume_agent_runtime_run(
         run_id=run_id,
         run=run,
         observer=observer,
-        runtime_context=context,
         timeout_seconds=timeout_seconds,
     )
 

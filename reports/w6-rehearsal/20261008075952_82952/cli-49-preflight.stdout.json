@@ -1,0 +1,40 @@
+{
+  "generatedAt": "2026-10-08T08:01:56.758Z",
+  "activePortfolio": {
+    "activeCount": 0,
+    "id": null,
+    "version": null,
+    "engineeringRuleCount": 0
+  },
+  "assessments": {
+    "total": 0,
+    "terminal": 0,
+    "nonTerminal": 0,
+    "alreadyV2": 0
+  },
+  "assessmentsByLegacyStatus": {},
+  "outbox": {
+    "undelivered": [],
+    "legacyUndelivered": 0,
+    "unclassifiedUndelivered": 0
+  },
+  "inFlight": {
+    "ASSESSMENT_RUNTIME_TURN": 0,
+    "TARGETED_REANALYSIS_REQUEST": 0,
+    "TARGETED_REANALYSIS_CHECKPOINT": 0,
+    "REPOSITORY_SCAN_JOB": 0,
+    "DOCUMENT_REQUEST": 0
+  },
+  "reportReferences": {
+    "total": 0,
+    "byOutcome": {},
+    "unresolvedHosts": {}
+  },
+  "unsettledV1Reservations": {
+    "count": 0,
+    "credits": "0"
+  },
+  "blockers": [
+    "NO_ACTIVE_LEGAL_PORTFOLIO"
+  ]
+}

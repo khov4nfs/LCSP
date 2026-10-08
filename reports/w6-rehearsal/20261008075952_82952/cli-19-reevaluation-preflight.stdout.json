@@ -1,0 +1,81 @@
+{
+  "generatedAt": "2026-10-08T08:00:46.764Z",
+  "cutoverRunId": "a805eef1-05f5-46de-85e4-303019fe24d6",
+  "gates": {
+    "cutoverValidated": true,
+    "blockingFailures": 0,
+    "failingChecks": [],
+    "restoreBoundaryClosed": true,
+    "modelRouteDeclared": true
+  },
+  "cohort": {
+    "migrated": 30,
+    "byState": {
+      "READY_NOT_STARTED": 17,
+      "NOT_READY": 13
+    },
+    "eligible": 17,
+    "notReady": 13,
+    "excluded": {
+      "NO_PINNED_SNAPSHOT": 13,
+      "COVERAGE_INCOMPLETE": 13
+    },
+    "alreadyScheduledOrFinished": 0,
+    "startedByOperator": 0,
+    "startedOtherwise": 0
+  },
+  "perTenant": {
+    "tenantsTotal": 3,
+    "top": [
+      {
+        "ownerId": "bdb1dd10-5679-479c-882b-28edd1c8ccd2",
+        "eligible": 6,
+        "inFlight": 0
+      },
+      {
+        "ownerId": "f5f1b8e8-a885-48ad-81a7-17783f381411",
+        "eligible": 6,
+        "inFlight": 0
+      },
+      {
+        "ownerId": "fbb798c2-5241-4201-8e7b-d22eef00e52d",
+        "eligible": 5,
+        "inFlight": 0
+      }
+    ]
+  },
+  "concurrency": {
+    "globalConcurrency": 2,
+    "tenantConcurrency": 1,
+    "maxBacklog": 2,
+    "minStartIntervalMs": 5000,
+    "maxFailures": 3,
+    "maxTotal": 5
+  },
+  "currentLoad": {
+    "inFlight": 0,
+    "queued": 0
+  },
+  "modelRoute": {
+    "declared": [
+      "openai/rehearsal-model"
+    ],
+    "observedPolicies": [],
+    "observedUsage": [],
+    "undeclaredObservedRoutes": []
+  },
+  "budget": {
+    "policy": "Provider token usage is recorded as telemetry (LlmUsageEvent, idempotent per invocation); a model invocation never reserves or debits wallet credits.",
+    "walletConsultedByExecution": false,
+    "upperBoundRootExecutions": 5,
+    "modelInvocationsPerRoot": null,
+    "observedInvocationsPerAssessment": null,
+    "note": "Each started assessment is one Root execution. The number of model calls inside it is not estimated: it depends on the repository and the legal portfolio."
+  },
+  "canary": {
+    "canaryAssessments": 0,
+    "verified": false,
+    "attestedChecks": []
+  },
+  "blockers": []
+}
