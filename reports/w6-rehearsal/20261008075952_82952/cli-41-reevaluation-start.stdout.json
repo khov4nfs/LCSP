@@ -1,0 +1,71 @@
+{
+  "runId": "b9c13521-b03b-4338-b070-b478811e1663",
+  "mode": "BATCH",
+  "requested": 50,
+  "started": [
+    "08e98bd8-8f46-47b5-8b9e-c13c61904535"
+  ],
+  "alreadyStarted": [],
+  "deferred": [
+    {
+      "assessmentId": "f38b9b06-82c9-40ea-8e6c-aa433dc201fb",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "edcb70e7-fd8c-46a2-825c-530e11b00e7c",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "61c44d7b-7419-403a-8117-2574b41ac18c",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "a03842c6-abbc-43c7-8254-28fd04dac68c",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "7da8f4fc-3a25-4224-812e-fa74fde00d15",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "a11e9115-30b6-4788-84c8-336a0daea7ff",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "85c93226-014f-495e-8b68-5bf99d082428",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "6841d00b-6ebe-49e3-8f24-37a24e1218fd",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "0afb4e9b-a1c3-402f-8672-9181431eacef",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "3c4660ea-a0ba-45eb-84b4-3c429f83b05a",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "6fb68562-ab71-46bd-88a5-a99d15c4762d",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "3f9035df-6883-4fc1-8416-e49d05081050",
+      "reason": "TENANT_CAP_REACHED"
+    },
+    {
+      "assessmentId": "19cf23ea-7d5f-4bfc-8bb5-39b976b7f296",
+      "reason": "TENANT_CAP_REACHED"
+    }
+  ],
+  "failed": [],
+  "notReady": [],
+  "stopReason": "TENANT_CAP_REACHED",
+  "remainingEligible": 13,
+  "load": {
+    "inFlight": 3,
+    "queued": 3
+  }
+}

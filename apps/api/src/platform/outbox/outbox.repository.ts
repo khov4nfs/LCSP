@@ -1,3 +1,4 @@
+import { isRetiredOutboxEventType } from "@lcsp/contracts/legacy-migration";
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import {
@@ -64,6 +65,9 @@ export class OutboxRepository {
     input: OutboxMessageInput,
     tx?: Prisma.TransactionClient,
   ): Promise<string> {
+    // W6 fence: a retired V1 command/event must never be created again, whatever code path asks.
+    if (isRetiredOutboxEventType(input.eventType))
+      throw new Error(`OUTBOX_EVENT_TYPE_RETIRED: ${input.eventType}`);
     const client = tx ?? this.prisma;
     const message = OutboxMessageEntity.create(input);
 

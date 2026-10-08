@@ -10,6 +10,8 @@ export const OUTBOX_STATUSES = {
   published: "PUBLISHED",
   failed: "FAILED",
   dlq: "DLQ",
+  /** Terminal and non-replayable: a retired V1 command archived and cancelled at cutover. */
+  cancelled: "CANCELLED",
 } as const;
 
 export const OUTBOX_AUDIT_EVENT_TYPES = {

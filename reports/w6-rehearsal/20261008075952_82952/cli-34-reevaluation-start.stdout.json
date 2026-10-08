@@ -1,0 +1,18 @@
+{
+  "runId": "d2dd7e0d-dfca-4523-9f55-1de577587347",
+  "mode": "CANARY",
+  "requested": 1,
+  "started": [],
+  "alreadyStarted": [
+    "0b0edd13-6704-474b-81d9-09467ebde566"
+  ],
+  "deferred": [],
+  "failed": [],
+  "notReady": [],
+  "stopReason": "NO_ELIGIBLE_ASSESSMENT",
+  "remainingEligible": 16,
+  "load": {
+    "inFlight": 1,
+    "queued": 1
+  }
+}

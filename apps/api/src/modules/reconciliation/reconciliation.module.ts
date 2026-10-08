@@ -9,14 +9,10 @@ import { ListConflictsHandler } from "./application/queries/list-conflicts/list-
 import { GetArtifactChainHandler } from "./application/queries/get-artifact-chain/get-artifact-chain.handler.js";
 import { GetReconciliationContextHandler } from "./application/queries/get-reconciliation-context/get-reconciliation-context.handler.js";
 import { ProposeMissingTargetsHandler } from "./application/queries/propose-missing-targets/propose-missing-targets.handler.js";
-import {
-  InternalReconciliationController,
-  ReconciliationController,
-} from "./presentation/http/reconciliation.controller.js";
 
 @Module({
   imports: [CqrsModule, RbacModule],
-  controllers: [InternalReconciliationController, ReconciliationController],
+  controllers: [],
   providers: [
     AcceptConflictHandler,
     GetArtifactChainHandler,

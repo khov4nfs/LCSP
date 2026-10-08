@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "composite": false, "incremental": false, "noEmit": true, "emitDeclarationOnly": false, "declaration": false, "declarationMap": false, "sourceMap": false },
+  "include": ["src/modules/legacy-migration/**/*.ts"],
+  "exclude": ["src/modules/legacy-migration/**/*.spec.ts"]
+}

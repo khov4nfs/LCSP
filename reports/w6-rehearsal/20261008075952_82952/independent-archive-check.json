@@ -1,0 +1,145 @@
+{
+  "findings": [],
+  "summary": {
+    "ASSESSMENT": {
+      "live": 60,
+      "archived": 60,
+      "sampled": 15
+    },
+    "ASSESSMENT_INTERVIEW_THREAD": {
+      "live": 36,
+      "archived": 36,
+      "sampled": 15
+    },
+    "ENGINEERING_RULE_ASSESSMENT": {
+      "live": 12,
+      "archived": 12,
+      "sampled": 12
+    },
+    "ASSESSMENT_RUNTIME_TURN": {
+      "live": 60,
+      "archived": 60,
+      "sampled": 15
+    },
+    "ASSESSMENT_RUNTIME_EVENT": {
+      "live": 120,
+      "archived": 120,
+      "sampled": 15
+    },
+    "PIPELINE_RECONCILIATION": {
+      "live": 15,
+      "archived": 15,
+      "sampled": 15
+    },
+    "REPOSITORY_SCAN_JOB": {
+      "live": 42,
+      "archived": 42,
+      "sampled": 15
+    },
+    "TECHNICAL_EVIDENCE_REPORT": {
+      "live": 32,
+      "archived": 32,
+      "sampled": 15
+    },
+    "TECHNICAL_PROFILE": {
+      "live": 32,
+      "archived": 32,
+      "sampled": 15
+    },
+    "AI_USAGE_FLOW": {
+      "live": 22,
+      "archived": 22,
+      "sampled": 15
+    },
+    "CONFLICT_RECORD": {
+      "live": 22,
+      "archived": 22,
+      "sampled": 15
+    },
+    "TARGETED_REANALYSIS_REQUEST": {
+      "live": 7,
+      "archived": 7,
+      "sampled": 7
+    },
+    "TARGETED_REANALYSIS_CHECKPOINT": {
+      "live": 7,
+      "archived": 7,
+      "sampled": 7
+    },
+    "VERIFIED_AGENT_EPISODE": {
+      "live": 10,
+      "archived": 10,
+      "sampled": 10
+    },
+    "VERIFIED_PROFILE": {
+      "live": 22,
+      "archived": 22,
+      "sampled": 15
+    },
+    "CLASSIFICATION_RESULT": {
+      "live": 22,
+      "archived": 22,
+      "sampled": 15
+    },
+    "CLASSIFICATION_REVIEW_REQUEST": {
+      "live": 22,
+      "archived": 22,
+      "sampled": 15
+    },
+    "LEGAL_RULE_MATCH": {
+      "live": 22,
+      "archived": 22,
+      "sampled": 15
+    },
+    "DOCUMENT_REQUEST": {
+      "live": 36,
+      "archived": 36,
+      "sampled": 15
+    },
+    "READINESS_EXPORT": {
+      "live": 26,
+      "archived": 26,
+      "sampled": 15
+    },
+    "DECISION_MODEL_DECISION": {
+      "live": 9,
+      "archived": 9,
+      "sampled": 9
+    },
+    "DECISION_MODEL_EVENT": {
+      "live": 9,
+      "archived": 9,
+      "sampled": 9
+    },
+    "LEGAL_RULE_CATALOG_VERSION": {
+      "live": 1,
+      "archived": 1,
+      "sampled": 1
+    },
+    "LEGAL_RULE": {
+      "live": 3,
+      "archived": 3,
+      "sampled": 3
+    },
+    "RULE_APPROVAL_RECORD": {
+      "live": 1,
+      "archived": 1,
+      "sampled": 1
+    },
+    "CORPUS_APPROVAL_RECORD": {
+      "live": 1,
+      "archived": 1,
+      "sampled": 1
+    },
+    "CORPUS_DISCARD_RECEIPT": {
+      "live": 1,
+      "archived": 1,
+      "sampled": 1
+    },
+    "CORPUS_PREPARATION": {
+      "live": 1,
+      "archived": 1,
+      "sampled": 1
+    }
+  }
+}

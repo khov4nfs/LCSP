@@ -190,6 +190,8 @@ model Assessment {
   runtime                    AssessmentRuntime?
   events                     AssessmentEvent[]
   domainCase                 AssessmentCase?
+  legacyArchive          LegacyAssessmentArchive?
+  legacyArchiveRecords   LegacyArchiveRecord[]
 
   @@index([ownerId])
 }
@@ -483,6 +485,7 @@ enum OutboxStatus {
   PUBLISHED
   FAILED
   DLQ
+  CANCELLED
 }
 
 enum AssessmentStatus {
@@ -2141,4 +2144,188 @@ model AssessmentArtifact {
 
   @@unique([assessmentId, kind])
   @@index([assessmentId, lifecycleState])
+}
+
+enum LegacyMigrationRunKind {
+  REHEARSAL
+  CUTOVER
+  /// An explicit, bounded start of AI re-evaluation (never part of a cutover run).
+  REEVALUATION
+}
+
+enum LegacyReevaluationMode {
+  CANARY
+  BATCH
+}
+
+enum LegacyMigrationRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum LegacyAssessmentDisposition {
+  ARCHIVED_TERMINAL
+  BACKFILLED_NON_TERMINAL
+}
+
+enum LegacyArchiveSource {
+  ASSESSMENT
+  ASSESSMENT_INTERVIEW_THREAD
+  ENGINEERING_RULE_ASSESSMENT
+  ASSESSMENT_RUNTIME_TURN
+  ASSESSMENT_RUNTIME_EVENT
+  PIPELINE_RECONCILIATION
+  REPOSITORY_SCAN_JOB
+  TECHNICAL_EVIDENCE_REPORT
+  TECHNICAL_PROFILE
+  AI_USAGE_FLOW
+  CONFLICT_RECORD
+  TARGETED_REANALYSIS_REQUEST
+  TARGETED_REANALYSIS_CHECKPOINT
+  VERIFIED_AGENT_EPISODE
+  VERIFIED_PROFILE
+  CLASSIFICATION_RESULT
+  CLASSIFICATION_REVIEW_REQUEST
+  LEGAL_RULE_MATCH
+  DOCUMENT_REQUEST
+  READINESS_EXPORT
+  DECISION_MODEL_DECISION
+  DECISION_MODEL_EVENT
+  LEGAL_RULE_CATALOG_VERSION
+  LEGAL_RULE
+  RULE_APPROVAL_RECORD
+  CORPUS_APPROVAL_RECORD
+  CORPUS_DISCARD_RECEIPT
+  CORPUS_PREPARATION
+  OUTBOX_MESSAGE_CANCELLED
+  FILESYSTEM_ARTIFACT
+}
+
+enum LegacyArtifactReconciliationClass {
+  ARTIFACT_PRESENT_AND_COPIED
+  ARTIFACT_PRESENT_BUT_COPY_FAILED
+  NO_LEGACY_ARTIFACT_PRESENT
+  METADATA_ONLY_LEGACY_RECORD
+  INVALID_OR_ORPHANED_LEGACY_REFERENCE
+}
+
+enum LegacyArtifactReconciliationReason {
+  COPIED_AND_VERIFIED
+  INLINE_CONTENT_ARCHIVED
+  PLACEHOLDER_UPLOADER_NEVER_PERSISTED
+  OPERATOR_ATTESTED_NON_PERSISTING
+  NO_ARTIFACT_REFERENCE
+  READY_WITHOUT_REFERENCE
+  NO_INLINE_CONTENT
+  MALFORMED_REFERENCE
+  UNSUPPORTED_REFERENCE_SCHEME
+  REFERENCE_OUTSIDE_ALLOWED_ROOT
+  REFERENCE_TARGET_MISSING
+  LOCATION_NOT_CONFIGURED
+  COPY_IO_ERROR
+  COPY_SIZE_LIMIT_EXCEEDED
+  COPY_VERIFICATION_MISMATCH
+}
+
+/// One execution of the forward-migration tooling (rehearsal on a copy, or the real cutover).
+model LegacyMigrationRun {
+  id                      String                    @id @default(uuid()) @db.Uuid
+  kind                    LegacyMigrationRunKind
+  status                  LegacyMigrationRunStatus  @default(RUNNING)
+  toolVersion             String
+  /// Sanitized options only; never credentials.
+  parameters              Json                      @default("{}")
+  phaseResults            Json                      @default("{}")
+  restorePointRef         String?
+  restorePointDigest      String?
+  restorePointRecordedAt  DateTime?                 @db.Timestamptz(3)
+  restorePointVerifiedAt  DateTime?                 @db.Timestamptz(3)
+  /// Set when the first accepted V2 write closes the rollback boundary; forward repair only after.
+  restoreBoundaryClosedAt DateTime?                 @db.Timestamptz(3)
+  startedAt               DateTime                  @default(now()) @db.Timestamptz(3)
+  completedAt             DateTime?                 @db.Timestamptz(3)
+  archives                LegacyAssessmentArchive[]
+  records                 LegacyArchiveRecord[]
+  reevaluations          LegacyReevaluation[]
+
+  @@index([kind, startedAt])
+}
+
+/// One row per V1 assessment after migration: terminal ones are archived read-only; non-terminal ones
+/// continue in V2 (fresh thread/state) while their V1 history stays here.
+model LegacyAssessmentArchive {
+  assessmentId     String                      @id
+  ownerId          String
+  disposition      LegacyAssessmentDisposition
+  legacyStatus     AssessmentStatus
+  legacyCreatedAt  DateTime                    @db.Timestamptz(3)
+  legacyUpdatedAt  DateTime                    @db.Timestamptz(3)
+  v2ThreadId       String?                     @db.Uuid
+  v2LifecycleState AssessmentLifecycleState?
+  archiveRunId     String                      @db.Uuid
+  recordCount      Int
+  /// sha256 over the ordered (sourceTable, sourceId, payloadSha256) lines of this assessment's records.
+  payloadDigest    String
+  archivedAt       DateTime                    @default(now()) @db.Timestamptz(3)
+  assessment       Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  run              LegacyMigrationRun          @relation(fields: [archiveRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reevaluation     LegacyReevaluation?
+
+  @@index([ownerId, archivedAt])
+  @@index([archiveRunId])
+}
+
+/// Byte-exact `to_jsonb` copy of one V1 row (or, for report-related rows, its reconciliation outcome).
+model LegacyArchiveRecord {
+  id                   String                              @id @default(uuid()) @db.Uuid
+  archiveRunId         String                              @db.Uuid
+  /// NULL for global catalog rows that belong to no assessment.
+  assessmentId         String?
+  sourceTable          LegacyArchiveSource
+  sourceId             String
+  payload              Json
+  payloadSha256        String
+  reconciliationClass  LegacyArtifactReconciliationClass?
+  reconciliationReason LegacyArtifactReconciliationReason?
+  archivedAt           DateTime                            @default(now()) @db.Timestamptz(3)
+  assessment           Assessment?                         @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  run                  LegacyMigrationRun                  @relation(fields: [archiveRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  blob                 LegacyArchiveBlob?
+
+  @@unique([sourceTable, sourceId])
+  @@index([assessmentId, sourceTable])
+  @@index([archiveRunId, sourceTable])
+}
+
+/// Bytes that actually existed in V1 storage and were copied with verified identity. Never fabricated.
+model LegacyArchiveBlob {
+  recordId      String              @id @db.Uuid
+  contentSha256 String
+  sizeBytes     Int
+  /// Content-addressed reference into the protected blob root: `legacy-archive/<sha256>.blob`.
+  storageRef    String
+  mediaType     String?
+  createdAt     DateTime            @default(now()) @db.Timestamptz(3)
+  record        LegacyArchiveRecord @relation(fields: [recordId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+}
+
+/// Coordination ledger of the SEPARATE, explicit re-evaluation phase: which migrated assessment an operator
+/// deliberately started, when, by whom and in which batch. It never stores execution, completion or failure:
+/// those stay canonical (ALS/AES) and are only derived from. The Root is the sole semantic authority.
+model LegacyReevaluation {
+  assessmentId  String                  @id
+  ownerId       String
+  runId         String                  @db.Uuid
+  mode          LegacyReevaluationMode
+  /// Operator/ticket that authorized the start; required.
+  startedBy     String
+  /// Outbox id of the single Root command this start enqueued (deterministic per assessment).
+  rootCommandId String
+  startedAt     DateTime                @default(now()) @db.Timestamptz(3)
+  archive       LegacyAssessmentArchive @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  run           LegacyMigrationRun      @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([runId, startedAt])
+  @@index([ownerId, startedAt])
 }

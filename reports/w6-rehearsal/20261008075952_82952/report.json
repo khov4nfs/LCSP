@@ -1,0 +1,1326 @@
+{
+  "runId": "20261008075952_82952",
+  "startedAt": "2026-10-08T07:59:52.669Z",
+  "config": {
+    "port": 55461,
+    "container": "lcsp-w6-disposable-postgres-55461",
+    "cli": "/home/khovan/Workplaces/LCSP/apps/api/tmp/w6-cli/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.js",
+    "baselineRef": "87ae8c4eb358c17318e71a53c3125d75975b9d98",
+    "assessments": 60,
+    "keepDatabases": false,
+    "apiMain": "/home/khovan/Workplaces/LCSP/apps/api/tmp/w6-api/src/main.js",
+    "apiPort": 3461,
+    "requireApi": true
+  },
+  "stages": [
+    {
+      "name": "environment",
+      "status": "PASS",
+      "ms": 32,
+      "detail": {
+        "postgres": "16.15 (Debian 16.15-1.pgdg13+2)",
+        "cli": "/home/khovan/Workplaces/LCSP/apps/api/tmp/w6-cli/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.js"
+      }
+    },
+    {
+      "name": "baseline-v1-schema",
+      "status": "PASS",
+      "ms": 5489,
+      "detail": {
+        "baselineMigrations": 95
+      }
+    },
+    {
+      "name": "seed-production-shaped-v1-population",
+      "status": "PASS",
+      "ms": 174,
+      "detail": {
+        "rows": 852,
+        "assessments": {
+          "total": 60,
+          "terminal": 30,
+          "nonTerminal": 30,
+          "byStatus": {
+            "READY_FOR_REVIEW": 18,
+            "AI_NOT_DETECTED": 12,
+            "WIZARD_IN_PROGRESS": 6,
+            "WIZARD_SUBMITTED": 6,
+            "EVIDENCE_REQUIRED": 6,
+            "SCAN_IN_PROGRESS": 6,
+            "CLASSIFICATION_LOCKED": 6
+          }
+        },
+        "outbox": {
+          "cancelled": 72,
+          "publishedLegacy": 12,
+          "keptUndelivered": 7,
+          "byLegacyType": {
+            "command.scan.requested.v1": 6,
+            "command.scan.targeted-reanalysis.v1": 6,
+            "command.assessment-interview.pause-agent.v1": 6,
+            "command.assessment-interview.resume-agent.v1": 6,
+            "command.legal-matching.requested.v1": 6,
+            "event.technical-evidence.accepted.v1": 6,
+            "event.technical-profile.ready.v1": 6,
+            "event.ai-usage-flow.ready.v1": 6,
+            "event.classification-result.ready.v1": 6,
+            "event.reconciliation.all-conflicts-resolved.v1": 6,
+            "document.final-report-requested": 6,
+            "document.gap-analysis-requested": 6
+          }
+        }
+      }
+    },
+    {
+      "name": "upgrade-through-prisma-migrate-deploy",
+      "status": "PASS",
+      "ms": 2644,
+      "detail": {
+        "migrations": 104
+      }
+    },
+    {
+      "name": "active-legal-portfolio-prerequisite",
+      "status": "PASS",
+      "ms": 42,
+      "detail": {
+        "portfolio": "163aa7ca-57f3-4562-8054-44dcd8d9ca87",
+        "rules": 3
+      }
+    },
+    {
+      "name": "restore-point-drill (real pg_dump -> pg_restore)",
+      "status": "PASS",
+      "ms": 2608,
+      "detail": {
+        "ref": "pg_dump:20261008075952_82952/restore-point.dump",
+        "digest": "01550f89cfbf4fcbf57455c39be8310a1f5f0fe86f5f722f584c1d4a02c63b20",
+        "bytes": 407075
+      }
+    },
+    {
+      "name": "cli-preflight (read-only)",
+      "status": "PASS",
+      "ms": 3443,
+      "detail": {
+        "blockedWithoutRoot": [
+          "UNRESOLVED_REPORT_LOCATIONS"
+        ]
+      }
+    },
+    {
+      "name": "cutover run 1: start -> restore point -> execute",
+      "status": "PASS",
+      "ms": 5962,
+      "detail": {
+        "runId": "a805eef1-05f5-46de-85e4-303019fe24d6",
+        "summary": {
+          "pass": 93,
+          "fail": 0,
+          "warn": 1,
+          "blockingFailures": 0
+        },
+        "reconciliation": {
+          "ARTIFACT_PRESENT_AND_COPIED": 18,
+          "ARTIFACT_PRESENT_BUT_COPY_FAILED": 0,
+          "NO_LEGACY_ARTIFACT_PRESENT": 21,
+          "METADATA_ONLY_LEGACY_RECORD": 21,
+          "INVALID_OR_ORPHANED_LEGACY_REFERENCE": 2
+        }
+      }
+    },
+    {
+      "name": "independent verification of the archive (harness code, harness table list)",
+      "status": "PASS",
+      "ms": 178,
+      "detail": {
+        "sources": 28
+      }
+    },
+    {
+      "name": "source preservation, ids, tenants, hierarchy",
+      "status": "PASS",
+      "ms": 2399,
+      "detail": {}
+    },
+    {
+      "name": "closure: zero old execution authority remains",
+      "status": "PASS",
+      "ms": 12,
+      "detail": {}
+    },
+    {
+      "name": "migration starts no re-evaluation and spends nothing (zero model calls, zero credits)",
+      "status": "PASS",
+      "ms": 1815,
+      "detail": {
+        "migrated": 30,
+        "rootCommands": 0
+      }
+    },
+    {
+      "name": "report artifacts: accounted, byte-identical, nothing fabricated",
+      "status": "PASS",
+      "ms": 5,
+      "detail": {
+        "copied": 2,
+        "placeholders": 21
+      }
+    },
+    {
+      "name": "second run is idempotent",
+      "status": "PASS",
+      "ms": 3325,
+      "detail": {
+        "secondRun": "fae20c05-9cd3-4489-908c-faca9a99d19b"
+      }
+    },
+    {
+      "name": "restart from the restore point converges to identical archive digests",
+      "status": "PASS",
+      "ms": 8130,
+      "detail": {}
+    },
+    {
+      "name": "rollback boundary: restore until the first accepted V2 write, forward repair only after",
+      "status": "PASS",
+      "ms": 8750,
+      "detail": {}
+    },
+    {
+      "name": "archive retrieval and retired surface over HTTP (real API process)",
+      "status": "PASS",
+      "ms": 7661,
+      "detail": {
+        "owners": 3,
+        "retiredProbed": 9
+      }
+    },
+    {
+      "name": "re-evaluation 1/7: preflight is read-only; every refusal changes nothing",
+      "status": "PASS",
+      "ms": 13695,
+      "detail": {
+        "eligible": 17,
+        "unpinned": 13,
+        "refusals": 11
+      }
+    },
+    {
+      "name": "re-evaluation 2/7: booting and restarting the API starts nothing",
+      "status": "PASS",
+      "ms": 12304,
+      "detail": {
+        "boots": 2
+      }
+    },
+    {
+      "name": "re-evaluation 3/7: a canary starts exactly one Root; rerun and duplicate cutover are no-ops",
+      "status": "PASS",
+      "ms": 9994,
+      "detail": {
+        "canaryRun": "29ac24ba-c900-4115-8541-80c82d797921"
+      }
+    },
+    {
+      "name": "re-evaluation 4/7: the REAL Root executes the canary; usage lands only on it; verification passes",
+      "status": "PASS",
+      "ms": 10364,
+      "detail": {
+        "threadId": "eb0d9919-7640-48e4-ac13-ab1c6c8f4566",
+        "usageEvents": 2
+      }
+    },
+    {
+      "name": "re-evaluation 5/7: the bounded batch (global cap, per-tenant cap, back-pressure, concurrent operators)",
+      "status": "PASS",
+      "ms": 8293,
+      "detail": {
+        "firstBatch": 2,
+        "perTenantBatch": 1
+      }
+    },
+    {
+      "name": "re-evaluation 6/7: failures are isolated (failed start, failure budget, failed execution)",
+      "status": "PASS",
+      "ms": 8590,
+      "detail": {
+        "failedExecution": {
+          "assessmentId": "08e98bd8-8f46-47b5-8b9e-c13c61904535",
+          "lifecycleState": "ACTIVE"
+        }
+      }
+    },
+    {
+      "name": "re-evaluation 7/7: final reconciliation (V1 untouched, ledger = commands, accounting moved only by real usage)",
+      "status": "PASS",
+      "ms": 1607,
+      "detail": {
+        "ledgerRows": 10,
+        "accountingTrail": 4
+      }
+    },
+    {
+      "name": "clean install: every migration from an empty database; the cutover tooling is a safe no-op",
+      "status": "PASS",
+      "ms": 15061,
+      "detail": {
+        "migrations": 104
+      }
+    },
+    {
+      "name": "fail-closed: unresolved-report-location-blocks-cutover",
+      "status": "PASS",
+      "ms": 7410
+    },
+    {
+      "name": "fail-closed: unreadable-report-location-fails-closed",
+      "status": "PASS",
+      "ms": 3994
+    },
+    {
+      "name": "fail-closed: copy-failure-fails-closed-and-resumes",
+      "status": "PASS",
+      "ms": 6492
+    },
+    {
+      "name": "fail-closed: re-evaluation-refused-while-the-rollback-boundary-is-open",
+      "status": "PASS",
+      "ms": 9939
+    },
+    {
+      "name": "fail-closed: re-evaluation-refused-when-the-cutover-does-not-validate",
+      "status": "PASS",
+      "ms": 8450
+    },
+    {
+      "name": "fail-closed: live-acquisition-writes-after-cutover-are-not-v1-residue",
+      "status": "PASS",
+      "ms": 7493
+    },
+    {
+      "name": "fail-closed: unclassified-outbox-traffic-and-late-v1-writes",
+      "status": "PASS",
+      "ms": 12200
+    }
+  ],
+  "checks": 462,
+  "baselineMigrations": 95,
+  "restorePoint": {
+    "ref": "pg_dump:20261008075952_82952/restore-point.dump",
+    "digest": "01550f89cfbf4fcbf57455c39be8310a1f5f0fe86f5f722f584c1d4a02c63b20",
+    "bytes": 407075
+  },
+  "facts": {
+    "runId": "a805eef1-05f5-46de-85e4-303019fe24d6",
+    "quiesce": {
+      "cancelled": 72,
+      "byEventType": {
+        "command.scan.requested.v1": 6,
+        "command.scan.targeted-reanalysis.v1": 6,
+        "command.assessment-interview.pause-agent.v1": 6,
+        "command.assessment-interview.resume-agent.v1": 6,
+        "command.legal-matching.requested.v1": 6,
+        "event.technical-evidence.accepted.v1": 6,
+        "event.technical-profile.ready.v1": 6,
+        "event.ai-usage-flow.ready.v1": 6,
+        "event.classification-result.ready.v1": 6,
+        "event.reconciliation.all-conflicts-resolved.v1": 6,
+        "document.final-report-requested": 6,
+        "document.gap-analysis-requested": 6
+      }
+    },
+    "archive": {
+      "archivedBySource": {
+        "ASSESSMENT": 60,
+        "ASSESSMENT_INTERVIEW_THREAD": 36,
+        "ENGINEERING_RULE_ASSESSMENT": 12,
+        "ASSESSMENT_RUNTIME_TURN": 60,
+        "ASSESSMENT_RUNTIME_EVENT": 120,
+        "PIPELINE_RECONCILIATION": 15,
+        "REPOSITORY_SCAN_JOB": 42,
+        "TECHNICAL_EVIDENCE_REPORT": 32,
+        "TECHNICAL_PROFILE": 32,
+        "AI_USAGE_FLOW": 22,
+        "CONFLICT_RECORD": 22,
+        "TARGETED_REANALYSIS_REQUEST": 7,
+        "TARGETED_REANALYSIS_CHECKPOINT": 7,
+        "VERIFIED_AGENT_EPISODE": 10,
+        "VERIFIED_PROFILE": 22,
+        "CLASSIFICATION_RESULT": 22,
+        "CLASSIFICATION_REVIEW_REQUEST": 22,
+        "LEGAL_RULE_MATCH": 22,
+        "DECISION_MODEL_DECISION": 9,
+        "DECISION_MODEL_EVENT": 9,
+        "LEGAL_RULE_CATALOG_VERSION": 1,
+        "LEGAL_RULE": 3,
+        "RULE_APPROVAL_RECORD": 1,
+        "CORPUS_APPROVAL_RECORD": 1,
+        "CORPUS_DISCARD_RECEIPT": 1,
+        "CORPUS_PREPARATION": 1
+      },
+      "closedInFlight": {
+        "ASSESSMENT_RUNTIME_TURN": 18,
+        "TARGETED_REANALYSIS_REQUEST": 2,
+        "TARGETED_REANALYSIS_CHECKPOINT": 2,
+        "REPOSITORY_SCAN_JOB": 5,
+        "DOCUMENT_REQUEST": 6
+      },
+      "terminalAssessmentsArchived": 30,
+      "reports": {
+        "archived": 62,
+        "byClass": {
+          "NO_LEGACY_ARTIFACT_PRESENT": 21,
+          "METADATA_ONLY_LEGACY_RECORD": 21,
+          "ARTIFACT_PRESENT_AND_COPIED": 18,
+          "INVALID_OR_ORPHANED_LEGACY_REFERENCE": 2
+        },
+        "byReason": {
+          "PLACEHOLDER_UPLOADER_NEVER_PERSISTED": 21,
+          "NO_ARTIFACT_REFERENCE": 9,
+          "COPIED_AND_VERIFIED": 2,
+          "REFERENCE_TARGET_MISSING": 2,
+          "READY_WITHOUT_REFERENCE": 2,
+          "INLINE_CONTENT_ARCHIVED": 16,
+          "NO_INLINE_CONTENT": 10
+        },
+        "undetermined": [],
+        "copyFailed": []
+      }
+    },
+    "backfill": {
+      "backfilled": 30,
+      "pinnedSnapshot": 17,
+      "byReason": {
+        "NO_SNAPSHOT": 8,
+        "PINNED_LATEST_READY_SNAPSHOT": 17,
+        "NO_USABLE_SNAPSHOT": 5
+      },
+      "skipped": 0
+    },
+    "validation": {
+      "summary": {
+        "pass": 93,
+        "fail": 0,
+        "warn": 1,
+        "blockingFailures": 0
+      },
+      "checks": [
+        {
+          "id": "ACTIVE_LEGAL_PORTFOLIO",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.ASSESSMENT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.ASSESSMENT_INTERVIEW_THREAD",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.ENGINEERING_RULE_ASSESSMENT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.ASSESSMENT_RUNTIME_TURN",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.ASSESSMENT_RUNTIME_EVENT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.PIPELINE_RECONCILIATION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.REPOSITORY_SCAN_JOB",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.TECHNICAL_EVIDENCE_REPORT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.TECHNICAL_PROFILE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.AI_USAGE_FLOW",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.CONFLICT_RECORD",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.TARGETED_REANALYSIS_REQUEST",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.TARGETED_REANALYSIS_CHECKPOINT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.VERIFIED_AGENT_EPISODE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.VERIFIED_PROFILE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.CLASSIFICATION_RESULT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.CLASSIFICATION_REVIEW_REQUEST",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.LEGAL_RULE_MATCH",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.DECISION_MODEL_DECISION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.DECISION_MODEL_EVENT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.LEGAL_RULE_CATALOG_VERSION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.LEGAL_RULE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.RULE_APPROVAL_RECORD",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.CORPUS_APPROVAL_RECORD",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.CORPUS_DISCARD_RECEIPT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.CORPUS_PREPARATION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.DOCUMENT_REQUEST",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_COVERAGE.READINESS_EXPORT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_PAYLOAD_HASHES",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_RECORD_IDS",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ARCHIVE_ASSESSMENT_FK",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "CLOSURE.ASSESSMENT_RUNTIME_TURN",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "CLOSURE.TARGETED_REANALYSIS_REQUEST",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "CLOSURE.TARGETED_REANALYSIS_CHECKPOINT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "CLOSURE.REPOSITORY_SCAN_JOB",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "CLOSURE.DOCUMENT_REQUEST",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "OUTBOX_NO_UNDELIVERED_LEGACY_MESSAGE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "OUTBOX_NO_UNCLASSIFIED_UNDELIVERED_MESSAGE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "OUTBOX_CANCELLED_ARCHIVED_AND_AUDITED",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ASSESSMENT_SUMMARY_COVERAGE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "ASSESSMENT_SUMMARY_IDENTITY",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "TERMINAL_V1_HAS_NO_V2_STATE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_HAS_LIFECYCLE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_HAS_RUNTIME",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_THREAD_MATCHES_SUMMARY",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_UNIQUE_THREADS",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_NO_V1_THREAD_REUSE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_HAS_PORTFOLIO_PIN",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_PIN_IS_VALID_SNAPSHOT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_COVERAGE_COMPLETE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "BACKFILL_PROMOTES_NO_V1_SEMANTICS",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "MIGRATION_ENQUEUED_NO_ROOT_COMMAND",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "UNSTARTED_ASSESSMENTS_HAVE_NO_AI_EFFECT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "REEVALUATION_LEDGER_MATCHES_ROOT_COMMANDS",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.ASSESSMENT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.ASSESSMENT_INTERVIEW_THREAD",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.ENGINEERING_RULE_ASSESSMENT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.ASSESSMENT_RUNTIME_TURN",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.ASSESSMENT_RUNTIME_EVENT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.PIPELINE_RECONCILIATION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.REPOSITORY_SCAN_JOB",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.TECHNICAL_EVIDENCE_REPORT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.TECHNICAL_PROFILE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.AI_USAGE_FLOW",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.CONFLICT_RECORD",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.TARGETED_REANALYSIS_REQUEST",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.TARGETED_REANALYSIS_CHECKPOINT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.VERIFIED_AGENT_EPISODE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.VERIFIED_PROFILE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.CLASSIFICATION_RESULT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.CLASSIFICATION_REVIEW_REQUEST",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.LEGAL_RULE_MATCH",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.DECISION_MODEL_DECISION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.DECISION_MODEL_EVENT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.LEGAL_RULE_CATALOG_VERSION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.LEGAL_RULE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.RULE_APPROVAL_RECORD",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.CORPUS_APPROVAL_RECORD",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.CORPUS_DISCARD_RECEIPT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.CORPUS_PREPARATION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.DOCUMENT_REQUEST",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SAMPLED_RECONCILIATION.READINESS_EXPORT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "V2_ARTIFACTS_UNCHANGED_BY_MIGRATION",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "SHARED_LEARNING_STORE_NOT_SEEDED",
+          "status": "PASS",
+          "blocking": false
+        },
+        {
+          "id": "RESTORE_POINT_RECORDED",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "RESTORE_POINT_RESTORE_VERIFIED",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "NO_ACCEPTED_V2_WRITES_WHILE_RESTORE_BOUNDARY_OPEN",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "REPORT_LOCATIONS_RESOLVED",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "REPORT_NO_PRESENT_BUT_UNCOPIED_ARTIFACT",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "REPORT_COPIED_AND_BLOBS_AGREE",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "REPORT_COPIED_COUNT_MATCHES_BLOBS",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "REPORT_BLOB_BYTES_VERIFIED",
+          "status": "PASS",
+          "blocking": true
+        },
+        {
+          "id": "REPORT_INVALID_OR_ORPHANED_REFERENCES",
+          "status": "WARN",
+          "blocking": false
+        }
+      ]
+    },
+    "artifactReconciliation": {
+      "total": 62,
+      "byClass": {
+        "ARTIFACT_PRESENT_AND_COPIED": 18,
+        "ARTIFACT_PRESENT_BUT_COPY_FAILED": 0,
+        "NO_LEGACY_ARTIFACT_PRESENT": 21,
+        "METADATA_ONLY_LEGACY_RECORD": 21,
+        "INVALID_OR_ORPHANED_LEGACY_REFERENCE": 2
+      },
+      "byReason": {
+        "COPIED_AND_VERIFIED": 2,
+        "INLINE_CONTENT_ARCHIVED": 16,
+        "PLACEHOLDER_UPLOADER_NEVER_PERSISTED": 21,
+        "OPERATOR_ATTESTED_NON_PERSISTING": 0,
+        "NO_ARTIFACT_REFERENCE": 9,
+        "READY_WITHOUT_REFERENCE": 2,
+        "NO_INLINE_CONTENT": 10,
+        "MALFORMED_REFERENCE": 0,
+        "UNSUPPORTED_REFERENCE_SCHEME": 0,
+        "REFERENCE_OUTSIDE_ALLOWED_ROOT": 0,
+        "REFERENCE_TARGET_MISSING": 2,
+        "LOCATION_NOT_CONFIGURED": 0,
+        "COPY_IO_ERROR": 0,
+        "COPY_SIZE_LIMIT_EXCEEDED": 0,
+        "COPY_VERIFICATION_MISMATCH": 0
+      },
+      "uploaderEvidence": {
+        "sourcePath": "deepagents/tools/common/capabilities/reporting/report/delivery/storage_uploader.py",
+        "baselineCommit": "87ae8c4eb358c17318e71a53c3125d75975b9d98",
+        "sha256": "e3789784a7101ab16f1b552a27ff70420a2c38e41a6661e382076f8362eaf842",
+        "behavior": "PLACEHOLDER_RETURNS_MOCK_URL_WITHOUT_PERSISTING",
+        "callers": [
+          "deepagents/tools/common/capabilities/reporting/gap/gap_analysis_boundary.py",
+          "deepagents/tools/common/capabilities/reporting/report/final_report/final_report_boundary.py"
+        ]
+      },
+      "limitation": "The V1 report uploader was a placeholder that returned a mock URL without persisting bytes. Historical V1 reports are therefore archived as metadata and classified; no historical artifact was regenerated, fabricated, or given a synthetic hash or storage reference."
+    },
+    "independentCheck": {
+      "ASSESSMENT": {
+        "live": 60,
+        "archived": 60,
+        "sampled": 15
+      },
+      "ASSESSMENT_INTERVIEW_THREAD": {
+        "live": 36,
+        "archived": 36,
+        "sampled": 15
+      },
+      "ENGINEERING_RULE_ASSESSMENT": {
+        "live": 12,
+        "archived": 12,
+        "sampled": 12
+      },
+      "ASSESSMENT_RUNTIME_TURN": {
+        "live": 60,
+        "archived": 60,
+        "sampled": 15
+      },
+      "ASSESSMENT_RUNTIME_EVENT": {
+        "live": 120,
+        "archived": 120,
+        "sampled": 15
+      },
+      "PIPELINE_RECONCILIATION": {
+        "live": 15,
+        "archived": 15,
+        "sampled": 15
+      },
+      "REPOSITORY_SCAN_JOB": {
+        "live": 42,
+        "archived": 42,
+        "sampled": 15
+      },
+      "TECHNICAL_EVIDENCE_REPORT": {
+        "live": 32,
+        "archived": 32,
+        "sampled": 15
+      },
+      "TECHNICAL_PROFILE": {
+        "live": 32,
+        "archived": 32,
+        "sampled": 15
+      },
+      "AI_USAGE_FLOW": {
+        "live": 22,
+        "archived": 22,
+        "sampled": 15
+      },
+      "CONFLICT_RECORD": {
+        "live": 22,
+        "archived": 22,
+        "sampled": 15
+      },
+      "TARGETED_REANALYSIS_REQUEST": {
+        "live": 7,
+        "archived": 7,
+        "sampled": 7
+      },
+      "TARGETED_REANALYSIS_CHECKPOINT": {
+        "live": 7,
+        "archived": 7,
+        "sampled": 7
+      },
+      "VERIFIED_AGENT_EPISODE": {
+        "live": 10,
+        "archived": 10,
+        "sampled": 10
+      },
+      "VERIFIED_PROFILE": {
+        "live": 22,
+        "archived": 22,
+        "sampled": 15
+      },
+      "CLASSIFICATION_RESULT": {
+        "live": 22,
+        "archived": 22,
+        "sampled": 15
+      },
+      "CLASSIFICATION_REVIEW_REQUEST": {
+        "live": 22,
+        "archived": 22,
+        "sampled": 15
+      },
+      "LEGAL_RULE_MATCH": {
+        "live": 22,
+        "archived": 22,
+        "sampled": 15
+      },
+      "DOCUMENT_REQUEST": {
+        "live": 36,
+        "archived": 36,
+        "sampled": 15
+      },
+      "READINESS_EXPORT": {
+        "live": 26,
+        "archived": 26,
+        "sampled": 15
+      },
+      "DECISION_MODEL_DECISION": {
+        "live": 9,
+        "archived": 9,
+        "sampled": 9
+      },
+      "DECISION_MODEL_EVENT": {
+        "live": 9,
+        "archived": 9,
+        "sampled": 9
+      },
+      "LEGAL_RULE_CATALOG_VERSION": {
+        "live": 1,
+        "archived": 1,
+        "sampled": 1
+      },
+      "LEGAL_RULE": {
+        "live": 3,
+        "archived": 3,
+        "sampled": 3
+      },
+      "RULE_APPROVAL_RECORD": {
+        "live": 1,
+        "archived": 1,
+        "sampled": 1
+      },
+      "CORPUS_APPROVAL_RECORD": {
+        "live": 1,
+        "archived": 1,
+        "sampled": 1
+      },
+      "CORPUS_DISCARD_RECEIPT": {
+        "live": 1,
+        "archived": 1,
+        "sampled": 1
+      },
+      "CORPUS_PREPARATION": {
+        "live": 1,
+        "archived": 1,
+        "sampled": 1
+      }
+    }
+  },
+  "reevaluation": {
+    "preflight": {
+      "generatedAt": "2026-10-08T08:00:46.764Z",
+      "cutoverRunId": "a805eef1-05f5-46de-85e4-303019fe24d6",
+      "gates": {
+        "cutoverValidated": true,
+        "blockingFailures": 0,
+        "failingChecks": [],
+        "restoreBoundaryClosed": true,
+        "modelRouteDeclared": true
+      },
+      "cohort": {
+        "migrated": 30,
+        "byState": {
+          "READY_NOT_STARTED": 17,
+          "NOT_READY": 13
+        },
+        "eligible": 17,
+        "notReady": 13,
+        "excluded": {
+          "NO_PINNED_SNAPSHOT": 13,
+          "COVERAGE_INCOMPLETE": 13
+        },
+        "alreadyScheduledOrFinished": 0,
+        "startedByOperator": 0,
+        "startedOtherwise": 0
+      },
+      "perTenant": {
+        "tenantsTotal": 3,
+        "top": [
+          {
+            "ownerId": "bdb1dd10-5679-479c-882b-28edd1c8ccd2",
+            "eligible": 6,
+            "inFlight": 0
+          },
+          {
+            "ownerId": "f5f1b8e8-a885-48ad-81a7-17783f381411",
+            "eligible": 6,
+            "inFlight": 0
+          },
+          {
+            "ownerId": "fbb798c2-5241-4201-8e7b-d22eef00e52d",
+            "eligible": 5,
+            "inFlight": 0
+          }
+        ]
+      },
+      "concurrency": {
+        "globalConcurrency": 2,
+        "tenantConcurrency": 1,
+        "maxBacklog": 2,
+        "minStartIntervalMs": 5000,
+        "maxFailures": 3,
+        "maxTotal": 5
+      },
+      "currentLoad": {
+        "inFlight": 0,
+        "queued": 0
+      },
+      "modelRoute": {
+        "declared": [
+          "openai/rehearsal-model"
+        ],
+        "observedPolicies": [],
+        "observedUsage": [],
+        "undeclaredObservedRoutes": []
+      },
+      "budget": {
+        "policy": "Provider token usage is recorded as telemetry (LlmUsageEvent, idempotent per invocation); a model invocation never reserves or debits wallet credits.",
+        "walletConsultedByExecution": false,
+        "upperBoundRootExecutions": 5,
+        "modelInvocationsPerRoot": null,
+        "observedInvocationsPerAssessment": null,
+        "note": "Each started assessment is one Root execution. The number of model calls inside it is not estimated: it depends on the repository and the legal portfolio."
+      },
+      "canary": {
+        "canaryAssessments": 0,
+        "verified": false,
+        "attestedChecks": []
+      },
+      "blockers": []
+    },
+    "canary": {
+      "generatedAt": "2026-10-08T08:01:31.358Z",
+      "canaryAssessments": 1,
+      "verified": true,
+      "attestedChecks": [],
+      "assessments": [
+        {
+          "assessmentId": "0b0edd13-6704-474b-81d9-09467ebde566",
+          "lifecycleState": "COMPLETE",
+          "results": [
+            {
+              "check": "THREAD_UNIQUE",
+              "status": "PASS",
+              "observed": {
+                "threadId": "eb0d9919-7640-48e4-ac13-ab1c6c8f4566",
+                "threadRows": 1,
+                "summaryThreadId": "eb0d9919-7640-48e4-ac13-ab1c6c8f4566",
+                "reusesV1Thread": false,
+                "checkpointId": null
+              }
+            },
+            {
+              "check": "CHECKPOINT_RECORDED",
+              "status": "PASS",
+              "observed": {
+                "runtimeCheckpointId": null,
+                "checkpointerHasThread": true
+              }
+            },
+            {
+              "check": "EVENTS_RECORDED",
+              "status": "PASS",
+              "observed": {
+                "rootEvents": 3,
+                "contiguous": true,
+                "wrongThread": 0
+              }
+            },
+            {
+              "check": "MODEL_USAGE_RECORDED",
+              "status": "PASS",
+              "observed": {
+                "events": 2,
+                "routes": [
+                  "openai/rehearsal-model"
+                ],
+                "declared": [
+                  "openai/rehearsal-model"
+                ],
+                "undeclared": []
+              }
+            },
+            {
+              "check": "ACCOUNTING_CONSISTENT",
+              "status": "PASS",
+              "observed": {
+                "usageEvents": 2,
+                "usageForAnotherOwner": 0,
+                "usageWithCreditCharge": 0,
+                "usageWithReservation": 0,
+                "reservations": 0
+              }
+            },
+            {
+              "check": "DECISIONS_RECORDED",
+              "status": "PASS",
+              "observed": {
+                "total": 3,
+                "pending": 0,
+                "resolvedWithoutDecision": 0
+              }
+            },
+            {
+              "check": "ARTIFACT_FLOW",
+              "status": "PASS",
+              "observed": {
+                "finalReports": 1,
+                "unsealed": 0
+              }
+            },
+            {
+              "check": "NO_V1_AUTHORITY",
+              "status": "PASS",
+              "observed": {
+                "inFlightRows": 0,
+                "undeliveredRetiredCommands": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "firstBatch": {
+      "runId": "8b676202-5418-45e7-b4a1-67384156670b",
+      "mode": "BATCH",
+      "requested": 5,
+      "started": [
+        "53d8770b-75a6-4ce4-88a6-df4803618512",
+        "b56c96a9-390b-44a4-8877-83f5606a51fd"
+      ],
+      "alreadyStarted": [],
+      "deferred": [
+        {
+          "assessmentId": "f38b9b06-82c9-40ea-8e6c-aa433dc201fb",
+          "reason": "TENANT_CAP_REACHED"
+        },
+        {
+          "assessmentId": "08e98bd8-8f46-47b5-8b9e-c13c61904535",
+          "reason": "GLOBAL_CAP_REACHED"
+        }
+      ],
+      "failed": [],
+      "notReady": [],
+      "stopReason": "GLOBAL_CAP_REACHED",
+      "remainingEligible": 14,
+      "load": {
+        "inFlight": 2,
+        "queued": 2
+      }
+    },
+    "failedExecution": {
+      "assessmentId": "08e98bd8-8f46-47b5-8b9e-c13c61904535",
+      "lifecycleState": "ACTIVE"
+    },
+    "accountingTrail": [
+      {
+        "label": "after migration, preflight and refusals",
+        "usageEvents": 0,
+        "rootCommands": 0,
+        "inFlight": 0,
+        "untouchedByUsage": {
+          "BillingReservation": 0,
+          "BillingReservationInvocationClaim": 0,
+          "BillingWallet": 0,
+          "CreditLedgerEntry": 0,
+          "BillingOrder": 0
+        }
+      },
+      {
+        "label": "after the canary start (nothing executed yet)",
+        "usageEvents": 0,
+        "rootCommands": 1,
+        "inFlight": 1,
+        "untouchedByUsage": {
+          "BillingReservation": 0,
+          "BillingReservationInvocationClaim": 0,
+          "BillingWallet": 0,
+          "CreditLedgerEntry": 0,
+          "BillingOrder": 0
+        }
+      },
+      {
+        "label": "after the canary executed (2 usage events, attributed to it alone)",
+        "usageEvents": 2,
+        "rootCommands": 1,
+        "inFlight": 0,
+        "untouchedByUsage": {
+          "BillingReservation": 0,
+          "BillingReservationInvocationClaim": 0,
+          "BillingWallet": 0,
+          "CreditLedgerEntry": 0,
+          "BillingOrder": 0
+        }
+      },
+      {
+        "label": "after the bounded batches (starts only; no execution, no new usage)",
+        "usageEvents": 2,
+        "rootCommands": 6,
+        "inFlight": 5,
+        "untouchedByUsage": {
+          "BillingReservation": 0,
+          "BillingReservationInvocationClaim": 0,
+          "BillingWallet": 0,
+          "CreditLedgerEntry": 0,
+          "BillingOrder": 0
+        }
+      }
+    ],
+    "ledgerRows": 10
+  },
+  "finishedAt": "2026-10-08T08:03:16.978Z",
+  "result": "PASS"
+}

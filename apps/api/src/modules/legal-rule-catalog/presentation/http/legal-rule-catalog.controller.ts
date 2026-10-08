@@ -19,9 +19,7 @@ import type {
   RegisterValidatedRetrievalIndexRequest,
 } from "../../application/contracts/legal-corpus.contract.js";
 import type { RegisterOfficialSourceSnapshotRequest } from "../../application/contracts/official-source-snapshot.contract.js";
-import type { ResumeWaitingRunsRequest } from "../../application/contracts/resume-waiting-runs.contract.js";
 
-import { ResumeWaitingRunsCommand } from "../../application/commands/resume-waiting-runs/resume-waiting-runs.command.js";
 import { GetActiveLegalCorpusQuery } from "../../application/queries/get-active-legal-corpus/get-active-legal-corpus.query.js";
 
 import { randomUUID } from "node:crypto";
@@ -127,26 +125,6 @@ export class LegalRuleCatalogController {
         errorCode: body.errorCode,
         correlationId: req.correlationId || randomUUID(),
       }),
-    );
-  }
-
-  @Post("corpus/:versionId/resume-waiting-runs")
-  @HttpCode(200)
-  @UseGuards(WorkerApiKeyGuard)
-  async resumeWaitingRuns(
-    @Param("versionId") versionId: string,
-    @Body() body: ResumeWaitingRunsRequest,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new ResumeWaitingRunsCommand(
-          versionId,
-          body.maxRuns,
-          body.idempotencyKey,
-          req.correlationId || randomUUID(),
-        ),
-      ),
     );
   }
 

@@ -1,0 +1,21 @@
+{
+  "runId": "531f8797-4db4-4c4c-957a-79cb8425f9ce",
+  "mode": "BATCH",
+  "requested": 5,
+  "started": [],
+  "alreadyStarted": [],
+  "deferred": [
+    {
+      "assessmentId": "f38b9b06-82c9-40ea-8e6c-aa433dc201fb",
+      "reason": "GLOBAL_CAP_REACHED"
+    }
+  ],
+  "failed": [],
+  "notReady": [],
+  "stopReason": "GLOBAL_CAP_REACHED",
+  "remainingEligible": 14,
+  "load": {
+    "inFlight": 2,
+    "queued": 2
+  }
+}

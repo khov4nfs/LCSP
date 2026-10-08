@@ -1,0 +1,18 @@
+{
+  "runId": "29ac24ba-c900-4115-8541-80c82d797921",
+  "mode": "CANARY",
+  "requested": 1,
+  "started": [
+    "0b0edd13-6704-474b-81d9-09467ebde566"
+  ],
+  "alreadyStarted": [],
+  "deferred": [],
+  "failed": [],
+  "notReady": [],
+  "stopReason": "MAX_TOTAL_REACHED",
+  "remainingEligible": 16,
+  "load": {
+    "inFlight": 1,
+    "queued": 1
+  }
+}

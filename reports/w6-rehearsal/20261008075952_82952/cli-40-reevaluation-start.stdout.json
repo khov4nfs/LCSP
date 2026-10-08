@@ -1,0 +1,21 @@
+{
+  "runId": "c1fe2982-7d51-4043-9854-a75ecacfd33b",
+  "mode": "BATCH",
+  "requested": 5,
+  "started": [],
+  "alreadyStarted": [],
+  "deferred": [
+    {
+      "assessmentId": "f38b9b06-82c9-40ea-8e6c-aa433dc201fb",
+      "reason": "BACKPRESSURE"
+    }
+  ],
+  "failed": [],
+  "notReady": [],
+  "stopReason": "BACKPRESSURE",
+  "remainingEligible": 14,
+  "load": {
+    "inFlight": 2,
+    "queued": 2
+  }
+}

@@ -1,0 +1,262 @@
+{
+  "preflight": {
+    "generatedAt": "2026-10-08T08:00:46.764Z",
+    "cutoverRunId": "a805eef1-05f5-46de-85e4-303019fe24d6",
+    "gates": {
+      "cutoverValidated": true,
+      "blockingFailures": 0,
+      "failingChecks": [],
+      "restoreBoundaryClosed": true,
+      "modelRouteDeclared": true
+    },
+    "cohort": {
+      "migrated": 30,
+      "byState": {
+        "READY_NOT_STARTED": 17,
+        "NOT_READY": 13
+      },
+      "eligible": 17,
+      "notReady": 13,
+      "excluded": {
+        "NO_PINNED_SNAPSHOT": 13,
+        "COVERAGE_INCOMPLETE": 13
+      },
+      "alreadyScheduledOrFinished": 0,
+      "startedByOperator": 0,
+      "startedOtherwise": 0
+    },
+    "perTenant": {
+      "tenantsTotal": 3,
+      "top": [
+        {
+          "ownerId": "bdb1dd10-5679-479c-882b-28edd1c8ccd2",
+          "eligible": 6,
+          "inFlight": 0
+        },
+        {
+          "ownerId": "f5f1b8e8-a885-48ad-81a7-17783f381411",
+          "eligible": 6,
+          "inFlight": 0
+        },
+        {
+          "ownerId": "fbb798c2-5241-4201-8e7b-d22eef00e52d",
+          "eligible": 5,
+          "inFlight": 0
+        }
+      ]
+    },
+    "concurrency": {
+      "globalConcurrency": 2,
+      "tenantConcurrency": 1,
+      "maxBacklog": 2,
+      "minStartIntervalMs": 5000,
+      "maxFailures": 3,
+      "maxTotal": 5
+    },
+    "currentLoad": {
+      "inFlight": 0,
+      "queued": 0
+    },
+    "modelRoute": {
+      "declared": [
+        "openai/rehearsal-model"
+      ],
+      "observedPolicies": [],
+      "observedUsage": [],
+      "undeclaredObservedRoutes": []
+    },
+    "budget": {
+      "policy": "Provider token usage is recorded as telemetry (LlmUsageEvent, idempotent per invocation); a model invocation never reserves or debits wallet credits.",
+      "walletConsultedByExecution": false,
+      "upperBoundRootExecutions": 5,
+      "modelInvocationsPerRoot": null,
+      "observedInvocationsPerAssessment": null,
+      "note": "Each started assessment is one Root execution. The number of model calls inside it is not estimated: it depends on the repository and the legal portfolio."
+    },
+    "canary": {
+      "canaryAssessments": 0,
+      "verified": false,
+      "attestedChecks": []
+    },
+    "blockers": []
+  },
+  "canary": {
+    "generatedAt": "2026-10-08T08:01:31.358Z",
+    "canaryAssessments": 1,
+    "verified": true,
+    "attestedChecks": [],
+    "assessments": [
+      {
+        "assessmentId": "0b0edd13-6704-474b-81d9-09467ebde566",
+        "lifecycleState": "COMPLETE",
+        "results": [
+          {
+            "check": "THREAD_UNIQUE",
+            "status": "PASS",
+            "observed": {
+              "threadId": "eb0d9919-7640-48e4-ac13-ab1c6c8f4566",
+              "threadRows": 1,
+              "summaryThreadId": "eb0d9919-7640-48e4-ac13-ab1c6c8f4566",
+              "reusesV1Thread": false,
+              "checkpointId": null
+            }
+          },
+          {
+            "check": "CHECKPOINT_RECORDED",
+            "status": "PASS",
+            "observed": {
+              "runtimeCheckpointId": null,
+              "checkpointerHasThread": true
+            }
+          },
+          {
+            "check": "EVENTS_RECORDED",
+            "status": "PASS",
+            "observed": {
+              "rootEvents": 3,
+              "contiguous": true,
+              "wrongThread": 0
+            }
+          },
+          {
+            "check": "MODEL_USAGE_RECORDED",
+            "status": "PASS",
+            "observed": {
+              "events": 2,
+              "routes": [
+                "openai/rehearsal-model"
+              ],
+              "declared": [
+                "openai/rehearsal-model"
+              ],
+              "undeclared": []
+            }
+          },
+          {
+            "check": "ACCOUNTING_CONSISTENT",
+            "status": "PASS",
+            "observed": {
+              "usageEvents": 2,
+              "usageForAnotherOwner": 0,
+              "usageWithCreditCharge": 0,
+              "usageWithReservation": 0,
+              "reservations": 0
+            }
+          },
+          {
+            "check": "DECISIONS_RECORDED",
+            "status": "PASS",
+            "observed": {
+              "total": 3,
+              "pending": 0,
+              "resolvedWithoutDecision": 0
+            }
+          },
+          {
+            "check": "ARTIFACT_FLOW",
+            "status": "PASS",
+            "observed": {
+              "finalReports": 1,
+              "unsealed": 0
+            }
+          },
+          {
+            "check": "NO_V1_AUTHORITY",
+            "status": "PASS",
+            "observed": {
+              "inFlightRows": 0,
+              "undeliveredRetiredCommands": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "firstBatch": {
+    "runId": "8b676202-5418-45e7-b4a1-67384156670b",
+    "mode": "BATCH",
+    "requested": 5,
+    "started": [
+      "53d8770b-75a6-4ce4-88a6-df4803618512",
+      "b56c96a9-390b-44a4-8877-83f5606a51fd"
+    ],
+    "alreadyStarted": [],
+    "deferred": [
+      {
+        "assessmentId": "f38b9b06-82c9-40ea-8e6c-aa433dc201fb",
+        "reason": "TENANT_CAP_REACHED"
+      },
+      {
+        "assessmentId": "08e98bd8-8f46-47b5-8b9e-c13c61904535",
+        "reason": "GLOBAL_CAP_REACHED"
+      }
+    ],
+    "failed": [],
+    "notReady": [],
+    "stopReason": "GLOBAL_CAP_REACHED",
+    "remainingEligible": 14,
+    "load": {
+      "inFlight": 2,
+      "queued": 2
+    }
+  },
+  "failedExecution": {
+    "assessmentId": "08e98bd8-8f46-47b5-8b9e-c13c61904535",
+    "lifecycleState": "ACTIVE"
+  },
+  "accountingTrail": [
+    {
+      "label": "after migration, preflight and refusals",
+      "usageEvents": 0,
+      "rootCommands": 0,
+      "inFlight": 0,
+      "untouchedByUsage": {
+        "BillingReservation": 0,
+        "BillingReservationInvocationClaim": 0,
+        "BillingWallet": 0,
+        "CreditLedgerEntry": 0,
+        "BillingOrder": 0
+      }
+    },
+    {
+      "label": "after the canary start (nothing executed yet)",
+      "usageEvents": 0,
+      "rootCommands": 1,
+      "inFlight": 1,
+      "untouchedByUsage": {
+        "BillingReservation": 0,
+        "BillingReservationInvocationClaim": 0,
+        "BillingWallet": 0,
+        "CreditLedgerEntry": 0,
+        "BillingOrder": 0
+      }
+    },
+    {
+      "label": "after the canary executed (2 usage events, attributed to it alone)",
+      "usageEvents": 2,
+      "rootCommands": 1,
+      "inFlight": 0,
+      "untouchedByUsage": {
+        "BillingReservation": 0,
+        "BillingReservationInvocationClaim": 0,
+        "BillingWallet": 0,
+        "CreditLedgerEntry": 0,
+        "BillingOrder": 0
+      }
+    },
+    {
+      "label": "after the bounded batches (starts only; no execution, no new usage)",
+      "usageEvents": 2,
+      "rootCommands": 6,
+      "inFlight": 5,
+      "untouchedByUsage": {
+        "BillingReservation": 0,
+        "BillingReservationInvocationClaim": 0,
+        "BillingWallet": 0,
+        "CreditLedgerEntry": 0,
+        "BillingOrder": 0
+      }
+    }
+  ],
+  "ledgerRows": 10
+}
