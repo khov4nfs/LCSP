@@ -389,6 +389,7 @@ const OUTBOX_STATUS_TO_PRISMA = {
   [OUTBOX_STATUSES.published]: PrismaOutboxStatus.PUBLISHED,
   [OUTBOX_STATUSES.failed]: PrismaOutboxStatus.FAILED,
   [OUTBOX_STATUSES.dlq]: PrismaOutboxStatus.DLQ,
+  [OUTBOX_STATUSES.cancelled]: PrismaOutboxStatus.CANCELLED,
 } as const satisfies Record<OutboxStatus, PrismaOutboxStatus>;
 
 const PRISMA_OUTBOX_STATUS_TO_CONTRACT = {
@@ -396,6 +397,7 @@ const PRISMA_OUTBOX_STATUS_TO_CONTRACT = {
   [PrismaOutboxStatus.PUBLISHED]: OUTBOX_STATUSES.published,
   [PrismaOutboxStatus.FAILED]: OUTBOX_STATUSES.failed,
   [PrismaOutboxStatus.DLQ]: OUTBOX_STATUSES.dlq,
+  [PrismaOutboxStatus.CANCELLED]: OUTBOX_STATUSES.cancelled,
 } as const satisfies Record<PrismaOutboxStatus, OutboxStatus>;
 
 const REPOSITORY_CONNECTION_STATUS_TO_PRISMA = {

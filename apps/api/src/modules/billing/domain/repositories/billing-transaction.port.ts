@@ -1,4 +1,7 @@
-import type { LlmUsageStatus } from "@lcsp/contracts/billing";
+import type {
+  BILLING_ORDER_STATUSES,
+  LlmUsageStatus,
+} from "@lcsp/contracts/billing";
 
 export type WalletRecord = {
   id: string;
@@ -143,8 +146,15 @@ export interface BillingOrderPort {
   }): Promise<OrderRecord>;
   transition(
     orderId: string,
-    from: "PENDING_PAYMENT" | "PENDING_RECONCILIATION" | "EXPIRED",
-    to: "CREDITED" | "EXPIRED" | "CANCELLED" | "PENDING_RECONCILIATION",
+    from:
+      | typeof BILLING_ORDER_STATUSES.PENDING_PAYMENT
+      | typeof BILLING_ORDER_STATUSES.PENDING_RECONCILIATION
+      | typeof BILLING_ORDER_STATUSES.EXPIRED,
+    to:
+      | typeof BILLING_ORDER_STATUSES.CREDITED
+      | typeof BILLING_ORDER_STATUSES.EXPIRED
+      | typeof BILLING_ORDER_STATUSES.CANCELLED
+      | typeof BILLING_ORDER_STATUSES.PENDING_RECONCILIATION,
   ): Promise<boolean>;
 }
 export interface PaymentTransactionPort {

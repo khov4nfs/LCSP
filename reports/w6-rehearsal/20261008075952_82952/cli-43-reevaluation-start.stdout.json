@@ -1,0 +1,21 @@
+{
+  "runId": "735c48e4-028e-4207-8f0e-7e7f29bbcc71",
+  "mode": "BATCH",
+  "requested": 10,
+  "started": [],
+  "alreadyStarted": [],
+  "deferred": [],
+  "failed": [
+    {
+      "assessmentId": "7da8f4fc-3a25-4224-812e-fa74fde00d15",
+      "code": "START_FAILED"
+    }
+  ],
+  "notReady": [],
+  "stopReason": "FAILURE_BUDGET_EXCEEDED",
+  "remainingEligible": 8,
+  "load": {
+    "inFlight": 8,
+    "queued": 8
+  }
+}

@@ -98,14 +98,8 @@ async def test_hosted_native_stop_drains_nested_model_and_resumes_checkpoint(mon
 
     for key in ("LANGGRAPH_CHECKPOINT_DATABASE_URL", "POSTGRES_URI", "DATABASE_URL"):
         monkeypatch.delenv(key, raising=False)
-    reports, calls = [], []
+    calls = []
     entered, cancelling, release_cleanup = Event(), Event(), Event()
-
-    def register(thread, run, context, state):
-        reports.append((thread, run, context, state))
-        return {"state": state}
-
-    monkeypatch.setattr(system_dispatch, "report_runtime_control", register)
 
     class State(TypedDict):
         count: int
@@ -156,8 +150,6 @@ async def test_hosted_native_stop_drains_nested_model_and_resumes_checkpoint(mon
     task = asyncio.create_task(root.ainvoke({"count": 0}, config=config, context=context, durability="sync"))
     try:
         assert await asyncio.to_thread(entered.wait, 2)
-        assert reports[0][1] == "native-first"
-        assert reports[0][2]["logical_run_id"] == "native-first"
         task.cancel()
         assert await asyncio.to_thread(cancelling.wait, 2)
         await asyncio.sleep(.03)
@@ -174,8 +166,6 @@ async def test_hosted_native_stop_drains_nested_model_and_resumes_checkpoint(mon
         resumed_config = {"configurable": {"thread_id": thread_id, "run_id": "native-second"}}
         await root.ainvoke(None, config=resumed_config,
                           context=replace(context, logical_run_id="native-first"), durability="sync")
-        assert reports[-1][1] == "native-second"
-        assert reports[-1][2]["logical_run_id"] == "native-first"
         assert calls == ["prefix", ("model", "native-first"), ("model", "native-second"), "persist", ("result", 2)]
     finally:
         release_cleanup.set()
@@ -183,21 +173,6 @@ async def test_hosted_native_stop_drains_nested_model_and_resumes_checkpoint(mon
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
     assert active_runtime_run_id.get() is None
-
-
-@pytest.mark.asyncio
-async def test_hosted_retry_cannot_reopen_a_stopped_native_generation(monkeypatch):
-    from types import SimpleNamespace
-
-    monkeypatch.setattr(system_dispatch, "get_config", lambda: {
-        "configurable": {"thread_id": "t", "run_id": "stopped-run"},
-    })
-    monkeypatch.setattr(system_dispatch, "report_runtime_control", lambda *_: {"state": "STOP_REQUESTED"})
-    monkeypatch.setattr(system_dispatch, "_dispatch_system_event", lambda *_: pytest.fail("stopped work cannot restart"))
-    with pytest.raises(asyncio.CancelledError):
-        await system_dispatch.dispatch_agent_runtime_system_event.abefore_agent({}, SimpleNamespace(
-            context=LCSPRunContext(assessment_id="a", system_boundary_name="engineering_assessment_requested", system_event={"original": True})
-        ))
 
 
 def test_boundary_deadline_reaches_sync_thread_without_remote_cancel(monkeypatch):

@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "composite": false, "incremental": false, "noEmit": true, "emitDeclarationOnly": false, "declaration": false, "declarationMap": false, "sourceMap": false },
+  "include": ["src/app.module.ts", "src/main.ts", "src/modules/**/*.module.ts", "src/modules/legacy-archive/**/*.ts", "src/modules/scan/presentation/http/*.ts", "src/modules/github-integration/presentation/http/*.ts", "src/modules/audit/presentation/http/*.ts", "src/modules/legal-rule-catalog/presentation/http/*.ts", "src/platform/http/**/*.ts"],
+  "exclude": []
+}

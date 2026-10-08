@@ -319,7 +319,6 @@ class LocalAgentRuntime:
         payload = {**payload, "context": context}
         run_token = active_runtime_run_id.set(run_id)
         try:
-            self._report_control(thread_id, run_id, context, "RUNNING")
             _result, interrupted = self._run_graph(
                 thread_id, payload, cancel_event=cancel_event
             )
@@ -331,21 +330,11 @@ class LocalAgentRuntime:
             self._update_thread_error(thread_id, exc)
             self._set_thread_status(thread_id, "error")
             self._set_run_status(thread_id, run_id, "error")
-            self._report_control(thread_id, run_id, context, "COMPLETED")
             return
         finally:
             active_runtime_run_id.reset(run_token)
         self._set_run_status(
             thread_id, run_id, "interrupted" if interrupted else "success"
-        )
-        self._report_control(thread_id, run_id, context, "STOPPED" if interrupted else "COMPLETED")
-
-    def _report_control(self, thread_id: str, run_id: str, context: dict[str, Any], state: str) -> None:
-        from tools.common.capabilities.agent_runtime.runtime_control import report_runtime_control
-
-        report_runtime_control(
-            thread_id, run_id, context, state,
-            checkpoint=self.get_state(thread_id).get("checkpoint") if state == "STOPPED" and context.get("assessment_id") else None,
         )
 
     def get_state(self, thread_id: str) -> dict[str, Any]:

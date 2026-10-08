@@ -29,6 +29,7 @@
     "./github-integration/statuses": "./src/github-integration/statuses.ts",
     "./github-integration/types": "./src/github-integration/types.ts",
     "./github-integration/events": "./src/github-integration/events.ts",
+    "./legacy-migration": "./src/legacy-migration/index.ts",
     "./legal-portfolio": "./src/legal-portfolio/index.ts",
     "./legal-rule-catalog": "./src/legal-rule-catalog/index.ts",
     "./legal-rule-catalog/event-types": "./src/legal-rule-catalog/event-types.ts",

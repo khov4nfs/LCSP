@@ -67,10 +67,6 @@ class WorkerCallbackError(Exception):
         )
 
 
-class InterviewCoverageCallbackError(WorkerCallbackError):
-    """Coverage changed or failed validation; the boundary must request recovery."""
-
-
 INTERVIEW_DECISION_REPAIRABLE_REJECTION_CODES = frozenset({
     "INTERVIEW_ACTIVE_QUESTION_OUTCOME_INVALID",
     "INTERVIEW_AGENT_DECISION_INVALID",
@@ -95,57 +91,6 @@ INTERVIEW_DECISION_REPAIRABLE_REJECTION_CODES = frozenset({
     "INTERVIEW_TARGETED_QUESTION_NEED_MISMATCH",
     "INTERVIEW_WAITING_REQUIRES_QUESTION",
 })
-
-
-class InterviewDecisionRepairableCallbackError(WorkerCallbackError):
-    """API rejected model-authored Interview decision content that may self-correct once.
-
-    The API guard remains authoritative. This error only tells the boundary that
-    the rejection code is in the explicit payload-content allowlist and can be
-    fed back privately to the specialist for one bounded retry.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        *,
-        error_code: str,
-        status_code: int = 409,
-        meta: dict | None = None,
-    ) -> None:
-        super().__init__(message, status_code=status_code)
-        self.error_code = error_code
-        self.meta = dict(meta or {})
-
-
-class InterviewResolutionCallbackError(InterviewDecisionRepairableCallbackError):
-    """Private criterion feedback for one bounded specialist correction."""
-
-    def __init__(self, message: str, *, missing: str | None = None) -> None:
-        meta = {"missing": missing} if missing is not None else {}
-        super().__init__(
-            message,
-            error_code="INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED",
-            status_code=409,
-            meta=meta,
-        )
-        self.missing = missing
-
-
-class InterviewContextReadyAuthorityCallbackError(InterviewDecisionRepairableCallbackError):
-    """The specialist asserted CONTEXT_READY without CUSTOMER_CONFIRMED authority.
-
-    The API guard is correct and must never be relaxed. This carries the rejection
-    so the boundary can give the specialist exactly one bounded chance to ask for
-    confirmation instead of inferring authority it was never given.
-    """
-
-    def __init__(self, message: str) -> None:
-        super().__init__(
-            message,
-            error_code="INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY",
-            status_code=409,
-        )
 
 
 class WorkerApiClient:
@@ -539,25 +484,6 @@ class WorkerApiClient:
                 error=type(exc).__name__,
             )
 
-    def post_interview_progress(self, assessment_id: str, revision: int, phase: str) -> None:
-        from orchestration.agent_stream import check_agent_execution_active
-        from orchestration.runtime_control import active_runtime_run_id
-        check_agent_execution_active()
-        headers = {WORKER_API_KEY_HEADER: self._api_key, correlationId_HEADER: get_correlationId()}
-        if active_runtime_run_id.get():
-            headers["x-lcsp-runtime-run-id"] = active_runtime_run_id.get()
-        try:
-            response = httpx.post(
-                f"{self._base_url}/internal/assessment-interviews/{assessment_id}/runtime-progress",
-                headers=headers,
-                json={"contextRevision": revision, "phase": phase},
-                timeout=3,
-            )
-            response.raise_for_status()
-        except Exception:
-            import logging
-            logging.getLogger(__name__).warning("Interview progress delivery failed phase=%s", phase)
-
     def post_scan_runtime_event(self, scan_job_id: str, payload: dict) -> None:
         """Submit best-effort privacy-safe runtime progress for an active scan job."""
         from orchestration.agent_stream import check_agent_execution_active
@@ -634,79 +560,6 @@ class WorkerApiClient:
                 retry_after_seconds=_AGENT_STREAM_NETWORK_BACKOFF_SECONDS,
             )
 
-    def post_decision_model_event(self, payload: dict) -> None:
-        """Persist one privacy-safe decision-model semantic event best-effort."""
-        try:
-            self._post_with_retry(
-                CallbackPath.DECISION_MODEL_EVENT,
-                payload,
-            )
-        except Exception as exc:
-            logger.warning(
-                "DECISION_MODEL_EVENT_POST_FAILED",
-                error=type(exc).__name__,
-            )
-
-    def claim_decision_model_request(self, decision_id: str, payload: dict) -> bool:
-        """Atomically claim a shadow decision idempotency key before provider execution."""
-        path = CallbackPath.DECISION_MODEL_CLAIM.format(decision_id=decision_id)
-        try:
-            response = self._post_with_retry(path, payload)
-        except WorkerCallbackError as exc:
-            if getattr(exc, "status_code", None) == 409:
-                return False
-            logger.warning(
-                "DECISION_MODEL_CLAIM_FAILED_CLOSED",
-                decision_id=decision_id,
-                error=type(exc).__name__,
-            )
-            raise
-        return bool(response.get("claimed", True))
-
-    def complete_decision_model_request(self, decision_id: str, payload: dict) -> None:
-        """Persist the final shadow decision comparison for replay/audit."""
-        path = CallbackPath.DECISION_MODEL_COMPLETE.format(decision_id=decision_id)
-        try:
-            self._post_with_retry(path, payload)
-        except Exception as exc:
-            logger.warning(
-                "DECISION_MODEL_COMPLETE_FAILED",
-                decision_id=decision_id,
-                error=type(exc).__name__,
-            )
-
-    def post_technical_profile_callback(
-        self, payload: TechnicalProfileCallbackPayload
-    ) -> CallbackResponse:
-        """Persist a generated TechnicalProfile through the internal callback API."""
-        import os
-        import json
-        path = CallbackPath.TECHNICAL_PROFILE
-        request_payload = payload.model_dump(exclude_none=True)
-
-        serialized = json.dumps(request_payload, ensure_ascii=False)
-        threshold = int(os.getenv("LCSP_PROFILE_CALLBACK_THRESHOLD", str(800 * 1024)))
-        if len(serialized.encode("utf-8")) > threshold:
-            from tools.common.capabilities.platform.artifact_storage import ArtifactStorage
-            storage = ArtifactStorage()
-            chunk_size = int(os.getenv("LCSP_PROFILE_CALLBACK_CHUNK_SIZE", str(200 * 1024)))
-            manifest = storage.write_payload_chunks(request_payload, chunk_size=chunk_size)
-            envelope = {
-                "evidence_report_id": payload.evidence_report_id,
-                "assessment_id": payload.assessment_id,
-                "schema_version": payload.schema_version,
-                "provider_version": payload.provider_version,
-                "privacy_flags": payload.privacy_flags,
-                "scan_job_id": payload.scan_job_id,
-                "profile_data": request_payload.get("profile_data"),
-                "is_artifact_reference": True,
-                "artifact_manifest": manifest
-            }
-            resp_data = self._post_with_retry(path, envelope)
-        else:
-            resp_data = self._post_with_retry(path, request_payload)
-        return CallbackResponse(**resp_data)
-
     def get_accepted_technical_evidence_report(self, evidence_report_id: str) -> dict:
         """Fetch a canonical TechnicalEvidenceReport and require accepted status."""
         path = InternalPath.TECHNICAL_EVIDENCE_REPORT.format(
@@ -720,66 +573,6 @@ class WorkerApiClient:
             raise WorkerCallbackError("Technical evidence report is not accepted.")
         return data
 
-    def get_targeted_reanalysis_request(self, request_id: str) -> dict:
-        """Fetch one targeted-reanalysis lifecycle request by ID."""
-        path = InternalPath.TARGETED_REANALYSIS_REQUEST.format(request_id=request_id)
-        data = self._get_with_retry(path)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Targeted reanalysis request response was invalid.")
-        return data
-
-    def claim_targeted_reanalysis_request(self, request_id: str) -> bool:
-        """Atomically claim a targeted-reanalysis request for worker execution."""
-        path = CallbackPath.TARGETED_REANALYSIS_CLAIM.format(request_id=request_id)
-        data = self._post_with_retry(path, {})
-        return bool(data.get("claimed"))
-
-    def complete_targeted_reanalysis_request(
-        self,
-        request_id: str,
-        *,
-        output_evidence_report_id: str,
-    ) -> dict:
-        """Mark targeted reanalysis COMPLETED and attach its output evidence artifact."""
-        return self._post_targeted_reanalysis_terminal(
-            request_id,
-            {"state": "COMPLETED", "output_evidence_report_id": output_evidence_report_id},
-        )
-
-    def fail_targeted_reanalysis_request(
-        self,
-        request_id: str,
-        *,
-        state: str,
-        safe_failure_code: str,
-    ) -> dict:
-        """Mark targeted reanalysis FAILED/DLQ using a safe failure code only."""
-        if state not in {"FAILED", "DLQ"}:
-            raise ValueError("Targeted reanalysis terminal state must be FAILED or DLQ.")
-        return self._post_targeted_reanalysis_terminal(
-            request_id,
-            {"state": state, "safe_failure_code": safe_failure_code},
-        )
-
-    def requeue_targeted_reanalysis_request(self, request_id: str) -> bool:
-        """Request requeue of a targeted-reanalysis lifecycle record."""
-        path = CallbackPath.TARGETED_REANALYSIS_REQUEUE.format(request_id=request_id)
-        data = self._post_with_retry(path, {})
-        return bool(data.get("requeued"))
-
-    def _post_targeted_reanalysis_terminal(self, request_id: str, payload: dict) -> dict:
-        """Submit a terminal targeted-reanalysis state transition."""
-        path = CallbackPath.TARGETED_REANALYSIS_TERMINAL.format(request_id=request_id)
-        return self._post_with_retry(path, payload)
-
-    def post_ai_usage_flow_callback(
-        self, payload: AIUsageFlowCallbackPayload
-    ) -> CallbackResponse:
-        """Persist a governed AIUsageFlow callback."""
-        path = CallbackPath.AI_USAGE_FLOW
-        resp_data = self._post_with_retry(path, payload.model_dump(exclude_none=True))
-        return CallbackResponse(**resp_data)
-
     def post_settled_usage(self, payload: SettledUsagePayload) -> CallbackResponse:
         """Submit provider-reported usage telemetry for one model invocation.
 
@@ -792,165 +585,12 @@ class WorkerApiClient:
         )
         return CallbackResponse(**resp_data)
 
-    def post_reconciliation_conflict_callback(
-        self, payload: ConflictDetectionCallbackPayload
-    ) -> CallbackResponse:
-        """Persist deterministic reconciliation conflict candidates."""
-        path = CallbackPath.RECONCILIATION_CONFLICT
-        resp_data = self._post_with_retry(path, payload.model_dump(exclude_none=True))
-        return CallbackResponse(**resp_data)
-
-    def get_accepted_ai_usage_flow(self, ai_usage_flow_id: str) -> dict:
-        """Fetch an AIUsageFlow and require an accepted/ready status."""
-        path = InternalPath.AI_USAGE_FLOW.format(ai_usage_flow_id=ai_usage_flow_id)
-        data = self._get_with_retry(path)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("AIUsageFlow response was invalid.")
-        status = str(data.get("status", "")).lower()
-        if status and status not in {"accepted", "ready", "ai_usage_flow_ready"}:
-            raise WorkerCallbackError("AIUsageFlow is not accepted.")
-        return data
-
-    def get_accepted_technical_profile(self, technical_profile_id: str) -> dict:
-        """Fetch a TechnicalProfile and require accepted status."""
-        path = InternalPath.TECHNICAL_PROFILE.format(
-            technical_profile_id=technical_profile_id
-        )
-        data = self._get_with_retry(path)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Technical profile response was invalid.")
-        status = str(data.get("status", "")).lower()
-        if status and status != "accepted":
-            raise WorkerCallbackError("Technical profile is not accepted.")
-
-        # Resolve reference file if present
-        ref = data.get("profile_data_ref")
-        if ref and isinstance(ref, str):
-            import os
-            import json
-            if os.path.exists(ref):
-                try:
-                    with open(ref, "r") as f:
-                        file_payload = json.load(f)
-                        if isinstance(file_payload, dict):
-                            def merge_dict(target: dict, source: dict) -> None:
-                                for k, v in source.items():
-                                    if k not in target or target[k] in ([], {}, None, ""):
-                                        target[k] = v
-                                    elif isinstance(target[k], dict) and isinstance(v, dict):
-                                        merge_dict(target[k], v)
-                            merge_dict(data, file_payload)
-                except Exception:
-                    pass
-        return data
-
-    def get_interview_worker_state(self, assessment_id: str) -> dict:
-        """Fetch private worker Interview state, including guarded confirmed context."""
-        path = InternalPath.INTERVIEW_WORKER_STATE.format(assessment_id=assessment_id)
-        data = self._get_with_retry(path)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Interview worker state response was invalid.")
-        return data
-
-    def get_interview_private_context(
-        self,
-        assessment_id: str,
-        context_revision: int,
-        *,
-        source_version: str | None = None,
-        pge_version: str | None = None,
-    ) -> dict:
-        """Fetch governed private Interview context for a worker resume command."""
-        path = InternalPath.INTERVIEW_PRIVATE_CONTEXT.format(
-            assessment_id=assessment_id,
-            context_revision=context_revision,
-        )
-        params = {
-            key: value
-            for key, value in {
-                "source_version": source_version,
-                "pge_version": pge_version,
-            }.items()
-            if value
-        }
-        data = self._get_with_retry(path, params=params)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Interview private context response was invalid.")
-        return data
-
-    def post_interview_agent_decision(self, assessment_id: str, payload: dict) -> dict:
-        """Persist a guarded Interview Agent decision through the internal API."""
-        path = InternalPath.INTERVIEW_AGENT_DECISION.format(
-            assessment_id=assessment_id,
-        )
-        data = self._post_with_retry(path, payload, redact=False)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Interview Agent decision response was invalid.")
-        return data
-
-    def post_interview_initial_question(self, assessment_id: str, payload: dict) -> dict:
-        """Persist an Interview Agent-authored initial question through the internal API."""
-        path = InternalPath.INTERVIEW_INITIAL_QUESTION.format(
-            assessment_id=assessment_id,
-        )
-        data = self._post_with_retry(path, payload, redact=False)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Interview initial question response was invalid.")
-        return data
-
-    def post_assessment_ai_not_detected(self, assessment_id: str, payload: dict) -> dict:
-        """End the assessment as "AI not detected"; the API re-validates the evidence."""
-        path = InternalPath.ASSESSMENT_AI_NOT_DETECTED.format(assessment_id=assessment_id)
-        data = self._post_with_retry(path, payload, redact=False)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("AI not detected response was invalid.")
-        return data
-
-    def post_interview_targeted_need(self, assessment_id: str, payload: dict) -> dict:
-        """Register one BusinessContextNeed (needId, engineeringRuleId, criterionId, question,
-        observation, resolutionCriterionIds, evidenceRefs, contextRevision)."""
-        path = InternalPath.INTERVIEW_TARGETED_NEED.format(assessment_id=assessment_id)
-        data = self._post_with_retry(path, payload, redact=False)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Interview targeted need response was invalid.")
-        return data
-
-    def put_rule_assessment(
-        self, assessment_id: str, engineering_rule_id: str, payload: dict
-    ) -> dict:
-        """Upsert the accepted per-rule assessment (RuleEvidenceIndex ledger row)."""
-        path = InternalPath.RULE_ASSESSMENT.format(
-            assessment_id=assessment_id, engineering_rule_id=engineering_rule_id
-        )
-        data = self._post_with_retry(path, payload, redact=False, method="PUT")
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Rule assessment response was invalid.")
-        return data
-
-    def list_rule_assessments(self, assessment_id: str) -> list[dict]:
-        """List accepted per-rule assessments for one assessment."""
-        path = InternalPath.RULE_ASSESSMENTS.format(assessment_id=assessment_id)
-        data = self._get_with_retry(path)
-        if not isinstance(data, list):
-            raise WorkerCallbackError("Rule assessments response was invalid.")
-        return [item for item in data if isinstance(item, dict)]
-
     def dispatch_agentic_tool(self, payload: dict) -> dict:
         """Dispatch one already validated/authorized agentic tool to the trusted API."""
         path = InternalPath.AGENTIC_TOOL_DISPATCH
         data = self._post_with_retry(path, payload)
         if not isinstance(data, dict):
             raise WorkerCallbackError("Agentic tool dispatch response was invalid.")
-        return data
-
-    def create_targeted_reanalysis_request(self, payload: dict) -> dict:
-        """Create a targeted-reanalysis lifecycle request through the runtime bridge."""
-        path = InternalPath.TARGETED_REANALYSIS_CREATE
-        data = self._post_with_retry(path, payload)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError(
-                "Targeted reanalysis runtime response was invalid."
-            )
         return data
 
     def resume_waiting_runs(self, corpus_version_id: str, payload: dict) -> dict:
@@ -1115,14 +755,6 @@ class WorkerApiClient:
         if not isinstance(data, dict):
             raise WorkerCallbackError("Official source snapshot response was invalid.")
         return data
-
-    def post_classification_callback(
-        self, payload: ClassificationCallbackPayload
-    ) -> CallbackResponse:
-        """Persist the final classification callback result."""
-        path = CallbackPath.CLASSIFICATION
-        resp_data = self._post_with_retry(path, payload.model_dump())
-        return CallbackResponse(**resp_data)
 
     def get_audit_events(
         self, from_date: str, to_date: str

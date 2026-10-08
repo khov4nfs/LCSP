@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false, "incremental": false, "noEmit": false, "emitDeclarationOnly": false,
+    "declaration": false, "declarationMap": false, "sourceMap": false,
+    "outDir": "./tmp/w6-cli", "rootDir": "."
+  },
+  "include": ["src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts"],
+  "exclude": []
+}

@@ -2,12 +2,15 @@ import {
   type MiddlewareConsumer,
   Module,
   type NestModule,
+  RequestMethod,
 } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { RETIRED_API_ROUTES } from "@lcsp/contracts/legacy-migration";
 
 import { config, createConfigValidationSchema } from "./config/config.js";
 import { AdminModule } from "./modules/admin/admin.module.js";
@@ -23,6 +26,7 @@ import { EvidenceModule } from "./modules/evidence/evidence.module.js";
 import { DocumentModule } from "./modules/document/document.module.js";
 import { GitHubIntegrationModule } from "./modules/github-integration/github-integration.module.js";
 import { HealthModule } from "./modules/health/health.module.js";
+import { LegacyArchiveModule } from "./modules/legacy-archive/legacy-archive.module.js";
 import { LegalPortfolioModule } from "./modules/legal-portfolio/legal-portfolio.module.js";
 import { LegalRuleCatalogModule } from "./modules/legal-rule-catalog/legal-rule-catalog.module.js";
 import { ReconciliationModule } from "./modules/reconciliation/reconciliation.module.js";
@@ -31,6 +35,7 @@ import { AuditModule as AuditPlatformModule } from "./platform/audit/audit.modul
 import { DevUnsafeHttpTraceMiddleware } from "./platform/logging/dev-unsafe-http-trace.middleware.js";
 import { unsafeDevTraceEnabled } from "./platform/logging/dev-unsafe-trace.js";
 import { HttpLoggerMiddleware } from "./platform/logging/http-logger.middleware.js";
+import { RetiredLegacyRouteMiddleware } from "./platform/http/retired-legacy-route.middleware.js";
 import { LoggingContextMiddleware } from "./platform/logging/logging-context.middleware.js";
 import { MailModule } from "./platform/mail/mail.module.js";
 import { OutboxModule } from "./platform/outbox/outbox.module.js";
@@ -119,6 +124,7 @@ function findUpwards(
     ScanModule,
     ClassificationModule,
     AuditFeatureModule,
+    LegacyArchiveModule,
     LegalPortfolioModule,
     LegalRuleCatalogModule,
     HealthModule,
@@ -146,5 +152,12 @@ export class AppModule implements NestModule {
         HttpLoggerMiddleware,
       )
       .forRoutes("*");
+    // V1 routes whose controllers are gone answer 410 + LEGACY_ROUTE_RETIRED (and are logged).
+    consumer.apply(RetiredLegacyRouteMiddleware).forRoutes(
+      ...RETIRED_API_ROUTES.map((route) => ({
+        path: route.path,
+        method: RequestMethod[route.method],
+      })),
+    );
   }
 }

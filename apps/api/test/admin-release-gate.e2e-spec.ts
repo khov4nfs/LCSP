@@ -133,23 +133,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
         AUTH_ERROR_CODES.sessionInvalid,
       );
 
-      // 3. Admin source catalog endpoint
-      const resCatalog = await httpRequest(app)
-        .get("/assessments/dummy-id/admin-source-catalog")
-        .set("Accept", "application/json");
-
-      assert.equal(resCatalog.status, 401);
-      assert.equal(problemCode(resCatalog), AUTH_ERROR_CODES.sessionInvalid);
-
-      // 4. Admin corpus readiness endpoint
-      const resReadiness = await httpRequest(app)
-        .get("/assessments/dummy-id/legal-corpus-readiness")
-        .set("Accept", "application/json");
-
-      assert.equal(resReadiness.status, 401);
-      assert.equal(problemCode(resReadiness), AUTH_ERROR_CODES.sessionInvalid);
-
-      // 5. Admin legal preparation trigger (the only remaining admin legal write)
+      // 3. Admin legal preparation trigger (the only remaining admin legal write)
       const resVersionMutation = await httpRequest(app)
         .post("/admin/corpus-versions/prepare")
         .send({ idempotencyKey: "prep-unauth-1" })
@@ -182,25 +166,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
       assert.equal(resAuditExport.status, 403);
       assert.equal(problemCode(resAuditExport), RBAC_REASON_CODES.denied);
 
-      // 3. Admin source catalog endpoint
-      const resCatalog = await httpRequest(app)
-        .get("/assessments/dummy-id/admin-source-catalog")
-        .set("Authorization", `Bearer ${customerSessionToken}`)
-        .set("Accept", "application/json");
-
-      assert.equal(resCatalog.status, 403);
-      assert.equal(problemCode(resCatalog), RBAC_REASON_CODES.denied);
-
-      // 4. Admin corpus readiness endpoint
-      const resReadiness = await httpRequest(app)
-        .get("/assessments/dummy-id/legal-corpus-readiness")
-        .set("Authorization", `Bearer ${customerSessionToken}`)
-        .set("Accept", "application/json");
-
-      assert.equal(resReadiness.status, 403);
-      assert.equal(problemCode(resReadiness), RBAC_REASON_CODES.denied);
-
-      // 5. Admin legal preparation trigger
+      // 3. Admin legal preparation trigger
       const resVersionMutation = await httpRequest(app)
         .post("/admin/corpus-versions/prepare")
         .set("Authorization", `Bearer ${customerSessionToken}`)

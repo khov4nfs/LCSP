@@ -38,6 +38,12 @@ export const PREPARATION_RESULTS = {
 export type PreparationResult =
   (typeof PREPARATION_RESULTS)[keyof typeof PREPARATION_RESULTS];
 
+export const PIN_RESULTS = {
+  PINNED: "PINNED",
+  WAITING_FOR_LEGAL_PORTFOLIO: PREPARATION_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO,
+} as const;
+export type PinResult = (typeof PIN_RESULTS)[keyof typeof PIN_RESULTS];
+
 const ORCHESTRATOR = {
   id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
   type: AUDIT_ACTOR_TYPES.service,
@@ -75,40 +81,20 @@ export class AssessmentRuntimePreparation {
     return { legalPortfolioVersionId: portfolio?.id ?? null };
   }
 
-  async prepareInTx(
+  /**
+   * Pins the then-ACTIVE legal portfolio and the repository snapshot, creates the hydration ticket
+   * and one decision-coverage row per EngineeringRule. It does NOT change the lifecycle state and
+   * enqueues nothing, so a caller (repository-setup completion, or the W6 backfill) decides when the
+   * Root starts. Idempotent: re-applying identical pins is allowed by the database guard.
+   */
+  async pinRuntimeInputsInTx(
     tx: Prisma.TransactionClient,
     input: {
       assessmentId: string;
       snapshotId: string;
       correlationId: string;
     },
-  ): Promise<{ result: PreparationResult }> {
-    const assessment = await tx.assessment.findUnique({
-      where: { id: input.assessmentId },
-      select: { lifecycleState: true, lifecycleRevision: true },
-    });
-    if (
-      !assessment ||
-      assessment.lifecycleState === null ||
-      assessment.lifecycleRevision === null
-    ) {
-      throw problemException(
-        ASSESSMENT_DOMAIN_ERROR_CODES.RUNTIME_NOT_FOUND,
-        input.correlationId,
-        { status: HttpStatus.NOT_FOUND },
-      );
-    }
-    if (assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.ACTIVE) {
-      return { result: PREPARATION_RESULTS.ALREADY_ACTIVE };
-    }
-    if (assessment.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.PREPARING) {
-      throw problemException(
-        ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
-        input.correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
-    }
-
+  ): Promise<{ result: PinResult }> {
     let assessmentCase = await tx.assessmentCase.findUnique({
       where: { assessmentId: input.assessmentId },
     });
@@ -126,8 +112,7 @@ export class AssessmentRuntimePreparation {
         where: { lifecycleState: ArtifactLifecycleState.ACTIVE },
         select: { id: true },
       });
-      if (!active)
-        return { result: PREPARATION_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO };
+      if (!active) return { result: PIN_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO };
       portfolioId = active.id;
       await tx.assessmentCase.update({
         where: { assessmentId: input.assessmentId },
@@ -181,7 +166,7 @@ export class AssessmentRuntimePreparation {
       select: { engineeringRuleId: true, engineeringRuleVersion: true },
     });
     if (rules.length === 0) {
-      return { result: PREPARATION_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO };
+      return { result: PIN_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO };
     }
     await tx.assessmentDecisionCoverage.createMany({
       data: rules.map((rule) => ({
@@ -192,6 +177,47 @@ export class AssessmentRuntimePreparation {
       })),
       skipDuplicates: true,
     });
+    return { result: PIN_RESULTS.PINNED };
+  }
+
+  async prepareInTx(
+    tx: Prisma.TransactionClient,
+    input: {
+      assessmentId: string;
+      snapshotId: string;
+      correlationId: string;
+    },
+  ): Promise<{ result: PreparationResult }> {
+    const assessment = await tx.assessment.findUnique({
+      where: { id: input.assessmentId },
+      select: { lifecycleState: true, lifecycleRevision: true },
+    });
+    if (
+      !assessment ||
+      assessment.lifecycleState === null ||
+      assessment.lifecycleRevision === null
+    ) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.RUNTIME_NOT_FOUND,
+        input.correlationId,
+        { status: HttpStatus.NOT_FOUND },
+      );
+    }
+    if (assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.ACTIVE) {
+      return { result: PREPARATION_RESULTS.ALREADY_ACTIVE };
+    }
+    if (assessment.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.PREPARING) {
+      throw problemException(
+        ASSESSMENT_DOMAIN_ERROR_CODES.PINS_NOT_READY,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+
+    const pinned = await this.pinRuntimeInputsInTx(tx, input);
+    if (pinned.result !== PIN_RESULTS.PINNED) {
+      return { result: PREPARATION_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO };
+    }
 
     await this.coordinator.transitionVerifiedInTx(
       {

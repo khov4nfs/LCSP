@@ -1,11 +1,8 @@
 import os
 import json
 import shutil
-from unittest.mock import MagicMock
 
 from tools.common.capabilities.platform.artifact_storage import ArtifactStorage
-from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.platform.callback_schemas import TechnicalProfileCallbackPayload
 
 
 def test_artifact_storage_chunking() -> None:
@@ -35,39 +32,3 @@ def test_artifact_storage_chunking() -> None:
     assert reconstructed_payload == payload
 
     shutil.rmtree(storage_path, ignore_errors=True)
-
-
-def test_api_client_callback_chunking(monkeypatch) -> None:
-    from tools.common.capabilities.platform.logging_path import get_repo_root
-
-    client = WorkerApiClient("http://api.test", "key-123")
-
-    mock_post = MagicMock(return_value={"success": True, "accepted": True})
-    client._post_with_retry = mock_post
-
-    monkeypatch.setenv("LCSP_PROFILE_CALLBACK_THRESHOLD", "10")
-    monkeypatch.setenv("LCSP_PROFILE_CALLBACK_CHUNK_SIZE", "5")
-    client_storage_path = os.path.join(
-        get_repo_root(), "tmp", "lcsp-storage-test-python-client"
-    )
-    monkeypatch.setenv("LCSP_ARTIFACT_STORAGE_PATH", client_storage_path)
-
-    payload = TechnicalProfileCallbackPayload(
-        evidence_report_id="rep-1",
-        assessment_id="ass-1",
-        schema_version="2.0.0",
-        provider_version="prov-1",
-        privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
-        profile_data={"some": "large_profile_data"},
-    )
-
-    resp = client.post_technical_profile_callback(payload)
-
-    assert resp.success is True
-    mock_post.assert_called_once()
-    posted_payload = mock_post.call_args.args[1]
-    assert posted_payload["is_artifact_reference"] is True
-    assert "artifact_manifest" in posted_payload
-    assert posted_payload["artifact_manifest"]["total_size"] > 0
-
-    shutil.rmtree(client_storage_path, ignore_errors=True)

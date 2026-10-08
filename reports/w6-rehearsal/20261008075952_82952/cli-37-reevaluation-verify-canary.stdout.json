@@ -1,0 +1,92 @@
+{
+  "generatedAt": "2026-10-08T08:01:31.358Z",
+  "canaryAssessments": 1,
+  "verified": true,
+  "attestedChecks": [],
+  "assessments": [
+    {
+      "assessmentId": "0b0edd13-6704-474b-81d9-09467ebde566",
+      "lifecycleState": "COMPLETE",
+      "results": [
+        {
+          "check": "THREAD_UNIQUE",
+          "status": "PASS",
+          "observed": {
+            "threadId": "eb0d9919-7640-48e4-ac13-ab1c6c8f4566",
+            "threadRows": 1,
+            "summaryThreadId": "eb0d9919-7640-48e4-ac13-ab1c6c8f4566",
+            "reusesV1Thread": false,
+            "checkpointId": null
+          }
+        },
+        {
+          "check": "CHECKPOINT_RECORDED",
+          "status": "PASS",
+          "observed": {
+            "runtimeCheckpointId": null,
+            "checkpointerHasThread": true
+          }
+        },
+        {
+          "check": "EVENTS_RECORDED",
+          "status": "PASS",
+          "observed": {
+            "rootEvents": 3,
+            "contiguous": true,
+            "wrongThread": 0
+          }
+        },
+        {
+          "check": "MODEL_USAGE_RECORDED",
+          "status": "PASS",
+          "observed": {
+            "events": 2,
+            "routes": [
+              "openai/rehearsal-model"
+            ],
+            "declared": [
+              "openai/rehearsal-model"
+            ],
+            "undeclared": []
+          }
+        },
+        {
+          "check": "ACCOUNTING_CONSISTENT",
+          "status": "PASS",
+          "observed": {
+            "usageEvents": 2,
+            "usageForAnotherOwner": 0,
+            "usageWithCreditCharge": 0,
+            "usageWithReservation": 0,
+            "reservations": 0
+          }
+        },
+        {
+          "check": "DECISIONS_RECORDED",
+          "status": "PASS",
+          "observed": {
+            "total": 3,
+            "pending": 0,
+            "resolvedWithoutDecision": 0
+          }
+        },
+        {
+          "check": "ARTIFACT_FLOW",
+          "status": "PASS",
+          "observed": {
+            "finalReports": 1,
+            "unsealed": 0
+          }
+        },
+        {
+          "check": "NO_V1_AUTHORITY",
+          "status": "PASS",
+          "observed": {
+            "inFlightRows": 0,
+            "undeliveredRetiredCommands": 0
+          }
+        }
+      ]
+    }
+  ]
+}

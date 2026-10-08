@@ -5,6 +5,11 @@ import {
 } from "@lcsp/contracts/outbox";
 import { TARGETED_REANALYSIS_REQUEST_STATES } from "@lcsp/contracts/scan";
 import { TARGETED_REANALYSIS_CAPACITY_POLICY } from "@lcsp/contracts/scan";
+import {
+  LEGACY_OUTBOX_EVENT_TYPES,
+  RETAINED_OUTBOX_EVENT_TYPES,
+  V2_WORKER_BOUND_EVENT_TYPES,
+} from "@lcsp/contracts/legacy-migration";
 import { jest } from "@jest/globals";
 import { Prisma } from "@prisma/client";
 
@@ -248,6 +253,40 @@ describe("OutboxRepository", () => {
       expect(call.create.status).toBe(OUTBOX_STATUSES.pending);
       expect(call.create.attempts).toBe(0);
       expect(call.create.id).toBeTruthy();
+    });
+
+    it.each(Object.values(LEGACY_OUTBOX_EVENT_TYPES))(
+      "refuses to enqueue the retired V1 event %s",
+      async (eventType) => {
+        const { prisma, upsert } = makePrismaWithCreate();
+        const repository = new OutboxRepository(prisma);
+
+        await expect(
+          repository.enqueue({
+            aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+            aggregateId: "assessment-1",
+            eventType,
+            payload: {},
+          }),
+        ).rejects.toThrow("OUTBOX_EVENT_TYPE_RETIRED");
+        expect(upsert).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ...Object.values(V2_WORKER_BOUND_EVENT_TYPES),
+      ...Object.values(RETAINED_OUTBOX_EVENT_TYPES),
+    ])("still enqueues the live event %s", async (eventType) => {
+      const { prisma, upsert } = makePrismaWithCreate();
+      const repository = new OutboxRepository(prisma);
+
+      await repository.enqueue({
+        aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+        aggregateId: "assessment-1",
+        eventType,
+        payload: {},
+      });
+      expect(upsert).toHaveBeenCalledTimes(1);
     });
 
     it("writes within the given transaction client when provided", async () => {

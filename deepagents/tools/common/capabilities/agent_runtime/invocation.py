@@ -19,7 +19,6 @@ from tools.common.capabilities.platform.config import load_config
 from middleware.usage_metering import AgentRunState, activate_agent_run_state
 from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 from orchestration.agent_stream import (
-    AGENT_STREAM_STAGES,
     AgentStreamSession,
     BufferedAgentStreamEmitter,
     activate_agent_stream,
@@ -120,18 +119,6 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "command.legal-retrieval-index.build.v1",
     ),
     AgentInvocationBoundary(
-        "gap_analysis_requested",
-        "tools.common.capabilities.reporting.gap.gap_analysis_boundary:GapAnalysisBoundary",
-        "reporting.document-gap-analysis-requested",
-        "document.gap-analysis-requested",
-    ),
-    AgentInvocationBoundary(
-        "final_report_requested",
-        "tools.common.capabilities.reporting.report.final_report.final_report_boundary:FinalReportBoundary",
-        "reporting.document-final-report-requested",
-        "document.final-report-requested",
-    ),
-    AgentInvocationBoundary(
         "audit_export_requested",
         "tools.common.capabilities.reporting.report.audit_export.audit_export_boundary:AuditExportBoundary",
         "reporting.audit-export-requested",
@@ -148,9 +135,7 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
 # Default live-stream stage for boundaries that serve exactly one stage. The
 # engineering assessment boundary spans Interview, Repository Analyst (Investigate) and
 # Gate, so each of those invocations names its own stage instead.
-_BOUNDARY_STREAM_STAGES = {
-    "scan_requested": AGENT_STREAM_STAGES["scanner"],
-}
+_BOUNDARY_STREAM_STAGES: dict[str, str] = {}
 _BOUNDARY_INDEX = {boundary.name: boundary for boundary in AGENT_INVOCATION_BOUNDARIES}
 if len(_BOUNDARY_INDEX) != len(AGENT_INVOCATION_BOUNDARIES):
     raise RuntimeError("Agent Runtime invocation boundary names must be unique")

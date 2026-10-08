@@ -9,15 +9,13 @@ import { GetDocumentGenerationContextHandler } from "./application/queries/get-d
 import { GetDocumentHandler } from "./application/queries/get-document/get-document.handler.js";
 import { ListDocumentsHandler } from "./application/queries/list-documents/list-documents.handler.js";
 import { DocumentStorageService } from "./infrastructure/storage/document-storage.service.js";
-import { DocumentController } from "./presentation/http/document.controller.js";
-import { InternalDocumentController } from "./presentation/http/internal-document.controller.js";
 
 /**
  * Wires document generation, worker callbacks, RBAC-filtered reads, and signed artifact downloads.
  */
 @Module({
   imports: [CqrsModule, RbacModule],
-  controllers: [DocumentController, InternalDocumentController],
+  controllers: [],
   providers: [
     RequestFinalReportHandler,
     RequestGapAnalysisHandler,
