@@ -38,6 +38,55 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  legalPreparation: {
+    title: string;
+    description: string;
+    active: string;
+    unavailable: string;
+    corpus: string;
+    selectCorpus: string;
+    start: string;
+    starting: string;
+    history: string;
+    version: string;
+    state: string;
+    rules: string;
+    runs: string;
+    states: {
+      BUILDING: string;
+      ACTIVE: string;
+      SUPERSEDED: string;
+      INVALID: string;
+    };
+  };
+  agenticAssessment: {
+    outcomes: {
+      APPLICABLE: string;
+      NOT_APPLICABLE: string;
+      MET: string;
+      NOT_MET: string;
+      COMPLIANT: string;
+      NON_COMPLIANT: string;
+    };
+    loading: string;
+    unavailable: string;
+    requestFailed: string;
+    retry: string;
+    humanRequests: string;
+    doesNotKnow: string;
+    answerRequired: string;
+    selectAnswer: string;
+    unknownRecorded: string;
+    submitFact: string;
+    saving: string;
+    decisions: string;
+    activity: string;
+    downloadReport: string;
+    stop: string;
+    continue: string;
+    controlPending: string;
+    facts: string;
+  };
   accountLifecycle: {
     inviteTitle: string;
     inviteDescription: string;
@@ -2517,87 +2566,6 @@ export type PagesMessages = {
         INVITED: string;
         DEACTIVATED: string;
       };
-    };
-    corpusVersions: {
-      title: string;
-      description: string;
-      detailTitle: string;
-      currentMeta: string;
-      create: string;
-      creating: string;
-      createUnavailable: string;
-      current: string;
-      view: string;
-      versions: string;
-      version: string;
-      status: string;
-      sources: string;
-      rules: string;
-      created: string;
-      published: string;
-      actions: string;
-      noValue: string;
-      unavailable: string;
-      loading: string;
-      error: string;
-      retry: string;
-      back: string;
-      metadata: string;
-      changes: string;
-      readiness: string;
-      snapshot: string;
-      category: string;
-      count: string;
-      change: string;
-      validation: string;
-      baseVersion: string;
-      createdBy: string;
-      sourceAdded: string;
-      sourceRemoved: string;
-      sourceUpdated: string;
-      legalRulesChanged: string;
-      engineeringRulesChanged: string;
-      conflicts: string;
-      publish: string;
-      publishing: string;
-      publishUnavailable: string;
-      discard: string;
-      discardTitle: string;
-      discardDescription: string;
-      cancel: string;
-      confirmDiscard: string;
-      discarding: string;
-      discardFailedTitle: string;
-      discardFailedDetail: string;
-      note: string;
-      statuses: {
-        DRAFT: string;
-        APPROVED: string;
-        REJECTED: string;
-        SUPERSEDED: string;
-      };
-      readinessStates: {
-        READY: string;
-        PASSED: string;
-        PENDING: string;
-        FAILED: string;
-        BLOCKED: string;
-        UNAVAILABLE: string;
-      };
-      readinessChecks: {
-        SOURCE_PARSING: string;
-        RETRIEVAL_VALIDATION: string;
-        INTEGRITY_MANIFEST: string;
-        RULE_SNAPSHOT: string;
-        DIFF_REVIEW: string;
-      };
-      snapshotCategories: {
-        SOURCE_DOCUMENTS: string;
-        CORPUS_CHUNKS: string;
-        LEGAL_RULES: string;
-        ENGINEERING_RULES: string;
-      };
-      changeSummary: string;
     };
     userDetail: {
       title: string;

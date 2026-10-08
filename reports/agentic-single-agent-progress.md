@@ -2,19 +2,19 @@
 
 ## Current position
 
-2026-10-07: W1, W2 and W3 are completed and merged. W4 / LCSP-354 is COMPLETE — GATE PASS. Its changes remain preserved and uncommitted on the existing dirty `develop` worktree. Historical W1–W3 evidence below is unchanged. Stopped at W4; W5 requires a new explicit `continue` after review.
+2026-10-08: W1–W4 are completed and merged. W4 / LCSP-354 Gate PASS remains historical evidence; PR #361 merged at `b9a3998ff59d9dd5a4f3e1048ef31b45f13841b8`. The user explicitly authorized `continue W5`. Current checkout is clean at that HEAD on the existing `feat/LCSP-complete-canonical-app-web-event-cutover` branch. W5 is in progress; W6+ are not authorized.
 
 ## Current authorized Wave
 
-Current authorized Wave: W4 / LCSP-354 — complete, awaiting user review. The user's explicit W4 continuation superseded the historical W3 awaiting-continue status. W5+ remain unauthorized.
+Current authorized Wave: W5 / LCSP-355 — canonical API/Web/event cutover. Authorization: user `continue W5` on 2026-10-08. Historical awaiting-continue statuses are superseded. No commit, push, PR, merge, deployment or W6 authorization.
 
 ## Current Gate
 
-W4: PASS. Reviewed semantic fixtures and the current same-thread live continuation reached COMPLETE with native SUCCEEDED and an independently verified immutable report. Mechanical HITL/checkpoint, bounded absence, Completion Gate, artifact, convention and relevant regression receipts are recorded below. W1–W3 remain closed. No W5 work started.
+W5: IN PROGRESS, not gate-passed. W4 remains PASS with its exact receipts and limitations below. W5 must prove canonical API/SSE/UI/control/report agreement and the API-backed browser flow. W1–W4 remain closed.
 
 ## Jira Wave
 
-LCSP-354 — Agentic decisions, HITL, bounded absence and finalization. No Jira mutation.
+LCSP-355 — canonical API/Web/event cutover. No Jira mutation.
 
 ## Architecture authority
 
@@ -525,3 +525,100 @@ Final `rtk proxy graphify update .` PASS, AST-only (25,238 nodes / 63,233 edges)
 W4-specific verification (implementation inspected, not inferred from directories): CQRS PASS; backend layers/modules PASS; NestJS Zod PASS. `answer-human-request`, `report-unresolvable-human-fact`, `request-assessment-finalization`, `submit-assessment-final-report` command handlers and `get-human-requests` query reuse the assessment feature, buses, existing guards and module wiring. Presentation validates/distributes packets; application coordinates authority/audit/transactions; domain validates pure structural/provenance invariants; persistence/storage implementation stays in infrastructure/shared storage. Reusable completion/lease coordination services do not replace independent handlers. Python retains create_deep_agent, native task/interrupt/checkpoint, server-owned thread/lease and governed tools, without direct lifecycle writes or a custom continuation engine. Detailed factual audit is in `## W4 codebase convention verification` above. Next/BFF Zod, Atomic Design, shadcn and RHF+Zod: N/A (no Web/BFF/UI changes).
 
 Deferred to W5: canonical customer API/Web/SSE consumer cutover, full Interview/stage/readiness route/UI removal, i18n cleanup, canonical report/download consumer wiring and browser acceptance. Deferred to W6+: historical archive/backfill, destructive DB drops, production cutover/deployment and later acceptance. Current W4 blockers: none. Waiting for user review; require a new explicit `continue` to authorize W5.
+
+## W5 log (LCSP-355 — canonical API/Web/event cutover)
+
+User explicitly authorized `continue W5` on 2026-10-08. Starting branch is the pre-existing `feat/LCSP-complete-canonical-app-web-event-cutover`, HEAD `b9a3998ff59d9dd5a4f3e1048ef31b45f13841b8`; worktree was clean and `git diff --check` passed. W4 is merged as PR #361; W1/W2/W3 merge SHAs remain `5be71e0e8`, `1647b8d6c`, `8467edcbd`. No W6 authorization or Git publication authorization. W4 parallelization permission does not extend to W5.
+
+## W5 implementation checklist
+
+- Replace customer detail/list/readiness consumers with persisted canonical Assessment/Runtime/Case/decision/artifact projections and Zod contracts.
+- Cut Web/BFF Human Resolution to the existing fact-only answer CQRS path; retain same-thread checkpoint authority.
+- Cut Stop/Continue and workspace SSE/activity consumers to canonical state/events without stage inference.
+- Download the validated immutable AssessmentArtifact; no legacy report generation authority.
+- Cut legal preparation/history administration to automatic ACTIVE portfolio semantics; retire publish/discard consumers and obsolete Interview/readiness copy.
+- Trace and retire replaced W5 API/Web runtime consumers; preserve historical persistence for W6 archive/backfill.
+- Verify contracts/API/Web/Python affected regressions, static convention audit, and real API-backed PostgreSQL browser create/question/answer/Stop/Continue/report flow.
+
+## W5 completed
+
+Authorization and canonical repository recovery complete. Existing W1–W4 authorities are preserved.
+
+## W5 current gate
+
+IN PROGRESS. No browser or W5 regression PASS claim yet.
+
+## W5 tests actually executed
+
+Starting `git diff --check`: PASS. W4 evidence is historical, not a W5 test run.
+
+## W5 codebase convention verification
+
+Production changes use shared Zod contracts, CQRS handlers, infrastructure persistence loaders, and transport-only controllers. Implementation inspection and executable checks remain pending. No W5 subagents.
+
+## W5 blockers
+
+None established. Legacy customer detail currently still projects classification/readiness alongside canonical state; customer Interview and pipeline endpoints remain reachable and require the authorized W5 cutover.
+
+## W5 exact next action
+
+Complete canonical customer assessment reads and immutable artifact download, then wire canonical BFF/UI consumers and runtime events/controls. Run focused checks before broad regression and browser acceptance. Stop at W5 Gate PASS; do not start W6.
+
+### W5 implementation milestone (2026-10-08)
+
+Canonical detail/list loaders now project persisted ALS/AES/Case/DRS/decisions/facts/artifact metadata in read-only repeatable-read transactions. Customer controller uses CQRS/Zod; legacy customer Interview/readiness/pipeline routes are removed. Immutable artifact download uses owner/assessment authorization and verifies identity, pins, revision, fingerprint, size/hash before serving exact bytes. Human Resolution BFF uses shared schemas; RHF/Zod customer form supplies facts or doesNotKnow only. Workspace overview/sidebar now consume canonical detail/Human Resolution/artifacts; setup client no longer posts obsolete scan-start commands. Workspace SSE moved into Assessment and dispatches a query, publishing only canonical assessments/events. Admin Legal Preparation/history consumer replaces publish/discard controls. Backend control transport now uses CQRS/Zod; Root Stop uses native interrupt and Continue targets the same thread/checkpoint through the existing control journal and Root authority.
+
+Executed: `pnpm run build:runtime-packages` PASS; `pnpm --filter @lcsp/api run build` PASS (before latest history relation repair); focused API Jest (ESM flag) 3 suites / 16 tests PASS; Root Python suite 33 tests PASS; new native Stop/same-thread/same-execution worker-replacement focused test 1 PASS. Web typecheck PASS before canonical list fixture change; API typecheck exposed obsolete SSE transport tests, now migrated, and nullable relation typing, repaired. Ordinary first-run Jest lacked the ESM flag; rerun with `NODE_OPTIONS=--experimental-vm-modules` passed. No live provider eval.
+
+W5 Gate remains IN PROGRESS. Migrated PostgreSQL Stop/Continue/artifact/customer vertical, actual browser/console/network/SSE proof, full regressions, source/BFF/i18n retirement and final convention audit are outstanding. Exact next action: compile and focused checks of current changes, run migrated disposable DB vertical, wire/test real browser acceptance, then relevant regression and static retirement audit. W6 remains unauthorized.
+
+### W5 migrated runtime/read evidence (2026-10-08)
+
+Dedicated disposable PostgreSQL container `lcsp-w5-disposable-postgres-55451` (`lcsp.disposable=w5`, loopback 127.0.0.1:55451) was created; existing Fogewise services/data were untouched. `LCSP_W2_PG_PORT=55451 node tests/assessment-hitl-vertical.mjs`: PASS 79 checks after adding customer Stop/Continue, native PostgresSaver pause/replacement-worker resume, exact same thread/execution, stale/foreign Continue rejection and retired Interview/readiness route checks. Original 60 HITL checks still pass. `LCSP_W2_PG_PORT=55451 node tests/assessment-domain-vertical.mjs`: PASS 132 checks after adding authenticated artifact download, exact byte/hash/header equality, canonical COMPLETE detail, cross-assessment/no-auth rejection. The first download attempt exposed global StreamableFile envelope wrapping; the shared interceptor now excludes Nest StreamableFile, with focused regression PASS. API build PASS; Web typecheck PASS; contract literal gate PASS. Focused SSE/DI: 2 suites / 4 tests PASS. Stream/create-focused: 2 suites / 14 tests PASS. Root focused native Stop/replacement worker: PASS; no live provider calls.
+
+Browser stack uses fresh `lcsp_w5_browser`, API 3415, Web 3451, test-only fixture driver 3452; real API/PostgreSQL/PostgresSaver with scripted model. Browser sign-in and UI form create produced assessment `81daf13b-4253-4559-b629-ab5a1a443464`, server thread `38de4c77-baf4-47af-a7ab-25d98dd3cdf6`, PREPARING/QUEUED. Repository connection/snapshot is a disclosed seeded fixture; provider network acquisition is not claimed. Full question/answer/Stop/Continue/report browser receipt remains in progress.
+
+Chrome DevTools MCP launch failed due to missing X server; SourceNerve DevTools list-pages was denied by automatic approval review as an unclassified tool under conservative destructive/open-world policy. Playwright MCP is operational. No Chrome DevTools PASS claim; browser console/network evidence will be recorded with available tooling and this limitation retained.
+
+### W5 browser report-link diagnosis and repair (2026-10-08, handoff from Codex)
+
+Diagnosis (existing assessment `81daf13b-4253-4559-b629-ab5a1a443464`, API 3415 resumed on the existing `lcsp_w5_browser` DB via `startStack({resetDatabase:false})`, Web 3451): canonical API detail = lifecycle COMPLETE (rev 8), runtime SUCCEEDED, one ACTIVE FINAL_REPORT artifact `45c5cfec-3519-5df4-8e4b-a170f6ebe5bc` (sha256 `b48e455c…08b4`, 3502 bytes). Direct download: 200, `Content-Disposition: attachment`, `application/json`, bytes identical to `reports/w5-browser/report-assessment-45c5cfec-….json`. The backend and artifact were never at fault.
+
+Root cause: `AssessmentReportLink` rendered `<a>` through shadcn `Button` with `nativeButton={false}`; Base UI `useButton` injects `role="button"` for non-native buttons (`internals/use-button/useButton.js:170`), so `getByRole('link', {name:'Download final report'})` could never match (also an a11y defect: a download link announced as a button). The same link was additionally rendered in both overview and runtime sidebar (count 2 → strict-mode ambiguity).
+
+Changes: `components/ui/button.tsx` exports `buttonVariants`; `assessment-report-link.tsx` renders a native `<a className={buttonVariants()}>`; link removed from `assessment-runtime-sidebar.tsx` (overview keeps it); new `apps/web/tests/assessment-report-link.test.ts` (2 tests PASS: native anchor without `role`, no link before COMPLETE/without ACTIVE artifact). Focused command: `pnpm exec tsx --tsconfig tsconfig.test.json --test tests/assessment-report-link.test.ts` → 2 pass / 0 fail.
+
+Browser (Playwright MCP, headless, after the anchor fix and BEFORE the sidebar removal): sign-in OK; `/assessments/81daf13b…` shows `data-lifecycle-state=COMPLETE`, `data-execution-state=SUCCEEDED` from canonical detail; link role=link, tag A, no role attribute; click → download `assessment-45c5cfec-….json`, `cmp` equal to archived immutable artifact (sha256 `b48e455c…08b4`); console errors 0; all `/api/*` responses 200 (profile, workspace, assessments, runtime-events, repository-setup, detail, human-requests, runtime/control, artifact download). Evidence: `reports/w5-browser/browser-download-45c5cfec-….json`, `complete-report-link.png`. NOT yet re-run in the browser: single-link (count 1) after the sidebar removal. Chrome DevTools MCP limitation unchanged (no X server / policy); Playwright used.
+
+Retirement audit (static, changed files only): deleted dead W5-legacy web files with zero importers — `features/admin/components/organisms/corpus-versions-page.tsx` (publish/discard UI), `lib/api/admin-corpus-versions-queries.ts`, `lib/api/admin-corpus-versions-client.ts` (called the already-deleted publish/discard BFF routes); removed the now-unused `pages.admin.corpusVersions` block from `packages/i18n/src/types.ts`, `locales/en/pages.ts`, `locales/vi/pages.ts` (`pnpm exec tsc --noEmit -p tsconfig.json` in packages/i18n: exit 0). `apps/api/test/assessment.e2e-spec.ts`: two tests that exercised the retired `/readiness` route / `readiness_state` (one vacuous on 404, one would throw on the canonical detail) replaced with one test asserting readiness route 404, PREPARING lifecycle and no `readiness_state`/`classification_result`. Tailwind `-[` scan: no hits outside shadcn primitives; literal-union/enum scan: only `Pick<>` key unions in `assessment-runtime-authority.service.ts` (not value sets). `git diff --check` PASS.
+
+Not changed (pre-existing, outside W5 diff, same `nativeButton={false}` + `render={<a|Link>}` role=button pattern): `workspace-overview.tsx`, `auth/sign-in-form.tsx`, `legal-library-page.tsx`, `legal-document-reader-page.tsx`. Recorded as a follow-up a11y item, not W5 blockers. Backend `legal-rule-catalog` admin-corpus-versions publish/discard controller/service left untouched (historical persistence; W6 archive scope).
+
+Per user instruction, heavy commands (Web typecheck/suite, API e2e, `tests/run-w5-regression.sh`) are NOT run by the agent. W5 Gate remains IN PROGRESS pending the user-run regression.
+
+### W5 user-run regression #1 — triage and repairs (2026-10-08)
+
+Command (user-executed): `bash tests/run-w5-regression.sh` → exit 1, evidence `reports/w5-regression/20261007_181208_228187/`. PASS: runtime-packages, schema/integration migrations, api-build, web-route-types, imports, contracts, agentic-tools, retired-legal-authority, hitl-postgres (79 checks), decisions-report-postgres (132 checks), diff-whitespace. FAIL: typecheck (1 error), api-jest (1 suite / 8 tests), api-e2e (7 suites / 35 tests), web (1 file; the `&&`-chained second half `apps/web/tests/*.test.ts` never ran), root-python (script bug: nonexistent test path). Postgres 55451 disposable container reused; no existing data touched.
+
+Classification and repairs (all verified only by focused runs; the full regression has NOT been re-run):
+- typecheck + web: `tests/story-1-4.web.test.ts` imported removed `getAssessmentStatusLabelKey` and used the pre-W5 list payload. Removed the retired-status test; migrated the list outcome test to the canonical strict list payload. `tsx --test tests/story-1-4.web.test.ts`: 6 pass.
+- api-jest: `assessment-runtime-event.service.spec.ts` — W5 intentionally made `buildWorkspaceSnapshot` canonical-only (legacy `runs/recentActivity/engineeringProgress/scanJobs/...` are empty). Removed 5 tests that exercised the retired V1 projections (synthetic scan activity, post-finding derivation, durable engineering progress) and rewrote the mixed test to assert empty legacy arrays, no legacy-table reads, plus the existing canonical assertions; removed 3 unused imports. Single spec: 37 pass.
+- api-e2e group A (create/list/get/audit-trail/assessment, 15 tests): create is `strictObject{name,description}`; specs still sent `organization_id`, used retired `status`/`readiness_state`/`next_action`/`INVALID_REQUEST` and `page_size` clamp. Migrated to `AssessmentList`/`AssessmentDetail` + `ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID`, `lifecycleState` filter, `page_size>100` → 422 (contract rejects, no clamp), valid-UUID other-owner fixture; replaced the two retired readiness tests with one asserting `/readiness` 404 and no `readiness_state`/`classification_result`. Five specs: 30 pass (throwaway DB `lcsp_w5_focus_e2e`, dropped).
+- api-e2e group B (`assessment-runtime-control.e2e-spec.ts`, 5 tests): W5 control service requires `ASSESSMENT_ROOT_BOUNDARY`; Stop enqueues no outbox command (observed at the Root's native checkpoint boundary), only a valid Continue enqueues `ROOT_REQUESTED`; `request()` no longer publishes to the legacy journal (only `acknowledge()` does). Fixture boundary replaced; outbox/journal expectations updated (1 paired lifecycle row after ack, 0 `ROOT_REQUESTED`; journal replay `take(1)`); removed stale comment in `assessment-runtime-control.service.ts`. Spec: 5 pass on a `prisma db push` schema (same conditions as the full run; a freshly *migrated* DB fires the "ACTIVE needs pins" trigger in this spec's `beforeEach` — pre-existing fixture coupling, not changed).
+- api-e2e group C (`assessment-interview.e2e-spec.ts`, 15 tests, all 404 — customer Interview routes retired): USER DECISION (AskUserQuestion) = delete the suite only. Deleted `apps/api/test/assessment-interview.e2e-spec.ts`. `InternalAssessmentInterviewController`, `AssessmentInterviewRuntimeService` (~5.2k lines), related interview services/specs, the audit interview-trail query and the Python `api_client.py` interview methods are NOT removed; deferred to W6 archive/removal.
+- root-python: `tests/run-w5-regression.sh` referenced nonexistent `test_assessment_root_finalization.py`; replaced with the 11 W4-verified existing files. Focused run: 100 passed.
+- Web second-half (not reached by the user run): ran focused set of 18 web test files that reference W5-modified sources: 31 failures → repaired: `repository-setup-resume.test.ts` rewritten for the canonical resume algorithm (GET repository-setup, snapshot, complete; server-owned scan; 31 pass); `assessment-app-shell`/`assessment-runtime-sidebar` rewritten to the canonical sidebar contract; deleted tests of retired UX (`assessment-chat-primitives` ×3, `assessment-interview-regression` ×1, `post-finding-flow-components` ×1, `assessment-repository-flow` scanner-retry ×1, `workspace-runtime-provider` V1 run grouping ×1; fingerprint test replaced); `interview-mutation-recovery` keeps hook assertions only; `assessment-repository-flow` new-assessment test adapted (CreateAssessmentForm). Deleted dead `assessment-runtime-preview.test.ts` + `features/assessment-runtime/dev/assessment-runtime-sidebar-preview.ts`; cleaned six stray `;` lines in `features/assessment-runtime/index.ts`. Focused set: 240 tests / 0 fail. The other ~75 web test files have NOT been run.
+
+OPEN FINDING for the Gate (not fixed; needs a decision): orphaned legacy Web cluster still on disk — BFF routes `app/api/assessments/[id]/{interview/*,readiness,pipeline/continue,post-finding/decisions,conflicts/*}` proxy to backend customer endpoints that no longer exist (404); `lib/api/{assessment-interview-client,interview-mutation-*,assessment-queries}.ts`, `features/workspace/{components/molecules/assessment-question-turn.tsx,hooks/use-assessment-runtime-view-model.ts,config/pipeline-continue.ts,utils/assessment-runtime-adapter.ts}` and their tests (`assessment-runtime-adapter.test.ts` 63 tests, interview-mutation-recovery, etc.) have no live overview/sidebar consumer. Backend `documents/final-report|gap-analysis` and `classification/rerun` customer routes also still exist. These are retirement-audit items, not yet removed.
+
+### W5 user-run regression #2 and Gate closure (2026-10-08)
+
+Command (user-executed, memory-capped): `systemd-run --user --scope -p MemoryMax=10G bash tests/run-w5-regression.sh` → exit 0, evidence `reports/w5-regression/20261007_202005_491725/`. All 16 stages 0: runtime-packages, schema/integration migrations, api-build, web-route-types, typecheck, imports, contracts, agentic-tools, retired-legal-authority, api-jest (202 suites, 1,344 passed, 9 skipped, 0 failed), api-e2e (47 suites, 276 passed, 21 skipped, 0 failed), web (609 tests, 0 failed — first complete run of both halves), root-python (100 passed), hitl-postgres (79 checks), decisions-report-postgres (132 checks), diff-whitespace.
+
+Browser re-check after the sidebar-link removal (Playwright MCP headless; API 3415 resumed on existing `lcsp_w5_browser`, Web 3451 dev; servers stopped afterwards): `getByRole('link',{name:'Download final report',exact:true})` strict-mode count = 1, no `role=button` match; main `data-lifecycle-state=COMPLETE`, `data-execution-state=SUCCEEDED`; click → download byte-identical to the immutable artifact (sha256 `b48e455c…08b4`, `cmp` equal); 0 console errors; `/api/assessments/{id}`, `/repository-setup`, `/human-requests`, `/runtime/control`, artifact download all 200. Evidence: `reports/w5-browser/browser-download-final-45c5cfec-….json`, `complete-report-link-final.png`. Create → repository setup → question → answer → Stop → Continue were exercised in the earlier Codex browser session (`reports/w5-browser/runtime-receipts.json`, 79-check migrated vertical covers Stop/Continue/same thread/replacement worker); this session re-verified only COMPLETE → report visible → download. Chrome DevTools MCP unavailable (no X server / policy) — limitation retained; Playwright used.
+
+Codebase convention audit (implementation inspected, not inferred): CQRS PASS (new/changed W5 controllers dispatch via CommandBus/QueryBus; loaders live in infrastructure/persistence); backend layer/module PASS (no Prisma in assessment or legal-portfolio presentation); NestJS Zod PASS (ZodValidationPipe/safeParse on new controllers); Next.js Zod PASS (no raw fetch/LCSP_API_BASE_URL in `app/api`; routes use `lib/server` helpers with request/response schemas, incl. `runtime/control` via `assessment-runtime-control-proxy`); Atomic Design PASS (no feature-level `atoms|molecules|organisms` directories; components under `components/*`); shadcn PASS (report link uses `buttonVariants`); RHF + Zod PASS (create-assessment, human-resolution, legal-portfolio forms use react-hook-form + zodResolver, no inline z.object); Tailwind `-[` scan clean outside shadcn primitives; contract-literal policy PASS. Caveat: pre-existing `InternalAssessmentInterviewController` still calls `AssessmentInterviewRuntimeService` directly (not CQRS) — legacy, deferred.
+
+BOUNDED DEFERRALS (user decision: Interview backend delete-suite-only; web cluster not yet decided): (1) internal Interview backend (controller, ~5.2k-line runtime service, related services/specs, audit interview-trail query, Python `api_client.py` interview methods); (2) orphaned legacy Web cluster — BFF routes `app/api/assessments/[id]/{interview/*,readiness,pipeline/continue,post-finding/decisions,conflicts/*}` (proxy to removed endpoints → 404), `lib/api/{assessment-interview-client,interview-mutation-*,assessment-queries}.ts`, `features/workspace/{assessment-question-turn,use-assessment-runtime-view-model,pipeline-continue,assessment-runtime-adapter}` + tests; (3) backend customer `documents/final-report|gap-analysis`, `classification/rerun`; (4) the `nativeButton={false}` role=button pattern in workspace-overview, sign-in, legal-library (pre-existing, non-W5). None is an active customer consumer: the canonical overview, sidebar and report path use none of them.
+
+W5 Gate: PASS for the stated acceptance list with the bounded deferrals above. W6 NOT started; no commit, push, PR, stash, reset or deployment performed.

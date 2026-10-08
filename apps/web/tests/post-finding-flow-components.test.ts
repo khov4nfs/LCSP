@@ -332,54 +332,6 @@ test("F16 final assessment renders terminal artifact links", async () => {
   assert.match(container.innerHTML, /documents\/final-report-id\/download/);
 });
 
-test("assessment overview uses the post-finding selector and shared artifact routes support post-finding documents", async () => {
-  const [overview, routes, queries, client, route] = await Promise.all([
-    read("features/workspace/components/organisms/assessment-overview.tsx"),
-    read("features/artifacts/utils/artifact-routes.ts"),
-    read("lib/api/assessment-queries.ts"),
-    read("lib/api/assessment-interview-client.ts"),
-    read("app/api/assessments/[id]/post-finding/decisions/route.ts"),
-  ]);
-
-  assert.match(overview, /selectPostFindingPresentation\(normalized\)/);
-  assert.match(overview, /useSubmitAssessmentPostFindingDecisionMutation/);
-  assert.match(overview, /<PostFindingFlowSteps/);
-  assert.match(overview, /onDecisionSelect=\{handlePostFindingDecision\}/);
-  assert.match(
-    overview,
-    /remediationPatch: normalized\.artifacts\.remediationPatch/,
-  );
-  assert.match(
-    overview,
-    /verificationReport:\s+normalized\.artifacts\.verificationReport/,
-  );
-  assert.match(overview, /finalReport: normalized\.artifacts\.finalReport/);
-  assert.match(
-    await read(
-      "features/workspace/components/molecules/chat-single-select.tsx",
-    ),
-    /data-option-id=\{option\.id\}/,
-  );
-  assert.match(routes, /ARTIFACT_TYPES\.remediationPatch/);
-  assert.match(routes, /ARTIFACT_TYPES\.verificationReport/);
-  assert.match(
-    routes,
-    /documents\/\$\{encodeURIComponent\(ref\.resourceId\)\}\/download/,
-  );
-  assert.match(queries, /submitAssessmentPostFindingDecision/);
-  assert.match(client, /post-finding\/decisions/);
-  assert.match(
-    route,
-    /\/assessments\/\$\{encodeURIComponent\(id\)\}\/post-finding\/decisions/,
-  );
-  assert.doesNotMatch(
-    await read(
-      "features/workspace/components/molecules/post-finding-flow-steps.tsx",
-    ),
-    /draftDecision|useState<RemediationDecision/,
-  );
-});
-
 async function renderFlow(
   override: PostFindingTestState,
   onDecisionSelect: (

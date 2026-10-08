@@ -1,12 +1,12 @@
 import { Query } from "@nestjs/cqrs";
 import type { AuthUserRole } from "@lcsp/contracts/auth";
 
-import type { AssessmentListDto } from "../../contracts/assessment/assessment-list.contract.js";
+import type { AssessmentList } from "@lcsp/contracts/assessment-domain";
 
 /**
  * Requests a paginated assessment list constrained by caller role/scope and optional status.
  */
-export class ListAssessmentsQuery extends Query<AssessmentListDto> {
+export class ListAssessmentsQuery extends Query<AssessmentList> {
   /**
    * Creates the assessment-list query.
    *

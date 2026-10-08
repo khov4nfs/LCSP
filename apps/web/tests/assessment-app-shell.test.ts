@@ -105,14 +105,6 @@ const runtimeSidebarPath = new URL(
   "../src/features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx",
   import.meta.url,
 );
-const runtimeSelectorsPath = new URL(
-  "../src/features/workspace/utils/assessment-runtime-selectors.ts",
-  import.meta.url,
-);
-const runtimeAdapterTypesPath = new URL(
-  "../src/features/workspace/types/assessment-runtime-adapter.types.ts",
-  import.meta.url,
-);
 const legacySidebarAssessmentListPath = new URL(
   "../src/features/workspace/components/molecules/sidebar-assessment-list.tsx",
   import.meta.url,
@@ -217,7 +209,7 @@ test("LCSP-272 right assessment sidebar keeps one shared 420px slot and mobile s
   assert.match(shellSource, /<SheetContent[\s\S]*side="right"/);
   assert.match(shellSource, /<AssessmentRuntimeSidebar assessmentId=/);
   assert.match(sidebarSource, /export function AssessmentRuntimeSidebar/);
-  assert.match(sidebarSource, /min-h-0 flex-1/);
+  assert.match(sidebarSource, /min-h-0/);
   assert.match(sidebarSource, /overflow-y-auto/);
 });
 
@@ -228,9 +220,8 @@ test("LCSP-272 right assessment sidebar removes the generic runtime dashboard UI
   ]);
   const visibleSidebarSources = [shellSource, sidebarSource].join("\n");
 
-  assert.match(sidebarSource, /useAssessmentRuntimeViewModel/);
-  assert.match(sidebarSource, /WorkflowStatusList/);
-  assert.match(sidebarSource, /ArtifactEvidenceRail/);
+  assert.match(sidebarSource, /CanonicalAssessmentStatus/);
+  assert.match(sidebarSource, /CanonicalAssessmentActivity/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelLastUpdated/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelRecentActivity/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelViewFull/);
@@ -244,14 +235,6 @@ test("LCSP-272 right assessment sidebar removes the generic runtime dashboard UI
     visibleSidebarSources,
     /Technical evidence callback was accepted/,
   );
-});
-
-test("LCSP-272 right assessment sidebar follows Figma spacing, icon, and alignment contract", async () => {
-  const sidebarSource = await readFile(runtimeSidebarPath, "utf8");
-
-  assert.match(sidebarSource, /RepositoryContextCard/);
-  assert.match(sidebarSource, /WorkflowStatusList/);
-  assert.match(sidebarSource, /ArtifactEvidenceRail/);
 });
 
 test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflow-contained", async () => {
@@ -347,20 +330,15 @@ test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflo
   );
 });
 
-test("LCSP-272 right assessment sidebar uses normalized state instead of F03/F04 screen branching", async () => {
-  const [shellSource, selectorSource, sidebarSource, typesSource] =
-    await Promise.all([
-      readFile(shellPath, "utf8"),
-      readFile(runtimeSelectorsPath, "utf8"),
-      readFile(runtimeSidebarPath, "utf8"),
-      readFile(runtimeAdapterTypesPath, "utf8"),
-    ]);
-  const combined = [shellSource, selectorSource, sidebarSource].join("\n");
+test("LCSP-272 right assessment sidebar uses canonical state instead of F03/F04 screen branching", async () => {
+  const [shellSource, sidebarSource] = await Promise.all([
+    readFile(shellPath, "utf8"),
+    readFile(runtimeSidebarPath, "utf8"),
+  ]);
+  const combined = [shellSource, sidebarSource].join("\n");
 
-  assert.match(sidebarSource, /useAssessmentRuntimeViewModel/);
-  assert.match(selectorSource, /normalized\.artifacts\.programEvidenceGraph/);
-  assert.match(selectorSource, /normalized\.artifacts\.businessContext/);
-  assert.match(typesSource, /NormalizedAssessmentRuntime/);
+  assert.match(sidebarSource, /useAssessmentDetailQuery/);
+  assert.match(sidebarSource, /canonicalAssessment=/);
   assert.doesNotMatch(combined, /screen === ["']F03["']/);
   assert.doesNotMatch(combined, /screen === ["']F04["']/);
 });

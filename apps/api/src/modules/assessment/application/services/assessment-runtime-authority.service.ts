@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   AGENT_EXECUTION_STATES,
   AGENTIC_ASSESSMENT_EVENT_TYPES,
+  AGENTIC_RUNTIME_TRANSITION_GUARDS,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   ASSESSMENT_LIFECYCLE_STATES,
   BLOCKER_REASONS,
@@ -14,6 +15,7 @@ import {
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_DOMAIN_LIMITS,
+  ASSESSMENT_ROOT_BOUNDARY,
   type AssessmentRootClaim,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
@@ -22,6 +24,8 @@ import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
+import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinator.service.js";
 import { AssessmentEventAppender } from "./assessment-event-appender.service.js";
 
 export interface AuthorizedRootRun {
@@ -49,6 +53,7 @@ export class AssessmentRuntimeAuthority {
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: AssessmentEventAppender,
+    private readonly coordinator: AssessmentLifecycleCoordinator,
   ) {}
 
   /** Starts (or restarts after expiry/failure) the one Root execution of an ACTIVE assessment. */
@@ -83,9 +88,25 @@ export class AssessmentRuntimeAuthority {
         row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
         row.leaseExpiresAt !== null &&
         row.leaseExpiresAt <= new Date();
+      const safePauseResume =
+        row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.PAUSED &&
+        row.executionState === AGENT_EXECUTION_STATES.PAUSED &&
+        row.currentExecutionId &&
+        row.checkpointId
+          ? await tx.assessmentRuntimeTurn.findFirst({
+              where: {
+                id: row.currentExecutionId,
+                assessmentId: input.assessmentId,
+                threadId: row.threadId,
+                boundary: ASSESSMENT_ROOT_BOUNDARY,
+                state: Controls.resumeRequested,
+              },
+            })
+          : null;
       if (
         row.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE &&
-        !recoveringHumanInterrupt
+        !recoveringHumanInterrupt &&
+        !safePauseResume
       ) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
@@ -108,10 +129,22 @@ export class AssessmentRuntimeAuthority {
       }
       // A human interrupt or safe pause resumes the SAME execution; a failed, finished or
       // never-started one begins a new execution ID on the same thread (retry semantics).
+      const recoveringStop = row.currentExecutionId
+        ? await tx.assessmentRuntimeTurn.findFirst({
+            where: {
+              id: row.currentExecutionId,
+              assessmentId: input.assessmentId,
+              threadId: row.threadId,
+              boundary: ASSESSMENT_ROOT_BOUNDARY,
+              state: Controls.stopRequested,
+            },
+          })
+        : null;
       const resumesSameExecution =
         row.currentExecutionId !== null &&
         (row.executionState === AGENT_EXECUTION_STATES.INTERRUPTED ||
-          row.executionState === AGENT_EXECUTION_STATES.PAUSED);
+          row.executionState === AGENT_EXECUTION_STATES.PAUSED ||
+          Boolean(recoveringStop));
       const executionId = resumesSameExecution
         ? (row.currentExecutionId as string)
         : randomUUID();
@@ -133,6 +166,54 @@ export class AssessmentRuntimeAuthority {
           lastResumedAt: now,
         },
       });
+      await tx.assessmentRuntimeTurn.upsert({
+        where: { id: executionId },
+        create: {
+          id: executionId,
+          assessmentId: input.assessmentId,
+          threadId: row.threadId,
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+          logicalRunId: executionId,
+          correlationId: input.correlationId,
+          state: Controls.running,
+          contextJson: {},
+        },
+        update: {
+          state: recoveringStop ? Controls.stopRequested : Controls.running,
+        },
+      });
+      if (safePauseResume) {
+        if (
+          await tx.assessmentHumanRequest.count({
+            where: {
+              assessmentId: input.assessmentId,
+              status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            },
+          })
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.CHECKPOINT_INVALID,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        await this.coordinator.transitionVerifiedInTx(
+          {
+            assessmentId: input.assessmentId,
+            expectedRevision: row.lifecycleRevision!,
+            toState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+            correlationId: input.correlationId,
+            actorId: ROOT_ACTOR.id,
+          },
+          tx,
+          [
+            AGENTIC_RUNTIME_TRANSITION_GUARDS.PINNED_RUNTIME_INPUTS_READY,
+            AGENTIC_RUNTIME_TRANSITION_GUARDS.ALL_CHECKPOINT_BLOCKERS_RESOLVED,
+            AGENTIC_RUNTIME_TRANSITION_GUARDS.SAME_ASSESSMENT_ROOT_THREAD,
+          ],
+          ROOT_ACTOR,
+        );
+      }
       await this.events.appendInTx(tx, {
         assessmentId: input.assessmentId,
         correlationId: input.correlationId,
@@ -249,6 +330,7 @@ export class AssessmentRuntimeAuthority {
     toState: AgentExecutionState;
     checkpointId?: string;
     requestIds?: string[];
+    controlRequestId?: string;
   }): Promise<{ executionState: AgentExecutionState }> {
     return this.prisma.$transaction(async (tx) => {
       const run = await this.authorizeInTx(tx, {
@@ -269,6 +351,30 @@ export class AssessmentRuntimeAuthority {
           input.correlationId,
           { status: HttpStatus.UNPROCESSABLE_ENTITY },
         );
+      }
+      let pauseRequestId: string | null = null;
+      if (input.toState === AGENT_EXECUTION_STATES.PAUSED) {
+        const turn = await tx.assessmentRuntimeTurn.findUnique({
+          where: { id: run.executionId },
+        });
+        if (
+          !input.checkpointId ||
+          !input.controlRequestId ||
+          !turn ||
+          turn.threadId !== run.threadId ||
+          turn.assessmentId !== input.assessmentId ||
+          turn.boundary !== ASSESSMENT_ROOT_BOUNDARY ||
+          turn.state !== Controls.stopRequested ||
+          turn.requestId !== input.controlRequestId ||
+          run.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.CHECKPOINT_INVALID,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        pauseRequestId = turn.requestId;
       }
       if (input.toState === AGENT_EXECUTION_STATES.INTERRUPTED) {
         const requests = await tx.assessmentHumanRequest.findMany({
@@ -321,6 +427,30 @@ export class AssessmentRuntimeAuthority {
           ...(input.checkpointId ? { checkpointId: input.checkpointId } : {}),
         },
       });
+      await tx.assessmentRuntimeTurn.update({
+        where: { id: run.executionId },
+        data: {
+          state:
+            input.toState === AGENT_EXECUTION_STATES.PAUSED
+              ? Controls.stopped
+              : Controls.completed,
+          ...(input.checkpointId
+            ? { checkpointJson: { checkpointId: input.checkpointId } }
+            : {}),
+        },
+      });
+      if (input.toState === AGENT_EXECUTION_STATES.PAUSED) {
+        await this.coordinator.transitionFromRuntimeAcknowledgementInTx(
+          {
+            assessmentId: input.assessmentId,
+            targetRunId: run.executionId,
+            acknowledgedState: Controls.stopped,
+            requestId: pauseRequestId,
+            correlationId: input.correlationId,
+          },
+          tx,
+        );
+      }
       await this.events.appendInTx(tx, {
         assessmentId: input.assessmentId,
         correlationId: input.correlationId,

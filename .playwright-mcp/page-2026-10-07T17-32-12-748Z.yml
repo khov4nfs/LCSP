@@ -1,0 +1,32 @@
+- generic [ref=e2]:
+  - main [ref=e3]:
+    - link "LCSP home" [ref=e4] [cursor=pointer]:
+      - /url: /
+    - link "Back to website" [ref=e7] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - heading "Welcome back" [level=1] [ref=e11]
+        - paragraph [ref=e12]: Sign in to continue to LCSP.
+      - generic [ref=e13]:
+        - button "Continue with Google" [ref=e14] [cursor=pointer]
+        - generic [ref=e16]: or
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - group [ref=e22]:
+              - generic [ref=e23]: Email
+              - textbox "Email" [ref=e25]
+              - paragraph [ref=e26]: Use your LCSP account email.
+            - group [ref=e27]:
+              - generic [ref=e28]: Password
+              - textbox "Password" [ref=e30]
+              - paragraph [ref=e31]: Enter your account password.
+          - link "Forgot password?" [ref=e32] [cursor=pointer]:
+            - /url: /recovery/request
+          - button "Sign in" [ref=e33] [cursor=pointer]
+        - paragraph [ref=e34]: Access is scoped to your LCSP workspace.
+        - paragraph [ref=e35]:
+          - text: New to LCSP?
+          - link "Create account" [ref=e36] [cursor=pointer]:
+            - /url: /sign-up
+  - region "Notifications alt+T"

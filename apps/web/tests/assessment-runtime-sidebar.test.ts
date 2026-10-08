@@ -5,31 +5,23 @@ import { test } from "node:test";
 const root = new URL("../src/", import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), "utf8");
 
-test("runtime sidebar consumes normalized runtime data and the shared artifact contract", async () => {
-  const [sidebar, row, shell, adapter] = await Promise.all([
+test("runtime sidebar renders canonical assessment state, repository setup and canonical activity", async () => {
+  const [sidebar, shell, slots] = await Promise.all([
     read("features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx"),
-    read("features/assessment-runtime/components/molecules/artifact-evidence-row.tsx"),
     read("features/workspace/components/organisms/assessment-app-shell.tsx"),
-    read("features/workspace/types/assessment-runtime-adapter.types.ts"),
+    read("features/workspace/components/organisms/assessment-shell-slots.tsx"),
   ]);
 
-  assert.match(sidebar, /useAssessmentRuntimeViewModel/);
-  assert.match(sidebar, /RepositoryContextCard/);
-  assert.match(sidebar, /WorkflowStatusList/);
-  assert.match(sidebar, /ArtifactEvidenceRail/);
-  assert.match(row, /buildArtifactOpenTarget/);
-  assert.match(row, /ArtifactStatusBadge/);
-  assert.match(adapter, /steps: NormalizedWorkflowStep\[\]/);
-  assert.match(adapter, /pinnedCommit/);
+  assert.match(sidebar, /useAssessmentDetailQuery/);
+  assert.match(sidebar, /useRepositorySetupQuery/);
+  assert.match(sidebar, /CanonicalAssessmentStatus/);
+  assert.match(sidebar, /CanonicalAssessmentActivity/);
+  assert.match(sidebar, /timeline\.canonicalEvents/);
+  assert.doesNotMatch(sidebar, /useAssessmentRuntimeViewModel|WorkflowStatusList|ArtifactEvidenceRail/);
   assert.match(shell, /<AssessmentRightPanelSlot open=\{rightPanelOpen\}>[\s\S]*<AssessmentRuntimeSidebar/);
   assert.match(shell, /<SheetContent side="right"[\s\S]*<AssessmentRuntimeSidebar/);
-  assert.match(shell, /min-h-0 min-w-0 flex-1 flex-col overflow-hidden/);
-  assert.match(sidebar, /h-full min-h-0 w-full flex-col overflow-hidden/);
-  assert.match(sidebar, /min-h-0 flex-1[\s\S]*overflow-y-auto/);
-  assert.match(
-    await read("features/workspace/components/organisms/assessment-shell-slots.tsx"),
-    /h-full min-h-0 w-105 shrink-0 overflow-hidden/,
-  );
+  assert.match(sidebar, /h-full min-h-0 w-full flex-col overflow-y-auto/);
+  assert.match(slots, /h-full min-h-0 w-105 shrink-0 overflow-hidden/);
 });
 
 test("repository context card renders the matching provider logo beside the provider name", async () => {

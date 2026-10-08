@@ -1,0 +1,17 @@
+runtime-packages	0
+schema-migrations	0
+integration-migrations	0
+api-build	0
+web-route-types	0
+typecheck	2
+imports	0
+contracts	0
+agentic-tools	0
+retired-legal-authority	0
+api-jest	1
+api-e2e	1
+web	1
+root-python	4
+hitl-postgres	0
+decisions-report-postgres	0
+diff-whitespace	0

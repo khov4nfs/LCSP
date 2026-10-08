@@ -83,19 +83,22 @@ test("needs-follow-up counts only complete canonical lifecycle/runtime pairs", (
     {
       id: "00000000-0000-4000-8000-000000000011",
       name: "Paused assessment",
-      status: ASSESSMENT_STATUS_CODES.scanInProgress,
+      lifecycle: null,
+      runtime: null,
       created_at: "2026-10-06T00:00:00.000Z",
     },
     {
       id: "00000000-0000-4000-8000-000000000012",
       name: "Unavailable assessment",
-      status: ASSESSMENT_STATUS_CODES.scanInProgress,
+      lifecycle: null,
+      runtime: null,
       created_at: "2026-10-05T00:00:00.000Z",
     },
     {
       id: "00000000-0000-4000-8000-000000000013",
       name: "Complete assessment",
-      status: ASSESSMENT_STATUS_CODES.readyForReview,
+      lifecycle: null,
+      runtime: null,
       created_at: "2026-10-04T00:00:00.000Z",
     },
   ];

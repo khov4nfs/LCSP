@@ -3,6 +3,7 @@ import type { RuleAnalysisActivity } from "./rule-assessment.ts";
 import {
   agentExecutionStateSchema,
   assessmentLifecycleSchema,
+  assessmentEventSchema,
 } from "../assessment/agentic-runtime.ts";
 import type { AssessmentEvent } from "../assessment/agentic-runtime.ts";
 import { z } from "zod";
@@ -500,3 +501,10 @@ export type AssessmentRuntimeSnapshot = {
   /** Strict canonical AssessmentEvent envelopes, never transport metadata. */
   canonicalEvents: AssessmentEvent[];
 };
+
+/** Canonical customer SSE boundary. Resource-local scan status has its own endpoint. */
+export const workspaceAssessmentSnapshotSchema = z.strictObject({
+  emitted_at: z.iso.datetime(),
+  canonical_assessments: z.array(canonicalAssessmentRuntimeSnapshotSchema),
+  canonical_events: z.array(assessmentEventSchema),
+});

@@ -20,10 +20,12 @@ import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { ArtifactLifecycleState, AssessmentArtifactKind } from "@prisma/client";
-import { z } from "zod";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
+import {
+  ArtifactStorageService,
+  chunkedManifestSchema,
+} from "../../../../../platform/storage/artifact-storage.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AssessmentCompletionGate } from "../../services/assessment-completion-gate.service.js";
 import { AssessmentEventAppender } from "../../services/assessment-event-appender.service.js";
@@ -39,12 +41,6 @@ const ORCHESTRATOR = {
 } as const;
 const unresolvedReportText =
   /\b(?:UNKNOWN|PARTIAL|NEEDS_CONTEXT|BLOCKED_UNKNOWN_FACT|TBD)\b|information\s+(?:is\s+)?still\s+required|open\s+questions?|unresolved\s+(?:question|decision|fact|input)|to\s+be\s+determined/i;
-const chunkedManifestSchema = z.strictObject({
-  artifact_id: z.string().uuid(),
-  total_size: z.number().int().nonnegative(),
-  hash: z.string().regex(/^[a-f0-9]{64}$/),
-  chunks: z.array(z.string().min(1)).min(1),
-});
 
 function deterministicUuid(value: string): string {
   const bytes = Buffer.from(

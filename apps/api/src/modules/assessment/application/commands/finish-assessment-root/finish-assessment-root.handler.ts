@@ -15,6 +15,7 @@ export class FinishAssessmentRootHandler implements ICommandHandler<FinishAssess
       toState: command.toState,
       checkpointId: command.checkpointId,
       requestIds: command.requestIds,
+      controlRequestId: command.controlRequestId,
     });
   }
 }

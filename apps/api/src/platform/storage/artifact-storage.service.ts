@@ -3,14 +3,16 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { z } from "zod";
 import { getRepoRoot } from "../logging/logging-context.js";
 
-export interface ChunkedManifest {
-  artifact_id: string;
-  total_size: number;
-  hash: string;
-  chunks: string[];
-}
+export const chunkedManifestSchema = z.strictObject({
+  artifact_id: z.uuid(),
+  total_size: z.number().int().nonnegative(),
+  hash: z.string().regex(/^[a-f0-9]{64}$/),
+  chunks: z.array(z.string().regex(/^[a-zA-Z0-9_\-.]+$/)).min(1),
+});
+export type ChunkedManifest = z.infer<typeof chunkedManifestSchema>;
 
 export type StoredJsonArtifact = Record<string, unknown>;
 

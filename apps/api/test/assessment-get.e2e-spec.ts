@@ -1,9 +1,9 @@
 import {
   ASSESSMENT_ERROR_CODES,
-  ASSESSMENT_LOCK_REASONS,
-  ASSESSMENT_MISSING_EVIDENCE_CODES,
+  ASSESSMENT_LIFECYCLE_STATES,
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
+import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
 /**
  * MW-asmt-002: Get Assessment Endpoint.
  * Role-only RBAC coverage for the current single-tenant assessment model.
@@ -18,7 +18,6 @@ import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
-import type { AssessmentDetailDto } from "../src/modules/assessment/application/contracts/assessment/assessment-detail.contract.js";
 import type { CreateAssessmentDto } from "../src/modules/assessment/application/contracts/assessment/create-assessment.contract.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import {
@@ -84,39 +83,20 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
     const result = await httpRequest(app)
       .get(`/assessments/${assessmentId}`)
       .set("Authorization", `Bearer ${customerToken}`);
-    const body = successBody<AssessmentDetailDto>(result);
+    const body = successBody<AssessmentDetail>(result);
 
     assert.equal(result.status, 200);
     assert.equal(body.assessment_id, assessmentId);
     assert.equal(body.name, "Detail Test Assessment");
-    assert.equal(body.status, ASSESSMENT_STATUS_CODES.wizardInProgress);
+    assert.equal(body.lifecycle?.state, ASSESSMENT_LIFECYCLE_STATES.PREPARING);
     assert.equal(body.owner_id, "user-1");
-    assert.equal(typeof body.status, "string");
     assert.ok(body.created_at);
     assert.ok(body.updated_at);
     assert.ok(body.correlationId);
   });
 
-  it("no technical evidence keeps classification locked", async () => {
-    const assessmentId = await createAssessment();
-
-    const result = await httpRequest(app)
-      .get(`/assessments/${assessmentId}`)
-      .set("Authorization", `Bearer ${customerToken}`);
-    const body = successBody<AssessmentDetailDto>(result);
-
-    assert.equal(body.readiness_state.classification_locked, true);
-    assert.equal(
-      body.readiness_state.lock_reason,
-      ASSESSMENT_LOCK_REASONS.evidenceRequired,
-    );
-    assert.deepEqual(body.readiness_state.missing_evidence, [
-      ASSESSMENT_MISSING_EVIDENCE_CODES.technicalEvidenceReport,
-    ]);
-  });
-
   it("CUSTOMER cannot read another user's assessment -> 404", async () => {
-    const otherOwnedId = "assessment-other-owner";
+    const otherOwnedId = "00000000-0000-4000-8000-000000000002";
     await prisma.assessment.create({
       data: {
         id: otherOwnedId,
@@ -162,16 +142,5 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
     assert.doesNotMatch(serialized, /\brisk\b/);
     assert.doesNotMatch(serialized, /\bseverity\b/);
     assert.doesNotMatch(serialized, /non-compliant/);
-  });
-
-  it("next_action is business language", async () => {
-    const assessmentId = await createAssessment();
-    const result = await httpRequest(app)
-      .get(`/assessments/${assessmentId}`)
-      .set("Authorization", `Bearer ${customerToken}`);
-    const body = successBody<AssessmentDetailDto>(result);
-
-    assert.equal(typeof body.next_action, "string");
-    assert.ok(body.next_action.length > 0);
   });
 });

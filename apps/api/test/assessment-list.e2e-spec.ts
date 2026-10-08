@@ -1,7 +1,8 @@
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
-  ASSESSMENT_ERROR_CODES,
-  ASSESSMENT_STATUS_CODES,
-} from "@lcsp/contracts/assessment";
+  ASSESSMENT_DOMAIN_ERROR_CODES,
+  type AssessmentList,
+} from "@lcsp/contracts/assessment-domain";
 /**
  * MW-asmt-003: List Assessments Endpoint.
  */
@@ -15,7 +16,6 @@ import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
-import type { AssessmentListDto } from "../src/modules/assessment/application/contracts/assessment/assessment-list.contract.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import {
   TEST_DATABASE_URL,
@@ -76,7 +76,7 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
     const result = await httpRequest(app)
       .get("/assessments")
       .set("Authorization", `Bearer ${customerToken}`);
-    const body = successBody<AssessmentListDto>(result);
+    const body = successBody<AssessmentList>(result);
 
     assert.equal(result.status, 200);
     assert.equal(body.assessments.length, 2);
@@ -85,7 +85,7 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
     assert.equal(body.page_size, 20);
     assert.ok(body.correlationId);
     body.assessments.forEach((item) => {
-      assert.equal(typeof item.status, "string");
+      assert.ok(item.lifecycle);
       assert.ok(item.assessment_id);
       assert.ok(item.created_at);
       assert.ok(item.updated_at);
@@ -97,7 +97,7 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
     const result = await httpRequest(app)
       .get("/assessments")
       .set("Authorization", `Bearer ${customerToken}`);
-    const body = successBody<AssessmentListDto>(result);
+    const body = successBody<AssessmentList>(result);
 
     assert.equal(result.status, 200);
     assert.deepEqual(body.assessments, []);
@@ -114,7 +114,7 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
       .get("/assessments")
       .query({ page_size: 5 })
       .set("Authorization", `Bearer ${customerToken}`);
-    const body = successBody<AssessmentListDto>(result);
+    const body = successBody<AssessmentList>(result);
 
     assert.equal(body.assessments.length, 5);
     assert.equal(body.total, 8);
@@ -122,30 +122,36 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
   });
 
   // T04
-  it("T04: status filter -> only matching status returned", async () => {
+  it("T04: lifecycleState filter -> only matching lifecycle returned", async () => {
     await createAssessment("Matches Filter");
 
     const result = await httpRequest(app)
       .get("/assessments")
-      .query({ status: ASSESSMENT_STATUS_CODES.wizardInProgress })
+      .query({ lifecycleState: ASSESSMENT_LIFECYCLE_STATES.PREPARING })
       .set("Authorization", `Bearer ${customerToken}`);
-    const body = successBody<AssessmentListDto>(result);
+    const body = successBody<AssessmentList>(result);
 
     assert.equal(result.status, 200);
     assert.ok(body.assessments.length >= 1);
     body.assessments.forEach((item) => {
-      assert.equal(item.status, ASSESSMENT_STATUS_CODES.wizardInProgress);
+      assert.equal(
+        item.lifecycle?.state,
+        ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+      );
     });
   });
 
-  it("Unknown status filter -> 422 INVALID_REQUEST", async () => {
+  it("Unknown lifecycleState filter -> 422 ASSESSMENT_DOMAIN_REQUEST_INVALID", async () => {
     const result = await httpRequest(app)
       .get("/assessments")
-      .query({ status: "NOT_A_REAL_STATUS" })
+      .query({ lifecycleState: "NOT_A_REAL_STATE" })
       .set("Authorization", `Bearer ${customerToken}`);
 
     assert.equal(result.status, 422);
-    assert.equal(problemCode(result), ASSESSMENT_ERROR_CODES.invalidRequest);
+    assert.equal(
+      problemCode(result),
+      ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    );
   });
 
   // T05/T06: role-only RBAC permits ADMIN to reach list, then handler fails closed.
@@ -163,7 +169,7 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
     const result = await httpRequest(app)
       .get("/assessments")
       .set("Authorization", `Bearer ${adminToken}`);
-    const body = successBody<AssessmentListDto>(result);
+    const body = successBody<AssessmentList>(result);
 
     assert.equal(result.status, 200);
     assert.deepEqual(body.assessments, []);
@@ -171,15 +177,17 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
   });
 
   // T07
-  it("T07: page_size > 100 -> clamped to 100", async () => {
+  it("T07: page_size > 100 -> 422 (rejected, not clamped)", async () => {
     const result = await httpRequest(app)
       .get("/assessments")
       .query({ page_size: 500 })
       .set("Authorization", `Bearer ${customerToken}`);
-    const body = successBody<AssessmentListDto>(result);
 
-    assert.equal(result.status, 200);
-    assert.equal(body.page_size, 100);
+    assert.equal(result.status, 422);
+    assert.equal(
+      problemCode(result),
+      ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    );
   });
 
   // T08
