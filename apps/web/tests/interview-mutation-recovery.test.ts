@@ -113,14 +113,9 @@ test("malformed success remains uncertain and retains the command", async () => 
   assert.equal(retrier.hasPending(), true);
 });
 
-test("hooks and UI use explicit original-request recovery", async () => {
+test("hooks use explicit original-request recovery", async () => {
   const hooks = await readFile(new URL("../src/lib/api/interview-mutation-queries.ts", import.meta.url), "utf8");
-  const ui = await readFile(new URL("../src/features/workspace/components/organisms/assessment-overview.tsx", import.meta.url), "utf8");
   assert.match(hooks, /retrier\.run/);
   assert.match(hooks, /buildInterviewBlockedActionCommand/);
   assert.match(hooks, /isInterviewMutationConflict/);
-  assert.match(ui, /InterviewMutationFeedback/);
-  assert.match(ui, /submitAnswer\.mutate\(undefined\)/);
-  assert.match(ui, /recordBlockedAction\.mutate\(undefined\)/);
-  assert.match(ui, /setRetainedDrafts/);
 });

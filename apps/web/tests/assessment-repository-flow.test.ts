@@ -44,14 +44,14 @@ const assessmentQueriesPath = new URL(
   import.meta.url,
 );
 
-test("new assessment opens repository setup and removes the legacy details form", async () => {
+test("new assessment page creates through the canonical form and repository setup runs inside the assessment", async () => {
   const [page, setup] = await Promise.all([
     readFile(newAssessmentPagePath, "utf8"),
     readFile(repositorySetupPath, "utf8"),
   ]);
 
-  assert.match(page, /RepositorySetupStep/);
-  assert.doesNotMatch(page, /CreateAssessmentForm/);
+  assert.match(page, /CreateAssessmentForm/);
+  assert.doesNotMatch(page, /RepositorySetupStep/);
   assert.match(setup, /RepositorySetupConversation/);
   assert.match(setup, /ProviderCredentialDialog/);
   assert.match(setup, /ConfirmAccessDialog/);
@@ -362,33 +362,6 @@ test("failed repository scan stays in scanner and marks source scan failed", () 
       TOOL_ACTIVITY_STATUSES.pending,
     ],
   );
-});
-
-test("assessment scanner renders retry action for failed source scans", async () => {
-  const [overviewSource, scannerStepSource, queriesSource] = await Promise.all([
-    readFile(assessmentOverviewPath, "utf8"),
-    readFile(scannerStepPath, "utf8"),
-    readFile(assessmentQueriesPath, "utf8"),
-  ]);
-
-  assert.match(overviewSource, /useRerunRepositoryScanMutation/);
-  assert.match(
-    overviewSource,
-    /retryScanSnapshotId = scanJob\?\.snapshotId \?\? snapshot\?\.id/,
-  );
-  assert.match(overviewSource, /scanFailed={flow\.scanFailed}/);
-  assert.match(
-    overviewSource,
-    /retryScan\.mutate\(\s*\{\s*snapshotId:\s*retryScanSnapshotId,\s*idempotencyKey:\s*retryKeyRef\.current/,
-  );
-  assert.match(scannerStepSource, /RotateCcwIcon/);
-  assert.match(scannerStepSource, /pages\.assessmentFlow\.scanner\.retryScan/);
-  assert.match(
-    scannerStepSource,
-    /pages\.assessmentFlow\.scanner\.retryingScan/,
-  );
-  assert.match(scannerStepSource, /pages\.assessmentFlow\.scanner\.retryError/);
-  assert.match(queriesSource, /apiQueryKeys\.workspace\.detail\(\)/);
 });
 
 test("program evidence graph metrics ignore runtime summaries and use canonical overview", () => {

@@ -367,3 +367,32 @@ export const legalPreparationFailRequestSchema = z
 export type LegalPreparationFailRequest = z.infer<
   typeof legalPreparationFailRequestSchema
 >;
+
+/** Admin history of automatic activation. No publish/discard or approval authority. */
+export const legalPortfolioHistorySchema = z.strictObject({
+  portfolios: z.array(
+    legalPortfolioReadModelSchema
+      .pick({
+        portfolioVersionId: true,
+        version: true,
+        legalCorpusVersionId: true,
+        lifecycleState: true,
+        activatedAt: true,
+      })
+      .extend({
+        createdAt: z.iso.datetime(),
+        legalRuleCount: z.number().int().nonnegative(),
+        engineeringRuleCount: z.number().int().nonnegative(),
+      }),
+  ),
+  preparations: z.array(
+    legalPreparationRunSchema.extend({ createdAt: z.iso.datetime() }),
+  ),
+  corpora: z.array(
+    z.strictObject({
+      legalCorpusVersionId: z.uuid(),
+      version: z.string().min(1),
+    }),
+  ),
+});
+export type LegalPortfolioHistory = z.infer<typeof legalPortfolioHistorySchema>;

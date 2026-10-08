@@ -12,6 +12,7 @@ from langgraph.types import Command
 from assessment_root.agent import create_assessment_root_agent
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.tools import RootRun, SearchTrace
+from assessment_root.runtime_control import RootRuntimeControl
 from tools.common.capabilities.platform.logging import get_logger
 
 logger = get_logger(__name__)
@@ -20,6 +21,7 @@ logger = get_logger(__name__)
 EXECUTION_SUCCEEDED = "SUCCEEDED"
 EXECUTION_FAILED = "FAILED"
 EXECUTION_INTERRUPTED = "INTERRUPTED"
+EXECUTION_PAUSED = "PAUSED"
 
 # Customer-safe activity label keys (catalog keys, never agent/provider text).
 LABEL_TASK_STARTED = "assessment.activity.taskStarted"
@@ -101,6 +103,7 @@ def run_assessment_root(
     run: RootRun | None = None
     checkpoint_id: str | None = None
     request_ids: list[str] | None = None
+    control_request_id: str | None = None
     try:
         # The factory hydrates the pinned repository for THIS thread and returns the backend
         # plus the context manager that exposes it to nested agents/graph tools.
@@ -118,6 +121,7 @@ def run_assessment_root(
             model=model,
             checkpointer=checkpointer,
             governance=governance,
+            middleware=[RootRuntimeControl(client, run.execution_id)],
         )
         config = {
             "configurable": {"thread_id": run.thread_id},
@@ -133,7 +137,14 @@ def run_assessment_root(
                 if expected and actual != expected:
                     raise RuntimeError("server checkpoint binding does not match native Root checkpoint")
                 pending = [item for task in saved.tasks for item in task.interrupts]
-                if pending and context["openHumanRequestIds"]:
+                control_wait = [item for item in pending if "controlRequestId" in item.value]
+                if control_wait and not expected:
+                    if len(control_wait) != 1 or control_wait[0].value["targetExecutionId"] != run.execution_id:
+                        raise RuntimeError("native Stop checkpoint does not match server execution")
+                    checkpoint_id = actual
+                    control_request_id = control_wait[0].value["controlRequestId"]
+                    final_state = EXECUTION_PAUSED
+                elif pending and context["openHumanRequestIds"]:
                     # Crash after native persistence but before API settlement: bind the durable
                     # interrupt without running/resuming blocked graph work.
                     checkpoint_id = actual
@@ -146,14 +157,21 @@ def run_assessment_root(
                 elif saved.next:
                     # A killed worker resumes native pending work rather than adding a new turn.
                     packet = None
-            if final_state != EXECUTION_INTERRUPTED:
+            if final_state not in {EXECUTION_INTERRUPTED, EXECUTION_PAUSED}:
                 output = agent.invoke(packet, config=config)
                 interrupts = output.get("__interrupt__", ())
                 if interrupts:
                     saved = agent.get_state(config)
                     checkpoint_id = saved.config["configurable"]["checkpoint_id"]
-                    request_ids = sorted({request_id for item in interrupts for request_id in item.value["requestIds"]})
-                    final_state = EXECUTION_INTERRUPTED
+                    controls = [item for item in interrupts if "controlRequestId" in item.value]
+                    if controls:
+                        if len(controls) != 1 or controls[0].value["targetExecutionId"] != run.execution_id:
+                            raise RuntimeError("native Stop checkpoint does not match server execution")
+                        control_request_id = controls[0].value["controlRequestId"]
+                        final_state = EXECUTION_PAUSED
+                    else:
+                        request_ids = sorted({request_id for item in interrupts for request_id in item.value["requestIds"]})
+                        final_state = EXECUTION_INTERRUPTED
                 elif client.context()["openHumanRequestIds"]:
                     raise RuntimeError("open human blockers without a native interrupt")
     except Exception as error:  # noqa: BLE001 - settled as an execution failure below
@@ -162,6 +180,8 @@ def run_assessment_root(
         logger.error("ASSESSMENT_ROOT_RUN_FAILED", error_type=error_type, assessment_id=assessment_id)
     if final_state == EXECUTION_INTERRUPTED:
         client.finish(final_state, checkpoint_id=checkpoint_id, request_ids=request_ids)
+    elif final_state == EXECUTION_PAUSED:
+        client.finish(final_state, checkpoint_id=checkpoint_id, control_request_id=control_request_id)
     else:
         client.finish(final_state)
     return {

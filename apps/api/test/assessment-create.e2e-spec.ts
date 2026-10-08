@@ -1,8 +1,9 @@
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
-  ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
+import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import {
   AUDIT_EVENT_SCHEMA_VERSION,
   AUDIT_REDACTION_STATUSES,
@@ -86,7 +87,7 @@ describe("Create Assessment Endpoint (e2e) [MW-asmt-001]", () => {
     assert.equal(result.status, 201);
     assert.ok(body.assessment_id);
     assert.equal(body.name, "My AI System Assessment");
-    assert.equal(body.status, ASSESSMENT_STATUS_CODES.wizardInProgress);
+    assert.equal(body.lifecycle?.state, ASSESSMENT_LIFECYCLE_STATES.PREPARING);
     assert.equal(body.owner_id, "user-1");
     assert.ok(body.created_at);
     assert.ok(body.correlationId);
@@ -111,14 +112,17 @@ describe("Create Assessment Endpoint (e2e) [MW-asmt-001]", () => {
   });
 
   // T03
-  it("T03: Missing name -> 422 INVALID_REQUEST", async () => {
+  it("T03: Missing name -> 422 ASSESSMENT_DOMAIN_REQUEST_INVALID", async () => {
     const result = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${customerToken}`)
       .send({});
 
     assert.equal(result.status, 422);
-    assert.equal(problemCode(result), ASSESSMENT_ERROR_CODES.invalidRequest);
+    assert.equal(
+      problemCode(result),
+      ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    );
   });
 
   // T04, T05, T06

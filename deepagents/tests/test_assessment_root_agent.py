@@ -71,6 +71,9 @@ class FakeClient:
             "executionState": "RUNNING",
         }
 
+    def root_control(self) -> dict[str, Any] | None:
+        return None
+
     def context(self) -> dict[str, Any]:
         self.calls.append(("context", None))
         return {
@@ -660,3 +663,45 @@ def test_production_root_requires_a_durable_checkpointer(monkeypatch) -> None:
     with pytest.raises(RuntimeError, match="required"):
         with postgres_checkpointer():
             pass
+
+
+def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):
+    class ControlledClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.control = "STOP_REQUESTED"
+            self.checkpoint = None
+            self.settled = []
+
+        def root_control(self):
+            return {"state": self.control, "targetRunId": EXECUTION, "requestId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}
+
+        def claim(self, assessment_id):
+            value = super().claim(assessment_id)
+            value["resumeCheckpointId"] = self.checkpoint
+            return value
+
+        def finish(self, state, **metadata):
+            self.settled.append((state, metadata))
+            if metadata.get("checkpoint_id"):
+                self.checkpoint = metadata["checkpoint_id"]
+            return super().finish(state, **metadata)
+
+    client = ControlledClient()
+    saver = InMemorySaver()
+    backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    model = RootScriptedModel(responses=[AIMessage(content="Done")])
+    first = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (backend, None), model=model, checkpointer=saver, governance=())
+    assert first["state"] == "PAUSED"
+    assert first["threadId"] == THREAD
+    assert first["executionId"] == EXECUTION
+    assert client.settled[-1][1]["control_request_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    assert next(saver.list({"configurable": {"thread_id": THREAD}})).config["configurable"]["checkpoint_id"] == first["checkpointId"]
+    # Replace the worker/client; the native graph and durable thread remain the continuation.
+    replacement = ControlledClient()
+    replacement.control = "RUNNING"
+    replacement.checkpoint = first["checkpointId"]
+    resumed = run_assessment_root(replacement, ASSESSMENT, backend_factory=lambda *_: (backend, None), model=RootScriptedModel(responses=[AIMessage(content="Done")]), checkpointer=saver, governance=())
+    assert resumed["state"] == "SUCCEEDED"
+    assert resumed["threadId"] == first["threadId"]
+    assert resumed["executionId"] == first["executionId"]

@@ -1,12 +1,10 @@
 import { Command } from "@nestjs/cqrs";
 
-export type CompleteRepositorySetupDto = {
-  assessment_id: string;
-  status: string;
-  repository_connection_id: string;
-  snapshot_id: string;
-  commit_sha: string;
-};
+import type { z } from "zod";
+import type { completeAssessmentRepositorySetupResultSchema } from "@lcsp/contracts/assessment-domain";
+export type CompleteRepositorySetupDto = z.infer<
+  typeof completeAssessmentRepositorySetupResultSchema
+>;
 
 export class CompleteRepositorySetupCommand extends Command<CompleteRepositorySetupDto> {
   constructor(

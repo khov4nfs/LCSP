@@ -1,4 +1,4 @@
-import { Injectable, Optional } from "@nestjs/common";
+import { Injectable, Optional, StreamableFile } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type {
   CallHandler,
@@ -69,7 +69,12 @@ export class ResponseTransformInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       map((data: unknown) => {
-        if (response?.headersSent || isBypassed || isAlreadyEnveloped(data)) {
+        if (
+          data instanceof StreamableFile ||
+          response?.headersSent ||
+          isBypassed ||
+          isAlreadyEnveloped(data)
+        ) {
           return data;
         }
 

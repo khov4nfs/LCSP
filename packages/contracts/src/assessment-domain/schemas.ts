@@ -7,6 +7,8 @@ import {
   ASSESSMENT_LIFECYCLE_STATES,
   agentExecutionStateSchema,
   assessmentLifecycleStateSchema,
+  assessmentLifecycleSchema,
+  artifactLifecycleStateSchema,
   decisionResolutionStateSchema,
   humanResolutionRequestStatusSchema,
   openHumanResolutionRequestSchema,
@@ -25,6 +27,16 @@ import {
   ASSESSMENT_RECORD_STATES,
   SEARCH_COVERAGE_SCOPE_KINDS,
 } from "./constants.ts";
+import { assessmentRuntimeSchema } from "../evidence/assessment-runtime.ts";
+import {
+  ASSESSMENT_DESCRIPTION_MAX_LENGTH,
+  ASSESSMENT_NAME_MAX_LENGTH,
+} from "../assessment/constants.ts";
+import {
+  CREDENTIAL_PROVIDERS,
+  REPOSITORY_CONNECTION_STATUSES,
+  REPOSITORY_SCAN_JOB_STATUSES,
+} from "../github-integration/statuses.ts";
 
 const uuidSchema = z.uuid();
 const revisionSchema = z
@@ -311,6 +323,7 @@ export const finishAssessmentRootRequestSchema = z
   .object({
     state: agentExecutionStateSchema,
     checkpointId: uuidSchema.optional(),
+    controlRequestId: uuidSchema.optional(),
     requestIds: z.array(uuidSchema).min(1).max(100).optional(),
   })
   .superRefine((value, ctx) => {
@@ -322,6 +335,16 @@ export const finishAssessmentRootRequestSchema = z
         code: "custom",
         message:
           "A human interrupt requires its native checkpoint and blockers",
+      });
+    }
+    if (
+      value.state === AGENT_EXECUTION_STATES.PAUSED &&
+      (!value.checkpointId || !value.controlRequestId)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Safe pause requires its native checkpoint and authorized Stop request",
       });
     }
   });
@@ -471,3 +494,125 @@ export const rootActivityRequestSchema = z.strictObject({
   labelKey: z.string().min(3).max(200),
 });
 export type RootActivityRequest = z.infer<typeof rootActivityRequestSchema>;
+
+/** Customer projections of persisted authorities. No legacy stage/readiness inference. */
+export const assessmentArtifactViewSchema = z.strictObject({
+  artifactId: uuidSchema,
+  kind: z.enum(ASSESSMENT_ARTIFACT_KINDS),
+  lifecycleState: artifactLifecycleStateSchema,
+  legalPortfolioVersionId: uuidSchema,
+  repositorySnapshotId: identifierSchema,
+  repositoryCommit: commitSchema,
+  caseRevision: revisionSchema,
+  contentSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .nullable(),
+  sizeBytes: z.number().int().positive().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export const assessmentCaseViewSchema = z.strictObject({
+  caseRevision: revisionSchema,
+  legalPortfolioVersionId: uuidSchema.nullable(),
+  repositorySnapshotId: identifierSchema.nullable(),
+  repositoryScanJobId: identifierSchema.nullable(),
+  repositoryCommit: commitSchema.nullable(),
+  coverage: z.array(decisionCoverageSchema),
+  decisions: z.array(ruleDecisionRecordSchema),
+  facts: z.array(assessmentCaseFactSchema),
+  artifacts: z.array(assessmentArtifactViewSchema),
+});
+export const assessmentDetailSchema = z.strictObject({
+  assessment_id: uuidSchema,
+  name: z.string().trim().min(1).max(ASSESSMENT_NAME_MAX_LENGTH),
+  owner_id: z.string().min(1),
+  lifecycle: assessmentLifecycleSchema.nullable(),
+  runtime: assessmentRuntimeSchema.nullable(),
+  case: assessmentCaseViewSchema.nullable(),
+  created_at: z.iso.datetime(),
+  updated_at: z.iso.datetime(),
+  correlationId: z.string(),
+});
+export type AssessmentDetail = z.infer<typeof assessmentDetailSchema>;
+
+export const createAssessmentSchema = z.strictObject({
+  name: assessmentDetailSchema.shape.name.trim(),
+  description: z
+    .string()
+    .trim()
+    .max(ASSESSMENT_DESCRIPTION_MAX_LENGTH)
+    .optional(),
+});
+export const renameAssessmentSchema = createAssessmentSchema.pick({
+  name: true,
+});
+
+export const assessmentListQuerySchema = z.strictObject({
+  page: z.coerce.number().int().min(1).default(1),
+  page_size: z.coerce.number().int().min(1).max(100).default(20),
+  lifecycleState: assessmentLifecycleStateSchema.optional(),
+});
+export type AssessmentListQuery = z.infer<typeof assessmentListQuerySchema>;
+export const assessmentListSchema = z.strictObject({
+  assessments: z.array(
+    assessmentDetailSchema.omit({
+      owner_id: true,
+      case: true,
+      correlationId: true,
+    }),
+  ),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().positive(),
+  page_size: z.number().int().positive(),
+  correlationId: z.string(),
+});
+export type AssessmentList = z.infer<typeof assessmentListSchema>;
+
+/** Repository hydration has resource-local status; it never determines ALS/AES. */
+export const assessmentRepositorySetupSchema = z.strictObject({
+  assessmentId: uuidSchema,
+  lifecycle: assessmentLifecycleSchema.nullable(),
+  connection: z
+    .strictObject({
+      connectionId: identifierSchema,
+      provider: z.enum(CREDENTIAL_PROVIDERS),
+      repositoryId: identifierSchema,
+      repositoryFullName: identifierSchema,
+      defaultBranch: identifierSchema,
+      status: z.enum(REPOSITORY_CONNECTION_STATUSES),
+    })
+    .nullable(),
+  snapshot: z
+    .strictObject({
+      id: identifierSchema,
+      assessmentId: uuidSchema,
+      connectionId: identifierSchema,
+      provider: z.enum(CREDENTIAL_PROVIDERS),
+      repositoryFullName: identifierSchema,
+      branch: identifierSchema.nullable(),
+      commitSha: commitSchema,
+      createdAt: z.iso.datetime(),
+    })
+    .nullable(),
+  scanJob: z
+    .strictObject({
+      id: identifierSchema,
+      assessmentId: uuidSchema,
+      snapshotId: identifierSchema,
+      status: z.enum(REPOSITORY_SCAN_JOB_STATUSES),
+      attemptCount: z.number().int().nonnegative(),
+      blockedReason: identifierSchema.nullable(),
+      updatedAt: z.iso.datetime(),
+    })
+    .nullable(),
+});
+export type AssessmentRepositorySetup = z.infer<
+  typeof assessmentRepositorySetupSchema
+>;
+
+export const completeAssessmentRepositorySetupResultSchema = z.strictObject({
+  assessment_id: uuidSchema,
+  repository_connection_id: identifierSchema,
+  snapshot_id: identifierSchema,
+  commit_sha: commitSchema,
+});

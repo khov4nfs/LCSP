@@ -1,18 +1,17 @@
 "use client";
-
-import { resolveAppMessage } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
-import { useSearchParams } from "next/navigation";
-import { useAssessmentRuntimeViewModel } from "../../../workspace/hooks/use-assessment-runtime-view-model";
-import { WORKSPACE_RUNTIME_CONNECTION_STATES } from "../../../workspace/types/workspace-runtime.types";
+import { Separator } from "@/components/ui/separator";
+import { resolveAppMessage } from "@/lib/i18n";
+import {
+  useAssessmentDetailQuery,
+  useRepositorySetupQuery,
+} from "@/lib/api/assessment-domain-queries";
+import { useWorkspaceRuntime } from "../../../workspace/components/organisms/workspace-runtime-provider";
+import {
+  CanonicalAssessmentStatus,
+  CanonicalAssessmentActivity,
+} from "./canonical-assessment-status";
 import { connectionLabel } from "../../../workspace/utils/assessment-runtime-formatter";
-import { ArtifactEvidenceRail } from "./artifact-evidence-rail";
-import { RepositoryContextCard } from "../molecules/repository-context-card";
-import { WorkflowStatusList } from "./workflow-status-list";
-import { CanonicalAssessmentActivity } from "./canonical-assessment-status";
-import { createAssessmentRuntimeSidebarPreview } from "../../dev/assessment-runtime-sidebar-preview";
-import { useProgramEvidenceGraphDrawer } from "./program-evidence-graph-drawer";
-import { AgentStreamUsageSummary } from "../../../workspace/components/molecules/agent-stream-usage-summary";
 
 export function AssessmentRuntimeSidebar({
   assessmentId,
@@ -21,58 +20,49 @@ export function AssessmentRuntimeSidebar({
   assessmentId: string;
   assessmentName?: string;
 }) {
-  const realRuntime = useAssessmentRuntimeViewModel(assessmentId);
-  const searchParams = useSearchParams();
-  const isDevPreview =
-    process.env.NODE_ENV === "development" &&
-    searchParams.get("preview") === "runtime-sidebar";
-  const runtime = isDevPreview
-    ? createAssessmentRuntimeSidebarPreview(assessmentId)
-    : realRuntime;
-  const { openArtifact } = useProgramEvidenceGraphDrawer();
+  const detail = useAssessmentDetailQuery(assessmentId);
+  const setup = useRepositorySetupQuery(assessmentId);
+  const workspace = useWorkspaceRuntime();
+  const timeline = workspace.getAssessmentRuntime(assessmentId);
+  const assessment = detail.data;
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background/95">
-      <div className="shrink-0 border-b border-border/70 px-4 py-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold text-foreground">
-              {assessmentName ??
-                resolveAppMessage("pages.appShell.assessmentTitle")}
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {resolveAppMessage("pages.appShell.assessmentNavigation")}
-            </p>
-          </div>
-          <Badge
-            variant={
-              runtime.connectionState ===
-              WORKSPACE_RUNTIME_CONNECTION_STATES.connected
-                ? "default"
-                : "secondary"
-            }
-          >
-            {connectionLabel(runtime.connectionState)}
-          </Badge>
-        </div>
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-y-auto bg-background p-4 gap-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="truncate text-sm font-semibold">
+          {assessment?.name ??
+            assessmentName ??
+            resolveAppMessage("pages.appShell.assessmentTitle")}
+        </h2>
+        <Badge variant="outline">
+          {connectionLabel(workspace.connectionState)}
+        </Badge>
       </div>
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
-        <RepositoryContextCard repository={runtime.repository} />
-        <AgentStreamUsageSummary
-          aggregate={
-            runtime.tokenUsage ?? { countedModelSteps: 0, partial: false }
-          }
-          titleKey="pages.appShell.agentStreamUsage.runtimeTotal"
-        />
-        <WorkflowStatusList
-          canonicalAssessment={runtime.canonicalAssessment}
-          connectionState={runtime.connectionState}
-        />
-        <CanonicalAssessmentActivity events={runtime.canonicalEvents} />
-        <ArtifactEvidenceRail
-          artifacts={runtime.artifacts}
-          onOpenArtifact={openArtifact}
-        />
-      </div>
-    </div>
+      <CanonicalAssessmentStatus
+        canonicalAssessment={
+          assessment
+            ? {
+                assessmentId,
+                lifecycle: assessment.lifecycle,
+                runtime: assessment.runtime,
+              }
+            : null
+        }
+        connectionState={workspace.connectionState}
+      />
+      {setup.data?.connection ? (
+        <section className="flex flex-col gap-2">
+          <p className="break-words text-sm">
+            {setup.data.connection.repositoryFullName}
+          </p>
+          {setup.data.snapshot ? (
+            <code className="break-all text-xs text-muted-foreground">
+              {setup.data.snapshot.commitSha}
+            </code>
+          ) : null}
+        </section>
+      ) : null}
+      <Separator />
+      <CanonicalAssessmentActivity events={timeline.canonicalEvents ?? []} />
+    </aside>
   );
 }

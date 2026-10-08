@@ -1,5 +1,57 @@
 import type { PagesMessages } from "../../types.ts";
 export const enPages = {
+  legalPreparation: {
+    title: "Legal preparation",
+    description:
+      "The Legal Preparation agent authors the portfolio. Integrity validation activates a valid portfolio automatically.",
+    active: "Active portfolio",
+    unavailable: "Unavailable",
+    corpus: "Immutable legal source corpus",
+    selectCorpus: "Select a source corpus",
+    start: "Start preparation",
+    starting: "Starting…",
+    history: "Portfolio history",
+    version: "Version",
+    state: "Lifecycle",
+    rules: "Legal / engineering rules",
+    runs: "Preparation runs",
+    states: {
+      BUILDING: "Building",
+      ACTIVE: "Active",
+      SUPERSEDED: "Superseded",
+      INVALID: "Invalid",
+    },
+  },
+  agenticAssessment: {
+    outcomes: {
+      APPLICABLE: "Applicable",
+      NOT_APPLICABLE: "Not applicable",
+      MET: "Met",
+      NOT_MET: "Not met",
+      COMPLIANT: "Compliant",
+      NON_COMPLIANT: "Non-compliant",
+    },
+    loading: "Loading assessment…",
+    unavailable: "Canonical assessment state is unavailable.",
+    requestFailed:
+      "The request could not be completed. Refresh the assessment before retrying.",
+    retry: "Retry",
+    humanRequests: "A fact is needed to continue",
+    doesNotKnow: "I do not know",
+    answerRequired: "Enter a valid answer.",
+    selectAnswer: "Select an answer",
+    unknownRecorded:
+      "Your answer was recorded. This question remains open until the fact is available.",
+    submitFact: "Submit fact",
+    saving: "Saving…",
+    decisions: "Accepted decisions",
+    activity: "Assessment activity",
+    downloadReport: "Download final report",
+    stop: "Stop",
+    continue: "Continue",
+    controlPending: "Waiting for the runtime to acknowledge…",
+    facts: "Confirmed facts",
+  },
   accountLifecycle: {
     inviteTitle: "Create user",
     inviteDescription:
@@ -253,7 +305,8 @@ export const enPages = {
         ruleAnalysisStarted: "Analysis of this rule started",
         ruleAnalysisCompleted: "Analysis of this rule finished",
         ruleAnalysisNeedsContext: "Analysis needs more business context",
-        ruleAnalysisUnresolved: "Analysis could not establish every requirement",
+        ruleAnalysisUnresolved:
+          "Analysis could not establish every requirement",
         ruleAnalysisFailed: "Analysis of this rule failed",
         businessContextRequested: "Asked for business context",
         businessContextResolved: "Business context received",
@@ -789,8 +842,7 @@ export const enPages = {
       capabilityOneTitle: "Orchestrated assessment",
       capabilityOneDescription:
         "Scan, Interview, Rule analysis, and a deterministic Gate work as one visible assessment flow.",
-      capabilityOneMeta:
-        "Scan · Interview · Rule analysis · Gate",
+      capabilityOneMeta: "Scan · Interview · Rule analysis · Gate",
       capabilityTwoTitle: "Controlled connectors",
       capabilityTwoDescription:
         "Connect GitHub, Bitbucket, or Azure DevOps while keeping repository and workspace scope explicit.",
@@ -1108,7 +1160,7 @@ export const enPages = {
     insightsTitle: "Assessment overview",
     totalAssessments: "Total assessments",
     needsAttention: "Needs follow-up",
-    readyForReview: "Ready for review",
+    readyForReview: "Completed assessments",
     recentAssessmentsTitle: "Recent assessments",
     recentAssessmentsDescription:
       "Quickly open recently created assessments or view the full list.",
@@ -1711,8 +1763,10 @@ export const enPages = {
     sourceCodeUnavailable: "The referenced source code is unavailable.",
     resumePipeline: "Resume",
     resumeQueued: "Resume queued for this assessment.",
-    interviewMutationConflict: "The question, state or evidence has changed. Your draft is retained for comparison and will not be applied to a different question.",
-    interviewMutationUnconfirmed: "The action could not be confirmed. Your draft is retained. Check the current state or retry the original request.",
+    interviewMutationConflict:
+      "The question, state or evidence has changed. Your draft is retained for comparison and will not be applied to a different question.",
+    interviewMutationUnconfirmed:
+      "The action could not be confirmed. Your draft is retained. Check the current state or retry the original request.",
     interviewRetainedDraft: "Previous input retained for comparison",
     interviewRetryOriginal: "Retry original request",
     interviewRefreshState: "Refresh Interview state",
@@ -1747,10 +1801,10 @@ export const enPages = {
       completedWithoutDuration: "Thought",
     },
     repositorySetupDescription:
-      "Before the assessment can start, connect the repository I should scan. I will analyze the pinned source first, then begin the interview.",
+      "Connect the repository and pin its source. The Assessment Root investigates it and requests a human fact only when necessary.",
     providerQuestion: "Choose Git provider",
     providerHelp:
-      "Select a provider to open the secure connector. A repository and pinned commit are required before scanning.",
+      "Select a provider to open the secure connector. A repository and pinned commit are required for investigation.",
     providerComingSoon: "Coming soon",
     configureProvider: "Configure secure connection",
     repositoryPlaceholder: "Paste a repository URL to continue...",
@@ -1784,7 +1838,8 @@ export const enPages = {
       retryScan: "Retry source scan",
       retryingScan: "Creating new scan",
       retryError: "Unable to retry the source scan. Please try again.",
-      graphPendingDescription: "The scan is complete and evidence has been accepted. The graph is not yet confirmed ready to view.",
+      graphPendingDescription:
+        "The scan is complete and evidence has been accepted. The graph is not yet confirmed ready to view.",
       reconnecting: "Reconnecting to live update stream...",
       activities: {
         connect: "Connected to Git provider",
@@ -2768,8 +2823,7 @@ export const enPages = {
       },
       trend: {
         title: "Settled top-up trend",
-        description:
-          "Confirmed incoming transfers by day",
+        description: "Confirmed incoming transfers by day",
         dayAria: "Settled top-up amount for {day}",
       },
       columns: {
@@ -2859,92 +2913,6 @@ export const enPages = {
         INVITED: "Invited",
         DEACTIVATED: "Deactivated",
       },
-    },
-    corpusVersions: {
-      title: "Corpus versions",
-      description:
-        "Manage authoritative legal corpus versions and their validated lifecycle.",
-      detailTitle: "Corpus version · {version}",
-      currentMeta: "{count} sources · {publishedAt}",
-      create: "Create new version",
-      creating: "Preparing...",
-      createUnavailable:
-        "A UI-safe authoritative creation workflow is not available.",
-      current: "Current published version",
-      view: "View",
-      versions: "Versions",
-      version: "Version",
-      status: "Status",
-      sources: "Sources",
-      rules: "Rules",
-      created: "Created",
-      published: "Published",
-      actions: "Actions",
-      noValue: "None",
-      unavailable: "Unavailable",
-      loading: "Loading corpus versions",
-      error: "Unable to load corpus versions",
-      retry: "Retry",
-      back: "Back to versions",
-      metadata: "Version metadata",
-      changes: "Changes from previous version",
-      readiness: "Publication readiness",
-      snapshot: "Source and rule snapshot",
-      category: "Category",
-      count: "Count",
-      change: "Change",
-      validation: "Validation",
-      baseVersion: "Based on",
-      createdBy: "Created by",
-      sourceAdded: "Sources added",
-      sourceRemoved: "Sources removed",
-      sourceUpdated: "Sources updated",
-      legalRulesChanged: "LegalRules changed",
-      engineeringRulesChanged: "EngineeringRules changed",
-      conflicts: "Unresolved conflicts",
-      publish: "Publish version",
-      publishing: "Publishing...",
-      publishUnavailable:
-        "Publication is unavailable until authoritative readiness is fully reported.",
-      discard: "Discard draft",
-      discardTitle: "Discard this draft?",
-      discardDescription:
-        "This changes only this draft. Published and historical versions are preserved.",
-      cancel: "Cancel",
-      confirmDiscard: "Discard draft",
-      discarding: "Discarding...",
-      discardFailedTitle: "Unable to discard draft",
-      discardFailedDetail:
-        "The draft was not discarded. Review its current lifecycle state and try again.",
-      note: "Published versions are immutable. Historical versions remain traceable.",
-      statuses: {
-        DRAFT: "Draft",
-        APPROVED: "Published",
-        REJECTED: "Discarded",
-        SUPERSEDED: "Archived",
-      },
-      readinessStates: {
-        READY: "Passed",
-        PASSED: "Passed",
-        PENDING: "Pending",
-        FAILED: "Failed",
-        BLOCKED: "Blocked",
-        UNAVAILABLE: "Unavailable",
-      },
-      readinessChecks: {
-        SOURCE_PARSING: "Source parsing",
-        RETRIEVAL_VALIDATION: "Retrieval validation",
-        INTEGRITY_MANIFEST: "Integrity manifest",
-        RULE_SNAPSHOT: "Rule snapshot",
-        DIFF_REVIEW: "Diff review",
-      },
-      snapshotCategories: {
-        SOURCE_DOCUMENTS: "Approved source documents",
-        CORPUS_CHUNKS: "Corpus chunks",
-        LEGAL_RULES: "Legal rules",
-        ENGINEERING_RULES: "Engineering rules",
-      },
-      changeSummary: "{added} added · {removed} removed · {updated} updated",
     },
     userDetail: {
       title: "User account",

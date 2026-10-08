@@ -57,6 +57,7 @@ import { SubmitRuleDecisionCommand } from "../../application/commands/submit-rul
 import { SubmitAssessmentFinalReportCommand } from "../../application/commands/submit-assessment-final-report/submit-assessment-final-report.command.js";
 import { GetPinnedPortfolioQuery } from "../../application/queries/get-pinned-portfolio/get-pinned-portfolio.query.js";
 import { GetRootContextQuery } from "../../application/queries/get-root-context/get-root-context.query.js";
+import { GetRootControlQuery } from "../../application/queries/get-root-control/get-root-control.query.js";
 import {
   ASSESSMENT_LEASE_HEADER,
   AssessmentLeaseGuard,
@@ -84,6 +85,24 @@ export class AssessmentDomainController {
 
   private correlation(req: AuthenticatedRequest): string {
     return req.correlationId || randomUUID();
+  }
+
+  @Get("control")
+  @UseGuards(AssessmentLeaseGuard)
+  async control(
+    @Param(
+      "assessmentId",
+      bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
+    )
+    assessmentId: string,
+    @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new GetRootControlQuery(assessmentId, lease, this.correlation(req)),
+      ),
+    );
   }
 
   @Post("claim")
@@ -149,6 +168,7 @@ export class AssessmentDomainController {
           this.correlation(req),
           body.checkpointId,
           body.requestIds,
+          body.controlRequestId,
         ),
       ),
     );

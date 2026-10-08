@@ -84,12 +84,14 @@ class AssessmentRuntimeClient:
     def heartbeat(self) -> dict[str, Any]:
         return self._call("POST", "/heartbeat")
 
-    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None) -> dict[str, Any]:
+    def finish(self, state: str, *, checkpoint_id: str | None = None, request_ids: list[str] | None = None, control_request_id: str | None = None) -> dict[str, Any]:
         body: dict[str, Any] = {"state": state}
         if checkpoint_id is not None:
             body["checkpointId"] = checkpoint_id
         if request_ids is not None:
             body["requestIds"] = request_ids
+        if control_request_id is not None:
+            body["controlRequestId"] = control_request_id
         result = self._call("POST", "/finish", body)
         self.lease_token = None
         return result
@@ -98,6 +100,9 @@ class AssessmentRuntimeClient:
 
     def context(self) -> dict[str, Any]:
         return self._call("GET", "/context")
+
+    def root_control(self) -> dict[str, Any] | None:
+        return self._call("GET", "/control")
 
     def portfolio(self) -> dict[str, Any]:
         return self._call("GET", "/portfolio")

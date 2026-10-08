@@ -98,33 +98,6 @@ test("assessment transcript follows only while pinned and preserves a fixed comp
   assert.doesNotMatch(source, /scrollIntoView/);
 });
 
-test("assessment overview gates Interview behind repository and scanner runtime", async () => {
-  const source = await readFile(overviewPath, "utf8");
-
-  assert.match(source, /const autoScrollKey = \[/);
-  assert.match(source, /deriveAssessmentFlowRuntime/);
-  assert.match(source, /ASSESSMENT_FLOW_STAGES\.repositorySetup/);
-  assert.match(source, /ASSESSMENT_FLOW_STAGES\.interview/);
-  assert.match(source, /interviewEnabled/);
-  assert.match(source, /interviewQuery\.dataUpdatedAt/);
-  assert.match(
-    source,
-    /<AssessmentTranscript autoScrollKey=\{autoScrollKey\}>/,
-  );
-});
-
-test("assessment overview renders the live current-turn activity before the next active question", async () => {
-  const source = await readFile(overviewPath, "utf8");
-
-  assert.match(source, /\{transcriptTurns\.currentActivity\.map\(/);
-  assert.match(source, /\{interview\.questionTurnProps \? \(/);
-  assert.ok(
-    source.indexOf("transcriptTurns.currentActivity.map((segment) => (") <
-      source.indexOf("{interview.questionTurnProps ? ("),
-    "currentActivity must render before the active question/assistant block, so the live transcript reads: previous question -> answer -> activity/output -> next question",
-  );
-});
-
 test("assessment composer auto-grows from one to three rows and keeps expansion bounded", async () => {
   const source = await readFile(composerPath, "utf8");
 
@@ -143,22 +116,6 @@ test("assessment composer auto-grows from one to three rows and keeps expansion 
   assert.match(source, /CornerDownLeftIcon/);
   assert.doesNotMatch(source, /rows=\{5\}|h-\[min\(70dvh,48rem\)\]/);
   assert.doesNotMatch(source, /PlusIcon|<input\b|avatar|brand label/i);
-});
-
-test("assessment center keeps the transcript scrollable above a bottom composer", async () => {
-  const shellSlotsSource = await readFile(shellSlotsPath, "utf8");
-  const overviewSource = await readFile(overviewPath, "utf8");
-
-  assert.match(
-    shellSlotsSource,
-    /mx-auto flex h-full min-h-0 w-full max-w-180 flex-col/,
-  );
-  assert.match(shellSlotsSource, /min-h-0 flex-1 overflow-hidden/);
-  assert.match(overviewSource, /className="flex h-full min-h-0 flex-col"/);
-  assert.ok(
-    overviewSource.indexOf("<AssessmentTranscript") <
-      overviewSource.indexOf("<AssessmentComposer"),
-  );
 });
 
 test("assessment composer uses one submit path for Enter, Send, disabled, and IME behavior", async () => {

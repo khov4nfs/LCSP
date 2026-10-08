@@ -1,4 +1,14 @@
+import { randomUUID } from "node:crypto";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  ASSESSMENT_DOMAIN_ERROR_CODES,
+  claimAssessmentRootRequestSchema,
+  createAssessmentSchema,
+  renameAssessmentSchema,
+  assessmentListQuerySchema,
+  type AssessmentListQuery,
+} from "@lcsp/contracts/assessment-domain";
+import type { z } from "zod";
 import {
   Body,
   Controller,
@@ -13,11 +23,10 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
-
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
@@ -26,67 +35,52 @@ import { DeleteAssessmentCommand } from "../../application/commands/delete-asses
 import { MarkAiNotDetectedCommand } from "../../application/commands/mark-ai-not-detected/mark-ai-not-detected.command.js";
 import { PutRuleAssessmentCommand } from "../../application/commands/put-rule-assessment/put-rule-assessment.command.js";
 import { RenameAssessmentCommand } from "../../application/commands/rename-assessment/rename-assessment.command.js";
-import { GetAssessmentReadinessQuery } from "../../application/queries/get-assessment-readiness/get-assessment-readiness.query.js";
 import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
+import { GetRepositorySetupQuery } from "../../application/queries/get-repository-setup/get-repository-setup.query.js";
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
 import { ListRuleAssessmentsQuery } from "../../application/queries/list-rule-assessments/list-rule-assessments.query.js";
 import { AssessmentInterviewRuntimeService } from "../../application/services/assessment-interview-runtime.service.js";
-import { AssessmentInterviewSnippetService } from "../../application/services/assessment-interview-snippet.service.js";
-import { AssessmentPipelineContinuationService } from "../../application/services/assessment-pipeline-continuation.service.js";
-import { CreateAssessmentRequest } from "./dto/create-assessment.request.js";
 
-/**
- * Exposes RBAC-protected assessment creation, listing, and detail endpoints through CQRS handlers.
- */
+const pipe = (schema: z.ZodType) =>
+  new ZodValidationPipe(
+    schema,
+    ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    422,
+  );
+const idPipe = () => pipe(claimAssessmentRootRequestSchema.shape.assessmentId);
+
+/** Customer transport dispatches canonical commands/queries; reads never start work. */
 @Controller("assessments")
+@UseGuards(RbacGuard)
 export class AssessmentController {
-  /**
-   * Creates the controller with command and query dispatchers.
-   *
-   * @param commandBus - CQRS command bus used for assessment mutations.
-   * @param queryBus - CQRS query bus used for assessment reads.
-   */
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
-    private readonly interviewRuntime: AssessmentInterviewRuntimeService,
-    private readonly interviewSnippet: AssessmentInterviewSnippetService,
-    private readonly pipelineContinuation: AssessmentPipelineContinuationService,
   ) {}
 
-  /**
-   * Creates a manager-owned assessment using the RBAC context attached by the guard.
-   *
-   * @param body - Assessment creation request containing name and optional description.
-   * @param request - Authenticated request containing RBAC and correlation context.
-   * @returns The standard result envelope containing the created assessment DTO.
-   */
   @Post()
-  @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer)
   async createAssessment(
-    @Body() body: CreateAssessmentRequest,
+    @Body(pipe(createAssessmentSchema))
+    body: z.infer<typeof createAssessmentSchema>,
     @Req() request: AuthenticatedRequest,
   ) {
-    const rbacContext = request.rbacContext;
-
     return resultEnvelope(
       await this.commandBus.execute(
         new CreateAssessmentCommand(
-          rbacContext.userId,
+          request.rbacContext.userId,
           body.name,
           body.description,
-          request.correlationId ?? "worker-interview-context",
+          request.correlationId || randomUUID(),
         ),
       ),
     );
   }
 
   @Post(":assessmentId/repository-setup/complete")
-  @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer)
   async completeRepositorySetup(
-    @Param("assessmentId") assessmentId: string,
+    @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
@@ -94,41 +88,54 @@ export class AssessmentController {
         new CompleteRepositorySetupCommand(
           assessmentId,
           request.rbacContext.userId,
-          request.correlationId ?? "repository-setup-complete",
+          request.correlationId || randomUUID(),
+        ),
+      ),
+    );
+  }
+
+  @Get(":assessmentId/repository-setup")
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async getRepositorySetup(
+    @Param("assessmentId", idPipe()) assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new GetRepositorySetupQuery(
+          assessmentId,
+          request.rbacContext.userId,
+          request.rbacContext.role,
+          request.correlationId || randomUUID(),
         ),
       ),
     );
   }
 
   @Patch(":assessmentId")
-  @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer)
   async renameAssessment(
-    @Param("assessmentId") assessmentId: string,
-    @Body() body: unknown,
+    @Param("assessmentId", idPipe()) assessmentId: string,
+    @Body(pipe(renameAssessmentSchema))
+    body: z.infer<typeof renameAssessmentSchema>,
     @Req() request: AuthenticatedRequest,
   ) {
-    const name =
-      body && typeof body === "object" && !Array.isArray(body)
-        ? (body as { name?: unknown }).name
-        : undefined;
     return resultEnvelope(
       await this.commandBus.execute(
         new RenameAssessmentCommand(
           assessmentId,
           request.rbacContext.userId,
-          name,
-          request.correlationId ?? "assessment-rename",
+          body.name,
+          request.correlationId || randomUUID(),
         ),
       ),
     );
   }
 
   @Delete(":assessmentId")
-  @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer)
   async deleteAssessment(
-    @Param("assessmentId") assessmentId: string,
+    @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
@@ -136,229 +143,47 @@ export class AssessmentController {
         new DeleteAssessmentCommand(
           assessmentId,
           request.rbacContext.userId,
-          request.correlationId ?? "assessment-delete",
+          request.correlationId || randomUUID(),
         ),
       ),
     );
   }
 
-  /**
-   * Lists assessments visible to the current RBAC subject with optional pagination and status filtering.
-   *
-   * @param page - Optional 1-based page query parameter.
-   * @param pageSize - Optional page-size query parameter.
-   * @param status - Optional assessment status filter.
-   * @param request - Authenticated request containing role, scope, and correlation context.
-   * @returns The standard result envelope containing the paginated assessment list.
-   */
   @Get()
-  @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
   async listAssessments(
-    @Query("page") page: string | undefined,
-    @Query("page_size") pageSize: string | undefined,
-    @Query("status") status: string | undefined,
+    @Query(pipe(assessmentListQuerySchema)) filters: AssessmentListQuery,
     @Req() request: AuthenticatedRequest,
   ) {
-    const rbacContext = request.rbacContext;
-
+    const actor = request.rbacContext;
     return resultEnvelope(
       await this.queryBus.execute(
         new ListAssessmentsQuery(
-          rbacContext.userId,
-          rbacContext.role,
-          rbacContext.scope,
-          page !== undefined ? Number(page) : undefined,
-          pageSize !== undefined ? Number(pageSize) : undefined,
-          status,
-          request.correlationId ?? "worker-interview-context",
+          actor.userId,
+          actor.role,
+          actor.scope,
+          filters.page,
+          filters.page_size,
+          filters.lifecycleState,
+          request.correlationId || randomUUID(),
         ),
       ),
-    );
-  }
-
-  /**
-   * Retrieves the caller-visible detail view for one assessment.
-   *
-   * @param assessmentId - Assessment identifier from the route path.
-   * @param request - Authenticated request containing user, role, and correlation context.
-   * @returns The standard result envelope containing assessment readiness and pipeline detail.
-   */
-  @Get(":assessmentId/interview")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
-  async getInterviewState(
-    @Param("assessmentId") assessmentId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.interviewRuntime.getState(assessmentId, request.rbacContext),
-    );
-  }
-
-  @Get(":assessmentId/interview/questions/:questionId/source-snippet")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
-  async getInterviewSourceSnippet(
-    @Param("assessmentId") assessmentId: string,
-    @Param("questionId") questionId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const snippetContext =
-      await this.interviewRuntime.resolveActiveQuestionSnippetContext(
-        assessmentId,
-        questionId,
-        request.rbacContext,
-      );
-    return resultEnvelope(
-      await this.interviewSnippet.resolve({
-        assessmentId,
-        correlationId: request.correlationId ?? "interview-source-snippet",
-        evidenceReportId: snippetContext.evidenceReportId,
-        snippetRef: snippetContext.snippetRef,
-      }),
-    );
-  }
-
-  @Get(":assessmentId/readiness")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
-  async getReadiness(
-    @Param("assessmentId") assessmentId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const { rbacContext } = request;
-    return resultEnvelope(
-      await this.queryBus.execute(
-        new GetAssessmentReadinessQuery(
-          assessmentId,
-          rbacContext.userId,
-          rbacContext.role,
-          request.correlationId ?? "assessment-readiness",
-        ),
-      ),
-    );
-  }
-
-  @Post(":assessmentId/interview/answers")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer)
-  async submitInterviewAnswer(
-    @Param("assessmentId") assessmentId: string,
-    @Body() body: unknown,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.interviewRuntime.submitAnswer({
-        assessmentId,
-        actor: request.rbacContext,
-        correlationId: request.correlationId ?? "worker-interview-context",
-        answer: body as never,
-      }),
-    );
-  }
-
-  @Post(":assessmentId/interview/blocked-actions")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer)
-  async recordInterviewBlockedAction(
-    @Param("assessmentId") assessmentId: string,
-    @Body() body: unknown,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.interviewRuntime.recordBlockedAction({
-        assessmentId,
-        actor: request.rbacContext,
-        correlationId: request.correlationId ?? "worker-interview-context",
-        blocked: body as never,
-      }),
-    );
-  }
-
-  @Post(":assessmentId/interview/resume")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer)
-  async resumeInterviewTurn(
-    @Param("assessmentId") assessmentId: string,
-    @Body() body: unknown,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.interviewRuntime.resumeInterruptedTurn({
-        assessmentId,
-        actor: request.rbacContext,
-        correlationId: request.correlationId ?? "worker-interview-context",
-        resume: body as never,
-      }),
-    );
-  }
-
-  @Post(":assessmentId/interview/pause")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer)
-  async pauseInterviewTurn(
-    @Param("assessmentId") assessmentId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const control = await this.interviewRuntime.pauseActiveTurn({
-      assessmentId,
-      actor: request.rbacContext,
-      correlationId: request.correlationId ?? "worker-interview-context",
-    });
-    return resultEnvelope(control);
-  }
-
-  @Post(":assessmentId/pipeline/continue")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer)
-  async continuePipeline(
-    @Param("assessmentId") assessmentId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.pipelineContinuation.continuePipeline({
-        assessmentId,
-        actor: request.rbacContext,
-        correlationId: request.correlationId ?? "customer-pipeline-continue",
-      }),
-    );
-  }
-
-  @Post(":assessmentId/post-finding/decisions")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer)
-  async submitPostFindingDecision(
-    @Param("assessmentId") assessmentId: string,
-    @Body() body: unknown,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.interviewRuntime.submitPostFindingDecision({
-        assessmentId,
-        actor: request.rbacContext,
-        correlationId: request.correlationId ?? "post-finding-decision",
-        decision: body as never,
-      }),
     );
   }
 
   @Get(":assessmentId")
-  @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
   async getAssessment(
-    @Param("assessmentId") assessmentId: string,
+    @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    const rbacContext = request.rbacContext;
-
     return resultEnvelope(
       await this.queryBus.execute(
         new GetAssessmentQuery(
           assessmentId,
-          rbacContext.userId,
-          rbacContext.role,
-          request.correlationId ?? "worker-interview-context",
+          request.rbacContext.userId,
+          request.rbacContext.role,
+          request.correlationId || randomUUID(),
         ),
       ),
     );

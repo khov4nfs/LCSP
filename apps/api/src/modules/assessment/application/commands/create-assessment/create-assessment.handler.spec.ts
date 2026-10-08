@@ -3,7 +3,6 @@ import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_LIFECYCLE_STATES,
-  ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
@@ -79,6 +78,14 @@ function buildHandler() {
     prisma as never,
     lifecycle,
     { createCaseInTx } as never,
+    {
+      load: (input: { assessmentId: string; correlationId: string }) =>
+        Promise.resolve({
+          assessment_id: input.assessmentId,
+          correlationId: input.correlationId,
+          lifecycle: { state: ASSESSMENT_LIFECYCLE_STATES.PREPARING },
+        }),
+    } as never,
   );
 
   return {
@@ -95,7 +102,7 @@ function buildHandler() {
 }
 
 describe("CreateAssessmentHandler", () => {
-  it("creates an assessment with WIZARD_IN_PROGRESS status", async () => {
+  it("creates an assessment through canonical PREPARING authority", async () => {
     const { handler, saveInTx, initializeInTx, transitionInTx } =
       buildHandler();
 
@@ -108,7 +115,7 @@ describe("CreateAssessmentHandler", () => {
       ),
     );
 
-    expect(result.status).toBe(ASSESSMENT_STATUS_CODES.wizardInProgress);
+    expect(result.lifecycle?.state).toBe(ASSESSMENT_LIFECYCLE_STATES.PREPARING);
     expect(result.assessment_id).toBeTruthy();
     expect(result.correlationId).toBe("corr-1");
     expect(saveInTx).toHaveBeenCalledTimes(1);

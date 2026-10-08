@@ -1,5 +1,9 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
+import { RbacModule } from "../../platform/rbac/rbac.module.js";
+import { LegalPortfolioAdminController } from "./presentation/http/legal-portfolio-admin.controller.js";
+import { ListLegalPortfolioHistoryHandler } from "./application/queries/list-legal-portfolio-history/list-legal-portfolio-history.handler.js";
+import { LegalPortfolioHistoryLoader } from "./infrastructure/persistence/legal-portfolio-history.loader.js";
 
 import { OutboxModule } from "../../platform/outbox/outbox.module.js";
 import { ClaimLegalPreparationHandler } from "./application/commands/claim-legal-preparation/claim-legal-preparation.handler.js";
@@ -19,10 +23,12 @@ import { LegalPortfolioController } from "./presentation/http/legal-portfolio.co
  * (e.g. GetLegalPortfolioVersionQuery), never its internals.
  */
 @Module({
-  imports: [CqrsModule, OutboxModule],
-  controllers: [LegalPortfolioController],
+  imports: [CqrsModule, OutboxModule, RbacModule],
+  controllers: [LegalPortfolioController, LegalPortfolioAdminController],
   providers: [
     LegalCorpusSnapshotLoader,
+    ListLegalPortfolioHistoryHandler,
+    LegalPortfolioHistoryLoader,
     LegalPortfolioActivation,
     LegalPortfolioReadModelLoader,
     StartLegalPreparationHandler,

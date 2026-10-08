@@ -1,3 +1,5 @@
+import { WorkspaceRuntimeEventsController } from "./presentation/http/workspace-runtime-events.controller.js";
+import { GetWorkspaceRuntimeHandler } from "./application/queries/get-workspace-runtime/get-workspace-runtime.handler.js";
 import { Module } from "@nestjs/common";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 import { CqrsModule } from "@nestjs/cqrs";
@@ -6,6 +8,15 @@ import { StorageModule } from "../../platform/storage/storage.module.js";
 import { AnswerHumanRequestHandler } from "./application/commands/answer-human-request/answer-human-request.handler.js";
 import { GetHumanRequestsHandler } from "./application/queries/get-human-requests/get-human-requests.handler.js";
 import { AssessmentHumanRequestSupport } from "./infrastructure/persistence/assessment-human-request-support.service.js";
+import { AssessmentDetailLoader } from "./infrastructure/persistence/assessment-detail.loader.js";
+import { AssessmentReportLoader } from "./infrastructure/persistence/assessment-report.loader.js";
+import { GetAssessmentReportHandler } from "./application/queries/get-assessment-report/get-assessment-report.handler.js";
+import { AssessmentArtifactController } from "./presentation/http/assessment-artifact.controller.js";
+import { AssessmentRepositorySetupLoader } from "./infrastructure/persistence/assessment-repository-setup.loader.js";
+import { GetRepositorySetupHandler } from "./application/queries/get-repository-setup/get-repository-setup.handler.js";
+import { GetRuntimeControlHandler } from "./application/queries/get-runtime-control/get-runtime-control.handler.js";
+import { GetRootControlHandler } from "./application/queries/get-root-control/get-root-control.handler.js";
+import { ControlAssessmentRuntimeHandler } from "./application/commands/control-assessment-runtime/control-assessment-runtime.handler.js";
 import { AssessmentHumanResolutionController } from "./presentation/http/assessment-human-resolution.controller.js";
 
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
@@ -36,7 +47,6 @@ import { SubmitRuleDecisionHandler } from "./application/commands/submit-rule-de
 import { TransitionAssessmentLifecycleHandler } from "./application/commands/transition-lifecycle/transition-lifecycle.handler.js";
 import { ASSESSMENT_BILLING_RETENTION } from "./application/ports/billing/assessment-billing-retention.port.js";
 import { ASSESSMENT_REPOSITORY } from "./application/ports/persistence/assessment.repository.js";
-import { GetAssessmentReadinessHandler } from "./application/queries/get-assessment-readiness/get-assessment-readiness.handler.js";
 import { GetAssessmentHandler } from "./application/queries/get-assessment/get-assessment.handler.js";
 import { GetPinnedPortfolioHandler } from "./application/queries/get-pinned-portfolio/get-pinned-portfolio.handler.js";
 import { GetRootContextHandler } from "./application/queries/get-root-context/get-root-context.handler.js";
@@ -49,22 +59,14 @@ import { AssessmentInterviewRuntimeService } from "./application/services/assess
 import { AssessmentInterviewSnippetService } from "./application/services/assessment-interview-snippet.service.js";
 import { AssessmentLifecycleCoordinator } from "./application/services/assessment-lifecycle-coordinator.service.js";
 import { AssessmentPipelineContinuationService } from "./application/services/assessment-pipeline-continuation.service.js";
-import { AssessmentPipelineReconciliationService } from "./application/services/assessment-pipeline-reconciliation.service.js";
 import { AssessmentRuntimeAuthority } from "./application/services/assessment-runtime-authority.service.js";
 import { AssessmentRuntimePreparation } from "./application/services/assessment-runtime-preparation.service.js";
 import { PrismaAssessmentBillingRetention } from "./infrastructure/billing/prisma-assessment-billing-retention.js";
 import { AssessmentCaseSupport } from "./infrastructure/persistence/assessment-case-support.service.js";
 import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-assessment.repository.js";
 import { AssessmentDomainController } from "./presentation/http/assessment-domain.controller.js";
-import {
-  AssessmentRuntimeControlController,
-  InternalAssessmentRuntimeControlController,
-} from "./presentation/http/assessment-runtime-control.controller.js";
-import {
-  AssessmentController,
-  InternalAssessmentInterviewController,
-  InternalRuleAssessmentController,
-} from "./presentation/http/assessment.controller.js";
+import { AssessmentRuntimeControlController } from "./presentation/http/assessment-runtime-control.controller.js";
+import { AssessmentController } from "./presentation/http/assessment.controller.js";
 
 /**
  * Wires RBAC-protected assessment commands and queries to Prisma-backed persistence and HTTP endpoints.
@@ -80,20 +82,21 @@ import {
   ],
   controllers: [
     AssessmentRuntimeControlController,
-    InternalAssessmentRuntimeControlController,
     AssessmentController,
-    InternalAssessmentInterviewController,
-    InternalRuleAssessmentController,
+    WorkspaceRuntimeEventsController,
     AssessmentDomainController,
     AssessmentHumanResolutionController,
+    AssessmentArtifactController,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: RuntimeWriteFenceInterceptor },
     AssessmentRuntimeControlService,
+    GetRuntimeControlHandler,
+    GetRootControlHandler,
+    ControlAssessmentRuntimeHandler,
     AssessmentInterviewRuntimeService,
     AssessmentInterviewSnippetService,
     AssessmentPipelineContinuationService,
-    AssessmentPipelineReconciliationService,
     AssessmentLifecycleCoordinator,
     AssessmentEventAppender,
     AssessmentRuntimeAuthority,
@@ -129,7 +132,12 @@ import {
     PutRuleAssessmentHandler,
     ListRuleAssessmentsHandler,
     GetAssessmentHandler,
-    GetAssessmentReadinessHandler,
+    GetWorkspaceRuntimeHandler,
+    AssessmentDetailLoader,
+    AssessmentReportLoader,
+    AssessmentRepositorySetupLoader,
+    GetRepositorySetupHandler,
+    GetAssessmentReportHandler,
     ListAssessmentsHandler,
     PrismaAssessmentRepository,
     {

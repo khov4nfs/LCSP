@@ -11,7 +11,6 @@ import {
   ASSESSMENT_RUNTIME_PIPELINE_CONTROL_TOOL_NAME,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
-  ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES,
   FINAL_ASSESSMENT_RESULT_STATUSES,
   isAssessmentAgentStreamEventType,
   isPostFindingRuntimePhase,
@@ -27,12 +26,10 @@ import {
   type AssessmentAgentStreamStage,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
-  type AssessmentRuntimeActiveTool,
   type AssessmentRuntimeActivityEvent,
   type AssessmentRuntimeEngineeringProgress,
   type AssessmentRuntimeEventType,
   type AssessmentRuntimePipelineControlReason,
-  type AssessmentRuntimeRun,
   type AssessmentRuntimeRunStatus,
   type AssessmentRuntimeSnapshot,
   type AssessmentRuntimeStageCode,
@@ -40,7 +37,6 @@ import {
   type CanonicalAssessmentRuntimeSnapshot,
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
-import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { asRecord } from "@lcsp/contracts/shared";
 import { Injectable, Logger } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
@@ -56,7 +52,6 @@ import {
   ReplaySubject,
 } from "rxjs";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
-import { STALE_REPOSITORY_SCAN_BLOCKED_REASON } from "../scan/repository-scan-staleness.js";
 import {
   projectCanonicalAssessment,
   type PersistedCanonicalAssessmentRow,
@@ -175,26 +170,6 @@ type PersistedAssessmentRuntimeEvent = {
   createdAt: Date;
 };
 
-type RuntimeScanJobSnapshot = {
-  id: string;
-  assessmentId: string;
-  snapshotId: string;
-  status: string;
-  attemptCount: number;
-  blockedReason: string | null;
-  updatedAt: Date;
-};
-
-type RuntimeRepositorySnapshot = {
-  id: string;
-  assessmentId: string;
-  repositoryFullName: string | null;
-  branch: string | null;
-  commitSha: string;
-  connection?: { provider: string } | null;
-  createdAt: Date;
-};
-
 type OwnedAssessmentAgentStreamEvent = {
   ownerId: string;
   event: AssessmentAgentStreamEvent;
@@ -208,16 +183,6 @@ export type AgentStreamHistoryPage = {
   events: AssessmentAgentStreamEvent[];
   nextCursor: string | null;
   hasMore: boolean;
-};
-
-type RuntimeEvidenceReportSnapshot = {
-  id: string;
-  assessmentId: string;
-  scanJobId: string;
-  snapshotId: string;
-  status: string;
-  rejectionReason: string | null;
-  createdAt: Date;
 };
 
 /**
@@ -810,117 +775,19 @@ export class AssessmentRuntimeEventService {
     ownerId?: string,
     correlationId = "",
   ): Promise<AssessmentRuntimeSnapshot> {
-    const emittedAt = new Date().toISOString();
-    const [events, repositorySnapshots, scanJobs, evidenceReports] =
-      await Promise.all([
-        this.safeFindMany({
-          where: nonAgentStreamJournalWhere(
-            ownerId ? { assessment: { ownerId } } : undefined,
-          ),
-          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
-          take: 200,
-        }),
-        this.prisma.repositorySnapshot.findMany({
-          ...(ownerId ? { where: { assessment: { ownerId } } } : {}),
-          orderBy: { createdAt: "desc" },
-          take: 50,
-          select: {
-            id: true,
-            assessmentId: true,
-            repositoryFullName: true,
-            branch: true,
-            commitSha: true,
-            connection: { select: { provider: true } },
-            createdAt: true,
-          },
-        }),
-        this.prisma.repositoryScanJob.findMany({
-          ...(ownerId ? { where: { assessment: { ownerId } } } : {}),
-          orderBy: { updatedAt: "desc" },
-          take: 50,
-          select: {
-            id: true,
-            assessmentId: true,
-            snapshotId: true,
-            status: true,
-            attemptCount: true,
-            blockedReason: true,
-            updatedAt: true,
-          },
-        }),
-        this.prisma.technicalEvidenceReport.findMany({
-          ...(ownerId ? { where: { assessment: { ownerId } } } : {}),
-          orderBy: { createdAt: "desc" },
-          take: 50,
-          select: {
-            id: true,
-            assessmentId: true,
-            scanJobId: true,
-            snapshotId: true,
-            status: true,
-            rejectionReason: true,
-            createdAt: true,
-          },
-        }),
-      ]);
-
-    const persistedActivity = events.map((event) =>
-      this.toActivityEvent(event),
-    );
-    const engineeringProgress = await this.deriveDurableEngineeringProgress();
-    const syntheticActivity = buildSyntheticRuntimeActivity(
-      scanJobs,
-      evidenceReports,
-      persistedActivity,
-      emittedAt,
-    );
-    const recentActivity = [...persistedActivity, ...syntheticActivity]
-      .sort((left, right) => right.emittedAt.localeCompare(left.emittedAt))
-      .slice(0, 50);
-    const runs = deriveRuns(recentActivity).slice(0, 20);
-    const postFindingStates = deriveLatestPostFindingStates(events);
-    const canonicalAssessments = await this.readCanonicalAssessments(
-      ownerId,
-      correlationId,
-    );
-    const canonicalEvents = await this.readCanonicalEvents(ownerId);
-
+    const [canonicalAssessments, canonicalEvents] = await Promise.all([
+      this.readCanonicalAssessments(ownerId, correlationId),
+      this.readCanonicalEvents(ownerId),
+    ]);
     return {
-      emittedAt,
-      runs,
-      recentActivity,
-      engineeringProgress,
-      repositorySnapshots: repositorySnapshots.map(
-        (snapshot: RuntimeRepositorySnapshot) => ({
-          id: snapshot.id,
-          assessmentId: snapshot.assessmentId,
-          provider: snapshot.connection?.provider ?? null,
-          repositoryFullName: snapshot.repositoryFullName,
-          branch: snapshot.branch,
-          commitSha: snapshot.commitSha,
-          createdAt: snapshot.createdAt.toISOString(),
-        }),
-      ),
-      scanJobs: scanJobs.map((scanJob) => ({
-        id: scanJob.id,
-        assessmentId: scanJob.assessmentId,
-        snapshotId: scanJob.snapshotId,
-        status: scanJob.status,
-        attemptCount: scanJob.attemptCount,
-        blockedReason: scanJob.blockedReason,
-        updatedAt: scanJob.updatedAt.toISOString(),
-      })),
-      evidenceReports: evidenceReports.map((report) => ({
-        id: report.id,
-        assessmentId: report.assessmentId,
-        scanJobId: report.scanJobId,
-        snapshotId: report.snapshotId,
-        status: report.status,
-        rejectionReason: report.rejectionReason,
-        createdAt: report.createdAt.toISOString(),
-      })),
-      postFindingStates,
-      // Lifecycle is no longer inferred from V1 stage/artifact records.
+      emittedAt: new Date().toISOString(),
+      runs: [],
+      recentActivity: [],
+      engineeringProgress: [],
+      repositorySnapshots: [],
+      scanJobs: [],
+      evidenceReports: [],
+      postFindingStates: [],
       stageLifecycles: [],
       canonicalAssessments,
       canonicalEvents,
@@ -1436,157 +1303,24 @@ export class AssessmentRuntimeEventService {
  * @param existingActivity - Persisted activity used to remove duplicate synthetic event IDs.
  * @returns Synthetic activity events not represented by persisted runtime events.
  */
-function buildSyntheticRuntimeActivity(
-  scanJobs: RuntimeScanJobSnapshot[],
-  evidenceReports: RuntimeEvidenceReportSnapshot[],
-  existingActivity: AssessmentRuntimeActivityEvent[],
-  snapshotEmittedAt: string,
-): AssessmentRuntimeActivityEvent[] {
-  const existingEventIds = new Set(
-    existingActivity.map((event) => event.eventId),
-  );
-  const scanJobsWithPersistedActivity = new Set(
-    existingActivity.map((event) => event.runId),
-  );
-  return [
-    ...scanJobs
-      .filter(
-        (scanJob) =>
-          !scanJobsWithPersistedActivity.has(scanJob.id) ||
-          isStaleFailedScanJob(scanJob),
-      )
-      .map((scanJob) =>
-        scanJobToSyntheticRuntimeActivity(scanJob, snapshotEmittedAt),
-      ),
-    ...evidenceReports.map((report) =>
-      evidenceReportToSyntheticRuntimeActivity(report),
-    ),
-  ].filter((event) => !existingEventIds.has(event.eventId));
-}
-
-function isStaleFailedScanJob(scanJob: RuntimeScanJobSnapshot): boolean {
-  return (
-    scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.failed &&
-    scanJob.blockedReason === STALE_REPOSITORY_SCAN_BLOCKED_REASON
-  );
-}
-
 /**
  * Maps repository scan-job state into a synthetic runtime activity event.
  *
  * @param scanJob - Repository scan-job snapshot to convert.
  * @returns Synthetic scan activity event suitable for the runtime feed.
  */
-function scanJobToSyntheticRuntimeActivity(
-  scanJob: RuntimeScanJobSnapshot,
-  snapshotEmittedAt: string,
-): AssessmentRuntimeActivityEvent {
-  const runStatus = runtimeStatusForScanJob(scanJob.status);
-  const isRunning = runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.running;
-  const emittedAt = isRunning
-    ? snapshotEmittedAt
-    : scanJob.updatedAt.toISOString();
-  return {
-    eventId: `scan-job:${scanJob.id}:${scanJob.status}`,
-    sequence: 0,
-    emittedAt,
-    assessmentId: scanJob.assessmentId,
-    runId: scanJob.id,
-    correlationId: scanJob.id,
-    eventType:
-      runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.running
-        ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted
-        : runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.failed
-          ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed
-          : ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-    runStatus,
-    stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
-    toolName: "repository_scan",
-    summary: scanJobSummary(scanJob),
-    inputSummary: { snapshotId: scanJob.snapshotId },
-    outputSummary: isRunning
-      ? { status: scanJob.status, observedAt: snapshotEmittedAt }
-      : { status: scanJob.status },
-    errorSummary: scanJob.blockedReason,
-    startedAt: null,
-    completedAt:
-      runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.running
-        ? null
-        : scanJob.updatedAt.toISOString(),
-    durationMs: null,
-    attempt: scanJob.attemptCount,
-    waitingReason:
-      runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
-        ? scanJob.blockedReason
-        : null,
-  };
-}
-
 /**
  * Maps a technical-evidence report into a synthetic runtime completion or failure activity event.
  *
  * @param report - Technical-evidence report snapshot to convert.
  * @returns Synthetic evidence-report activity event suitable for the runtime feed.
  */
-function evidenceReportToSyntheticRuntimeActivity(
-  report: RuntimeEvidenceReportSnapshot,
-): AssessmentRuntimeActivityEvent {
-  const failed = report.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected;
-  return {
-    eventId: `technical-evidence-report:${report.id}:${report.status}`,
-    sequence: 0,
-    emittedAt: report.createdAt.toISOString(),
-    assessmentId: report.assessmentId,
-    runId: report.scanJobId,
-    correlationId: report.scanJobId,
-    eventType: failed
-      ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed
-      : ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-    runStatus: failed
-      ? ASSESSMENT_RUNTIME_RUN_STATUSES.failed
-      : ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
-    stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-    toolName: ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES.technicalEvidenceReport,
-    summary: failed
-      ? "Technical evidence report was rejected"
-      : "Technical evidence report was accepted",
-    inputSummary: {
-      scanJobId: report.scanJobId,
-      snapshotId: report.snapshotId,
-    },
-    outputSummary: { status: report.status },
-    errorSummary: report.rejectionReason,
-    startedAt: null,
-    completedAt: report.createdAt.toISOString(),
-    durationMs: null,
-    attempt: null,
-    waitingReason: null,
-  };
-}
-
 /**
  * Maps repository scan-job status to the normalized assessment runtime run status.
  *
  * @param status - Repository scan-job status value.
  * @returns Runtime status used by the activity contract.
  */
-function runtimeStatusForScanJob(status: string): AssessmentRuntimeRunStatus {
-  if (status === REPOSITORY_SCAN_JOB_STATUSES.running) {
-    return ASSESSMENT_RUNTIME_RUN_STATUSES.running;
-  }
-  if (status === REPOSITORY_SCAN_JOB_STATUSES.completed) {
-    return ASSESSMENT_RUNTIME_RUN_STATUSES.completed;
-  }
-  if (
-    status === REPOSITORY_SCAN_JOB_STATUSES.failed ||
-    status === REPOSITORY_SCAN_JOB_STATUSES.blocked ||
-    status === REPOSITORY_SCAN_JOB_STATUSES.blockedMapping
-  ) {
-    return ASSESSMENT_RUNTIME_RUN_STATUSES.failed;
-  }
-  return ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
-}
-
 function isActiveScanRuntimeStatus(status: string): boolean {
   return (
     status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
@@ -1622,93 +1356,18 @@ function isTerminalWorkerRuntimeEvent(
  * @param scanJob - Repository scan-job snapshot whose status and blocked reason should be summarized.
  * @returns Runtime summary text for the scan job.
  */
-function scanJobSummary(scanJob: RuntimeScanJobSnapshot): string {
-  const status = runtimeStatusForScanJob(scanJob.status);
-  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.running) {
-    return "Repository scan is running";
-  }
-  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed) {
-    return "Repository scan completed";
-  }
-  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed) {
-    return scanJob.blockedReason ?? "Repository scan failed";
-  }
-  return scanJob.blockedReason ?? "Repository scan is waiting";
-}
-
 /**
  * Groups persisted activity by run and derives each run's latest stage, status, active tools, and update time.
  *
  * @param events - Persisted runtime events to group chronologically by run ID.
  * @returns Derived runs sorted by most recent update first.
  */
-function deriveRuns(
-  events: AssessmentRuntimeActivityEvent[],
-): AssessmentRuntimeRun[] {
-  const byRunId = new Map<string, AssessmentRuntimeActivityEvent[]>();
-  for (const event of [...events].reverse()) {
-    const group = byRunId.get(event.runId) ?? [];
-    group.push(event);
-    byRunId.set(event.runId, group);
-  }
-
-  const runs: AssessmentRuntimeRun[] = [];
-  for (const group of byRunId.values()) {
-    const latest = group[group.length - 1];
-    if (!latest) {
-      continue;
-    }
-    runs.push({
-      assessmentId: latest.assessmentId,
-      runId: latest.runId,
-      stage: latest.stage,
-      status: latest.runStatus,
-      activeTools: deriveActiveTools(group),
-      updatedAt: latest.emittedAt,
-    });
-  }
-
-  return runs.sort((left, right) =>
-    right.updatedAt.localeCompare(left.updatedAt),
-  );
-}
-
 /**
  * Derives tools that are still active after replaying a run's tool lifecycle events in order.
  *
  * @param events - Chronological runtime events belonging to one run.
  * @returns Tool descriptors that have started but have not completed, failed, skipped, or begun waiting for input.
  */
-function deriveActiveTools(
-  events: AssessmentRuntimeActivityEvent[],
-): AssessmentRuntimeActiveTool[] {
-  const active = new Map<string, AssessmentRuntimeActiveTool>();
-  for (const event of events) {
-    if (!event.toolName) {
-      continue;
-    }
-    if (event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted) {
-      active.set(event.toolName, {
-        toolName: event.toolName,
-        status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
-        summary: event.summary,
-        startedAt: event.startedAt,
-        attempt: event.attempt,
-      });
-      continue;
-    }
-    if (
-      event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
-      event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed ||
-      event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
-      event.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput
-    ) {
-      active.delete(event.toolName);
-    }
-  }
-  return Array.from(active.values());
-}
-
 function deriveLatestPostFindingStates(
   events: PersistedAssessmentRuntimeEvent[],
 ): AssessmentPostFindingRuntimeState[] {

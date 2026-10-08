@@ -1,3 +1,4 @@
+import { z } from "zod";
 /** Requests and runtime acknowledgements are distinct, durable states. */
 export const ASSESSMENT_RUNTIME_CONTROL_STATES = {
   running: "RUNNING",
@@ -21,14 +22,24 @@ export const ASSESSMENT_RUNTIME_CONTROL_PROBLEM_CODES = {
   staleTarget: "RUNTIME_CONTROL_TARGET_STALE",
 } as const;
 
-export type AssessmentRuntimeControlResult = {
-  state: AssessmentRuntimeControlState;
-  targetRunId: string;
-  requestId: string | null;
-};
+export const assessmentRuntimeControlResultSchema = z.strictObject({
+  state: z.enum(ASSESSMENT_RUNTIME_CONTROL_STATES),
+  targetRunId: z.uuid(),
+  requestId: z.uuid().nullable(),
+});
+export type AssessmentRuntimeControlResult = z.infer<
+  typeof assessmentRuntimeControlResultSchema
+>;
+export const assessmentRuntimeControlRequestSchema = z.strictObject({
+  targetRunId: z.uuid(),
+});
 
-export function isAssessmentRuntimeControlState(value: unknown): value is AssessmentRuntimeControlState {
-  return Object.values(ASSESSMENT_RUNTIME_CONTROL_STATES).includes(value as AssessmentRuntimeControlState);
+export function isAssessmentRuntimeControlState(
+  value: unknown,
+): value is AssessmentRuntimeControlState {
+  return Object.values(ASSESSMENT_RUNTIME_CONTROL_STATES).includes(
+    value as AssessmentRuntimeControlState,
+  );
 }
 
 /** Private worker registration/acknowledgement. Never included in customer DTOs. */

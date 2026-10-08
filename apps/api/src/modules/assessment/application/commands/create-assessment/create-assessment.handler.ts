@@ -26,7 +26,8 @@ import { OutboxRepository } from "../../../../../platform/outbox/outbox.reposito
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
 import type { CreateAssessmentDto } from "../../contracts/assessment/create-assessment.contract.js";
 import { AssessmentRuntimePreparation } from "../../services/assessment-runtime-preparation.service.js";
-import { AssessmentMapper } from "../../mappers/assessment.mapper.js";
+import { AssessmentDetailLoader } from "../../../infrastructure/persistence/assessment-detail.loader.js";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_REPOSITORY,
   type AssessmentRepository,
@@ -55,6 +56,7 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
     private readonly prisma: PrismaService,
     private readonly lifecycle: AssessmentLifecycleCoordinator,
     private readonly runtimePreparation: AssessmentRuntimePreparation,
+    private readonly detail: AssessmentDetailLoader,
   ) {}
 
   /**
@@ -139,7 +141,12 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
       await this.outboxRepository.enqueue(outboxEvent, tx);
     });
 
-    return AssessmentMapper.toCreateDto(assessment, command.correlationId);
+    return this.detail.load({
+      assessmentId: assessment.id,
+      sessionUserId: assessment.ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: command.correlationId,
+    });
   }
 
   /**

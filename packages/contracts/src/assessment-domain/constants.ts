@@ -181,3 +181,6 @@ export const ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES = {
 } as const;
 export type AssessmentDomainAuditEventType =
   (typeof ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES)[keyof typeof ASSESSMENT_DOMAIN_AUDIT_EVENT_TYPES];
+
+/** Control journal boundary of the single server-owned Root. */
+export const ASSESSMENT_ROOT_BOUNDARY = "ASSESSMENT_ROOT" as const;

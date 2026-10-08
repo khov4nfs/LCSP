@@ -9,6 +9,7 @@ import {
   VERIFICATION_RESULT_STATUSES,
   type AssessmentAgentStreamEvent,
   canonicalAssessmentRuntimeSnapshotSchema,
+  workspaceAssessmentSnapshotSchema,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
   type AssessmentRuntimeEngineeringProgress,
@@ -80,44 +81,18 @@ export function parseAgentStreamEvent(
 export function parseRuntimeEvent(
   data: string,
 ): WorkspaceRuntimeContextValue | null {
-  const payload = parseObject(data);
-  if (payload === null || typeof payload.emitted_at !== "string") {
-    return null;
-  }
-
-  const runs = Array.isArray(payload.runs)
-    ? payload.runs.map(parseRun).filter(isDefined)
-    : [];
-  const recentActivity = Array.isArray(payload.recent_activity)
-    ? payload.recent_activity.map(parseActivityItem).filter(isDefined)
-    : [];
-  const engineeringProgress = Array.isArray(payload.engineering_progress)
-    ? payload.engineering_progress
-        .map(parseEngineeringProgress)
-        .filter(isDefined)
-    : [];
-  const repositorySnapshots = Array.isArray(payload.repository_snapshots)
-    ? payload.repository_snapshots
-        .map(parseRepositorySnapshot)
-        .filter(isDefined)
-    : [];
-  const scanJobs = Array.isArray(payload.scan_jobs)
-    ? payload.scan_jobs.map(parseScanJob).filter(isDefined)
-    : [];
-  const evidenceReports = Array.isArray(payload.evidence_reports)
-    ? payload.evidence_reports.map(parseEvidenceReport).filter(isDefined)
-    : [];
-  const postFindingStates = Array.isArray(payload.post_finding)
-    ? payload.post_finding.map(parsePostFindingState).filter(isDefined)
-    : [];
-  const canonicalAssessments = Array.isArray(payload.canonical_assessments)
-    ? payload.canonical_assessments
-        .map(parseCanonicalAssessment)
-        .filter(isDefined)
-    : [];
-  const canonicalEvents = Array.isArray(payload.canonical_events)
-    ? payload.canonical_events.map(parseCanonicalEvent).filter(isDefined)
-    : [];
+  const parsed = workspaceAssessmentSnapshotSchema.safeParse(parseObject(data));
+  if (!parsed.success) return null;
+  const payload = parsed.data;
+  const runs: WorkspaceRuntimeRun[] = [];
+  const recentActivity: WorkspaceRuntimeActivityItem[] = [];
+  const engineeringProgress: AssessmentRuntimeEngineeringProgress[] = [];
+  const repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[] = [];
+  const scanJobs: WorkspaceRuntimeScanJob[] = [];
+  const evidenceReports: WorkspaceRuntimeEvidenceReport[] = [];
+  const postFindingStates: AssessmentPostFindingRuntimeState[] = [];
+  const canonicalAssessments = payload.canonical_assessments;
+  const canonicalEvents = payload.canonical_events;
 
   const runsByAssessmentId = groupRunsByAssessmentId(runs);
   const recentActivityByAssessmentId =
@@ -129,7 +104,10 @@ export function parseRuntimeEvent(
     postFindingStates.map((state) => [state.assessmentId, state]),
   );
   const canonicalAssessmentByAssessmentId = Object.fromEntries(
-    canonicalAssessments.map((assessment) => [assessment.assessmentId, assessment]),
+    canonicalAssessments.map((assessment) => [
+      assessment.assessmentId,
+      assessment,
+    ]),
   );
   const canonicalEventsByAssessmentId =
     groupCanonicalEventsByAssessmentId(canonicalEvents);

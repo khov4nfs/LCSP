@@ -841,6 +841,19 @@ try {
     createHash("sha256").update(content).digest("hex"),
     artifact.hash.replace(/^sha256:/u, ""),
   );
+  // W5 customer consumer: exact immutable bytes and canonical read state, with no report generation.
+  const download = await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/download`, { headers: { authorization: `Bearer ${owner.token}` } });
+  eq(download.status, 200);
+  eq(await download.text(), content);
+  eq(download.headers.get("etag"), `"${artifact.hash.replace(/^sha256:/u, "")}"`);
+  ok(download.headers.get("content-disposition").includes(artifact.id));
+  const detailRead = await customerHttp("GET", `/assessments/${A.id}`, owner.token);
+  eq(detailRead.status, 200);
+  eq(detailRead.body.data.lifecycle.state, ASSESSMENT_LIFECYCLE_STATES.COMPLETE);
+  eq(detailRead.body.data.case.artifacts[0].artifactId, artifact.id);
+  ok(!Object.hasOwn(detailRead.body.data, "readiness_state") && !Object.hasOwn(detailRead.body.data, "status"));
+  eq((await fetch(`${base}/assessments/${B.id}/artifacts/${artifact.id}/download`, { headers: { authorization: `Bearer ${owner.token}` } })).status, 404);
+  eq((await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/download`)).status, 401);
   const reportArtifact = JSON.parse(content);
   eq(
     [

@@ -1,7 +1,15 @@
 import {
   ASSESSMENT_ERROR_CODES,
-  ASSESSMENT_EVENT_TYPES,
+  ASSESSMENT_LIFECYCLE_STATES,
+  ARTIFACT_LIFECYCLE_STATES,
+  AGENT_EXECUTION_STATES,
+  HUMAN_RESOLUTION_REQUEST_STATUSES,
 } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_ROOT_BOUNDARY,
+  ASSESSMENT_ROOT_COMMAND_TYPES,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
+} from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   AUDIT_ACTOR_TYPES,
@@ -143,15 +151,56 @@ export class AssessmentRuntimeControlService {
           status: HttpStatus.CONFLICT,
         });
       }
-      // W3/W4 own material-blocker and native resume authority. Until that
-      // proof exists, fail closed before changing the turn or enqueueing a
-      // native resume side effect.
-      if (input.action === Actions.resume) {
+      if (row.boundary !== ASSESSMENT_ROOT_BOUNDARY) {
         throw problemException(
           ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid,
           input.correlationId,
           { status: HttpStatus.CONFLICT },
         );
+      }
+      if (!stop) {
+        const assessment = await tx.assessment.findUniqueOrThrow({
+          where: { id: input.assessmentId },
+          include: {
+            runtime: true,
+            domainCase: { include: { portfolio: true } },
+          },
+        });
+        const pins = assessment.domainCase;
+        const snapshot = pins?.repositorySnapshotId
+          ? await tx.repositorySnapshot.findUnique({
+              where: { id: pins.repositorySnapshotId },
+            })
+          : null;
+        if (
+          assessment.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.PAUSED ||
+          assessment.runtime?.executionState !==
+            AGENT_EXECUTION_STATES.PAUSED ||
+          !assessment.runtime.checkpointId ||
+          !row.checkpointJson ||
+          !pins?.legalPortfolioVersionId ||
+          !pins.repositoryScanJobId ||
+          !snapshot ||
+          snapshot.assessmentId !== input.assessmentId ||
+          snapshot.commitSha !== pins.repositoryCommit ||
+          !pins.portfolio ||
+          ![
+            ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+            ARTIFACT_LIFECYCLE_STATES.SUPERSEDED,
+          ].some((state) => state === pins.portfolio?.lifecycleState) ||
+          (await tx.assessmentHumanRequest.count({
+            where: {
+              assessmentId: input.assessmentId,
+              status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+            },
+          }))
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.CHECKPOINT_INVALID,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
       }
       const requestId = randomUUID();
       const claimed = await tx.assessmentRuntimeTurn.updateMany({
@@ -164,45 +213,30 @@ export class AssessmentRuntimeControlService {
         });
         return { control: result(latest), changed: false };
       }
-      // Use the existing control delivery channel. It is handled outside the
-      // target thread so the stop cannot queue behind the run it must interrupt.
-      await this.outbox.enqueue(
-        buildOutboxMessageInput({
-          aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
-          aggregateId: input.assessmentId,
-          assessmentId: input.assessmentId,
-          eventType: ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox,
-          correlationId: input.correlationId,
-          causationId: requestId,
-          actor: { id: input.actor.userId, type: AUDIT_ACTOR_TYPES.user },
-          result: ASSESSMENT_EVENT_TYPES.interviewAgentPauseRequestedOutbox,
-          redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
-          idempotencyKey: `${row.id}:${requested}:${requestId}`,
-          payload: {
+      // Stop is observed at the Root's next native checkpoint boundary. Resume is an
+      // ordinary Root command on the server-owned thread, never an Interview continuation.
+      if (!stop)
+        await this.outbox.enqueue(
+          buildOutboxMessageInput({
+            aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+            aggregateId: input.assessmentId,
             assessmentId: input.assessmentId,
-            controlAction: input.action,
-            targetRunId: row.id,
-            threadId: row.threadId,
-            boundary: row.boundary,
-            logicalRunId: row.logicalRunId,
-            workflowRunId: row.workflowRunId,
-            requestId,
-            runtimeContext: row.contextJson,
-            checkpoint: row.checkpointJson,
-            ...(stop ? {} : { stoppedAt: row.updatedAt.toISOString() }),
-          },
-        }),
-        tx,
-      );
+            eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+            correlationId: input.correlationId,
+            causationId: requestId,
+            actor: { id: input.actor.userId, type: AUDIT_ACTOR_TYPES.user },
+            result: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+            redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
+            idempotencyKey: `root-resume:${row.id}:${requestId}`,
+            payload: { assessmentId: input.assessmentId },
+          }),
+          tx,
+        );
       return {
         control: { state: requested, targetRunId: row.id, requestId },
         changed: true,
       };
     });
-    // Retry publication too: state/outbox may have committed before an SSE
-    // journal failure. Stable lifecycle IDs make that repair idempotent.
-    if (outcome.control.targetRunId)
-      await this.emit(input.assessmentId, input.correlationId, outcome.control);
     return outcome.control;
   }
 

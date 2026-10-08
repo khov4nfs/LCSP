@@ -81,7 +81,7 @@ export async function upstreamRequest(
   };
 }
 
-async function upstreamBinaryRequest(
+export async function upstreamBinaryRequest(
   path: string | URL,
   init: UpstreamRequestInit = {},
 ): Promise<UpstreamBinaryResult> {

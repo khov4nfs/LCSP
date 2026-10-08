@@ -14,6 +14,10 @@ import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_ROOT_BOUNDARY,
+  ASSESSMENT_ROOT_COMMAND_TYPES,
+} from "@lcsp/contracts/assessment-domain";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_RUNTIME_CONTROL_ACTIONS as Actions,
@@ -58,7 +62,7 @@ describe("durable acknowledged runtime controls", () => {
         id,
         assessmentId,
         threadId,
-        boundary: "interview_context_updated",
+        boundary: ASSESSMENT_ROOT_BOUNDARY,
         logicalRunId,
         correlationId: "control-test",
         state: States.running,
@@ -107,7 +111,7 @@ describe("durable acknowledged runtime controls", () => {
         targetRunId,
         state,
         threadId,
-        boundary: "interview_context_updated",
+        boundary: ASSESSMENT_ROOT_BOUNDARY,
         logicalRunId: targetRunId,
         correlationId: "control-test",
         checkpoint: {
@@ -190,8 +194,9 @@ describe("durable acknowledged runtime controls", () => {
     const stopOutbox = await prisma.outboxMessage.findMany({
       where: { aggregateId: assessmentId },
     });
-    expect(stopOutbox).toHaveLength(1);
-    expect(JSON.stringify(stopOutbox[0].payload)).toContain(runId);
+    // Stop is observed at the Root's native checkpoint boundary, so it queues no
+    // outbox command; only a valid Continue enqueues ROOT_REQUESTED.
+    expect(stopOutbox).toHaveLength(0);
     await acknowledge(States.stopped);
     await expect(request(Actions.resume)).rejects.toMatchObject({
       status: 409,
@@ -203,7 +208,7 @@ describe("durable acknowledged runtime controls", () => {
       await prisma.outboxMessage.count({
         where: { aggregateId: assessmentId },
       }),
-    ).toBe(2);
+    ).toBe(1); // only the acknowledgement's paired lifecycle message
     const row = await prisma.assessmentRuntimeTurn.findUniqueOrThrow({
       where: { id: runId },
     });
@@ -212,6 +217,14 @@ describe("durable acknowledged runtime controls", () => {
       thread_id: threadId,
       checkpoint_id: "exact-checkpoint",
     });
+    expect(
+      await prisma.outboxMessage.count({
+        where: {
+          aggregateId: assessmentId,
+          eventType: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+        },
+      }),
+    ).toBe(0);
     const newRun = randomUUID();
     await registerRun(newRun, runId);
     await expect(request(Actions.resume)).rejects.toMatchObject({
@@ -221,7 +234,7 @@ describe("durable acknowledged runtime controls", () => {
       await prisma.outboxMessage.count({
         where: { aggregateId: assessmentId },
       }),
-    ).toBe(2);
+    ).toBe(1); // only the acknowledgement's paired lifecycle message
     // A delayed old Stop cannot interrupt the new generation.
     await expect(request(Actions.stop)).rejects.toMatchObject({ status: 409 });
   });
@@ -234,27 +247,20 @@ describe("durable acknowledged runtime controls", () => {
     expect((await request(Actions.resume)).state).toBe(States.completed);
   });
 
-  it("repairs failed lifecycle publication on retry without duplicate journal rows", async () => {
+  it("Stop does not depend on the legacy journal; acknowledgement repairs failed publication without duplicate rows", async () => {
     const publish = jest.spyOn(events, "publishAgentStreamEvent");
     try {
       publish.mockRejectedValueOnce(
         new Error("journal temporarily unavailable"),
       );
-      await expect(request(Actions.stop)).rejects.toThrow(
-        "journal temporarily unavailable",
-      );
-      expect((await controls.current(assessmentId))?.state).toBe(
-        States.stopRequested,
-      );
-      await request(Actions.stop);
+      expect((await request(Actions.stop)).state).toBe(States.stopRequested);
+      expect(publish).not.toHaveBeenCalled();
+      expect((await request(Actions.stop)).state).toBe(States.stopRequested);
       expect(
         await prisma.outboxMessage.count({
           where: { aggregateId: assessmentId },
         }),
-      ).toBe(1);
-      publish.mockRejectedValueOnce(
-        new Error("journal temporarily unavailable"),
-      );
+      ).toBe(0);
       await expect(acknowledge(States.stopped)).rejects.toThrow(
         "journal temporarily unavailable",
       );
@@ -266,11 +272,11 @@ describe("durable acknowledged runtime controls", () => {
       const rows = await prisma.assessmentRuntimeEvent.findMany({
         where: { assessmentId },
       });
-      expect(rows).toHaveLength(2);
+      expect(rows).toHaveLength(1);
       const replay = await firstValueFrom(
         events
           .observeAgentStreamEvents(ownerId, { assessmentId })
-          .pipe(take(2), toArray()),
+          .pipe(take(1), toArray()),
       );
       expect(
         replay.filter((event) => event.eventType === Events.runtimeStopped),
@@ -305,7 +311,7 @@ describe("durable acknowledged runtime controls", () => {
     const replay = await firstValueFrom(
       events
         .observeAgentStreamEvents(ownerId, { assessmentId })
-        .pipe(take(2), toArray()),
+        .pipe(take(1), toArray()),
     );
     expect(
       replay.filter((event) => event.eventType === Events.runtimeStopped),

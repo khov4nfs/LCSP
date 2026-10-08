@@ -2,9 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  type AssessmentRepositoryProvider,
-} from "@lcsp/contracts/assessment";
+import { type AssessmentRepositoryProvider } from "@lcsp/contracts/assessment";
 import {
   CREDENTIAL_PROVIDERS,
   GITHUB_CREDENTIAL_ERROR_CODES,
@@ -29,7 +27,10 @@ import { AgentTurn } from "@/features/workspace/components/molecules/agent-turn"
 import { TurnFooter } from "@/features/workspace/components/molecules/turn-footer";
 import { AssessmentComposer } from "@/features/workspace/components/organisms/assessment-composer";
 import { AssessmentTranscript } from "@/features/workspace/components/organisms/assessment-transcript";
-import { useReadinessStatusQuery } from "@/lib/api/assessment-queries";
+import {
+  useRepositorySetupQuery,
+  assessmentDomainKeys,
+} from "@/lib/api/assessment-domain-queries";
 import {
   useAuthSettingsProfileQuery,
   useMfaVerifyMutation,
@@ -71,36 +72,54 @@ export function RepositorySetupStep({
   const verifyMutation = useMfaVerifyMutation();
   const passwordReauthMutation = usePasswordReauthMutation();
   const credentialStatuses = useProviderCredentialStatusesQuery();
-  const [workingAssessmentId, setWorkingAssessmentId] = useState<string | undefined>(initialAssessmentId);
-  const setupQuery = useReadinessStatusQuery(workingAssessmentId ?? "");
-  const setupState = setupQuery.data?.kind === API_OUTCOME_KINDS.loaded
-    ? setupQuery.data.data.repositorySetup
-    : undefined;
+  const [workingAssessmentId, setWorkingAssessmentId] = useState<
+    string | undefined
+  >(initialAssessmentId);
+  const setupQuery = useRepositorySetupQuery(workingAssessmentId ?? "");
+  const setupState = setupQuery.data;
   const savedConnection = setupState?.connection;
   const savedAnswer = deriveRepositorySetupAnswer(savedConnection ?? null);
   const [submitErrorKey, setSubmitErrorKey] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [credentialDialogOpen, setCredentialDialogOpen] = useState(false);
-  const [credentialDialogMode, setCredentialDialogMode] = useState<ProviderCredentialDialogMode>(PROVIDER_CREDENTIAL_DIALOG_MODES.connect);
+  const [credentialDialogMode, setCredentialDialogMode] =
+    useState<ProviderCredentialDialogMode>(
+      PROVIDER_CREDENTIAL_DIALOG_MODES.connect,
+    );
   const [confirmAccessOpen, setConfirmAccessOpen] = useState(false);
-  const [pendingReauthRetry, setPendingReauthRetry] = useState<(() => void) | null>(null);
-  const [confirmAccessMfaError, setConfirmAccessMfaError] = useState<{ titleKey: MessageKey; detailKey: MessageKey } | null>(null);
-  const [confirmAccessPasswordError, setConfirmAccessPasswordError] = useState<{ titleKey: MessageKey; detailKey: MessageKey } | null>(null);
+  const [pendingReauthRetry, setPendingReauthRetry] = useState<
+    (() => void) | null
+  >(null);
+  const [confirmAccessMfaError, setConfirmAccessMfaError] = useState<{
+    titleKey: MessageKey;
+    detailKey: MessageKey;
+  } | null>(null);
+  const [confirmAccessPasswordError, setConfirmAccessPasswordError] = useState<{
+    titleKey: MessageKey;
+    detailKey: MessageKey;
+  } | null>(null);
   const profile = profileQuery.data;
 
   const form = useForm<RepositorySetupFormData>({
     resolver: zodResolver(repositorySetupSchema),
     defaultValues: { provider: undefined, repositoryUrl: "" },
   });
-  const provider = useWatch({ control: form.control, name: "provider" }) as GitProviderValue | undefined;
-  const repositoryUrl = useWatch({ control: form.control, name: "repositoryUrl" }) ?? "";
+  const provider = useWatch({ control: form.control, name: "provider" }) as
+    GitProviderValue | undefined;
+  const repositoryUrl =
+    useWatch({ control: form.control, name: "repositoryUrl" }) ?? "";
   const credentialProvider = toCredentialProvider(provider);
-  const activeCredentialStatus = credentialStatuses.data?.find((status) => status.provider === credentialProvider);
+  const activeCredentialStatus = credentialStatuses.data?.find(
+    (status) => status.provider === credentialProvider,
+  );
   const credentialConfigured = activeCredentialStatus?.configured === true;
-  const canEnterRepository = Boolean(provider && credentialProvider && credentialConfigured);
-  const validationErrorKey = form.formState.errors.repositoryUrl || form.formState.errors.provider
-    ? "pages.assessmentFlow.errors.repositoryUrl"
-    : undefined;
+  const canEnterRepository = Boolean(
+    provider && credentialProvider && credentialConfigured,
+  );
+  const validationErrorKey =
+    form.formState.errors.repositoryUrl || form.formState.errors.provider
+      ? "pages.assessmentFlow.errors.repositoryUrl"
+      : undefined;
   const activeErrorKey = validationErrorKey ?? submitErrorKey;
 
   function closeConfirmAccessDialog(cancelled = true) {
@@ -110,24 +129,37 @@ export function RepositorySetupStep({
     setConfirmAccessPasswordError(null);
   }
 
-  async function handleConfirmAccessPasswordSubmit(values: { password: string }) {
+  async function handleConfirmAccessPasswordSubmit(values: {
+    password: string;
+  }) {
     if (!pendingReauthRetry) return;
     setConfirmAccessPasswordError(null);
-    const outcome = await passwordReauthMutation.mutateAsync(values).catch(() => ({
-      kind: API_OUTCOME_KINDS.error,
-      titleKey: "pages.signIn.errors.requestFailedTitle" as const,
-      detailKey: "pages.signIn.errors.requestFailedDetail" as const,
-    }));
+    const outcome = await passwordReauthMutation
+      .mutateAsync(values)
+      .catch(() => ({
+        kind: API_OUTCOME_KINDS.error,
+        titleKey: "pages.signIn.errors.requestFailedTitle" as const,
+        detailKey: "pages.signIn.errors.requestFailedDetail" as const,
+      }));
     if (outcome.kind === API_OUTCOME_KINDS.invalid) {
-      setConfirmAccessPasswordError({ titleKey: "auth.errors.invalidCredentials.title", detailKey: "auth.errors.invalidCredentials.detail" });
+      setConfirmAccessPasswordError({
+        titleKey: "auth.errors.invalidCredentials.title",
+        detailKey: "auth.errors.invalidCredentials.detail",
+      });
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.sessionInvalid) {
-      setConfirmAccessPasswordError({ titleKey: "auth.errors.sessionInvalid.title", detailKey: "auth.errors.sessionInvalid.detail" });
+      setConfirmAccessPasswordError({
+        titleKey: "auth.errors.sessionInvalid.title",
+        detailKey: "auth.errors.sessionInvalid.detail",
+      });
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.error) {
-      setConfirmAccessPasswordError({ titleKey: outcome.titleKey, detailKey: outcome.detailKey });
+      setConfirmAccessPasswordError({
+        titleKey: outcome.titleKey,
+        detailKey: outcome.detailKey,
+      });
       return;
     }
     const retry = pendingReauthRetry;
@@ -153,9 +185,15 @@ export function RepositorySetupStep({
     }
     setConfirmAccessMfaError(
       outcome.kind === API_OUTCOME_KINDS.sessionInvalid
-        ? { titleKey: "auth.errors.sessionInvalid.title", detailKey: "auth.errors.sessionInvalid.detail" }
+        ? {
+            titleKey: "auth.errors.sessionInvalid.title",
+            detailKey: "auth.errors.sessionInvalid.detail",
+          }
         : outcome.kind === API_OUTCOME_KINDS.mfaRequired
-          ? { titleKey: "auth.errors.mfaRequired.title", detailKey: "auth.errors.mfaRequired.detail" }
+          ? {
+              titleKey: "auth.errors.mfaRequired.title",
+              detailKey: "auth.errors.mfaRequired.detail",
+            }
           : { titleKey: outcome.titleKey, detailKey: outcome.detailKey },
     );
   }
@@ -168,7 +206,9 @@ export function RepositorySetupStep({
     try {
       if (!assessmentId) {
         if (!data) return;
-        const outcome = await createAssessment.mutateAsync({ name: assessmentNameFromUrl(data.repositoryUrl) });
+        const outcome = await createAssessment.mutateAsync({
+          name: assessmentNameFromUrl(data.repositoryUrl),
+        });
         if (outcome.kind !== API_OUTCOME_KINDS.created) {
           setSubmitErrorKey("pages.assessmentFlow.errors.createAssessment");
           return;
@@ -183,7 +223,10 @@ export function RepositorySetupStep({
           setSubmitErrorKey("pages.assessmentFlow.errors.repositorySetup");
           return;
         }
-        connection = await connectAssessmentRepository(assessmentId, data.repositoryUrl);
+        connection = await connectAssessmentRepository(
+          assessmentId,
+          data.repositoryUrl,
+        );
       }
       await startRepositoryAnalysis(assessmentId, {
         connectionId: connection.connectionId,
@@ -197,7 +240,9 @@ export function RepositorySetupStep({
     } finally {
       try {
         if (assessmentId) {
-          await queryClient.invalidateQueries({ queryKey: apiQueryKeys.assessment.readiness(assessmentId) });
+          await queryClient.invalidateQueries({
+            queryKey: assessmentDomainKeys.setup(assessmentId),
+          });
         }
       } finally {
         setIsSubmitting(false);
@@ -207,11 +252,19 @@ export function RepositorySetupStep({
   const handleSubmit = form.handleSubmit((data) => runSetup(data));
 
   return (
-    <main className="flex h-full min-h-0 flex-col" data-surface="repository-setup">
-      <AssessmentTranscript autoScrollKey={[provider, activeErrorKey].join(":")}>
+    <main
+      className="flex h-full min-h-0 flex-col"
+      data-surface="repository-setup"
+    >
+      <AssessmentTranscript
+        autoScrollKey={[provider, activeErrorKey].join(":")}
+      >
         <RepositorySetupConversation
           provider={savedAnswer?.provider ?? provider}
-          repositoryUrl={savedAnswer?.repositoryUrl ?? (isSubmitting ? repositoryUrl.trim() : undefined)}
+          repositoryUrl={
+            savedAnswer?.repositoryUrl ??
+            (isSubmitting ? repositoryUrl.trim() : undefined)
+          }
           onProviderChange={(value) => {
             form.setValue("provider", value, { shouldValidate: true });
             form.setValue("repositoryUrl", "");
@@ -219,16 +272,27 @@ export function RepositorySetupStep({
             setSubmitErrorKey(undefined);
           }}
           disabled={isSubmitting || Boolean(savedConnection)}
-          footer={!savedConnection && provider && credentialProvider && !credentialConfigured ? (
-            <TurnFooter actions={[{
-              id: "configure-provider",
-              label: t("pages.assessmentFlow.configureProvider"),
-              onSelect: () => {
-                setCredentialDialogMode(PROVIDER_CREDENTIAL_DIALOG_MODES.connect);
-                setCredentialDialogOpen(true);
-              },
-            }]} />
-          ) : undefined}
+          footer={
+            !savedConnection &&
+            provider &&
+            credentialProvider &&
+            !credentialConfigured ? (
+              <TurnFooter
+                actions={[
+                  {
+                    id: "configure-provider",
+                    label: t("pages.assessmentFlow.configureProvider"),
+                    onSelect: () => {
+                      setCredentialDialogMode(
+                        PROVIDER_CREDENTIAL_DIALOG_MODES.connect,
+                      );
+                      setCredentialDialogOpen(true);
+                    },
+                  },
+                ]}
+              />
+            ) : undefined
+          }
         />
         {activeErrorKey ? (
           <AgentTurn>
@@ -241,9 +305,15 @@ export function RepositorySetupStep({
       </AssessmentTranscript>
       {savedConnection ? (
         <div className="flex shrink-0 items-center justify-between gap-4 border-t p-4">
-          <p className="text-sm text-muted-foreground">{t("pages.assessmentFlow.resumeSetupDescription")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("pages.assessmentFlow.resumeSetupDescription")}
+          </p>
           <Button disabled={isSubmitting} onClick={() => void runSetup()}>
-            {t(isSubmitting ? "pages.assessmentFlow.resumingSetup" : "pages.assessmentFlow.resumeSetup")}
+            {t(
+              isSubmitting
+                ? "pages.assessmentFlow.resumingSetup"
+                : "pages.assessmentFlow.resumeSetup",
+            )}
           </Button>
         </div>
       ) : (
@@ -254,13 +324,21 @@ export function RepositorySetupStep({
             if (submitErrorKey) setSubmitErrorKey(undefined);
           }}
           onSubmit={handleSubmit}
-          disabled={!canEnterRepository || Boolean(workingAssessmentId && !setupState)}
+          disabled={
+            !canEnterRepository || Boolean(workingAssessmentId && !setupState)
+          }
           submitting={isSubmitting}
-          placeholder={t(canEnterRepository ? "pages.assessmentFlow.repositoryPlaceholder" : "pages.assessmentFlow.repositoryDisabledPlaceholder")}
+          placeholder={t(
+            canEnterRepository
+              ? "pages.assessmentFlow.repositoryPlaceholder"
+              : "pages.assessmentFlow.repositoryDisabledPlaceholder",
+          )}
         />
       )}
       {workingAssessmentId && !setupState && !setupQuery.isFetching ? (
-        <Button variant="outline" onClick={() => void setupQuery.refetch()}>{t("pages.assessmentFlow.retrySetupState")}</Button>
+        <Button variant="outline" onClick={() => void setupQuery.refetch()}>
+          {t("pages.assessmentFlow.retrySetupState")}
+        </Button>
       ) : null}
       {credentialProvider ? (
         <ProviderCredentialDialog
@@ -307,11 +385,15 @@ export function RepositorySetupStep({
             onSubmit: handleConfirmAccessOtpSubmit,
             otpLabelKey: "pages.mfaVerify.otpLabel",
             otpDescriptionKey: "pages.mfaVerify.otpDescription",
-            otpPlaceholderKey: "pages.workspace.settingsHub.reauth.otpPlaceholder",
+            otpPlaceholderKey:
+              "pages.workspace.settingsHub.reauth.otpPlaceholder",
             verifyLabelKey: "pages.workspace.settingsHub.reauth.verify",
             verifyingLabelKey: "pages.workspace.settingsHub.reauth.verifying",
-            switchToMfaLabelKey: profile.mfa_enrolled ? "pages.workspace.settingsHub.reauth.useAuthenticator" : "pages.workspace.settingsHub.reauth.setUpMfa",
-            switchToPasswordLabelKey: "pages.workspace.settingsHub.reauth.usePassword",
+            switchToMfaLabelKey: profile.mfa_enrolled
+              ? "pages.workspace.settingsHub.reauth.useAuthenticator"
+              : "pages.workspace.settingsHub.reauth.setUpMfa",
+            switchToPasswordLabelKey:
+              "pages.workspace.settingsHub.reauth.usePassword",
             onSetupRequest: () => router.push(API_REDIRECT_LOCATIONS.mfaEnroll),
             errorTitleKey: confirmAccessMfaError?.titleKey,
             errorKey: confirmAccessMfaError?.detailKey ?? null,
@@ -325,28 +407,44 @@ export function RepositorySetupStep({
 function resolveRepositorySetupErrorKey(error: unknown): string {
   if (error instanceof Error) {
     const code = error.message;
-    if (code === GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid || code === GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired || code === GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired) {
+    if (
+      code === GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid ||
+      code === GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired ||
+      code === GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired
+    ) {
       return "pages.workspace.settingsHub.repositories.credentialInvalidDescription";
     }
-    if (code === GITHUB_CREDENTIAL_ERROR_CODES.repositoryAccessDenied || code === GITHUB_CREDENTIAL_ERROR_CODES.repositoryUnavailable) {
+    if (
+      code === GITHUB_CREDENTIAL_ERROR_CODES.repositoryAccessDenied ||
+      code === GITHUB_CREDENTIAL_ERROR_CODES.repositoryUnavailable
+    ) {
       return "pages.workspace.settingsHub.repositories.repositoryDeniedDescription";
     }
     if (code === GITHUB_CREDENTIAL_ERROR_CODES.credentialApprovalRequired) {
       return "pages.workspace.settingsHub.repositories.approvalRequiredDescription";
     }
-    if (code === GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable || code === GITHUB_INTEGRATION_ERROR_CODES.cliConnectDisabled) {
+    if (
+      code === GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable ||
+      code === GITHUB_INTEGRATION_ERROR_CODES.cliConnectDisabled
+    ) {
       return "pages.workspace.settingsHub.repositories.serviceUnavailableDescription";
     }
   }
   return "pages.assessmentFlow.errors.repositorySetup";
 }
 
-function toCredentialProvider(provider?: AssessmentRepositoryProvider): CredentialProvider | undefined {
-  return Object.values(CREDENTIAL_PROVIDERS).find((value) => value === provider);
+function toCredentialProvider(
+  provider?: AssessmentRepositoryProvider,
+): CredentialProvider | undefined {
+  return Object.values(CREDENTIAL_PROVIDERS).find(
+    (value) => value === provider,
+  );
 }
 
 function assessmentNameFromUrl(repositoryUrl: string) {
-  const pathname = new URL(repositoryUrl).pathname.replace(/\/$/u, "").replace(/\.git$/u, "");
+  const pathname = new URL(repositoryUrl).pathname
+    .replace(/\/$/u, "")
+    .replace(/\.git$/u, "");
   return pathname.split("/").filter(Boolean).slice(-2).join("/");
 }
 

@@ -1,4 +1,5 @@
 import type { CallHandler, ExecutionContext } from "@nestjs/common";
+import { StreamableFile } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { jest } from "@jest/globals";
 import { lastValueFrom, of } from "rxjs";
@@ -7,6 +8,16 @@ import { ResponseTransformInterceptor } from "./response-transform.interceptor.j
 import { BYPASS_ENVELOPE_KEY } from "./bypass-envelope.decorator.js";
 
 describe("ResponseTransformInterceptor", () => {
+  it("preserves StreamableFile before Nest writes the download headers/body", async () => {
+    const stream = new StreamableFile(Buffer.from("immutable report"));
+    const result = await lastValueFrom(
+      new ResponseTransformInterceptor().intercept(
+        createExecutionContext({ headersSent: false }),
+        createCallHandler(stream),
+      ),
+    );
+    expect(result).toBe(stream);
+  });
   it("automatically wraps bare payload in result envelope { ok: true, data }", async () => {
     const response = { headersSent: false };
     const interceptor = new ResponseTransformInterceptor();
