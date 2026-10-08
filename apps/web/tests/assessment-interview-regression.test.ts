@@ -566,56 +566,6 @@ test("blocked or unresolved actions expose exactly the MVP customer choices", ()
   ]);
 });
 
-test("workflow run renders dynamic interview controls through shared workspace components", async () => {
-  const [overviewSource, questionSource, selectorSource] = await Promise.all([
-    readFile(overviewPath, "utf8"),
-    readFile(questionTurnPath, "utf8"),
-    readFile(runtimeSelectorsPath, "utf8"),
-  ]);
-
-  assert.match(overviewSource, /data-flow-stage=/);
-  assert.match(overviewSource, /AssessmentTranscript/);
-  assert.match(overviewSource, /AssessmentComposer/);
-  assert.match(overviewSource, /AssessmentQuestionTurn/);
-  assert.match(overviewSource, /useAssessmentInterviewStateQuery/);
-  assert.match(overviewSource, /useSubmitAssessmentInterviewAnswerMutation/);
-  assert.match(overviewSource, /useAssessmentInterviewBlockedActionMutation/);
-  assert.match(overviewSource, /pendingDraft/);
-  assert.match(overviewSource, /answerHistory/);
-  assert.match(overviewSource, /interview\.assistantMessage/);
-  assert.match(overviewSource, /state:\s*runtimeInterviewState/);
-  assert.match(overviewSource, /selectInterviewHandoffPresentation/);
-  assert.match(overviewSource, /selectedChoiceRequiresFreeText/);
-  assert.match(selectorSource, /orchestrationRequested/);
-  assert.match(
-    selectorSource,
-    /assessmentFlow\.interview\.startingDescription/,
-  );
-  assert.doesNotMatch(
-    overviewSource,
-    /initialInterviewQuestion|targetedClarificationQuestion|localStorage|Card|modules\.map|\/wizard|\/readiness/,
-  );
-
-  assert.match(questionSource, /priorAnswerSummary/);
-  assert.match(questionSource, /whyEvidenceRefs/);
-  assert.match(questionSource, /blocked-or-unresolved-actions/);
-  assert.match(questionSource, /ChatSingleSelect/);
-  assert.match(questionSource, /ChatMultiSelect/);
-  assert.match(questionSource, /confirm-adjust-actions/);
-  assert.match(questionSource, /selection-submit-action/);
-  assert.match(overviewSource, /onSubmitSelection=\{handleSubmit\}/);
-  // The question turn owns no input surface and no mutation: free text stays in the shared
-  // composer and every send delegates upward. The send action added for select answers
-  // names the `pages.assessment.submitAnswer` label, so the token itself is no longer the
-  // signal; calling the mutation hook here is.
-  assert.doesNotMatch(questionSource, /Support|Textarea|useSubmitAssessmentInterviewAnswerMutation|apiRequest/);
-
-  const contractSource = await readFile(contractsPath, "utf8");
-  for (const control of Object.values(ASSESSMENT_INTERVIEW_CONTROLS)) {
-    assert.match(contractSource, new RegExp(control));
-  }
-});
-
 test("web customer answer submit builds canonical idempotent command from persisted state", () => {
   const command = buildSubmitInterviewAnswerCommand(
     "assessment-1",

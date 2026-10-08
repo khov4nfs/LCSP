@@ -1,7 +1,8 @@
 import {
   ASSESSMENT_EVENT_TYPES,
-  ASSESSMENT_STATUS_CODES,
+  ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
+import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
 /**
  * AC-001: RBAC-authorized assessment creation, audit event.
  * AC-003: Readiness-only state, no risk level, blocked/degraded messaging.
@@ -16,7 +17,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { httpRequest, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
-import type { AssessmentDetailDto } from "../src/modules/assessment/application/contracts/assessment/assessment-detail.contract.js";
 import type { CreateAssessmentDto } from "../src/modules/assessment/application/contracts/assessment/create-assessment.contract.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import {
@@ -70,7 +70,7 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
     const result = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
-      .send({ name: "My AI System Assessment", organization_id: orgId });
+      .send({ name: "My AI System Assessment" });
     const body = successBody<CreateAssessmentDto>(result);
 
     assert.equal(result.status, 201);
@@ -80,7 +80,7 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
       "user-1",
       "Assessment owner must be the creating Manager",
     );
-    assert.equal(body.status, ASSESSMENT_STATUS_CODES.wizardInProgress);
+    assert.equal(body.lifecycle?.state, ASSESSMENT_LIFECYCLE_STATES.PREPARING);
   });
 
   it("AC-001: Assessment creation writes ASSESSMENT_CREATED audit event", async () => {
@@ -88,7 +88,7 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
     await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
-      .send({ name: "Audit Test Assessment", organization_id: orgId });
+      .send({ name: "Audit Test Assessment" });
 
     const audit = await prisma.auditEvent.findFirst({
       where: { eventType: ASSESSMENT_EVENT_TYPES.created },
@@ -109,7 +109,7 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
     const create = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
-      .send({ name: "Before rename", organization_id: orgId });
+      .send({ name: "Before rename" });
     const assessmentId = successBody<CreateAssessmentDto>(create).assessment_id;
 
     const result = await httpRequest(app)
@@ -140,7 +140,7 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
     const create = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
-      .send({ name: "Delete me", organization_id: orgId });
+      .send({ name: "Delete me" });
     const assessmentId = successBody<CreateAssessmentDto>(create).assessment_id;
 
     const result = await httpRequest(app)
@@ -166,13 +166,13 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
     );
   });
 
-  // AC-003: Wizard readiness — no risk level exposed
-  it("AC-003: Assessment readiness response never uses risk/severity/compliant wording", async () => {
+  // AC-003 (W5): readiness/classification are retired; lifecycle is canonical only
+  it("AC-003: retired readiness route is gone and canonical detail exposes no readiness/classification", async () => {
     if (!managerToken) return;
     const create = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
-      .send({ name: "No Risk Label", organization_id: orgId });
+      .send({ name: "No Readiness" });
 
     const assessmentId = (create.body as CreateAssessmentDto)?.assessment_id;
     if (!assessmentId) return;
@@ -180,44 +180,14 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
     const readiness = await httpRequest(app)
       .get(`/assessments/${assessmentId}/readiness`)
       .set("Authorization", `Bearer ${managerToken}`);
-
-    const body = JSON.stringify(readiness.body);
-    assert.doesNotMatch(
-      body,
-      /\brisk\b/i,
-      "readiness response must not contain 'risk'",
-    );
-    assert.doesNotMatch(body, /\bcompliant\b/i);
-    assert.doesNotMatch(body, /\bseverity\b/i);
-    assert.doesNotMatch(
-      body,
-      /\bapproved\b/i,
-      "must not use 'approved' wording",
-    );
-  });
-
-  it("AC-003: Classification is locked when no accepted TechnicalEvidenceReport exists", async () => {
-    if (!managerToken) return;
-    const create = await httpRequest(app)
-      .post("/assessments")
-      .set("Authorization", `Bearer ${managerToken}`)
-      .send({ name: "Lock Test", organization_id: orgId });
-
-    const assessmentId = (create.body as CreateAssessmentDto)?.assessment_id;
-    if (!assessmentId) return;
+    assert.equal(readiness.status, 404);
 
     const detail = await httpRequest(app)
       .get(`/assessments/${assessmentId}`)
       .set("Authorization", `Bearer ${managerToken}`);
-    const body = successBody<AssessmentDetailDto>(detail);
-
-    assert.ok(
-      body.readiness_state.classification_locked === true,
-      "classification must be locked when no evidence report exists",
-    );
-    assert.ok(
-      body.readiness_state.lock_reason,
-      "lock_reason must explain why classification is locked",
-    );
+    const body = successBody<AssessmentDetail>(detail);
+    assert.equal(body.lifecycle?.state, ASSESSMENT_LIFECYCLE_STATES.PREPARING);
+    assert.ok(!("readiness_state" in body));
+    assert.ok(!("classification_result" in body));
   });
 });

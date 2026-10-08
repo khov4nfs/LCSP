@@ -10,6 +10,8 @@ import {
   getProblemRequiredAction,
 } from "./problem-envelope.ts";
 import { API_REDIRECT_LOCATIONS } from "./outcome-kinds.ts";
+import type { z } from "zod";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 
 export type ApiRequestResult = {
   payload: unknown;
@@ -59,6 +61,22 @@ export async function apiJson<T>(
 ): Promise<T | null> {
   const { payload, ok } = await apiRequest(input, init);
   return ok ? (payload as T) : null;
+}
+
+export async function apiValidated<T>(
+  input: RequestInfo | URL,
+  schema: z.ZodType<T>,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await apiRequest(input, init);
+  if (!response.ok)
+    throw new Error(
+      response.problemCode ?? SHARED_ERROR_CODES.upstreamUnavailable,
+    );
+  const parsed = schema.safeParse(response.payload);
+  if (!parsed.success)
+    throw new Error(SHARED_ERROR_CODES.upstreamResponseInvalid);
+  return parsed.data;
 }
 
 function toApiResult(payload: unknown): AppResult | null {

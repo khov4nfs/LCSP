@@ -1,34 +1,27 @@
 "use client";
-
-import { useQueryClient } from "@tanstack/react-query";
-import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-
-import { apiQueryKeys } from "../../../../lib/api/query-keys.ts";
-import { apiRequest } from "../../../../lib/api/api-request.ts";
+import { useQueryClient } from "@tanstack/react-query";
+import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
 import {
-  parseAgentStreamEvent,
   parseRuntimeEvent,
+  parseAgentStreamEvent,
   runtimeFingerprint,
   affectedAssessmentIds,
 } from "../../utils/workspace-runtime-parser";
 import {
   WORKSPACE_RUNTIME_CONNECTION_STATES,
+  type WorkspaceRuntimeContextValue,
   type WorkspaceRuntimeAssessmentTimeline,
   type WorkspaceRuntimeAgentStreamHistoryState,
-  type WorkspaceRuntimeContextValue,
 } from "../../types/workspace-runtime.types";
-
 export { WORKSPACE_RUNTIME_CONNECTION_STATES };
-
 const initialRuntime: WorkspaceRuntimeContextValue = {
   connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connecting,
   emittedAt: null,
@@ -67,11 +60,6 @@ const initialRuntime: WorkspaceRuntimeContextValue = {
   loadMoreAgentStreamHistory: () => Promise.resolve(false),
 };
 
-const WorkspaceRuntimeContext =
-  createContext<WorkspaceRuntimeContextValue>(initialRuntime);
-const AGENT_STREAM_VISIBLE_EVENT_LIMIT = 5_000;
-const AGENT_STREAM_HISTORY_PAGE_LIMIT = 5_000;
-
 export type ScopedAgentStreamSource = {
   onopen?: ((event: Event) => void) | null;
   onerror?: ((event: Event) => void) | null;
@@ -96,324 +84,57 @@ export type ScopedAgentStreamEntry = {
   connect: () => void;
 };
 
+const WorkspaceRuntimeContext =
+  createContext<WorkspaceRuntimeContextValue>(initialRuntime);
+const AGENT_STREAM_VISIBLE_EVENT_LIMIT = 5_000;
+const AGENT_STREAM_HISTORY_PAGE_LIMIT = 5_000;
 export function WorkspaceRuntimeProvider({
   children,
 }: {
   children: ReactNode;
 }) {
   const [runtime, setRuntime] = useState(initialRuntime);
-  const queryClient = useQueryClient();
-  const latestFingerprint = useRef<string | null>(null);
-  const scopedAgentStreams = useRef<Map<string, ScopedAgentStreamEntry>>(
-    new Map(),
-  );
-  const initialHistoryRequests = useRef<Set<string>>(new Set());
-  const historyPageRequests = useRef<Set<string>>(new Set());
-
-  const appendAgentStreamEvent = useCallback((event: MessageEvent<string>) => {
-    const parsed = parseAgentStreamEvent(event.data);
-    if (parsed === null) return false;
-    setRuntime((current) => {
-      const previous =
-        current.agentStreamEventsByAssessmentId[parsed.assessmentId] ?? [];
-      if (previous.some((item) => item.eventId === parsed.eventId)) {
-        return current;
-      }
-      const historyState =
-        current.agentStreamHistoryByAssessmentId[parsed.assessmentId] ??
-        emptyAgentStreamHistoryState();
-      const nextEvents = mergeAgentStreamEvents(previous, [parsed], {
-        limit: agentStreamRetentionLimit(historyState),
-      });
-      return withAgentStreamEvents(current, {
-        ...current.agentStreamEventsByAssessmentId,
-        [parsed.assessmentId]: nextEvents,
-      });
-    });
-    return true;
-  }, []);
-
-  const loadAgentStreamHistoryPage = useCallback(
-    async (
-      assessmentId: string,
-      options: { cursor: string | null; initial: boolean },
-    ) => {
-      const scopedAssessmentId = assessmentId.trim();
-      if (!scopedAssessmentId) return false;
-      const requestKey = `${scopedAssessmentId}:${options.cursor ?? ""}`;
-      if (historyPageRequests.current.has(requestKey)) return false;
-      historyPageRequests.current.add(requestKey);
-      setRuntime((current) =>
-        withAgentStreamHistoryState(current, scopedAssessmentId, {
-          ...(current.agentStreamHistoryByAssessmentId[scopedAssessmentId] ??
-            emptyAgentStreamHistoryState()),
-          isLoading: true,
-          error: null,
-        }),
-      );
-      try {
-        const { ok, payload } = await apiRequest(
-          workspaceRuntimeHistoryUrl(
-            scopedAssessmentId,
-            options.cursor,
-            AGENT_STREAM_HISTORY_PAGE_LIMIT,
-          ),
-        );
-        const page = ok ? parseAgentStreamHistoryPage(payload) : null;
-        if (page === null) {
-          setRuntime((current) =>
-            withAgentStreamHistoryState(current, scopedAssessmentId, {
-              ...(current.agentStreamHistoryByAssessmentId[
-                scopedAssessmentId
-              ] ?? emptyAgentStreamHistoryState()),
-              isLoading: false,
-              error: "history-load-failed",
-            }),
-          );
-          return false;
-        }
-        setRuntime((current) => {
-          const previous =
-            current.agentStreamEventsByAssessmentId[scopedAssessmentId] ?? [];
-          const previousHistory =
-            current.agentStreamHistoryByAssessmentId[scopedAssessmentId] ??
-            emptyAgentStreamHistoryState();
-          const nextHistoryState = {
-            hasMore: page.hasMore,
-            nextCursor: page.nextCursor,
-            isLoading: false,
-            error: null,
-            hasLoadedOlderHistory:
-              previousHistory.hasLoadedOlderHistory || !options.initial,
-            hasHydratedCompleteHistory:
-              previousHistory.hasHydratedCompleteHistory ||
-              (!page.hasMore && page.nextCursor === null),
-          } satisfies WorkspaceRuntimeAgentStreamHistoryState;
-          const nextEvents = mergeAgentStreamEvents(previous, page.events, {
-            limit: agentStreamRetentionLimit(nextHistoryState),
-          });
-          return withAgentStreamHistoryState(
-            withAgentStreamEvents(current, {
-              ...current.agentStreamEventsByAssessmentId,
-              [scopedAssessmentId]: nextEvents,
-            }),
-            scopedAssessmentId,
-            nextHistoryState,
-          );
-        });
-        return true;
-      } catch {
-        setRuntime((current) =>
-          withAgentStreamHistoryState(current, scopedAssessmentId, {
-            ...(current.agentStreamHistoryByAssessmentId[scopedAssessmentId] ??
-              emptyAgentStreamHistoryState()),
-            isLoading: false,
-            error: "history-load-failed",
-          }),
-        );
-        return false;
-      } finally {
-        historyPageRequests.current.delete(requestKey);
-      }
-    },
-    [],
-  );
-
-  const loadMoreAgentStreamHistory = useCallback(
-    async (assessmentId: string) => {
-      const scopedAssessmentId = assessmentId.trim();
-      if (!scopedAssessmentId) return false;
-      const historyState =
-        runtime.agentStreamHistoryByAssessmentId[scopedAssessmentId] ??
-        emptyAgentStreamHistoryState();
-      if (
-        historyState.isLoading ||
-        (historyState.error === null &&
-          (!historyState.hasMore || historyState.nextCursor === null))
-      ) {
-        return false;
-      }
-      if (historyState.error !== null && historyState.nextCursor === null) {
-        initialHistoryRequests.current.add(scopedAssessmentId);
-        const loaded = await loadAgentStreamHistoryPage(scopedAssessmentId, {
-          cursor: null,
-          initial: true,
-        });
-        retainInitialAgentStreamHistoryRequest(
-          initialHistoryRequests.current,
-          scopedAssessmentId,
-          loaded,
-        );
-        return loaded;
-      }
-      return loadAgentStreamHistoryPage(scopedAssessmentId, {
-        cursor: historyState.nextCursor,
-        initial: false,
-      });
-    },
-    [loadAgentStreamHistoryPage, runtime.agentStreamHistoryByAssessmentId],
-  );
-
-  const subscribeAssessmentRuntime = useCallback(
-    (assessmentId: string) => {
-      const scopedAssessmentId = assessmentId.trim();
-      if (
-        scopedAssessmentId &&
-        !initialHistoryRequests.current.has(scopedAssessmentId)
-      ) {
-        initialHistoryRequests.current.add(scopedAssessmentId);
-        void loadAgentStreamHistoryPage(scopedAssessmentId, {
-          cursor: null,
-          initial: true,
-        }).then((loaded) => {
-          retainInitialAgentStreamHistoryRequest(
-            initialHistoryRequests.current,
-            scopedAssessmentId,
-            loaded,
-          );
-        });
-      }
-      return subscribeScopedAssessmentRuntimeStream({
-        assessmentId,
-        appendAgentStreamEvent,
-        scopedAgentStreams: scopedAgentStreams.current,
-        replayAgentStreamHistory: (replayAssessmentId) =>
-          loadAgentStreamHistoryPage(replayAssessmentId, {
-            cursor: null,
-            initial: true,
-          }),
-      });
-    },
-    [appendAgentStreamEvent, loadAgentStreamHistoryPage],
-  );
-
+  const client = useQueryClient();
+  const fingerprint = useRef<string | null>(null);
   useEffect(() => {
-    let source: EventSource;
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    let attempts = 0;
-    let stopped = false;
-    let needsResync = false;
-    const activeScopedAgentStreams = scopedAgentStreams.current;
-    const onRuntime = (event: MessageEvent<string>) => {
-      const parsed = parseRuntimeEvent(event.data);
-      if (parsed !== null) {
-        attempts = 0;
-        setRuntime((current) =>
-          withAgentStreamHistoryByAssessmentId(
-            withAgentStreamEvents(
-              parsed,
-              current.agentStreamEventsByAssessmentId,
-            ),
-            current.agentStreamHistoryByAssessmentId,
-          ),
-        );
-        const fingerprint = runtimeFingerprint(parsed);
-        if (latestFingerprint.current !== fingerprint) {
-          latestFingerprint.current = fingerprint;
-          // Runtime outcomes can change lifecycle status (e.g. AI not detected).
-          void queryClient.invalidateQueries({
-            queryKey: apiQueryKeys.workspace.assessments(),
-          });
-          for (const assessmentId of affectedAssessmentIds(parsed)) {
-            void queryClient.invalidateQueries({
-              queryKey: apiQueryKeys.assessment.interview(assessmentId),
-            });
-            void queryClient.invalidateQueries({
-              queryKey: apiQueryKeys.assessment.readiness(assessmentId),
-            });
-            void queryClient.invalidateQueries({
-              queryKey: apiQueryKeys.assessment.evidence(assessmentId),
-            });
-            void queryClient.invalidateQueries({
-              queryKey:
-                apiQueryKeys.assessment.evidenceGraphOverviewRoot(assessmentId),
-            });
-            void queryClient.invalidateQueries({
-              queryKey: apiQueryKeys.assessment.classification(assessmentId),
-            });
-            void queryClient.invalidateQueries({
-              queryKey: apiQueryKeys.assessment.artifacts(assessmentId),
-            });
-          }
+    const source = new EventSource("/api/workspace/runtime-events");
+    source.addEventListener(
+      "workspace.runtime",
+      (event: MessageEvent<string>) => {
+        const parsed = parseRuntimeEvent(event.data);
+        if (!parsed) {
+          setRuntime((value) => ({
+            ...value,
+            connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected,
+          }));
+          return;
         }
-      }
-    };
-
-    const onAgentStream = (event: MessageEvent<string>) => {
-      if (appendAgentStreamEvent(event)) {
-        attempts = 0;
-      }
-    };
-
-    const connect = () => {
-      if (stopped) return;
-      source = new EventSource(workspaceRuntimeEventsUrl());
-      source.addEventListener("workspace.runtime", onRuntime);
-      source.addEventListener("workspace.agent-stream", onAgentStream);
-      source.onopen = () => {
-        if (needsResync) {
-          latestFingerprint.current = null;
-          void queryClient.invalidateQueries({
-            queryKey: apiQueryKeys.workspace.detail(),
-          });
-          void queryClient.invalidateQueries({
-            queryKey: apiQueryKeys.workspace.assessments(),
-          });
-          void queryClient.invalidateQueries({
-            predicate: (query) => query.queryKey[0] === "assessment",
-          });
-          needsResync = false;
+        setRuntime(parsed);
+        const next = runtimeFingerprint(parsed);
+        if (next !== fingerprint.current) {
+          fingerprint.current = next;
+          void client.invalidateQueries({ queryKey: ["assessments"] });
+          for (const id of affectedAssessmentIds(parsed))
+            void client.invalidateQueries({ queryKey: ["assessment", id] });
         }
-        setRuntime((current) => ({
-          ...current,
-          connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
-        }));
-      };
-      source.onerror = () => {
-        source.removeEventListener("workspace.runtime", onRuntime);
-        source.removeEventListener("workspace.agent-stream", onAgentStream);
-        source.onopen = null;
-        source.onerror = null;
-        source.close();
-        needsResync = true;
-        setRuntime((current) => ({
-          ...current,
-          connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected,
-        }));
-        const delay = Math.min(1000 * 2 ** Math.min(attempts++, 5), 30000);
-        retryTimer = setTimeout(connect, delay);
-      };
-    };
-    connect();
-
-    return () => {
-      stopped = true;
-      clearTimeout(retryTimer);
-      for (const entry of activeScopedAgentStreams.values()) {
-        closeScopedAssessmentRuntimeStream(entry);
-      }
-      activeScopedAgentStreams.clear();
-      source.removeEventListener("workspace.runtime", onRuntime);
-      source.removeEventListener("workspace.agent-stream", onAgentStream);
-      source.onopen = null;
-      source.onerror = null;
-      source.close();
-    };
-  }, [appendAgentStreamEvent, queryClient]);
-
+      },
+    );
+    source.onerror = () =>
+      setRuntime((value) => ({
+        ...value,
+        connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected,
+      }));
+    return () => source.close();
+  }, [client]);
   return (
-    <WorkspaceRuntimeContext.Provider
-      value={{
-        ...runtime,
-        subscribeAssessmentRuntime,
-        loadMoreAgentStreamHistory,
-      }}
-    >
+    <WorkspaceRuntimeContext.Provider value={runtime}>
       {children}
     </WorkspaceRuntimeContext.Provider>
   );
 }
-
+export function useWorkspaceRuntime() {
+  return useContext(WorkspaceRuntimeContext);
+}
 export function workspaceRuntimeEventsUrl(
   assessmentId?: string,
   agentStreamOnly = false,
@@ -456,7 +177,9 @@ export function subscribeScopedAssessmentRuntimeStream({
   assessmentId: string;
   appendAgentStreamEvent: (event: MessageEvent<string>) => boolean;
   scopedAgentStreams: Map<string, ScopedAgentStreamEntry>;
-  replayAgentStreamHistory?: (assessmentId: string) => Promise<unknown> | unknown;
+  replayAgentStreamHistory?: (
+    assessmentId: string,
+  ) => Promise<unknown> | unknown;
   reconnectDelayMs?: (attempt: number) => number;
   createEventSource?: (url: string) => ScopedAgentStreamSource;
 }): () => void {
@@ -712,11 +435,3 @@ function emptyAgentStreamHistoryState(): WorkspaceRuntimeAgentStreamHistoryState
     hasHydratedCompleteHistory: false,
   };
 }
-
-export function useWorkspaceRuntime() {
-  return useContext(WorkspaceRuntimeContext);
-}
-
-const __workspaceRuntimeTestUtils = {
-  parseRuntimeEvent,
-};

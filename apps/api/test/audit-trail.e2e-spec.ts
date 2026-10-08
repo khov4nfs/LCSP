@@ -70,7 +70,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
     await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
-      .send({ name: "Audit Coverage Test", organization_id: orgId });
+      .send({ name: "Audit Coverage Test" });
 
     const audit = await prisma.auditEvent.findFirst({
       where: { eventType: ASSESSMENT_EVENT_TYPES.created },
@@ -163,7 +163,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
     const createResult = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
-      .send({ name: "Org Consistency Test", organization_id: orgId });
+      .send({ name: "Org Consistency Test" });
     const assessmentId = successBody<{ assessment_id: string }>(
       createResult,
     ).assessment_id;

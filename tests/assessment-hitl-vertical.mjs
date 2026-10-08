@@ -165,6 +165,34 @@ try {
     eq(setup.status, 201, JSON.stringify(setup.body));
     return id;
   };
+  // W5 customer Stop/Continue uses native checkpoints of the Root, separate from human waits.
+  const pausedAssessment = await create("W5 native Root Stop and Continue");
+  const controlScript = path.join(root, "deepagents/tests/vertical/root_control.py");
+  const controlRun = (mode) => runPython(controlScript, [base, workerKey, pausedAssessment, dir, mode], { env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0], W5_CUSTOMER_TOKEN: owner.token } });
+  const paused = await controlRun("pause");
+  eq(paused.result.state, AGENT_EXECUTION_STATES.PAUSED, JSON.stringify(paused));
+  const pausedState = await state(pausedAssessment);
+  eq([pausedState.als, pausedState.aes], [ASSESSMENT_LIFECYCLE_STATES.PAUSED, AGENT_EXECUTION_STATES.PAUSED]);
+  eq(pausedState.checkpoint, paused.result.checkpointId);
+  const stopReplay = await http("POST", `/assessments/${pausedAssessment}/runtime/stop`, { targetRunId: paused.result.executionId }, owner.token);
+  eq(stopReplay.body.data.state, "STOPPED");
+  eq((await http("POST", `/assessments/${pausedAssessment}/runtime/continue`, { targetRunId: randomUUID() }, owner.token)).status, 409);
+  eq((await http("POST", `/assessments/${pausedAssessment}/runtime/continue`, { targetRunId: paused.result.executionId }, other.token)).status, 404);
+  const continued = await http("POST", `/assessments/${pausedAssessment}/runtime/continue`, { targetRunId: paused.result.executionId }, owner.token);
+  eq(continued.status, 201, JSON.stringify(continued.body));
+  eq(continued.body.data.state, "RESUME_REQUESTED");
+  eq((await state(pausedAssessment)).als, ASSESSMENT_LIFECYCLE_STATES.PAUSED); // request != acknowledgement
+  const resumedControl = await controlRun("resume");
+  eq(resumedControl.result.state, AGENT_EXECUTION_STATES.SUCCEEDED, JSON.stringify(resumedControl));
+  eq([resumedControl.result.threadId, resumedControl.result.executionId], [paused.result.threadId, paused.result.executionId]);
+  ok(resumedControl.pid !== paused.pid, "replacement worker resumed the same checkpoint");
+  eq((await state(pausedAssessment)).als, ASSESSMENT_LIFECYCLE_STATES.ACTIVE);
+  const customerDetail = await http("GET", `/assessments/${pausedAssessment}`, undefined, owner.token);
+  eq(customerDetail.body.data.runtime.threadId, paused.result.threadId);
+  eq(customerDetail.body.data.lifecycle.state, ASSESSMENT_LIFECYCLE_STATES.ACTIVE);
+  eq((await http("GET", `/assessments/${pausedAssessment}/interview`, undefined, owner.token)).status, 404);
+  eq((await http("GET", `/assessments/${pausedAssessment}/readiness`, undefined, owner.token)).status, 404);
+
   if (unresolvableOnly) {
     writeFileSync(
       path.join(dir, "README.md"),

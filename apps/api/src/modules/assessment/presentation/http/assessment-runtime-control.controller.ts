@@ -25,59 +25,87 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AssessmentRuntimeControlService } from "../../../../platform/runtime-events/assessment-runtime-control.service.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
-import { AssessmentInterviewRuntimeService } from "../../application/services/assessment-interview-runtime.service.js";
+
+import { CommandBus, QueryBus } from "@nestjs/cqrs";
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import {
+  claimAssessmentRootRequestSchema,
+  ASSESSMENT_DOMAIN_ERROR_CODES,
+} from "@lcsp/contracts/assessment-domain";
+import { assessmentRuntimeControlRequestSchema } from "@lcsp/contracts/evidence";
+import { GetRuntimeControlQuery } from "../../application/queries/get-runtime-control/get-runtime-control.query.js";
+import { ControlAssessmentRuntimeCommand } from "../../application/commands/control-assessment-runtime/control-assessment-runtime.command.js";
+
+const idPipe = () =>
+  new ZodValidationPipe(
+    claimAssessmentRootRequestSchema.shape.assessmentId,
+    ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    422,
+  );
+const controlPipe = () =>
+  new ZodValidationPipe(
+    assessmentRuntimeControlRequestSchema,
+    ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
+    422,
+  );
 
 @Controller("assessments/:assessmentId/runtime")
 @UseGuards(RbacGuard)
 @RequireRoles(AUTH_USER_ROLES.customer)
 export class AssessmentRuntimeControlController {
   constructor(
-    private readonly controls: AssessmentRuntimeControlService,
-    private readonly interview: AssessmentInterviewRuntimeService,
+    private readonly commands: CommandBus,
+    private readonly queries: QueryBus,
   ) {}
-
   @Get("control")
   async current(
-    @Param("assessmentId") assessmentId: string,
+    @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    await this.interview.assertAssessmentVisible(assessmentId, req.rbacContext);
-    return resultEnvelope(await this.controls.current(assessmentId));
-  }
-
-  @Post("stop")
-  async stop(
-    @Param("assessmentId") assessmentId: string,
-    @Req() req: AuthenticatedRequest,
-    @Body() body: { targetRunId?: string },
-  ) {
-    await this.interview.assertAssessmentVisible(assessmentId, req.rbacContext);
     return resultEnvelope(
-      await this.controls.request({
-        assessmentId,
-        actor: req.rbacContext,
-        correlationId: req.correlationId ?? assessmentId,
-        action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
-        targetRunId: body?.targetRunId,
-      }),
+      await this.queries.execute(
+        new GetRuntimeControlQuery(
+          assessmentId,
+          req.rbacContext,
+          req.correlationId ?? assessmentId,
+        ),
+      ),
     );
   }
-
+  @Post("stop")
+  async stop(
+    @Param("assessmentId", idPipe()) assessmentId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body(controlPipe()) body: { targetRunId: string },
+  ) {
+    return resultEnvelope(
+      await this.commands.execute(
+        new ControlAssessmentRuntimeCommand(
+          assessmentId,
+          req.rbacContext,
+          ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
+          body.targetRunId,
+          req.correlationId ?? assessmentId,
+        ),
+      ),
+    );
+  }
   @Post("continue")
   async resume(
-    @Param("assessmentId") assessmentId: string,
+    @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() req: AuthenticatedRequest,
-    @Body() body: { targetRunId?: string },
+    @Body(controlPipe()) body: { targetRunId: string },
   ) {
-    await this.interview.assertAssessmentVisible(assessmentId, req.rbacContext);
     return resultEnvelope(
-      await this.controls.request({
-        assessmentId,
-        actor: req.rbacContext,
-        correlationId: req.correlationId ?? assessmentId,
-        action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
-        targetRunId: body?.targetRunId,
-      }),
+      await this.commands.execute(
+        new ControlAssessmentRuntimeCommand(
+          assessmentId,
+          req.rbacContext,
+          ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
+          body.targetRunId,
+          req.correlationId ?? assessmentId,
+        ),
+      ),
     );
   }
 }

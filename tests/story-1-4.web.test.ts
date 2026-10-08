@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import * as assert from "node:assert/strict";
 
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { PUBLIC_ENTRY_ROUTES } from "@lcsp/web/auth-entry";
 import {
   canCreateAssessment,
-  getAssessmentStatusLabelKey,
   toAssessmentsOutcome,
   toWorkspaceOutcome,
   WORKSPACE_ROUTES,
@@ -78,45 +78,26 @@ test("workspace outcome normalizes the role-only flat API contract", () => {
   );
 });
 
-test("assessment status values resolve to business-language i18n keys", () => {
-  assert.equal(
-    getAssessmentStatusLabelKey("WIZARD_IN_PROGRESS"),
-    "pages.workspace.statuses.WIZARD_IN_PROGRESS",
-  );
-  assert.equal(
-    getAssessmentStatusLabelKey("WIZARD_SUBMITTED"),
-    "pages.workspace.statuses.WIZARD_SUBMITTED",
-  );
-  assert.equal(
-    getAssessmentStatusLabelKey("EVIDENCE_REQUIRED"),
-    "pages.workspace.statuses.EVIDENCE_REQUIRED",
-  );
-  assert.equal(
-    getAssessmentStatusLabelKey("SCAN_IN_PROGRESS"),
-    "pages.workspace.statuses.SCAN_IN_PROGRESS",
-  );
-  assert.equal(
-    getAssessmentStatusLabelKey("CLASSIFICATION_LOCKED"),
-    "pages.workspace.statuses.CLASSIFICATION_LOCKED",
-  );
-  assert.equal(
-    getAssessmentStatusLabelKey("READY_FOR_REVIEW"),
-    "pages.workspace.statuses.READY_FOR_REVIEW",
-  );
-});
-
-test("assessment list outcome accepts only array payloads", () => {
+test("assessment list outcome accepts only canonical list payloads", () => {
+  const item = {
+    assessment_id: "11111111-1111-4111-8111-111111111111",
+    name: "EU AI Act readiness",
+    lifecycle: {
+      state: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+      assessmentRevision: 1,
+    },
+    runtime: null,
+    created_at: "2026-07-12T01:00:00.000Z",
+    updated_at: "2026-07-12T01:00:00.000Z",
+  };
   assert.deepEqual(
     toAssessmentsOutcome(
       {
-        assessments: [
-          {
-            id: "assessment-1",
-            name: "EU AI Act readiness",
-            status: "WIZARD_IN_PROGRESS",
-            created_at: "2026-07-12T01:00:00.000Z",
-          },
-        ],
+        assessments: [item],
+        total: 1,
+        page: 1,
+        page_size: 20,
+        correlationId: "c-1",
       },
       true,
     ),
@@ -124,10 +105,11 @@ test("assessment list outcome accepts only array payloads", () => {
       kind: "loaded",
       assessments: [
         {
-          id: "assessment-1",
-          name: "EU AI Act readiness",
-          status: "WIZARD_IN_PROGRESS",
-          created_at: "2026-07-12T01:00:00.000Z",
+          id: item.assessment_id,
+          name: item.name,
+          lifecycle: item.lifecycle,
+          runtime: null,
+          created_at: item.created_at,
         },
       ],
     },

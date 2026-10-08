@@ -1,5 +1,57 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
+  legalPreparation: {
+    title: "Chuẩn bị pháp lý",
+    description:
+      "Tác nhân Chuẩn bị pháp lý xây dựng danh mục. Kiểm tra tính toàn vẹn tự động kích hoạt danh mục hợp lệ.",
+    active: "Danh mục đang hoạt động",
+    unavailable: "Chưa khả dụng",
+    corpus: "Tập nguồn pháp lý bất biến",
+    selectCorpus: "Chọn tập nguồn",
+    start: "Bắt đầu chuẩn bị",
+    starting: "Đang bắt đầu…",
+    history: "Lịch sử danh mục",
+    version: "Phiên bản",
+    state: "Vòng đời",
+    rules: "Quy tắc pháp lý / kỹ thuật",
+    runs: "Lượt chuẩn bị",
+    states: {
+      BUILDING: "Đang xây dựng",
+      ACTIVE: "Đang hoạt động",
+      SUPERSEDED: "Đã thay thế",
+      INVALID: "Không hợp lệ",
+    },
+  },
+  agenticAssessment: {
+    outcomes: {
+      APPLICABLE: "Áp dụng",
+      NOT_APPLICABLE: "Không áp dụng",
+      MET: "Đạt",
+      NOT_MET: "Không đạt",
+      COMPLIANT: "Tuân thủ",
+      NON_COMPLIANT: "Không tuân thủ",
+    },
+    loading: "Đang tải đánh giá…",
+    unavailable: "Trạng thái đánh giá chính thức chưa khả dụng.",
+    requestFailed:
+      "Không thể hoàn tất yêu cầu. Vui lòng làm mới đánh giá trước khi thử lại.",
+    retry: "Thử lại",
+    humanRequests: "Cần một thông tin thực tế để tiếp tục",
+    doesNotKnow: "Tôi không biết",
+    answerRequired: "Vui lòng nhập câu trả lời hợp lệ.",
+    selectAnswer: "Chọn câu trả lời",
+    unknownRecorded:
+      "Câu trả lời đã được ghi nhận. Câu hỏi vẫn mở cho đến khi có thông tin.",
+    submitFact: "Gửi thông tin",
+    saving: "Đang lưu…",
+    decisions: "Quyết định đã được chấp nhận",
+    activity: "Hoạt động đánh giá",
+    downloadReport: "Tải báo cáo cuối cùng",
+    stop: "Dừng",
+    continue: "Tiếp tục",
+    controlPending: "Đang chờ hệ thống xác nhận…",
+    facts: "Thông tin đã xác nhận",
+  },
   accountLifecycle: {
     inviteTitle: "Tạo người dùng",
     inviteDescription:
@@ -287,7 +339,8 @@ export const viPages = {
       interviewFailed: "Gặp sự cố khi xử lý câu trả lời của bạn.",
       investigateRunning: "Đang điều tra các engineering rule đã chọn…",
       investigateCompleted: "Đã điều tra xong các engineering rule đã chọn.",
-      investigateFailed: "Không thể hoàn tất điều tra các engineering rule đã chọn.",
+      investigateFailed:
+        "Không thể hoàn tất điều tra các engineering rule đã chọn.",
       gateRunning: "Đang xem xét kết quả điều tra…",
       gateCompleted: "Đã hoàn tất đánh giá tuân thủ.",
       gateFailed: "Không thể hoàn tất đánh giá tuân thủ.",
@@ -796,8 +849,7 @@ export const viPages = {
       capabilityOneTitle: "Phiên đánh giá được điều phối",
       capabilityOneDescription:
         "Quét, Phỏng vấn, Phân tích quy tắc và Cổng kiểm tra xác định hoạt động như một luồng đánh giá được hiển thị rõ ràng.",
-      capabilityOneMeta:
-        "Quét · Phỏng vấn · Phân tích quy tắc · Cổng kiểm tra",
+      capabilityOneMeta: "Quét · Phỏng vấn · Phân tích quy tắc · Cổng kiểm tra",
       capabilityTwoTitle: "Connector có kiểm soát",
       capabilityTwoDescription:
         "Kết nối GitHub, Bitbucket hoặc Azure DevOps trong khi vẫn xác định rõ phạm vi kho mã và không gian làm việc.",
@@ -1113,7 +1165,7 @@ export const viPages = {
     insightsTitle: "Tổng quan assessment",
     totalAssessments: "Tổng số assessment",
     needsAttention: "Cần tiếp tục xử lý",
-    readyForReview: "Sẵn sàng review",
+    readyForReview: "Đánh giá đã hoàn tất",
     recentAssessmentsTitle: "Assessment gần đây",
     recentAssessmentsDescription:
       "Mở nhanh các assessment được tạo gần đây hoặc xem toàn bộ danh sách.",
@@ -1712,8 +1764,10 @@ export const viPages = {
     sourceCodeUnavailable: "Không thể tải mã nguồn liên quan.",
     resumePipeline: "Tiếp tục",
     resumeQueued: "Đã đưa assessment vào hàng đợi tiếp tục.",
-    interviewMutationConflict: "Câu hỏi, trạng thái hoặc bằng chứng đã thay đổi. Nội dung bạn soạn được giữ để đối chiếu; không tự áp dụng cho câu hỏi mới.",
-    interviewMutationUnconfirmed: "Chưa xác nhận được kết quả thao tác. Nội dung đã soạn được giữ lại. Hãy kiểm tra trạng thái hoặc gửi lại đúng yêu cầu trước đó.",
+    interviewMutationConflict:
+      "Câu hỏi, trạng thái hoặc bằng chứng đã thay đổi. Nội dung bạn soạn được giữ để đối chiếu; không tự áp dụng cho câu hỏi mới.",
+    interviewMutationUnconfirmed:
+      "Chưa xác nhận được kết quả thao tác. Nội dung đã soạn được giữ lại. Hãy kiểm tra trạng thái hoặc gửi lại đúng yêu cầu trước đó.",
     interviewRetainedDraft: "Nội dung của thao tác trước để đối chiếu",
     interviewRetryOriginal: "Gửi lại yêu cầu trước",
     interviewRefreshState: "Tải lại trạng thái Interview",
@@ -1748,10 +1802,10 @@ export const viPages = {
       completedWithoutDuration: "Đã suy nghĩ",
     },
     repositorySetupDescription:
-      "Trước khi assessment bắt đầu, hãy kết nối repository cần quét. Tôi sẽ phân tích source đã pin trước, sau đó mới bắt đầu Interview.",
+      "Kết nối kho mã và cố định nguồn. Tác nhân Đánh giá điều tra nguồn và chỉ yêu cầu thông tin từ con người khi cần thiết.",
     providerQuestion: "Chọn Git provider",
     providerHelp:
-      "Chọn provider để mở kết nối bảo mật. Repository và commit đã pin là bắt buộc trước khi scan.",
+      "Chọn nhà cung cấp để mở kết nối bảo mật. Điều tra yêu cầu kho mã và bản cam kết được cố định.",
     providerComingSoon: "Sắp hỗ trợ",
     configureProvider: "Cấu hình kết nối bảo mật",
     repositoryPlaceholder: "Dán URL repository để tiếp tục...",
@@ -1786,7 +1840,8 @@ export const viPages = {
       retryScan: "Thử lại quét source",
       retryingScan: "Đang tạo scan mới",
       retryError: "Không thể thử lại quét source. Hãy thử lại sau.",
-      graphPendingDescription: "Quét đã hoàn tất và evidence đã được chấp nhận. Graph chưa được xác nhận sẵn sàng để xem.",
+      graphPendingDescription:
+        "Quét đã hoàn tất và evidence đã được chấp nhận. Graph chưa được xác nhận sẵn sàng để xem.",
       reconnecting: "Đang kết nối lại luồng cập nhật trực tiếp...",
       activities: {
         connect: "Đã kết nối Git provider",
@@ -2764,8 +2819,7 @@ export const viPages = {
       },
       trend: {
         title: "Xu hướng nạp tiền đã quyết toán",
-        description:
-          "Giao dịch chuyển tiền đến đã xác nhận theo ngày",
+        description: "Giao dịch chuyển tiền đến đã xác nhận theo ngày",
         dayAria: "Số tiền nạp đã quyết toán ngày {day}",
       },
       columns: {
@@ -2856,92 +2910,6 @@ export const viPages = {
         INVITED: "Đã mời",
         DEACTIVATED: "Đã vô hiệu",
       },
-    },
-    corpusVersions: {
-      title: "Phiên bản corpus",
-      description:
-        "Quản lý các phiên bản corpus pháp lý có thẩm quyền và vòng đời đã được xác thực.",
-      detailTitle: "Phiên bản corpus · {version}",
-      currentMeta: "{count} nguồn · {publishedAt}",
-      create: "Tạo phiên bản mới",
-      creating: "Đang chuẩn bị...",
-      createUnavailable:
-        "Chưa có quy trình tạo phiên bản có thẩm quyền an toàn cho giao diện.",
-      current: "Phiên bản đang công bố",
-      view: "Xem",
-      versions: "Phiên bản",
-      version: "Phiên bản",
-      status: "Trạng thái",
-      sources: "Nguồn",
-      rules: "Quy tắc",
-      created: "Ngày tạo",
-      published: "Đã công bố",
-      actions: "Thao tác",
-      noValue: "Không có",
-      unavailable: "Không khả dụng",
-      loading: "Đang tải phiên bản corpus",
-      error: "Không thể tải phiên bản corpus",
-      retry: "Thử lại",
-      back: "Quay lại danh sách",
-      metadata: "Siêu dữ liệu phiên bản",
-      changes: "Thay đổi từ phiên bản trước",
-      readiness: "Mức sẵn sàng công bố",
-      snapshot: "Ảnh chụp nguồn và quy tắc",
-      category: "Danh mục",
-      count: "Số lượng",
-      change: "Thay đổi",
-      validation: "Xác thực",
-      baseVersion: "Dựa trên",
-      createdBy: "Người tạo",
-      sourceAdded: "Nguồn thêm",
-      sourceRemoved: "Nguồn xoá",
-      sourceUpdated: "Nguồn cập nhật",
-      legalRulesChanged: "LegalRules thay đổi",
-      engineeringRulesChanged: "EngineeringRules thay đổi",
-      conflicts: "Xung đột chưa xử lý",
-      publish: "Công bố phiên bản",
-      publishing: "Đang công bố...",
-      publishUnavailable:
-        "Không thể công bố cho tới khi readiness có thẩm quyền được báo cáo đầy đủ.",
-      discard: "Huỷ bản nháp",
-      discardTitle: "Huỷ bản nháp này?",
-      discardDescription:
-        "Thao tác chỉ thay đổi bản nháp này. Phiên bản đã công bố và lịch sử vẫn được giữ.",
-      cancel: "Huỷ",
-      confirmDiscard: "Huỷ bản nháp",
-      discarding: "Đang huỷ...",
-      discardFailedTitle: "Không thể huỷ bản nháp",
-      discardFailedDetail:
-        "Bản nháp chưa bị huỷ. Hãy kiểm tra trạng thái vòng đời hiện tại rồi thử lại.",
-      note: "Phiên bản đã công bố là bất biến. Phiên bản lịch sử vẫn có thể truy vết.",
-      statuses: {
-        DRAFT: "Bản nháp",
-        APPROVED: "Đã công bố",
-        REJECTED: "Đã huỷ",
-        SUPERSEDED: "Đã thay thế",
-      },
-      readinessStates: {
-        READY: "Đạt",
-        PASSED: "Đã vượt qua",
-        PENDING: "Đang chờ",
-        FAILED: "Không đạt",
-        BLOCKED: "Bị chặn",
-        UNAVAILABLE: "Không khả dụng",
-      },
-      readinessChecks: {
-        SOURCE_PARSING: "Phân tích nguồn",
-        RETRIEVAL_VALIDATION: "Xác thực truy xuất",
-        INTEGRITY_MANIFEST: "Manifest toàn vẹn",
-        RULE_SNAPSHOT: "Ảnh chụp quy tắc",
-        DIFF_REVIEW: "Rà soát thay đổi",
-      },
-      snapshotCategories: {
-        SOURCE_DOCUMENTS: "Tài liệu nguồn đã duyệt",
-        CORPUS_CHUNKS: "Phân đoạn corpus",
-        LEGAL_RULES: "Quy tắc pháp lý",
-        ENGINEERING_RULES: "Quy tắc kỹ thuật",
-      },
-      changeSummary: "Thêm {added} · Xóa {removed} · Cập nhật {updated}",
     },
     userDetail: {
       title: "Tài khoản người dùng",

@@ -13,6 +13,7 @@ export class FinishAssessmentRootCommand extends Command<
     public readonly correlationId: string,
     public readonly checkpointId?: string,
     public readonly requestIds?: string[],
+    public readonly controlRequestId?: string,
   ) {
     super();
   }
