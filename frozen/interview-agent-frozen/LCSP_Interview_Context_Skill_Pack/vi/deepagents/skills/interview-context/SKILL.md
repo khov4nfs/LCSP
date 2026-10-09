@@ -340,15 +340,23 @@ Investigator mode chỉ return `CONTEXT_RESOLVED` khi exact `businessContextNeed
 
 ## Customer statement normalization
 
-Dùng `CUSTOMER_CONFIRMED` trực tiếp chỉ cho predefined-choice direct ASK answer (`BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT`, không comment) — không có gì cần interpret.
+Áp dụng quy tắc quyết định xác nhận tất định (deterministic confirmation decision rule):
 
-`FREE_TEXT` answer, choice `requiresFreeText` (ví dụ `OTHER`), hoặc answer có comment không rỗng luôn cần interpretation, dù wording rõ ràng đến đâu. Giữ `CUSTOMER_STATED` cho đến khi được confirm qua một lượt `CONFIRM_ADJUST` — không phải một câu hỏi khác riêng.
+1. **Direct + lossless statement** — Nếu câu trả lời của Customer là trực tiếp, tường minh và không làm mất/thay đổi ngữ nghĩa (dù qua predefined choices hay direct free text mà normalization giữ nguyên đúng nghĩa, không thay đổi hay gán thêm thẩm quyền/phạm vi), statement có thể được chấp nhận trực tiếp thành confirmed customer context (`CUSTOMER_CONFIRMED`). Không yêu cầu thêm lượt xác nhận dư thừa.
+2. **Material interpretation** — Nếu normalization khác biệt đáng kể so với cách diễn đạt của Customer hoặc bổ sung phạm vi, thẩm quyền, thời điểm, hay ràng buộc không được nêu nguyên văn, bắt buộc phải qua `CONFIRM_ADJUST` (`question.intent = CLARIFY`, `control = CONFIRM_ADJUST`, `proposedInterpretation = <normalized statement>`). Context giữ `CUSTOMER_STATED` cho đến khi Customer xác nhận rõ ràng.
+3. **Ambiguous hoặc conflicted statement** — Nếu câu trả lời mơ hồ, dè dặt (hedged) hoặc xung đột với evidence/context trước đó, đặt câu hỏi `CLARIFY` có giới hạn và giữ context là `CUSTOMER_STATED`. Không bao giờ tự động nâng cấp thành `CUSTOMER_CONFIRMED`.
+4. **Formatting-only normalization** — Chuẩn hóa định dạng hoặc cách trình bày đơn thuần mà không thay đổi ý nghĩa không yêu cầu thêm lượt xác nhận riêng.
 
-Ví dụ:
+Ví dụ (Lossless statement — không cần confirmation turn):
 
-> “Recruiter bắt buộc approve mọi rejection trước khi có hiệu lực.” (`FREE_TEXT` answer)
+> Customer: “Trưởng nhóm vận hành con người có thẩm quyền phê duyệt cuối cùng trước khi bất kỳ lệnh từ chối nào có hiệu lực.”
+> Ý nghĩa lưu trữ không bị thêm bớt phạm vi hay xung đột → `CUSTOMER_CONFIRMED` trực tiếp.
 
-Hỏi một `CONFIRM_ADJUST` question với `proposedInterpretation` là statement; không hỏi thêm một confirmation question khác dư thừa.
+Ví dụ (Material interpretation — bắt buộc `CONFIRM_ADJUST`):
+
+> Customer: “Chúng tôi xem xét các trường hợp quan trọng một cách thủ công.”
+> Agent interpretation: “Mọi lệnh từ chối có rủi ro cao đều yêu cầu người phê duyệt trước khi thực thi.”
+> Statement diễn giải bổ sung phạm vi/thẩm quyền trọng yếu → Hỏi một lượt `CONFIRM_ADJUST` với `proposedInterpretation` là statement được diễn giải chính xác.
 
 Giữ `CUSTOMER_STATED` khi wording hedged/ambiguous hoặc normalization thêm meaning.
 
@@ -437,7 +445,7 @@ Reusable change phải versioned và đi qua separate governed evaluation/regres
 - chưa chắc nên hỏi hay dừng;
 - Customer answer mơ hồ;
 - evidence conflict với Customer context;
-- đang ở Investigator resolution mode;
+- đang ở business context resolution mode;
 - cần ví dụ wrong vs correct behavior.
 
 ## Điều hướng reference
@@ -453,7 +461,7 @@ Reusable change phải versioned và đi qua separate governed evaluation/regres
 | `evidence-reasoning.md` | Khi dùng PGE/evidence để tạo hoặc giải thích question |
 | `question-strategy.md` | Khi tạo/rephrase/structure Customer question |
 | `conflict-handling.md` | Khi evidence/customer conflict, correction, contradictory answer |
-| `investigator-resolution.md` | Mọi Investigator-originated clarification |
+| `business-context-resolution.md` | Mọi rule-analysis-originated clarification (`BUSINESS_CONTEXT_RESOLUTION`) |
 | `improvement-protocol.md` | Learning signal, guidance proposal, promotion/rollback |
 | `worked-examples.md` | Good/bad behavior cụ thể nhiều domain |
 

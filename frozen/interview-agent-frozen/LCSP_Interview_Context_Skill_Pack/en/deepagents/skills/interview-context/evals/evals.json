@@ -469,8 +469,8 @@
       "id": "customer-stated-vs-confirmed",
       "semantic_mode": "INITIAL_INTERVIEW",
       "runtime_mode": "INITIAL_INTERVIEW",
-      "prompt": "Customer says explicitly: 'A human reviewer must approve every regulator report before it is submitted.' No contradictory evidence/context exists and this resolves the only material uncertainty.",
-      "expected_summary": "Ask one bounded CONFIRM_ADJUST question with proposedInterpretation set to the statement; do not normalize directly to CUSTOMER_CONFIRMED and do not ask a second, differently-worded confirmation question.",
+      "prompt": "Customer answered: 'We review important cases manually.' Normalized context interprets this as: 'Every high-risk rejection requires a human approver before execution.' No other uncertainty exists.",
+      "expected_summary": "Ask one bounded CONFIRM_ADJUST question with proposedInterpretation set to the interpreted statement; do not normalize directly to CUSTOMER_CONFIRMED without customer confirmation and do not ask a second, differently-worded confirmation question.",
       "assertions": {
         "outcome": "WAITING_FOR_CUSTOMER",
         "question_count": 1,
@@ -480,7 +480,7 @@
           "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST"
         ],
         "context_source_constraints": [
-          "Approval-required-before-submission fact must not become CUSTOMER_CONFIRMED directly from this FREE_TEXT answer",
+          "Materially interpreted fact must not become CUSTOMER_CONFIRMED directly without explicit customer confirmation",
           "Ask exactly one CONFIRM_ADJUST question, not a second separately-worded confirmation question"
         ]
       },
@@ -1071,7 +1071,7 @@
     "TECHNICAL_COVERAGE_NONBLOCKING": "Allows PARTIAL technical coverage without automatically blocking readiness when no handoff-relevant material uncertainty remains.",
     "RESOLUTION_CRITERIA_SATISFACTION": "Requires the targeted business-operational resolutionCriteria to be satisfied before CONTEXT_RESOLVED.",
     "CUSTOMER_SAFE_EVIDENCE": "Uses a bounded customer-safe evidence explanation and avoids unrestricted raw source/config/security-sensitive disclosure.",
-    "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST": "A FREE_TEXT answer, a choice that requiresFreeText (e.g. OTHER), or any answer carrying a non-empty comment always needed interpretation and cannot become CUSTOMER_CONFIRMED directly, however explicit or unambiguous the wording. Asks exactly one bounded CONFIRM_ADJUST question with proposedInterpretation set to the normalized statement, instead of confirming immediately or asking a second, separately-worded question."
+    "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST": "When normalized context materially differs from customer wording or adds scope/authority not stated verbatim, asks exactly one bounded CONFIRM_ADJUST question with proposedInterpretation set to the normalized statement, instead of confirming immediately without customer action or asking a second, separately-worded question."
   },
   "default_runtime_context": {
     "hostPlatform": "LCSP",

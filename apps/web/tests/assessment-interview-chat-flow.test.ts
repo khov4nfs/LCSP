@@ -645,13 +645,59 @@ test("MULTI_SELECT: supports toggle selection, deselect, and multi-value submiss
   });
 });
 
-test("CONFIRM_ADJUST: Confirm submits directly, Adjust routes through composer and submits adjusted text", async () => {
+test("CONFIRM_ADJUST: renders proposedInterpretation prominently before Confirm/Adjust actions", async () => {
+  const question: AssessmentInterviewQuestion = {
+    control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+    id: "q-confirm-prop-1",
+    intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+    prompt: "Please confirm our understanding of the AI model integration's role.",
+    proposedInterpretation:
+      "The AI model supports LCSP's compliance assessment workflow for context clarification and evidence analysis.",
+  };
+
+  const { container } = await renderElement(
+    React.createElement(AssessmentQuestionTurn, {
+      question,
+    }),
+  );
+
+  const promptEl = container.querySelector("p");
+  assert.match(
+    promptEl?.textContent ?? "",
+    /Please confirm our understanding of the AI model integration's role\./,
+  );
+
+  const interpretationEl = container.querySelector(
+    "[data-slot='proposed-interpretation']",
+  );
+  assert.ok(interpretationEl, "proposedInterpretation must be rendered in data-slot='proposed-interpretation'");
+  assert.match(
+    interpretationEl.textContent ?? "",
+    /The AI model supports LCSP's compliance assessment workflow for context clarification and evidence analysis\./,
+  );
+
+  const actionContainer = container.querySelector(
+    "[data-slot='confirm-adjust-actions']",
+  );
+  assert.ok(actionContainer);
+
+  // proposedInterpretation appears before the confirm-adjust actions
+  assert.ok(
+    interpretationEl.compareDocumentPosition(actionContainer) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    "proposedInterpretation must precede the Confirm/Adjust actions",
+  );
+});
+
+test("CONFIRM_ADJUST: Confirm submits directly, Adjust routes through composer while keeping proposedInterpretation visible", async () => {
   const submissions: unknown[] = [];
   const question: AssessmentInterviewQuestion = {
     control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
     id: "q-confirm-1",
     intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
     prompt: "Confirm that payment overrides require two-party authorization?",
+    proposedInterpretation:
+      "Every payment override requires two-party authorization before execution.",
   };
 
   const { container } = await renderElement(
@@ -659,6 +705,15 @@ test("CONFIRM_ADJUST: Confirm submits directly, Adjust routes through composer a
       onSubmit: (payload) => submissions.push(payload),
       question,
     }),
+  );
+
+  const interpretationEl = container.querySelector(
+    "[data-slot='proposed-interpretation']",
+  );
+  assert.ok(interpretationEl);
+  assert.match(
+    interpretationEl.textContent ?? "",
+    /Every payment override requires two-party authorization before execution\./,
   );
 
   const actionContainer = container.querySelector(
@@ -692,6 +747,12 @@ test("CONFIRM_ADJUST: Confirm submits directly, Adjust routes through composer a
     /Continue in composer|Tiếp tục trong ô nhập/i,
   );
 
+  // proposedInterpretation remains visible while editing in composer
+  assert.ok(
+    container.querySelector("[data-slot='proposed-interpretation']"),
+    "proposedInterpretation must remain visible while adjusting in composer",
+  );
+
   // Empty adjustment cannot be submitted
   await keyDown(textarea, { key: "Enter" });
   assert.equal(submissions.length, 1);
@@ -722,6 +783,8 @@ test("CONFIRM_ADJUST: the live active question still shows Confirm/Adjust once p
     id: "q-confirm-live",
     intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
     prompt: "Confirm that payment overrides require two-party authorization?",
+    proposedInterpretation:
+      "Payment overrides require two-party authorization in production.",
   };
 
   const { container } = await renderElement(
@@ -740,14 +803,25 @@ test("CONFIRM_ADJUST: the live active question still shows Confirm/Adjust once p
     "a live (non-historical) confirmAdjust question must still offer Confirm/Adjust even when answerHistoryVisible is true",
   );
   assert.equal(actionContainer.querySelectorAll("button").length, 2);
+
+  const interpretation = container.querySelector(
+    "[data-slot='proposed-interpretation']",
+  );
+  assert.ok(interpretation);
+  assert.match(
+    interpretation.textContent ?? "",
+    /Payment overrides require two-party authorization in production\./,
+  );
 });
 
-test("CONFIRM_ADJUST: a historical answer hides the Confirm/Adjust actions", async () => {
+test("CONFIRM_ADJUST: a historical answer hides the Confirm/Adjust actions while preserving visible interpretation", async () => {
   const question: AssessmentInterviewQuestion = {
     control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
     id: "q-confirm-past",
     intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
     prompt: "Confirm that payment overrides require two-party authorization?",
+    proposedInterpretation:
+      "Payment overrides require two-party authorization in production.",
   };
 
   const { container } = await renderElement(
@@ -762,6 +836,18 @@ test("CONFIRM_ADJUST: a historical answer hides the Confirm/Adjust actions", asy
     container.querySelector("[data-slot='confirm-adjust-actions']"),
     null,
     "a resolved historical turn has nothing left to act on",
+  );
+
+  const interpretation = container.querySelector(
+    "[data-slot='proposed-interpretation']",
+  );
+  assert.ok(
+    interpretation,
+    "historical turn preserves the visible proposed interpretation",
+  );
+  assert.match(
+    interpretation.textContent ?? "",
+    /Payment overrides require two-party authorization in production\./,
   );
 });
 

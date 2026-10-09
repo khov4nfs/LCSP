@@ -117,11 +117,41 @@ export function AssessmentQuestionTurn({
       <div className="space-y-3">
         <p className="text-sm leading-6 text-foreground">{question.prompt}</p>
 
+        {question.proposedInterpretation ? (
+          <div
+            data-slot="proposed-interpretation"
+            className="rounded-lg border bg-muted/30 p-3.5 text-sm leading-6 text-foreground"
+          >
+            <p className="whitespace-pre-wrap">{question.proposedInterpretation}</p>
+          </div>
+        ) : null}
+
         {assessmentId && question.snippetRef && !historical ? (
           <QuestionSourceSnippet
             assessmentId={assessmentId}
             question={question}
           />
+        ) : null}
+
+        {question.whyEvidenceRefs && question.whyEvidenceRefs.length > 0 ? (
+          <div data-slot="why-asking-disclosure" className="space-y-2 pt-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              aria-expanded={showWhy}
+              onClick={() => setShowWhy((current) => !current)}
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircleIcon className="size-3.5" />
+              {t("pages.assessment.whyAsking")}
+            </Button>
+            {showWhy ? (
+              <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                {t("pages.assessment.whyAskingSafeNote")}
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         {question.control === ASSESSMENT_INTERVIEW_CONTROLS.boolean ? (
@@ -204,27 +234,6 @@ export function AssessmentQuestionTurn({
               <span className="text-xs text-muted-foreground">
                 {t("pages.assessment.continueInComposer")}
               </span>
-            ) : null}
-          </div>
-        ) : null}
-
-        {question.whyEvidenceRefs && question.whyEvidenceRefs.length > 0 ? (
-          <div data-slot="why-asking-disclosure" className="space-y-2 pt-1">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              aria-expanded={showWhy}
-              onClick={() => setShowWhy((current) => !current)}
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-            >
-              <HelpCircleIcon className="size-3.5" />
-              {t("pages.assessment.whyAsking")}
-            </Button>
-            {showWhy ? (
-              <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs leading-5 text-muted-foreground">
-                {t("pages.assessment.whyAskingSafeNote")}
-              </p>
             ) : null}
           </div>
         ) : null}
