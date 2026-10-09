@@ -23,6 +23,7 @@ import { LegacyArchivePanel } from "./legacy-archive-panel";
 import { AssessmentDecisions } from "./assessment-decisions";
 import { AssessmentReportLink } from "../molecules/assessment-report-link";
 import { AssessmentRuntimeActions } from "../molecules/assessment-runtime-actions";
+import { CanonicalInterviewPanel } from "./canonical-interview-panel";
 import type { AssessmentOverviewProps } from "../../types/assessment-overview.types";
 
 export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
@@ -79,6 +80,11 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
         connectionState={workspace.connectionState}
       />
       <AssessmentRuntimeActions assessment={assessment} />
+      <CanonicalInterviewPanel
+        assessmentId={assessmentId}
+        lifecycleState={assessment.lifecycle.state}
+        canonicalAvailable={Boolean(assessment.lifecycle && assessment.runtime)}
+      />
       {requests.length ? (
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-semibold">
