@@ -42,12 +42,12 @@ if ids("en","adaptive-rules.md","AR-IA")!=ids("vi","adaptive-rules.md","AR-IA"):
 
 # Canonical vocabulary parity
 tokens=[
-    "INITIAL_INTERVIEW","PRE_PLANNER","INVESTIGATOR_RESOLUTION",
+    "INITIAL_INTERVIEW","BUSINESS_CONTEXT_RESOLUTION",
     "WAITING_FOR_CUSTOMER","CONTEXT_READY","CONTEXT_RESOLVED",
     "BLOCKED_OR_UNRESOLVED","FAILED","DOWNSTREAM_IMPACT",
     "TECHNICAL_EVIDENCE","DOCUMENTARY_EVIDENCE","CUSTOMER_STATED","CUSTOMER_CONFIRMED",
-    "READY","PARTIAL","UNAVAILABLE","resolutionCriteria",
-    "MISSING_RESOLUTION_CRITERIA","Protected Sufficiency Guardrails"
+    "READY","PARTIAL","UNAVAILABLE",
+    "Protected Sufficiency Guardrails"
 ]
 for tok in tokens:
     for lang in ("en","vi"):

@@ -118,26 +118,23 @@ khi refine prior answer/conflict.
 
 Đây không phải runtime outcome.
 
-## Direct statement — confirm một lần, không hỏi lại
+## Direct statement vs material interpretation
 
-Customer (`FREE_TEXT` answer):
+### Direct + lossless statement — không cần confirmation dư thừa
 
-> “A recruiter must approve every rejection before it takes effect.”
+Khi câu trả lời của Customer là trực tiếp, rõ ràng và không làm mất ngữ nghĩa (ví dụ: "Trưởng nhóm vận hành con người có thẩm quyền phê duyệt cuối cùng" hoặc chọn predefined choice không có comment), runtime lưu trữ đúng nghĩa đó mà không thêm phạm vi hay xung đột. Không hỏi thêm lượt xác nhận dư thừa hay diễn đạt lại bằng câu hỏi khác. Statement trở thành `CUSTOMER_CONFIRMED` trực tiếp.
 
-Không hỏi thêm một câu hỏi khác:
+### Material interpretation — bắt buộc CONFIRM_ADJUST
 
-> “Just to confirm, is recruiter approval mandatory?”
+Khi normalized business context khác biệt đáng kể so với cách diễn đạt của Customer hoặc bổ sung thẩm quyền, phạm vi, thời điểm, hay ràng buộc không được nêu nguyên văn:
 
-Hỏi vậy tốn một turn mà không ra được answer authoritative. `FREE_TEXT` answer luôn cần interpretation
-để normalize, dù wording rõ ràng đến đâu, nên không thể thành `CUSTOMER_CONFIRMED` trực tiếp. Thay vào
-đó hỏi đúng một `CONFIRM_ADJUST` question với `proposedInterpretation` là statement nguyên văn (choices
-`CONFIRM` / `ADJUST`) — Customer chỉ cần bấm `CONFIRM` một lần. Áp dụng tương tự cho choice nào
-`requiresFreeText` (ví dụ `OTHER`) hoặc answer có comment không rỗng.
+Customer:
+> “Chúng tôi xem xét các trường hợp quan trọng một cách thủ công.”
 
-Predefined-choice answer không comment thì không cần lượt này — đã lossless:
+Agent interpretation:
+> “Mọi lệnh từ chối có rủi ro cao đều yêu cầu người phê duyệt trước khi thực thi.”
 
-Customer chọn `SINGLE_SELECT` "Standard approval flow", không comment → `CUSTOMER_CONFIRMED` trực tiếp,
-không cần hỏi thêm.
+Không đặt câu hỏi mở khác riêng biệt. Hỏi đúng một câu hỏi `CONFIRM_ADJUST` với `proposedInterpretation` là statement được diễn giải (choices `CONFIRM` / `ADJUST`). Customer chỉ cần bấm `CONFIRM` một lần hoặc chọn `ADJUST` để điều chỉnh diễn giải.
 
 ## Ambiguous statement — clarify
 
