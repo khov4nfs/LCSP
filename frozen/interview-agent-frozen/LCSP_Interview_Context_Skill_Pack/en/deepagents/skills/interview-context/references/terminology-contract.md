@@ -157,34 +157,20 @@ This does **not** confirm mandatory approval before finalization.
 
 A normalized business fact whose meaning is either:
 
-1. **directly explicit from a predefined choice** — the Customer selected a `BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT` option with no comment, so nothing was interpreted; or
-2. an **answer that needed interpretation, explicitly confirmed** — any `FREE_TEXT` answer, a choice that `requiresFreeText` (e.g. `OTHER`), or any answer carrying a non-empty comment. Interpretation is required to normalize these into a statement, so they can never take case 1 — even when the wording is completely unambiguous. Use one bounded `CONFIRM_ADJUST` turn instead: ask with `proposedInterpretation` set to the exact normalized statement. The Customer only needs to press `CONFIRM` once; do not ask a second, separately-worded yes/no question first.
+1. **direct and semantically lossless** — a predefined choice (`BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT` with no comment) or an explicit, direct customer statement whose normalization is completely lossless with no added meaning, scope, or contradiction; or
+2. **materially interpreted context, explicitly confirmed** — an answer whose normalization materially differs from the customer's wording, adds authority/timing/scope, or resolves nuance. Such statements remain `CUSTOMER_STATED` until explicitly confirmed by the customer through one bounded `CONFIRM_ADJUST` turn (`intent = CLARIFY`, `responseMode = CONFIRM_ADJUST`, `proposedInterpretation = <statement>`).
 
-Direct example (case 1, no confirmation turn needed):
+Direct/lossless example (no confirmation turn needed):
 
-> Customer selects "Yes" on a `BOOLEAN` question, no comment.
+> Customer statement: "The human operations lead has final approval before any rejection takes effect."
+> Meaning is lossless with no added scope or contradiction → `CUSTOMER_CONFIRMED` directly.
 
-```text
-approval_required = true
-source = CUSTOMER_CONFIRMED
-```
+Material interpretation example (one `CONFIRM_ADJUST` turn required):
 
-Interpretive-but-explicit example (case 2, one `CONFIRM_ADJUST` turn — not a second open question):
-
-> “A recruiter must approve every rejection before it becomes final.” (`FREE_TEXT` answer)
-
-Ask `CONFIRM_ADJUST` with `proposedInterpretation`:
-
-> "Approval is required from a recruiter before a rejection becomes final."
-
-Once the Customer selects `CONFIRM`:
-
-```text
-approval_required = true
-approval_role = recruiter
-approval_timing = before_finalization
-source = CUSTOMER_CONFIRMED
-```
+> Customer statement: "We review important cases manually."
+> Normalized interpretation: "Every high-risk rejection requires a human approver before execution."
+> Ask `CONFIRM_ADJUST` with `proposedInterpretation`: "Every high-risk rejection requires a human approver before execution."
+> Once the Customer selects `CONFIRM`, it becomes `CUSTOMER_CONFIRMED`.
 
 Ambiguous/hedged example:
 

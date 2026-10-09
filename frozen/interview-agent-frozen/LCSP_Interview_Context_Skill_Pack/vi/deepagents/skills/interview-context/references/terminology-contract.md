@@ -163,34 +163,20 @@ Câu này **không xác nhận** mandatory approval trước finalization.
 
 Normalized business fact có meaning:
 
-1. **directly explicit từ predefined choice** — Customer chọn option `BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT` không có comment, nên không có gì cần interpret; hoặc
-2. **answer cần interpretation, đã được explicit confirm** — bất kỳ `FREE_TEXT` answer, choice `requiresFreeText` (ví dụ `OTHER`), hoặc answer có comment không rỗng. Những answer này luôn cần interpretation để normalize thành statement, nên không bao giờ rơi vào case 1 — dù wording có rõ ràng đến đâu. Dùng một lượt `CONFIRM_ADJUST` duy nhất: hỏi với `proposedInterpretation` là statement đã normalize. Customer chỉ cần bấm `CONFIRM` một lần; không hỏi thêm một câu yes/no khác riêng.
+1. **direct và lossless về mặt ngữ nghĩa** — predefined choice (`BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT` không có comment) hoặc một customer statement trực tiếp, rõ ràng mà normalization hoàn toàn lossless, không thêm bớt ý nghĩa, phạm vi hay xung đột; hoặc
+2. **context diễn giải trọng yếu, đã được explicit confirm** — câu trả lời mà normalization có sự khác biệt trọng yếu so với lời của khách hàng, bổ sung thẩm quyền/thời điểm/phạm vi, hoặc giải quyết sắc thái ngữ nghĩa. Các statement này giữ trạng thái `CUSTOMER_STATED` cho đến khi được Customer xác nhận rõ ràng qua một lượt `CONFIRM_ADJUST` (`intent = CLARIFY`, `responseMode = CONFIRM_ADJUST`, `proposedInterpretation = <statement>`).
 
-Direct example (case 1, không cần confirm turn):
+Ví dụ Direct/lossless (không cần lượt xác nhận):
 
-> Customer chọn "Yes" trên câu hỏi `BOOLEAN`, không comment.
+> Customer: "Trưởng nhóm vận hành con người có thẩm quyền phê duyệt cuối cùng trước khi bất kỳ lệnh từ chối nào có hiệu lực."
+> Ý nghĩa là lossless và không thêm phạm vi hay xung đột → `CUSTOMER_CONFIRMED` trực tiếp.
 
-```text
-approval_required = true
-source = CUSTOMER_CONFIRMED
-```
+Ví dụ Material interpretation (bắt buộc một lượt `CONFIRM_ADJUST`):
 
-Interpretive-nhưng-explicit example (case 2, một lượt `CONFIRM_ADJUST` — không phải câu hỏi mở thứ hai):
-
-> “Recruiter bắt buộc approve mọi rejection trước khi nó có hiệu lực.” (`FREE_TEXT` answer)
-
-Hỏi `CONFIRM_ADJUST` với `proposedInterpretation`:
-
-> "Cần recruiter approve trước khi rejection có hiệu lực."
-
-Khi Customer chọn `CONFIRM`:
-
-```text
-approval_required = true
-approval_role = recruiter
-approval_timing = before_finalization
-source = CUSTOMER_CONFIRMED
-```
+> Customer: "Chúng tôi xem xét các trường hợp quan trọng một cách thủ công."
+> Normalized interpretation: "Mọi lệnh từ chối có rủi ro cao đều yêu cầu người phê duyệt trước khi thực thi."
+> Hỏi `CONFIRM_ADJUST` với `proposedInterpretation`: "Mọi lệnh từ chối có rủi ro cao đều yêu cầu người phê duyệt trước khi thực thi."
+> Sau khi Customer chọn `CONFIRM`, nó trở thành `CUSTOMER_CONFIRMED`.
 
 Ambiguous/hedged example:
 

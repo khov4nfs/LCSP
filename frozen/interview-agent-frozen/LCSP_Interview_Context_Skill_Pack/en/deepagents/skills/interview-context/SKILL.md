@@ -332,15 +332,23 @@ Read `references/context-sufficiency.md` before a READY/RESOLVED decision.
 
 ## Customer statement normalization
 
-Use `CUSTOMER_CONFIRMED` directly only for a predefined-choice direct ASK answer (`BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT`, no comment) — nothing was interpreted.
+Use the deterministic confirmation decision rule:
 
-A `FREE_TEXT` answer, a choice that `requiresFreeText` (e.g. `OTHER`), or any answer carrying a non-empty comment always needed interpretation, however explicit the wording. It stays `CUSTOMER_STATED` until confirmed through one bounded `CONFIRM_ADJUST` turn — not a second, separately-worded question.
+1. **Direct + lossless statement** — If the customer's answer is direct, explicit, and semantically lossless (whether given via predefined choices or direct free text where normalization preserves exact meaning without altering or adding scope/authority), it may be accepted directly as confirmed customer context (`CUSTOMER_CONFIRMED`). No redundant confirmation turn is required.
+2. **Material interpretation** — If normalization materially differs from customer wording or adds scope, authority, timing, or constraints not explicitly stated verbatim, `CONFIRM_ADJUST` is required (`question.intent = CLARIFY`, `control = CONFIRM_ADJUST`, `proposedInterpretation = <normalized statement>`). It remains `CUSTOMER_STATED` until explicitly confirmed by the customer.
+3. **Ambiguous or conflicted statement** — If the answer is hedged, ambiguous, or in conflict with evidence or prior context, ask a bounded `CLARIFY` question and keep the context `CUSTOMER_STATED`. Never silently upgrade to `CUSTOMER_CONFIRMED`.
+4. **Formatting-only normalization** — Minor formatting or presentation cleanup with unchanged meaning does not require a separate confirmation turn.
 
-Example:
+Example (Lossless statement — no confirmation turn needed):
 
-> “A recruiter must approve every rejection before it takes effect.” (`FREE_TEXT` answer)
+> Customer: “A human operations lead has final approval before any rejection takes effect.”
+> Stored lossless meaning has no added scope or contradiction → `CUSTOMER_CONFIRMED` directly.
 
-Ask one `CONFIRM_ADJUST` question with `proposedInterpretation` set to the statement; do not ask a redundant, differently-worded confirmation question.
+Example (Material interpretation — `CONFIRM_ADJUST` required):
+
+> Customer: “We review important cases manually.”
+> Agent interpretation: “Every high-risk rejection requires a human approver before execution.”
+> Stored statement adds material scope/authority → Ask one bounded `CONFIRM_ADJUST` turn with `proposedInterpretation` set to the exact interpreted statement.
 
 Keep `CUSTOMER_STATED` when wording is hedged/ambiguous or normalization adds meaning.
 

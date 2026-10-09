@@ -37,7 +37,7 @@ if default.get("coverageLimitations") != []:
 allowed_outcomes = set(data["assertion_vocabulary"]["outcome"])
 allowed_intents = set(data["assertion_vocabulary"]["question_intent"])
 allowed_flags = {"DOWNSTREAM_IMPACT"}
-allowed_modes = {"INITIAL_INTERVIEW","PRE_PLANNER","INVESTIGATOR_RESOLUTION"}
+allowed_modes = {"INITIAL_INTERVIEW","BUSINESS_CONTEXT_RESOLUTION"}
 allowed_response_modes = {"FREE_TEXT","BOOLEAN","SINGLE_SELECT","MULTI_SELECT"}
 coverage_states = {"READY","PARTIAL","UNAVAILABLE"}
 
@@ -45,8 +45,8 @@ common_required = {
     "hostPlatform","subjectSystemIdentity","assessmentId","mode",
     "guidanceVersion","technicalCoverageState"
 }
-investigator_required = {
-    "businessContextNeed","resolutionCriteria","originatingInvestigationReference"
+targeted_required = {
+    "businessContextNeed","resolutionCriteria","originatingRuleAnalysisReference"
 }
 
 ids=[e["id"] for e in data["evals"]]
@@ -83,10 +83,10 @@ def infer_failure_codes(r):
     elif cov not in coverage_states: codes.append("INVALID_TECHNICAL_COVERAGE_STATE")
     elif cov=="PARTIAL" and not r.get("coverageLimitations"): codes.append("MISSING_COVERAGE_LIMITATIONS")
     elif cov=="UNAVAILABLE": codes.append("TECHNICAL_COVERAGE_UNAVAILABLE")
-    if r.get("mode")=="INVESTIGATOR_RESOLUTION":
+    if r.get("mode")=="BUSINESS_CONTEXT_RESOLUTION":
         if not r.get("businessContextNeed"): codes.append("MISSING_BUSINESS_CONTEXT_NEED")
         if not r.get("resolutionCriteria"): codes.append("MISSING_RESOLUTION_CRITERIA")
-        if not r.get("originatingInvestigationReference"): codes.append("MISSING_ORIGINATING_INVESTIGATION_REFERENCE")
+        if not r.get("originatingRuleAnalysisReference"): codes.append("MISSING_ORIGINATING_RULE_ANALYSIS_REFERENCE")
     return codes
 
 for e in data["evals"]:
@@ -135,8 +135,8 @@ for e in data["evals"]:
         if a.get("limitations_must_not_contain_runtime_failure_code") is not True:
             errors.append(f"{e['id']}: BLOCKED_OR_UNRESOLVED must exclude runtime failure codes")
 
-    # Investigator fields self-contained and operational.
-    if r.get("mode")=="INVESTIGATOR_RESOLUTION":
+    # Targeted-need fields self-contained and operational.
+    if r.get("mode")=="BUSINESS_CONTEXT_RESOLUTION":
         for key in ("businessContextNeed","resolutionCriteria"):
             val=str(r.get(key,""))
             if re.search(r'\b(described|stated|shown)\s+in\s+(the\s+)?prompt\b',val,re.I):
@@ -166,14 +166,14 @@ merged="\n".join(p.read_text() for p in docs)
 runtime=(root/"references/agent-runtime-contract.md").read_text()
 suff=(root/"references/context-sufficiency.md").read_text()
 evidence=(root/"references/evidence-reasoning.md").read_text()
-invest=(root/"references/investigator-resolution.md").read_text()
+invest=(root/"references/business-context-resolution.md").read_text()
 protected=(root/"references/protected-boundaries.md").read_text()
 
 required_phrases=[
     "validated runtime",
     "governed assessment state",
     "Protected Sufficiency Guardrails",
-    "resolutionCriteria",
+    "resolutionCriterionIds",
     "Customer-safe evidence explanation",
 ]
 for phrase in required_phrases:

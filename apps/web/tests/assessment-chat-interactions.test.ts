@@ -956,6 +956,8 @@ test("confirmed interpretation history renders through the structured question t
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
           control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
           prompt: "Please confirm this interpretation.",
+          proposedInterpretation:
+            "Every payment override requires two-party authorization before execution.",
         },
       },
     }),
@@ -970,6 +972,14 @@ test("confirmed interpretation history renders through the structured question t
   assert.match(
     questionTurn.textContent ?? "",
     /Please confirm this interpretation\./,
+  );
+  const interpretation = questionTurn.querySelector(
+    '[data-slot="proposed-interpretation"]',
+  );
+  assert.ok(interpretation);
+  assert.match(
+    interpretation.textContent ?? "",
+    /Every payment override requires two-party authorization before execution\./,
   );
   // A resolved (historical) confirmAdjust turn has nothing left to act on.
   assert.equal(
@@ -1022,6 +1032,8 @@ test('adjusted interpretation history shows the customer\'s own adjustment befor
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
           control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
           prompt: "Please confirm this interpretation.",
+          proposedInterpretation:
+            "Every payment override requires two-party authorization before execution.",
         },
       },
     }),
@@ -1029,6 +1041,15 @@ test('adjusted interpretation history shows the customer\'s own adjustment befor
 
   const questionTurn = container.querySelector(
     '[data-slot="assessment-question-turn"]',
+  );
+  assert.ok(questionTurn);
+  const interpretation = questionTurn.querySelector(
+    '[data-slot="proposed-interpretation"]',
+  );
+  assert.ok(interpretation);
+  assert.match(
+    interpretation.textContent ?? "",
+    /Every payment override requires two-party authorization before execution\./,
   );
   const comment = [...container.querySelectorAll("p")].find((node) =>
     node.textContent?.includes(

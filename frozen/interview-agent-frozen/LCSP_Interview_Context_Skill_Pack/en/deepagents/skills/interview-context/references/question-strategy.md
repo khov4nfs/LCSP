@@ -117,27 +117,23 @@ when refining a prior answer or conflict.
 
 These are not runtime outcomes.
 
-## Direct statement — confirm once, don't re-ask
+## Direct statement vs material interpretation
 
-Customer (`FREE_TEXT` answer):
+### Direct + lossless statement — no redundant confirmation
 
-> “A recruiter must approve every rejection before it takes effect.”
+When a customer statement is explicit, direct, and semantically lossless (e.g. "The human operations lead has final approval" or selecting a predefined choice with no comment), the runtime stores the exact meaning without added scope or contradiction. Do not ask a redundant confirmation turn or re-ask in different words. It becomes `CUSTOMER_CONFIRMED` directly.
 
-Do not ask a second, separately-worded question:
+### Material interpretation — CONFIRM_ADJUST required
 
-> “Just to confirm, is recruiter approval mandatory?”
+When normalized business context materially differs from customer wording or adds authority, scope, timing, or constraints not explicitly stated verbatim:
 
-That wastes a turn without producing an authoritative answer. A `FREE_TEXT` answer always needed
-interpretation to normalize, however explicit it reads, so it cannot become `CUSTOMER_CONFIRMED`
-directly. Instead ask exactly one bounded `CONFIRM_ADJUST` question with `proposedInterpretation`
-set to the statement verbatim (choices `CONFIRM` / `ADJUST`) — the Customer only needs to press
-`CONFIRM` once. The same applies to any choice that `requiresFreeText` (e.g. `OTHER`) or any answer
-carrying a non-empty comment.
+Customer:
+> “We review important cases manually.”
 
-A predefined-choice answer with no comment needs no such turn — it is already lossless:
+Agent interpretation:
+> “Every high-risk rejection requires a human approver before execution.”
 
-Customer selects `SINGLE_SELECT` "Standard approval flow", no comment → `CUSTOMER_CONFIRMED`
-directly, no question needed.
+Do not ask a second, separately-worded open question. Ask exactly one bounded `CONFIRM_ADJUST` question with `proposedInterpretation` set to the interpreted statement (choices `CONFIRM` / `ADJUST`). The customer only needs to press `CONFIRM` once or select `ADJUST` to correct the interpretation.
 
 ## Ambiguous statement — clarify
 
