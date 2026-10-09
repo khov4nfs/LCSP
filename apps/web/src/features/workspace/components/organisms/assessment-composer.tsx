@@ -42,6 +42,7 @@ export function AssessmentComposer({
   sendLabel = t("pages.appShell.chatSend"),
   resumeLabel = t("pages.assessment.resumePipeline"),
   disabled = false,
+  submitEnabled = true,
   submitting = false,
   resuming = false,
   submitReady,
@@ -97,7 +98,8 @@ export function AssessmentComposer({
   }, [value, expanded]);
   const isSubmitReady =
     submitReady !== undefined ? submitReady : value.trim().length > 0;
-  const sendDisabled = controlled || disabled || submitting || !isSubmitReady;
+  const sendDisabled =
+    controlled || disabled || !submitEnabled || submitting || !isSubmitReady;
   // An explicit null runtime control means the canonical ALS/AES pair is not
   // available for this surface. Do not let a stale generic resume flag invent
   // a Continue action until the server projection is present again.

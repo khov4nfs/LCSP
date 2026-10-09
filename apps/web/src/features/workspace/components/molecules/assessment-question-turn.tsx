@@ -8,12 +8,9 @@ import {
 } from "@lcsp/contracts/evidence";
 import { resolveMessage } from "@lcsp/i18n";
 import {
-  CheckIcon,
   Code2Icon,
-  Edit3Icon,
   HelpCircleIcon,
   SaveIcon,
-  SendIcon,
   TextCursorInputIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -26,6 +23,7 @@ import { useAssessmentInterviewSourceSnippetQuery } from "@/lib/api/assessment-q
 import { ChatMultiSelect } from "./chat-multi-select";
 import { ChatSingleSelect } from "./chat-single-select";
 import { SelectionHistoryRow } from "./selection-history-row";
+import { StructuredAnswerActions } from "./structured-answer-actions";
 
 export type AssessmentQuestionAnswerInput = {
   questionId: string;
@@ -54,6 +52,8 @@ type AssessmentQuestionTurnProps = {
   canSubmitSelection?: boolean;
   hideSubmitSelection?: boolean;
   onSubmitSelection?: () => void;
+  selectionPending?: boolean;
+  selectionSubmitted?: boolean;
   blockedActions?: AssessmentInterviewBlockedAction[];
   className?: string;
   disabled?: boolean;
@@ -73,6 +73,8 @@ export function AssessmentQuestionTurn({
   canSubmitSelection = false,
   hideSubmitSelection = false,
   onSubmitSelection,
+  selectionPending = false,
+  selectionSubmitted = false,
   blockedActions = [],
   className,
   disabled = false,
@@ -182,60 +184,31 @@ export function AssessmentQuestionTurn({
         ) : null}
 
         {isSelectionControl(question.control) &&
-        !answerHistoryVisible &&
+        !historical &&
         !hideSubmitSelection ? (
-          <div
-            data-slot="selection-submit-action"
-            className="flex flex-wrap items-center gap-2"
-          >
-            <Button
-              type="button"
-              size="sm"
-              disabled={disabled || !canSubmitSelection}
-              onClick={() => onSubmitSelection?.()}
-            >
-              <SendIcon />
-              {t("pages.assessment.submitAnswer")}
-            </Button>
-          </div>
+          <StructuredAnswerActions
+            mode="submit"
+            valid={canSubmitSelection}
+            disabled={disabled}
+            pending={selectionPending}
+            submitted={selectionSubmitted}
+            onSubmit={onSubmitSelection}
+          />
         ) : null}
 
         {question.control === ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust &&
         !historical ? (
-          <div
-            data-slot="confirm-adjust-actions"
-            className="flex flex-wrap items-center gap-2"
-          >
-            <Button
-              type="button"
-              size="sm"
-              disabled={disabled}
-              onClick={() =>
-                onSubmitAnswer?.({
-                  questionId: question.id,
-                  confirmed: true,
-                })
-              }
-            >
-              <CheckIcon />
-              {t("pages.assessment.confirm")}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={isAdjusting ? "secondary" : "outline"}
-              disabled={disabled}
-              onClick={() => onAdjust?.()}
-            >
-              <Edit3Icon />
-              {t("pages.assessment.adjust")}
-            </Button>
-            {isAdjusting ? (
-              <span className="text-xs text-muted-foreground">
-                {t("pages.assessment.continueInComposer")}
-              </span>
-            ) : null}
-          </div>
+          <StructuredAnswerActions
+            mode="confirm-adjust"
+            disabled={disabled}
+            pending={selectionPending}
+            submitted={selectionSubmitted}
+            isAdjusting={isAdjusting}
+            onConfirm={() =>
+              onSubmitAnswer?.({ questionId: question.id, confirmed: true })
+            }
+            onAdjust={onAdjust}
+          />
         ) : null}
       </div>
 

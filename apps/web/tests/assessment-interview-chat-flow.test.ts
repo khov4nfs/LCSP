@@ -142,6 +142,10 @@ function InterviewInteractiveHarness({
   const selectedChoiceRequiresFreeText = (question.choices ?? []).some(
     (c) => c.requiresFreeText && selectedChoiceIds.includes(c.id),
   );
+  const isStructuredSelection =
+    question.control === ASSESSMENT_INTERVIEW_CONTROLS.boolean ||
+    question.control === ASSESSMENT_INTERVIEW_CONTROLS.singleSelect ||
+    question.control === ASSESSMENT_INTERVIEW_CONTROLS.multiSelect;
 
   let isSubmitReady = false;
   if (!disabled) {
@@ -201,6 +205,7 @@ function InterviewInteractiveHarness({
 
   const isComposerDisabled =
     disabled ||
+    (isStructuredSelection && !selectedChoiceRequiresFreeText) ||
     (question.control === ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust &&
       !isAdjusting);
 
@@ -228,6 +233,7 @@ function InterviewInteractiveHarness({
       onSubmit: handleSubmit,
       onValueChange: onComposerChange,
       submitReady: isSubmitReady,
+      submitEnabled: !isStructuredSelection,
       value: composerValue,
     }),
   );
@@ -295,7 +301,7 @@ test("FREE_TEXT: renders question without inline textarea, uses shared composer 
   });
 });
 
-test("SINGLE_SELECT: click updates selection only (no mutation), Enter/Send submits selectedChoiceIds with empty text", async () => {
+test("SINGLE_SELECT: click stages selection and the shared structured action submits", async () => {
   const submissions: unknown[] = [];
   const question: AssessmentInterviewQuestion = {
     choices: [
@@ -324,32 +330,33 @@ test("SINGLE_SELECT: click updates selection only (no mutation), Enter/Send subm
   assert.equal(radios[0].getAttribute("aria-checked"), "true");
   assert.equal(submissions.length, 0);
 
-  // Composer Send button is now enabled even though composer text is empty
-  const sendButton = container.querySelector(
-    "[data-slot='assessment-composer'] button[type='submit']",
-  ) as HTMLButtonElement;
-  assert.ok(sendButton);
-  assert.equal(sendButton.disabled, false);
+  const sendAction = container.querySelector<HTMLButtonElement>(
+    "[data-slot='selection-submit-action'] button",
+  );
+  assert.ok(sendAction);
+  assert.equal(sendAction.disabled, false);
 
-  // Press Send
-  await click(sendButton);
+  // The global composer is not a competing submission path.
+  const composerSend = container.querySelector<HTMLButtonElement>(
+    "[data-slot='assessment-composer'] button[type='submit']",
+  );
+  assert.ok(composerSend);
+  assert.equal(composerSend.disabled, true);
+
+  await click(sendAction);
   assert.equal(submissions.length, 1);
   assert.deepEqual(submissions[0], {
     questionId: "q-single-1",
     selectedChoiceIds: ["fraud_analyst"],
   });
 
-  // Press Enter in composer -> submits without duplicate call
+  // Enter in the disabled composer cannot submit a structured answer.
   const textarea = container.querySelector(
     "[data-slot='assessment-composer'] textarea",
   ) as HTMLTextAreaElement;
   assert.ok(textarea);
   await keyDown(textarea, { key: "Enter" });
-  assert.equal(submissions.length, 2);
-  assert.deepEqual(submissions[1], {
-    questionId: "q-single-1",
-    selectedChoiceIds: ["fraud_analyst"],
-  });
+  assert.equal(submissions.length, 1);
 });
 
 test("OTHER / requiresFreeText: requires custom text in shared composer before submission and sends otherText", async () => {
@@ -380,13 +387,13 @@ test("OTHER / requiresFreeText: requires custom text in shared composer before s
   await click(radios[1]);
   assert.equal(radios[1].getAttribute("aria-checked"), "true");
 
-  // Assert NO inline textarea exists in question turn
-  const questionTurn = container.querySelector(
-    "[data-slot='assessment-question-turn']",
+  const sendAction = container.querySelector<HTMLButtonElement>(
+    "[data-slot='selection-submit-action'] button",
   );
-  assert.equal(questionTurn?.querySelector("textarea"), null);
+  assert.ok(sendAction);
+  assert.equal(sendAction.disabled, true);
 
-  // Send button should remain disabled while composer text is empty
+  // Composer input is available, but its Send button is not a submission path.
   const sendButton = container.querySelector(
     "[data-slot='assessment-composer'] button[type='submit']",
   ) as HTMLButtonElement;
@@ -398,11 +405,18 @@ test("OTHER / requiresFreeText: requires custom text in shared composer before s
   ) as HTMLTextAreaElement;
   await changeText(textarea, "Lead Compliance Officer with Tier-3 Signoff");
 
-  // Now Send button is enabled
-  assert.equal(sendButton.disabled, false);
+  // Required text makes the shared structured action valid.
+  assert.equal(sendButton.disabled, true);
+  assert.equal(sendAction.disabled, false);
 
-  // Submit
+  // Enter and composer Send do not submit the structured answer.
+  await keyDown(textarea, { key: "Enter" });
   await click(sendButton);
+  assert.equal(submissions.length, 0);
+
+  // The reusable structured action is the sole submission owner.
+  await click(sendAction);
+  await click(sendAction);
   assert.equal(submissions.length, 1);
   assert.deepEqual(submissions[0], {
     otherText: "Lead Compliance Officer with Tier-3 Signoff",
@@ -443,20 +457,71 @@ test("OTHER IS NOT HARDCODED: custom choice where label is not 'Other' triggers 
     "[data-slot='assessment-composer'] button[type='submit']",
   ) as HTMLButtonElement;
   assert.equal(sendButton.disabled, true);
+  const sendAction = container.querySelector<HTMLButtonElement>(
+    "[data-slot='selection-submit-action'] button",
+  );
+  assert.ok(sendAction);
 
   const textarea = container.querySelector(
     "[data-slot='assessment-composer'] textarea",
   ) as HTMLTextAreaElement;
   await changeText(textarea, "VP of Risk Operations");
 
-  assert.equal(sendButton.disabled, false);
+  assert.equal(sendButton.disabled, true);
+  assert.equal(sendAction.disabled, false);
+  await keyDown(textarea, { key: "Enter" });
   await click(sendButton);
+  assert.equal(submissions.length, 0);
+  await click(sendAction);
   assert.equal(submissions.length, 1);
   assert.deepEqual(submissions[0], {
     otherText: "VP of Risk Operations",
     questionId: "q-semantic-1",
     selectedChoiceIds: ["special_delegate"],
   });
+});
+
+test("requiresFreeText draft is not submitted after switching back to a normal choice", async () => {
+  const submissions: unknown[] = [];
+  const question: AssessmentInterviewQuestion = {
+    choices: [
+      { id: "normal", label: "Normal path" },
+      { id: "other", label: "Other path", requiresFreeText: true },
+    ],
+    control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+    id: "q-switch-choice",
+    intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+    prompt: "Choose a path",
+  };
+  const { container } = await renderElement(
+    React.createElement(InterviewInteractiveHarness, {
+      onSubmit: (payload) => submissions.push(payload),
+      question,
+    }),
+  );
+  const radios = container.querySelectorAll<HTMLButtonElement>("[role='radio']");
+  await click(radios[1]);
+  await changeText(
+    container.querySelector("[data-slot='assessment-composer'] textarea") as HTMLTextAreaElement,
+    "A custom explanation",
+  );
+  await click(radios[0]);
+
+  const composerSend = container.querySelector<HTMLButtonElement>(
+    "[data-slot='assessment-composer'] button[type='submit']",
+  );
+  const structuredSend = container.querySelector<HTMLButtonElement>(
+    "[data-slot='selection-submit-action'] button",
+  );
+  assert.ok(composerSend);
+  assert.ok(structuredSend);
+  assert.equal(composerSend.disabled, true);
+  assert.equal(structuredSend.disabled, false);
+  await click(structuredSend);
+
+  assert.deepEqual(submissions, [
+    { questionId: "q-switch-choice", selectedChoiceIds: ["normal"] },
+  ]);
 });
 
 test("selection controls expose an inline send action that arms only after a choice", async () => {
@@ -512,7 +577,7 @@ test("selection controls expose an inline send action that arms only after a cho
 });
 
 
-test("submitted and historical selection turns do not render the inline send action", async () => {
+test("active selection keeps its action with history while historical turns stay read-only", async () => {
   const question: AssessmentInterviewQuestion = {
     control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
     id: "q-submitted-send",
@@ -524,25 +589,34 @@ test("submitted and historical selection turns do not render the inline send act
     ],
   };
 
-  for (const props of [
-    { answerHistoryVisible: true, selectedChoiceIds: ["gate"] },
-    { hideSubmitSelection: true, selectedChoiceIds: ["gate"] },
-  ]) {
-    const { container } = await renderElement(
-      React.createElement(AssessmentQuestionTurn, {
-        question,
-        canSubmitSelection: true,
-        ...props,
-      }),
-    );
-    assert.equal(
-      container.querySelector("[data-slot='selection-submit-action']"),
-      null,
-    );
-  }
+  const { container: activeContainer } = await renderElement(
+    React.createElement(AssessmentQuestionTurn, {
+      answerHistoryVisible: true,
+      canSubmitSelection: true,
+      question,
+      selectedChoiceIds: ["gate"],
+    }),
+  );
+  assert.ok(
+    activeContainer.querySelector("[data-slot='selection-submit-action']"),
+  );
+
+  const { container: historicalContainer } = await renderElement(
+    React.createElement(AssessmentQuestionTurn, {
+      answerHistoryVisible: true,
+      canSubmitSelection: true,
+      historical: true,
+      question,
+      selectedChoiceIds: ["gate"],
+    }),
+  );
+  assert.equal(
+    historicalContainer.querySelector("[data-slot='selection-submit-action']"),
+    null,
+  );
 });
 
-test("BOOLEAN: uses ChatSingleSelect, selection on click, submits on Enter/Send", async () => {
+test("BOOLEAN: uses ChatSingleSelect and the shared structured action", async () => {
   const submissions: unknown[] = [];
   const question: AssessmentInterviewQuestion = {
     control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
@@ -567,11 +641,11 @@ test("BOOLEAN: uses ChatSingleSelect, selection on click, submits on Enter/Send"
   assert.equal(radios[0].getAttribute("aria-checked"), "true");
   assert.equal(submissions.length, 0);
 
-  // Send submits
-  const sendButton = container.querySelector(
-    "[data-slot='assessment-composer'] button[type='submit']",
-  ) as HTMLButtonElement;
-  await click(sendButton);
+  const sendAction = container.querySelector<HTMLButtonElement>(
+    "[data-slot='selection-submit-action'] button",
+  );
+  assert.ok(sendAction);
+  await click(sendAction);
   assert.equal(submissions.length, 1);
   assert.deepEqual(submissions[0], {
     questionId: "q-bool-1",
@@ -615,32 +689,59 @@ test("MULTI_SELECT: supports toggle selection, deselect, and multi-value submiss
   assert.equal(checkboxes[0].getAttribute("aria-checked"), "false");
   assert.equal(checkboxes[1].getAttribute("aria-checked"), "true");
 
-  // Submit B
+  // Submit B through the shared action; the composer remains non-submitting.
   const sendButton = container.querySelector(
     "[data-slot='assessment-composer'] button[type='submit']",
   ) as HTMLButtonElement;
-  await click(sendButton);
+  assert.equal(sendButton.disabled, true);
+  const sendAction = container.querySelector<HTMLButtonElement>(
+    "[data-slot='selection-submit-action'] button",
+  );
+  assert.ok(sendAction);
+  await click(sendAction);
   assert.equal(submissions.length, 1);
   assert.deepEqual(submissions[0], {
     questionId: "q-multi-1",
     selectedChoiceIds: ["opt_b"],
   });
 
-  // Now select option C (requiresFreeText)
-  await click(checkboxes[2]);
-  assert.equal(sendButton.disabled, true);
+  // A new active question identity gets a fresh action lifecycle. Render a
+  // second instance to verify a required-text selection without reusing the
+  // already-submitted action from the first question.
+  const second = await renderElement(
+    React.createElement(InterviewInteractiveHarness, {
+      onSubmit: (payload) => submissions.push(payload),
+      question: { ...question, id: "q-multi-2" },
+    }),
+  );
+  const secondCheckboxes = second.container.querySelectorAll<HTMLButtonElement>(
+    "[role='checkbox']",
+  );
+  await click(secondCheckboxes[1]);
+  await click(secondCheckboxes[2]);
 
-  const textarea = container.querySelector(
+  const secondSendButton = second.container.querySelector(
     "[data-slot='assessment-composer'] textarea",
   ) as HTMLTextAreaElement;
-  await changeText(textarea, "Custom PostgreSQL DB");
+  assert.ok(secondSendButton);
+  const secondAction = second.container.querySelector<HTMLButtonElement>(
+    "[data-slot='selection-submit-action'] button",
+  );
+  assert.ok(secondAction);
+  await changeText(secondSendButton, "Custom PostgreSQL DB");
 
-  assert.equal(sendButton.disabled, false);
-  await click(sendButton);
+  assert.equal(
+    (second.container.querySelector(
+      "[data-slot='assessment-composer'] button[type='submit']",
+    ) as HTMLButtonElement).disabled,
+    true,
+  );
+  assert.equal(secondAction.disabled, false);
+  await click(secondAction);
   assert.equal(submissions.length, 2);
   assert.deepEqual(submissions[1], {
     otherText: "Custom PostgreSQL DB",
-    questionId: "q-multi-1",
+    questionId: "q-multi-2",
     selectedChoiceIds: ["opt_b", "opt_c"],
   });
 });
