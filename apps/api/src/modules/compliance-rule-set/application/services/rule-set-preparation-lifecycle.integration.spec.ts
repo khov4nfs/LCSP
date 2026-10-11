@@ -163,9 +163,9 @@ describeDatabase(
       const source = await createCorpus(changed);
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
-      await claimRun(run!.id);
-      const result = await submitPacket(run!.id);
-      return { source, run: run!, result };
+      await claimRun(run.id);
+      const result = await submitPacket(run.id);
+      return { source, run: run, result };
     };
     async function expectRefusal(
       promise: Promise<unknown>,
@@ -236,25 +236,25 @@ describeDatabase(
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
 
-      await expect(claimRun(run!.id)).resolves.toMatchObject({
+      await expect(claimRun(run.id)).resolves.toMatchObject({
         executionState: "RUNNING",
       });
       await expectRefusal(
-        claimRun(run!.id),
+        claimRun(run.id),
         COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
       );
       const claims = await Promise.allSettled([
-        claimRun(run!.id),
-        claimRun(run!.id),
+        claimRun(run.id),
+        claimRun(run.id),
       ]);
       expect(claims.every((result) => result.status === "rejected")).toBe(true);
 
       // Only a lease that expired without a result (a crashed worker) can be taken over.
       await prisma.ruleSetPreparationRun.update({
-        where: { id: run!.id },
+        where: { id: run.id },
         data: { startedAt: new Date(Date.now() - 3_600_000) },
       });
-      await expect(claimRun(run!.id)).resolves.toMatchObject({
+      await expect(claimRun(run.id)).resolves.toMatchObject({
         executionState: "RUNNING",
       });
     });
@@ -299,17 +299,17 @@ describeDatabase(
       const source = await createCorpus(true);
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
-      await claimRun(run!.id);
-      await failRun(run!.id);
+      await claimRun(run.id);
+      await failRun(run.id);
 
       // A submission that fails mechanical validation is recorded INVALID, never authoritative.
       const invalidSource = await createCorpus(true);
       await consumer.handle(activation(invalidSource.id));
       const [invalidRun] = await runsOf(invalidSource.id);
-      await claimRun(invalidRun!.id);
+      await claimRun(invalidRun.id);
       const broken = validPacket();
-      broken.assessmentRules[0]!.legalRequirementIds.push("LR-MISSING");
-      const invalid = await submitPacket(invalidRun!.id, broken);
+      broken.assessmentRules[0].legalRequirementIds.push("LR-MISSING");
+      const invalid = await submitPacket(invalidRun.id, broken);
       expect(invalid.lifecycleState).toBe(ARTIFACT_LIFECYCLE_STATES.INVALID);
 
       const active = await prisma.complianceRuleSetVersion.findMany({
@@ -321,7 +321,7 @@ describeDatabase(
       expect(
         (
           await prisma.ruleSetPreparationRun.findUniqueOrThrow({
-            where: { id: run!.id },
+            where: { id: run.id },
           })
         ).executionState,
       ).toBe("FAILED");
@@ -333,17 +333,17 @@ describeDatabase(
       const [first] = await runsOf(source.id);
 
       await expectRefusal(
-        retryRun(first!.id),
+        retryRun(first.id),
         COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
         RULE_SET_PREPARATION_REFUSAL_REASONS.RUN_NOT_FAILED,
       );
-      await claimRun(first!.id);
-      await failRun(first!.id);
+      await claimRun(first.id);
+      await failRun(first.id);
 
       // Two operators racing on the same failed run receive one new attempt.
       const [a, b] = await Promise.all([
-        retryRun(first!.id),
-        retryRun(first!.id),
+        retryRun(first.id),
+        retryRun(first.id),
       ]);
       expect(a.preparationRunId).toBe(b.preparationRunId);
       const attempts = await runsOf(source.id);
@@ -355,7 +355,7 @@ describeDatabase(
 
       // The failed first attempt is no longer the latest, so it cannot be retried again.
       await expectRefusal(
-        retryRun(first!.id),
+        retryRun(first.id),
         COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
         RULE_SET_PREPARATION_REFUSAL_REASONS.RUN_NOT_LATEST_ATTEMPT,
       );
@@ -390,14 +390,14 @@ describeDatabase(
       const source = await createCorpus();
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
-      await claimRun(run!.id);
-      await failRun(run!.id);
+      await claimRun(run.id);
+      await failRun(run.id);
       await prisma.legalSourceVersion.update({
         where: { id: source.id },
         data: { status: "SUPERSEDED" },
       });
       await expectRefusal(
-        retryRun(run!.id),
+        retryRun(run.id),
         COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
         RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
       );
@@ -407,12 +407,12 @@ describeDatabase(
       const source = await createCorpus();
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
-      await claimRun(run!.id);
-      await failRun(run!.id);
+      await claimRun(run.id);
+      await failRun(run.id);
 
       const view = await history.load();
       const row = view.preparations.find(
-        (item) => item.preparationRunId === run!.id,
+        (item) => item.preparationRunId === run.id,
       );
       expect(row).toMatchObject({
         executionState: "FAILED",

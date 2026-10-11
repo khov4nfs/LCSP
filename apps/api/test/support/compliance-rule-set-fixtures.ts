@@ -73,7 +73,10 @@ export function fixtureCorpus(
   };
 }
 
-export function ref(locator: string, variant = "v1"): ComplianceRuleSetSourceRef {
+export function ref(
+  locator: string,
+  variant = "v1",
+): ComplianceRuleSetSourceRef {
   return {
     documentId: FIXTURE_DOCUMENT_ID,
     locator,
@@ -109,7 +112,8 @@ function legalRequirement(
     coverage:
       coverage === "covered"
         ? {
-            state: LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES,
+            state:
+              LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES,
             nonAssessableReason: null,
           }
         : {

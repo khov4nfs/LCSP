@@ -76,7 +76,8 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
         {
           status: HttpStatus.CONFLICT,
           meta: {
-            reason: RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
+            reason:
+              RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
           },
         },
       );

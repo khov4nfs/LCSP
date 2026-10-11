@@ -40,7 +40,8 @@ export type PreparationResult =
 
 export const PIN_RESULTS = {
   PINNED: "PINNED",
-  WAITING_FOR_COMPLIANCE_RULE_SET: PREPARATION_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET,
+  WAITING_FOR_COMPLIANCE_RULE_SET:
+    PREPARATION_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET,
 } as const;
 export type PinResult = (typeof PIN_RESULTS)[keyof typeof PIN_RESULTS];
 
@@ -112,7 +113,8 @@ export class AssessmentRuntimePreparation {
         where: { lifecycleState: ArtifactLifecycleState.ACTIVE },
         select: { id: true },
       });
-      if (!active) return { result: PIN_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET };
+      if (!active)
+        return { result: PIN_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET };
       ruleSetId = active.id;
       await tx.assessmentCase.update({
         where: { assessmentId: input.assessmentId },

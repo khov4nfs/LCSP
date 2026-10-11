@@ -191,7 +191,9 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     )[0]?.n === 1;
 
   const activeCount = () =>
-    prisma.complianceRuleSetVersion.count({ where: { lifecycleState: "ACTIVE" } });
+    prisma.complianceRuleSetVersion.count({
+      where: { lifecycleState: "ACTIVE" },
+    });
 
   async function expectProblem(
     promise: Promise<unknown>,
@@ -347,9 +349,11 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       (await startRun((await createCorpus()).id)).preparationRunId,
       validPacket(),
     );
-    const activeBefore = await prisma.complianceRuleSetVersion.findFirstOrThrow({
-      where: { lifecycleState: "ACTIVE" },
-    });
+    const activeBefore = await prisma.complianceRuleSetVersion.findFirstOrThrow(
+      {
+        where: { lifecycleState: "ACTIVE" },
+      },
+    );
     expect(activeBefore.id).toBe(good.ruleSetVersionId);
 
     const corpus = await createCorpus();
@@ -455,9 +459,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       validPacket(),
     );
 
-    expect(second.previousActiveRuleSetVersionId).toBe(
-      first.ruleSetVersionId,
-    );
+    expect(second.previousActiveRuleSetVersionId).toBe(first.ruleSetVersionId);
     expect(await activeCount()).toBe(1);
     const old = await prisma.complianceRuleSetVersion.findUniqueOrThrow({
       where: { id: first.ruleSetVersionId },

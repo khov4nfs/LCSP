@@ -30,7 +30,9 @@ export class ComplianceRuleSetReadModelLoader {
           orderBy: { ordinal: "asc" },
           include: {
             legalRequirementLinks: {
-              include: { legalRequirement: { select: { legalRequirementId: true } } },
+              include: {
+                legalRequirement: { select: { legalRequirementId: true } },
+              },
             },
           },
         },

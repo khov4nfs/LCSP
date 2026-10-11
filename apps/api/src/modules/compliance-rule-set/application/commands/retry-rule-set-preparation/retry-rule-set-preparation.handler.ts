@@ -7,11 +7,7 @@ import {
   type RuleSetPreparationRun,
 } from "@lcsp/contracts/compliance-rule-set";
 import { HttpStatus } from "@nestjs/common";
-import {
-  CommandBus,
-  CommandHandler,
-  type ICommandHandler,
-} from "@nestjs/cqrs";
+import { CommandBus, CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { AgentExecutionState as PrismaAgentExecutionState } from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";

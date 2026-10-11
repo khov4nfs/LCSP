@@ -7,7 +7,12 @@ import {
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
 import { LEGAL_RULE_EVENT_TYPES } from "@lcsp/contracts/legal-rule-catalog";
-import { HttpException, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
+import {
+  HttpException,
+  Injectable,
+  Logger,
+  type OnModuleInit,
+} from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
 import { z } from "zod";
 
@@ -58,7 +63,9 @@ export class LegalSourceActivatedConsumer implements OnModuleInit {
     const parsed = legalSourceActivatedPayloadSchema.safeParse(payload);
     if (!parsed.success) {
       // A malformed event can never become valid by redelivery.
-      this.logger.error("Legal Source activation event has no legalSourceVersionId");
+      this.logger.error(
+        "Legal Source activation event has no legalSourceVersionId",
+      );
       return;
     }
     const { legalSourceVersionId, correlationId } = parsed.data;
@@ -67,7 +74,8 @@ export class LegalSourceActivatedConsumer implements OnModuleInit {
         new StartRuleSetPreparationCommand(
           {
             legalSourceVersionId,
-            idempotencyKey: ruleSetPreparationIdempotencyKey(legalSourceVersionId),
+            idempotencyKey:
+              ruleSetPreparationIdempotencyKey(legalSourceVersionId),
           },
           RULE_SET_PREPARATION_SYSTEM_ACTOR,
           correlationId ?? randomUUID(),

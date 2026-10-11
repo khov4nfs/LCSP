@@ -23,7 +23,9 @@ function sourceFiles(directory: string): string[] {
 const relativePaths = (files: string[]) =>
   files.map((file) => relative(SRC, file)).sort();
 const withMatch = (files: string[], pattern: RegExp) =>
-  relativePaths(files.filter((file) => pattern.test(readFileSync(file, "utf8"))));
+  relativePaths(
+    files.filter((file) => pattern.test(readFileSync(file, "utf8"))),
+  );
 
 const START_API =
   /StartRuleSetPreparation|RetryRuleSetPreparation|ruleSetPreparationRun|RuleSetPreparationRun|ruleSetPreparationIdempotencyKey|RULE_SET_PREPARATION_/u;
@@ -51,22 +53,26 @@ describe("Rule Set Preparation ownership", () => {
 
   it("is never invoked directly by the Legal Source lifecycle, only through its outbox event", () => {
     const catalog = sourceFiles(join(SRC, "modules", "legal-rule-catalog"));
-    expect(withMatch(catalog, /compliance-rule-set|RuleSetPreparation/u)).toEqual(
-      [],
-    );
+    expect(
+      withMatch(catalog, /compliance-rule-set|RuleSetPreparation/u),
+    ).toEqual([]);
   });
 
   it("exposes no HTTP route that starts a preparation", () => {
     const controllers = sourceFiles(
       join(SRC, "modules", "compliance-rule-set", "presentation"),
     );
-    expect(withMatch(controllers, /StartRuleSetPreparationCommand/u)).toEqual([]);
+    expect(withMatch(controllers, /StartRuleSetPreparationCommand/u)).toEqual(
+      [],
+    );
     const routes = JSON.parse(
       readFileSync(join(SRC, "app.routes.allowlist.json"), "utf8"),
     ) as string[] | { routes?: string[] };
     const list = Array.isArray(routes) ? routes : (routes.routes ?? []);
     expect(
-      list.filter((route) => /compliance-rule-set.*\/preparations$/u.test(route)),
+      list.filter((route) =>
+        /compliance-rule-set.*\/preparations$/u.test(route),
+      ),
     ).toEqual([]);
   });
 

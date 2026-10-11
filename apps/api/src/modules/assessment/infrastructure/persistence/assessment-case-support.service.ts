@@ -170,15 +170,23 @@ export class AssessmentCaseSupport {
       },
       include: {
         legalRequirementLinks: {
-          include: { legalRequirement: { select: { id: true, legalRequirementId: true } } },
+          include: {
+            legalRequirement: {
+              select: { id: true, legalRequirementId: true },
+            },
+          },
         },
       },
     });
     let legalContextIds = new Set<string>();
     if (rule) {
-      const linkedRowIds = rule.legalRequirementLinks.map((link) => link.legalRequirement.id);
+      const linkedRowIds = rule.legalRequirementLinks.map(
+        (link) => link.legalRequirement.id,
+      );
       legalContextIds = new Set(
-        rule.legalRequirementLinks.map((link) => link.legalRequirement.legalRequirementId),
+        rule.legalRequirementLinks.map(
+          (link) => link.legalRequirement.legalRequirementId,
+        ),
       );
       const relations = await tx.legalRequirementContextRelation.findMany({
         where: {

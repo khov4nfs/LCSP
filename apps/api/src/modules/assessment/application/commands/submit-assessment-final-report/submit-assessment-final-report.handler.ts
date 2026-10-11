@@ -143,8 +143,7 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           report.assessmentId !== existing.assessmentId ||
           report.kind !== ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT ||
           report.schemaVersion !== existing.schemaVersion ||
-          report.pins.ruleSetVersionId !==
-            existing.ruleSetVersionId ||
+          report.pins.ruleSetVersionId !== existing.ruleSetVersionId ||
           report.pins.repositorySnapshotId !== existing.repositorySnapshotId ||
           report.pins.repositoryCommit.toLowerCase() !==
             existing.repositoryCommit.toLowerCase() ||

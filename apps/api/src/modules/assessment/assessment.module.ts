@@ -132,7 +132,7 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     },
     RenameAssessmentHandler,
     GetAssessmentHandler,
-ListAssessmentEventsHandler,
+    ListAssessmentEventsHandler,
     GetWorkspaceRuntimeHandler,
     AssessmentDetailLoader,
     AssessmentReportLoader,

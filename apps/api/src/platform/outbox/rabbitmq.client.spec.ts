@@ -208,7 +208,9 @@ describe("RabbitMqClient", () => {
       requiresRoutableDelivery(ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED),
     ).toBe(true);
     expect(
-      requiresRoutableDelivery("command.compliance-rule-set.prepare.requested.v1"),
+      requiresRoutableDelivery(
+        "command.compliance-rule-set.prepare.requested.v1",
+      ),
     ).toBe(true);
     expect(
       requiresRoutableDelivery("cron.legal-catalog.check-updates.v1"),

@@ -294,8 +294,7 @@ function createFixture() {
       Promise.resolve({
         caseRevision: fixture.assessmentCase.caseRevision,
         pins: {
-          ruleSetVersionId:
-            fixture.assessmentCase.ruleSetVersionId!,
+          ruleSetVersionId: fixture.assessmentCase.ruleSetVersionId!,
           repositorySnapshotId: fixture.assessmentCase.repositorySnapshotId!,
           repositoryCommit: fixture.assessmentCase.repositoryCommit!,
         },

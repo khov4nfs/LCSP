@@ -68,9 +68,7 @@ export function validateRuleDecision(
       decision.assessmentRuleId,
     );
   } else {
-    if (
-      context.rule.assessmentRuleVersion !== decision.assessmentRuleVersion
-    ) {
+    if (context.rule.assessmentRuleVersion !== decision.assessmentRuleVersion) {
       fail(
         DECISION_VALIDATION_FAILURE_CODES.ASSESSMENT_RULE_VERSION_MISMATCH,
         decision.assessmentRuleId,
@@ -102,9 +100,7 @@ export function validateRuleDecision(
     }
   }
 
-  if (
-    decision.ruleSetVersionId !== context.pins.ruleSetVersionId
-  ) {
+  if (decision.ruleSetVersionId !== context.pins.ruleSetVersionId) {
     fail(
       DECISION_VALIDATION_FAILURE_CODES.RULE_SET_PIN_MISMATCH,
       decision.ruleSetVersionId,

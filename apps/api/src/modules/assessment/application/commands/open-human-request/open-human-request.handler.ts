@@ -160,10 +160,7 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
             request.unresolvedFact,
             ...request.choices.map((c) => c.label),
           ],
-          await this.support.ruleSetIdentifiers(
-            tx,
-            pins.ruleSetVersionId,
-          ),
+          await this.support.ruleSetIdentifiers(tx, pins.ruleSetVersionId),
         )
       ) {
         throw invalid(

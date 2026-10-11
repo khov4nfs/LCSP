@@ -17,7 +17,10 @@ function packetWith(
   packet.legalRequirements[0].coverage = { state, nonAssessableReason };
   if (state === NON_ASSESSABLE) {
     packet.assessmentRules = packet.assessmentRules.filter(
-      (rule) => !rule.legalRequirementIds.includes(packet.legalRequirements[0].legalRequirementId),
+      (rule) =>
+        !rule.legalRequirementIds.includes(
+          packet.legalRequirements[0].legalRequirementId,
+        ),
     );
   }
   return packet;
@@ -114,7 +117,8 @@ describe("compliance rule set declared coverage graph (shared, structural)", () 
     expect(result.success).toBe(false);
     if (result.success) return;
     const issue = result.error.issues.find(
-      (issue) => issue.path.join(".") === "assessmentRules.1.legalRequirementIds.2",
+      (issue) =>
+        issue.path.join(".") === "assessmentRules.1.legalRequirementIds.2",
     );
     expect(issue?.message).toContain("NON_ASSESSABLE");
   });

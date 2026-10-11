@@ -53,7 +53,7 @@ export class ComplianceRuleSetHistoryLoader {
               left.createdAt.getTime() - right.createdAt.getTime(),
           );
           oldestFirst.forEach((run, index) => attemptOf.set(run.id, index + 1));
-          latestOf.set(group[0]!.legalSourceVersionId, group[0]!.id);
+          latestOf.set(group[0].legalSourceVersionId, group[0].id);
         }
         return complianceRuleSetHistorySchema.parse({
           ruleSets: ruleSets.map((row) => ({

@@ -105,8 +105,7 @@ export class ComplianceRuleSetActivation {
         activationRecordId: record.id,
         failures:
           record.validationFailures as unknown as ComplianceRuleSetValidationFailure[],
-        previousActiveRuleSetVersionId:
-          record.previousActiveRuleSetVersionId,
+        previousActiveRuleSetVersionId: record.previousActiveRuleSetVersionId,
         replayed: true,
       });
     }
@@ -294,7 +293,10 @@ export class ComplianceRuleSetActivation {
   ): Promise<void> {
     const { packet, resolved, corpus } = ctx;
     const ruleRowId = new Map(
-      packet.legalRequirements.map((rule) => [rule.legalRequirementId, randomUUID()]),
+      packet.legalRequirements.map((rule) => [
+        rule.legalRequirementId,
+        randomUUID(),
+      ]),
     );
     const chunkOf = (ref: { documentId: string; locator: string }) => {
       const chunk = resolved.get(sourceClaimKey(ref));

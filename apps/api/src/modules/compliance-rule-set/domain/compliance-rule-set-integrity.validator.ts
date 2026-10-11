@@ -29,7 +29,9 @@ export interface CorpusSnapshot {
 }
 
 /** True when `documentId` + `locator` carries `contentSha256` in a corpus other than the pinned one. */
-export type ForeignChunkHashLookup = (ref: ComplianceRuleSetSourceRef) => boolean;
+export type ForeignChunkHashLookup = (
+  ref: ComplianceRuleSetSourceRef,
+) => boolean;
 
 export interface RuleSetValidationResult {
   failures: ComplianceRuleSetValidationFailure[];
@@ -92,7 +94,10 @@ export function validateComplianceRuleSetPacket(
   if (!corpus.retrievalIndexValid) {
     fail(COMPLIANCE_RULE_SET_FAILURE_CODES.RETRIEVAL_INDEX_NOT_VALID, null);
   }
-  if (packet.legalRequirements.length === 0 || packet.assessmentRules.length === 0) {
+  if (
+    packet.legalRequirements.length === 0 ||
+    packet.assessmentRules.length === 0
+  ) {
     fail(COMPLIANCE_RULE_SET_FAILURE_CODES.EMPTY_RULE_SET, null);
   }
 
@@ -151,7 +156,10 @@ export function validateComplianceRuleSetPacket(
     const chunk = chunkByKey.get(key);
     const refLabel = `${owner}|locator:${key}`;
     if (!chunk) {
-      fail(COMPLIANCE_RULE_SET_FAILURE_CODES.UNRESOLVED_SOURCE_REFERENCE, refLabel);
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.UNRESOLVED_SOURCE_REFERENCE,
+        refLabel,
+      );
       return;
     }
     if (chunk.contentSha256 !== ref.contentSha256) {
@@ -164,7 +172,10 @@ export function validateComplianceRuleSetPacket(
       return;
     }
     if (chunk.legalStatus === REPEALED_LEGAL_STATUS) {
-      fail(COMPLIANCE_RULE_SET_FAILURE_CODES.REPEALED_SOURCE_REFERENCE, refLabel);
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.REPEALED_SOURCE_REFERENCE,
+        refLabel,
+      );
       return;
     }
     if (!checkedClaims.has(`${owner}|${key}`)) {
@@ -220,7 +231,10 @@ export function validateComplianceRuleSetPacket(
         `unknown source rule ${relation.fromLegalRequirementId}`,
       );
     }
-    if (relation.toLegalRequirementId && !legalRequirementIds.has(relation.toLegalRequirementId)) {
+    if (
+      relation.toLegalRequirementId &&
+      !legalRequirementIds.has(relation.toLegalRequirementId)
+    ) {
       fail(
         COMPLIANCE_RULE_SET_FAILURE_CODES.ORPHAN_CONTEXT_RELATION,
         label,
