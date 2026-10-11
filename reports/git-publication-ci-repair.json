@@ -111,5 +111,75 @@
     "candidatePolicyMismatches": 0,
     "sqlMigrationAndProductionPurgeScriptChanged": false,
     "acceptanceReuse": "The fixed test harness is outside accepted runtime and build/policy inputs. Existing exact-image semantic and browser receipts remain valid. Current-head remote CI must rerun."
+  },
+  "legalPortfolioVerticalRepair": {
+    "checkedAt": "2026-10-11T13:46:03.905235+00:00",
+    "failedRemoteHead": "b0ca8ec484a8ef67bffc39538bbe5e3a8bd305d3",
+    "failedRemoteRun": 38143433167,
+    "rootCause": "The orphan packet now violates the shared declared-coverage graph invariant and is rejected before persistence; the old test dereferenced a submission that correctly did not exist.",
+    "fix": "Assert structured field-level 400 feedback, no submission or portfolio persistence, and unchanged ACTIVE portfolio. Expect only the stale-source attempt to persist as INVALID. Existing zero approval-record assertion is preserved. New API/status assertions use shared contract constants.",
+    "focusedLane": {
+      "results": [
+        {
+          "command": "node tests/legal-portfolio-vertical.mjs",
+          "exit": 0,
+          "summary": [
+            "PASS: 59 LEGAL_PORTFOLIO vertical checks (real API + PostgreSQL + Python agent; model scripted) on lcsp_legal_portfolio_vertical"
+          ],
+          "proof": [
+            "PASS: 59 LEGAL_PORTFOLIO vertical checks (real API + PostgreSQL + Python agent; model scripted) on lcsp_legal_portfolio_vertical"
+          ]
+        },
+        {
+          "command": "node tests/assessment-domain-vertical.mjs",
+          "exit": 0,
+          "summary": [
+            "PASS: 138 ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on lcsp_assessment_vertical"
+          ],
+          "proof": [
+            "PASS: 138 ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on lcsp_assessment_vertical"
+          ]
+        },
+        {
+          "command": "node tests/assessment-hitl-vertical.mjs",
+          "exit": 0,
+          "summary": [],
+          "proof": [
+            {
+              "gate": "ASSESSMENT HITL mechanics",
+              "checks": 79,
+              "result": "PASS",
+              "sameThread": "b472ee38-f831-408a-b652-e043bd142f15",
+              "checkpoint": "1f1c579b-5d18-67b4-800c-0ed193d34d5d",
+              "crashThread": "04c7a4de-acfc-4756-91d7-71b7d801db0b",
+              "proof": "real migrated DB/API/PostgresSaver; scripted model; separate processes"
+            }
+          ]
+        },
+        {
+          "command": "node tests/assessment-hitl-vertical.mjs --unresolvable-only",
+          "exit": 0,
+          "summary": [],
+          "proof": [
+            {
+              "gate": "ASSESSMENT unresolvable human fact mechanics",
+              "checks": 72,
+              "result": "PASS",
+              "sameThread": "a26d9253-b222-49ae-bf36-65010a1ade9d",
+              "checkpoint": "1f1c579d-d4c4-665c-800c-66fc5ef90a6c",
+              "crashThread": "8a521dcc-45fa-4b4d-a86a-dada4c133f2f",
+              "proof": "real migrated DB/API/PostgresSaver; scripted model; separate processes"
+            }
+          ]
+        }
+      ],
+      "ownedContainer": "lcsp-publication-vertical-2df8513c6197",
+      "teardown": "PASS"
+    },
+    "scope": "REAL_API_DB_AND_NATIVE_GRAPH_WITH_SCRIPTED_MODELS_NOT_BROWSER_OR_LEGAL_SEMANTIC_ACCEPTANCE",
+    "productionSourceMismatches": 0,
+    "buildPolicyMismatches": 0,
+    "conventions": "PASS: test assertion updates only; no production or form changes; shared value constants reused.",
+    "naming": "PASS: purpose-named durable receipt."
   }
 }

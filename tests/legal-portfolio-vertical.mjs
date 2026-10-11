@@ -8,6 +8,11 @@ import { randomUUID } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
+import {
+  LEGAL_PORTFOLIO_ERROR_CODES,
+  LEGAL_PREPARATION_FAILURE_REASONS,
+} from "@lcsp/contracts/legal-portfolio";
 
 import {
   contentHash,
@@ -69,7 +74,9 @@ try {
     });
   const corpusA = await seed("vertical-a", "a", "APPROVED");
   const corpusB = await seed("vertical-b", "b", "SUPERSEDED");
-  const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-legal_portfolio-vertical-"));
+  const seedDir = mkdtempSync(
+    path.join(tmpdir(), "lcsp-legal_portfolio-vertical-"),
+  );
   const seedFile = path.join(seedDir, "seed.json");
   writeFileSync(
     seedFile,
@@ -246,16 +253,33 @@ try {
     ),
     "stale hash rejected",
   );
-  const orphan = await runPython(
-    (await startRun(corpusB)).preparationRunId,
-    "orphan",
-  );
+  const orphanRun = await startRun(corpusB);
+  const orphan = await runPython(orphanRun.preparationRunId, "orphan");
+  eq(orphan.state, AGENT_EXECUTION_STATES.FAILED);
+  eq(orphan.submission, null);
+  eq(orphan.failureReason, LEGAL_PREPARATION_FAILURE_REASONS.NO_SUBMISSION);
+  const orphanFeedback = orphan.trace.find(
+    (step) => step.tool === "validate",
+  )?.error;
   ok(
-    orphan.submission.validation.failures.some(
-      (f) => f.code === "ORPHAN_ENGINEERING_RULE",
-    ),
-    "orphan rejected",
+    orphanFeedback?.includes(
+      LEGAL_PORTFOLIO_ERROR_CODES.submitRequestInvalid,
+    ) &&
+      orphanFeedback.includes("400") &&
+      orphanFeedback.includes("packet.legalRules.0.coverage.state"),
+    "orphan rejected at the shared contract with field-level 400 feedback",
   );
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "LegalPortfolioVersion" WHERE "preparationRunId"=$1`,
+        [orphanRun.preparationRunId],
+      )
+    ).rows[0].n,
+    0,
+    "contract-invalid packets never persist",
+  );
+  eq(await activeIds(), [second.submission.portfolioVersionId]);
   const noSubmit = await startRun(corpusB);
   const none = await runPython(noSubmit.preparationRunId, "no-submit");
   eq(
@@ -279,7 +303,7 @@ try {
         `SELECT count(*)::int AS n FROM "LegalPortfolioVersion" WHERE "lifecycleState"='INVALID'`,
       )
     ).rows[0].n,
-    2,
+    1,
   );
 
   // 9. concurrent agent processes: exactly one ACTIVE, consistent supersession chain
