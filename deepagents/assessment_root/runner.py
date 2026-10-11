@@ -35,7 +35,7 @@ LABEL_TASK_FINISHED = "assessment.activity.taskFinished"
 
 _START_MESSAGE = (
     "Start (or resume) this assessment. Call get_assessment_context first, then work through "
-    "every EngineeringRule of the pinned portfolio."
+    "every AssessmentRule of the pinned rule set."
 )
 
 

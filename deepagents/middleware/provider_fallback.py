@@ -14,11 +14,11 @@ from middleware.usage_metering import (
 )
 from middleware.failure_policy import (
     TerminalCredentialError,
-    _error_codes,
     error_status,
     is_auth_failure,
     is_provider_capacity_failure,
     is_provider_model_unavailable,
+    is_provider_quota_exhaustion,
     is_provider_route_incompatibility,
     is_structured_output_rejection,
     is_terminal_task_error,
@@ -117,26 +117,13 @@ def provider_fallback_failure(error: BaseException) -> bool:
     )
 
 
-# A used-up quota does not recover by waiting a cooldown; only plain 429s do.
-_QUOTA_EXHAUSTION_CODES = frozenset(
-    {
-        "billing_hard_limit_reached",
-        "insufficient_balance",
-        "insufficient_quota",
-        "quota_exceeded",
-    }
-)
-
-
 def _is_rate_limited_chain(error: BaseException) -> bool:
     """Whether a failure is a plain 429 rate limit (not quota exhaustion or auth)."""
     seen: set[int] = set()
     current: BaseException | None = error
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        if error_status(current) == 429 and not (
-            _error_codes(current) & _QUOTA_EXHAUSTION_CODES
-        ):
+        if error_status(current) == 429 and not is_provider_quota_exhaustion(current):
             return True
         current = current.__cause__ or current.__context__
     return False

@@ -21,7 +21,7 @@ import {
   runPython,
   startStack,
   workerKey,
-} from "./support/legal-portfolio-stack.mjs";
+} from "./support/compliance-rule-set-stack.mjs";
 
 const unresolvableOnly = process.argv.includes("--unresolvable-only");
 const stack = await startStack({
@@ -30,7 +30,7 @@ const stack = await startStack({
     : "lcsp_assessment_vertical",
   apiPort: Number(process.env.LCSP_HITL_TEST_API_PORT ?? 3414),
 });
-const { q, base, post, stop, seedCorpus, databaseUrl } = stack;
+const { q, base, post, stop, seedCorpus, activateLegalSource, databaseUrl } = stack;
 let checks = 0;
 const eq = (actual, expected, message) => {
   assert.deepEqual(actual, expected, message);
@@ -112,14 +112,11 @@ try {
   });
   const seed = path.join(dir, "seed.json");
   writeFileSync(seed, JSON.stringify({ hashes }));
-  const prep = await post("preparations", {
-    legalCorpusVersionId: corpus,
-    idempotencyKey: `assessment-prep-${randomUUID()}`,
-  });
-  eq(prep.status, 202, JSON.stringify(prep.body));
+  const prep = await activateLegalSource(corpus);
+  eq(prep.runs.length, 1, "one Legal Source -> one automatic preparation");
   const prepared = await runPython(
     path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),
-    [base, workerKey, prep.body.data.preparationRunId, seed, "valid"],
+    [base, workerKey, prep.preparationRunId, seed, "valid"],
   );
   eq(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
   const { hashSecret } = await import(

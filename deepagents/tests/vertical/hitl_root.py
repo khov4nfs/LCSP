@@ -16,7 +16,7 @@ from vertical.scripted_root import DynamicScriptedModel, _call, _tool_results
 
 
 def question(rule: str, suffix: str) -> dict:
-    return {"engineering_rule_id": rule, "criterion_ids": ["C-1"],
+    return {"assessment_rule_id": rule, "criterion_ids": ["C-1"],
             "question": f"Who owns the customer notification process {suffix}?",
             "unresolved_fact": f"Customer notification owner {suffix}",
             "decision_impact": ["The confirmed owner determines which operational duty applies."],

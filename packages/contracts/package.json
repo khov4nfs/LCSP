@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsx scripts/export-legal-preparation-schema.ts --check && tsc -b tsconfig.json --force",
-    "export:legal-preparation-schema": "tsx scripts/export-legal-preparation-schema.ts"
+    "build": "tsx scripts/export-rule-set-preparation-schema.ts --check && tsc -b tsconfig.json --force",
+    "export:rule-set-preparation-schema": "tsx scripts/export-rule-set-preparation-schema.ts"
   },
   "exports": {
     ".": "./src/index.ts",
@@ -21,7 +21,7 @@
     "./github-integration/statuses": "./src/github-integration/statuses.ts",
     "./github-integration/types": "./src/github-integration/types.ts",
     "./github-integration/events": "./src/github-integration/events.ts",
-    "./legal-portfolio": "./src/legal-portfolio/index.ts",
+    "./compliance-rule-set": "./src/compliance-rule-set/index.ts",
     "./legal-rule-catalog": "./src/legal-rule-catalog/index.ts",
     "./legal-rule-catalog/event-types": "./src/legal-rule-catalog/event-types.ts",
     "./legal-rule-catalog/error-codes": "./src/legal-rule-catalog/error-codes.ts",

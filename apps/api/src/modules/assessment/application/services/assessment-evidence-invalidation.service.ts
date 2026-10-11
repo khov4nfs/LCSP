@@ -21,7 +21,7 @@ export class AssessmentEvidenceInvalidation {
         caseRevision: { lt: caseRevision },
         state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
       },
-      select: { decisionId: true, engineeringRuleId: true },
+      select: { decisionId: true, assessmentRuleId: true },
     });
     for (const decision of decisions) {
       await tx.assessmentRuleDecision.update({
@@ -33,9 +33,9 @@ export class AssessmentEvidenceInvalidation {
       });
       await tx.assessmentDecisionCoverage.update({
         where: {
-          assessmentId_engineeringRuleId: {
+          assessmentId_assessmentRuleId: {
             assessmentId,
-            engineeringRuleId: decision.engineeringRuleId,
+            assessmentRuleId: decision.assessmentRuleId,
           },
         },
         data: { resolutionState: DECISION_RESOLUTION_STATES.INVALIDATED },
@@ -82,9 +82,9 @@ export class AssessmentEvidenceInvalidation {
     }
     const needles = [input.evidenceId, ...factIds];
     const dependants = await tx.$queryRaw<
-      Array<{ decisionId: string; engineeringRuleId: string }>
+      Array<{ decisionId: string; assessmentRuleId: string }>
     >(
-      Prisma.sql`SELECT "decisionId", "engineeringRuleId" FROM "AssessmentRuleDecision"
+      Prisma.sql`SELECT "decisionId", "engineeringRuleId" AS "assessmentRuleId" FROM "AssessmentRuleDecision"
         WHERE "assessmentId" = ${input.assessmentId} AND "state" = 'ACCEPTED'
           AND (${Prisma.join(
             needles.map((id) => Prisma.sql`"decision"::text LIKE ${`%${id}%`}`),
@@ -101,9 +101,9 @@ export class AssessmentEvidenceInvalidation {
       });
       await tx.assessmentDecisionCoverage.update({
         where: {
-          assessmentId_engineeringRuleId: {
+          assessmentId_assessmentRuleId: {
             assessmentId: input.assessmentId,
-            engineeringRuleId: dependant.engineeringRuleId,
+            assessmentRuleId: dependant.assessmentRuleId,
           },
         },
         data: { resolutionState: DECISION_RESOLUTION_STATES.INVALIDATED },

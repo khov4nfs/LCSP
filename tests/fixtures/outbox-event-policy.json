@@ -17,7 +17,7 @@
   "retained": [
     "cron.legal-catalog.check-updates.v1",
     "command.assessment.root.requested.v1",
-    "command.legal-portfolio.preparation.requested.v1",
+    "command.compliance-rule-set.preparation.requested.v1",
     "command.legal-source.ingest.v1",
     "command.official-text.extract.v1",
     "command.ocr-fallback.run.v1",

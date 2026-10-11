@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One development entrypoint for LCSP legal corpus/rule/EngineeringRule seeding."""
+"""Development entrypoint for Legal Source Version seeding."""
 from __future__ import annotations
 
 import argparse
@@ -83,7 +83,7 @@ def main() -> int:
         ):
             print(
                 "[seed:legal:dev] legal corpus already exists with governed state; "
-                "continuing with legal-rule and EngineeringRule phases."
+                "no source seed is needed."
             )
             continue
         return result.returncode

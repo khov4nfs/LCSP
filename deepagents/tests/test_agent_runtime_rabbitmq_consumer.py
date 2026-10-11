@@ -54,7 +54,7 @@ class FakeChannel:
         self.deleted.append(kwargs)
 
 
-@pytest.mark.parametrize("boundary", ["assessment_root_requested", "legal_preparation_requested"])
+@pytest.mark.parametrize("boundary", ["assessment_root_requested", "rule_set_preparation_requested"])
 def test_configured_boundary_deadline_leaves_broker_settlement_margin(monkeypatch, boundary):
     monkeypatch.setenv("LCSP_AGENT_RUNTIME_BROKER_ACK_TIMEOUT_SECONDS", "1800")
     monkeypatch.setenv("LCSP_AGENT_RUNTIME_SETTLEMENT_MARGIN_SECONDS", "120")
@@ -94,7 +94,7 @@ def test_long_boundary_budget_requires_matching_broker_budget(monkeypatch):
     "boundary",
     [
         "assessment_root_requested",
-        "legal_preparation_requested",
+        "rule_set_preparation_requested",
         "assessment_root_resume_requested",
     ],
 )
@@ -171,8 +171,8 @@ def test_boundary_bindings_are_derived_from_manifest(monkeypatch):
                 "source_event": "command.assessment.root.requested.v2",
             },
             {
-                "name": "legal_preparation_requested",
-                "source_event": "command.legal-preparation.requested.v2",
+                "name": "rule_set_preparation_requested",
+                "source_event": "command.rule-set-preparation.requested.v2",
             },
         ),
     )
@@ -186,9 +186,9 @@ def test_boundary_bindings_are_derived_from_manifest(monkeypatch):
             queue_name="lcsp.agent_runtime.test.assessment_root_requested",
         ),
         rabbitmq_consumer.BoundaryBinding(
-            boundary_name="legal_preparation_requested",
-            source_event="command.legal-preparation.requested.v2",
-            queue_name="lcsp.agent_runtime.test.legal_preparation_requested",
+            boundary_name="rule_set_preparation_requested",
+            source_event="command.rule-set-preparation.requested.v2",
+            queue_name="lcsp.agent_runtime.test.rule_set_preparation_requested",
         ),
     )
 
@@ -343,8 +343,8 @@ def test_root_timeout_journals_failure(monkeypatch):
     rabbitmq_consumer._schedule_delivery_timeout_settlement(
         state=rabbitmq_consumer.DeliverySettlementState(),
         connection=FakeConnection(), channel=channel, delivery_tag="engineering-timeout",
-        routing_key="command.legal-preparation.requested.v2", queue_name="engineering",
-        boundary_name="legal_preparation_requested",
+        routing_key="command.rule-set-preparation.requested.v2", queue_name="engineering",
+        boundary_name="rule_set_preparation_requested",
         properties=SimpleNamespace(headers={"x-correlation-id": "corr-engineering"}),
         body=json.dumps({"assessmentId": "assessment-1", "runId": "scan-1"}).encode(),
         requeue_on_error=True, retry_delays_seconds=(30,), timeout_seconds=0.1,

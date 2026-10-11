@@ -106,7 +106,7 @@ describe("Admin CQRS Queries", () => {
           .mockResolvedValueOnce(8), // period completed
         findMany: jest.fn<() => Promise<unknown>>().mockResolvedValueOnce([]),
       },
-      legalCorpusVersion: {
+      legalSourceVersion: {
         findFirst: jest
           .fn<() => Promise<unknown>>()
           .mockResolvedValueOnce({

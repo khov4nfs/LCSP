@@ -89,7 +89,7 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
           updatedAt: { gte: windowStart, lte: currentTime },
         },
       }),
-      this.prisma.legalCorpusVersion.findFirst({
+      this.prisma.legalSourceVersion.findFirst({
         where: {
           status: toPrismaLegalRuleLifecycleStatus(
             LEGAL_RULE_LIFECYCLE_STATUSES.approved,
@@ -98,7 +98,7 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
         include: { _count: { select: { documents: true } } },
         orderBy: { approvedAt: "desc" },
       }),
-      this.prisma.legalCorpusVersion.findFirst({
+      this.prisma.legalSourceVersion.findFirst({
         where: {
           status: toPrismaLegalRuleLifecycleStatus(
             LEGAL_RULE_LIFECYCLE_STATUSES.draft,

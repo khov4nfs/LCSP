@@ -57,7 +57,7 @@ import { RequestAssessmentFinalizationCommand } from "../../application/commands
 import { StartRuleInvestigationCommand } from "../../application/commands/start-rule-investigation/start-rule-investigation.command.js";
 import { SubmitRuleDecisionCommand } from "../../application/commands/submit-rule-decision/submit-rule-decision.command.js";
 import { SubmitAssessmentFinalReportCommand } from "../../application/commands/submit-assessment-final-report/submit-assessment-final-report.command.js";
-import { GetPinnedPortfolioQuery } from "../../application/queries/get-pinned-portfolio/get-pinned-portfolio.query.js";
+import { GetPinnedRuleSetQuery } from "../../application/queries/get-pinned-rule-set/get-pinned-rule-set.query.js";
 import { GetRootContextQuery } from "../../application/queries/get-root-context/get-root-context.query.js";
 import { GetRootControlQuery } from "../../application/queries/get-root-control/get-root-control.query.js";
 import {
@@ -200,9 +200,9 @@ export class AssessmentDomainController {
     );
   }
 
-  @Get("portfolio")
+  @Get("rule-set")
   @UseGuards(AssessmentLeaseGuard)
-  async portfolio(
+  async ruleSet(
     @Param(
       "assessmentId",
       bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
@@ -213,7 +213,7 @@ export class AssessmentDomainController {
   ) {
     return resultEnvelope(
       await this.queryBus.execute(
-        new GetPinnedPortfolioQuery(assessmentId, lease, this.correlation(req)),
+        new GetPinnedRuleSetQuery(assessmentId, lease, this.correlation(req)),
       ),
     );
   }

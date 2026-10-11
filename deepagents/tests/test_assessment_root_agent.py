@@ -29,7 +29,7 @@ THREAD = "22222222-2222-4222-8222-222222222222"
 EXECUTION = "33333333-3333-4333-8333-333333333333"
 COMMIT = "a" * 40
 PINS = {
-    "legalPortfolioVersionId": "44444444-4444-4444-8444-444444444444",
+    "ruleSetVersionId": "44444444-4444-4444-8444-444444444444",
     "repositorySnapshotId": "55555555-5555-4555-8555-555555555555",
     "repositoryCommit": COMMIT,
 }
@@ -86,8 +86,8 @@ class FakeClient:
             "repositoryScanJobId": "job-1",
             "coverage": [
                 {
-                    "engineeringRuleId": "ER-1",
-                    "engineeringRuleVersion": "v1",
+                    "assessmentRuleId": "ER-1",
+                    "assessmentRuleVersion": "v1",
                     "resolutionState": "PENDING",
                     "currentDecisionId": None,
                     "decisionRevision": 0,
@@ -99,17 +99,17 @@ class FakeClient:
             **PINS,
         }
 
-    def portfolio(self) -> dict[str, Any]:
-        self.calls.append(("portfolio", None))
+    def rule_set(self) -> dict[str, Any]:
+        self.calls.append(("rule_set", None))
         return {
-            "portfolioVersionId": PINS["legalPortfolioVersionId"],
-            "legalRules": [{"legalRuleId": "LR-1", "title": "t", "proposition": "p"}],
-            "engineeringRules": [
+            "ruleSetVersionId": PINS["ruleSetVersionId"],
+            "legalRequirements": [{"legalRequirementId": "LR-1", "title": "t", "proposition": "p"}],
+            "assessmentRules": [
                 {
-                    "engineeringRuleId": "ER-1",
-                    "engineeringRuleVersion": "v1",
+                    "assessmentRuleId": "ER-1",
+                    "assessmentRuleVersion": "v1",
                     "concept": "retention",
-                    "legalRuleIds": ["LR-1"],
+                    "legalRequirementIds": ["LR-1"],
                     "criteria": [{"criterionId": "C-1", "statement": "s"}],
                 }
             ],
@@ -300,7 +300,7 @@ def test_submit_decision_binds_pins_versions_and_idempotency_from_server_state(t
     tools = _tools(_run(tmp_path, client))
     evidence = "66666666-6666-4666-8666-666666666666"
     args = {
-        "engineering_rule_id": "ER-1",
+        "assessment_rule_id": "ER-1",
         "applicability": "APPLICABLE",
         "rationale": "The duty applies.",
         "legal_context_ids": ["LR-1"],
@@ -314,8 +314,8 @@ def test_submit_decision_binds_pins_versions_and_idempotency_from_server_state(t
     assert first["ok"] is True and first["decisionRevision"] == 1
     request = next(b for kind, b in client.calls if kind == "decision")
     decision = request["decision"]
-    assert decision["engineeringRuleVersion"] == "v1"
-    assert decision["legalPortfolioVersionId"] == PINS["legalPortfolioVersionId"]
+    assert decision["assessmentRuleVersion"] == "v1"
+    assert decision["ruleSetVersionId"] == PINS["ruleSetVersionId"]
     assert decision["repositorySnapshotId"] == PINS["repositorySnapshotId"]
     assert decision["repositoryCommit"] == COMMIT and decision["scopeId"] == "ASSESSMENT"
     assert request["expectedDecisionRevision"] == 0
@@ -338,7 +338,7 @@ def test_rejected_decision_is_returned_as_structured_feedback_not_raised(tmp_pat
     out = json.loads(
         tools["submit_rule_decision"].invoke(
             {
-                "engineering_rule_id": "ER-1",
+                "assessment_rule_id": "ER-1",
                 "applicability": "NOT_APPLICABLE",
                 "rationale": "Out of scope.",
                 "legal_context_ids": ["LR-9"],
@@ -691,7 +691,7 @@ def test_root_human_tool_uses_native_interrupt_and_replays_the_same_request(tmp_
     run = _run(tmp_path, client)
     saver = InMemorySaver()
     model = RootScriptedModel(responses=[_call("open_human_request", {
-        "engineering_rule_id": "ER-1", "question": "Who owns the operational policy?",
+        "assessment_rule_id": "ER-1", "question": "Who owns the operational policy?",
         "unresolved_fact": "Operational policy owner", "decision_impact": ["Determines responsibility"],
         "resolution_attempts": ["Reviewed the available sources and accepted facts"],
     }, "human-call"), AIMessage(content="Investigating the confirmed owner.")])
@@ -730,7 +730,7 @@ def test_unresolvable_fact_tool_blocks_then_resumes_without_reapplying_the_claim
     run = _run(tmp_path, client)
     saver = InMemorySaver()
     model = RootScriptedModel(responses=[_call("report_human_fact_unresolvable", {
-        "engineering_rule_id": "ER-1", "question": "Who owned the historical operational policy?",
+        "assessment_rule_id": "ER-1", "question": "Who owned the historical operational policy?",
         "unresolved_fact": "Historical policy owner", "decision_impact": ["Determines responsibility"],
         "resolution_attempts": ["Reviewed all accepted sources"],
         "unavailability_rationale": "The records were permanently destroyed and no other source exists under the contract.",

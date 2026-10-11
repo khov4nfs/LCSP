@@ -22,7 +22,7 @@ import { Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
   HumanResolutionRequestStatus,
-  LegalPortfolioValidationOutcome,
+  ComplianceRuleSetValidationOutcome,
   Prisma,
   RepositoryScanJobStatus,
   RepositorySnapshotStatus,
@@ -39,7 +39,7 @@ const REQUIRED_INPUT_BLOCKER_REASONS: ReadonlySet<string> = new Set([
 export interface AssessmentFinalizationSnapshot {
   caseRevision: number;
   pins: {
-    legalPortfolioVersionId: string;
+    ruleSetVersionId: string;
     repositorySnapshotId: string;
     repositoryScanJobId: string;
     repositoryCommit: string;
@@ -158,7 +158,7 @@ export class AssessmentCompletionGate {
       where: { assessmentId },
       select: {
         caseRevision: true,
-        legalPortfolioVersionId: true,
+        ruleSetVersionId: true,
         repositorySnapshotId: true,
         repositoryScanJobId: true,
         repositoryCommit: true,
@@ -166,7 +166,7 @@ export class AssessmentCompletionGate {
       },
     });
     if (
-      !assessmentCase?.legalPortfolioVersionId ||
+      !assessmentCase?.ruleSetVersionId ||
       !assessmentCase.repositorySnapshotId ||
       !assessmentCase.repositoryScanJobId ||
       !assessmentCase.repositoryCommit ||
@@ -177,14 +177,14 @@ export class AssessmentCompletionGate {
     }
 
     const pins = {
-      legalPortfolioVersionId: assessmentCase.legalPortfolioVersionId,
+      ruleSetVersionId: assessmentCase.ruleSetVersionId,
       repositorySnapshotId: assessmentCase.repositorySnapshotId,
       repositoryScanJobId: assessmentCase.repositoryScanJobId,
       repositoryCommit: assessmentCase.repositoryCommit,
     };
 
     const [
-      portfolio,
+      ruleSet,
       snapshot,
       scanJob,
       rules,
@@ -195,8 +195,8 @@ export class AssessmentCompletionGate {
       openRequests,
       artifacts,
     ] = await Promise.all([
-      tx.legalPortfolioVersion.findUnique({
-        where: { id: pins.legalPortfolioVersionId },
+      tx.complianceRuleSetVersion.findUnique({
+        where: { id: pins.ruleSetVersionId },
         select: { id: true, lifecycleState: true, validationOutcome: true },
       }),
       tx.repositorySnapshot.findUnique({
@@ -212,16 +212,16 @@ export class AssessmentCompletionGate {
           status: true,
         },
       }),
-      tx.engineeringRule.findMany({
-        where: { portfolioVersionId: pins.legalPortfolioVersionId },
-        select: { engineeringRuleId: true, engineeringRuleVersion: true },
+      tx.assessmentRule.findMany({
+        where: { ruleSetVersionId: pins.ruleSetVersionId },
+        select: { assessmentRuleId: true, assessmentRuleVersion: true },
       }),
       tx.assessmentDecisionCoverage.findMany({
         where: { assessmentId },
         select: {
-          engineeringRuleId: true,
-          portfolioVersionId: true,
-          engineeringRuleVersion: true,
+          assessmentRuleId: true,
+          ruleSetVersionId: true,
+          assessmentRuleVersion: true,
           resolutionState: true,
           currentDecisionId: true,
           decisionRevision: true,
@@ -229,13 +229,13 @@ export class AssessmentCompletionGate {
       }),
       tx.assessmentRuleDecision.findMany({
         where: { assessmentId },
-        orderBy: [{ engineeringRuleId: "asc" }, { decisionRevision: "desc" }],
+        orderBy: [{ assessmentRuleId: "asc" }, { decisionRevision: "desc" }],
         select: {
           decisionId: true,
-          engineeringRuleId: true,
-          engineeringRuleVersion: true,
+          assessmentRuleId: true,
+          assessmentRuleVersion: true,
           scopeId: true,
-          portfolioVersionId: true,
+          ruleSetVersionId: true,
           decisionRevision: true,
           state: true,
           repositoryCommit: true,
@@ -271,15 +271,15 @@ export class AssessmentCompletionGate {
     ]);
 
     if (
-      !portfolio ||
-      (portfolio.lifecycleState !== ArtifactLifecycleState.ACTIVE &&
-        portfolio.lifecycleState !== ArtifactLifecycleState.SUPERSEDED) ||
-      portfolio.validationOutcome !== LegalPortfolioValidationOutcome.PASSED ||
+      !ruleSet ||
+      (ruleSet.lifecycleState !== ArtifactLifecycleState.ACTIVE &&
+        ruleSet.lifecycleState !== ArtifactLifecycleState.SUPERSEDED) ||
+      ruleSet.validationOutcome !== ComplianceRuleSetValidationOutcome.PASSED ||
       rules.length === 0
     ) {
       add(
-        ASSESSMENT_COMPLETION_BLOCKER_CODES.PORTFOLIO_INVALID,
-        pins.legalPortfolioVersionId,
+        ASSESSMENT_COMPLETION_BLOCKER_CODES.RULE_SET_INVALID,
+        pins.ruleSetVersionId,
       );
     }
     if (
@@ -314,25 +314,25 @@ export class AssessmentCompletionGate {
     }
 
     const coverageByRule = new Map(
-      coverage.map((row) => [row.engineeringRuleId, row]),
+      coverage.map((row) => [row.assessmentRuleId, row]),
     );
-    const ruleIds = new Set(rules.map((rule) => rule.engineeringRuleId));
+    const ruleIds = new Set(rules.map((rule) => rule.assessmentRuleId));
     for (const rule of rules) {
-      const row = coverageByRule.get(rule.engineeringRuleId);
+      const row = coverageByRule.get(rule.assessmentRuleId);
       if (!row) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.MISSING_RULE_COVERAGE,
-          rule.engineeringRuleId,
+          rule.assessmentRuleId,
         );
         continue;
       }
       if (
-        row.portfolioVersionId !== pins.legalPortfolioVersionId ||
-        row.engineeringRuleVersion !== rule.engineeringRuleVersion
+        row.ruleSetVersionId !== pins.ruleSetVersionId ||
+        row.assessmentRuleVersion !== rule.assessmentRuleVersion
       ) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
-          rule.engineeringRuleId,
+          rule.assessmentRuleId,
         );
         continue;
       }
@@ -341,19 +341,19 @@ export class AssessmentCompletionGate {
           row.resolutionState === DECISION_RESOLUTION_STATES.INVALIDATED
             ? ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION
             : ASSESSMENT_COMPLETION_BLOCKER_CODES.DECISION_UNRESOLVED,
-          rule.engineeringRuleId,
+          rule.assessmentRuleId,
         );
         continue;
       }
       const accepted = decisions.filter(
         (item) =>
-          item.engineeringRuleId === rule.engineeringRuleId &&
+          item.assessmentRuleId === rule.assessmentRuleId &&
           item.state === ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
       );
       if (accepted.length !== 1 || !row.currentDecisionId) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
-          rule.engineeringRuleId,
+          rule.assessmentRuleId,
         );
         continue;
       }
@@ -362,15 +362,15 @@ export class AssessmentCompletionGate {
         record.decisionId !== row.currentDecisionId ||
         record.decisionRevision !== row.decisionRevision ||
         record.scopeId !== ASSESSMENT_DECISION_SCOPE ||
-        record.portfolioVersionId !== pins.legalPortfolioVersionId ||
-        record.engineeringRuleVersion !== rule.engineeringRuleVersion ||
+        record.ruleSetVersionId !== pins.ruleSetVersionId ||
+        record.assessmentRuleVersion !== rule.assessmentRuleVersion ||
         record.repositoryCommit.toLowerCase() !==
           pins.repositoryCommit.toLowerCase() ||
         record.caseRevision !== assessmentCase.caseRevision
       ) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
-          rule.engineeringRuleId,
+          rule.assessmentRuleId,
         );
         continue;
       }
@@ -378,14 +378,14 @@ export class AssessmentCompletionGate {
       if (!parsed.success) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
-          rule.engineeringRuleId,
+          rule.assessmentRuleId,
         );
         continue;
       }
-      if (parsed.data.engineeringRuleId !== rule.engineeringRuleId) {
+      if (parsed.data.assessmentRuleId !== rule.assessmentRuleId) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
-          rule.engineeringRuleId,
+          rule.assessmentRuleId,
         );
         continue;
       }
@@ -420,24 +420,24 @@ export class AssessmentCompletionGate {
       }
     }
     for (const row of coverage) {
-      if (!ruleIds.has(row.engineeringRuleId)) {
+      if (!ruleIds.has(row.assessmentRuleId)) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.EXTRA_RULE_COVERAGE,
-          row.engineeringRuleId,
+          row.assessmentRuleId,
         );
       }
     }
     for (const row of decisions) {
-      if (!ruleIds.has(row.engineeringRuleId)) {
+      if (!ruleIds.has(row.assessmentRuleId)) {
         add(
           ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
-          row.engineeringRuleId,
+          row.assessmentRuleId,
         );
       }
     }
 
     const resolvedDecisions = rules.flatMap((rule) => {
-      const row = coverageByRule.get(rule.engineeringRuleId);
+      const row = coverageByRule.get(rule.assessmentRuleId);
       const record = decisions.find(
         (item) => item.decisionId === row?.currentDecisionId,
       );

@@ -34,7 +34,7 @@ class ChromaDbCitationRetriever:
         return [RetrievedChunk(item["id"], str(item["metadata"].get("document_id") or ""), str(item["metadata"].get("locator") or ""), str(item["metadata"].get("legal_status") or "ACTIVE"), item["role"]) for item in records]
 
     def retrieve_exact_context(self, corpus_version_id: str, chunk_ids: list[str]) -> list[dict[str, Any]]:
-        """Return exact text plus parent/reference context for EngineeringRule compilation."""
+        """Return exact text plus parent/reference context for AssessmentRule compilation."""
         return [{"id": item["id"], "documentId": str(item["metadata"].get("document_id") or ""), "locator": str(item["metadata"].get("locator") or ""), "legalStatus": str(item["metadata"].get("legal_status") or "ACTIVE"), "contentSha256": str(item["metadata"].get("content_sha256") or ""), "role": item["role"], "content": item["document"]} for item in self._structural_records(corpus_version_id, chunk_ids)]
 
     def build_citation_allowlist(self, chunks: list[RetrievedChunk]) -> dict[str, Any]:

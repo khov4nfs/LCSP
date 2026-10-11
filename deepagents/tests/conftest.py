@@ -171,7 +171,7 @@ def isolated_legal_storage_root(
     """Keep recovery artifacts and singleton locks out of the real .corpus root.
 
     Recovery artifacts double as triage completion markers, so a test writing into the
-    developer's storage root can silently mark real LegalRules as already triaged.
+    developer's storage root can silently mark real LegalRequirements as already triaged.
 
     This deliberately does not use `monkeypatch`: requesting it here would build it
     before every test's own fixtures and so delay its undo past their teardown, which

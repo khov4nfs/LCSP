@@ -48,8 +48,8 @@ class OfficialCorpusAcquisition:
 
     Acquisition crawls bounded official-source requests, builds legal chunks from
     crawler text artifacts, ingests the validated draft, verifies exact retrieval
-    coverage, registers the retrieval index, starts the Legal Preparation run that
-    authors the LegalRule/EngineeringRule portfolio, and activates the corpus source. It
+    coverage, registers the retrieval index, starts the Rule Set Preparation run that
+    authors the LegalRequirement/AssessmentRule rule_set, and activates the corpus source. It
     never authors, recovers or approves legal semantics.
     """
 
@@ -131,11 +131,8 @@ class OfficialCorpusAcquisition:
             corpus_id,
             index_payload,
         )
-        # The single canonical preparation trigger: the pinned corpus is now
-        # immutable and its retrieval index is valid. Idempotent per corpus pipeline.
-        self._api_client.start_legal_preparation(
-            corpus_id, f"{idempotency_key}:legal-preparation:{version}"
-        )
+        # Activation emits the durable Legal Source activation event; the API consumes it and starts
+        # the one shared Rule Set Preparation. The acquisition driver never starts it.
         approved = self._legal_dispatcher.dispatch(
             "activate_validated_corpus_version",
             corpus_version_id=corpus_id,

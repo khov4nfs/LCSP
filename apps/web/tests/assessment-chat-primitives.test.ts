@@ -11,7 +11,7 @@ const transcriptPath = new URL(
   import.meta.url,
 );
 const overviewPath = new URL(
-  "../src/features/workspace/components/organisms/assessment-overview.tsx",
+  "../src/features/assessment-runtime/components/organisms/assessment-chat-view.tsx",
   import.meta.url,
 );
 const shellSlotsPath = new URL(
@@ -56,7 +56,7 @@ const primitivePaths = [
   resultContainerPath,
 ];
 
-test("assessment transcript is the shared scrollable 680px rail primitive", async () => {
+test("assessment transcript is the shared scrollable 768px rail primitive", async () => {
   const source = await readFile(transcriptPath, "utf8");
 
   assert.match(source, /export function AssessmentTranscript/);
@@ -64,13 +64,14 @@ test("assessment transcript is the shared scrollable 680px rail primitive", asyn
   assert.match(source, /data-slot="assessment-transcript"/);
   assert.match(source, /data-slot="chat-rail"/);
   assert.match(source, /role="log"/);
-  assert.match(source, /aria-live="polite"/);
+  assert.match(source, /aria-live=\{live\}/);
+  assert.match(source, /live = "polite"/);
   assert.match(
     source,
     /no-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden/,
   );
   assert.match(source, /overflow-y-auto/);
-  assert.match(source, /max-w-170/);
+  assert.match(source, /max-w-3xl/);
   assert.doesNotMatch(source, /max-w-\[760px\]/);
 });
 
@@ -231,7 +232,7 @@ test("chat result container stays domain-neutral and wraps chat results", async 
   assert.doesNotMatch(source, /Program Evidence|Findings|Investigation/);
 });
 
-test("assessment overview does not append raw runtime activity to the customer transcript", async () => {
+test("assessment chat view does not append raw runtime activity to the customer transcript", async () => {
   const source = await readFile(overviewPath, "utf8");
 
   assert.doesNotMatch(source, /workflowRunTitle/);

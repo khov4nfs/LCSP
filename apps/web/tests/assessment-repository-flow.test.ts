@@ -18,10 +18,6 @@ const repositoryConnectionResultPath = new URL(
   "../src/features/assessment-flow/components/molecules/repository-connection-result.tsx",
   import.meta.url,
 );
-const assessmentOverviewPath = new URL(
-  "../src/features/workspace/components/organisms/assessment-overview.tsx",
-  import.meta.url,
-);
 
 test("new assessment page creates through the canonical form and repository setup runs inside the assessment", async () => {
   const [page, setup] = await Promise.all([

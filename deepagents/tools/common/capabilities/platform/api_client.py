@@ -131,9 +131,9 @@ class WorkerApiClient:
                     message = client_error_message(resp.status_code)
                     if error_code:
                         message = f"{error_code}: {message}"
-                    if resp.status_code == 400 and error_code == "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID" and path in (
-                        InternalPath.LEGAL_PORTFOLIO_VALIDATIONS,
-                        InternalPath.LEGAL_PORTFOLIO_SUBMISSIONS,
+                    if resp.status_code == 400 and error_code == "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID" and path in (
+                        InternalPath.COMPLIANCE_RULE_SET_VALIDATIONS,
+                        InternalPath.COMPLIANCE_RULE_SET_SUBMISSIONS,
                     ):
                         # Return only schema paths so the author can repair shape without exposing input values.
                         problem = resp.json().get("problem")
@@ -444,50 +444,34 @@ class WorkerApiClient:
             raise WorkerCallbackError("Legal corpus activation response was invalid.")
         return data
 
-    def start_legal_preparation(
-        self, legal_corpus_version_id: str, idempotency_key: str
-    ) -> dict:
-        """Idempotently start one Legal Preparation run for one pinned corpus."""
+    def claim_rule_set_preparation(self, preparation_run_id: str) -> dict:
+        """Claim one Rule Set Preparation run; returns only its pinned corpus bundle."""
         data = self._post_with_retry(
-            InternalPath.LEGAL_PORTFOLIO_PREPARATIONS,
-            {
-                "legalCorpusVersionId": legal_corpus_version_id,
-                "idempotencyKey": idempotency_key,
-            },
-            redact=False,
-        )
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal preparation start response was invalid.")
-        return data
-
-    def claim_legal_preparation(self, preparation_run_id: str) -> dict:
-        """Claim one Legal Preparation run; returns only its pinned corpus bundle."""
-        data = self._post_with_retry(
-            InternalPath.LEGAL_PORTFOLIO_CLAIMS,
+            InternalPath.COMPLIANCE_RULE_SET_CLAIMS,
             {"preparationRunId": preparation_run_id},
             redact=False,
         )
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal preparation claim response was invalid.")
+            raise WorkerCallbackError("Rule set preparation claim response was invalid.")
         return data
 
-    def validate_legal_portfolio(self, preparation_run_id: str, packet: dict) -> dict:
-        """Dry-run mechanical validation of a complete portfolio packet."""
+    def validate_compliance_rule_set(self, preparation_run_id: str, packet: dict) -> dict:
+        """Dry-run mechanical validation of a complete rule set packet."""
         data = self._post_with_retry(
-            InternalPath.LEGAL_PORTFOLIO_VALIDATIONS,
+            InternalPath.COMPLIANCE_RULE_SET_VALIDATIONS,
             {"preparationRunId": preparation_run_id, "packet": packet},
             redact=False,
         )
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal portfolio validation response was invalid.")
+            raise WorkerCallbackError("Compliance rule set validation response was invalid.")
         return data
 
-    def submit_legal_portfolio(
+    def submit_compliance_rule_set(
         self, preparation_run_id: str, idempotency_key: str, packet: dict
     ) -> dict:
-        """Submit one complete portfolio: validate and atomically activate."""
+        """Submit one complete rule_set: validate and atomically activate."""
         data = self._post_with_retry(
-            InternalPath.LEGAL_PORTFOLIO_SUBMISSIONS,
+            InternalPath.COMPLIANCE_RULE_SET_SUBMISSIONS,
             {
                 "preparationRunId": preparation_run_id,
                 "idempotencyKey": idempotency_key,
@@ -496,25 +480,25 @@ class WorkerApiClient:
             redact=False,
         )
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal portfolio submission response was invalid.")
+            raise WorkerCallbackError("Compliance rule set submission response was invalid.")
         return data
 
-    def fail_legal_preparation(self, preparation_run_id: str, reason: str) -> dict:
-        """Record that a Legal Preparation execution could not produce a submission."""
+    def fail_rule_set_preparation(self, preparation_run_id: str, reason: str) -> dict:
+        """Record that a Rule Set Preparation execution could not produce a submission."""
         data = self._post_with_retry(
-            InternalPath.LEGAL_PORTFOLIO_FAILURES,
+            InternalPath.COMPLIANCE_RULE_SET_FAILURES,
             {"preparationRunId": preparation_run_id, "reason": reason},
             redact=False,
         )
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal preparation failure response was invalid.")
+            raise WorkerCallbackError("Rule set preparation failure response was invalid.")
         return data
 
-    def get_active_legal_portfolio(self) -> dict:
-        """Fetch the single ACTIVE legal portfolio (the only runtime reader)."""
-        data = self._get_with_retry(InternalPath.LEGAL_PORTFOLIO_ACTIVE)
+    def get_active_compliance_rule_set(self) -> dict:
+        """Fetch the single ACTIVE compliance rule set (the only runtime reader)."""
+        data = self._get_with_retry(InternalPath.COMPLIANCE_RULE_SET_ACTIVE)
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal portfolio response was invalid.")
+            raise WorkerCallbackError("Compliance rule set response was invalid.")
         return data
 
     def get_active_legal_corpus(self) -> dict:

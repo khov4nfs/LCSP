@@ -5,7 +5,9 @@ import {
   claimAssessmentRootRequestSchema,
   createAssessmentSchema,
   renameAssessmentSchema,
+  assessmentEventsQuerySchema,
   assessmentListQuerySchema,
+  type AssessmentEventsQuery,
   type AssessmentListQuery,
 } from "@lcsp/contracts/assessment-domain";
 import type { z } from "zod";
@@ -33,6 +35,7 @@ import { DeleteAssessmentCommand } from "../../application/commands/delete-asses
 import { RenameAssessmentCommand } from "../../application/commands/rename-assessment/rename-assessment.command.js";
 import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
 import { GetRepositorySetupQuery } from "../../application/queries/get-repository-setup/get-repository-setup.query.js";
+import { ListAssessmentEventsQuery } from "../../application/queries/list-assessment-events/list-assessment-events.query.js";
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
 
 const pipe = (schema: z.ZodType) =>
@@ -177,6 +180,27 @@ export class AssessmentController {
           assessmentId,
           request.rbacContext.userId,
           request.rbacContext.role,
+          request.correlationId || randomUUID(),
+        ),
+      ),
+    );
+  }
+
+  /** The conversation's single source: this assessment's canonical events, paged by sequence. */
+  @Get(":assessmentId/events")
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async listEvents(
+    @Param("assessmentId", idPipe()) assessmentId: string,
+    @Query(pipe(assessmentEventsQuerySchema)) page: AssessmentEventsQuery,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new ListAssessmentEventsQuery(
+          assessmentId,
+          request.rbacContext.userId,
+          request.rbacContext.role,
+          page,
           request.correlationId || randomUUID(),
         ),
       ),

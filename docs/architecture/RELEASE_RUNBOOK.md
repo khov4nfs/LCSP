@@ -1,13 +1,13 @@
 # Release verification runbook
 
 Current status: **IN PROGRESS**; `releaseEligible=false`. Production deployment is not authorized.
-The latest historical candidate activated a portfolio, but semantic review failed because
-an EngineeringRule omitted a material definition source reference. The general instructions
+The latest historical candidate activated a Compliance Rule Set, but semantic review failed because
+an Assessment Rule omitted a material definition source reference. The general instructions
 now require checking the final authored reference arrays. Root stream authorization and
 activity translations also have focused passing regressions. A later run validated packets
 but submitted schema-invalid revisions and activated nothing; the instructions now require
 submitting the exact validated packet. The next run still sent a schema-invalid packet
-and ended without submission. Both portfolio tools now expose the existing shared packet
+and ended without submission. Both rule-set tools now expose the existing shared packet
 contract as their argument schema, with a contracts-build check preventing schema drift.
 The API validator and semantic rubric are unchanged. The new image gate and fresh
 semantic/browser acceptance are in progress. Current evidence:
@@ -22,7 +22,7 @@ rtk proxy deepagents/.venv/bin/python tests/release-images.py --self-check
 rtk proxy deepagents/.venv/bin/python tests/release-images.py
 rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --self-check
 rtk proxy deepagents/.venv/bin/python tests/staging-stack.py
-rtk proxy deepagents/.venv/bin/python tests/staging-legal-preparation.py <owned-run-id>
+rtk proxy deepagents/.venv/bin/python tests/staging-rule-set-preparation.py <owned-run-id>
 rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --stop <owned-run-id>
 ```
 
@@ -33,7 +33,7 @@ Keep access files and provider diagnostics under private `tmp/staging/<owned-run
 sanitized evidence under `reports/staging/<owned-run-id>`.
 
 Review the actual generated packet against all six unchanged semantic dimensions. Do not edit it,
-insert a fixture portfolio, repair meaning in the validator, or add an approval workflow. Corpus/index
+insert a fixture rule set, repair meaning in the validator, or add an approval workflow. Source/index
 fixture inputs are bounded synthetic prerequisites, not official-source acquisition or live indexing proof.
 After semantic success, finish the real browser flow, reconcile every frozen acceptance row, verify
 current-source remote CI and enforce the existing all-suite aggregate. Required-check settings remain

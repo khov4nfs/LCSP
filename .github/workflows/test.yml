@@ -412,9 +412,9 @@ jobs:
           pnpm --filter @lcsp/contracts build
           pnpm --filter @lcsp/api build
 
-      - name: Canonical lifecycle and legal portfolio persistence
+      - name: Canonical lifecycle and compliance rule set persistence
         run: |
-          node tests/legal-portfolio-persistence.mjs
+          node tests/compliance-rule-set-persistence.mjs
           node tests/assessment-lifecycle-migrated-db.mjs
 
       - name: Disposable migration and V1 physical purge
@@ -429,8 +429,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Legal Portfolio vertical
-        run: node tests/legal-portfolio-vertical.mjs
+      - name: Compliance Rule Set vertical
+        run: node tests/compliance-rule-set-vertical.mjs
 
       - name: Assessment Root and same-thread Human Resolution verticals
         run: |

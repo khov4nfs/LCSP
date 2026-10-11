@@ -31,7 +31,7 @@ const { AssessmentEvidenceInvalidation } = require('/app/apps/api/dist/src/modul
 const { validateRuleDecision } = require('/app/apps/api/dist/src/modules/assessment/domain/decision-validator.js');
 const c = require('@lcsp/contracts/assessment-domain');
 const a = require('@lcsp/contracts/assessment');
-const legal = require('@lcsp/contracts/legal-portfolio');
+const legal = require('@lcsp/contracts/compliance-rule-set');
 const controls = require('@lcsp/contracts/evidence');
 const assessmentId = ${JSON.stringify(assessmentId)};
 const mode = ${JSON.stringify(mode)};
@@ -110,7 +110,7 @@ try {
       ['invalidated-decision','assessmentDecisionCoverage','findMany',rows=>rows.map(r=>({...r,resolutionState:a.DECISION_RESOLUTION_STATES.INVALIDATED})),c.ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION],
       ['stale-pin','assessmentCase','findUnique',r=>({...r,repositoryCommit:'b'.repeat(40)}),c.ASSESSMENT_COMPLETION_BLOCKER_CODES.REPOSITORY_SNAPSHOT_INVALID],
       ['fatal-execution','assessment','findUnique',r=>({...r,runtime:{...r.runtime,executionState:a.AGENT_EXECUTION_STATES.FAILED}}),c.ASSESSMENT_COMPLETION_BLOCKER_CODES.EXECUTION_FAILURE],
-      ['invalid-portfolio','legalPortfolioVersion','findUnique',r=>({...r,validationOutcome:legal.LEGAL_PORTFOLIO_VALIDATION_OUTCOMES.FAILED}),c.ASSESSMENT_COMPLETION_BLOCKER_CODES.PORTFOLIO_INVALID],
+      ['invalid-rule-set','complianceRuleSetVersion','findUnique',r=>({...r,validationOutcome:legal.COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES.FAILED}),c.ASSESSMENT_COMPLETION_BLOCKER_CODES.RULE_SET_INVALID],
     ];
     const results=[];
     for(const [name,model,method,change,expected] of cases) {

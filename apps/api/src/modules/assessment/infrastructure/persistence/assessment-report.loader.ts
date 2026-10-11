@@ -76,8 +76,8 @@ export class AssessmentReportLoader {
         report.assessmentId !== artifact.assessmentId ||
         report.kind !== artifact.kind ||
         report.schemaVersion !== artifact.schemaVersion ||
-        report.pins.legalPortfolioVersionId !==
-          artifact.legalPortfolioVersionId ||
+        report.pins.ruleSetVersionId !==
+          artifact.ruleSetVersionId ||
         report.pins.repositorySnapshotId !== artifact.repositorySnapshotId ||
         report.pins.repositoryCommit !== artifact.repositoryCommit ||
         report.caseRevision !== artifact.caseRevision ||
@@ -86,8 +86,8 @@ export class AssessmentReportLoader {
           artifact.contentSha256?.replace(/^sha256:/u, "") ||
         Buffer.byteLength(content) !== artifact.sizeBytes ||
         report.caseRevision !== domainCase.caseRevision ||
-        report.pins.legalPortfolioVersionId !==
-          domainCase.legalPortfolioVersionId ||
+        report.pins.ruleSetVersionId !==
+          domainCase.ruleSetVersionId ||
         report.pins.repositorySnapshotId !== domainCase.repositorySnapshotId ||
         report.pins.repositoryScanJobId !== domainCase.repositoryScanJobId ||
         report.pins.repositoryCommit !== domainCase.repositoryCommit

@@ -8,7 +8,7 @@ describe("GetActiveLegalCorpusHandler", () => {
   it("returns the latest approved corpus from persistence", async () => {
     const approvedAt = new Date("2026-08-11T00:00:00.000Z");
     const prisma = {
-      legalCorpusVersion: {
+      legalSourceVersion: {
         findFirst: jest
           .fn<
             () => Promise<{

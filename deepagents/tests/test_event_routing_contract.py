@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 
 from assessment_root.boundary import AssessmentRootBoundary
-from legal_preparation.boundary import LegalPreparationBoundary
+from rule_set_preparation.boundary import RuleSetPreparationBoundary
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -10,11 +10,11 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 def test_worker_source_events_match_the_shared_contracts():
     root_contract = read_contract("packages/contracts/src/assessment-domain/constants.ts")
-    legal_contract = read_contract("packages/contracts/src/legal-portfolio/constants.ts")
+    legal_contract = read_contract("packages/contracts/src/compliance-rule-set/constants.ts")
 
     expected = {
         AssessmentRootBoundary: event_value(root_contract, "ROOT_REQUESTED"),
-        LegalPreparationBoundary: event_value(legal_contract, "preparationRequested"),
+        RuleSetPreparationBoundary: event_value(legal_contract, "preparationRequested"),
     }
 
     assert {boundary: boundary.source_event for boundary in expected} == expected

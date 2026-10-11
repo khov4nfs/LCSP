@@ -2,7 +2,7 @@
 
 Formal headings and law preambles are not retrievable law. This only inspects chunk shape;
 it never decides whether a provision imposes a duty or is relevant to engineering - that
-interpretation belongs to the Legal Preparation agent.
+interpretation belongs to the Rule Set Preparation agent.
 """
 from __future__ import annotations
 

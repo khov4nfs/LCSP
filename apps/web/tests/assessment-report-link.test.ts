@@ -3,34 +3,22 @@ import { test } from "node:test";
 
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-  ARTIFACT_LIFECYCLE_STATES,
-  ASSESSMENT_LIFECYCLE_STATES,
-} from "@lcsp/contracts/assessment";
-import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
-import { AssessmentReportLink } from "../src/features/workspace/components/molecules/assessment-report-link.tsx";
+import { setAppLocale } from "../src/lib/locale.ts";
+import { AssessmentReportActions } from "../src/features/assessment-runtime/components/molecules/assessment-report-actions.tsx";
 
-const detail = (state: string, artifactState: string) =>
-  ({
-    assessment_id: "a1",
-    lifecycle: { state },
-    case: { artifacts: [{ artifactId: "art 1", lifecycleState: artifactState }] },
-  }) as unknown as AssessmentDetail;
+setAppLocale("en");
 
-test("complete assessment renders a native download anchor, not a role=button", () => {
+test("report actions are native links: view in the app, download the stored artifact", () => {
   const html = renderToStaticMarkup(
-    React.createElement(AssessmentReportLink, {
-      assessment: detail(ASSESSMENT_LIFECYCLE_STATES.COMPLETE, ARTIFACT_LIFECYCLE_STATES.ACTIVE),
+    React.createElement(AssessmentReportActions, {
+      assessmentId: "a 1",
+      artifactId: "art 1",
     }),
   );
-  assert.match(html, /^<a [^>]*href="\/api\/assessments\/a1\/artifacts\/art%201\/download"/);
+  assert.match(html, /<a [^>]*href="\/assessments\/a%201\/report"[^>]*>[\s\S]*View report/);
+  assert.match(
+    html,
+    /<a [^>]*href="\/api\/assessments\/a%201\/artifacts\/art%201\/download"[^>]*>[\s\S]*Download report/,
+  );
   assert.doesNotMatch(html, /role=/);
-});
-
-test("no link before COMPLETE or without an ACTIVE artifact", () => {
-  for (const [s, a] of [
-    [ASSESSMENT_LIFECYCLE_STATES.ACTIVE, ARTIFACT_LIFECYCLE_STATES.ACTIVE],
-    [ASSESSMENT_LIFECYCLE_STATES.COMPLETE, ARTIFACT_LIFECYCLE_STATES.BUILDING],
-  ] as const)
-    assert.equal(renderToStaticMarkup(React.createElement(AssessmentReportLink, { assessment: detail(s, a) })), "");
 });

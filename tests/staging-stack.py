@@ -25,7 +25,7 @@ from uuid import UUID, uuid4
 from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE_EVIDENCE = ROOT / "reports/release-images/20261011005041_cce648aed2a3"
+IMAGE_EVIDENCE = ROOT / "reports/release-images/20261011201401_b17f791a42ea"
 OWNER_LABEL = "lcsp.release-staging"
 PROVIDER_KEYS = ("APX_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY")
 HOST_KEYS = ("PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", "DOCKER_HOST",

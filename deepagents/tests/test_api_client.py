@@ -131,11 +131,10 @@ def test_t05_t06_headers(client, dummy_payload):
     ("ingest_validated_legal_corpus_draft", ({},)),
     ("register_validated_retrieval_index", ("corpus-1", {})),
     ("activate_validated_corpus_version", ("corpus-1", {})),
-    ("start_legal_preparation", ("corpus-1", "start-1")),
-    ("claim_legal_preparation", ("preparation-1",)),
-    ("validate_legal_portfolio", ("preparation-1", {})),
-    ("submit_legal_portfolio", ("preparation-1", "submit-1", {})),
-    ("fail_legal_preparation", ("preparation-1", "CORPUS_UNAVAILABLE")),
+    ("claim_rule_set_preparation", ("preparation-1",)),
+    ("validate_compliance_rule_set", ("preparation-1", {})),
+    ("submit_compliance_rule_set", ("preparation-1", "submit-1", {})),
+    ("fail_rule_set_preparation", ("preparation-1", "SOURCE_VERSION_UNAVAILABLE")),
 ])
 def test_legal_callbacks_do_not_present_native_run_as_assessment_turn(client, method, args):
     from orchestration.runtime_control import active_runtime_run_id
@@ -168,20 +167,20 @@ def test_legal_callback_still_rejects_a_cancelled_execution(client):
     try:
         with patch("tools.common.capabilities.platform.api_client.httpx.post") as post:
             with pytest.raises(AgentStreamInterrupted):
-                client.claim_legal_preparation("preparation-1")
+                client.claim_rule_set_preparation("preparation-1")
             post.assert_not_called()
     finally:
         active_agent_stream_cancel.reset(token)
 
 
 @pytest.mark.parametrize("method,args", [
-    ("validate_legal_portfolio", ("preparation-1", {})),
-    ("submit_legal_portfolio", ("preparation-1", "submit-1", {})),
+    ("validate_compliance_rule_set", ("preparation-1", {})),
+    ("submit_compliance_rule_set", ("preparation-1", "submit-1", {})),
 ])
 def test_legal_packet_shape_error_returns_only_schema_paths(client, method, args):
-    fields = "packet.contextRelations.0.relationId,packet.contextRelations.0.toLegalRuleId"
+    fields = "packet.contextRelations.0.relationId,packet.contextRelations.0.toLegalRequirementId"
     response = httpx.Response(400, json={"ok": False, "problem": {
-        "code": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID",
+        "code": "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID",
         "meta": {"issues": fields, "input": "PRIVATE_PACKET_VALUE"},
     }})
     with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
@@ -194,26 +193,26 @@ def test_legal_packet_shape_error_returns_only_schema_paths(client, method, args
 
 
 @pytest.mark.parametrize("issues", ["private-input", "packet.credential=PRIVATE", "packet." + "x" * 4000,
-                                  ",".join(["packet.legalRules"] * 21), None, ["packet"]])
+                                  ",".join(["packet.legalRequirements"] * 21), None, ["packet"]])
 def test_legal_packet_shape_error_rejects_unbounded_or_non_path_metadata(client, issues):
     response = httpx.Response(400, json={"ok": False, "problem": {
-        "code": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID", "meta": {"issues": issues},
+        "code": "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID", "meta": {"issues": issues},
     }})
     with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response):
         with pytest.raises(WorkerCallbackError) as caught:
-            client.validate_legal_portfolio("preparation-1", {})
+            client.validate_compliance_rule_set("preparation-1", {})
     assert "Invalid fields:" not in str(caught.value)
 
 
 @pytest.mark.parametrize("method,args", [
-    ("validate_legal_portfolio", ("preparation-1", {})),
-    ("submit_legal_portfolio", ("preparation-1", "submit-1", {})),
+    ("validate_compliance_rule_set", ("preparation-1", {})),
+    ("submit_compliance_rule_set", ("preparation-1", "submit-1", {})),
 ])
 def test_legal_packet_shape_error_adds_the_structural_requirement(client, method, args):
-    field = "packet.legalRules.0.coverage.nonAssessableReason"
-    requirement = "COVERED_BY_ENGINEERING_RULES requires nonAssessableReason to be null"
+    field = "packet.legalRequirements.0.coverage.nonAssessableReason"
+    requirement = "COVERED_BY_ASSESSMENT_RULES requires nonAssessableReason to be null"
     response = httpx.Response(400, json={"ok": False, "problem": {
-        "code": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID",
+        "code": "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID",
         "meta": {"issues": field, "requirements": requirement},
     }})
     with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response):
@@ -224,14 +223,14 @@ def test_legal_packet_shape_error_adds_the_structural_requirement(client, method
 
 @pytest.mark.parametrize("requirements", ["line one\nline two", "contains \"quotes\" and {braces}", "x" * 801, 7, ["a"], ""])
 def test_legal_packet_shape_error_drops_unbounded_or_non_text_requirements(client, requirements):
-    field = "packet.legalRules.0.coverage.nonAssessableReason"
+    field = "packet.legalRequirements.0.coverage.nonAssessableReason"
     response = httpx.Response(400, json={"ok": False, "problem": {
-        "code": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID",
+        "code": "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID",
         "meta": {"issues": field, "requirements": requirements},
     }})
     with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response):
         with pytest.raises(WorkerCallbackError) as caught:
-            client.validate_legal_portfolio("preparation-1", {})
+            client.validate_compliance_rule_set("preparation-1", {})
     assert str(caught.value).endswith("Invalid fields: " + field)
     assert "Requirements:" not in str(caught.value)
 

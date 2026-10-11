@@ -192,13 +192,13 @@ class RootRun:
     def adopt_context(self, context: dict[str, Any]) -> None:
         self.case_revision = int(context["caseRevision"])
         self.pins = {
-            "legalPortfolioVersionId": context["legalPortfolioVersionId"],
+            "ruleSetVersionId": context["ruleSetVersionId"],
             "repositorySnapshotId": context["repositorySnapshotId"],
             "repositoryCommit": context["repositoryCommit"],
         }
         for row in context.get("coverage", []):
-            self.decision_revisions[row["engineeringRuleId"]] = int(row["decisionRevision"])
-            self.rule_versions[row["engineeringRuleId"]] = row["engineeringRuleVersion"]
+            self.decision_revisions[row["assessmentRuleId"]] = int(row["decisionRevision"])
+            self.rule_versions[row["assessmentRuleId"]] = row["assessmentRuleVersion"]
 
 
 # ---- argument schemas (semantic content only) ---------------------------------------------------
@@ -236,11 +236,11 @@ class AcceptFactArgs(_Args):
 
 
 class StartInvestigationArgs(_Args):
-    engineering_rule_id: str
+    assessment_rule_id: str
 
 
 class GetRuleArgs(_Args):
-    engineering_rule_id: str
+    assessment_rule_id: str
 
 
 class DecisionReference(_Args):
@@ -256,10 +256,10 @@ class CriterionDecisionArgs(_Args):
 
 
 class SubmitDecisionArgs(_Args):
-    engineering_rule_id: str
+    assessment_rule_id: str
     applicability: Literal["APPLICABLE", "NOT_APPLICABLE"]
     rationale: str = Field(min_length=1)
-    legal_context_ids: list[str] = Field(min_length=1, description="LegalRule IDs relied on.")
+    legal_context_ids: list[str] = Field(min_length=1, description="LegalRequirement IDs relied on.")
     references: list[DecisionReference] = Field(min_length=1)
     criteria: list[CriterionDecisionArgs] = Field(
         default_factory=list, description="Every criterion, when APPLICABLE; empty when NOT_APPLICABLE."
@@ -268,7 +268,7 @@ class SubmitDecisionArgs(_Args):
 
 
 class OpenHumanRequestArgs(_Args):
-    engineering_rule_id: str
+    assessment_rule_id: str
     criterion_ids: list[str] = Field(default_factory=list)
     question: str = Field(min_length=1, description="Customer-safe wording; no file paths, hashes or internal IDs.")
     unresolved_fact: str = Field(min_length=1)
@@ -284,7 +284,7 @@ class ReportUnresolvableHumanFactArgs(OpenHumanRequestArgs):
 
 
 class FinalReportFindingArgs(_Args):
-    engineering_rule_id: str
+    assessment_rule_id: str
     summary: str = Field(min_length=1)
     recommendations: list[str] = Field(default_factory=list)
 
@@ -337,8 +337,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "decisionScopeId": context["decisionScopeId"],
             "coverage": [
                 {
-                    "engineeringRuleId": row["engineeringRuleId"],
-                    "engineeringRuleVersion": row["engineeringRuleVersion"],
+                    "assessmentRuleId": row["assessmentRuleId"],
+                    "assessmentRuleVersion": row["assessmentRuleVersion"],
                     "resolutionState": row["resolutionState"],
                     "decisionRevision": row["decisionRevision"],
                 }
@@ -367,54 +367,54 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "openHumanRequestIds": context["openHumanRequestIds"],
         }
 
-    def get_pinned_portfolio() -> dict[str, Any]:
-        """List every EngineeringRule of the immutable portfolio pinned to this assessment."""
-        portfolio = client.portfolio()
-        for rule in portfolio["engineeringRules"]:
-            run.rule_versions[rule["engineeringRuleId"]] = rule["engineeringRuleVersion"]
-            run.rule_criteria[rule["engineeringRuleId"]] = [
+    def get_pinned_rule_set() -> dict[str, Any]:
+        """List every AssessmentRule of the immutable rule set pinned to this assessment."""
+        rule_set = client.rule_set()
+        for rule in rule_set["assessmentRules"]:
+            run.rule_versions[rule["assessmentRuleId"]] = rule["assessmentRuleVersion"]
+            run.rule_criteria[rule["assessmentRuleId"]] = [
                 c["criterionId"] for c in rule.get("criteria", [])
             ]
         return {
             "ok": True,
-            "portfolioVersionId": portfolio["portfolioVersionId"],
-            "legalRuleCount": len(portfolio["legalRules"]),
-            "engineeringRules": [
+            "ruleSetVersionId": rule_set["ruleSetVersionId"],
+            "legalRequirementCount": len(rule_set["legalRequirements"]),
+            "assessmentRules": [
                 {
-                    "engineeringRuleId": rule["engineeringRuleId"],
-                    "engineeringRuleVersion": rule["engineeringRuleVersion"],
+                    "assessmentRuleId": rule["assessmentRuleId"],
+                    "assessmentRuleVersion": rule["assessmentRuleVersion"],
                     "concept": rule["concept"],
-                    "legalRuleIds": rule["legalRuleIds"],
+                    "legalRequirementIds": rule["legalRequirementIds"],
                     "criterionIds": [c["criterionId"] for c in rule.get("criteria", [])],
                 }
-                for rule in portfolio["engineeringRules"]
+                for rule in rule_set["assessmentRules"]
             ],
         }
 
-    def get_engineering_rule(engineering_rule_id: str) -> dict[str, Any]:
-        """Full text of one EngineeringRule, its linked LegalRules and their context relations."""
-        portfolio = client.portfolio()
+    def get_assessment_rule(assessment_rule_id: str) -> dict[str, Any]:
+        """Full text of one AssessmentRule, its linked LegalRequirements and their context relations."""
+        rule_set = client.rule_set()
         rule = next(
-            (r for r in portfolio["engineeringRules"] if r["engineeringRuleId"] == engineering_rule_id),
+            (r for r in rule_set["assessmentRules"] if r["assessmentRuleId"] == assessment_rule_id),
             None,
         )
         if rule is None:
-            return {"ok": False, "code": "RULE_NOT_IN_PORTFOLIO"}
-        linked = set(rule["legalRuleIds"])
-        relations = [r for r in portfolio["contextRelations"] if r["fromLegalRuleId"] in linked]
-        related = {r["toLegalRuleId"] for r in relations if r.get("toLegalRuleId")}
+            return {"ok": False, "code": "RULE_NOT_IN_RULE_SET"}
+        linked = set(rule["legalRequirementIds"])
+        relations = [r for r in rule_set["contextRelations"] if r["fromLegalRequirementId"] in linked]
+        related = {r["toLegalRequirementId"] for r in relations if r.get("toLegalRequirementId")}
         return {
             "ok": True,
-            "engineeringRule": rule,
-            "legalRules": [
-                lr for lr in portfolio["legalRules"] if lr["legalRuleId"] in linked | related
+            "assessmentRule": rule,
+            "legalRequirements": [
+                lr for lr in rule_set["legalRequirements"] if lr["legalRequirementId"] in linked | related
             ],
             "contextRelations": relations,
         }
 
-    def start_rule_investigation(engineering_rule_id: str) -> dict[str, Any]:
-        """Mark that you are now investigating this EngineeringRule."""
-        return {"ok": True, **client.start_investigation(engineering_rule_id)}
+    def start_rule_investigation(assessment_rule_id: str) -> dict[str, Any]:
+        """Mark that you are now investigating this AssessmentRule."""
+        return {"ok": True, **client.start_investigation(assessment_rule_id)}
 
     def cite_repository_source(path: str, start_line: int, end_line: int) -> dict[str, Any]:
         """Verify a line range in the pinned repository and mint its accepted evidence ID."""
@@ -533,7 +533,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         return {"type": ref.type, "factId": ref.id, "caseRevision": run.case_revision}
 
     def submit_rule_decision(
-        engineering_rule_id: str,
+        assessment_rule_id: str,
         applicability: str,
         rationale: str,
         legal_context_ids: list[str],
@@ -541,12 +541,12 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         criteria: list[dict[str, Any]] | None = None,
         compliance: str | None = None,
     ) -> dict[str, Any]:
-        """Submit your decision for one EngineeringRule. Every semantic choice is yours."""
-        if engineering_rule_id not in run.rule_versions:
+        """Submit your decision for one AssessmentRule. Every semantic choice is yours."""
+        if assessment_rule_id not in run.rule_versions:
             run.adopt_context(client.context())
         args = SubmitDecisionArgs.model_validate(
             {
-                "engineering_rule_id": engineering_rule_id,
+                "assessment_rule_id": assessment_rule_id,
                 "applicability": applicability,
                 "rationale": rationale,
                 "legal_context_ids": legal_context_ids,
@@ -556,10 +556,10 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             }
         )
         decision = {
-            "engineeringRuleId": args.engineering_rule_id,
-            "engineeringRuleVersion": run.rule_versions.get(args.engineering_rule_id, ""),
+            "assessmentRuleId": args.assessment_rule_id,
+            "assessmentRuleVersion": run.rule_versions.get(args.assessment_rule_id, ""),
             "scopeId": "ASSESSMENT",
-            "legalPortfolioVersionId": run.pins["legalPortfolioVersionId"],
+            "ruleSetVersionId": run.pins["ruleSetVersionId"],
             "repositorySnapshotId": run.pins["repositorySnapshotId"],
             "repositoryCommit": run.pins["repositoryCommit"],
             "caseRevision": run.case_revision,
@@ -582,16 +582,16 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             json.dumps(decision, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()[:24]
         request = {
-            "expectedDecisionRevision": run.decision_revisions.get(args.engineering_rule_id, 0),
+            "expectedDecisionRevision": run.decision_revisions.get(args.assessment_rule_id, 0),
             "idempotencyKey": f"decision:{run.thread_id}:{digest}",
             "decision": decision,
         }
         result = client.post_decision(request)
-        run.decision_revisions[args.engineering_rule_id] = int(result["decisionRevision"])
+        run.decision_revisions[args.assessment_rule_id] = int(result["decisionRevision"])
         return {"ok": True, **result}
 
     def persist_human_request(
-        engineering_rule_id: str,
+        assessment_rule_id: str,
         question: str,
         unresolved_fact: str,
         decision_impact: list[str],
@@ -601,7 +601,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         choices: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         content = {
-            "engineeringRuleId": engineering_rule_id,
+            "assessmentRuleId": assessment_rule_id,
             "criterionIds": criterion_ids or [],
             "question": question,
             "unresolvedFact": unresolved_fact,
@@ -629,7 +629,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 "facts": context["facts"], "instruction": "Continue investigation using the accepted facts; re-evaluate stale decisions."}
 
     def open_human_request(
-        engineering_rule_id: str,
+        assessment_rule_id: str,
         question: str,
         unresolved_fact: str,
         decision_impact: list[str],
@@ -639,13 +639,13 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         choices: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """Ask the customer a material fact only they can supply, after investigating the sources."""
-        result = persist_human_request(engineering_rule_id, question, unresolved_fact,
+        result = persist_human_request(assessment_rule_id, question, unresolved_fact,
             decision_impact, resolution_attempts, criterion_ids, control_type, choices)
         interrupt({"requestIds": [result["requestId"]]})
         return resolved_human_request(result)
 
     def report_human_fact_unresolvable(
-        engineering_rule_id: str,
+        assessment_rule_id: str,
         question: str,
         unresolved_fact: str,
         decision_impact: list[str],
@@ -657,7 +657,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         choices: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         """Report a material human fact proven permanently unobtainable under the contract; do not submit an unknown verdict."""
-        result = persist_human_request(engineering_rule_id, question, unresolved_fact,
+        result = persist_human_request(assessment_rule_id, question, unresolved_fact,
             decision_impact, [*resolution_attempts, unavailability_rationale],
             criterion_ids, control_type, choices)
         # A later valid answer replays this native tool. Resolution is server-owned and must
@@ -694,7 +694,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 "summary": args.summary,
                 "findings": [
                     {
-                        "engineeringRuleId": finding.engineering_rule_id,
+                        "assessmentRuleId": finding.assessment_rule_id,
                         "summary": finding.summary,
                         "recommendations": finding.recommendations,
                     }
@@ -719,8 +719,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
     return [
         retrieve_shared_heuristics,
         tool(get_assessment_context, _NoArgs, "get_assessment_context"),
-        tool(get_pinned_portfolio, _NoArgs, "get_pinned_portfolio"),
-        tool(get_engineering_rule, GetRuleArgs, "get_engineering_rule"),
+        tool(get_pinned_rule_set, _NoArgs, "get_pinned_rule_set"),
+        tool(get_assessment_rule, GetRuleArgs, "get_assessment_rule"),
         tool(start_rule_investigation, StartInvestigationArgs, "start_rule_investigation"),
         tool(cite_repository_source, CiteRepositorySourceArgs, "cite_repository_source"),
         tool(record_search_coverage, RecordSearchCoverageArgs, "record_search_coverage"),
@@ -736,8 +736,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 ROOT_TOOL_NAMES = (
     "retrieve_shared_heuristics",
     "get_assessment_context",
-    "get_pinned_portfolio",
-    "get_engineering_rule",
+    "get_pinned_rule_set",
+    "get_assessment_rule",
     "start_rule_investigation",
     "cite_repository_source",
     "record_search_coverage",

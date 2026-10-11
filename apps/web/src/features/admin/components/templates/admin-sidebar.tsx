@@ -97,7 +97,7 @@ export function AdminSidebar({
     pathname === "/admin" ||
     pathname === "/admin/" ||
     pathname === "/admin/overview";
-  const isCorpusActive = Boolean(pathname?.startsWith("/admin/corpus"));
+  const isRuleSetsActive = Boolean(pathname?.startsWith("/admin/compliance-rule-sets"));
   const isBillingActive = Boolean(pathname?.startsWith("/admin/billing"));
 
   const navItems = [
@@ -123,10 +123,10 @@ export function AdminSidebar({
       disabled: false,
     },
     {
-      labelKey: "pages.admin.sidebar.navCorpusVersions" as MessageKey,
-      href: "/admin/legal-portfolios",
+      labelKey: "pages.admin.sidebar.navComplianceRuleSets" as MessageKey,
+      href: "/admin/compliance-rule-sets",
       icon: BookOpenIcon,
-      isActive: isCorpusActive,
+      isActive: isRuleSetsActive,
       disabled: false,
     },
   ];

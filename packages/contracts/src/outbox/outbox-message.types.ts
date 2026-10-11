@@ -38,8 +38,8 @@ export const OUTBOX_AGGREGATE_TYPES = {
   billingPayment: "BILLING_PAYMENT",
   assessment: "ASSESSMENT",
   authUser: "AUTH_USER",
-  legalCorpusVersion: "LEGAL_CORPUS_VERSION",
-  legalPortfolioVersion: "LEGAL_PORTFOLIO_VERSION",
+  legalSourceVersion: "LEGAL_SOURCE_VERSION",
+  complianceRuleSetVersion: "COMPLIANCE_RULE_SET_VERSION",
   repositoryScanJob: "REPOSITORY_SCAN_JOB",
   repositorySnapshot: "REPOSITORY_SNAPSHOT",
 } as const;

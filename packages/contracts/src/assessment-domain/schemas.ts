@@ -13,6 +13,7 @@ import {
   humanResolutionRequestStatusSchema,
   openHumanResolutionRequestSchema,
   answerHumanResolutionRequestSchema,
+  assessmentEventSchema,
   ruleDecisionSchema,
 } from "../assessment/agentic-runtime.ts";
 import {
@@ -20,6 +21,7 @@ import {
   ASSESSMENT_COMPLETION_BLOCKER_CODES,
   ASSESSMENT_DECISION_RECORD_STATES,
   ASSESSMENT_DOMAIN_LIMITS,
+  ASSESSMENT_EVENTS_PAGE_LIMIT,
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_FACT_KINDS,
@@ -176,7 +178,7 @@ export type SubmitRuleDecisionRequest = z.infer<
 export const ruleDecisionRecordSchema = z.strictObject({
   decisionId: uuidSchema,
   assessmentId: uuidSchema,
-  engineeringRuleId: identifierSchema,
+  assessmentRuleId: identifierSchema,
   scopeId: identifierSchema,
   decisionRevision: revisionSchema,
   state: z.enum(ASSESSMENT_DECISION_RECORD_STATES),
@@ -186,8 +188,8 @@ export const ruleDecisionRecordSchema = z.strictObject({
 export type RuleDecisionRecord = z.infer<typeof ruleDecisionRecordSchema>;
 
 export const decisionCoverageSchema = z.strictObject({
-  engineeringRuleId: identifierSchema,
-  engineeringRuleVersion: identifierSchema,
+  assessmentRuleId: identifierSchema,
+  assessmentRuleVersion: identifierSchema,
   resolutionState: decisionResolutionStateSchema,
   currentDecisionId: uuidSchema.nullable(),
   decisionRevision: revisionSchema,
@@ -195,7 +197,7 @@ export const decisionCoverageSchema = z.strictObject({
 export type DecisionCoverage = z.infer<typeof decisionCoverageSchema>;
 
 export const startRuleInvestigationRequestSchema = z.strictObject({
-  engineeringRuleId: identifierSchema,
+  assessmentRuleId: identifierSchema,
 });
 export type StartRuleInvestigationRequest = z.infer<
   typeof startRuleInvestigationRequestSchema
@@ -309,7 +311,7 @@ export const humanRequestRecordSchema = z.strictObject({
   assessmentId: uuidSchema,
   status: humanResolutionRequestStatusSchema,
   caseRevision: revisionSchema,
-  engineeringRuleId: identifierSchema,
+  assessmentRuleId: identifierSchema,
   createdAt: z.iso.datetime(),
 });
 export type HumanRequestRecord = z.infer<typeof humanRequestRecordSchema>;
@@ -378,7 +380,7 @@ export const assessmentRootContextSchema = z.strictObject({
   lifecycleState: assessmentLifecycleStateSchema,
   lifecycleRevision: revisionSchema,
   caseRevision: revisionSchema,
-  legalPortfolioVersionId: uuidSchema,
+  ruleSetVersionId: uuidSchema,
   repositorySnapshotId: z.string().min(1),
   repositoryScanJobId: z.string().min(1),
   repositoryCommit: commitSchema,
@@ -412,7 +414,7 @@ export type RequestAssessmentFinalization = z.infer<
 >;
 
 const finalReportFindingRequestSchema = z.strictObject({
-  engineeringRuleId: identifierSchema,
+  assessmentRuleId: identifierSchema,
   summary: privateTextSchema,
   recommendations: z.array(privateTextSchema).max(20),
 });
@@ -430,14 +432,14 @@ export const submitAssessmentFinalReportRequestSchema = z
   .superRefine((value, ctx) => {
     const seen = new Set<string>();
     for (const [index, finding] of value.findings.entries()) {
-      if (seen.has(finding.engineeringRuleId)) {
+      if (seen.has(finding.assessmentRuleId)) {
         ctx.addIssue({
           code: "custom",
-          path: ["findings", index, "engineeringRuleId"],
+          path: ["findings", index, "assessmentRuleId"],
           message: "Duplicate final report finding",
         });
       }
-      seen.add(finding.engineeringRuleId);
+      seen.add(finding.assessmentRuleId);
     }
   });
 export type SubmitAssessmentFinalReportRequest = z.infer<
@@ -450,7 +452,7 @@ export const assessmentFinalReportArtifactSchema = z.strictObject({
   assessmentId: uuidSchema,
   kind: z.literal(ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT),
   pins: z.strictObject({
-    legalPortfolioVersionId: uuidSchema,
+    ruleSetVersionId: uuidSchema,
     repositorySnapshotId: identifierSchema,
     repositoryScanJobId: identifierSchema,
     repositoryCommit: commitSchema,
@@ -460,7 +462,7 @@ export const assessmentFinalReportArtifactSchema = z.strictObject({
   summary: privateTextSchema,
   findings: z.array(
     z.strictObject({
-      engineeringRuleId: identifierSchema,
+      assessmentRuleId: identifierSchema,
       decisionId: uuidSchema,
       decisionRevision: revisionSchema,
       decision: ruleDecisionSchema,
@@ -508,7 +510,7 @@ export const assessmentArtifactViewSchema = z.strictObject({
   artifactId: uuidSchema,
   kind: z.enum(ASSESSMENT_ARTIFACT_KINDS),
   lifecycleState: artifactLifecycleStateSchema,
-  legalPortfolioVersionId: uuidSchema,
+  ruleSetVersionId: uuidSchema,
   repositorySnapshotId: identifierSchema,
   repositoryCommit: commitSchema,
   caseRevision: revisionSchema,
@@ -519,13 +521,26 @@ export const assessmentArtifactViewSchema = z.strictObject({
   sizeBytes: z.number().int().positive().nullable(),
   createdAt: z.iso.datetime(),
 });
+/** The shared, immutable Compliance Rule Set version this assessment pinned (never "whatever is ACTIVE"). */
+export const assessmentRuleSetSummarySchema = z.strictObject({
+  ruleSetVersionId: uuidSchema,
+  version: z.string().min(1),
+  legalSourceVersion: z.string().min(1),
+  legalRequirementCount: revisionSchema,
+  assessmentRuleCount: revisionSchema,
+});
+export type AssessmentRuleSetSummary = z.infer<
+  typeof assessmentRuleSetSummarySchema
+>;
 export const assessmentCaseViewSchema = z.strictObject({
   caseRevision: revisionSchema,
-  legalPortfolioVersionId: uuidSchema.nullable(),
+  ruleSetVersionId: uuidSchema.nullable(),
+  ruleSet: assessmentRuleSetSummarySchema.nullable(),
   repositorySnapshotId: identifierSchema.nullable(),
   repositoryScanJobId: identifierSchema.nullable(),
   repositoryCommit: commitSchema.nullable(),
-  coverage: z.array(decisionCoverageSchema),
+  /** Each pinned AssessmentRule with its customer-readable concept (never an id alone). */
+  coverage: z.array(decisionCoverageSchema.extend({ concept: z.string().min(1) })),
   decisions: z.array(ruleDecisionRecordSchema),
   facts: z.array(assessmentCaseFactSchema),
   artifacts: z.array(assessmentArtifactViewSchema),
@@ -637,3 +652,22 @@ export const completeAssessmentRepositorySetupResultSchema = z.strictObject({
   snapshot_id: identifierSchema,
   commit_sha: commitSchema,
 });
+
+/** Cursor page of one assessment's canonical events in ascending sequence (the conversation's only source). */
+export const assessmentEventsQuerySchema = z.strictObject({
+  afterSequence: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(ASSESSMENT_EVENTS_PAGE_LIMIT)
+    .default(ASSESSMENT_EVENTS_PAGE_LIMIT),
+});
+export type AssessmentEventsQuery = z.infer<typeof assessmentEventsQuerySchema>;
+export const assessmentEventsPageSchema = z.strictObject({
+  assessmentId: uuidSchema,
+  events: z.array(assessmentEventSchema),
+  hasMore: z.boolean(),
+  nextAfterSequence: revisionSchema.nullable(),
+});
+export type AssessmentEventsPage = z.infer<typeof assessmentEventsPageSchema>;

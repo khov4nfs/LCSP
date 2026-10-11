@@ -133,9 +133,9 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
         AUTH_ERROR_CODES.sessionInvalid,
       );
 
-      // 3. Admin legal preparation trigger (the only remaining admin legal write)
+      // 3. Admin rule set preparation trigger (the only remaining admin legal write)
       const resVersionMutation = await httpRequest(app)
-        .post("/admin/legal-portfolios/preparations")
+        .post("/admin/compliance-rule-sets/preparations")
         .send({ idempotencyKey: "prep-unauth-1" })
         .set("Accept", "application/json");
 
@@ -166,9 +166,9 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
       assert.equal(resAuditExport.status, 403);
       assert.equal(problemCode(resAuditExport), RBAC_REASON_CODES.denied);
 
-      // 3. Admin legal preparation trigger
+      // 3. Admin rule set preparation trigger
       const resVersionMutation = await httpRequest(app)
-        .post("/admin/legal-portfolios/preparations")
+        .post("/admin/compliance-rule-sets/preparations")
         .set("Authorization", `Bearer ${customerSessionToken}`)
         .send({ idempotencyKey: "prep-customer-1" })
         .set("Accept", "application/json");

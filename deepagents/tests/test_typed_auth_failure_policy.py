@@ -432,6 +432,6 @@ def test_invoke_boundary_propagates_handler_failures(monkeypatch):
     monkeypatch.setattr(invocation, "_run_boundary_handler", failing_handler)
 
     with pytest.raises(RuntimeError) as caught:
-        invocation.invoke_boundary("legal_portfolio_preparation_requested", {}, "corr-fail")
+        invocation.invoke_boundary("rule_set_preparation_requested", {}, "corr-fail")
 
     assert caught.value is error

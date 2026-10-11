@@ -267,10 +267,10 @@ def test_gemini_tool_schema_strips_unsupported_additional_properties() -> None:
 @pytest.mark.asyncio
 async def test_serialized_gemini_request_preserves_shared_packet_null_alternatives(middleware, asynchronous) -> None:
     from langchain_core.messages import HumanMessage
-    from legal_preparation.tools import LegalPreparationContext, build_portfolio_tools
+    from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
 
     model = _gemini()
-    tools = build_portfolio_tools(LegalPreparationContext("schema-test", None))
+    tools = build_rule_set_tools(RuleSetPreparationContext("schema-test", None))
     request = _request(model, None, tools)
     handler = AsyncMock() if asynchronous else MagicMock()
     if asynchronous:
@@ -281,30 +281,30 @@ async def test_serialized_gemini_request_preserves_shared_packet_null_alternativ
     prepared = model._prepare_request([HumanMessage(content="Schema transport test")], **bound.kwargs)
     for declaration in prepared["config"].tools[0].function_declarations:
         packet = declaration.parameters.properties["packet"].properties
-        reason = packet["legalRules"].items.properties["coverage"].properties["nonAssessableReason"]
+        reason = packet["legalRequirements"].items.properties["coverage"].properties["nonAssessableReason"]
         relation = packet["contextRelations"].items.properties
-        for field in (reason, relation["toLegalRuleId"], relation["toSourceRef"]):
+        for field in (reason, relation["toLegalRequirementId"], relation["toSourceRef"]):
             assert any(branch.type.value == "NULL" for branch in field.any_of or [])
-        assert "nonAssessableReason" in packet["legalRules"].items.properties["coverage"].required
-        assert {"toLegalRuleId", "toSourceRef"} <= set(packet["contextRelations"].items.required)
+        assert "nonAssessableReason" in packet["legalRequirements"].items.properties["coverage"].required
+        assert {"toLegalRequirementId", "toSourceRef"} <= set(packet["contextRelations"].items.required)
 
 
 def test_legal_null_translation_keeps_shared_contract_bounds_and_source_unchanged() -> None:
     from copy import deepcopy
-    from legal_preparation.tools import LegalPreparationContext, PORTFOLIO_INPUT_SCHEMA, build_portfolio_tools
+    from rule_set_preparation.tools import RuleSetPreparationContext, RULE_SET_INPUT_SCHEMA, build_rule_set_tools
 
-    canonical = deepcopy(PORTFOLIO_INPUT_SCHEMA)
-    tools = build_portfolio_tools(LegalPreparationContext("schema-test", None))
+    canonical = deepcopy(RULE_SET_INPUT_SCHEMA)
+    tools = build_rule_set_tools(RuleSetPreparationContext("schema-test", None))
     translated = gemini_nullable_tools(_gemini(), tools)
     assert translated is not None
     for tool in translated:
         packet = tool["function"]["parameters"]["properties"]["packet"]
         assert packet["additionalProperties"] is False
-        assert packet["properties"]["legalRules"]["maxItems"] == canonical["properties"]["packet"]["properties"]["legalRules"]["maxItems"]
-        reason = packet["properties"]["legalRules"]["items"]["properties"]["coverage"]["properties"]["nonAssessableReason"]
+        assert packet["properties"]["legalRequirements"]["maxItems"] == canonical["properties"]["packet"]["properties"]["legalRequirements"]["maxItems"]
+        reason = packet["properties"]["legalRequirements"]["items"]["properties"]["coverage"]["properties"]["nonAssessableReason"]
         assert reason["anyOf"][0]["maxLength"] == 8000
         assert reason["anyOf"][1] == {"type": "NULL"}
-    assert PORTFOLIO_INPUT_SCHEMA == canonical
+    assert RULE_SET_INPUT_SCHEMA == canonical
     assert gemini_nullable_tools(ChatOpenAI(model="gpt-5-mini", api_key="test-key"), tools) is None
 
 

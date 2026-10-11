@@ -5,8 +5,8 @@ This command is intentionally DEVELOPMENT ONLY. It does not replace the normal
 review/PBAC/API activation lifecycle used outside local development. The seed
 loads the deterministic checked-in ingest artefacts, applies the known Law 134
 repeal effects to Law 71, validates every chunk hash, persists one APPROVED local
-LegalCorpusVersion plus a VALID vectorless retrieval-index record, and builds the
-exact Chroma collection used by LCSP legal retrieval/EngineeringRule runtime.
+Legal Source Version plus a VALID vectorless retrieval-index record, and builds the
+exact Chroma collection used by LCSP legal retrieval and Rule Set Preparation.
 
 The command refuses non-local PostgreSQL targets unless the caller explicitly
 sets LCSP_DEV_SEED_ALLOW_REMOTE=true. It also refuses NODE_ENV=production.

@@ -291,6 +291,7 @@ def main() -> int:
             ".dockerignore", "pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json",
             *[item[0] for item in IMAGES.values()],
             "apps/api/prisma/schema.prisma", "apps/api/prisma/migrations/20261008160000_w7_drop_v1_authority/migration.sql",
+            "apps/api/prisma/migrations/20261011120000_compliance_rule_set_terminology/migration.sql",
             "deepagents/pyproject.toml", "deepagents/uv.lock",
             "apps/api/package.json", "apps/web/package.json", "tests/release-images.py",
             "deepagents/tests/conftest.py", *["deepagents/tests/integration/" + name for name in INTEGRATIONS],

@@ -11,11 +11,11 @@ def fixture(mode):
     hashes = {l: "sha256:"+hashlib.sha256(text.encode()).hexdigest() for l in locators}
     packet = build_packet(hashes)
     packet["contextRelations"] = []
-    legal = {r["legalRuleId"]: r for r in packet["legalRules"]}
-    rules = {r["engineeringRuleId"]: r for r in packet["engineeringRules"]}
+    legal = {r["legalRequirementId"]: r for r in packet["legalRequirements"]}
+    rules = {r["assessmentRuleId"]: r for r in packet["assessmentRules"]}
     for name in ("LR-EXC", "LR-PERSON"):
         legal[name]["coverage"] = {"state": "NON_ASSESSABLE", "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."}
-    rules["ER-RET"]["legalRuleIds"] = ["LR-RET"]
+    rules["ER-RET"]["legalRequirementIds"] = ["LR-RET"]
     definitions = {
         "ER-RET": ("LR-RET", "Notice record retention", "Notice services must delete notice records no later than seven days after receipt.", "Applies to a system that stores notice records.", "Notice records are deleted after at most seven days."),
         "ER-XREF": ("LR-XREF", "Deletion notification", "Notice services must notify the recipient when their notice record is deleted.", "Applies to a system that stores and deletes notice records.", "The deletion path sends a notification to the notice recipient."),
@@ -33,23 +33,23 @@ def fixture(mode):
     if mode == "single":
         for name in ("LR-DEF", "LR-XREF"):
             legal[name]["coverage"] = {"state": "NON_ASSESSABLE", "nonAssessableReason": "Outside the one-duty semantic fixture."}
-        packet["legalRules"] = list(legal.values())
-        packet["engineeringRules"] = [rules["ER-RET"]]
+        packet["legalRequirements"] = list(legal.values())
+        packet["assessmentRules"] = [rules["ER-RET"]]
         files["README.md"] = "This is a notice-only service that stores notice records.\n"
         files["src/notices.py"] = "RETENTION_DAYS = 7\n\ndef delete_expired_notices(records, now):\n    return [r for r in records if (now - r['received_at']).days < RETENTION_DAYS]\n"
     if mode in {"source-answerable", "human"}:
         for name in ("LR-DEF", "LR-RET", "LR-XREF"):
             legal[name]["coverage"] = {"state": "NON_ASSESSABLE", "nonAssessableReason": "Outside the human-fact semantic fixture."}
-        packet["legalRules"] = list(legal.values())
-        packet["engineeringRules"] = [rules["ER-RET"]]
-        rules["ER-RET"]["legalRuleIds"] = ["LR-PERSON"]
+        packet["legalRequirements"] = list(legal.values())
+        packet["assessmentRules"] = [rules["ER-RET"]]
+        rules["ER-RET"]["legalRequirementIds"] = ["LR-PERSON"]
         intent = "Organizations operating a notice service must designate a responsible notification owner."
         legal["LR-PERSON"].update(
             title="Notification ownership",
             proposition=intent,
             nonRepositoryDuty=True,
         )
-        packet["engineeringRules"][0].update(concept="Notification ownership",legalIntent=intent,
+        packet["assessmentRules"][0].update(concept="Notification ownership",legalIntent=intent,
             applicabilityGuidance="Applies to the organization operating this notice service.",
             criteria=[{"criterionId":"C-1","statement":"The organization has designated a responsible notification owner."}],
             investigationGoals=["Find an authoritative operations register or ask the customer who is designated."],
@@ -62,14 +62,14 @@ def fixture(mode):
     if mode == "not-applicable":
         for name in ("LR-RET", "LR-XREF"):
             legal[name]["coverage"] = {"state": "NON_ASSESSABLE", "nonAssessableReason": "Outside the applicability semantic fixture."}
-        packet["legalRules"] = list(legal.values())
-        packet["engineeringRules"] = [rules["ER-DEF"]]
+        packet["legalRequirements"] = list(legal.values())
+        packet["assessmentRules"] = [rules["ER-DEF"]]
         files["README.md"] = "This repository contains a notice-only service. It does not process or store payment records.\n"
     if mode in {"bounded-absence", "bounded-absence-gapped"}:
         for name in ("LR-DEF", "LR-RET"):
             legal[name]["coverage"] = {"state": "NON_ASSESSABLE", "nonAssessableReason": "Outside the bounded-absence semantic fixture."}
-        packet["legalRules"] = list(legal.values())
-        packet["engineeringRules"] = [rules["ER-XREF"]]
+        packet["legalRequirements"] = list(legal.values())
+        packet["assessmentRules"] = [rules["ER-XREF"]]
         files["README.md"] = (
             "The notice service deletes notice records. All application logic is in "
             "src/notices.py; there are no external notification hooks or services.\n"
@@ -82,21 +82,21 @@ def fixture(mode):
     if mode == "fallback-found":
         for name in ("LR-DEF", "LR-RET"):
             legal[name]["coverage"] = {"state": "NON_ASSESSABLE", "nonAssessableReason": "Outside the direct-source fallback semantic fixture."}
-        packet["legalRules"] = list(legal.values())
-        packet["engineeringRules"] = [rules["ER-XREF"]]
+        packet["legalRequirements"] = list(legal.values())
+        packet["assessmentRules"] = [rules["ER-XREF"]]
         files["README.md"] = "This notice service stores and deletes notice records. All application logic is in src/notices.py. Search indexes may lag; inspect direct source before concluding absence.\n"
         files["src/notices.py"] = "def delete_notice(record, store, notifier):\n    store.delete(record['id'])\n    notifier.send(record['recipient'], 'Your notice record was deleted')\n"
     used_legal_ids = {
         legal_id
-        for engineering_rule in packet["engineeringRules"]
-        for legal_id in engineering_rule["legalRuleIds"]
+        for assessment_rule in packet["assessmentRules"]
+        for legal_id in assessment_rule["legalRequirementIds"]
     }
-    packet["legalRules"] = [
-        item for item in packet["legalRules"] if item["legalRuleId"] in used_legal_ids
+    packet["legalRequirements"] = [
+        item for item in packet["legalRequirements"] if item["legalRequirementId"] in used_legal_ids
     ]
     referenced_locators = {
         source_ref["locator"]
-        for rule in [*packet["legalRules"], *packet["engineeringRules"]]
+        for rule in [*packet["legalRequirements"], *packet["assessmentRules"]]
         for source_ref in rule["sourceRefs"]
     }
     referenced_locators.update(

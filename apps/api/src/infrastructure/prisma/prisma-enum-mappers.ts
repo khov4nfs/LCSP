@@ -133,11 +133,11 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
   [AUDIT_RESOURCE_TYPES.githubAppInstallState]:
     PrismaAuditResourceType.GITHUB_APP_INSTALL_STATE,
   [AUDIT_RESOURCE_TYPES.httpRoute]: PrismaAuditResourceType.HTTP_ROUTE,
-  [AUDIT_RESOURCE_TYPES.legalPortfolioVersion]:
-    PrismaAuditResourceType.LEGAL_PORTFOLIO_VERSION,
-  [AUDIT_RESOURCE_TYPES.legalRule]: PrismaAuditResourceType.LEGAL_RULE,
-  [AUDIT_RESOURCE_TYPES.legalCorpusVersion]:
-    PrismaAuditResourceType.LEGAL_CORPUS_VERSION,
+  [AUDIT_RESOURCE_TYPES.complianceRuleSetVersion]:
+    PrismaAuditResourceType.COMPLIANCE_RULE_SET_VERSION,
+  [AUDIT_RESOURCE_TYPES.legalRequirement]: PrismaAuditResourceType.LEGAL_RULE,
+  [AUDIT_RESOURCE_TYPES.legalSourceVersion]:
+    PrismaAuditResourceType.LEGAL_SOURCE_VERSION,
   [AUDIT_RESOURCE_TYPES.outbox]: PrismaAuditResourceType.OUTBOX,
   [AUDIT_RESOURCE_TYPES.repositoryConnection]:
     PrismaAuditResourceType.REPOSITORY_CONNECTION,
@@ -154,10 +154,10 @@ const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
     PrismaOutboxAggregateType.BILLING_PAYMENT,
   [OUTBOX_AGGREGATE_TYPES.assessment]: PrismaOutboxAggregateType.ASSESSMENT,
   [OUTBOX_AGGREGATE_TYPES.authUser]: PrismaOutboxAggregateType.AUTH_USER,
-  [OUTBOX_AGGREGATE_TYPES.legalCorpusVersion]:
-    PrismaOutboxAggregateType.LEGAL_CORPUS_VERSION,
-  [OUTBOX_AGGREGATE_TYPES.legalPortfolioVersion]:
-    PrismaOutboxAggregateType.LEGAL_PORTFOLIO_VERSION,
+  [OUTBOX_AGGREGATE_TYPES.legalSourceVersion]:
+    PrismaOutboxAggregateType.LEGAL_SOURCE_VERSION,
+  [OUTBOX_AGGREGATE_TYPES.complianceRuleSetVersion]:
+    PrismaOutboxAggregateType.COMPLIANCE_RULE_SET_VERSION,
   [OUTBOX_AGGREGATE_TYPES.repositoryScanJob]:
     PrismaOutboxAggregateType.REPOSITORY_SCAN_JOB,
   [OUTBOX_AGGREGATE_TYPES.repositorySnapshot]:
@@ -169,10 +169,10 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
     OUTBOX_AGGREGATE_TYPES.billingPayment,
   [PrismaOutboxAggregateType.ASSESSMENT]: OUTBOX_AGGREGATE_TYPES.assessment,
   [PrismaOutboxAggregateType.AUTH_USER]: OUTBOX_AGGREGATE_TYPES.authUser,
-  [PrismaOutboxAggregateType.LEGAL_CORPUS_VERSION]:
-    OUTBOX_AGGREGATE_TYPES.legalCorpusVersion,
-  [PrismaOutboxAggregateType.LEGAL_PORTFOLIO_VERSION]:
-    OUTBOX_AGGREGATE_TYPES.legalPortfolioVersion,
+  [PrismaOutboxAggregateType.LEGAL_SOURCE_VERSION]:
+    OUTBOX_AGGREGATE_TYPES.legalSourceVersion,
+  [PrismaOutboxAggregateType.COMPLIANCE_RULE_SET_VERSION]:
+    OUTBOX_AGGREGATE_TYPES.complianceRuleSetVersion,
   [PrismaOutboxAggregateType.REPOSITORY_SCAN_JOB]:
     OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
   [PrismaOutboxAggregateType.REPOSITORY_SNAPSHOT]:

@@ -34,7 +34,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     },
     domainCase: {
       caseRevision: 0,
-      legalPortfolioVersionId: null,
+      ruleSetVersionId: null,
       repositorySnapshotId: null,
       repositoryScanJobId: null,
       repositoryCommit: null,

@@ -44,10 +44,10 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "command.assessment.root.requested.v1",
     ),
     AgentInvocationBoundary(
-        "legal_portfolio_preparation_requested",
-        "legal_preparation.boundary:LegalPreparationBoundary",
-        "legal.legal-portfolio-preparation",
-        "command.legal-portfolio.preparation.requested.v1",
+        "rule_set_preparation_requested",
+        "rule_set_preparation.boundary:RuleSetPreparationBoundary",
+        "legal.rule-set-preparation",
+        "command.compliance-rule-set.preparation.requested.v1",
     ),
     AgentInvocationBoundary(
         "legal_source_ingest_requested",

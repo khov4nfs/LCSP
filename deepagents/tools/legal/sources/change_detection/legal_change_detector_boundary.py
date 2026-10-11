@@ -1,4 +1,4 @@
-"""Consume official source-change checks and invoke canonical legal preparation."""
+"""Consume official source-change checks and invoke canonical rule set preparation."""
 
 from __future__ import annotations
 

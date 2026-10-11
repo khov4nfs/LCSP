@@ -16,7 +16,7 @@ client = AssessmentRuntimeClient(base, key)
 captured = {}
 if mode == "complete":
     steps = full_script(captured)[:-1]
-    steps += [lambda m: _call("request_finalization", {}, "browser-finalize"), lambda m: _call("submit_final_report", {"summary": "Accepted findings and confirmed facts complete this assessment.", "findings": [{"engineering_rule_id": rule, "summary": "This finding follows its accepted decision and cited evidence.", "recommendations": []} for rule in ["ER-DEF", "ER-RET", "ER-XREF"]]}, "browser-report"), lambda m: AIMessage(content="The immutable final report is persisted.")]
+    steps += [lambda m: _call("request_finalization", {}, "browser-finalize"), lambda m: _call("submit_final_report", {"summary": "Accepted findings and confirmed facts complete this assessment.", "findings": [{"assessment_rule_id": rule, "summary": "This finding follows its accepted decision and cited evidence.", "recommendations": []} for rule in ["ER-DEF", "ER-RET", "ER-XREF"]]}, "browser-report"), lambda m: AIMessage(content="The immutable final report is persisted.")]
 else:
     def await_customer_stop(messages):
         deadline = time.monotonic() + 60

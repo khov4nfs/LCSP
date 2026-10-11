@@ -18,7 +18,7 @@ export const ROOT_AUDIT_ACTOR = {
 
 export interface PinnedCase {
   caseRevision: number;
-  legalPortfolioVersionId: string;
+  ruleSetVersionId: string;
   repositorySnapshotId: string;
   repositoryScanJobId: string;
   repositoryCommit: string;
@@ -52,7 +52,7 @@ export class AssessmentCaseSupport {
     const row = await tx.assessmentCase.findUnique({ where: { assessmentId } });
     if (
       !row ||
-      !row.legalPortfolioVersionId ||
+      !row.ruleSetVersionId ||
       !row.repositorySnapshotId ||
       !row.repositoryScanJobId ||
       !row.repositoryCommit
@@ -65,7 +65,7 @@ export class AssessmentCaseSupport {
     }
     return {
       caseRevision: row.caseRevision,
-      legalPortfolioVersionId: row.legalPortfolioVersionId,
+      ruleSetVersionId: row.ruleSetVersionId,
       repositorySnapshotId: row.repositorySnapshotId,
       repositoryScanJobId: row.repositoryScanJobId,
       repositoryCommit: row.repositoryCommit,
@@ -75,17 +75,17 @@ export class AssessmentCaseSupport {
   async requireCoverage(
     tx: Prisma.TransactionClient,
     assessmentId: string,
-    engineeringRuleId: string,
+    assessmentRuleId: string,
     correlationId: string,
   ) {
     const row = await tx.assessmentDecisionCoverage.findUnique({
       where: {
-        assessmentId_engineeringRuleId: { assessmentId, engineeringRuleId },
+        assessmentId_assessmentRuleId: { assessmentId, assessmentRuleId },
       },
     });
     if (!row) {
       throw problemException(
-        ASSESSMENT_DOMAIN_ERROR_CODES.RULE_NOT_IN_PORTFOLIO,
+        ASSESSMENT_DOMAIN_ERROR_CODES.RULE_NOT_IN_RULE_SET,
         correlationId,
         { status: HttpStatus.UNPROCESSABLE_ENTITY },
       );
@@ -97,16 +97,16 @@ export class AssessmentCaseSupport {
     tx: Prisma.TransactionClient,
     input: {
       assessmentId: string;
-      engineeringRuleId: string;
+      assessmentRuleId: string;
       from: string;
       decisionId: string;
       decisionRevision: number;
     },
   ) {
     const key = {
-      assessmentId_engineeringRuleId: {
+      assessmentId_assessmentRuleId: {
         assessmentId: input.assessmentId,
-        engineeringRuleId: input.engineeringRuleId,
+        assessmentRuleId: input.assessmentRuleId,
       },
     };
     // Walk the transition table (PENDING/INVALIDATED -> INVESTIGATING -> RESOLVED).
@@ -131,12 +131,12 @@ export class AssessmentCaseSupport {
 
   async moveCoverageToWaiting(
     tx: Prisma.TransactionClient,
-    input: { assessmentId: string; engineeringRuleId: string; from: string },
+    input: { assessmentId: string; assessmentRuleId: string; from: string },
   ) {
     const key = {
-      assessmentId_engineeringRuleId: {
+      assessmentId_assessmentRuleId: {
         assessmentId: input.assessmentId,
-        engineeringRuleId: input.engineeringRuleId,
+        assessmentRuleId: input.assessmentRuleId,
       },
     };
     if (
@@ -161,28 +161,28 @@ export class AssessmentCaseSupport {
     input: { assessmentId: string; pins: PinnedCase; decision: RuleDecision },
   ) {
     const { assessmentId, pins, decision } = input;
-    const rule = await tx.engineeringRule.findUnique({
+    const rule = await tx.assessmentRule.findUnique({
       where: {
-        portfolioVersionId_engineeringRuleId: {
-          portfolioVersionId: pins.legalPortfolioVersionId,
-          engineeringRuleId: decision.engineeringRuleId,
+        ruleSetVersionId_assessmentRuleId: {
+          ruleSetVersionId: pins.ruleSetVersionId,
+          assessmentRuleId: decision.assessmentRuleId,
         },
       },
       include: {
-        legalRuleLinks: {
-          include: { legalRule: { select: { id: true, legalRuleId: true } } },
+        legalRequirementLinks: {
+          include: { legalRequirement: { select: { id: true, legalRequirementId: true } } },
         },
       },
     });
     let legalContextIds = new Set<string>();
     if (rule) {
-      const linkedRowIds = rule.legalRuleLinks.map((link) => link.legalRule.id);
+      const linkedRowIds = rule.legalRequirementLinks.map((link) => link.legalRequirement.id);
       legalContextIds = new Set(
-        rule.legalRuleLinks.map((link) => link.legalRule.legalRuleId),
+        rule.legalRequirementLinks.map((link) => link.legalRequirement.legalRequirementId),
       );
-      const relations = await tx.legalRuleContextRelation.findMany({
+      const relations = await tx.legalRequirementContextRelation.findMany({
         where: {
-          portfolioVersionId: pins.legalPortfolioVersionId,
+          ruleSetVersionId: pins.ruleSetVersionId,
           fromRuleId: { in: linkedRowIds },
           toRuleId: { not: null },
         },
@@ -192,14 +192,14 @@ export class AssessmentCaseSupport {
         r.toRuleId ? [r.toRuleId] : [],
       );
       if (targets.length > 0) {
-        const related = await tx.legalPortfolioRule.findMany({
+        const related = await tx.legalRequirement.findMany({
           where: {
             id: { in: targets },
-            portfolioVersionId: pins.legalPortfolioVersionId,
+            ruleSetVersionId: pins.ruleSetVersionId,
           },
-          select: { legalRuleId: true },
+          select: { legalRequirementId: true },
         });
-        for (const row of related) legalContextIds.add(row.legalRuleId);
+        for (const row of related) legalContextIds.add(row.legalRequirementId);
       }
     }
     const references = [
@@ -250,14 +250,14 @@ export class AssessmentCaseSupport {
     return {
       caseRevision: pins.caseRevision,
       pins: {
-        legalPortfolioVersionId: pins.legalPortfolioVersionId,
+        ruleSetVersionId: pins.ruleSetVersionId,
         repositorySnapshotId: pins.repositorySnapshotId,
         repositoryCommit: pins.repositoryCommit,
       },
       rule: rule
         ? {
-            engineeringRuleId: rule.engineeringRuleId,
-            engineeringRuleVersion: rule.engineeringRuleVersion,
+            assessmentRuleId: rule.assessmentRuleId,
+            assessmentRuleVersion: rule.assessmentRuleVersion,
             criterionIds: new Set(criterionIdsOf(rule.criteria)),
             legalContextIds,
           }
@@ -275,23 +275,23 @@ export class AssessmentCaseSupport {
     };
   }
 
-  async portfolioIdentifiers(
+  async ruleSetIdentifiers(
     tx: Prisma.TransactionClient,
-    portfolioVersionId: string,
+    ruleSetVersionId: string,
   ): Promise<string[]> {
     const [rules, legal] = await Promise.all([
-      tx.engineeringRule.findMany({
-        where: { portfolioVersionId },
-        select: { engineeringRuleId: true },
+      tx.assessmentRule.findMany({
+        where: { ruleSetVersionId },
+        select: { assessmentRuleId: true },
       }),
-      tx.legalPortfolioRule.findMany({
-        where: { portfolioVersionId },
-        select: { legalRuleId: true },
+      tx.legalRequirement.findMany({
+        where: { ruleSetVersionId },
+        select: { legalRequirementId: true },
       }),
     ]);
     return [
-      ...rules.map((r) => r.engineeringRuleId),
-      ...legal.map((r) => r.legalRuleId),
+      ...rules.map((r) => r.assessmentRuleId),
+      ...legal.map((r) => r.legalRequirementId),
     ];
   }
 }

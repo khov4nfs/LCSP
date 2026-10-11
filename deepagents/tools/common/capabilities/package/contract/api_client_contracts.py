@@ -14,12 +14,11 @@ class CallbackPath(StrEnum):
 class InternalPath(StrEnum):
     AUDIT_EVENTS = "/internal/audit-events"
     LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-rule-catalog/source-snapshots"
-    LEGAL_PORTFOLIO_PREPARATIONS = "/internal/legal-portfolio/preparations"
-    LEGAL_PORTFOLIO_CLAIMS = "/internal/legal-portfolio/claims"
-    LEGAL_PORTFOLIO_VALIDATIONS = "/internal/legal-portfolio/validations"
-    LEGAL_PORTFOLIO_SUBMISSIONS = "/internal/legal-portfolio/submissions"
-    LEGAL_PORTFOLIO_FAILURES = "/internal/legal-portfolio/failures"
-    LEGAL_PORTFOLIO_ACTIVE = "/internal/legal-portfolio/active"
+    COMPLIANCE_RULE_SET_CLAIMS = "/internal/compliance-rule-set/claims"
+    COMPLIANCE_RULE_SET_VALIDATIONS = "/internal/compliance-rule-set/validations"
+    COMPLIANCE_RULE_SET_SUBMISSIONS = "/internal/compliance-rule-set/submissions"
+    COMPLIANCE_RULE_SET_FAILURES = "/internal/compliance-rule-set/failures"
+    COMPLIANCE_RULE_SET_ACTIVE = "/internal/compliance-rule-set/active"
 
 
 class CallbackLogEvent(StrEnum):

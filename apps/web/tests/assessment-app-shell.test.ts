@@ -102,7 +102,7 @@ const slotPath = new URL(
   import.meta.url,
 );
 const runtimeSidebarPath = new URL(
-  "../src/features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx",
+  "../src/features/assessment-runtime/components/organisms/assessment-context-panel.tsx",
   import.meta.url,
 );
 const legacySidebarAssessmentListPath = new URL(
@@ -185,13 +185,13 @@ test("assessment app shell releases the left sidebar space completely when colla
   assert.match(slotSource, /if \(collapsed\) return null/);
   assert.doesNotMatch(slotSource, /w-14/);
   assert.doesNotMatch(slotSource, /icon|rail|collapsed.*w-/i);
-  assert.match(slotSource, /w-105/);
+  assert.match(slotSource, /w-80/);
   assert.match(slotSource, /min-w-0 flex-1/);
   assert.match(slotSource, /hidden .*lg:flex/);
   assert.match(slotSource, /hidden .*xl:flex/);
 });
 
-test("right assessment sidebar keeps one shared 420px slot and mobile sheet reuse", async () => {
+test("right assessment sidebar keeps one shared 320px context slot and mobile sheet reuse", async () => {
   const [shellSource, slotSource, sidebarSource] = await Promise.all([
     readFile(shellPath, "utf8"),
     readFile(slotPath, "utf8"),
@@ -199,23 +199,23 @@ test("right assessment sidebar keeps one shared 420px slot and mobile sheet reus
   ]);
 
   assert.match(slotSource, /export function AssessmentRightPanelSlot/);
-  assert.match(slotSource, /w-105/);
+  assert.match(slotSource, /w-80/);
   assert.doesNotMatch(slotSource, /AssessmentRightPanelSlotV2/);
   assert.doesNotMatch(slotSource, /RuntimeSidebarSlot|FixedRightSidebar/);
   assert.equal(
-    (shellSource.match(/<AssessmentRuntimeSidebar/g) ?? []).length,
+    (shellSource.match(/<AssessmentContextPanel/g) ?? []).length,
     2,
   );
   assert.match(shellSource, /<SheetContent[\s\S]*side="right"/);
   assert.equal(
     (
       shellSource.match(
-        /<AssessmentRuntimeSidebar\s+assessmentId=\{assessmentId\}/g,
+        /<AssessmentContextPanel\s+assessmentId=\{assessmentId\}/g,
       ) ?? []
     ).length,
     2,
   );
-  assert.match(sidebarSource, /export function AssessmentRuntimeSidebar/);
+  assert.match(sidebarSource, /export function AssessmentContextPanel/);
   assert.match(sidebarSource, /min-h-0/);
   assert.match(sidebarSource, /overflow-y-auto/);
 });
@@ -227,8 +227,8 @@ test("right assessment sidebar removes the generic runtime dashboard UI", async 
   ]);
   const visibleSidebarSources = [shellSource, sidebarSource].join("\n");
 
-  assert.match(sidebarSource, /CanonicalAssessmentStatus/);
-  assert.match(sidebarSource, /CanonicalAssessmentActivity/);
+  assert.match(sidebarSource, /customerAssessmentState/);
+  assert.doesNotMatch(sidebarSource, /CanonicalAssessmentActivity|CanonicalAssessmentStatus/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelLastUpdated/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelRecentActivity/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelViewFull/);
@@ -324,7 +324,7 @@ test("right sidebar layout keeps the center pane shrinkable and overflow-contain
   );
   assert.match(
     html,
-    /data-slot="assessment-right-panel" data-state="open" class="hidden h-full min-h-0 w-105 shrink-0 overflow-hidden border-l border-border\/70 bg-muted\/20 xl:flex"/,
+    /data-slot="assessment-right-panel" data-state="open" class="hidden h-full min-h-0 w-80 shrink-0 overflow-hidden border-l border-border\/70 bg-background xl:flex"/,
   );
   assert.equal(html.match(/data-slot="assessment-right-panel"/g)?.length, 1);
   assert.match(
@@ -345,7 +345,7 @@ test("right assessment sidebar uses canonical state instead of F03/F04 screen br
   const combined = [shellSource, sidebarSource].join("\n");
 
   assert.match(sidebarSource, /useAssessmentDetailQuery/);
-  assert.match(sidebarSource, /canonicalAssessment=/);
+  assert.match(sidebarSource, /customerAssessmentState\(/);
   assert.doesNotMatch(combined, /screen === ["']F03["']/);
   assert.doesNotMatch(combined, /screen === ["']F04["']/);
 });

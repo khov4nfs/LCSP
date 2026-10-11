@@ -18,13 +18,13 @@ const THREAD_ID = "22222222-2222-4222-8222-222222222222";
 const REQUEST_ID = "33333333-3333-4333-8333-333333333333";
 const FACT_ID = "44444444-4444-4444-8444-444444444444";
 const EVIDENCE_ID = "55555555-5555-4555-8555-555555555555";
-const PORTFOLIO_ID = "66666666-6666-4666-8666-666666666666";
+const RULE_SET_ID = "66666666-6666-4666-8666-666666666666";
 const SNAPSHOT_ID = "77777777-7777-4777-8777-777777777777";
 const TIMESTAMP = "2026-10-05T10:00:00.000Z";
 const CASE_REVISION = 12;
 
 const questionPacket = {
-  engineeringRuleId: "ER-privacy-retention",
+  assessmentRuleId: "ER-privacy-retention",
   criterionIds: ["CR-data-retention"],
   question: "How long does your team retain these records?",
   unresolvedFact: "The retention period is controlled by the customer.",
@@ -175,10 +175,10 @@ test("RuleDecision requires typed legal-context references", () => {
     evidenceId: EVIDENCE_ID,
   };
   const decision = {
-    engineeringRuleId: "ER-privacy-retention",
-    engineeringRuleVersion: "v1",
+    assessmentRuleId: "ER-privacy-retention",
+    assessmentRuleVersion: "v1",
     scopeId: "tenant-data",
-    legalPortfolioVersionId: PORTFOLIO_ID,
+    ruleSetVersionId: RULE_SET_ID,
     repositorySnapshotId: SNAPSHOT_ID,
     repositoryCommit: "a".repeat(40),
     caseRevision: CASE_REVISION,

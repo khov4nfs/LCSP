@@ -22,7 +22,7 @@ import {
 } from "@lcsp/contracts/assessment-domain";
 import {
   ArtifactLifecycleState,
-  LegalPortfolioValidationOutcome,
+  ComplianceRuleSetValidationOutcome,
   RepositoryScanJobStatus,
   RepositorySnapshotStatus,
   type Prisma,
@@ -34,15 +34,15 @@ import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessme
 import { AssessmentCompletionGate } from "./assessment-completion-gate.service.js";
 
 const assessmentId = randomUUID();
-const portfolioVersionId = randomUUID();
+const ruleSetVersionId = randomUUID();
 const snapshotId = randomUUID();
 const scanJobId = randomUUID();
 const evidenceId = randomUUID();
 const factId = randomUUID();
 const repositoryCommit = "a".repeat(40);
-const engineeringRuleId = "ER-1";
-const engineeringRuleVersion = "v1";
-const legalRuleId = "LR-1";
+const assessmentRuleId = "ER-1";
+const assessmentRuleVersion = "v1";
+const legalRequirementId = "LR-1";
 const criterionId = "C-1";
 
 type Fixture = {
@@ -59,13 +59,13 @@ type Fixture = {
   };
   assessmentCase: {
     caseRevision: number;
-    legalPortfolioVersionId: string | null;
+    ruleSetVersionId: string | null;
     repositorySnapshotId: string | null;
     repositoryScanJobId: string | null;
     repositoryCommit: string | null;
     pinnedAt: Date | null;
   };
-  portfolio: {
+  ruleSet: {
     id: string;
     lifecycleState: string;
     validationOutcome: string;
@@ -82,21 +82,21 @@ type Fixture = {
     snapshotId: string;
     status: string;
   } | null;
-  rules: Array<{ engineeringRuleId: string; engineeringRuleVersion: string }>;
+  rules: Array<{ assessmentRuleId: string; assessmentRuleVersion: string }>;
   coverage: Array<{
-    engineeringRuleId: string;
-    portfolioVersionId: string;
-    engineeringRuleVersion: string;
+    assessmentRuleId: string;
+    ruleSetVersionId: string;
+    assessmentRuleVersion: string;
     resolutionState: string;
     currentDecisionId: string | null;
     decisionRevision: number;
   }>;
   decisions: Array<{
     decisionId: string;
-    engineeringRuleId: string;
-    engineeringRuleVersion: string;
+    assessmentRuleId: string;
+    assessmentRuleVersion: string;
     scopeId: string;
-    portfolioVersionId: string;
+    ruleSetVersionId: string;
     decisionRevision: number;
     state: string;
     repositoryCommit: string;
@@ -126,14 +126,14 @@ type Fixture = {
 
 function createFixture() {
   const decision = ruleDecisionSchema.parse({
-    engineeringRuleId,
-    engineeringRuleVersion,
+    assessmentRuleId,
+    assessmentRuleVersion,
     scopeId: ASSESSMENT_DECISION_SCOPE,
-    legalPortfolioVersionId: portfolioVersionId,
+    ruleSetVersionId: ruleSetVersionId,
     repositorySnapshotId: snapshotId,
     repositoryCommit,
     caseRevision: 1,
-    legalContextRefs: [{ legalContextId: legalRuleId }],
+    legalContextRefs: [{ legalContextId: legalRequirementId }],
     applicability: RULE_DECISION_APPLICABILITIES.APPLICABLE,
     rationale: "The Root recorded its conclusion against accepted state.",
     references: [
@@ -176,16 +176,16 @@ function createFixture() {
     },
     assessmentCase: {
       caseRevision: 1,
-      legalPortfolioVersionId: portfolioVersionId,
+      ruleSetVersionId: ruleSetVersionId,
       repositorySnapshotId: snapshotId,
       repositoryScanJobId: scanJobId,
       repositoryCommit,
       pinnedAt: new Date(),
     },
-    portfolio: {
-      id: portfolioVersionId,
+    ruleSet: {
+      id: ruleSetVersionId,
       lifecycleState: ArtifactLifecycleState.ACTIVE,
-      validationOutcome: LegalPortfolioValidationOutcome.PASSED,
+      validationOutcome: ComplianceRuleSetValidationOutcome.PASSED,
     },
     snapshot: {
       id: snapshotId,
@@ -199,12 +199,12 @@ function createFixture() {
       snapshotId,
       status: RepositoryScanJobStatus.COMPLETED,
     },
-    rules: [{ engineeringRuleId, engineeringRuleVersion }],
+    rules: [{ assessmentRuleId, assessmentRuleVersion }],
     coverage: [
       {
-        engineeringRuleId,
-        portfolioVersionId,
-        engineeringRuleVersion,
+        assessmentRuleId,
+        ruleSetVersionId,
+        assessmentRuleVersion,
         resolutionState: DECISION_RESOLUTION_STATES.RESOLVED,
         currentDecisionId: "decision-1",
         decisionRevision: 1,
@@ -213,10 +213,10 @@ function createFixture() {
     decisions: [
       {
         decisionId: "decision-1",
-        engineeringRuleId,
-        engineeringRuleVersion,
+        assessmentRuleId,
+        assessmentRuleVersion,
         scopeId: ASSESSMENT_DECISION_SCOPE,
-        portfolioVersionId,
+        ruleSetVersionId,
         decisionRevision: 1,
         state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
         repositoryCommit,
@@ -259,8 +259,8 @@ function createFixture() {
     assessmentCase: {
       findUnique: () => Promise.resolve(fixture.assessmentCase),
     },
-    legalPortfolioVersion: {
-      findUnique: () => Promise.resolve(fixture.portfolio),
+    complianceRuleSetVersion: {
+      findUnique: () => Promise.resolve(fixture.ruleSet),
     },
     repositorySnapshot: {
       findUnique: () => Promise.resolve(fixture.snapshot),
@@ -268,7 +268,7 @@ function createFixture() {
     repositoryScanJob: {
       findUnique: () => Promise.resolve(fixture.scanJob),
     },
-    engineeringRule: { findMany: () => Promise.resolve(fixture.rules) },
+    assessmentRule: { findMany: () => Promise.resolve(fixture.rules) },
     assessmentDecisionCoverage: {
       findMany: () => Promise.resolve(fixture.coverage),
     },
@@ -294,16 +294,16 @@ function createFixture() {
       Promise.resolve({
         caseRevision: fixture.assessmentCase.caseRevision,
         pins: {
-          legalPortfolioVersionId:
-            fixture.assessmentCase.legalPortfolioVersionId!,
+          ruleSetVersionId:
+            fixture.assessmentCase.ruleSetVersionId!,
           repositorySnapshotId: fixture.assessmentCase.repositorySnapshotId!,
           repositoryCommit: fixture.assessmentCase.repositoryCommit!,
         },
         rule: {
-          engineeringRuleId,
-          engineeringRuleVersion,
+          assessmentRuleId,
+          assessmentRuleVersion,
           criterionIds: new Set([criterionId]),
-          legalContextIds: new Set([legalRuleId]),
+          legalContextIds: new Set([legalRequirementId]),
         },
         evidence: new Map(
           fixture.evidence.map((item) => [
@@ -357,7 +357,7 @@ describe("AssessmentCompletionGate", () => {
     expect(result.blockers).toEqual([]);
     expect(result.snapshot).toMatchObject({
       caseRevision: 1,
-      pins: { legalPortfolioVersionId: portfolioVersionId, repositoryCommit },
+      pins: { ruleSetVersionId: ruleSetVersionId, repositoryCommit },
       decisions: [{ decisionId: "decision-1" }],
       evidence: [{ evidenceId }],
       facts: [{ factId }],
@@ -471,17 +471,17 @@ describe("AssessmentCompletionGate", () => {
       },
     },
     {
-      name: "decision coverage from a different portfolio version",
+      name: "decision coverage from a different ruleSet version",
       code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
       mutate: (fixture) => {
-        fixture.coverage[0].portfolioVersionId = randomUUID();
+        fixture.coverage[0].ruleSetVersionId = randomUUID();
       },
     },
     {
       name: "decision coverage with a stale rule version",
       code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_DECISION,
       mutate: (fixture) => {
-        fixture.coverage[0].engineeringRuleVersion = "v0";
+        fixture.coverage[0].assessmentRuleVersion = "v0";
       },
     },
     {
@@ -490,7 +490,7 @@ describe("AssessmentCompletionGate", () => {
       mutate: (fixture) => {
         fixture.decisions[0].decision = ruleDecisionSchema.parse({
           ...fixture.decisions[0].decision,
-          engineeringRuleId: "ER-OTHER",
+          assessmentRuleId: "ER-OTHER",
         });
       },
     },
@@ -527,10 +527,10 @@ describe("AssessmentCompletionGate", () => {
       },
     },
     {
-      name: "invalid pinned portfolio",
-      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.PORTFOLIO_INVALID,
+      name: "invalid pinned ruleSet",
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.RULE_SET_INVALID,
       mutate: (fixture) => {
-        fixture.portfolio!.lifecycleState = ArtifactLifecycleState.BUILDING;
+        fixture.ruleSet!.lifecycleState = ArtifactLifecycleState.BUILDING;
       },
     },
     {

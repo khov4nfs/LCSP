@@ -143,8 +143,8 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           report.assessmentId !== existing.assessmentId ||
           report.kind !== ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT ||
           report.schemaVersion !== existing.schemaVersion ||
-          report.pins.legalPortfolioVersionId !==
-            existing.legalPortfolioVersionId ||
+          report.pins.ruleSetVersionId !==
+            existing.ruleSetVersionId ||
           report.pins.repositorySnapshotId !== existing.repositorySnapshotId ||
           report.pins.repositoryCommit.toLowerCase() !==
             existing.repositoryCommit.toLowerCase() ||
@@ -198,12 +198,12 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
       const snapshot = inspection.snapshot;
       const narratives = new Map(
         command.request.findings.map((finding) => [
-          finding.engineeringRuleId,
+          finding.assessmentRuleId,
           finding,
         ]),
       );
       const decisionRuleIds = snapshot.decisions
-        .map(({ decision }) => decision.engineeringRuleId)
+        .map(({ decision }) => decision.assessmentRuleId)
         .sort();
       const narrativeRuleIds = [...narratives.keys()].sort();
       if (
@@ -235,14 +235,14 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
         decisionFingerprint,
         summary: command.request.summary,
         findings: snapshot.decisions.map((item) => {
-          const narrative = narratives.get(item.decision.engineeringRuleId);
+          const narrative = narratives.get(item.decision.assessmentRuleId);
           if (!narrative) {
             throw new Error(
               "Completion snapshot and report narratives diverged",
             );
           }
           return {
-            engineeringRuleId: item.decision.engineeringRuleId,
+            assessmentRuleId: item.decision.assessmentRuleId,
             ...item,
             summary: narrative.summary,
             recommendations: narrative.recommendations,
@@ -276,7 +276,7 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           assessmentId: command.assessmentId,
           kind: AssessmentArtifactKind.FINAL_REPORT,
           lifecycleState: ArtifactLifecycleState.BUILDING,
-          legalPortfolioVersionId: snapshot.pins.legalPortfolioVersionId,
+          ruleSetVersionId: snapshot.pins.ruleSetVersionId,
           repositorySnapshotId: snapshot.pins.repositorySnapshotId,
           repositoryCommit: snapshot.pins.repositoryCommit,
           caseRevision: snapshot.caseRevision,

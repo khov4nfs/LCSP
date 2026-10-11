@@ -56,7 +56,7 @@ export const ASSESSMENT_AGENT_STREAM_EVENT_TYPES = {
   decisionFallback: "DECISION_FALLBACK",
   semanticToolCall: "SEMANTIC_TOOL_CALL",
   semanticToolResult: "SEMANTIC_TOOL_RESULT",
-  engineeringRule: "ENGINEERING_RULE",
+  assessmentRule: "ASSESSMENT_RULE",
   skillUsage: "SKILL_USAGE",
   ruleProvenance: "RULE_PROVENANCE",
   toolCallDelta: "TOOL_CALL_DELTA",

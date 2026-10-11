@@ -1,0 +1,536 @@
+{
+  "title": "ComplianceRuleSetToolInput",
+  "type": "object",
+  "properties": {
+    "packet": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "legalRequirements": {
+          "description": "Operative duties, prohibitions or permissions only. Context-only definitions, scope, exceptions and interpretive cross-references belong in contextRelations with toSourceRef, not standalone LegalRequirements. Source coverage does not require a LegalRequirement for every provision.",
+          "maxItems": 5000,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "legalRequirementId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "proposition": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8000
+              },
+              "applicabilityConditions": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "qualifiers": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "exceptions": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "nonRepositoryDuty": {
+                "description": "Whether the duty requires organizational, human, physical or external action that repository/software evidence cannot establish. A software record of an action does not establish performance of that action or create a software obligation absent from the source.",
+                "type": "boolean"
+              },
+              "sourceRefs": {
+                "minItems": 1,
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "documentId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                    },
+                    "locator": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "contentSha256": {
+                      "type": "string",
+                      "pattern": "^sha256:[a-f0-9]{64}$"
+                    }
+                  },
+                  "required": [
+                    "documentId",
+                    "locator",
+                    "contentSha256"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "coverage": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "description": "COVERED_BY_ASSESSMENT_RULES requires at least one AssessmentRule legalRequirementIds reference; NON_ASSESSABLE requires none. The model decides legal assessability.",
+                    "type": "string",
+                    "enum": [
+                      "COVERED_BY_ASSESSMENT_RULES",
+                      "NON_ASSESSABLE"
+                    ]
+                  },
+                  "nonAssessableReason": {
+                    "description": "Must be null when state is COVERED_BY_ASSESSMENT_RULES; must be a non-blank reason when state is NON_ASSESSABLE.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 8000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "nonAssessableReason"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "legalRequirementId",
+              "title",
+              "proposition",
+              "applicabilityConditions",
+              "qualifiers",
+              "exceptions",
+              "nonRepositoryDuty",
+              "sourceRefs",
+              "coverage"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "assessmentRules": {
+          "maxItems": 20000,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "assessmentRuleId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "legalRequirementIds": {
+                "description": "LegalRequirement IDs covered by this AssessmentRule; never reference a LegalRequirement declared NON_ASSESSABLE.",
+                "minItems": 1,
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                }
+              },
+              "concept": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "legalIntent": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8000
+              },
+              "applicabilityGuidance": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 8000
+              },
+              "criteria": {
+                "minItems": 1,
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "criterionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                    },
+                    "statement": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 8000
+                    }
+                  },
+                  "required": [
+                    "criterionId",
+                    "statement"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "investigationGoals": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "startingNodeTypes": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "targetNodeTypes": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "edgeStrategies": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "graphQueries": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "startNodeTypes": {
+                      "maxItems": 64,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      }
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "FORWARD",
+                        "BACKWARD",
+                        "BOTH"
+                      ]
+                    },
+                    "followEdges": {
+                      "maxItems": 64,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      }
+                    },
+                    "stopNodeTypes": {
+                      "maxItems": 64,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      }
+                    },
+                    "semanticTypes": {
+                      "maxItems": 64,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      }
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "startNodeTypes",
+                    "direction",
+                    "followEdges",
+                    "stopNodeTypes",
+                    "semanticTypes"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "keywords": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "commonApis": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "commonLibraries": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "patterns": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "requiredEvidence": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "supportingEvidence": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "negativeEvidence": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "unresolvedConditions": {
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                }
+              },
+              "sourceRefs": {
+                "minItems": 1,
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "documentId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                    },
+                    "locator": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 512
+                    },
+                    "contentSha256": {
+                      "type": "string",
+                      "pattern": "^sha256:[a-f0-9]{64}$"
+                    }
+                  },
+                  "required": [
+                    "documentId",
+                    "locator",
+                    "contentSha256"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "assessmentRuleId",
+              "legalRequirementIds",
+              "concept",
+              "legalIntent",
+              "applicabilityGuidance",
+              "criteria",
+              "investigationGoals",
+              "startingNodeTypes",
+              "targetNodeTypes",
+              "edgeStrategies",
+              "graphQueries",
+              "keywords",
+              "commonApis",
+              "commonLibraries",
+              "patterns",
+              "requiredEvidence",
+              "supportingEvidence",
+              "negativeEvidence",
+              "unresolvedConditions",
+              "sourceRefs"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "contextRelations": {
+          "maxItems": 20000,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "relationId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "DEFINITION",
+                  "SCOPE",
+                  "QUALIFIER",
+                  "EXCEPTION",
+                  "CROSS_REFERENCE"
+                ]
+              },
+              "fromLegalRequirementId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "toLegalRequirementId": {
+                "description": "Target an independently operative LegalRequirement only. For a context-only provision use toSourceRef and set this field to explicit JSON null; never create a LegalRequirement merely as a relation target.",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "toSourceRef": {
+                "description": "Exact pinned source reference for a context-only definition, scope, qualifier, exception or cross-reference. Set toLegalRequirementId to explicit JSON null. When targeting an independently operative LegalRequirement, this field is explicit JSON null.",
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "documentId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                      },
+                      "locator": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512
+                      },
+                      "contentSha256": {
+                        "type": "string",
+                        "pattern": "^sha256:[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "documentId",
+                      "locator",
+                      "contentSha256"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "relationId",
+              "kind",
+              "fromLegalRequirementId",
+              "toLegalRequirementId",
+              "toSourceRef"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "legalRequirements",
+        "assessmentRules",
+        "contextRelations"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "packet"
+  ],
+  "additionalProperties": false
+}

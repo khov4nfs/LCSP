@@ -169,7 +169,7 @@ enum BlockerReason {
   HUMAN_FACT_UNRESOLVABLE
   REQUIRED_DOCUMENT_UNAVAILABLE
   REQUIRED_RUNTIME_INPUT_UNAVAILABLE
-  LEGAL_PORTFOLIO_UNAVAILABLE
+  COMPLIANCE_RULE_SET_UNAVAILABLE
   REPOSITORY_SNAPSHOT_UNAVAILABLE
 }
 
@@ -180,9 +180,11 @@ enum ArtifactLifecycleState {
   INVALID
 }
 
-enum LegalPortfolioCoverageState {
-  COVERED_BY_ENGINEERING_RULES
+enum LegalRequirementCoverageState {
+  COVERED_BY_ASSESSMENT_RULES
   NON_ASSESSABLE
+
+  @@map("LegalPortfolioCoverageState")
 }
 
 enum LegalContextRelationKind {
@@ -193,17 +195,21 @@ enum LegalContextRelationKind {
   CROSS_REFERENCE
 }
 
-enum LegalPreparationFailureReason {
+enum RuleSetPreparationFailureReason {
   MODEL_ERROR
   NO_SUBMISSION
-  PORTFOLIO_VALIDATION_FAILED
-  CORPUS_UNAVAILABLE
+  RULE_SET_VALIDATION_FAILED
+  SOURCE_VERSION_UNAVAILABLE
   RUNTIME_ERROR
+
+  @@map("LegalPreparationFailureReason")
 }
 
-enum LegalPortfolioValidationOutcome {
+enum ComplianceRuleSetValidationOutcome {
   PASSED
   FAILED
+
+  @@map("LegalPortfolioValidationOutcome")
 }
 
 enum AgentExecutionState {
@@ -321,8 +327,8 @@ enum AuditResourceType {
   GITHUB_APP_INSTALL_STATE
   HTTP_ROUTE
   LEGAL_RULE
-  LEGAL_PORTFOLIO_VERSION
-  LEGAL_CORPUS_VERSION
+  COMPLIANCE_RULE_SET_VERSION
+  LEGAL_SOURCE_VERSION
   OUTBOX
   REPOSITORY_CONNECTION
   REPOSITORY_SCAN_JOB
@@ -335,8 +341,8 @@ enum OutboxAggregateType {
   BILLING_PAYMENT
   ASSESSMENT
   AUTH_USER
-  LEGAL_CORPUS_VERSION
-  LEGAL_PORTFOLIO_VERSION
+  LEGAL_SOURCE_VERSION
+  COMPLIANCE_RULE_SET_VERSION
   REPOSITORY_SCAN_JOB
   REPOSITORY_SNAPSHOT
 }
@@ -463,7 +469,7 @@ model RepositoryScanJob {
   @@index([snapshotId])
 }
 
-/// Accepted per-EngineeringRule assessment: the RuleEvidenceIndex ledger (accepted evidence only).
+/// Accepted per-AssessmentRule assessment: the RuleEvidenceIndex ledger (accepted evidence only).
 
 enum AssessmentRuntimeControlState {
   RUNNING
@@ -528,27 +534,28 @@ model GitHubAppInstallState {
   user         User        @relation("GitHubAppInstallStateUser", fields: [userId], references: [id], onDelete: Restrict)
 }
 
-model LegalCorpusVersion {
-  id                       String                   @id @default(uuid())
-  version                  String                   @unique
-  status                   LegalRuleLifecycleStatus @default(DRAFT)
-  sourceManifest           Json
-  integrityManifestRef     String?
-  createdAt                DateTime                 @default(now())
-  approvedAt               DateTime?
-  documents                LegalSourceDocument[]
-  chunks                   LegalDocumentChunk[]
-  approvals                CorpusApprovalRecord[]
-  retrievalIndexes         LegalRetrievalIndex[]
-  portfolioPreparationRuns LegalPreparationRun[]
-  portfolioVersions        LegalPortfolioVersion[]
+model LegalSourceVersion {
+  id                     String                     @id @default(uuid())
+  version                String                     @unique
+  status                 LegalRuleLifecycleStatus   @default(DRAFT)
+  sourceManifest         Json
+  integrityManifestRef   String?
+  createdAt              DateTime                   @default(now())
+  approvedAt             DateTime?
+  documents              LegalSourceDocument[]
+  chunks                 LegalDocumentChunk[]
+  approvals              CorpusApprovalRecord[]
+  retrievalIndexes       LegalRetrievalIndex[]
+  ruleSetPreparationRuns RuleSetPreparationRun[]
+  ruleSetVersions        ComplianceRuleSetVersion[]
 
   @@index([status, createdAt])
+  @@map("LegalCorpusVersion")
 }
 
 model LegalRetrievalIndex {
   id                    String                    @id @default(uuid())
-  legalCorpusVersionId  String
+  legalSourceVersionId  String                    @map("legalCorpusVersionId")
   version               String                    @unique
   status                LegalRetrievalIndexStatus @default(BUILDING)
   configHash            String
@@ -556,14 +563,14 @@ model LegalRetrievalIndex {
   validationManifestRef String?
   validatedAt           DateTime?
   createdAt             DateTime                  @default(now())
-  corpusVersion         LegalCorpusVersion        @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+  corpusVersion         LegalSourceVersion        @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
 
-  @@index([legalCorpusVersionId, status, validatedAt])
+  @@index([legalSourceVersionId, status, validatedAt])
 }
 
 model LegalSourceDocument {
   id                   String               @id @default(uuid())
-  legalCorpusVersionId String
+  legalSourceVersionId String               @map("legalCorpusVersionId")
   documentId           String
   title                String
   sourceUrl            String
@@ -572,10 +579,10 @@ model LegalSourceDocument {
   sourceEffectStatus   String
   snapshotPath         String?
   createdAt            DateTime             @default(now())
-  corpusVersion        LegalCorpusVersion   @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+  corpusVersion        LegalSourceVersion   @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
   chunks               LegalDocumentChunk[]
 
-  @@unique([legalCorpusVersionId, documentId])
+  @@unique([legalSourceVersionId, documentId])
   @@index([documentId])
 }
 
@@ -607,32 +614,32 @@ model LegalSourceSnapshot {
 }
 
 model LegalDocumentChunk {
-  id                        String                     @id
-  legalCorpusVersionId      String
-  legalSourceDocumentId     String
-  documentId                String
-  locator                   String
-  content                   String
-  contentSha256             String
-  hierarchy                 Json
-  legalStatus               String
-  pageStart                 Int?
-  pageEnd                   Int?
-  createdAt                 DateTime                   @default(now())
-  corpusVersion             LegalCorpusVersion         @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
-  sourceDocument            LegalSourceDocument        @relation(fields: [legalSourceDocumentId], references: [id], onDelete: Cascade)
-  portfolioProvenance       LegalRuleProvenance[]
-  portfolioContextRelations LegalRuleContextRelation[]
+  id                      String                            @id
+  legalSourceVersionId    String                            @map("legalCorpusVersionId")
+  legalSourceDocumentId   String
+  documentId              String
+  locator                 String
+  content                 String
+  contentSha256           String
+  hierarchy               Json
+  legalStatus             String
+  pageStart               Int?
+  pageEnd                 Int?
+  createdAt               DateTime                          @default(now())
+  corpusVersion           LegalSourceVersion                @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
+  sourceDocument          LegalSourceDocument               @relation(fields: [legalSourceDocumentId], references: [id], onDelete: Cascade)
+  ruleSetProvenance       LegalRequirementProvenance[]
+  ruleSetContextRelations LegalRequirementContextRelation[]
 
-  @@unique([id, legalCorpusVersionId])
-  @@unique([legalCorpusVersionId, documentId, locator])
-  @@index([legalCorpusVersionId, documentId])
-  @@index([legalCorpusVersionId, legalStatus])
+  @@unique([id, legalSourceVersionId])
+  @@unique([legalSourceVersionId, documentId, locator])
+  @@index([legalSourceVersionId, documentId])
+  @@index([legalSourceVersionId, legalStatus])
 }
 
 model CorpusApprovalRecord {
   id                     String                   @id @default(uuid())
-  legalCorpusVersionId   String
+  legalSourceVersionId   String                   @map("legalCorpusVersionId")
   approvedBy             String
   status                 LegalRuleLifecycleStatus
   idempotencyKey         String?
@@ -642,10 +649,10 @@ model CorpusApprovalRecord {
   scopeDescription       String
   comments               String?
   approvalDate           DateTime                 @default(now())
-  corpusVersion          LegalCorpusVersion       @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+  corpusVersion          LegalSourceVersion       @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
 
   @@unique([idempotencyKey])
-  @@index([legalCorpusVersionId])
+  @@index([legalSourceVersionId])
 }
 
 enum RepositoryConnectionStatus {
@@ -1018,179 +1025,188 @@ model LlmUsageEvent {
 }
 
 // ---------------------------------------------------------------------------
-// Legal portfolio (expand-only). One Legal Preparation run authors one
-// complete LegalRule + EngineeringRule portfolio against one pinned immutable
-// corpus. The activation transaction is the only writer of the ACTIVE pointer.
-// V1 LegalRuleCatalogVersion / LegalRule / approval rows are untouched.
+// Compliance rule set (expand-only). One Rule Set Preparation run authors one
+// complete LegalRequirement + AssessmentRule set against one pinned immutable
+// legal source version. The activation transaction is the only writer of the ACTIVE pointer.
+// V1 LegalRuleCatalogVersion / LegalRule / approval rows are untouched. Physical table and column
+// names keep their historical spelling through @@map/@map.
 // ---------------------------------------------------------------------------
 
-model LegalPreparationRun {
-  id                   String                          @id @default(uuid())
-  idempotencyKey       String                          @unique
-  legalCorpusVersionId String
+model RuleSetPreparationRun {
+  id                   String                             @id @default(uuid())
+  idempotencyKey       String                             @unique
+  legalSourceVersionId String                             @map("legalCorpusVersionId")
   requestedBy          String
   correlationId        String
-  executionState       AgentExecutionState             @default(QUEUED)
-  failureReason        LegalPreparationFailureReason?
+  executionState       AgentExecutionState                @default(QUEUED)
+  failureReason        RuleSetPreparationFailureReason?
   outboxEventId        String?
-  createdAt            DateTime                        @default(now())
+  createdAt            DateTime                           @default(now())
   startedAt            DateTime?
   completedAt          DateTime?
-  corpusVersion        LegalCorpusVersion              @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Restrict)
-  portfolio            LegalPortfolioVersion?
-  activationRecord     LegalPortfolioActivationRecord?
+  corpusVersion        LegalSourceVersion                 @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
+  ruleSet              ComplianceRuleSetVersion?
+  activationRecord     ComplianceRuleSetActivationRecord?
 
-  @@index([legalCorpusVersionId])
+  @@index([legalSourceVersionId])
   @@index([executionState, createdAt])
+  @@map("LegalPreparationRun")
 }
 
-model LegalPortfolioVersion {
-  id                      String                           @id @default(uuid())
-  version                 String                           @unique
-  legalCorpusVersionId    String
-  preparationRunId        String                           @unique
-  lifecycleState          ArtifactLifecycleState           @default(BUILDING)
-  portfolioDigest         String
-  validationOutcome       LegalPortfolioValidationOutcome?
-  validationFailures      Json                             @default("[]")
-  createdAt               DateTime                         @default(now())
+model ComplianceRuleSetVersion {
+  id                      String                              @id @default(uuid())
+  version                 String                              @unique
+  legalSourceVersionId    String                              @map("legalCorpusVersionId")
+  preparationRunId        String                              @unique
+  lifecycleState          ArtifactLifecycleState              @default(BUILDING)
+  ruleSetDigest           String                              @map("portfolioDigest")
+  validationOutcome       ComplianceRuleSetValidationOutcome?
+  validationFailures      Json                                @default("[]")
+  createdAt               DateTime                            @default(now())
   validatedAt             DateTime?
   activatedAt             DateTime?
   supersededAt            DateTime?
-  corpusVersion           LegalCorpusVersion               @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Restrict)
-  preparationRun          LegalPreparationRun              @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
-  rules                   LegalPortfolioRule[]
-  engineeringRules        EngineeringRule[]
-  provenance              LegalRuleProvenance[]
-  contextRelations        LegalRuleContextRelation[]
-  activation              LegalPortfolioActivationRecord?  @relation("ActivationTarget")
-  supersededByActivations LegalPortfolioActivationRecord[] @relation("ActivationPrevious")
+  corpusVersion           LegalSourceVersion                  @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
+  preparationRun          RuleSetPreparationRun               @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+  rules                   LegalRequirement[]
+  assessmentRules         AssessmentRule[]
+  provenance              LegalRequirementProvenance[]
+  contextRelations        LegalRequirementContextRelation[]
+  activation              ComplianceRuleSetActivationRecord?  @relation("ActivationTarget")
+  supersededByActivations ComplianceRuleSetActivationRecord[] @relation("ActivationPrevious")
   assessmentCases         AssessmentCase[]
 
-  // Lets child rows prove they share the portfolio's corpus (composite FK).
-  @@unique([id, legalCorpusVersionId])
+  // Lets child rows prove they share the rule set's legal source version (composite FK).
+  @@unique([id, legalSourceVersionId])
   @@index([lifecycleState])
-  @@index([legalCorpusVersionId])
+  @@index([legalSourceVersionId])
+  @@map("LegalPortfolioVersion")
 }
 
-model LegalPortfolioRule {
-  id                      String                      @id @default(uuid())
-  portfolioVersionId      String
-  legalRuleId             String
+model LegalRequirement {
+  id                      String                            @id @default(uuid())
+  ruleSetVersionId        String                            @map("portfolioVersionId")
+  legalRequirementId      String                            @map("legalRuleId")
   title                   String
   proposition             String
   applicabilityConditions Json
   qualifiers              Json
   exceptions              Json
   nonRepositoryDuty       Boolean
-  coverageState           LegalPortfolioCoverageState
+  coverageState           LegalRequirementCoverageState
   nonAssessableReason     String?
   contentDigest           String
   ordinal                 Int
-  portfolio               LegalPortfolioVersion       @relation(fields: [portfolioVersionId], references: [id], onDelete: Restrict)
-  engineeringRuleLinks    EngineeringRuleLegalRule[]
-  provenance              LegalRuleProvenance[]
-  outgoingRelations       LegalRuleContextRelation[]  @relation("RelationFrom")
+  ruleSet                 ComplianceRuleSetVersion          @relation(fields: [ruleSetVersionId], references: [id], onDelete: Restrict)
+  assessmentRuleLinks     AssessmentRuleLegalRequirement[]
+  provenance              LegalRequirementProvenance[]
+  outgoingRelations       LegalRequirementContextRelation[] @relation("RelationFrom")
 
-  @@unique([portfolioVersionId, legalRuleId])
-  @@unique([id, portfolioVersionId])
+  @@unique([ruleSetVersionId, legalRequirementId])
+  @@unique([id, ruleSetVersionId])
+  @@map("LegalPortfolioRule")
 }
 
-model EngineeringRule {
-  id                     String                       @id @default(uuid())
-  portfolioVersionId     String
-  engineeringRuleId      String
-  engineeringRuleVersion String
-  concept                String
-  legalIntent            String
-  applicabilityGuidance  String
-  criteria               Json
-  contract               Json
-  sourceFingerprint      String
-  contentDigest          String
-  ordinal                Int
-  createdAt              DateTime                     @default(now())
-  portfolio              LegalPortfolioVersion        @relation(fields: [portfolioVersionId], references: [id], onDelete: Restrict)
-  legalRuleLinks         EngineeringRuleLegalRule[]
-  assessmentDecisions    AssessmentRuleDecision[]
-  assessmentCoverage     AssessmentDecisionCoverage[]
+model AssessmentRule {
+  id                    String                           @id @default(uuid())
+  ruleSetVersionId      String                           @map("portfolioVersionId")
+  assessmentRuleId      String                           @map("engineeringRuleId")
+  assessmentRuleVersion String                           @map("engineeringRuleVersion")
+  concept               String
+  legalIntent           String
+  applicabilityGuidance String
+  criteria              Json
+  contract              Json
+  sourceFingerprint     String
+  contentDigest         String
+  ordinal               Int
+  createdAt             DateTime                         @default(now())
+  ruleSet               ComplianceRuleSetVersion         @relation(fields: [ruleSetVersionId], references: [id], onDelete: Restrict)
+  legalRequirementLinks AssessmentRuleLegalRequirement[]
+  assessmentDecisions   AssessmentRuleDecision[]
+  assessmentCoverage    AssessmentDecisionCoverage[]
 
-  @@unique([portfolioVersionId, engineeringRuleId])
-  @@unique([id, portfolioVersionId])
+  @@unique([ruleSetVersionId, assessmentRuleId])
+  @@unique([id, ruleSetVersionId])
+  @@map("EngineeringRule")
 }
 
-// Same-portfolio ownership is enforced by the composite foreign keys.
-model EngineeringRuleLegalRule {
-  portfolioVersionId   String
-  engineeringRuleRowId String
-  portfolioRuleId      String
-  engineeringRule      EngineeringRule    @relation(fields: [engineeringRuleRowId, portfolioVersionId], references: [id, portfolioVersionId], onDelete: Restrict)
-  legalRule            LegalPortfolioRule @relation(fields: [portfolioRuleId, portfolioVersionId], references: [id, portfolioVersionId], onDelete: Restrict)
+// same-rule-set ownership is enforced by the composite foreign keys.
+model AssessmentRuleLegalRequirement {
+  ruleSetVersionId      String           @map("portfolioVersionId")
+  assessmentRuleRowId   String           @map("engineeringRuleRowId")
+  legalRequirementRowId String           @map("portfolioRuleId")
+  assessmentRule        AssessmentRule   @relation(fields: [assessmentRuleRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
+  legalRequirement      LegalRequirement @relation(fields: [legalRequirementRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
 
-  @@id([engineeringRuleRowId, portfolioRuleId])
-  @@index([portfolioRuleId])
+  @@id([assessmentRuleRowId, legalRequirementRowId])
+  @@index([legalRequirementRowId])
+  @@map("EngineeringRuleLegalRule")
 }
 
-// Server-resolved proof: the chunk must belong to the portfolio's own corpus.
-model LegalRuleProvenance {
-  id                   String                @id @default(uuid())
-  portfolioVersionId   String
-  portfolioRuleId      String
-  legalCorpusVersionId String
-  chunkId              String
-  documentId           String
-  locator              String
-  contentSha256        String
-  sourceEffectStatus   String
-  ordinal              Int
-  portfolio            LegalPortfolioVersion @relation(fields: [portfolioVersionId, legalCorpusVersionId], references: [id, legalCorpusVersionId], onDelete: Restrict)
-  rule                 LegalPortfolioRule    @relation(fields: [portfolioRuleId, portfolioVersionId], references: [id, portfolioVersionId], onDelete: Restrict)
-  chunk                LegalDocumentChunk    @relation(fields: [chunkId, legalCorpusVersionId], references: [id, legalCorpusVersionId], onDelete: Restrict)
+// Server-resolved proof: the chunk must belong to the rule set's own legal source version.
+model LegalRequirementProvenance {
+  id                    String                   @id @default(uuid())
+  ruleSetVersionId      String                   @map("portfolioVersionId")
+  legalRequirementRowId String                   @map("portfolioRuleId")
+  legalSourceVersionId  String                   @map("legalCorpusVersionId")
+  chunkId               String
+  documentId            String
+  locator               String
+  contentSha256         String
+  sourceEffectStatus    String
+  ordinal               Int
+  ruleSet               ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
+  rule                  LegalRequirement         @relation(fields: [legalRequirementRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
+  chunk                 LegalDocumentChunk       @relation(fields: [chunkId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
 
-  @@unique([portfolioRuleId, chunkId])
-  @@index([portfolioVersionId])
+  @@unique([legalRequirementRowId, chunkId])
+  @@index([ruleSetVersionId])
+  @@map("LegalRuleProvenance")
 }
 
 // Exactly one of toRuleId / toChunkId (CHECK in the migration). toRuleId also
 // carries a raw composite FK (toRuleId, portfolioVersionId) in the migration.
-model LegalRuleContextRelation {
+model LegalRequirementContextRelation {
   id                   String                   @id @default(uuid())
-  portfolioVersionId   String
+  ruleSetVersionId     String                   @map("portfolioVersionId")
   relationId           String
   kind                 LegalContextRelationKind
   fromRuleId           String
   toRuleId             String?
   toChunkId            String?
-  legalCorpusVersionId String
+  legalSourceVersionId String                   @map("legalCorpusVersionId")
   relationDigest       String
   ordinal              Int
-  portfolio            LegalPortfolioVersion    @relation(fields: [portfolioVersionId, legalCorpusVersionId], references: [id, legalCorpusVersionId], onDelete: Restrict)
-  fromRule             LegalPortfolioRule       @relation("RelationFrom", fields: [fromRuleId, portfolioVersionId], references: [id, portfolioVersionId], onDelete: Restrict)
-  toChunk              LegalDocumentChunk?      @relation(fields: [toChunkId, legalCorpusVersionId], references: [id, legalCorpusVersionId], onDelete: Restrict)
+  ruleSet              ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
+  fromRule             LegalRequirement         @relation("RelationFrom", fields: [fromRuleId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
+  toChunk              LegalDocumentChunk?      @relation(fields: [toChunkId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
 
-  @@unique([portfolioVersionId, relationId])
+  @@unique([ruleSetVersionId, relationId])
   @@index([fromRuleId])
+  @@map("LegalRuleContextRelation")
 }
 
 // Mechanical activation audit. Not an approval: no human approver, no
 // approve/reject lifecycle. Failure records the INVALID candidate's result.
-model LegalPortfolioActivationRecord {
-  id                               String                          @id @default(uuid())
-  portfolioVersionId               String                          @unique
-  preparationRunId                 String                          @unique
-  idempotencyKey                   String                          @unique
-  requestDigest                    String
-  validationOutcome                LegalPortfolioValidationOutcome
-  validationFailures               Json                            @default("[]")
-  previousActivePortfolioVersionId String?
-  outboxEventId                    String?
-  correlationId                    String
-  createdAt                        DateTime                        @default(now())
-  portfolio                        LegalPortfolioVersion           @relation("ActivationTarget", fields: [portfolioVersionId], references: [id], onDelete: Restrict)
-  previousActive                   LegalPortfolioVersion?          @relation("ActivationPrevious", fields: [previousActivePortfolioVersionId], references: [id], onDelete: Restrict)
-  preparationRun                   LegalPreparationRun             @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+model ComplianceRuleSetActivationRecord {
+  id                             String                             @id @default(uuid())
+  ruleSetVersionId               String                             @unique @map("portfolioVersionId")
+  preparationRunId               String                             @unique
+  idempotencyKey                 String                             @unique
+  requestDigest                  String
+  validationOutcome              ComplianceRuleSetValidationOutcome
+  validationFailures             Json                               @default("[]")
+  previousActiveRuleSetVersionId String?                            @map("previousActivePortfolioVersionId")
+  outboxEventId                  String?
+  correlationId                  String
+  createdAt                      DateTime                           @default(now())
+  ruleSet                        ComplianceRuleSetVersion           @relation("ActivationTarget", fields: [ruleSetVersionId], references: [id], onDelete: Restrict)
+  previousActive                 ComplianceRuleSetVersion?          @relation("ActivationPrevious", fields: [previousActiveRuleSetVersionId], references: [id], onDelete: Restrict)
+  preparationRun                 RuleSetPreparationRun              @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
 
-  @@index([previousActivePortfolioVersionId])
+  @@index([previousActiveRuleSetVersionId])
+  @@map("LegalPortfolioActivationRecord")
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1259,26 +1275,26 @@ enum AssessmentArtifactKind {
 /// One per assessment. Pins are set once and never rewritten (DB trigger): a superseding legal
 /// basis or a new repository requires a new assessment.
 model AssessmentCase {
-  assessmentId            String                       @id
-  caseRevision            Int                          @default(0)
-  legalPortfolioVersionId String?
-  repositorySnapshotId    String?
-  repositoryScanJobId     String?
-  repositoryCommit        String?
-  pinnedAt                DateTime?                    @db.Timestamptz(3)
-  createdAt               DateTime                     @default(now()) @db.Timestamptz(3)
-  updatedAt               DateTime                     @updatedAt @db.Timestamptz(3)
-  assessment              Assessment                   @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
-  portfolio               LegalPortfolioVersion?       @relation(fields: [legalPortfolioVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  facts                   AssessmentCaseFact[]
-  evidence                AssessmentEvidence[]
-  decisions               AssessmentRuleDecision[]
-  coverage                AssessmentDecisionCoverage[]
-  humanRequests           AssessmentHumanRequest[]
-  artifacts               AssessmentArtifact[]
+  assessmentId         String                       @id
+  caseRevision         Int                          @default(0)
+  ruleSetVersionId     String?                      @map("legalPortfolioVersionId")
+  repositorySnapshotId String?
+  repositoryScanJobId  String?
+  repositoryCommit     String?
+  pinnedAt             DateTime?                    @db.Timestamptz(3)
+  createdAt            DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                     @updatedAt @db.Timestamptz(3)
+  assessment           Assessment                   @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  ruleSet              ComplianceRuleSetVersion?    @relation(fields: [ruleSetVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facts                AssessmentCaseFact[]
+  evidence             AssessmentEvidence[]
+  decisions            AssessmentRuleDecision[]
+  coverage             AssessmentDecisionCoverage[]
+  humanRequests        AssessmentHumanRequest[]
+  artifacts            AssessmentArtifact[]
 
-  // Lets children prove they use the case's own pinned portfolio (composite FK).
-  @@unique([assessmentId, legalPortfolioVersionId])
+  // Lets children prove they use the case's own pinned rule set (composite FK).
+  @@unique([assessmentId, ruleSetVersionId])
 }
 
 model AssessmentEvidence {
@@ -1329,50 +1345,50 @@ model AssessmentCaseFactEvidence {
 
 /// Latest ACCEPTED decision per (assessment, rule, scope) plus immutable history.
 model AssessmentRuleDecision {
-  decisionId             String                         @id @db.Uuid
-  assessmentId           String
-  portfolioVersionId     String
-  engineeringRuleId      String
-  engineeringRuleVersion String
-  scopeId                String
-  decisionRevision       Int
-  state                  AssessmentDecisionRecordState  @default(ACCEPTED)
-  applicability          RuleDecisionApplicability
-  compliance             RuleDecisionComplianceOutcome?
-  repositoryCommit       String
-  caseRevision           Int
-  idempotencyKey         String
-  requestDigest          String
-  decision               Json
-  createdAt              DateTime                       @default(now()) @db.Timestamptz(3)
-  supersededAt           DateTime?                      @db.Timestamptz(3)
-  invalidatedAt          DateTime?                      @db.Timestamptz(3)
-  assessmentCase         AssessmentCase                 @relation(fields: [assessmentId, portfolioVersionId], references: [assessmentId, legalPortfolioVersionId], onDelete: Cascade, onUpdate: Restrict)
-  engineeringRule        EngineeringRule                @relation(fields: [portfolioVersionId, engineeringRuleId], references: [portfolioVersionId, engineeringRuleId], onDelete: Restrict, onUpdate: Restrict)
-  currentFor             AssessmentDecisionCoverage[]
+  decisionId            String                         @id @db.Uuid
+  assessmentId          String
+  ruleSetVersionId      String                         @map("portfolioVersionId")
+  assessmentRuleId      String                         @map("engineeringRuleId")
+  assessmentRuleVersion String                         @map("engineeringRuleVersion")
+  scopeId               String
+  decisionRevision      Int
+  state                 AssessmentDecisionRecordState  @default(ACCEPTED)
+  applicability         RuleDecisionApplicability
+  compliance            RuleDecisionComplianceOutcome?
+  repositoryCommit      String
+  caseRevision          Int
+  idempotencyKey        String
+  requestDigest         String
+  decision              Json
+  createdAt             DateTime                       @default(now()) @db.Timestamptz(3)
+  supersededAt          DateTime?                      @db.Timestamptz(3)
+  invalidatedAt         DateTime?                      @db.Timestamptz(3)
+  assessmentCase        AssessmentCase                 @relation(fields: [assessmentId, ruleSetVersionId], references: [assessmentId, ruleSetVersionId], onDelete: Cascade, onUpdate: Restrict)
+  assessmentRule        AssessmentRule                 @relation(fields: [ruleSetVersionId, assessmentRuleId], references: [ruleSetVersionId, assessmentRuleId], onDelete: Restrict, onUpdate: Restrict)
+  currentFor            AssessmentDecisionCoverage[]
 
-  @@unique([assessmentId, engineeringRuleId, scopeId, decisionRevision])
+  @@unique([assessmentId, assessmentRuleId, scopeId, decisionRevision])
   @@unique([assessmentId, idempotencyKey])
   @@unique([decisionId, assessmentId])
   @@index([assessmentId, state])
 }
 
-/// Decision-resolution coverage: one row per EngineeringRule of the pinned portfolio, created in
-/// the preparation transaction so the Root provably covers the whole portfolio.
+/// Decision-resolution coverage: one row per AssessmentRule of the pinned rule set, created in
+/// the preparation transaction so the Root provably covers the whole rule set.
 model AssessmentDecisionCoverage {
-  assessmentId           String
-  engineeringRuleId      String
-  portfolioVersionId     String
-  engineeringRuleVersion String
-  resolutionState        DecisionResolutionState @default(PENDING)
-  currentDecisionId      String?                 @db.Uuid
-  decisionRevision       Int                     @default(0)
-  updatedAt              DateTime                @updatedAt @db.Timestamptz(3)
-  assessmentCase         AssessmentCase          @relation(fields: [assessmentId, portfolioVersionId], references: [assessmentId, legalPortfolioVersionId], onDelete: Cascade, onUpdate: Restrict)
-  engineeringRule        EngineeringRule         @relation(fields: [portfolioVersionId, engineeringRuleId], references: [portfolioVersionId, engineeringRuleId], onDelete: Restrict, onUpdate: Restrict)
-  currentDecision        AssessmentRuleDecision? @relation(fields: [currentDecisionId, assessmentId], references: [decisionId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+  assessmentId          String
+  assessmentRuleId      String                  @map("engineeringRuleId")
+  ruleSetVersionId      String                  @map("portfolioVersionId")
+  assessmentRuleVersion String                  @map("engineeringRuleVersion")
+  resolutionState       DecisionResolutionState @default(PENDING)
+  currentDecisionId     String?                 @db.Uuid
+  decisionRevision      Int                     @default(0)
+  updatedAt             DateTime                @updatedAt @db.Timestamptz(3)
+  assessmentCase        AssessmentCase          @relation(fields: [assessmentId, ruleSetVersionId], references: [assessmentId, ruleSetVersionId], onDelete: Cascade, onUpdate: Restrict)
+  assessmentRule        AssessmentRule          @relation(fields: [ruleSetVersionId, assessmentRuleId], references: [ruleSetVersionId, assessmentRuleId], onDelete: Restrict, onUpdate: Restrict)
+  currentDecision       AssessmentRuleDecision? @relation(fields: [currentDecisionId, assessmentId], references: [decisionId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
 
-  @@id([assessmentId, engineeringRuleId])
+  @@id([assessmentId, assessmentRuleId])
   @@index([assessmentId, resolutionState])
 }
 
@@ -1382,7 +1398,7 @@ model AssessmentHumanRequest {
   threadId           String                       @db.Uuid
   status             HumanResolutionRequestStatus @default(OPEN)
   caseRevision       Int
-  engineeringRuleId  String
+  assessmentRuleId   String                       @map("engineeringRuleId")
   criterionIds       Json
   question           String
   unresolvedFact     String
@@ -1407,22 +1423,22 @@ model AssessmentHumanRequest {
 
 /// Artifact metadata only; bytes live in the one protected blob store. Assessment Root owns generation.
 model AssessmentArtifact {
-  artifactId              String                 @id @db.Uuid
-  assessmentId            String
-  kind                    AssessmentArtifactKind
-  lifecycleState          ArtifactLifecycleState @default(BUILDING)
-  legalPortfolioVersionId String
-  repositorySnapshotId    String
-  repositoryCommit        String
-  caseRevision            Int
-  schemaVersion           String
-  reportRequestDigest     String?
-  contentSha256           String?
-  sizeBytes               Int?
-  storageRef              String?
-  createdAt               DateTime               @default(now()) @db.Timestamptz(3)
-  activatedAt             DateTime?              @db.Timestamptz(3)
-  assessmentCase          AssessmentCase         @relation(fields: [assessmentId, legalPortfolioVersionId], references: [assessmentId, legalPortfolioVersionId], onDelete: Cascade, onUpdate: Restrict)
+  artifactId           String                 @id @db.Uuid
+  assessmentId         String
+  kind                 AssessmentArtifactKind
+  lifecycleState       ArtifactLifecycleState @default(BUILDING)
+  ruleSetVersionId     String                 @map("legalPortfolioVersionId")
+  repositorySnapshotId String
+  repositoryCommit     String
+  caseRevision         Int
+  schemaVersion        String
+  reportRequestDigest  String?
+  contentSha256        String?
+  sizeBytes            Int?
+  storageRef           String?
+  createdAt            DateTime               @default(now()) @db.Timestamptz(3)
+  activatedAt          DateTime?              @db.Timestamptz(3)
+  assessmentCase       AssessmentCase         @relation(fields: [assessmentId, ruleSetVersionId], references: [assessmentId, ruleSetVersionId], onDelete: Cascade, onUpdate: Restrict)
 
   @@unique([assessmentId, kind])
   @@index([assessmentId, lifecycleState])

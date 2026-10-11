@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 
-FIXTURE_DIR = Path(__file__).parent / "fixtures" / "legal_portfolio_context"
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "compliance_rule_set_context"
 PARSER_PATH = (
     Path(__file__).parents[1]
     / "tools"

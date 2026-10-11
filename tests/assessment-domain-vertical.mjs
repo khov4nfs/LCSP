@@ -39,7 +39,7 @@ import {
   runPython,
   startStack,
   workerKey,
-} from "./support/legal-portfolio-stack.mjs";
+} from "./support/compliance-rule-set-stack.mjs";
 
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const {
@@ -88,7 +88,7 @@ const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 const COMMIT = "c".repeat(40);
 
-const { q, base, post, stop, seedCorpus, databaseUrl } = await startStack({
+const { q, base, post, stop, seedCorpus, activateLegalSource, databaseUrl } = await startStack({
   database,
   apiPort,
 });
@@ -99,7 +99,7 @@ const { canonicalJson } = await import(
   path.join(root, "apps/api/dist/src/modules/assessment/domain/domain-ids.js")
 );
 
-/** HTTP helper for non-portfolio routes. */
+/** HTTP helper for non-rule set routes. */
 async function http(method, route, { body, token, worker, lease } = {}) {
   const response = await fetch(`${base}${route}`, {
     method,
@@ -126,7 +126,7 @@ const customerHttp = (method, route, token, body) =>
   http(method, route, { body, token, worker: false });
 
 try {
-  // ---- legal portfolio P1 (corpus A) through the real LEGAL_PORTFOLIO path ---------------------------------
+  // ---- compliance rule set P1 (corpus A) through the real COMPLIANCE_RULE_SET path ---------------------------------
   const seedCorpusVersion = (name, variant, status) =>
     seedCorpus({
       name,
@@ -138,7 +138,7 @@ try {
       }),
     });
   const corpusA = await seedCorpusVersion("assessment-a", "a", "APPROVED");
-  const corpusB = await seedCorpusVersion("assessment-b", "b", "SUPERSEDED");
+  const corpusB = await seedCorpusVersion("assessment-b", "b", "APPROVED");
   const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-vertical-"));
   const seedFile = path.join(seedDir, "seed.json");
   writeFileSync(
@@ -149,24 +149,22 @@ try {
       ),
     }),
   );
-  const preparePortfolio = async (corpusId) => {
-    const started = await post("preparations", {
-      legalCorpusVersionId: corpusId,
-      idempotencyKey: `assessment-start-${randomUUID()}`,
-    });
-    eq(started.status, 202, JSON.stringify(started.body));
+  const prepareRuleSet = async (corpusId) => {
+    // The activation event (delivered to the real consumer) starts the one automatic run.
+    const started = await activateLegalSource(corpusId);
+    eq(started.runs.length, 1, "one Legal Source -> one automatic preparation");
     const result = await runPython(
       path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),
-      [base, workerKey, started.body.data.preparationRunId, seedFile, "valid"],
+      [base, workerKey, started.preparationRunId, seedFile, "valid"],
     );
     eq(result.state, "SUCCEEDED", JSON.stringify(result));
-    return result.submission.portfolioVersionId;
+    return result.submission.ruleSetVersionId;
   };
-  const portfolio1 = await preparePortfolio(corpusA);
+  const ruleSet1 = await prepareRuleSet(corpusA);
   const ruleCount = (
     await q(
       `SELECT count(*)::int AS n FROM "EngineeringRule" WHERE "portfolioVersionId"=$1`,
-      [portfolio1],
+      [ruleSet1],
     )
   ).rows[0].n;
   eq(ruleCount, 3);
@@ -224,15 +222,15 @@ try {
     ).rows[0];
 
   const A = await newAssessment("ASSESSMENT vertical A");
-  // creation: canonical lifecycle PREPARING, one server thread, the then-ACTIVE portfolio pinned, no repo pin yet
+  // creation: canonical lifecycle PREPARING, one server thread, the then-ACTIVE rule set pinned, no repo pin yet
   eq((await lifecycle(A.id)).lifecycleState, "PREPARING");
   const created = (
     await q(
-      `SELECT c."legalPortfolioVersionId" AS portfolio, c."repositorySnapshotId" AS snapshot, r."threadId" AS thread FROM "AssessmentCase" c JOIN "AssessmentRuntime" r USING("assessmentId") WHERE c."assessmentId"=$1`,
+      `SELECT c."legalPortfolioVersionId" AS "ruleSet", c."repositorySnapshotId" AS snapshot, r."threadId" AS thread FROM "AssessmentCase" c JOIN "AssessmentRuntime" r USING("assessmentId") WHERE c."assessmentId"=$1`,
       [A.id],
     )
   ).rows[0];
-  eq([created.portfolio, created.snapshot], [portfolio1, null]);
+  eq([created.ruleSet, created.snapshot], [ruleSet1, null]);
   const threadA = created.thread;
 
   // an assessment cannot reason before it is prepared
@@ -344,7 +342,7 @@ try {
   ]);
   const decisions = (
     await q(
-      `SELECT "engineeringRuleId" AS rule, applicability, compliance, state, "portfolioVersionId" AS portfolio, "repositoryCommit" AS commit FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY 1`,
+      `SELECT "engineeringRuleId" AS rule, applicability, compliance, state, "portfolioVersionId" AS "ruleSet", "repositoryCommit" AS commit FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY 1`,
       [A.id],
     )
   ).rows;
@@ -357,7 +355,7 @@ try {
     ],
   );
   ok(
-    decisions.every((d) => d.portfolio === portfolio1 && d.commit === COMMIT),
+    decisions.every((d) => d.ruleSet === ruleSet1 && d.commit === COMMIT),
     "decisions carry the immutable pins",
   );
   // evidence is server-minted, pinned, typed (source + search coverage subtype in ONE ledger)
@@ -433,7 +431,7 @@ try {
   );
   const resumed = second.captured.context;
   eq(
-    resumed.coverage.map((c) => [c.engineeringRuleId, c.resolutionState]),
+    resumed.coverage.map((c) => [c.assessmentRuleId, c.resolutionState]),
     [
       ["ER-DEF", "RESOLVED"],
       ["ER-RET", "RESOLVED"],
@@ -441,7 +439,7 @@ try {
     ],
   );
   eq([resumed.facts.length, resumed.evidence.length], [1, 2]);
-  eq(resumed.pins.legalPortfolioVersionId, portfolio1);
+  eq(resumed.pins.ruleSetVersionId, ruleSet1);
   eq(
     (
       await q(
@@ -641,9 +639,9 @@ try {
     200,
   );
 
-  // ---- legal basis supersession: A keeps its pin, a NEW assessment pins the new ACTIVE portfolio -
-  const portfolio2 = await preparePortfolio(corpusB);
-  ok(portfolio2 !== portfolio1, "new portfolio");
+  // ---- legal basis supersession: A keeps its pin, a NEW assessment pins the new ACTIVE rule set -
+  const ruleSet2 = await prepareRuleSet(corpusB);
+  ok(ruleSet2 !== ruleSet1, "new ruleSet");
   const C = await newAssessment("ASSESSMENT vertical C");
   eq(
     (
@@ -652,7 +650,7 @@ try {
         [C.id],
       )
     ).rows[0].p,
-    portfolio2,
+    ruleSet2,
   );
   eq(
     (
@@ -661,30 +659,30 @@ try {
         [A.id],
       )
     ).rows[0].p,
-    portfolio1,
+    ruleSet1,
   );
   eq(
     (
       await q(
         `SELECT "lifecycleState" AS s FROM "LegalPortfolioVersion" WHERE id=$1`,
-        [portfolio1],
+        [ruleSet1],
       )
     ).rows[0].s,
     "SUPERSEDED",
   );
-  // the pinned (superseded) portfolio stays readable by its assessment
+  // the pinned (superseded) rule set stays readable by its assessment
   const lease = (await runtime(A.id, "claim")).body.data;
-  const pinnedPortfolio = await runtime(A.id, "portfolio", {
+  const pinnedRuleSet = await runtime(A.id, "rule-set", {
     method: "GET",
     lease: lease.leaseToken,
   });
   eq(
     [
-      pinnedPortfolio.status,
-      pinnedPortfolio.body.data.portfolioVersionId,
-      pinnedPortfolio.body.data.lifecycleState,
+      pinnedRuleSet.status,
+      pinnedRuleSet.body.data.ruleSetVersionId,
+      pinnedRuleSet.body.data.lifecycleState,
     ],
-    [200, portfolio1, "SUPERSEDED"],
+    [200, ruleSet1, "SUPERSEDED"],
   );
   eq(
     (
@@ -710,7 +708,7 @@ try {
   await rejects(
     "pin immutable",
     `UPDATE "AssessmentCase" SET "legalPortfolioVersionId"=$2 WHERE "assessmentId"=$1`,
-    [A.id, portfolio2],
+    [A.id, ruleSet2],
     /immutable/,
   );
   await rejects(
@@ -771,8 +769,8 @@ try {
   const reportRequest = {
     kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
     summary: "The assessment findings are complete.",
-    findings: ["ER-DEF", "ER-RET", "ER-XREF"].map((engineeringRuleId) => ({
-      engineeringRuleId,
+    findings: ["ER-DEF", "ER-RET", "ER-XREF"].map((assessmentRuleId) => ({
+      assessmentRuleId,
       summary: "The finding follows the accepted rule decision.",
       recommendations: [],
     })),
@@ -815,7 +813,7 @@ try {
   );
   const artifact = (
     await q(
-      `SELECT "artifactId" AS id, "lifecycleState" AS state, "contentSha256" AS hash, "sizeBytes" AS size, "storageRef" AS ref, "schemaVersion" AS schema, "legalPortfolioVersionId" AS portfolio, "repositorySnapshotId" AS snapshot, "repositoryCommit" AS commit, "caseRevision" AS "caseRevision", "reportRequestDigest" AS "requestDigest" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
+      `SELECT "artifactId" AS id, "lifecycleState" AS state, "contentSha256" AS hash, "sizeBytes" AS size, "storageRef" AS ref, "schemaVersion" AS schema, "legalPortfolioVersionId" AS "ruleSet", "repositorySnapshotId" AS snapshot, "repositoryCommit" AS commit, "caseRevision" AS "caseRevision", "reportRequestDigest" AS "requestDigest" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
       [A.id, AssessmentArtifactKind.FINAL_REPORT],
     )
   ).rows[0];
@@ -868,7 +866,7 @@ try {
     ],
   );
   eq(reportArtifact.pins, {
-    legalPortfolioVersionId: artifact.portfolio,
+    ruleSetVersionId: artifact.ruleSet,
     repositorySnapshotId: artifact.snapshot,
     repositoryScanJobId: pinned.job,
     repositoryCommit: COMMIT,
@@ -1020,7 +1018,7 @@ try {
     body: {
       expectedCaseRevision: deletionCaseRevision,
       idempotencyKey: "release-deletion-open-request",
-      engineeringRuleId: "ER-RET",
+      assessmentRuleId: "ER-RET",
       criterionIds: ["C-1"],
       question: "Who owns the external operational retention process?",
       unresolvedFact: "External organizational ownership",

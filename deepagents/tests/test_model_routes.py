@@ -51,7 +51,7 @@ def test_default_file_loads_without_override(monkeypatch):
     routes = mp.load_model_routes()
     assert mp.DEFAULT_ROUTES_FILE == Path(mp.__file__).resolve().parent / "config" / "model_routes.yaml"
     assert routes.roles["default"] == "primary" and routes.fallbacks["primary"] == ("fallback", "fallback-01")
-    for role in ("root", "assessment-root", "repository-researcher", "legal-preparation"):
+    for role in ("root", "assessment-root", "repository-researcher", "rule-set-preparation"):
         assert role in routes.roles
     # The committed default names a model, but tests must not pin which one: model id is configuration.
     assert routes.routes["primary"]["provider"] == "apx"

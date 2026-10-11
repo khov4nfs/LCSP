@@ -20,7 +20,7 @@ describe("ZodValidationPipe", () => {
     const detailed = new ZodValidationPipe(
       z.object({
         packet: z.object({
-          engineeringRules: z.array(
+          assessmentRules: z.array(
             z.object({
               startingNodeTypes: z.array(z.string()),
               investigationGoals: z.array(z.string()),
@@ -34,7 +34,7 @@ describe("ZodValidationPipe", () => {
     );
     try {
       detailed.transform({
-        packet: { engineeringRules: [{ privateValue: "must-not-echo" }] },
+        packet: { assessmentRules: [{ privateValue: "must-not-echo" }] },
       });
       throw new Error("Expected validation failure");
     } catch (error) {
@@ -46,7 +46,7 @@ describe("ZodValidationPipe", () => {
           status: HttpStatus.BAD_REQUEST,
           meta: {
             requirements:
-              "packet.engineeringRules.0.startingNodeTypes requires array | packet.engineeringRules.0.investigationGoals requires array",
+              "packet.assessmentRules.0.startingNodeTypes requires array | packet.assessmentRules.0.investigationGoals requires array",
           },
         },
       });

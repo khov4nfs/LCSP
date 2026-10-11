@@ -31,7 +31,7 @@ import {
   runPython,
   startStack,
   workerKey,
-} from "./support/legal-portfolio-stack.mjs";
+} from "./support/compliance-rule-set-stack.mjs";
 
 const mode = process.argv[2] ?? "decisions";
 const outputLabel = process.env.LCSP_ASSESSMENT_EVAL_LABEL ?? mode;
@@ -72,7 +72,7 @@ const stack = await startStack({
   apiPort: Number(process.env.LCSP_ASSESSMENT_EVAL_API_PORT ?? 3415),
   resetDatabase: previousEval === null,
 });
-const { q, base, post, stop, seedCorpus, databaseUrl } = stack;
+const { q, base, post, stop, seedCorpus, activateLegalSource, databaseUrl } = stack;
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const { ArtifactLifecycleState } = requireApi("@prisma/client");
 const http = async (route, body, token) => {
@@ -148,14 +148,11 @@ try {
       documentId: fixture.documentId,
       chunks: fixture.chunks,
     });
-    const prep = await post("preparations", {
-      legalCorpusVersionId: corpus,
-      idempotencyKey: `assessment-eval-${randomUUID()}`,
-    });
-    assert.equal(prep.status, 202, JSON.stringify(prep.body));
+    const prep = await activateLegalSource(corpus);
+    assert.equal(prep.runs.length, 1, "one Legal Source -> one automatic preparation");
     const prepared = await runPython(
       path.join(tests, "scripted_preparation.py"),
-      [base, workerKey, prep.body.data.preparationRunId, seed, "valid"],
+      [base, workerKey, prep.preparationRunId, seed, "valid"],
     );
     assert.equal(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
     const { hashSecret } = await import(
@@ -406,8 +403,8 @@ try {
     );
     assert.equal(artifact.lifecycleState, ArtifactLifecycleState.ACTIVE);
     assert.equal(
-      artifact.legalPortfolioVersionId,
-      assessment.legalPortfolioVersionId,
+      artifact.ruleSetVersionId,
+      assessment.ruleSetVersionId,
     );
     assert.equal(
       artifact.repositorySnapshotId,
@@ -488,12 +485,12 @@ try {
     );
     assert.deepEqual(
       [
-        report.pins.legalPortfolioVersionId,
+        report.pins.ruleSetVersionId,
         report.pins.repositorySnapshotId,
         report.pins.repositoryCommit,
       ],
       [
-        artifact.legalPortfolioVersionId,
+        artifact.ruleSetVersionId,
         artifact.repositorySnapshotId,
         artifact.repositoryCommit,
       ],
@@ -565,7 +562,7 @@ try {
       ...result,
       resumed: resumedResult,
       decisions: decisions.map((d) => ({
-        rule: d.engineeringRuleId,
+        rule: d.assessmentRuleId,
         state: d.state,
         applicability: d.decision.applicability,
         compliance: d.decision.compliance,

@@ -16,6 +16,7 @@ from middleware.failure_policy import (
     TerminalSchemaError,
     is_auth_failure,
     is_provider_capacity_failure,
+    is_provider_quota_exhaustion,
     is_terminal_task_error,
     error_status,
 )
@@ -36,7 +37,7 @@ _RATE_LIMITED_STATUSES = frozenset({429})
 _RETRYABLE_TRANSIENT_STATUSES = frozenset({408, 409, 425, 429})
 _DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS = 30.0
 _MAX_RATE_LIMIT_COOLDOWN_SECONDS = 120.0
-# Process-window credential health. Auth failures are permanent for the process;
+# Process-window credential health. Auth/depleted allowances are dead for this process;
 # rate limits make a slot ineligible until its cooldown expires.
 _DEAD_CREDENTIAL_SLOTS: dict[tuple[str, str], set[int]] = {}
 _RATE_LIMITED_UNTIL: dict[tuple[str, str], dict[int, float]] = {}
@@ -211,7 +212,7 @@ def model_with_token(model, provider: str, token: str):
 class TokenFallbackMiddleware(AgentMiddleware):
     """Try healthy configured credential slots, each at most once per model call.
 
-    - 401/403: the slot is dead for this process and is skipped on later calls.
+    - 401/403 or depleted quota: the slot is dead for this process and skipped on later calls.
     - 429: the slot cools down (Retry-After when present, capped) and is skipped until
       it expires; it is never marked dead. When only cooling slots remain, the call
       waits once for the soonest one and retries it (see ``_next_step``), unless a
@@ -315,7 +316,7 @@ class TokenFallbackMiddleware(AgentMiddleware):
             credential_slot=index,
             credential_fingerprint=fingerprint,
             fallback_enabled=True,
-            reason="previous_auth_failure",
+            reason="previous_credential_failure",
         )
 
     def _log_rate_limited_slot(
@@ -542,7 +543,7 @@ class TokenFallbackMiddleware(AgentMiddleware):
         # 429/5xx); rotating on them would re-authorize or re-bill the same invocation.
         if is_terminal_task_error(error):
             return False
-        if _is_auth_failure(error):
+        if _is_auth_failure(error) or is_provider_quota_exhaustion(error):
             self._mark_dead(
                 provider=provider,
                 env_name=env_name,

@@ -52,7 +52,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     await prisma.corpusApprovalRecord.deleteMany();
     await prisma.legalDocumentChunk.deleteMany();
     await prisma.legalSourceDocument.deleteMany();
-    await prisma.legalCorpusVersion.deleteMany();
+    await prisma.legalSourceVersion.deleteMany();
 
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
@@ -130,7 +130,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       assert.equal(stored?.contentSha256, sha256(content));
 
       const approvalRecord = await prisma.corpusApprovalRecord.findFirst({
-        where: { legalCorpusVersionId: draft.id },
+        where: { legalSourceVersionId: draft.id },
       });
       assert.equal(approvalRecord?.approvedBy, SYSTEM_ACTOR);
       assert.equal(
@@ -263,7 +263,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         });
 
       assert.equal(approval.status, 401);
-      const stored = await prisma.legalCorpusVersion.findUnique({
+      const stored = await prisma.legalSourceVersion.findUnique({
         where: { id: draft.id },
       });
       assert.equal(stored?.status, LEGAL_RULE_LIFECYCLE_STATUSES.draft);
@@ -300,7 +300,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         });
 
       assert.equal(response.status, 422);
-      const corpus = await prisma.legalCorpusVersion.findUnique({
+      const corpus = await prisma.legalSourceVersion.findUnique({
         where: { version: "corpus-hash-mismatch-v1" },
       });
       assert.equal(corpus, null);
@@ -494,7 +494,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
           scopeDescription: "Should block without validated index",
         });
       assert.equal(approval.status, 422);
-      const stored = await prisma.legalCorpusVersion.findUnique({
+      const stored = await prisma.legalSourceVersion.findUnique({
         where: { id: draft.id },
       });
       assert.equal(stored?.status, LEGAL_RULE_LIFECYCLE_STATUSES.draft);
@@ -503,7 +503,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
 });
 
 async function seedApprovedCorpus(prisma: PrismaClient): Promise<void> {
-  const corpus = await prisma.legalCorpusVersion.create({
+  const corpus = await prisma.legalSourceVersion.create({
     data: {
       id: "corpus-v1",
       version: "corpus-v1",
@@ -514,7 +514,7 @@ async function seedApprovedCorpus(prisma: PrismaClient): Promise<void> {
   });
   const document = await prisma.legalSourceDocument.create({
     data: {
-      legalCorpusVersionId: corpus.id,
+      legalSourceVersionId: corpus.id,
       documentId: "LAW-TEST",
       title: "Test law",
       sourceUrl: "https://example.test/law",
@@ -525,7 +525,7 @@ async function seedApprovedCorpus(prisma: PrismaClient): Promise<void> {
   await prisma.legalDocumentChunk.create({
     data: {
       id: "chunk-test-1",
-      legalCorpusVersionId: corpus.id,
+      legalSourceVersionId: corpus.id,
       legalSourceDocumentId: document.id,
       documentId: document.documentId,
       locator: "art-1",
@@ -545,7 +545,7 @@ async function seedValidatedDraftIndex(
   await prisma.legalRetrievalIndex.create({
     data: {
       id: `idx-${corpusVersionId}`,
-      legalCorpusVersionId: corpusVersionId,
+      legalSourceVersionId: corpusVersionId,
       version: `index-${corpusVersionId}`,
       status: "VALID",
       configHash: sha256(`config:${corpusVersionId}`),
@@ -566,7 +566,7 @@ async function seedDraftCorpus(
 ): Promise<{ id: string }> {
   const sourceSha = sha256(`source:${input.version}`);
   const content = `Điều 1. Draft content for ${input.version}.`;
-  const corpus = await prisma.legalCorpusVersion.create({
+  const corpus = await prisma.legalSourceVersion.create({
     data: {
       version: input.version,
       status: "DRAFT",
@@ -575,7 +575,7 @@ async function seedDraftCorpus(
   });
   const document = await prisma.legalSourceDocument.create({
     data: {
-      legalCorpusVersionId: corpus.id,
+      legalSourceVersionId: corpus.id,
       documentId: input.documentId,
       title: `Seeded ${input.documentId}`,
       sourceUrl: "https://example.test/seeded-law",
@@ -586,7 +586,7 @@ async function seedDraftCorpus(
   await prisma.legalDocumentChunk.create({
     data: {
       id: input.chunkId,
-      legalCorpusVersionId: corpus.id,
+      legalSourceVersionId: corpus.id,
       legalSourceDocumentId: document.id,
       documentId: input.documentId,
       locator: "art-1",

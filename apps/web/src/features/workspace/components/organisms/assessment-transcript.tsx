@@ -13,6 +13,8 @@ type AssessmentTranscriptProps = {
   autoScrollKey?: AssessmentTranscriptAutoScrollKey;
   ariaLabel?: string;
   className?: string;
+  /** "off" keeps a long technical stream from being read aloud; a separate status region speaks. */
+  live?: "polite" | "off";
 };
 
 type ChatRailProps = {
@@ -28,6 +30,7 @@ export function AssessmentTranscript({
   autoScrollKey,
   ariaLabel = t("pages.appShell.chatTranscriptLabel"),
   className,
+  live = "polite",
 }: AssessmentTranscriptProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
@@ -86,7 +89,7 @@ export function AssessmentTranscript({
         ref={viewportRef}
         data-slot="assessment-transcript"
         role="log"
-        aria-live="polite"
+        aria-live={live}
         aria-label={ariaLabel}
         onScroll={handleScroll}
         className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
@@ -119,7 +122,7 @@ export function ChatRail({ children, className, elementRef }: ChatRailProps) {
       ref={elementRef}
       data-slot="chat-rail"
       className={cn(
-        "mx-auto flex w-full max-w-170 min-w-0 flex-col px-4 sm:px-0",
+        "mx-auto flex w-full max-w-3xl min-w-0 flex-col px-4 sm:px-0",
         className,
       )}
     >

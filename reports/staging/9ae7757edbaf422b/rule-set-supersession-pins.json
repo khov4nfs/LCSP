@@ -1,0 +1,23 @@
+{
+  "scope": "EXACT_IMAGE_RULE_SET_SUPERSESSION_IMMUTABLE_PINS",
+  "status": "PASS",
+  "runId": "9ae7757edbaf422b",
+  "oldRuleSetVersionId": "78261f5b-bb2e-4316-a171-bc3315ac2aa3",
+  "newRuleSetVersionId": "1531de0b-29c1-4e82-8781-58c4e16f16a1",
+  "oldCaseRowsUnchanged": 2,
+  "rootDecisionRowsUnchanged": true,
+  "newCase": {
+    "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+    "caseRevision": 0,
+    "legalPortfolioVersionId": "1531de0b-29c1-4e82-8781-58c4e16f16a1",
+    "repositorySnapshotId": null,
+    "repositoryScanJobId": null,
+    "repositoryCommit": null,
+    "pinnedAt": "2026-10-11T20:39:04.75+00:00",
+    "createdAt": "2026-10-11T20:39:04.753+00:00",
+    "updatedAt": "2026-10-11T20:39:04.753+00:00"
+  },
+  "preparationRuns": 3,
+  "extraPreparationOnAssessmentCreation": 0,
+  "productActions": "GOVERNED_SOURCE_ACTIVATION_API; ASSESSMENT_CREATION_UI; READ_ONLY_SQL_COMPARISON"
+}

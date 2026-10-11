@@ -21,18 +21,18 @@ describe("AssessmentCaseSupport decision provenance", () => {
     const evidenceId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
     const pins = {
       caseRevision: 1,
-      legalPortfolioVersionId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      ruleSetVersionId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
       repositorySnapshotId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
       repositoryScanJobId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
       repositoryCommit: "a".repeat(40),
     };
     const decision = ruleDecisionSchema.parse({
       caseRevision: pins.caseRevision,
-      legalPortfolioVersionId: pins.legalPortfolioVersionId,
+      ruleSetVersionId: pins.ruleSetVersionId,
       repositorySnapshotId: pins.repositorySnapshotId,
       repositoryCommit: pins.repositoryCommit,
-      engineeringRuleId: "ER-1",
-      engineeringRuleVersion: "v1",
+      assessmentRuleId: "ER-1",
+      assessmentRuleVersion: "v1",
       scopeId: ASSESSMENT_DECISION_SCOPE,
       legalContextRefs: [{ legalContextId: "LR-1" }],
       applicability: RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE,
@@ -70,7 +70,7 @@ describe("AssessmentCaseSupport decision provenance", () => {
         },
       ]);
     const tx = {
-      engineeringRule: { findUnique: () => Promise.resolve(null) },
+      assessmentRule: { findUnique: () => Promise.resolve(null) },
       assessmentCaseFact: { findMany: facts },
       assessmentEvidence: { findMany: evidence },
     } as unknown as Prisma.TransactionClient;

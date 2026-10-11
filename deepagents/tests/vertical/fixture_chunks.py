@@ -6,7 +6,7 @@ import importlib.util
 import json
 from pathlib import Path
 
-FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "legal_portfolio_context"
+FIXTURE_DIR = Path(__file__).parents[1] / "fixtures" / "compliance_rule_set_context"
 PARSER = Path(__file__).parents[2] / "tools" / "legal" / "sources" / "scripts" / "build_reviewed_legal_corpus.py"
 
 

@@ -28,12 +28,6 @@ class FakeApiClient:
             "validationManifestRef": payload["validationManifestRef"],
         }
 
-    def start_legal_preparation(
-        self, legal_corpus_version_id: str, idempotency_key: str
-    ) -> dict:
-        self.calls.append(("start_preparation", (legal_corpus_version_id, idempotency_key)))
-        return {"preparationRunId": "run-1", "executionState": "QUEUED"}
-
     def activate_validated_corpus_version(
         self, corpus_version_id: str, payload: dict
     ) -> dict:
@@ -95,7 +89,6 @@ def test_official_acquisition_ingests_indexes_starts_preparation_and_activates(
     assert [name for name, _payload in api_client.calls] == [
         "ingest",
         "register_index",
-        "start_preparation",
     ]
     ingest_payload = api_client.calls[0][1]
     assert isinstance(ingest_payload, dict)
@@ -205,7 +198,6 @@ def test_official_acquisition_runs_source_crawl_pipeline_when_manifests_are_miss
     assert [name for name, _payload in api_client.calls] == [
         "ingest",
         "register_index",
-        "start_preparation",
     ]
     assert len(dispatcher.calls) == 2
     tool_name, crawl_payload = dispatcher.calls[0]

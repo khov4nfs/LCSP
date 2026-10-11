@@ -25,7 +25,7 @@ import {
 } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
-import { AssessmentRuntimeSidebar } from "@/features/assessment-runtime";
+import { AssessmentContextPanel } from "@/features/assessment-runtime";
 
 import type {
   AppShellNavigationItem,
@@ -270,7 +270,7 @@ export function AssessmentAppShell({
 
           {assessmentId ? (
             <AssessmentRightPanelSlot open={rightPanelOpen}>
-              <AssessmentRuntimeSidebar
+              <AssessmentContextPanel
                 assessmentId={assessmentId}
                 assessmentName={assessment?.name}
               />
@@ -298,7 +298,7 @@ export function AssessmentAppShell({
               <SheetTitle>{t("pages.appShell.runtimePanelTitle")}</SheetTitle>
               <SheetDescription>{headerEyebrow}</SheetDescription>
             </SheetHeader>
-            <AssessmentRuntimeSidebar
+            <AssessmentContextPanel
               assessmentId={assessmentId}
               assessmentName={assessment?.name}
             />

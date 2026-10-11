@@ -34,4 +34,4 @@ def test_legacy_model_runtime_is_removed() -> None:
     assert not (PROJECT_ROOT / "skills" / "lcsp").exists()
     assert (PROJECT_ROOT / "assessment_root" / "agent.py").is_file()
     assert (PROJECT_ROOT / "assessment_root" / "instructions.md").is_file()
-    assert (PROJECT_ROOT / "legal_preparation" / "agent.py").is_file()
+    assert (PROJECT_ROOT / "rule_set_preparation" / "agent.py").is_file()

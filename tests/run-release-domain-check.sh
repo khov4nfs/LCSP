@@ -11,7 +11,7 @@ if [[ "${1:-}" == "--self-check" ]]; then
   test -f deepagents/tests/vertical/assessment_deletion.py
   test -f tests/assessment-lifecycle-migrated-db.mjs
   test -f apps/api/test/assessment-lifecycle-protocol.test.ts
-  test -f tests/legal-portfolio-vertical.mjs
+  test -f tests/compliance-rule-set-vertical.mjs
   test -f tests/assessment-hitl-vertical.mjs
   test -f tests/run-api-regression.sh
   echo "PASS — runner paths; no build/database/container operation"
@@ -51,7 +51,7 @@ RELEASE_CHECK_GROUP=domain
 RELEASE_CHECK_SCOPE=DISPOSABLE_CANONICAL_DOMAIN_AND_DELETE
 if [[ "$RELEASE_REMAINING_CANONICAL" == true ]]; then
   RELEASE_CHECK_GROUP=canonical
-  RELEASE_CHECK_SCOPE=DISPOSABLE_CANONICAL_PERSISTENCE_PORTFOLIO_HITL
+  RELEASE_CHECK_SCOPE=DISPOSABLE_CANONICAL_PERSISTENCE_RULE_SET_HITL
 fi
 if [[ "$RELEASE_BROAD_REGRESSION" == true ]]; then
   RELEASE_CHECK_GROUP=regression
@@ -107,7 +107,7 @@ with socket.socket() as api, socket.socket() as agent:
     api.bind(("127.0.0.1",0)); agent.bind(("127.0.0.1",0))
     print(api.getsockname()[1], agent.getsockname()[1])
   ')
-  export LCSP_LEGAL_PORTFOLIO_TEST_API_PORT="$LCSP_ASSESSMENT_TEST_API_PORT"
+  export LCSP_COMPLIANCE_RULE_SET_TEST_API_PORT="$LCSP_ASSESSMENT_TEST_API_PORT"
   export LCSP_HITL_TEST_API_PORT="$LCSP_ASSESSMENT_TEST_API_PORT"
   export DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:$LCSP_TEST_PG_PORT/postgres?schema=public"
 fi
@@ -146,7 +146,7 @@ if [[ "$RELEASE_BROAD_REGRESSION" == true ]]; then
     PYTHONPATH=deepagents "$RELEASE_PYTHON" -m pytest deepagents/tests -q
 elif [[ "$RELEASE_REMAINING_CANONICAL" == true ]]; then
   node tests/assessment-lifecycle-migrated-db.mjs
-  node tests/legal-portfolio-vertical.mjs
+  node tests/compliance-rule-set-vertical.mjs
   node tests/assessment-hitl-vertical.mjs
   node tests/assessment-hitl-vertical.mjs --unresolvable-only
 else

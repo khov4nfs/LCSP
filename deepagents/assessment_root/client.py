@@ -107,8 +107,8 @@ class AssessmentRuntimeClient:
     def root_control(self) -> dict[str, Any] | None:
         return self._call("GET", "/control")
 
-    def portfolio(self) -> dict[str, Any]:
-        return self._call("GET", "/portfolio")
+    def rule_set(self) -> dict[str, Any]:
+        return self._call("GET", "/rule-set")
 
     # ---- governed writes -----------------------------------------------------------------------
 
@@ -118,8 +118,8 @@ class AssessmentRuntimeClient:
     def post_fact(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/facts", body)
 
-    def start_investigation(self, engineering_rule_id: str) -> dict[str, Any]:
-        return self._call("POST", "/investigations", {"engineeringRuleId": engineering_rule_id})
+    def start_investigation(self, assessment_rule_id: str) -> dict[str, Any]:
+        return self._call("POST", "/investigations", {"assessmentRuleId": assessment_rule_id})
 
     def post_decision(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/decisions", body)

@@ -21,16 +21,16 @@ export interface DecisionValidationFailure {
 export interface DecisionValidationContext {
   caseRevision: number;
   pins: {
-    legalPortfolioVersionId: string;
+    ruleSetVersionId: string;
     repositorySnapshotId: string;
     repositoryCommit: string;
   };
-  /** The pinned portfolio's EngineeringRule, or null when the ID is not in it. */
+  /** The pinned rule set's AssessmentRule, or null when the ID is not in it. */
   rule: {
-    engineeringRuleId: string;
-    engineeringRuleVersion: string;
+    assessmentRuleId: string;
+    assessmentRuleVersion: string;
     criterionIds: ReadonlySet<string>;
-    /** LegalRule IDs linked to the rule (and their directly related context rules). */
+    /** LegalRequirement IDs linked to the rule (and their directly related context rules). */
     legalContextIds: ReadonlySet<string>;
   } | null;
   evidence: ReadonlyMap<
@@ -64,16 +64,16 @@ export function validateRuleDecision(
 
   if (!context.rule) {
     fail(
-      DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_ENGINEERING_RULE,
-      decision.engineeringRuleId,
+      DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_ASSESSMENT_RULE,
+      decision.assessmentRuleId,
     );
   } else {
     if (
-      context.rule.engineeringRuleVersion !== decision.engineeringRuleVersion
+      context.rule.assessmentRuleVersion !== decision.assessmentRuleVersion
     ) {
       fail(
-        DECISION_VALIDATION_FAILURE_CODES.ENGINEERING_RULE_VERSION_MISMATCH,
-        decision.engineeringRuleId,
+        DECISION_VALIDATION_FAILURE_CODES.ASSESSMENT_RULE_VERSION_MISMATCH,
+        decision.assessmentRuleId,
       );
     }
     for (const legal of decision.legalContextRefs) {
@@ -103,11 +103,11 @@ export function validateRuleDecision(
   }
 
   if (
-    decision.legalPortfolioVersionId !== context.pins.legalPortfolioVersionId
+    decision.ruleSetVersionId !== context.pins.ruleSetVersionId
   ) {
     fail(
-      DECISION_VALIDATION_FAILURE_CODES.PORTFOLIO_PIN_MISMATCH,
-      decision.legalPortfolioVersionId,
+      DECISION_VALIDATION_FAILURE_CODES.RULE_SET_PIN_MISMATCH,
+      decision.ruleSetVersionId,
     );
   }
   if (

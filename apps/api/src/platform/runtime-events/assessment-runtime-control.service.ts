@@ -159,7 +159,7 @@ export class AssessmentRuntimeControlService {
           where: { id: input.assessmentId },
           include: {
             runtime: true,
-            domainCase: { include: { portfolio: true } },
+            domainCase: { include: { ruleSet: true } },
           },
         });
         const pins = assessment.domainCase;
@@ -174,16 +174,16 @@ export class AssessmentRuntimeControlService {
             AGENT_EXECUTION_STATES.PAUSED ||
           !assessment.runtime.checkpointId ||
           !row.checkpointJson ||
-          !pins?.legalPortfolioVersionId ||
+          !pins?.ruleSetVersionId ||
           !pins.repositoryScanJobId ||
           !snapshot ||
           snapshot.assessmentId !== input.assessmentId ||
           snapshot.commitSha !== pins.repositoryCommit ||
-          !pins.portfolio ||
+          !pins.ruleSet ||
           ![
             ARTIFACT_LIFECYCLE_STATES.ACTIVE,
             ARTIFACT_LIFECYCLE_STATES.SUPERSEDED,
-          ].some((state) => state === pins.portfolio?.lifecycleState) ||
+          ].some((state) => state === pins.ruleSet?.lifecycleState) ||
           (await tx.assessmentHumanRequest.count({
             where: {
               assessmentId: input.assessmentId,

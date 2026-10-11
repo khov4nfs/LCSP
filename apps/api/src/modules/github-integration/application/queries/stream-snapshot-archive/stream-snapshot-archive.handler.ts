@@ -72,7 +72,7 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
 
   /**
    * Validates scan-to-snapshot binding, claims queued work when needed, and streams the immutable pinned archive.
-   * Completed scans remain valid read-only provenance for downstream EngineeringRule investigation; they are never re-claimed.
+   * Completed scans remain valid read-only provenance for downstream AssessmentRule investigation; they are never re-claimed.
    *
    * @param query - Snapshot identifier, scan-job identifier, and correlation context.
    * @returns Repository archive stream metadata for the exact pinned commit.

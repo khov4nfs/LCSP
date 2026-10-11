@@ -1,1 +1,1 @@
-export { AssessmentRuntimeSidebar } from "./components/organisms/assessment-runtime-sidebar";
+export { AssessmentContextPanel } from "./components/organisms/assessment-context-panel";

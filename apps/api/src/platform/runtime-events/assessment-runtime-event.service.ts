@@ -1,7 +1,4 @@
-import {
-  assessmentEventSchema,
-  type AssessmentEvent,
-} from "@lcsp/contracts/assessment";
+import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   isAssessmentAgentStreamEventType,
@@ -26,6 +23,10 @@ import {
   ReplaySubject,
 } from "rxjs";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
+import {
+  CANONICAL_EVENT_SELECT,
+  toAssessmentEvent,
+} from "./canonical-assessment-event.mapper.js";
 import {
   projectCanonicalAssessment,
   type PersistedCanonicalAssessmentRow,
@@ -452,49 +453,9 @@ export class AssessmentRuntimeEventService {
       where: ownerId ? { assessment: { ownerId } } : undefined,
       orderBy: [{ timestamp: "desc" }, { sequence: "desc" }],
       take: 200,
-      select: {
-        eventId: true,
-        assessmentId: true,
-        threadId: true,
-        sequence: true,
-        timestamp: true,
-        eventType: true,
-        actorType: true,
-        executionId: true,
-        parentExecutionId: true,
-        taskId: true,
-        toolCallId: true,
-        tokenUsage: true,
-        technicalDetailsRef: true,
-        payload: true,
-      },
+      select: CANONICAL_EVENT_SELECT,
     });
-    return rows.map((row) => {
-      const parsed = assessmentEventSchema.safeParse({
-        eventId: row.eventId,
-        assessmentId: row.assessmentId,
-        threadId: row.threadId,
-        sequence: row.sequence,
-        timestamp: row.timestamp.toISOString(),
-        eventType: row.eventType,
-        actorType: row.actorType,
-        ...(row.executionId ? { executionId: row.executionId } : {}),
-        ...(row.parentExecutionId
-          ? { parentExecutionId: row.parentExecutionId }
-          : {}),
-        ...(row.taskId ? { taskId: row.taskId } : {}),
-        ...(row.toolCallId ? { toolCallId: row.toolCallId } : {}),
-        ...(row.tokenUsage ? { tokenUsage: row.tokenUsage } : {}),
-        ...(row.technicalDetailsRef
-          ? { technicalDetailsRef: row.technicalDetailsRef }
-          : {}),
-        payload: row.payload,
-      });
-      if (!parsed.success) {
-        throw new Error("Invalid persisted assessment event");
-      }
-      return parsed.data;
-    });
+    return rows.map(toAssessmentEvent);
   }
 
   /**

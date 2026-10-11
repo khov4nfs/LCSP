@@ -86,7 +86,7 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
 LIVE_BOUNDARIES = {
     "legal_change_detection_requested",
     "assessment_root_requested",
-    "legal_portfolio_preparation_requested",
+    "rule_set_preparation_requested",
     "legal_source_ingest_requested",
     "official_text_extraction_requested",
     "ocr_fallback_requested",
@@ -141,8 +141,8 @@ def test_worker_consumes_exactly_the_live_boundaries() -> None:
     }
     assert not retired & {entry["name"] for entry in manifest}
     assert {
-        "name": "legal_portfolio_preparation_requested",
-        "target": "legal_preparation.boundary:LegalPreparationBoundary",
-        "boundary_source": "legal.legal-portfolio-preparation",
-        "source_event": "command.legal-portfolio.preparation.requested.v1",
+        "name": "rule_set_preparation_requested",
+        "target": "rule_set_preparation.boundary:RuleSetPreparationBoundary",
+        "boundary_source": "legal.rule-set-preparation",
+        "source_event": "command.compliance-rule-set.preparation.requested.v1",
     } in manifest

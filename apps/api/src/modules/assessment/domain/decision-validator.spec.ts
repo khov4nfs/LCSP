@@ -21,7 +21,7 @@ import {
 } from "./decision-validator.js";
 
 const ids = {
-  portfolio: "11111111-1111-4111-8111-111111111111",
+  ruleSet: "11111111-1111-4111-8111-111111111111",
   snapshot: "66666666-6666-4666-8666-666666666666",
   evidence: "22222222-2222-4222-8222-222222222222",
   fact: "33333333-3333-4333-8333-333333333333",
@@ -31,13 +31,13 @@ const COMMIT = "a".repeat(40);
 const context = (): DecisionValidationContext => ({
   caseRevision: 3,
   pins: {
-    legalPortfolioVersionId: ids.portfolio,
+    ruleSetVersionId: ids.ruleSet,
     repositorySnapshotId: ids.snapshot,
     repositoryCommit: COMMIT,
   },
   rule: {
-    engineeringRuleId: "ER-RET",
-    engineeringRuleVersion: "v1",
+    assessmentRuleId: "ER-RET",
+    assessmentRuleVersion: "v1",
     criterionIds: new Set(["C-1", "C-2"]),
     legalContextIds: new Set(["LR-RET", "LR-EXC"]),
   },
@@ -79,10 +79,10 @@ function applicable(
   overrides: Partial<Record<string, unknown>> = {},
 ): RuleDecision {
   return ruleDecisionSchema.parse({
-    engineeringRuleId: "ER-RET",
-    engineeringRuleVersion: "v1",
+    assessmentRuleId: "ER-RET",
+    assessmentRuleVersion: "v1",
     scopeId: ASSESSMENT_DECISION_SCOPE,
-    legalPortfolioVersionId: ids.portfolio,
+    ruleSetVersionId: ids.ruleSet,
     repositorySnapshotId: ids.snapshot,
     repositoryCommit: COMMIT,
     caseRevision: 3,
@@ -346,9 +346,9 @@ describe("validateRuleDecision (identity and provenance only)", () => {
 
   it("rejects an unknown rule, a version mismatch and unknown legal context", () => {
     const ctx = { ...context(), rule: null };
-    expect(codes(applicable(), ctx)).toContain(FAIL.UNKNOWN_ENGINEERING_RULE);
-    expect(codes(applicable({ engineeringRuleVersion: "v2" }))).toContain(
-      FAIL.ENGINEERING_RULE_VERSION_MISMATCH,
+    expect(codes(applicable(), ctx)).toContain(FAIL.UNKNOWN_ASSESSMENT_RULE);
+    expect(codes(applicable({ assessmentRuleVersion: "v2" }))).toContain(
+      FAIL.ASSESSMENT_RULE_VERSION_MISMATCH,
     );
     expect(
       codes(applicable({ legalContextRefs: [{ legalContextId: "LR-OTHER" }] })),
@@ -378,10 +378,10 @@ describe("validateRuleDecision (identity and provenance only)", () => {
     expect(
       codes(
         applicable({
-          legalPortfolioVersionId: "44444444-4444-4444-8444-444444444444",
+          ruleSetVersionId: "44444444-4444-4444-8444-444444444444",
         }),
       ),
-    ).toContain(FAIL.PORTFOLIO_PIN_MISMATCH);
+    ).toContain(FAIL.RULE_SET_PIN_MISMATCH);
     expect(codes(applicable({ repositoryCommit: "b".repeat(40) }))).toContain(
       FAIL.REPOSITORY_PIN_MISMATCH,
     );

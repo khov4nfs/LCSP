@@ -21,7 +21,7 @@ export class GetActiveLegalCorpusHandler implements IQueryHandler<GetActiveLegal
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(): Promise<ActiveLegalCorpusResponse> {
-    const version = await this.prisma.legalCorpusVersion.findFirst({
+    const version = await this.prisma.legalSourceVersion.findFirst({
       where: {
         status: toPrismaLegalRuleLifecycleStatus(
           LEGAL_RULE_LIFECYCLE_STATUSES.approved,

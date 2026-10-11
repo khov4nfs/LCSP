@@ -249,7 +249,9 @@ def main() -> int:
             prior = task / "prior-migrations"
             prior.mkdir()
             for path in sorted(MIGRATIONS.iterdir()):
-                if path == DROP.parent:
+                # The prior database is the state BEFORE the RELEASE drop; later migrations (terminology,
+                # ...) belong to the final deploy that runs after the purge proof.
+                if path.is_dir() and path.name >= DROP.parent.name:
                     continue
                 if path.is_dir():
                     shutil.copytree(path, prior / path.name)
@@ -388,7 +390,7 @@ def main() -> int:
                     assert db.execute('SELECT "assessmentId" FROM "LlmUsageEvent" WHERE id=\'release-usage\'').fetchone()["assessmentId"] is None
                     assert not db.execute('SELECT 1 FROM "OutboxMessage" WHERE "eventType"=\'command.legal-corpus.recovery.requested.v1\'').fetchone()
                     assert not db.execute('SELECT 1 FROM "AuditEvent" WHERE id=\'old-catalog\'').fetchone()
-                    assert db.execute('SELECT "resourceType" FROM "AuditEvent" WHERE id=\'corpus\'').fetchone()["resourceType"] == "LEGAL_CORPUS_VERSION"
+                    assert db.execute('SELECT "resourceType" FROM "AuditEvent" WHERE id=\'corpus\'').fetchone()["resourceType"] == "LEGAL_SOURCE_VERSION"
                     assert preserved_database(db, state) == preserved
                 assert [saver.get_tuple(config) for config in protected] == originals
                 passed("populated synthetic post-CUTOVER upgrade drops 29 V1 tables; canonical owner/Case/Root/accounting/corpus unchanged")

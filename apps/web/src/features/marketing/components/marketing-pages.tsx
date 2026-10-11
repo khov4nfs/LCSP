@@ -662,7 +662,7 @@ function AppShellPreview() {
       true,
     ],
     [
-      "pages.marketing.home.showcaseWorkflowPortfolio",
+      "pages.marketing.home.showcaseWorkflowRuleSet",
       "pages.marketing.home.showcaseStatusPassed",
       true,
     ],

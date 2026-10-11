@@ -85,7 +85,7 @@ export class LegalCorpusService {
       };
     }
 
-    const existing = await this.prisma.legalCorpusVersion.findUnique({
+    const existing = await this.prisma.legalSourceVersion.findUnique({
       where: { version: selectedInput.version },
       select: {
         id: true,
@@ -125,11 +125,11 @@ export class LegalCorpusService {
 
     return this.prisma.$transaction(async (tx) => {
       const corpus = canHydratePreparation
-        ? await tx.legalCorpusVersion.update({
+        ? await tx.legalSourceVersion.update({
             where: { id: existing.id },
             data: { sourceManifest: enrichedManifest },
           })
-        : await tx.legalCorpusVersion.create({
+        : await tx.legalSourceVersion.create({
             data: {
               version: selectedInput.version,
               sourceManifest: enrichedManifest,
@@ -175,7 +175,7 @@ export class LegalCorpusService {
       include: { corpusVersion: true },
     });
     if (replay) {
-      if (replay.legalCorpusVersionId !== input.corpusVersionId) {
+      if (replay.legalSourceVersionId !== input.corpusVersionId) {
         throw problemException(
           LEGAL_RULE_ERROR_CODES.corpusVersionAlreadyApproved,
           input.correlationId,
@@ -197,7 +197,7 @@ export class LegalCorpusService {
       );
     }
 
-    const corpus = await this.prisma.legalCorpusVersion.findUnique({
+    const corpus = await this.prisma.legalSourceVersion.findUnique({
       where: { id: input.corpusVersionId },
       include: {
         documents: { include: { chunks: true } },
@@ -276,7 +276,7 @@ export class LegalCorpusService {
     await this.prisma.$transaction(
       async (tx) => {
         await acquireLegalCorpusLifecycleLock(tx);
-        const claimed = await tx.legalCorpusVersion.updateMany({
+        const claimed = await tx.legalSourceVersion.updateMany({
           where: {
             id: corpus.id,
             status: toPrismaLegalRuleLifecycleStatus(
@@ -302,8 +302,8 @@ export class LegalCorpusService {
           );
         }
         const previousActive =
-          typeof tx.legalCorpusVersion.findFirst === "function"
-            ? await tx.legalCorpusVersion.findFirst({
+          typeof tx.legalSourceVersion.findFirst === "function"
+            ? await tx.legalSourceVersion.findFirst({
                 where: {
                   id: { not: corpus.id },
                   status: toPrismaLegalRuleLifecycleStatus(
@@ -313,7 +313,7 @@ export class LegalCorpusService {
                 select: { id: true },
               })
             : null;
-        const superseded = await tx.legalCorpusVersion.updateMany({
+        const superseded = await tx.legalSourceVersion.updateMany({
           where: {
             id: { not: corpus.id },
             status: toPrismaLegalRuleLifecycleStatus(
@@ -329,7 +329,7 @@ export class LegalCorpusService {
 
         const approval = await tx.corpusApprovalRecord.create({
           data: {
-            legalCorpusVersionId: corpus.id,
+            legalSourceVersionId: corpus.id,
             approvedBy: LEGAL_CORPUS_ACTIVATION_SERVICE,
             status: toPrismaLegalRuleLifecycleStatus(
               LEGAL_RULE_LIFECYCLE_STATUSES.approved,
@@ -345,7 +345,7 @@ export class LegalCorpusService {
         approvalRecordId = approval.id;
 
         const outboxEvent = buildOutboxMessageInput({
-          aggregateType: OUTBOX_AGGREGATE_TYPES.legalCorpusVersion,
+          aggregateType: OUTBOX_AGGREGATE_TYPES.legalSourceVersion,
           aggregateId: corpus.id,
           eventType: LEGAL_RULE_EVENT_TYPES.corpusVersionActivated,
           correlationId: input.correlationId,
@@ -359,6 +359,7 @@ export class LegalCorpusService {
           idempotencyKey: `${corpus.id}:${input.idempotencyKey}:activation`,
           payload: {
             corpusVersionRef: `corpus-version:${corpus.id}`,
+            legalSourceVersionId: corpus.id,
             activationRecordRef: `corpus-approval:${approval.id}`,
             integrityManifestRef: input.integrityManifestRef,
             retrievalValidationRef: input.retrievalValidationRef,
@@ -379,7 +380,7 @@ export class LegalCorpusService {
               id: LEGAL_CORPUS_ACTIVATION_SERVICE,
               type: AUDIT_ACTOR_TYPES.system,
             },
-            resourceType: AUDIT_RESOURCE_TYPES.legalCorpusVersion,
+            resourceType: AUDIT_RESOURCE_TYPES.legalSourceVersion,
             resourceId: corpus.id,
             decision: AUDIT_DECISIONS.allow,
             correlationId: input.correlationId,
@@ -407,7 +408,7 @@ export class LegalCorpusService {
                 id: input.initiatingAdminActorId,
                 type: AUDIT_ACTOR_TYPES.user,
               },
-              resourceType: AUDIT_RESOURCE_TYPES.legalCorpusVersion,
+              resourceType: AUDIT_RESOURCE_TYPES.legalSourceVersion,
               resourceId: corpus.id,
               decision: AUDIT_DECISIONS.allow,
               correlationId: input.correlationId,
@@ -450,7 +451,7 @@ export class LegalCorpusService {
   }) {
     this.validateRetrievalIndexInput(input);
 
-    const corpus = await this.prisma.legalCorpusVersion.findUnique({
+    const corpus = await this.prisma.legalSourceVersion.findUnique({
       where: { id: input.corpusVersionId },
       select: { id: true, version: true },
     });
@@ -466,7 +467,7 @@ export class LegalCorpusService {
       where: { version: input.version },
       select: {
         id: true,
-        legalCorpusVersionId: true,
+        legalSourceVersionId: true,
         version: true,
         status: true,
         validationManifestRef: true,
@@ -474,7 +475,7 @@ export class LegalCorpusService {
     });
     if (existing) {
       if (
-        existing.legalCorpusVersionId !== input.corpusVersionId ||
+        existing.legalSourceVersionId !== input.corpusVersionId ||
         existing.validationManifestRef !== input.validationManifestRef
       ) {
         throw problemException(
@@ -496,7 +497,7 @@ export class LegalCorpusService {
 
     const index = await this.prisma.legalRetrievalIndex.create({
       data: {
-        legalCorpusVersionId: input.corpusVersionId,
+        legalSourceVersionId: input.corpusVersionId,
         version: input.version,
         status: LegalRetrievalIndexStatus.VALID,
         configHash: input.configHash,
@@ -621,7 +622,7 @@ export class LegalCorpusService {
   }
 
   async getApprovedChunks(corpusVersionId: string) {
-    const corpus = await this.prisma.legalCorpusVersion.findFirst({
+    const corpus = await this.prisma.legalSourceVersion.findFirst({
       where: {
         id: corpusVersionId,
         status: toPrismaLegalRuleLifecycleStatus(
@@ -655,7 +656,7 @@ export class LegalCorpusService {
   }
 
   private async detectCorpusChanges(input: IngestLegalCorpusRequest) {
-    const base = await this.prisma.legalCorpusVersion.findFirst({
+    const base = await this.prisma.legalSourceVersion.findFirst({
       where: {
         status: toPrismaLegalRuleLifecycleStatus(
           LEGAL_RULE_LIFECYCLE_STATUSES.approved,
@@ -780,12 +781,12 @@ export class LegalCorpusService {
 
   private async createDocument(
     tx: Prisma.TransactionClient,
-    legalCorpusVersionId: string,
+    legalSourceVersionId: string,
     document: LegalCorpusDocumentInput,
   ): Promise<void> {
     const sourceDocument = await tx.legalSourceDocument.create({
       data: {
-        legalCorpusVersionId,
+        legalSourceVersionId,
         documentId: document.documentId,
         title: document.title,
         sourceUrl: document.sourceUrl,
@@ -800,7 +801,7 @@ export class LegalCorpusService {
     await tx.legalDocumentChunk.createMany({
       data: document.chunks.map((chunk) => ({
         id: chunk.id,
-        legalCorpusVersionId,
+        legalSourceVersionId,
         legalSourceDocumentId: sourceDocument.id,
         documentId: document.documentId,
         locator: chunk.locator,
@@ -816,7 +817,7 @@ export class LegalCorpusService {
 
   /**
    * Structural gate only: empty chunks, formal headings and law preambles are not retrievable
-   * law. Whether a provision imposes a duty is the Legal Preparation agent's interpretation,
+   * law. Whether a provision imposes a duty is the Rule Set Preparation agent's interpretation,
    * never a term list here.
    */
   private selectDatabaseLegalChunks(

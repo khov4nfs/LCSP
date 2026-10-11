@@ -13,7 +13,7 @@ describe("CitationLocatorValidatorService", () => {
     typeof jest.fn<
       () => Promise<{
         id: string;
-        legalCorpusVersionId: string;
+        legalSourceVersionId: string;
         documentId: string;
         locator: string;
         legalStatus: string;
@@ -29,7 +29,7 @@ describe("CitationLocatorValidatorService", () => {
       .fn<
         () => Promise<{
           id: string;
-          legalCorpusVersionId: string;
+          legalSourceVersionId: string;
           documentId: string;
           locator: string;
           legalStatus: string;
@@ -37,14 +37,14 @@ describe("CitationLocatorValidatorService", () => {
       >()
       .mockResolvedValue({
         id: "chunk-1",
-        legalCorpusVersionId: "v1",
+        legalSourceVersionId: "v1",
         documentId: "doc1",
         locator: "art-1",
         legalStatus: "ACTIVE",
       });
 
     prisma = {
-      legalCorpusVersion: {
+      legalSourceVersion: {
         findFirst: mockFindApprovedCorpus,
       },
       legalDocumentChunk: {
@@ -72,7 +72,7 @@ describe("CitationLocatorValidatorService", () => {
     await expect(
       service.validateAll([
         {
-          legalCorpusVersionId: "v1",
+          legalSourceVersionId: "v1",
           documentId: "doc1",
           locator: "art-1",
         },

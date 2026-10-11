@@ -38,25 +38,193 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
-  legalPreparation: {
+  complianceRuleSets: {
     title: string;
     description: string;
     active: string;
     unavailable: string;
-    corpus: string;
-    selectCorpus: string;
-    start: string;
-    starting: string;
-    history: string;
+    sourceVersion: string;
     version: string;
     state: string;
-    rules: string;
-    runs: string;
+    requirements: string;
+    assessmentRules: string;
+    digest: string;
+    activatedAt: string;
+    history: string;
+    emptyHistory: string;
+    preparations: string;
+    emptyPreparations: string;
+    attempt: string;
+    startedAt: string;
+    startedBy: string;
+    system: string;
+    failure: string;
+    retry: string;
+    retrying: string;
+    retryFailed: string;
     states: {
       BUILDING: string;
       ACTIVE: string;
       SUPERSEDED: string;
       INVALID: string;
+    };
+    failureReasons: {
+      MODEL_ERROR: string;
+      NO_SUBMISSION: string;
+      RULE_SET_VALIDATION_FAILED: string;
+      SOURCE_VERSION_UNAVAILABLE: string;
+      RUNTIME_ERROR: string;
+    };
+  };
+  assessmentConversation: {
+    transcriptLabel: string;
+    agentName: string;
+    userName: string;
+    opening: string;
+    openingRepository: string;
+    openingRuleSet: string;
+    work: {
+      running: string;
+      workedFor: string;
+      workedBriefly: string;
+      technicalDetails: string;
+      technicalEvents: string;
+      technicalTool: string;
+      technicalExecution: string;
+      technicalTask: string;
+      technicalInvocation: string;
+      technicalNoEvents: string;
+      steps: {
+        FACT: string;
+        RULE: string;
+        RESEARCH: string;
+        REASONING: string;
+        INSPECTION: string;
+        OTHER: string;
+      };
+      activeSteps: {
+        FACT: string;
+        RULE: string;
+        RESEARCH: string;
+        REASONING: string;
+        INSPECTION: string;
+        OTHER: string;
+      };
+    };
+    question: {
+      whyAsking: string;
+      unknownRecorded: string;
+    };
+    answer: {
+      unknown: string;
+      send: string;
+      submit: string;
+      sending: string;
+      selectOne: string;
+      selectMany: string;
+      textLabel: string;
+      required: string;
+      failed: string;
+    };
+    decision: {
+      ruleFallback: string;
+      rationale: string;
+      criteria: string;
+      evidence: string;
+      evidenceCount: string;
+      superseded: string;
+      invalidated: string;
+      outcomes: {
+        APPLICABLE: string;
+        NOT_APPLICABLE: string;
+        MET: string;
+        NOT_MET: string;
+        COMPLIANT: string;
+        NON_COMPLIANT: string;
+      };
+    };
+    notice: {
+      paused: string;
+      resumed: string;
+      failed: string;
+      finalizing: string;
+      blocked: string;
+      blockedReasons: {
+        HUMAN_FACT_UNRESOLVABLE: string;
+        REQUIRED_DOCUMENT_UNAVAILABLE: string;
+        REQUIRED_RUNTIME_INPUT_UNAVAILABLE: string;
+        COMPLIANCE_RULE_SET_UNAVAILABLE: string;
+        REPOSITORY_SNAPSHOT_UNAVAILABLE: string;
+      };
+    };
+    completion: {
+      title: string;
+      evaluated: string;
+      compliant: string;
+      nonCompliant: string;
+      notApplicable: string;
+      viewReport: string;
+      downloadReport: string;
+    };
+    bar: {
+      working: string;
+      stop: string;
+      stopping: string;
+      continue: string;
+      continuing: string;
+      waiting: string;
+      complete: string;
+      needsAttention: string;
+      failed: string;
+      preparing: string;
+      refresh: string;
+      controlFailed: string;
+    };
+    state: {
+      UNAVAILABLE: string;
+      PREPARING: string;
+      WORKING: string;
+      WAITING: string;
+      PAUSED: string;
+      FINALIZING: string;
+      COMPLETE: string;
+      BLOCKED: string;
+      FAILED: string;
+      CANCELLED: string;
+    };
+    context: {
+      title: string;
+      repository: string;
+      ruleSet: string;
+      ruleSetSummary: string;
+      ruleSetWaiting: string;
+      progress: string;
+      progressValue: string;
+      usage: string;
+      usageValue: string;
+      usageInvocations: string;
+      usagePartial: string;
+      report: string;
+      reportReady: string;
+      reportNotReady: string;
+      runDetails: string;
+      thread: string;
+      execution: string;
+      lifecycle: string;
+      executionState: string;
+      checkpoint: string;
+      connection: string;
+      notAvailable: string;
+    };
+    report: {
+      title: string;
+      back: string;
+      summary: string;
+      findings: string;
+      recommendations: string;
+      basedOn: string;
+      loading: string;
+      failed: string;
     };
   };
   agenticAssessment: {
@@ -563,7 +731,7 @@ export type PagesMessages = {
       showcaseWorkflow: string;
       showcaseWorkflowRepositoryInput: string;
       showcaseWorkflowHumanResolution: string;
-      showcaseWorkflowPortfolio: string;
+      showcaseWorkflowRuleSet: string;
       showcaseWorkflowRoot: string;
       showcaseWorkflowCompletion: string;
       showcaseStatusPassed: string;
@@ -1489,7 +1657,7 @@ export type PagesMessages = {
       adminBadge: string;
       navOverview: string;
       navUserAccounts: string;
-      navCorpusVersions: string;
+      navComplianceRuleSets: string;
       navBilling: string;
       administrationLabel: string;
       administrationDescription: string;

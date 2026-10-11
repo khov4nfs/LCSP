@@ -70,7 +70,7 @@ function buildHandler() {
 
   const createCaseInTx = jest
     .fn<(...args: unknown[]) => Promise<unknown>>()
-    .mockResolvedValue({ legalPortfolioVersionId: null });
+    .mockResolvedValue({ ruleSetVersionId: null });
   const handler = new CreateAssessmentHandler(
     repository,
     auditWriter,

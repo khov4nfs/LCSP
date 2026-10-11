@@ -15,7 +15,7 @@ from deepagents.middleware.filesystem import FilesystemPermission
 
 from assessment_root.researcher import researcher_subagent
 from assessment_root.tools import RootRun, build_root_tools
-from legal_preparation.agent import _lookup_profile_key, _without_general_purpose_subagent
+from rule_set_preparation.agent import _lookup_profile_key, _without_general_purpose_subagent
 
 ROOT_INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
 ASSESSMENT_ROOT_ROLE = "assessment-root"
