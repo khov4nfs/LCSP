@@ -9055,5 +9055,40 @@
     "canonicalAdditionsMigrationsTestsPolicyAndDurableEvidence": true,
     "privateTranscriptsAndRuntimeArtifactsExcluded": true,
     "largestNewBlobBelowGitHubLimit": true
+  },
+  "branchSynchronization": {
+    "baseHead": "047922c58147f5be3de093dc88db164daadedea8",
+    "reason": "Develop advanced with two retired Interview architecture commits; their additions and edits conflict with accepted V1 hard deletion.",
+    "reviewedIncomingPaths": [
+      "apps/web/src/features/workspace/components/molecules/assessment-question-turn.tsx",
+      "apps/web/src/features/workspace/components/molecules/structured-answer-actions.tsx",
+      "apps/web/src/features/workspace/components/organisms/assessment-composer.tsx",
+      "apps/web/src/features/workspace/components/organisms/assessment-overview.tsx",
+      "apps/web/src/features/workspace/components/organisms/canonical-interview-panel.tsx",
+      "apps/web/src/features/workspace/types/assessment-composer.types.ts",
+      "apps/web/src/features/workspace/utils/canonical-interview-presentation.ts",
+      "apps/web/src/features/workspace/utils/interview-answer-mode.ts",
+      "apps/web/tests/assessment-chat-interactions.test.ts",
+      "apps/web/tests/assessment-interview-chat-flow.test.ts",
+      "apps/web/tests/canonical-interview-panel.integration.test.tsx",
+      "apps/web/tests/canonical-interview-presentation.test.ts",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/en/deepagents/skills/interview-context/SKILL.md",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/en/deepagents/skills/interview-context/evals/evals.json",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/en/deepagents/skills/interview-context/references/question-strategy.md",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/en/deepagents/skills/interview-context/references/terminology-contract.md",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/lint_pack.py",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/vi/deepagents/skills/interview-context/SKILL.md",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/vi/deepagents/skills/interview-context/evals/evals.json",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/vi/deepagents/skills/interview-context/evals/lint_contract.py",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/vi/deepagents/skills/interview-context/evals/test_linter_mutations.py",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/vi/deepagents/skills/interview-context/references/business-context-resolution.md",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/vi/deepagents/skills/interview-context/references/investigator-resolution.md",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/vi/deepagents/skills/interview-context/references/question-strategy.md",
+      "frozen/interview-agent-frozen/LCSP_Interview_Context_Skill_Pack/vi/deepagents/skills/interview-context/references/terminology-contract.md",
+      "tests/e2e/interview/canonical-interview.spec.ts"
+    ],
+    "resolution": "Record develop history in the feature branch while retaining the accepted tree. No develop ref update, PR merge, or production/build-policy byte change.",
+    "initialPublishedCommit": "9b668b978d077315a0798d4914b19e5d2c56eb90",
+    "incomingScope": "Retired Interview UI, its tests, and frozen Interview skill pack only."
   }
 }
