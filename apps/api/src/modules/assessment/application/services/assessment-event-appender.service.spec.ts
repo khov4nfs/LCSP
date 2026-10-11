@@ -14,19 +14,18 @@ it("commits identical trusted usage in the canonical event and outbox and dedupl
     .fn<OutboxRepository["enqueue"]>()
     .mockResolvedValue("outbox");
   let stored: Record<string, unknown> | null = null;
-  const create = jest.fn(
-    async ({ data }: { data: Record<string, unknown> }) => {
-      stored = data;
-      return data;
-    },
-  );
-  const update = jest.fn(async () => ({}));
+  const create = jest.fn(({ data }: { data: Record<string, unknown> }) => {
+    stored = data;
+    return Promise.resolve(data);
+  });
+  const update = jest.fn(() => Promise.resolve({}));
   const tx = {
-    assessmentEvent: { findUnique: async () => stored, create },
+    assessmentEvent: { findUnique: () => Promise.resolve(stored), create },
     assessmentRuntime: { update },
-    $queryRaw: async () => [
-      { threadId: "33333333-3333-4333-8333-333333333333", eventSequence: 10 },
-    ],
+    $queryRaw: () =>
+      Promise.resolve([
+        { threadId: "33333333-3333-4333-8333-333333333333", eventSequence: 10 },
+      ]),
   } as unknown as Prisma.TransactionClient;
   const appender = new AssessmentEventAppender({
     enqueue,

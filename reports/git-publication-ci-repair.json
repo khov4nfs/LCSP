@@ -63,5 +63,53 @@
   },
   "conventions": "PASS: test fixtures and command execution only; no runtime CQRS, schema, BFF, UI, provider, memory or semantic authority changes.",
   "naming": "PASS: new durable receipt uses purpose naming; no new active task-oriented executable names.",
-  "stagingReuse": "Accepted exact-image staging remains valid because all 1,078 source and 22 policy input hashes are unchanged."
+  "stagingReuse": "Accepted exact-image staging remains valid because all 1,078 source and 22 policy input hashes are unchanged.",
+  "additionalRepairs": {
+    "checkedAt": "2026-10-11T13:29:30.786131+00:00",
+    "failedRemoteHead": "99c9a3512d4c0676e52ca565dbed74b39fecbd78",
+    "failedRemoteRun": 38134023147,
+    "changes": [
+      {
+        "paths": [
+          "apps/api/src/modules/assessment/application/services/assessment-event-appender.service.spec.ts",
+          "apps/api/src/modules/assessment/infrastructure/persistence/assessment-detail.loader.spec.ts"
+        ],
+        "rootCause": "Six test mock methods used async without awaiting, violating require-await.",
+        "fix": "Return explicit promises from mocks; retain usage and replay assertions."
+      },
+      {
+        "paths": [
+          "tests/retired-authority-migration-check.py"
+        ],
+        "rootCause": "After testing rejection of ordinary release scope, the fixture reset its toolVersion to the current purge fixture identity instead of the historical identity required by the immutable SQL guard.",
+        "fix": "Restore the exact historical SQL fixture identity only for final migration replay. The initial current purge fixture identity and the negative ordinary-release check are preserved."
+      }
+    ],
+    "verification": {
+      "eslint": "PASS on both changed test fixtures",
+      "apiTestsPassed": 4,
+      "migrationReceipt": "reports/retired-authority-migration/20261011132754_19856/report.json",
+      "migrationChecksPassed": 9,
+      "migrationStatus": "PASS",
+      "ownedTeardown": "Owned containers removed by fixture finally block without cleanup error."
+    },
+    "acceptedCandidateInputMembership": {
+      "apps/api/src/modules/assessment/application/services/assessment-event-appender.service.spec.ts": {
+        "source": false,
+        "buildAndPolicy": false
+      },
+      "apps/api/src/modules/assessment/infrastructure/persistence/assessment-detail.loader.spec.ts": {
+        "source": false,
+        "buildAndPolicy": false
+      },
+      "tests/retired-authority-migration-check.py": {
+        "source": false,
+        "buildAndPolicy": false
+      }
+    },
+    "candidateSourceMismatches": 0,
+    "candidatePolicyMismatches": 0,
+    "sqlMigrationAndProductionPurgeScriptChanged": false,
+    "acceptanceReuse": "The fixed test harness is outside accepted runtime and build/policy inputs. Existing exact-image semantic and browser receipts remain valid. Current-head remote CI must rerun."
+  }
 }

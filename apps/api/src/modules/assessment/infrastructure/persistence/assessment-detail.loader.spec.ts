@@ -34,11 +34,11 @@ function fixture() {
     },
   });
   const tx = {
-    assessment: { findUnique: async () => row },
+    assessment: { findUnique: () => Promise.resolve(row) },
     llmUsageEvent: { aggregate },
   };
   const loader = new AssessmentDetailLoader({
-    $transaction: async (work: (tx: unknown) => unknown) => work(tx),
+    $transaction: (work: (tx: unknown) => unknown) => Promise.resolve(work(tx)),
   } as unknown as PrismaService);
   return { loader, row, aggregate };
 }

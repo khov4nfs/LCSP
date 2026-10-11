@@ -374,7 +374,8 @@ def main() -> int:
                     else:
                         raise AssertionError("ordinary release accepted a fixture-scoped purge receipt")
                     assert preserved_database(db, state) == preserved
-                    db.execute('UPDATE "LegacyMigrationRun" SET "toolVersion"=\'SYNTHETIC_POST_CUTOVER_FIXTURE\' WHERE id=%s::uuid',
+                    # Replay the fixture identity required by the immutable historical SQL guard.
+                    db.execute('UPDATE "LegacyMigrationRun" SET "toolVersion"=\'SYNTHETIC_POST_W6_FIXTURE\' WHERE id=%s::uuid',
                                (state["run"],))
                     db.commit()
                 passed("fixture-scoped purge evidence cannot authorize an ordinary release drop")
