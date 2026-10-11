@@ -47,24 +47,28 @@ describe("AssessmentCaseSupport decision provenance", () => {
       criteria: [],
       compliance: null,
     });
-    const facts = jest.fn<(args: unknown) => Promise<unknown[]>>().mockResolvedValue([
-      {
-        factId,
-        state: ASSESSMENT_RECORD_STATES.ACCEPTED,
-        caseRevision: 1,
-        authority: ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED,
-        evidenceLinks: [{ evidenceId }],
-      },
-    ]);
-    const evidence = jest.fn<(args: unknown) => Promise<unknown[]>>().mockResolvedValue([
-      {
-        evidenceId,
-        state: ASSESSMENT_RECORD_STATES.ACCEPTED,
-        repositoryCommit: pins.repositoryCommit,
-        type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
-        payload: {},
-      },
-    ]);
+    const facts = jest
+      .fn<(args: unknown) => Promise<unknown[]>>()
+      .mockResolvedValue([
+        {
+          factId,
+          state: ASSESSMENT_RECORD_STATES.ACCEPTED,
+          caseRevision: 1,
+          authority: ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED,
+          evidenceLinks: [{ evidenceId }],
+        },
+      ]);
+    const evidence = jest
+      .fn<(args: unknown) => Promise<unknown[]>>()
+      .mockResolvedValue([
+        {
+          evidenceId,
+          state: ASSESSMENT_RECORD_STATES.ACCEPTED,
+          repositoryCommit: pins.repositoryCommit,
+          type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
+          payload: {},
+        },
+      ]);
     const tx = {
       engineeringRule: { findUnique: () => Promise.resolve(null) },
       assessmentCaseFact: { findMany: facts },

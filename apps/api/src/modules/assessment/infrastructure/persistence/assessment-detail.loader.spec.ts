@@ -24,17 +24,15 @@ function fixture() {
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  const aggregate = jest
-    .fn<() => Promise<unknown>>()
-    .mockResolvedValue({
-      _sum: { inputTokens: 200001n, outputTokens: 41n, totalTokens: 200042n },
-      _count: {
-        id: 201,
-        inputTokens: 201,
-        outputTokens: 201,
-        totalTokens: 201,
-      },
-    });
+  const aggregate = jest.fn<() => Promise<unknown>>().mockResolvedValue({
+    _sum: { inputTokens: 200001n, outputTokens: 41n, totalTokens: 200042n },
+    _count: {
+      id: 201,
+      inputTokens: 201,
+      outputTokens: 201,
+      totalTokens: 201,
+    },
+  });
   const tx = {
     assessment: { findUnique: async () => row },
     llmUsageEvent: { aggregate },

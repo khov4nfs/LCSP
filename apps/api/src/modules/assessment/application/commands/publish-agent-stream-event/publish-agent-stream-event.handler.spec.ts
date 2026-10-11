@@ -21,22 +21,20 @@ const payload = {
 };
 
 function fixture(overrides: Record<string, unknown> = {}) {
-  const query = jest
-    .fn<() => Promise<unknown[]>>()
-    .mockResolvedValue([
-      {
-        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
-        lifecycleRevision: 1,
-        blockerReason: null,
-        blockerReference: null,
-        threadId: "thread-a",
-        currentExecutionId: payload.run_id,
-        executionState: AGENT_EXECUTION_STATES.RUNNING,
-        leaseToken: "lease-a",
-        leaseExpiresAt: new Date(Date.now() + 60_000),
-        ...overrides,
-      },
-    ]);
+  const query = jest.fn<() => Promise<unknown[]>>().mockResolvedValue([
+    {
+      lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
+      lifecycleRevision: 1,
+      blockerReason: null,
+      blockerReference: null,
+      threadId: "thread-a",
+      currentExecutionId: payload.run_id,
+      executionState: AGENT_EXECUTION_STATES.RUNNING,
+      leaseToken: "lease-a",
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      ...overrides,
+    },
+  ]);
   const tx = { $queryRaw: query } as unknown as Prisma.TransactionClient;
   const prisma = {
     $transaction: async (

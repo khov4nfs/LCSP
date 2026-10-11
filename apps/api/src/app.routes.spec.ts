@@ -87,10 +87,7 @@ describe("API route surface after the CUTOVER cutover", () => {
   it("registers no handler for a retired V1 route", () => {
     const RETIRED_API_ROUTES = JSON.parse(
       readFileSync(
-        new URL(
-          "../../../tests/fixtures/retired-routes.json",
-          import.meta.url,
-        ),
+        new URL("../../../tests/fixtures/retired-routes.json", import.meta.url),
         "utf8",
       ),
     ) as Array<{ method: string; path: string }>;

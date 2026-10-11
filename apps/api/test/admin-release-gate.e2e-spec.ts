@@ -330,13 +330,14 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
   describe("Section 5: Dependency Boundary Matrix & Upstream Tracking", () => {
     it("explicitly records upstream feature boundaries pending ADMIN_SHELL..300", () => {
       const DEPENDENCY_STATUSES = {
-        "ADMIN_SHELL": "PENDING_UPSTREAM_MERGE (Admin Shell & Overview UI)",
-        "USER_ACCOUNTS": "PENDING_UPSTREAM_MERGE (User Accounts Management UI)",
-        "LEGAL_CORPUS": "PENDING_UPSTREAM_MERGE (Corpus Versions UI)",
-        "ADMIN_OVERVIEW": "PENDING_UPSTREAM_MERGE (Admin Overview API & Read Model)",
-        "ACCOUNT_LIFECYCLE":
+        ADMIN_SHELL: "PENDING_UPSTREAM_MERGE (Admin Shell & Overview UI)",
+        USER_ACCOUNTS: "PENDING_UPSTREAM_MERGE (User Accounts Management UI)",
+        LEGAL_CORPUS: "PENDING_UPSTREAM_MERGE (Corpus Versions UI)",
+        ADMIN_OVERVIEW:
+          "PENDING_UPSTREAM_MERGE (Admin Overview API & Read Model)",
+        ACCOUNT_LIFECYCLE:
           "PENDING_UPSTREAM_MERGE (Admin User Lifecycle API & Mutations)",
-        "ADMIN_AUTHORIZATION":
+        ADMIN_AUTHORIZATION:
           "PENDING_UPSTREAM_MERGE (Corpus Administration API & Readiness Engine)",
       };
 
