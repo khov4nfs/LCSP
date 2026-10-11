@@ -25,7 +25,7 @@ def metering(monkeypatch):
     middleware = UsageMeteringMiddleware()
     events, usage = [], []
     monkeypatch.setattr("middleware.usage_metering.publish_agent_stream_event", lambda kind, **data: events.append(kind))
-    monkeypatch.setattr(middleware, "_record", lambda response, model: usage.append(response))
+    monkeypatch.setattr(middleware, "_record", lambda response, model, invocation_id: usage.append((response, invocation_id)))
     return middleware, events, usage
 
 
@@ -65,6 +65,7 @@ def test_nonabortable_model_is_abandoned_before_release_and_late_usage_only(mete
         while not usage and time.monotonic() < deadline:
             time.sleep(0.01)
         assert len(usage) == 1
+        assert usage[0][1]
         assert "MODEL_CALL_COMPLETED" not in events
     finally:
         release.set()
@@ -97,7 +98,7 @@ async def test_native_model_task_cancelled_while_awaiting_provider(metering):
 async def test_async_usage_delivery_does_not_block_model_cancellation(metering, monkeypatch):
     middleware, events, _ = metering
     recording, release, cancel = Event(), Event(), Event()
-    def record(_response, _model):
+    def record(_response, _model, _invocation_id):
         recording.set()
         release.wait(2)
     monkeypatch.setattr(middleware, "_record", record)

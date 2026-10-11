@@ -145,11 +145,15 @@ def test_mixed_private_logs_remove_only_v1_records_and_their_continuations():
 
 
 def test_drop_references_only_existing_archive_source_values():
-    import re, subprocess
+    import re
     root = Path(__file__).resolve().parents[2]
-    schema = subprocess.check_output(["git", "show", "HEAD:apps/api/prisma/schema.prisma"], cwd=root, text=True)
-    members = set(re.search(r"enum LegacyArchiveSource \{(.*?)\}", schema, re.S).group(1).split())
-    migration = (root / "apps/api/prisma/migrations/20261008160000_w7_drop_v1_authority/migration.sql").read_text()
+    drop = root / "apps/api/prisma/migrations/20261008160000_w7_drop_v1_authority/migration.sql"
+    history = "\n".join(path.read_text() for path in sorted(drop.parent.parent.glob("*/migration.sql"))
+                        if path.parent.name < drop.parent.name)
+    definition = re.search(r'CREATE TYPE "LegacyArchiveSource" AS ENUM \((.*?)\);', history, re.S)
+    assert definition is not None
+    members = set(re.findall(r"'([^']+)'", definition.group(1)))
+    migration = drop.read_text()
     referenced = set(re.findall(r'"sourceTable"\s*=\s*\x27([^\x27]+)\x27', migration))
     assert referenced <= members
 

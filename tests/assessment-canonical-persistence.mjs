@@ -33,7 +33,7 @@ function check(label, actual, expected) {
   checks++;
 }
 function run(label, args, env = {}, allowed = [0]) {
-  const result = spawnSync("rtk", ["proxy", ...args], {
+  const result = spawnSync(args[0], args.slice(1), {
     cwd: root,
     encoding: "utf8",
     env: { ...process.env, ...env },
@@ -42,7 +42,7 @@ function run(label, args, env = {}, allowed = [0]) {
   });
   const receipt = {
     label,
-    argv: ["rtk", "proxy", ...args],
+    argv: args,
     env,
     exit: result.status,
     signal: result.signal,
