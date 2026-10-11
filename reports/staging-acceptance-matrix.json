@@ -849,14 +849,17 @@
     "total": 25
   },
   "currentStagingRunId": "9ae7757edbaf422b",
-  "currentImageReceipt": "reports/release-images/20261011201401_b17f791a42ea/report.json",
+  "currentImageReceipt": "reports/release-images/20261011210628_a047d4ca2aa1/report.json",
   "fullBrowserGate": "PASS_23_CURRENT_PHASES_PLUS_MCP",
   "semanticAcceptance": "INITIAL_AND_SUPERSESSION_6_OF_6_PASS",
   "priorMatrixSnapshot": "reports/staging/e73734b01eff4005/acceptance-matrix-before-pr367-correction.json",
   "broadAcceptedSuitesRerun": false,
   "productionDeployment": false,
   "releaseEligible": false,
-  "remoteCurrentSourceCi": "PENDING_AUTHORIZED_GIT_PUBLICATION",
+  "remoteCurrentSourceCi": "EXACT_FINAL_HEAD_CI_RECORDED_IN_PR_367_AFTER_PUBLICATION",
   "reconciledAt": "2026-10-11T20:52:35.183334+00:00",
-  "qualification": "25/25 reconciled: 20 current source/image/runtime rows, 5 explicitly retained unchanged backend invariants. Old candidate/browser/CI is not evidence for corrected current UI/provider behavior."
+  "qualification": "25/25 reconciled: 20 current source/image/runtime rows, 5 explicitly retained unchanged backend invariants. Old candidate/browser/CI is not evidence for corrected current UI/provider behavior.",
+  "postCiStagingRunId": "86ed6cac39c346df",
+  "postCiReconciliation": "reports/pr367-ci-formatting-equivalence.json",
+  "postCiBrowserReceipt": "reports/staging/86ed6cac39c346df/post-ci-acceptance.json"
 }

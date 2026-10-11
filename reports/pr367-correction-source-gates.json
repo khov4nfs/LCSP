@@ -48,6 +48,12 @@
       "skipped": 0,
       "receipt": "reports/pr367-preparation-cli-regression.xml",
       "includes": "five real governance scenarios plus standalone provider-free CLI regression"
+    },
+    "adminSecurityRegression": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "reports/pr367-admin-security-regression.json"
     }
   },
   "migration": {
@@ -146,7 +152,13 @@
     "Standalone provider-free Preparation CLI omits governance only in its scripted fixture, matching scripted Root; actual production governance unchanged"
   ],
   "runtimeAcceptance": "PASS",
-  "publication": "READY_FOR_AUTHORIZED_COMMIT_PUSH_PR367",
+  "publication": {
+    "status": "PUBLISHED_CORRECTION_PLUS_BOT_FORMATTING; FINAL_TEST_PROOF_COMMIT_AND_EXACT_HEAD_CI_PENDING_AT_SNAPSHOT",
+    "correctionCommit": "cbc370e4105b060a3dbbe719eabb01851894c185",
+    "botCommit": "74342ef5722dcb3dcbcc72169a13a19f5ebbb1a3",
+    "pr": "https://github.com/khov4nfs/LCSP/pull/367",
+    "exactFinalHeadAuthority": "PR #367 headRefOid and GitHub checks after final publication"
+  },
   "ruleset": {
     "id": 18478777,
     "name": "develop",
@@ -160,14 +172,15 @@
     "verifiedAgainstGitHub": true
   },
   "candidate": {
-    "id": "20261011201401_b17f791a42ea",
+    "id": "20261011210628_a047d4ca2aa1",
     "status": "PASS",
     "rootfsAudits": 4,
     "dockerIntegrationsPassed": 7,
     "skipped": 0,
     "sourceFingerprints": 1116,
     "buildPolicyFingerprints": 23,
-    "historicalId": "20261011192900_a4fb9c5af669"
+    "historicalId": "20261011201401_b17f791a42ea",
+    "reason": "CI autofix formatting changed 14 embedded API source fingerprints; exact-source images refreshed without changing runtime semantics"
   },
   "staging": {
     "id": "9ae7757edbaf422b",
@@ -249,5 +262,16 @@
     "current": 20,
     "explicitUnchangedReuse": 5,
     "receipt": "reports/staging-acceptance-matrix.json"
+  },
+  "postCiReconciliation": {
+    "status": "PASS",
+    "receipt": "reports/staging/86ed6cac39c346df/post-ci-acceptance.json",
+    "equivalence": "reports/pr367-ci-formatting-equivalence.json",
+    "adminSecurity": "reports/pr367-admin-security-regression.json",
+    "candidate": "20261011210628_a047d4ca2aa1",
+    "staging": "86ed6cac39c346df",
+    "workerFilesByteIdentical": 198,
+    "serverFilesByteIdentical": 199,
+    "liveModelCalls": 0
   }
 }

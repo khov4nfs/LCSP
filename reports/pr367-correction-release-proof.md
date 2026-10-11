@@ -39,7 +39,7 @@ Receipts: [source gates](pr367-correction-source-gates.json), [lifecycle](pr367-
 
 Remaining old-name hits are classified in the source receipt: physical schema mappings/SQL fixtures, retirement checks, and historical/pre-freeze documentation. Active product copy, symbols and helper descriptions use the new vocabulary. Physical schema was not recreated.
 
-## Current exact candidate
+## Live-acceptance candidate before CI formatting
 
 Candidate `20261011201401_b17f791a42ea` passed four merged-rootfs audits and seven Docker integrations, with zero failures/errors/skips. Frozen bytes still match all 1,116 source fingerprints and 23 build/policy inputs after the test-only CLI fixture repair. No additional candidate was built for that excluded test fixture.
 
@@ -97,3 +97,24 @@ PR #367 remains unmerged. Production deployment, production database mutation an
 ## Credential governance correction
 
 Preparation now uses the same AgentRoleMiddleware and MODEL_GOVERNANCE_MIDDLEWARE composition as Assessment Root, preserving read-only corpus tools and no subagents. The separate six-retry policy is removed. Real native Preparation graph tests prove APX rotation before Gemini, complete APX/Gemini exhaustion before Inception, immediate success short-circuit, one terminal failure, provider-reported usage attribution and one logical submission. Shared quota classification now excludes depleted monthly allowances from ordinary cooldown recovery. All 208 affected tests passed (`reports/pr367-preparation-governance.xml`); a final 6/6 focused rerun also proves the provider-free CLI fixture (`reports/pr367-preparation-cli-regression.xml`). No routing YAML change was made by this correction. Staging used all configured pools without changing their keys; safe route receipts record fingerprints only. The standalone scripted CLI fixture now omits governance only for its provider-free mock, matching the existing scripted Root fixture; actual SDK routing tests exercise production governance.
+
+## Final publication reconciliation after CI autofix
+
+Correction commit `cbc370e4105b060a3dbbe719eabb01851894c185` was pushed to PR #367. The CI bot then produced `74342ef5722dcb3dcbcc72169a13a19f5ebbb1a3`: formatting and redundant TypeScript non-null assertions across 21 files, including 14 embedded API source fingerprints. All 21 emitted JavaScript ASTs are identical, including flags, operators, literals and children; mutation self-checks reject let/const, boolean and operator changes. All Web/agent source bytes and all 23 build/policy inputs are unchanged. The worker's 198 and server's 199 audited application files remain byte-identical.
+
+An exact-source refresh was necessary because the bot's formatting changes are embedded in the API/Web rootfs. Final candidate **`20261011210628_a047d4ca2aa1`** passed four rootfs audits and seven Docker integrations, zero failures/errors/skips, with all 1,116 source and 23 build/policy fingerprints current. This refresh preserves the earlier live semantic/accounting receipts and does not introduce another model run or provider selection.
+
+Final immutable images:
+
+| Role | Image ID |
+|---|---|
+| API | `sha256:03f6791f4c985e62d070ad0d4c50d24850f5f7d622106850b0c9b905ecf49ca8` |
+| Web | `sha256:4c0e4ea1c43bc6292183eb6b3f318f7525304cd93133c8e1c0592a8048d5ff67` |
+| Worker | `sha256:4413a4fa47f5ce3beaff31ec76c5343c5de921929ecd49c131f003f9f1d88f98` |
+| Agent Server | `sha256:57c772b3bd42ab10af6ad220ac50d4c3526d8598a19de34742064dfc4d670d31` |
+
+Current-head CI passed 10 execution jobs, then exposed two admin security tests calling the deleted generic Start endpoint and receiving 404 before guards. These test-only requests now exercise the existing bounded retry route without the obsolete Start payload. The complete focused admin suite passes **9/9**, zero skips, in `lcsp_admin_ci_regression` inside the single owned PostgreSQL of staging **`86ed6cac39c346df`**. Production code was not changed for this CI repair.
+
+This fresh isolated staging booted the exact refreshed images, applied migrations, verified 29 retired tables absent and 14 native consumers, and registered three synthetic accounts. Playwright CLI with **workers=1** and Playwright MCP verified real admin sign-in/navigation, one main landmark, no generic Start/source selector, empty current authority and reload persistence, with zero page errors/unexpected request failures. Owned teardown stopped the six containers. No model invocation was repeated: live APX/Root semantics, 23 corrected UI phases, both 6/6 legal reviews, 25/25 qualified matrix and 999,467-token accounting remain proven by the byte-identical agent payloads and unchanged runtime semantics of the API formatting.
+
+Receipts: [final candidate](release-images/20261011210628_a047d4ca2aa1/report.json), [formatting equivalence](pr367-ci-formatting-equivalence.json), [admin security](pr367-admin-security-regression.json), [bounded fresh staging/browser](staging/86ed6cac39c346df/post-ci-acceptance.json), [workers=1 receipt](staging/86ed6cac39c346df/post-ci-browser-playwright.json). This report records local evidence at final publication; the exact final HEAD and remote CI results are recorded in the updated PR #367 body/checks.
