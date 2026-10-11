@@ -1,4 +1,4 @@
-/** W3 assessment-domain value sets. Closed vocabularies, `as const` objects only (no TS enums
+/** ASSESSMENT assessment-domain value sets. Closed vocabularies, `as const` objects only (no TS enums
  * or hand-written literal unions). Canonical values are SCREAMING_SNAKE_CASE.
  *
  * The AssessmentCase/Evidence/Request/Decision rows are the single authoritative domain state;
@@ -32,7 +32,7 @@ export type AssessmentFactKind =
   (typeof ASSESSMENT_FACT_KINDS)[keyof typeof ASSESSMENT_FACT_KINDS];
 
 /** Who owns the authority of a fact. HUMAN_PROVIDED facts are written only by the human
- * resolution API (W4); the Root can only propose EVIDENCE_CITED facts. */
+ * resolution API (ASSESSMENT); the Root can only propose EVIDENCE_CITED facts. */
 export const ASSESSMENT_FACT_AUTHORITIES = {
   EVIDENCE_CITED: "EVIDENCE_CITED",
   HUMAN_PROVIDED: "HUMAN_PROVIDED",
@@ -60,6 +60,7 @@ export const ASSESSMENT_COMPLETION_BLOCKER_CODES = {
   ASSESSMENT_BLOCKED: "ASSESSMENT_BLOCKED",
   REQUIRED_INPUT_UNRESOLVED: "REQUIRED_INPUT_UNRESOLVED",
   EXECUTION_FAILURE: "EXECUTION_FAILURE",
+  RUNTIME_STOP_REQUESTED: "RUNTIME_STOP_REQUESTED",
   PINS_MISSING: "PINS_MISSING",
   PORTFOLIO_INVALID: "PORTFOLIO_INVALID",
   REPOSITORY_SNAPSHOT_INVALID: "REPOSITORY_SNAPSHOT_INVALID",
@@ -107,9 +108,11 @@ export const DECISION_VALIDATION_FAILURE_CODES = {
   UNKNOWN_EVIDENCE_REFERENCE: "UNKNOWN_EVIDENCE_REFERENCE",
   EVIDENCE_NOT_ACCEPTED: "EVIDENCE_NOT_ACCEPTED",
   EVIDENCE_PIN_MISMATCH: "EVIDENCE_PIN_MISMATCH",
+  SEARCH_COVERAGE_INCOMPLETE: "SEARCH_COVERAGE_INCOMPLETE",
   UNKNOWN_FACT_REFERENCE: "UNKNOWN_FACT_REFERENCE",
   FACT_NOT_ACCEPTED: "FACT_NOT_ACCEPTED",
   FACT_REVISION_MISMATCH: "FACT_REVISION_MISMATCH",
+  FACT_EVIDENCE_MISSING: "FACT_EVIDENCE_MISSING",
 } as const;
 export type DecisionValidationFailureCode =
   (typeof DECISION_VALIDATION_FAILURE_CODES)[keyof typeof DECISION_VALIDATION_FAILURE_CODES];
@@ -157,6 +160,8 @@ export const ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS = {
   ROOT_STARTED: "assessment.activity.rootStarted",
   TASK_STARTED: "assessment.activity.taskStarted",
   TASK_FINISHED: "assessment.activity.taskFinished",
+  MODEL_STEP_COMPLETED: "assessment.activity.modelStepCompleted",
+  REPOSITORY_INSPECTED: "assessment.activity.repositoryInspected",
 } as const;
 export type AssessmentDomainActivityLabelKey =
   (typeof ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS)[keyof typeof ASSESSMENT_DOMAIN_ACTIVITY_LABEL_KEYS];

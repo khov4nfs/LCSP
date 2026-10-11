@@ -12,7 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const api = path.join(root, "apps/api");
 const migrationPath = path.join(api, "prisma/migrations");
 const host = "127.0.0.1";
-const port = 55437;
+const port = Number(process.env.LCSP_TEST_PG_PORT ?? 55437);
 const user = "postgres";
 const password = "postgres";
 const database = "lcsp_api_w13_r2_repair";
@@ -174,19 +174,6 @@ run("assessment-lifecycle-protocol", [
   "--test",
   "test/assessment-lifecycle-protocol.test.ts",
 ]);
-run("assessment-runtime-control", [
-  "pnpm",
-  "--dir",
-  api,
-  "exec",
-  "jest",
-  "--config",
-  "./test/jest-e2e.ts",
-  "--runInBand",
-  "--runTestsByPath",
-  "test/assessment-runtime-control.e2e-spec.ts",
-]);
-
 console.log(
-  `PASS: ${checks} migration constraint assertions; ordered migrate deploy, lifecycle protocol, and five runtime-control tests passed on ${databaseUrl}`,
+  `PASS: ${checks} migration constraint assertions; ordered migrate deploy and lifecycle protocol passed on ${databaseUrl}`,
 );

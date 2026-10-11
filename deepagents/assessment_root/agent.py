@@ -19,7 +19,7 @@ from legal_preparation.agent import _lookup_profile_key, _without_general_purpos
 
 ROOT_INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
 ASSESSMENT_ROOT_ROLE = "assessment-root"
-# Search-only graph tools (get_code_snippet mints legacy per-rule refs, so it is excluded).
+# Graph tools search; governed Root tools mint accepted source references.
 _GRAPH_TOOL_NAMES = {"search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
 
 

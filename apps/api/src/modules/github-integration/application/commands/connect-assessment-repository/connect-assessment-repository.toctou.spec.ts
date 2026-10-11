@@ -1,6 +1,6 @@
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
-  AssessmentStatus,
   RepositoryAuthenticationMode,
   RepositoryConnectionStatus,
 } from "@prisma/client";
@@ -67,7 +67,8 @@ describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
       assessment: {
         findFirst: jest.fn(() => ({
           id: "assessment-1",
-          status: AssessmentStatus.WIZARD_SUBMITTED,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+          lifecycleRevision: 0,
         })),
       },
       repositoryConnection: {

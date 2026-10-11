@@ -1,6 +1,6 @@
 {
   "fixtureId": "assessment-researcher-isolation-scenarios-v1",
-  "purpose": "Synthetic W3 boundary packets for future Assessment Root and Repository Researcher verticals.",
+  "purpose": "Synthetic ASSESSMENT boundary packets for future Assessment Root and Repository Researcher verticals.",
   "evaluationBoundary": {
     "mode": "STRUCTURE_ONLY",
     "agentCalls": false,

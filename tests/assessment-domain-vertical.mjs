@@ -1,5 +1,5 @@
 // Run: node tests/assessment-domain-vertical.mjs   (needs a built API: pnpm --dir apps/api run build)
-// W3 vertical on REAL components: a fresh migrated PostgreSQL database (loopback test container,
+// ASSESSMENT vertical on REAL components: a fresh migrated PostgreSQL database (loopback test container,
 // default 55441), the REAL built API over HTTP (customer sign-in, assessment creation, repository
 // setup completion, worker tool plane) and the REAL Python Assessment Root graph + governed tools +
 // native task() researcher. Only the model is scripted: this proves plumbing, authority, isolation,
@@ -18,6 +18,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
+  AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
   RULE_DECISION_REFERENCE_TYPES,
 } from "@lcsp/contracts/assessment";
@@ -26,13 +27,11 @@ import {
   ASSESSMENT_COMPLETION_BLOCKER_CODES,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
+  HUMAN_RESOLUTION_CONTROL_TYPES,
   SEARCH_COVERAGE_SCOPE_KINDS,
+  answerAssessmentHumanRequestSchema,
+  assessmentHumanRequestsResultSchema,
 } from "@lcsp/contracts/assessment-domain";
-import { DOCUMENT_REQUEST_STATUSES } from "@lcsp/contracts/document";
-import {
-  LEGACY_ROUTE_RETIRED_ERROR_CODE,
-  LEGACY_ROUTE_RETIRED_STATUS,
-} from "@lcsp/contracts/legacy-migration";
 
 import {
   contentHash,
@@ -46,19 +45,17 @@ const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const {
   ArtifactLifecycleState,
   AssessmentArtifactKind,
-  ClassificationGuardrailStatus,
-  DocumentRequestStatus,
-  DocumentType,
-  EvidenceAcceptanceStatus,
 } = requireApi("@prisma/client");
 
-const database = "lcsp_w3_vertical";
-const apiPort = Number(process.env.LCSP_W3_API_PORT ?? 3413);
+const database = "lcsp_assessment_vertical";
+const apiPort = Number(process.env.LCSP_ASSESSMENT_TEST_API_PORT ?? 3413);
 const artifactStoragePath = mkdtempSync(
-  path.join(tmpdir(), "lcsp-w4-artifacts-"),
+  path.join(tmpdir(), "lcsp-assessment-artifacts-"),
 );
 const previousArtifactStoragePath = process.env.LCSP_ARTIFACT_STORAGE_PATH;
 process.env.LCSP_ARTIFACT_STORAGE_PATH = artifactStoragePath;
+const previousAgentServerUrl = process.env.LCSP_AGENT_SERVER_URL;
+process.env.LCSP_AGENT_SERVER_URL = `http://127.0.0.1:${Number(process.env.LCSP_TEST_AGENT_SERVER_PORT ?? 3417)}`;
 let checks = 0;
 const ok = (value, message) => {
   assert.ok(value, message);
@@ -91,7 +88,7 @@ const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 const COMMIT = "c".repeat(40);
 
-const { q, base, post, stop, seedCorpus } = await startStack({
+const { q, base, post, stop, seedCorpus, databaseUrl } = await startStack({
   database,
   apiPort,
 });
@@ -129,7 +126,7 @@ const customerHttp = (method, route, token, body) =>
   http(method, route, { body, token, worker: false });
 
 try {
-  // ---- legal portfolio P1 (corpus A) through the real W2 path ---------------------------------
+  // ---- legal portfolio P1 (corpus A) through the real LEGAL_PORTFOLIO path ---------------------------------
   const seedCorpusVersion = (name, variant, status) =>
     seedCorpus({
       name,
@@ -140,9 +137,9 @@ try {
         return { locator, content, contentSha256: contentHash(content) };
       }),
     });
-  const corpusA = await seedCorpusVersion("w3-a", "a", "APPROVED");
-  const corpusB = await seedCorpusVersion("w3-b", "b", "SUPERSEDED");
-  const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-w3-vertical-"));
+  const corpusA = await seedCorpusVersion("assessment-a", "a", "APPROVED");
+  const corpusB = await seedCorpusVersion("assessment-b", "b", "SUPERSEDED");
+  const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-vertical-"));
   const seedFile = path.join(seedDir, "seed.json");
   writeFileSync(
     seedFile,
@@ -155,7 +152,7 @@ try {
   const preparePortfolio = async (corpusId) => {
     const started = await post("preparations", {
       legalCorpusVersionId: corpusId,
-      idempotencyKey: `w3-start-${randomUUID()}`,
+      idempotencyKey: `assessment-start-${randomUUID()}`,
     });
     eq(started.status, 202, JSON.stringify(started.body));
     const result = await runPython(
@@ -189,9 +186,9 @@ try {
     eq(signIn.status, 200, JSON.stringify(signIn.body));
     return { id, token: signIn.body.data.session_token };
   };
-  const owner = await customer("w3-owner@acme.test");
+  const owner = await customer("assessment-owner@acme.test");
 
-  const repoDir = mkdtempSync(path.join(tmpdir(), "lcsp-w3-repo-"));
+  const repoDir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-repo-"));
   mkdirSync(path.join(repoDir, "src"));
   writeFileSync(
     path.join(repoDir, "src/retention.py"),
@@ -208,7 +205,7 @@ try {
     const snapshot = randomUUID();
     await q(
       `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions)
-       VALUES ($1,$2,$3,'inst-w3',$4,'repo','acme/repo','main','{}'::jsonb)`,
+       VALUES ($1,$2,$3,'inst-assessment',$4,'repo','acme/repo','main','{}'::jsonb)`,
       [connection, id, owner.id, `repo-${id}`],
     );
     await q(
@@ -226,7 +223,7 @@ try {
       )
     ).rows[0];
 
-  const A = await newAssessment("W3 vertical A");
+  const A = await newAssessment("ASSESSMENT vertical A");
   // creation: canonical lifecycle PREPARING, one server thread, the then-ACTIVE portfolio pinned, no repo pin yet
   eq((await lifecycle(A.id)).lifecycleState, "PREPARING");
   const created = (
@@ -470,13 +467,12 @@ try {
   );
   eq(
     legacyReport.status,
-    LEGACY_ROUTE_RETIRED_STATUS,
+    404,
     "retired V1 report route cannot bypass the canonical artifact path",
   );
-  eq(legacyReport.body.problem.code, LEGACY_ROUTE_RETIRED_ERROR_CODE);
 
   // ---- isolation: B has its own thread, namespace and lease; A's data is invisible to it ---------
-  const B = await newAssessment("W3 vertical B");
+  const B = await newAssessment("ASSESSMENT vertical B");
   eq(
     (
       await customerHttp(
@@ -648,7 +644,7 @@ try {
   // ---- legal basis supersession: A keeps its pin, a NEW assessment pins the new ACTIVE portfolio -
   const portfolio2 = await preparePortfolio(corpusB);
   ok(portfolio2 !== portfolio1, "new portfolio");
-  const C = await newAssessment("W3 vertical C");
+  const C = await newAssessment("ASSESSMENT vertical C");
   eq(
     (
       await q(
@@ -760,7 +756,7 @@ try {
     /cannot be ACTIVE|decision coverage/,
   );
 
-  // ---- W4 Completion Gate and immutable Root-authored report ------------------------------------
+  // ---- ASSESSMENT Completion Gate and immutable Root-authored report ------------------------------------
   const finalizer = (await runtime(A.id, "claim")).body.data;
   ok(finalizer.leaseToken, "Root lease is required for finalization");
   const finalization = await runtime(A.id, "finalization", {
@@ -843,7 +839,7 @@ try {
     createHash("sha256").update(content).digest("hex"),
     artifact.hash.replace(/^sha256:/u, ""),
   );
-  // W5 customer consumer: exact immutable bytes and canonical read state, with no report generation.
+  // BROWSER customer consumer: exact immutable bytes and canonical read state, with no report generation.
   const download = await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/download`, { headers: { authorization: `Bearer ${owner.token}` } });
   eq(download.status, 200);
   eq(await download.text(), content);
@@ -963,57 +959,111 @@ try {
     (await lifecycle(A.id)).lifecycleState,
     ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
   );
-  const classificationId = randomUUID();
   const legacyRequestId = randomUUID();
-  await q(
-    `INSERT INTO "ClassificationResult"(id,"assessmentId",status,"guardrailStatus") VALUES ($1,$2,$3,$4)`,
-    [
-      classificationId,
-      A.id,
-      EvidenceAcceptanceStatus.ACCEPTED,
-      ClassificationGuardrailStatus.PASSED,
-    ],
-  );
-  await q(
-    `INSERT INTO "DocumentRequest"(id,"assessmentId","requestedById","classificationResultId","documentType",status,"correlationId","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,now())`,
-    [
-      legacyRequestId,
-      A.id,
-      owner.id,
-      classificationId,
-      DocumentType.FINAL_REPORT,
-      DocumentRequestStatus.QUEUED,
-      randomUUID(),
-    ],
-  );
   const legacyContext = await http(
     "GET",
     `/internal/document-requests/${legacyRequestId}/generation-context`,
   );
-  eq(legacyContext.status, LEGACY_ROUTE_RETIRED_STATUS);
-  eq(legacyContext.body.problem.code, LEGACY_ROUTE_RETIRED_ERROR_CODE);
+  eq(legacyContext.status, 404);
   const legacyCallback = await http(
     "POST",
     `/internal/document-requests/${legacyRequestId}/callback`,
     {
-      status: DOCUMENT_REQUEST_STATUSES.ready,
+      status: "READY",
       document_url: "https://example.invalid/legacy-final-report.pdf",
     },
   );
-  eq(legacyCallback.status, LEGACY_ROUTE_RETIRED_STATUS);
-  eq(legacyCallback.body.problem.code, LEGACY_ROUTE_RETIRED_ERROR_CODE);
-  eq(
-    (
-      await q(
-        `SELECT status,"documentUrl" AS url FROM "DocumentRequest" WHERE id=$1`,
-        [legacyRequestId],
-      )
-    ).rows[0],
-    { status: DocumentRequestStatus.QUEUED, url: null },
+  eq(legacyCallback.status, 404);
+
+  // RELEASE zero-retention DELETE uses the canonical domain records produced above.
+  const otherOwner = await customer("release-deletion-other@acme.test");
+  const survivorCreated = await customerHttp("POST", "/assessments", otherOwner.token, {
+    name: "Synthetic protected assessment",
+  });
+  eq(survivorCreated.status, 201);
+  const survivorId = survivorCreated.body.data.assessment_id ?? survivorCreated.body.data.id;
+  const survivorThread = (await q(
+    `SELECT "threadId"::text AS thread FROM "AssessmentRuntime" WHERE "assessmentId"=$1`,
+    [survivorId],
+  )).rows[0].thread;
+  const humanScript = path.join(root, "deepagents/tests/vertical/hitl_root.py");
+  const humanRun = (mode) => runPython(humanScript, [base, workerKey, B.id, repoDir, mode], {
+    env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0] },
+  });
+  const interruptedForDelete = await humanRun("ask");
+  eq(interruptedForDelete.result.state, AGENT_EXECUTION_STATES.INTERRUPTED);
+  const requestsForDelete = await customerHttp("GET", `/assessments/${B.id}/human-requests`, owner.token);
+  eq(requestsForDelete.status, 200);
+  const humanRequestsForDelete = assessmentHumanRequestsResultSchema.parse(requestsForDelete.body.data);
+  const answeredRequest = humanRequestsForDelete.requests[0];
+  const answeredForDelete = await customerHttp(
+    "POST", `/assessments/${B.id}/human-requests/${answeredRequest.requestId}/answers`, owner.token,
+    answerAssessmentHumanRequestSchema.parse({
+      expectedCaseRevision: humanRequestsForDelete.caseRevision,
+      expectedRequestRevision: answeredRequest.requestRevision,
+      idempotencyKey: "release-deletion-answer",
+      doesNotKnow: false,
+      answer: "The operations team owns the external notification and retention process.",
+    }),
   );
+  eq(answeredForDelete.status, 200, JSON.stringify(answeredForDelete.body));
+  const resumedForDelete = await humanRun("resume");
+  eq(resumedForDelete.result.state, AGENT_EXECUTION_STATES.SUCCEEDED);
+  eq(resumedForDelete.result.threadId, threadB);
+  const deletionCaseRevision = (await q(
+    `SELECT "caseRevision" AS revision FROM "AssessmentCase" WHERE "assessmentId"=$1`, [B.id],
+  )).rows[0].revision;
+  const deletionClaim = await runtime(B.id, "claim");
+  eq(deletionClaim.status, 200, JSON.stringify(deletionClaim.body));
+  const openRequest = await runtime(B.id, "human-requests", {
+    lease: deletionClaim.body.data.leaseToken,
+    body: {
+      expectedCaseRevision: deletionCaseRevision,
+      idempotencyKey: "release-deletion-open-request",
+      engineeringRuleId: "ER-RET",
+      criterionIds: ["C-1"],
+      question: "Who owns the external operational retention process?",
+      unresolvedFact: "External organizational ownership",
+      decisionImpact: ["Ownership determines the operational duty."],
+      resolutionAttempts: ["Inspected available repository inputs; organizational ownership is not present."],
+      controlType: HUMAN_RESOLUTION_CONTROL_TYPES.FREE_TEXT,
+      choices: [],
+    },
+  });
+  eq(openRequest.status, 200, JSON.stringify(openRequest.body));
+  const usageId = randomUUID();
+  await q(
+    `INSERT INTO "LlmUsageEvent"(id,"userId","assessmentId",provider,model,"invocationId","totalTokens","chargedCredits")
+     VALUES ($1,$2,$3,'synthetic','synthetic',$1,12,3)`,
+    [usageId, owner.id, A.id],
+  );
+  const deletionInput = path.join(seedDir, "deletion.json");
+  writeFileSync(deletionInput, JSON.stringify({
+    apiBase: base,
+    targets: [
+      { assessmentId: A.id, ownerId: owner.id, threadId: threadA },
+      { assessmentId: B.id, ownerId: owner.id, threadId: threadB },
+    ],
+    survivor: { assessmentId: survivorId, ownerId: otherOwner.id, threadId: survivorThread },
+    artifact: { id: artifact.id, chunks: manifest.chunks },
+    storageRoot,
+    usageId,
+  }), { mode: 0o600 });
+  const deletion = await runPython(
+    path.join(root, "deepagents/tests/vertical/assessment_deletion.py"),
+    [deletionInput],
+    { env: {
+      LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0],
+      ASSESSMENT_DELETE_OWNER_TOKEN: owner.token,
+      ASSESSMENT_DELETE_OTHER_TOKEN: otherOwner.token,
+      WORKER_API_KEY: workerKey,
+    } },
+  );
+  eq(deletion.status, "PASS", JSON.stringify(deletion));
+  console.log(`RELEASE deletion evidence: ${deletion.evidenceDirectory}`);
 
   console.log(
-    `PASS: ${checks} W3/W4 vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
+    `PASS: ${checks} ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
   );
 } finally {
   await stop();
@@ -1022,5 +1072,10 @@ try {
     delete process.env.LCSP_ARTIFACT_STORAGE_PATH;
   } else {
     process.env.LCSP_ARTIFACT_STORAGE_PATH = previousArtifactStoragePath;
+  }
+  if (previousAgentServerUrl === undefined) {
+    delete process.env.LCSP_AGENT_SERVER_URL;
+  } else {
+    process.env.LCSP_AGENT_SERVER_URL = previousAgentServerUrl;
   }
 }

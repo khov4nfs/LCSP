@@ -12,7 +12,6 @@ export const ADMIN_OVERVIEW_ACTION_KEYS = {
   restoredAccount: "RESTORED_ACCOUNT",
   invitedUser: "INVITED_USER",
   publishedCorpus: "PUBLISHED_CORPUS",
-  discardedDraft: "DISCARDED_DRAFT",
   generalAction: "GENERAL_ACTION",
 } as const;
 

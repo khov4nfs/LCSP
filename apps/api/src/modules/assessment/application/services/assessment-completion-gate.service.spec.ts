@@ -17,6 +17,7 @@ import {
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_FACT_KINDS,
   ASSESSMENT_RECORD_STATES,
+  SEARCH_COVERAGE_SCOPE_KINDS,
   type AssessmentCompletionBlockerCode,
 } from "@lcsp/contracts/assessment-domain";
 import {
@@ -27,6 +28,7 @@ import {
   type Prisma,
 } from "@prisma/client";
 import { randomUUID } from "node:crypto";
+import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { AssessmentCompletionGate } from "./assessment-completion-gate.service.js";
@@ -44,6 +46,7 @@ const legalRuleId = "LR-1";
 const criterionId = "C-1";
 
 type Fixture = {
+  controlState: string;
   assessment: {
     lifecycleState: string;
     lifecycleRevision: number;
@@ -106,6 +109,7 @@ type Fixture = {
     state: string;
     contentSha256: string;
     repositoryCommit: string;
+    payload: unknown;
   }>;
   facts: Array<{
     factId: string;
@@ -159,6 +163,7 @@ function createFixture() {
     compliance: RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT,
   });
   const fixture: Fixture = {
+    controlState: Controls.running,
     assessment: {
       lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
       lifecycleRevision: 3,
@@ -226,6 +231,7 @@ function createFixture() {
         state: ASSESSMENT_RECORD_STATES.ACCEPTED,
         contentSha256: `sha256:${"b".repeat(64)}`,
         repositoryCommit,
+        payload: {},
       },
     ],
     facts: [
@@ -246,6 +252,9 @@ function createFixture() {
   const transaction = {
     assessment: {
       findUnique: () => Promise.resolve(fixture.assessment),
+    },
+    assessmentRuntimeTurn: {
+      findFirst: () => Promise.resolve({ state: fixture.controlState }),
     },
     assessmentCase: {
       findUnique: () => Promise.resolve(fixture.assessmentCase),
@@ -299,13 +308,23 @@ function createFixture() {
         evidence: new Map(
           fixture.evidence.map((item) => [
             item.evidenceId,
-            { state: item.state, repositoryCommit: item.repositoryCommit },
+            {
+              state: item.state,
+              repositoryCommit: item.repositoryCommit,
+              type: item.type,
+              payload: item.payload,
+            },
           ]),
         ),
         facts: new Map(
           fixture.facts.map((item) => [
             item.factId,
-            { state: item.state, caseRevision: item.caseRevision },
+            {
+              state: item.state,
+              caseRevision: item.caseRevision,
+              authority: item.authority,
+              evidenceIds: item.evidenceLinks.map((link) => link.evidenceId),
+            },
           ]),
         ),
       }),
@@ -319,6 +338,17 @@ function createFixture() {
 }
 
 describe("AssessmentCompletionGate", () => {
+  it("refuses finalization while the current Root has a pending Stop", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.controlState = Controls.stopRequested;
+    const result = await gate.inspectInTx(transaction, assessmentId);
+    expect(result.blockers).toContainEqual({
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.RUNTIME_STOP_REQUESTED,
+      reference: fixture.assessment.runtime!.currentExecutionId,
+    });
+    expect(result.snapshot).toBeNull();
+  });
+
   it("returns the frozen snapshot when every mechanical prerequisite is current", async () => {
     const { gate, transaction } = createFixture();
 
@@ -393,6 +423,37 @@ describe("AssessmentCompletionGate", () => {
       mutate: (fixture) => {
         fixture.evidence[0].type = ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE;
         fixture.evidence[0].repositoryCommit = "b".repeat(40);
+      },
+    },
+    {
+      name: "incomplete search coverage cannot be final provenance",
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_EVIDENCE,
+      mutate: (fixture) => {
+        fixture.evidence[0].type = ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE;
+        fixture.evidence[0].payload = {
+          scopes: [
+            { kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY, path: "." },
+          ],
+          queries: [
+            {
+              tool: "search_code",
+              query: "retention",
+              resultCount: 0,
+              truncated: true,
+            },
+          ],
+          inspectedEntryPoints: [],
+          knownGaps: ["Index coverage is incomplete."],
+          directSourceFallbacks: [],
+        };
+      },
+    },
+    {
+      name: "an evidence-cited fact without linked provenance",
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_EVIDENCE,
+      mutate: (fixture) => {
+        fixture.facts[0].authority = ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED;
+        fixture.facts[0].evidenceLinks = [];
       },
     },
     {

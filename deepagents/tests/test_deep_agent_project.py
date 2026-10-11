@@ -29,7 +29,6 @@ def test_deep_agent_project_exports_single_native_root_agent() -> None:
     assert "create_deep_agent(" in source
     assert "system_prompt=SYSTEM_PROMPT" in source
     assert "context_schema=LCSPRunContext" in source
-    assert "skills=[(REPOSITORY_SKILLS, \"LCSP Runtime\")]" in source
     assert "load_optional_mcp_tools()" in source
 
 
@@ -72,19 +71,7 @@ def test_agent_project_separates_authored_tools_from_runtime() -> None:
     assert (PROJECT_ROOT / "middleware").is_dir()
     assert not (PROJECT_ROOT / "sandbox" / "__init__.py").exists()
     assert (PROJECT_ROOT / "tools" / "common" / "capabilities" / "platform" / "docker_sandbox.py").is_file()
-    assert "REPOSITORY_SKILLS" in (
-        PROJECT_ROOT / "tools" / "common" / "capabilities" / "platform" / "repository_sandbox.py"
-    ).read_text(encoding="utf-8")
-    assert (PROJECT_ROOT / "tools" / "mcp.py").is_file()
-    skill_packages = {
-        path.name
-        for path in (PROJECT_ROOT / "skills").iterdir()
-        if path.is_dir() and not path.name.startswith("__")
-    }
-    assert skill_packages == {"lcsp"}
-    assert (PROJECT_ROOT / "skills" / "lcsp" / "SKILL.md").is_file()
-    assert not (PROJECT_ROOT / "skills" / "legal-rule-triage").exists()
-    assert not (PROJECT_ROOT / "skills" / "deep_agent_skills").exists()
+    assert not (PROJECT_ROOT / "skills" / "lcsp" / "SKILL.md").exists()
     assert not (PROJECT_ROOT / "src").exists()
     assert not (PROJECT_ROOT / "scripts").exists()
     assert not list((PROJECT_ROOT / "tools").glob("*/lcsp_workers"))
@@ -100,7 +87,6 @@ LIVE_BOUNDARIES = {
     "legal_change_detection_requested",
     "assessment_root_requested",
     "legal_portfolio_preparation_requested",
-    "legal_corpus_recovery_requested",
     "legal_source_ingest_requested",
     "official_text_extraction_requested",
     "ocr_fallback_requested",
@@ -113,7 +99,7 @@ LIVE_BOUNDARIES = {
     "audit_export_requested",
     "agent_runtime_health_requested",
 }
-# Retired V1 commands/events (W6): no boundary may consume them again.
+# Retired V1 commands/events (CUTOVER): no boundary may consume them again.
 RETIRED_EVENTS = {
     "command.scan.requested.v1",
     "command.scan.targeted-reanalysis.v1",

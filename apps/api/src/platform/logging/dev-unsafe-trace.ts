@@ -102,6 +102,13 @@ export function emitDevUnsafeTrace(
       );
       if (fieldAssessmentId) finalAssessmentId = String(fieldAssessmentId);
     }
+    if (
+      finalAssessmentId === "unknown_assessment" ||
+      ![finalUserId, finalAssessmentId].every((value) =>
+        /^[A-Za-z0-9_-]{1,300}$/.test(value),
+      )
+    )
+      return;
     const repoRoot = getRepoRoot();
     const logDir = path.join(
       repoRoot,

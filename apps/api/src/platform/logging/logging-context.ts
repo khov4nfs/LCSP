@@ -17,6 +17,47 @@ export function getRepoRoot(): string {
   return process.cwd();
 }
 
+export async function eraseAssessmentLogs(
+  ownerId: string,
+  assessmentId: string,
+): Promise<void> {
+  if (
+    ![ownerId, assessmentId].every((value) =>
+      /^[A-Za-z0-9_-]{1,300}$/.test(value),
+    )
+  )
+    throw new Error("Invalid assessment log ownership");
+  const targets = [...new Set([ownerId, "unknown_user"])].map((userId) =>
+    path.join(
+      getRepoRoot(),
+      "tmp",
+      "user_" + userId,
+      "assessment_" + assessmentId,
+    ),
+  );
+  for (const target of targets) {
+    let current = path.resolve(target);
+    while (true) {
+      try {
+        if ((await fs.promises.lstat(current)).isSymbolicLink())
+          throw new Error("Invalid assessment log erasure target");
+      } catch (error) {
+        if (
+          typeof error !== "object" ||
+          error === null ||
+          Reflect.get(error, "code") !== "ENOENT"
+        )
+          throw error;
+      }
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+  }
+  for (const target of targets)
+    await fs.promises.rm(target, { recursive: true, force: true });
+}
+
 export function getLoggingContext(): { userId: string; assessmentId: string } {
   const req = requestStorage.getStore();
   if (!req) {

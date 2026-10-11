@@ -1,5 +1,5 @@
 /**
- * Legal portfolio contract value sets (W2).
+ * Legal portfolio contract value sets (LEGAL_PORTFOLIO).
  *
  * One Legal Preparation Deep Agent authors the complete LegalRule +
  * EngineeringRule portfolio for one pinned immutable corpus. The server

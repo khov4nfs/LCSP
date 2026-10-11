@@ -20,6 +20,7 @@ from middleware.failure_policy import (
     is_provider_model_unavailable,
     is_terminal_task_error,
 )
+from middleware.provider_schema import GeminiToolNullabilityMiddleware
 from legal_preparation.tools import LegalPreparationContext, build_portfolio_tools
 
 INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
@@ -128,6 +129,7 @@ def create_legal_preparation_agent(
             tools=build_portfolio_tools(context),
             middleware=[
                 read_only,
+                GeminiToolNullabilityMiddleware(),
                 ModelRetryMiddleware(
                     max_retries=MODEL_RETRIES,
                     on_failure="error",

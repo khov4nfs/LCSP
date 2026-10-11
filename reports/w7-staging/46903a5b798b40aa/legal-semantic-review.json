@@ -1,0 +1,67 @@
+{
+  "scope": "W7_REASONED_SYNTHETIC_PORTFOLIO_SEMANTIC_REVIEW",
+  "status": "FAIL",
+  "runId": "46903a5b798b40aa",
+  "preparationRunId": "c1099a17-913c-477c-8e0a-871bcc1f757d",
+  "portfolioVersionId": "a1faecfb-f443-4cdb-9573-06286052fe3e",
+  "reviewMethod": "AGENT_READS_PINNED_SOURCE_AND_CANONICAL_AUTHORED_RULES_NO_DETERMINISTIC_SEMANTIC_CLASSIFIER",
+  "rubric": "deepagents/tests/fixtures/legal_preparation_eval/rubric.json",
+  "syntheticSource": "deepagents/tests/fixtures/legal_portfolio_context/synthetic-notice-v1.txt",
+  "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "mechanicalActivation": "ACTIVE_PASSED",
+  "dimensions": [
+    {
+      "id": "DEFINITIONS",
+      "status": "PASS",
+      "finding": "The retention LegalRule links the Article 1 definition of record, preserving notice plus receipt timestamp as its source context. Articles 1-4 were not invented as separate operative duties."
+    },
+    {
+      "id": "QUALIFIERS",
+      "status": "FAIL",
+      "finding": "The LegalRule retains receipt-based timing and preserving the notice text and its limiting language. Its only EngineeringRule criterion states retention for 7 days; it omits when the period begins, notice-and-timestamp storage, and preservation of limiting language. Its evidence list only requests retention-policy configuration, with supporting log retention. This cannot fully assess the software obligations declared covered.",
+      "ruleId": "ER-RETENTION-1",
+      "criterionId": "C-1",
+      "sourceLocators": [
+        "art-4::cl-1::pt-a",
+        "art-5::cl-1::pt-a",
+        "art-5::cl-1::pt-b"
+      ]
+    },
+    {
+      "id": "EXCEPTIONS",
+      "status": "FAIL",
+      "finding": "The retention LegalRule states the temporary-test-record exception, but the EngineeringRule criterion and applicability guidance omit it. REL-6 also labels Article 3 as an EXCEPTION on the in-person duty, although the source explicitly says that exception does not remove Article 6. The source relationship is represented with the wrong semantic kind.",
+      "ruleId": "ER-RETENTION-1",
+      "relationId": "REL-6",
+      "sourceLocators": [
+        "art-3::cl-1",
+        "art-6::cl-1"
+      ]
+    },
+    {
+      "id": "CROSS_REFERENCES",
+      "status": "PASS",
+      "finding": "The retention rule retains source links for definition, scope, exception, cross-reference and receipt-timing context in Articles 1-4. Their hashes resolve to the pinned synthetic corpus. This does not cure the EngineeringRule omissions or the erroneous exception relation."
+    },
+    {
+      "id": "NON_REPOSITORY_DUTIES",
+      "status": "PASS",
+      "finding": "The Article 6 rule keeps appointment of a person, annual session, in-person attendance and organizer register context. It is NON_ASSESSABLE with nonRepositoryDuty true and has no invented repository criterion."
+    },
+    {
+      "id": "CORPUS_VERSION_PINNING",
+      "status": "PASS",
+      "finding": "Authored rule references resolve to the current immutable synthetic corpus chunk IDs. Every source and context reference matches its exact accepted document locator and content hash."
+    }
+  ],
+  "decision": "RUNTIME_MECHANICS_PASSED_BUT_SEMANTIC_ACCEPTANCE_FAILED",
+  "privateCanonicalPacket": {
+    "path": "tmp/w7-staging/46903a5b798b40aa/legal-active-portfolio.json",
+    "sha256": "c6226eff5ed4f7b10a034bb9dcfcaf9751e2c05d6d99af74bf00fc5a287777d8",
+    "byteLength": 7560
+  },
+  "officialSourceAcquisition": "NOT_RUN",
+  "liveRetrievalIndex": "NOT_RUN",
+  "productionDeployment": false,
+  "releaseEligible": false
+}

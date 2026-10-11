@@ -1,0 +1,43 @@
+- complementary:
+  - navigation "Workspace":
+    - button "Toggle workspace navigation"
+    - button "Search assessments"
+    - button "Back"
+    - button "Forward"
+    - link "New":
+      - /url: /assessments/new
+    - link "Artifacts":
+      - /url: /artifacts
+    - heading "Recents" [level=2]
+    - button "Filter recent assessments"
+    - link "Notice retention review assessmentA":
+      - /url: /assessments/d30b6364-f031-4318-90af-9569b079c612
+    - 'button "Assessment options: Notice retention review assessmentA"'
+    - button "Account menu": R RELEASE owner
+- banner:
+  - paragraph: Notice retention review assessmentA
+  - button "Runtime activity" [pressed]
+- main:
+  - region "Assessment state":
+    - paragraph: Assessment state
+    - term: Lifecycle
+    - definition: Active
+    - term: Execution
+    - definition: Queued
+- complementary:
+  - complementary:
+    - heading "Notice retention review assessmentA" [level=2]
+    - text: Connected
+    - region "Assessment state":
+      - paragraph: Assessment state
+      - term: Lifecycle
+      - definition: Active
+      - term: Execution
+      - definition: Queued
+    - paragraph: khov4nfs/lcsp-synthetic-notice-service
+    - code: c14f518437c1b8cef94b4f9a176c04b1acaff6fe
+    - separator
+- region "Notifications alt+T":
+  - list:
+    - listitem: Repository connected
+- alert

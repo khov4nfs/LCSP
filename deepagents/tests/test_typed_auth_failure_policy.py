@@ -60,7 +60,7 @@ def isolated_credential_health(monkeypatch):
             {
                 "routes": {
                     "g": {"provider": "google_genai", "model": "future-model-v99"},
-                    "l": {"provider": "llm7", "model": "model-gamma"},
+                    "l": {"provider": "apx", "model": "model-gamma"},
                 },
                 "roles": {"default": "g"},
                 "fallbacks": {"g": ["l"]},
@@ -116,7 +116,7 @@ def _google_permission_error() -> GooglePermissionDeniedError:
 
 
 def _openai_error(error_type, status: int):
-    request = httpx.Request("POST", "https://api.llm7.io/v1/chat/completions")
+    request = httpx.Request("POST", "https://api.apmix.ai/v1/chat/completions")
     return error_type(
         "credential rejected",
         response=httpx.Response(status, request=request),
@@ -287,7 +287,7 @@ async def test_timeout_then_typed_auth_on_last_slot_ends_with_bounded_credential
 @pytest.mark.asyncio
 async def test_exhausted_google_pool_with_typed_auth_moves_to_next_provider(monkeypatch, asynchronous):
     monkeypatch.setenv("GOOGLE_API_KEY", "google-slot-0-test-token,google-slot-1-test-token")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-only-test-token")
+    monkeypatch.setenv("APX_API_KEY", "apx-only-test-token")
     response = ModelResponse(result=[])
     side_effect = [_google_timeout(), _google_auth_error(), _google_timeout(), response]
     handler = AsyncMock(side_effect=side_effect) if asynchronous else MagicMock(side_effect=side_effect)
@@ -313,7 +313,7 @@ async def test_exhausted_google_pool_with_typed_auth_moves_to_next_provider(monk
         "ChatGoogleGenerativeAI",
         "ChatOpenAI",
     ]
-    assert models[-1].openai_api_key.get_secret_value() == "llm7-only-test-token"
+    assert models[-1].openai_api_key.get_secret_value() == "apx-only-test-token"
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -384,12 +384,12 @@ async def test_typed_auth_opens_provider_circuit_and_later_calls_skip_that_provi
             assert isinstance(result, ModelResponse)
 
     # Google is tried once, its run-scoped circuit opens, and the next call skips it.
-    assert provider_calls == ["google_genai", "llm7", "llm7"]
+    assert provider_calls == ["google_genai", "apx", "apx"]
     assert session.provider_route_disabled(route_key("google_genai", "future-model-v99")) is True
-    # Only the two answered llm7 calls report provider usage; the failed google attempt
+    # Only the two answered apx calls report provider usage; the failed google attempt
     # reports nothing (no invented zero-usage record).
 
-    assert [payload.provider for payload in client.payloads] == ["LLM7", "LLM7"]
+    assert [payload.provider for payload in client.payloads] == ["APX", "APX"]
 
 @pytest.mark.parametrize("auth_error", [_google_auth_error, _google_permission_error])
 @pytest.mark.parametrize("asynchronous", [False, True])

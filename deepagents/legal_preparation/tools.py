@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 from langchain_core.tools import tool
@@ -11,6 +12,7 @@ from langchain_core.tools import tool
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 
 SUBMISSION_IDEMPOTENCY_PREFIX = "legal-preparation-submit-"
+PORTFOLIO_INPUT_SCHEMA = json.loads(Path(__file__).with_name("packet-schema.json").read_text())
 
 
 class PortfolioApi(Protocol):
@@ -53,7 +55,7 @@ def _as_packet(packet: Any) -> dict:
 def build_portfolio_tools(context: LegalPreparationContext) -> list:
     """Return ``validate_legal_portfolio`` and ``submit_legal_portfolio`` bound to one run."""
 
-    @tool
+    @tool(args_schema=PORTFOLIO_INPUT_SCHEMA)
     def validate_legal_portfolio(packet: dict) -> str:
         """Dry-run the mechanical integrity validation of a COMPLETE portfolio packet.
 
@@ -75,10 +77,13 @@ def build_portfolio_tools(context: LegalPreparationContext) -> list:
         context.trace.append({"tool": "validate", "outcome": result.get("outcome"), "failureCodes": counts})
         return json.dumps(result, ensure_ascii=False)
 
-    @tool
+    @tool(args_schema=PORTFOLIO_INPUT_SCHEMA)
     def submit_legal_portfolio(packet: dict) -> str:
         """Submit the COMPLETE portfolio packet once. It is validated and, when mechanically
         valid, activated automatically in one atomic step. There is no review or approval.
+
+        Use the exact packet that passed validate_legal_portfolio. Do not regenerate or omit
+        fields between calls; any edit requires the semantic self-check and validation again.
 
         If the result is FAILED the attempted portfolio is NOT activated, the previous ACTIVE
         portfolio stays in place and this run is finished: do not call this tool again.

@@ -19,7 +19,6 @@ import {
 } from "@/features/assessment-runtime/components/organisms/canonical-assessment-status";
 import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 import { HumanResolutionForm } from "./human-resolution-form";
-import { LegacyArchivePanel } from "./legacy-archive-panel";
 import { AssessmentDecisions } from "./assessment-decisions";
 import { AssessmentReportLink } from "../molecules/assessment-report-link";
 import { AssessmentRuntimeActions } from "../molecules/assessment-runtime-actions";
@@ -53,10 +52,13 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
       </Alert>
     );
   const assessment = detail.data;
-  // No canonical state: either an assessment completed on the previous platform (archived,
-  // read-only) or one that is not archived at all; the panel decides which and says so.
   if (!assessment.lifecycle || !assessment.runtime)
-    return <LegacyArchivePanel assessmentId={assessmentId} />;
+    return (
+      <CanonicalAssessmentStatus
+        canonicalAssessment={null}
+        connectionState={workspace.connectionState}
+      />
+    );
   if (assessment.lifecycle.state === ASSESSMENT_LIFECYCLE_STATES.PREPARING)
     return <RepositorySetupStep assessmentId={assessmentId} />;
   const requests =
@@ -104,7 +106,10 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
           </AlertDescription>
         </Alert>
       ) : null}
-      <CanonicalAssessmentActivity events={timeline.canonicalEvents ?? []} />
+      <CanonicalAssessmentActivity
+        events={timeline.canonicalEvents ?? []}
+        usage={assessment.usage}
+      />
       <AssessmentDecisions assessment={assessment} />
       <AssessmentReportLink assessment={assessment} />
     </main>

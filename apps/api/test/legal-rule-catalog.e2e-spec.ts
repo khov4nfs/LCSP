@@ -49,9 +49,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
   beforeEach(async () => {
     await prisma.outboxMessage.deleteMany();
     await prisma.legalRetrievalIndex.deleteMany();
-    await prisma.ruleApprovalRecord.deleteMany();
-    await prisma.legalRule.deleteMany();
-    await prisma.legalRuleCatalogVersion.deleteMany();
     await prisma.corpusApprovalRecord.deleteMany();
     await prisma.legalDocumentChunk.deleteMany();
     await prisma.legalSourceDocument.deleteMany();
@@ -68,7 +65,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     await prisma.$disconnect();
   });
 
-  describe("legal corpus ingest and approval", () => {
+  describe("legal corpus ingest and mechanical activation", () => {
     it("stores immutable chunk locators as DRAFT and activates them through the worker-only validated activation endpoint", async () => {
       const content = "Điều 1. Test corpus content.";
       const sourceSha = sha256("source");

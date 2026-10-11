@@ -12,7 +12,7 @@ import {
   type AdminOverviewStats,
   type AdminRecentActivityItem,
 } from "@lcsp/contracts/auth";
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   LEGAL_RULE_EVENT_TYPES,
   LEGAL_RULE_LIFECYCLE_STATUSES,
@@ -30,11 +30,7 @@ const ADMIN_AUDIT_EVENT_TYPES_LIST = [
   AUTH_AUDIT_EVENT_TYPES.authAdminUserSuspended,
   AUTH_AUDIT_EVENT_TYPES.authAdminUserRestored,
   AUTH_AUDIT_EVENT_TYPES.authAdminInvitationCreated,
-  LEGAL_RULE_EVENT_TYPES.corpusVersionDiscarded,
   LEGAL_RULE_EVENT_TYPES.corpusVersionActivated,
-  LEGAL_RULE_EVENT_TYPES.catalogVersionApproved,
-  LEGAL_RULE_EVENT_TYPES.corpusVersionApproved,
-  LEGAL_RULE_EVENT_TYPES.drafted,
 ];
 
 /**
@@ -89,7 +85,7 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
       this.prisma.assessment.count(),
       this.prisma.assessment.count({
         where: {
-          status: ASSESSMENT_STATUS_CODES.readyForReview,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
           updatedAt: { gte: windowStart, lte: currentTime },
         },
       }),
@@ -116,14 +112,14 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
           OR: [
             { createdAt: { gte: windowStart, lte: currentTime } },
             {
-              status: ASSESSMENT_STATUS_CODES.readyForReview,
+              lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
               updatedAt: { gte: windowStart, lte: currentTime },
             },
           ],
         },
         select: {
           createdAt: true,
-          status: true,
+          lifecycleState: true,
           updatedAt: true,
         },
         orderBy: { createdAt: "asc" },
@@ -227,7 +223,11 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
     periodDays: number,
     windowStart: Date,
     currentTime: Date,
-    assessments: Array<{ createdAt: Date; status: string; updatedAt: Date }>,
+    assessments: Array<{
+      createdAt: Date;
+      lifecycleState: string | null;
+      updatedAt: Date;
+    }>,
   ) {
     const barCount = periodDays <= 14 ? periodDays : 14;
     const intervalMs =
@@ -251,7 +251,7 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
           startedCount++;
         }
         if (
-          assessment.status === ASSESSMENT_STATUS_CODES.readyForReview &&
+          assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE &&
           assessment.updatedAt >= bucketStart &&
           assessment.updatedAt < bucketEnd
         ) {
@@ -275,7 +275,7 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
 
     const totalCompleted = assessments.filter(
       (assessment) =>
-        assessment.status === ASSESSMENT_STATUS_CODES.readyForReview &&
+        assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE &&
         assessment.updatedAt >= windowStart &&
         assessment.updatedAt <= currentTime,
     ).length;
@@ -388,17 +388,7 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
         target: actualTarget,
       };
     }
-    if (eventType === LEGAL_RULE_EVENT_TYPES.corpusVersionDiscarded) {
-      return {
-        actionKey: ADMIN_OVERVIEW_ACTION_KEYS.discardedDraft,
-        target: actualTarget,
-      };
-    }
-    if (
-      eventType === LEGAL_RULE_EVENT_TYPES.corpusVersionApproved ||
-      eventType === LEGAL_RULE_EVENT_TYPES.corpusVersionActivated ||
-      eventType === LEGAL_RULE_EVENT_TYPES.catalogVersionApproved
-    ) {
+    if (eventType === LEGAL_RULE_EVENT_TYPES.corpusVersionActivated) {
       return {
         actionKey: ADMIN_OVERVIEW_ACTION_KEYS.publishedCorpus,
         target: actualTarget,

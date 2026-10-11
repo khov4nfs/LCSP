@@ -23,11 +23,9 @@ from orchestration.agent_stream import model_wait_heartbeat, note_model_step
 from provider_credentials import (
     APX_DEFAULT_BASE_URL,
     INCEPTION_DEFAULT_BASE_URL,
-    LLM7_DEFAULT_BASE_URL,
     NO_SDK_RETRY_MAX_RETRIES,
     apx_base_url,
     inception_base_url,
-    llm7_base_url,
     provider_token_source,
 )
 from tools.common.capabilities.platform.logging import get_logger
@@ -185,12 +183,6 @@ def model_provider(model) -> str | None:
             or base_url.startswith(f"{default_apx}/")
         ):
             return "apx"
-        configured_llm7 = llm7_base_url()
-        default_llm7 = LLM7_DEFAULT_BASE_URL.rstrip("/")
-        if base_url == configured_llm7 or base_url == default_llm7 or base_url.startswith(
-            f"{default_llm7}/"
-        ):
-            return "llm7"
         return "openai"
     if module.startswith("langchain_google_genai."):
         return "google_genai"

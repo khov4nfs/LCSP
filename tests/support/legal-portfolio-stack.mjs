@@ -1,4 +1,4 @@
-// Shared real-stack helper for the W2 vertical/live scripts: a fresh migrated PostgreSQL database
+// Shared real-stack helper for the LEGAL_PORTFOLIO vertical/live scripts: a fresh migrated PostgreSQL database
 // on the loopback test container, the REAL built API process, worker-authenticated HTTP helpers.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
@@ -10,13 +10,13 @@ import { fileURLToPath } from "node:url";
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const apiDir = path.join(root, "apps/api");
 export const python = path.join(root, "deepagents/.venv/bin/python");
-export const workerKey = "w2-vertical-worker-key-at-least-32-chars";
+export const workerKey = "legal_portfolio-vertical-worker-key-at-least-32-chars";
 export const pythonPath = [path.join(root, "deepagents"), path.join(root, "deepagents/tests")].join(":");
 export const sha = (text) => createHash("sha256").update(text).digest("hex");
 export const contentHash = (text) => `sha256:${sha(text)}`; // corpus representation of chunk hashes
 const { Client } = createRequire(path.join(apiDir, "package.json"))("pg");
 
-export async function startStack({ database, apiPort, dbPort = Number(process.env.LCSP_W2_PG_PORT ?? 55441), resetDatabase = true }) {
+export async function startStack({ database, apiPort, dbPort = Number(process.env.LCSP_TEST_PG_PORT ?? 55441), resetDatabase = true }) {
   const host = "127.0.0.1";
   const databaseUrl = `postgresql://postgres:postgres@${host}:${dbPort}/${database}?schema=public`;
   const base = `http://${host}:${apiPort}`;
@@ -52,7 +52,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
       NODE_ENV: "test",
       DATABASE_URL: databaseUrl,
       RABBITMQ_URL: "amqp://guest:guest@127.0.0.1:55999", // unreachable on purpose: outbox rows stay PENDING
-      RABBITMQ_EXCHANGE: "lcsp.events.w2vertical",
+      RABBITMQ_EXCHANGE: "lcsp.events.legal_portfoliovertical",
       OUTBOX_POLL_INTERVAL_MS: "600000",
       WORKER_API_KEY: workerKey,
       MFA_SECRET_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -71,8 +71,10 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
   server.stdout.on("data", (d) => log.push(String(d)));
   server.stderr.on("data", (d) => log.push(String(d)));
   const stop = async () => {
-    server.kill("SIGTERM");
-    await new Promise((resolve) => server.once("exit", resolve));
+    if (server.exitCode === null && server.signalCode === null) {
+      server.kill("SIGTERM");
+      await new Promise((resolve) => server.once("exit", resolve));
+    }
     await db.end();
   };
 
@@ -82,7 +84,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
     } catch {
       /* not up yet */
     }
-    if (i >= 60) {
+    if (i >= 60 || server.exitCode !== null || server.signalCode !== null) {
       await stop();
       assert.fail(`API did not become healthy:\n${log.join("").slice(-2000)}`);
     }

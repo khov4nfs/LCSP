@@ -1,17 +1,11 @@
 import {
   AUDIT_ACTOR_TYPES,
+  type AuditActorType,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import {
-  OUTBOX_AGGREGATE_TYPES,
-  OUTBOX_AUDIT_EVENT_TYPES,
-} from "@lcsp/contracts/outbox";
-import {
-  SCAN_ERROR_CODES,
-  TARGETED_REANALYSIS_CAPACITY_POLICY,
-} from "@lcsp/contracts/scan";
+import { OUTBOX_AUDIT_EVENT_TYPES } from "@lcsp/contracts/outbox";
 import {
   HttpException,
   Injectable,
@@ -109,17 +103,6 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
           for (const message of messages) {
             const now = new Date();
 
-            if (
-              message.aggregateType ===
-                OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest &&
-              !(await this.outboxRepository.reserveTargetedReanalysisDispatch(
-                tx,
-                message.aggregateId,
-              ))
-            ) {
-              continue;
-            }
-
             try {
               const payload = message.payload;
               const headers = contextHeaders(payload);
@@ -142,7 +125,7 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
               const nextAttempts = message.attempts + 1;
               const failureDetails = describeOutboxError(error);
               const reason = failureDetails.message;
-              const messageMaxAttempts = maxAttemptsFor(message, maxAttempts);
+              const messageMaxAttempts = maxAttempts;
               const nextAttemptAt =
                 nextAttempts >= messageMaxAttempts
                   ? null
@@ -157,19 +140,6 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
                 now,
                 nextAttemptAt,
               );
-              if (
-                message.aggregateType ===
-                OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest
-              ) {
-                await this.outboxRepository.recordTargetedReanalysisPublishFailure(
-                  tx,
-                  message.aggregateId,
-                  nextAttempts,
-                  nextAttempts >= messageMaxAttempts
-                    ? SCAN_ERROR_CODES.targetedReanalysisOutboxDeliveryExhausted
-                    : null,
-                );
-              }
               failures.push({
                 message,
                 attempts: nextAttempts,
@@ -295,25 +265,6 @@ function readProblemCode(response: unknown): string | undefined {
 }
 
 /**
- * Resolves the maximum delivery attempts for an outbox message, including targeted-reanalysis policy overrides.
- *
- * @param message - Outbox message whose aggregate type determines retry policy.
- * @param defaultMaxAttempts - General configured retry limit.
- * @returns Maximum attempts allowed for the message.
- */
-function maxAttemptsFor(
-  message: OutboxMessageEntity,
-  defaultMaxAttempts: number,
-): number {
-  if (
-    message.aggregateType === OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest
-  ) {
-    return TARGETED_REANALYSIS_CAPACITY_POLICY.apiOutboxMaxAttempts;
-  }
-  return defaultMaxAttempts;
-}
-
-/**
  * Calculates the next retry time using capped exponential backoff and a small random jitter.
  *
  * @param now - Timestamp from which the retry delay should be calculated.
@@ -370,7 +321,7 @@ function readString(value: unknown): string | undefined {
  */
 function readActor(
   value: unknown,
-): { id: string; type: "USER" | "SERVICE" } | undefined {
+): { id: string; type: AuditActorType } | undefined {
   if (!value || typeof value !== "object") return undefined;
   const actor = value as Record<string, unknown>;
   const id = readString(actor.id);

@@ -5,13 +5,8 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 import {
-  ASSESSMENT_ACTIONS,
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
-  ASSESSMENT_LOCK_REASONS,
-  ASSESSMENT_MISSING_EVIDENCE_CODES,
-  ASSESSMENT_NEXT_ACTION_KEYS,
-  ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_RECORD_STATES,
@@ -53,13 +48,6 @@ import {
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
-import {
-  SCAN_CALLBACK_STATUSES,
-  SCAN_ERROR_CODES,
-  SCAN_EVENT_TYPES,
-  SCAN_JOB_GUIDANCE,
-  TECHNICAL_EVIDENCE_REPORT_STATUSES,
-} from "@lcsp/contracts/scan";
 import { SERVICE_HEALTH_STATUSES } from "@lcsp/contracts/shared";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -67,7 +55,6 @@ const sourceRoots = ["apps/api/src", "apps/web/src"];
 const extensions = new Set([".ts", ".tsx"]);
 const canonicalValues = new Set(
   [
-    ASSESSMENT_ACTIONS,
     ASSESSMENT_DECISION_RECORD_STATES,
     ASSESSMENT_DOMAIN_ERROR_CODES,
     ASSESSMENT_ERROR_CODES,
@@ -75,12 +62,8 @@ const canonicalValues = new Set(
     ASSESSMENT_EVIDENCE_TYPES,
     ASSESSMENT_FACT_AUTHORITIES,
     ASSESSMENT_FACT_KINDS,
-    ASSESSMENT_LOCK_REASONS,
-    ASSESSMENT_MISSING_EVIDENCE_CODES,
-    ASSESSMENT_NEXT_ACTION_KEYS,
     ASSESSMENT_RECORD_STATES,
     ASSESSMENT_ROOT_COMMAND_TYPES,
-    ASSESSMENT_STATUS_CODES,
     AUDIT_DECISIONS,
     AUTH_AUDIT_EVENT_TYPES,
     AUTH_ERROR_CODES,
@@ -102,13 +85,8 @@ const canonicalValues = new Set(
     REPOSITORY_SCAN_TRIGGER_SOURCES,
     REPOSITORY_SNAPSHOT_STATUSES,
     REQUIRED_ACTIONS,
-    SCAN_CALLBACK_STATUSES,
-    SCAN_ERROR_CODES,
-    SCAN_EVENT_TYPES,
-    SCAN_JOB_GUIDANCE,
     SEARCH_COVERAGE_SCOPE_KINDS,
     SERVICE_HEALTH_STATUSES,
-    TECHNICAL_EVIDENCE_REPORT_STATUSES,
     WORKSPACE_CAPABILITY_SOURCES,
   ].flatMap(Object.values),
 );

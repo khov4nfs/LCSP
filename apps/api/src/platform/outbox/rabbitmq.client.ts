@@ -1,18 +1,13 @@
 import * as amqp from "amqplib";
 import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { SCAN_EVENT_TYPES } from "@lcsp/contracts/scan/callback";
 
 import { emitDevUnsafeTrace } from "../logging/dev-unsafe-trace.js";
 
 export type RabbitMqMessageHeaders = Record<string, string>;
 
 export function requiresRoutableDelivery(routingKey: string): boolean {
-  return (
-    routingKey.startsWith("command.") ||
-    routingKey.startsWith("cron.") ||
-    routingKey === SCAN_EVENT_TYPES.evidenceAccepted
-  );
+  return routingKey.startsWith("command.") || routingKey.startsWith("cron.");
 }
 export type RabbitMqConsumerInput = {
   queue: string;

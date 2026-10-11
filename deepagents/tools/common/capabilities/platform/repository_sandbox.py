@@ -14,6 +14,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Iterator, Mapping
 
 from deepagents.backends.protocol import (
+    BackendProtocol,
     DeleteResult,
     EditResult,
     FileDownloadResponse,
@@ -37,10 +38,8 @@ from tools.common.capabilities.platform.repository_workspace import RepositoryWo
 REPOSITORY_ROOT = "/workspace/repository"
 REPOSITORY_META = f"{REPOSITORY_ROOT}/.lcsp/repository.json"
 REPOSITORY_AGENT_STATE = f"{REPOSITORY_ROOT}/.lcsp/agent"
-REPOSITORY_SKILLS = f"{REPOSITORY_AGENT_STATE}/skills"
 _ARCHIVE_PATH = "/tmp/lcsp-assessment-repository.tar.gz"
 _RESERVED_REPOSITORY_DIRS = {".git", ".lcsp"}
-_CHECKED_IN_SKILLS_ROOT = Path(__file__).resolve().parents[4] / "skills"
 _ACTIVE_BACKEND: ContextVar[object | None] = ContextVar(
     "lcsp_repository_thread_backend",
     default=None,
@@ -190,8 +189,8 @@ def resolve_repository_thread_backend(config: object | None) -> object:
     return _DOCKER_SANDBOX_MANAGER.resolve(config)
 
 
-class RuntimeRepositoryBackend(SandboxBackendProtocol):
-    """Late-bind Deep Agents file tools to the current thread sandbox."""
+class RuntimeRepositoryFilesystemBackend(BackendProtocol):
+    """Late-bind permission-governed file tools without exposing shell execution."""
 
     @property
     def id(self) -> str:
@@ -202,7 +201,6 @@ class RuntimeRepositoryBackend(SandboxBackendProtocol):
         if active is not None:
             return repository_database_backend(active)
         backend = resolve_repository_thread_backend(get_config())
-        ensure_runtime_skills(backend)
         return repository_database_backend(backend)
 
     def ls(self, path: str) -> LsResult:
@@ -247,6 +245,10 @@ class RuntimeRepositoryBackend(SandboxBackendProtocol):
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
         return self._backend().download_files(paths)
+
+
+class RuntimeRepositoryBackend(RuntimeRepositoryFilesystemBackend, SandboxBackendProtocol):
+    """Add shell execution for runtime callers that require it."""
 
     def execute(self, command: str, *, timeout: int | None = None):
         return self._backend().execute(command, timeout=timeout)
@@ -331,7 +333,6 @@ def hydrate_repository(
         detail = f": {output}" if output else ""
         raise RuntimeError(f"failed to materialize assessment repository database{detail}")
 
-    _mirror_checked_in_skills(write)
 
     marker_payload = json.dumps(
         {
@@ -352,39 +353,10 @@ def hydrate_repository(
     _emit_lifecycle(lifecycle, "repository_sandbox_hydrated")
 
 
-def ensure_runtime_skills(backend: object) -> None:
-    """Ensure native Deep Agents skills exist before SkillsMiddleware reads them."""
-    write = getattr(backend, "write", None)
-    if not callable(write):
-        raise RuntimeError("repository sandbox backend does not support skill mirroring")
-    _mirror_checked_in_skills(write)
 
 
-def _mirror_checked_in_skills(write) -> None:
-    """Mirror canonical checked-in skills into the hydrated sandbox runtime area."""
-    if not _CHECKED_IN_SKILLS_ROOT.is_dir():
-        return
-    for skill_root in sorted(_CHECKED_IN_SKILLS_ROOT.iterdir()):
-        if not skill_root.is_dir():
-            continue
-        skill_file = skill_root / "SKILL.md"
-        if not skill_file.is_file():
-            continue
-        _write_skill_file(write, skill_file, f"{REPOSITORY_SKILLS}/{skill_root.name}/SKILL.md")
-        references_root = skill_root / "references"
-        if references_root.is_dir():
-            for reference in sorted(references_root.glob("*.md")):
-                _write_skill_file(
-                    write,
-                    reference,
-                    f"{REPOSITORY_SKILLS}/{skill_root.name}/references/{reference.name}",
-                )
 
 
-def _write_skill_file(write, source: Path, target: str) -> None:
-    result = write(target, source.read_text(encoding="utf-8"))
-    if getattr(result, "error", None):
-        raise RuntimeError(f"failed to mirror LCSP skill into repository sandbox: {source.name}")
 
 
 def _repository_hydration_bootstrap(baseline_label: str) -> str:
@@ -408,55 +380,6 @@ def _repository_hydration_bootstrap(baseline_label: str) -> str:
     )
 
 
-def ensure_repository_for_event(
-    backend: object,
-    boundary_name: str,
-    event: Mapping[str, Any],
-    lifecycle: RepositoryHydrationLifecycle | None = None,
-) -> None:
-    """Recover the repository database for later stages after sandbox recreation."""
-    _ = boundary_name
-    snapshot_id = _event_text(event, "snapshotId", "snapshot_id")
-    scan_job_id = _event_text(event, "scanJobId", "scan_job_id")
-    assessment_id = _event_text(event, "assessmentId", "assessment_id") or ""
-    correlation_id = _event_text(event, "correlationId", "correlation_id")
-
-    if snapshot_id and scan_job_id:
-        hydrate_repository(
-            backend,
-            snapshot_id=snapshot_id,
-            scan_job_id=scan_job_id,
-            commit_sha=_event_text(event, "commitSha", "commit_sha") or "",
-            assessment_id=assessment_id,
-            correlation_id=correlation_id,
-            lifecycle=lifecycle,
-        )
-        return
-
-    evidence_report_id = _event_text(event, "evidenceReportId", "evidence_report_id")
-    if not evidence_report_id:
-        return
-
-    from tools.common.capabilities.platform.api_client import WorkerApiClient
-
-    config = load_config()
-    report = WorkerApiClient(
-        config.nestjs_api_base_url,
-        config.worker_api_key,
-    ).get_accepted_technical_evidence_report(evidence_report_id)
-    snapshot_id = _event_text(report, "snapshotId", "snapshot_id")
-    scan_job_id = _event_text(report, "scanJobId", "scan_job_id")
-    if not snapshot_id or not scan_job_id:
-        return
-    hydrate_repository(
-        backend,
-        snapshot_id=snapshot_id,
-        scan_job_id=scan_job_id,
-        commit_sha=_event_text(report, "commitSha", "commit_sha") or "",
-        assessment_id=_event_text(report, "assessmentId", "assessment_id") or assessment_id,
-        correlation_id=correlation_id,
-        lifecycle=lifecycle,
-    )
 
 
 def _emit_lifecycle(
@@ -565,12 +488,10 @@ __all__ = [
     "REPOSITORY_AGENT_STATE",
     "REPOSITORY_META",
     "REPOSITORY_ROOT",
-    "REPOSITORY_SKILLS",
     "RuntimeRepositoryBackend",
     "activate_repository_backend",
     "current_repository_backend",
     "ensure_runtime_skills",
-    "ensure_repository_for_event",
     "hydrate_repository",
     "repository_database_backend",
     "resolve_repository_thread_backend",

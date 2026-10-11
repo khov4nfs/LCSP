@@ -224,7 +224,7 @@ async function reject(db, label, sql, params, code, constraint) {
   );
   checks++;
 }
-// Exercises the planned W1.3 transaction protocol; this is not an API implementation.
+// Exercises the planned CANONICAL.3 transaction protocol; this is not an API implementation.
 async function append(
   db,
   assessmentId,

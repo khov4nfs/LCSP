@@ -76,8 +76,11 @@ class AssessmentRuntimeClient:
     # ---- lifecycle of one Root execution -------------------------------------------------------
 
     def claim(self, assessment_id: str) -> dict[str, Any]:
+        from orchestration.runtime_control import active_runtime_run_id
+
         self.assessment_id = assessment_id
-        claim = self._call("POST", "/claim", with_lease=False)
+        runtime_run_id = active_runtime_run_id.get()
+        claim = self._call("POST", "/claim", {"runtimeRunId": runtime_run_id} if runtime_run_id else {}, with_lease=False)
         self.lease_token = claim["leaseToken"]
         return claim
 

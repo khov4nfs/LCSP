@@ -1,0 +1,18 @@
+{
+  "scope": "CURRENT_SOURCE_REMOTE_CI_AND_REQUIRED_CHECK_ENFORCEMENT",
+  "status": "NOT_PROVEN",
+  "repository": "khovan123/LCSP",
+  "localHead": "836607eb2b5e2ad89a966d06212134941ecc2cc1",
+  "sourcePublication": "UNCOMMITTED_WORKTREE_NO_CURRENT_SOURCE_PR_OR_RUN",
+  "currentBranchPullRequests": [],
+  "currentBranchWorkflowRuns": [],
+  "enforcedCheckContexts": [
+    "Require Jira issue key",
+    "Docker sandbox E2E"
+  ],
+  "canonicalVerticalEnforced": false,
+  "rulesetSnapshot": "reports/release-required-checks-snapshot.json",
+  "remoteRepositorySettingsChanged": false,
+  "productionDeployment": false,
+  "releaseEligible": false
+}

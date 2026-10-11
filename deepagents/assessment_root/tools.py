@@ -23,6 +23,7 @@ from langgraph.types import interrupt
 from pydantic import BaseModel, ConfigDict, Field
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
+from assessment_root.learning import retrieve_shared_heuristics
 
 # Native/search tool names whose executions authenticate a search-coverage record.
 _SEARCH_TOOLS = {"ls", "glob", "grep", "search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
@@ -148,6 +149,14 @@ class SearchTrace(BaseCallbackHandler):
             " is unavailable:" in text or " failed:" in text
         )
         self.record(entry)
+
+        if not entry["failed"]:
+            from orchestration.agent_stream import publish_agent_stream_event
+
+            publish_agent_stream_event(
+                "TOOL_RESULT", tool_name=entry["tool"],
+                tool_call_id=str(run_id), status="COMPLETED",
+            )
 
     def on_tool_error(self, error, *, run_id, **kwargs):  # noqa: ANN001
         with self._lock:
@@ -708,6 +717,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         pass
 
     return [
+        retrieve_shared_heuristics,
         tool(get_assessment_context, _NoArgs, "get_assessment_context"),
         tool(get_pinned_portfolio, _NoArgs, "get_pinned_portfolio"),
         tool(get_engineering_rule, GetRuleArgs, "get_engineering_rule"),
@@ -724,6 +734,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 
 
 ROOT_TOOL_NAMES = (
+    "retrieve_shared_heuristics",
     "get_assessment_context",
     "get_pinned_portfolio",
     "get_engineering_rule",

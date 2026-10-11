@@ -1,0 +1,804 @@
+{
+  "classification": "V1_ONLY: source/Prisma FK audit completed; destructive migration prepared, executable clean/upgrade proof pending",
+  "models": [
+    {
+      "name": "PipelineReconciliation",
+      "text": "model PipelineReconciliation {\n  assessmentId  String     @id\n  attemptCount  Int        @default(0)\n  lastAttemptAt DateTime?\n  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n\n  @@map(\"AssessmentPipelineReconciliation\")\n}",
+      "fields": [
+        "  assessmentId  String     @id",
+        "  attemptCount  Int        @default(0)",
+        "  lastAttemptAt DateTime?",
+        "  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "AssessmentPipelineReconciliation",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "ReadinessExport",
+      "text": "model ReadinessExport {\n  id            String                @id\n  assessmentId  String\n  ownerId       String\n  version       Int                   @default(1)\n  status        ReadinessExportStatus\n  contentJson   Json?\n  blockedReason String?\n  generatedAt   DateTime              @default(now())\n  assessment    Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  owner         User                  @relation(\"ReadinessExportOwner\", fields: [ownerId], references: [id], onDelete: Restrict)\n\n  @@index([assessmentId])\n  @@index([assessmentId, version])\n}",
+      "fields": [
+        "  id            String                @id",
+        "  assessmentId  String",
+        "  ownerId       String",
+        "  version       Int                   @default(1)",
+        "  status        ReadinessExportStatus",
+        "  contentJson   Json?",
+        "  blockedReason String?",
+        "  generatedAt   DateTime              @default(now())",
+        "  assessment    Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  owner         User                  @relation(\"ReadinessExportOwner\", fields: [ownerId], references: [id], onDelete: Restrict)"
+      ],
+      "physical": "ReadinessExport",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "TargetedReanalysisRequest",
+      "text": "model TargetedReanalysisRequest {\n  id                     String                         @id\n  scanJobId              String                         @unique\n  assessmentId           String\n  inputEvidenceReportId  String\n  snapshotId             String\n  commitSha              String\n  analyzerId             String\n  normalizedScope        Json\n  reasonRequirementId    String\n  idempotencyKey         String                         @unique\n  state                  TargetedReanalysisRequestState @default(QUEUED)\n  apiPublishAttempts     Int                            @default(0)\n  workerDeliveryAttempts Int                            @default(0)\n  checkpointRef          String\n  outputEvidenceReportId String?\n  safeFailureCode        String?\n  correlationId          String\n  checkpoint             TargetedReanalysisCheckpoint?\n  createdAt              DateTime                       @default(now())\n  updatedAt              DateTime                       @updatedAt\n  assessment             Assessment                     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  inputEvidenceReport    TechnicalEvidenceReport        @relation(\"TargetedReanalysisInputEvidence\", fields: [inputEvidenceReportId], references: [id], onDelete: Cascade)\n  outputEvidenceReport   TechnicalEvidenceReport?       @relation(\"TargetedReanalysisOutputEvidence\", fields: [outputEvidenceReportId], references: [id], onDelete: SetNull)\n  scanJob                RepositoryScanJob              @relation(fields: [scanJobId], references: [id], onDelete: Cascade)\n  snapshot               RepositorySnapshot             @relation(fields: [snapshotId], references: [id], onDelete: Cascade)\n\n  @@index([assessmentId, createdAt])\n  @@index([inputEvidenceReportId])\n  @@index([snapshotId])\n}",
+      "fields": [
+        "  id                     String                         @id",
+        "  scanJobId              String                         @unique",
+        "  assessmentId           String",
+        "  inputEvidenceReportId  String",
+        "  snapshotId             String",
+        "  commitSha              String",
+        "  analyzerId             String",
+        "  normalizedScope        Json",
+        "  reasonRequirementId    String",
+        "  idempotencyKey         String                         @unique",
+        "  state                  TargetedReanalysisRequestState @default(QUEUED)",
+        "  apiPublishAttempts     Int                            @default(0)",
+        "  workerDeliveryAttempts Int                            @default(0)",
+        "  checkpointRef          String",
+        "  outputEvidenceReportId String?",
+        "  safeFailureCode        String?",
+        "  correlationId          String",
+        "  checkpoint             TargetedReanalysisCheckpoint?",
+        "  createdAt              DateTime                       @default(now())",
+        "  updatedAt              DateTime                       @updatedAt",
+        "  assessment             Assessment                     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  inputEvidenceReport    TechnicalEvidenceReport        @relation(\"TargetedReanalysisInputEvidence\", fields: [inputEvidenceReportId], references: [id], onDelete: Cascade)",
+        "  outputEvidenceReport   TechnicalEvidenceReport?       @relation(\"TargetedReanalysisOutputEvidence\", fields: [outputEvidenceReportId], references: [id], onDelete: SetNull)",
+        "  scanJob                RepositoryScanJob              @relation(fields: [scanJobId], references: [id], onDelete: Cascade)",
+        "  snapshot               RepositorySnapshot             @relation(fields: [snapshotId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "TargetedReanalysisRequest",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "TargetedReanalysisCheckpoint",
+      "text": "model TargetedReanalysisCheckpoint {\n  id                     String                            @id\n  requestId              String                            @unique\n  state                  TargetedReanalysisCheckpointState @default(PENDING_DISPATCH)\n  apiPublishAttempts     Int                               @default(0)\n  workerDeliveryAttempts Int                               @default(0)\n  outputEvidenceReportId String?\n  safeFailureCode        String?\n  correlationId          String\n  createdAt              DateTime                          @default(now())\n  updatedAt              DateTime                          @updatedAt\n  request                TargetedReanalysisRequest         @relation(fields: [requestId], references: [id], onDelete: Cascade)\n\n  @@index([state, updatedAt])\n}",
+      "fields": [
+        "  id                     String                            @id",
+        "  requestId              String                            @unique",
+        "  state                  TargetedReanalysisCheckpointState @default(PENDING_DISPATCH)",
+        "  apiPublishAttempts     Int                               @default(0)",
+        "  workerDeliveryAttempts Int                               @default(0)",
+        "  outputEvidenceReportId String?",
+        "  safeFailureCode        String?",
+        "  correlationId          String",
+        "  createdAt              DateTime                          @default(now())",
+        "  updatedAt              DateTime                          @updatedAt",
+        "  request                TargetedReanalysisRequest         @relation(fields: [requestId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "TargetedReanalysisCheckpoint",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "TechnicalEvidenceReport",
+      "text": "model TechnicalEvidenceReport {\n  id                        String                      @id\n  scanJobId                 String                      @unique\n  assessmentId              String\n  snapshotId                String\n  toolsVersion              Json\n  configHash                Json\n  evidencePayload           Json\n  privacyFlags              Json\n  schemaVersion             String\n  status                    EvidenceAcceptanceStatus    @default(ACCEPTED)\n  rejectionReason           String?\n  createdAt                 DateTime                    @default(now())\n  assessment                Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  scanJob                   RepositoryScanJob           @relation(fields: [scanJobId], references: [id], onDelete: Cascade)\n  snapshot                  RepositorySnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Cascade)\n  targetedReanalysisInputs  TargetedReanalysisRequest[] @relation(\"TargetedReanalysisInputEvidence\")\n  targetedReanalysisOutputs TargetedReanalysisRequest[] @relation(\"TargetedReanalysisOutputEvidence\")\n  technicalProfile          TechnicalProfile?\n  verifiedProfiles          VerifiedProfile[]\n\n  @@index([assessmentId])\n  @@index([scanJobId])\n}",
+      "fields": [
+        "  id                        String                      @id",
+        "  scanJobId                 String                      @unique",
+        "  assessmentId              String",
+        "  snapshotId                String",
+        "  toolsVersion              Json",
+        "  configHash                Json",
+        "  evidencePayload           Json",
+        "  privacyFlags              Json",
+        "  schemaVersion             String",
+        "  status                    EvidenceAcceptanceStatus    @default(ACCEPTED)",
+        "  rejectionReason           String?",
+        "  createdAt                 DateTime                    @default(now())",
+        "  assessment                Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  scanJob                   RepositoryScanJob           @relation(fields: [scanJobId], references: [id], onDelete: Cascade)",
+        "  snapshot                  RepositorySnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Cascade)",
+        "  targetedReanalysisInputs  TargetedReanalysisRequest[] @relation(\"TargetedReanalysisInputEvidence\")",
+        "  targetedReanalysisOutputs TargetedReanalysisRequest[] @relation(\"TargetedReanalysisOutputEvidence\")",
+        "  technicalProfile          TechnicalProfile?",
+        "  verifiedProfiles          VerifiedProfile[]"
+      ],
+      "physical": "TechnicalEvidenceReport",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "TechnicalProfile",
+      "text": "model TechnicalProfile {\n  id               String                   @id @default(uuid())\n  evidenceReportId String                   @unique\n  assessmentId     String\n  schemaVersion    String\n  providerVersion  String\n  profileData      Json\n  privacyFlags     Json\n  status           EvidenceAcceptanceStatus @default(ACCEPTED)\n  rejectionReason  String?\n  createdAt        DateTime                 @default(now())\n  aiUsageFlow      AIUsageFlow?\n  assessment       Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  evidenceReport   TechnicalEvidenceReport  @relation(fields: [evidenceReportId], references: [id], onDelete: Cascade)\n\n  @@index([assessmentId])\n}",
+      "fields": [
+        "  id               String                   @id @default(uuid())",
+        "  evidenceReportId String                   @unique",
+        "  assessmentId     String",
+        "  schemaVersion    String",
+        "  providerVersion  String",
+        "  profileData      Json",
+        "  privacyFlags     Json",
+        "  status           EvidenceAcceptanceStatus @default(ACCEPTED)",
+        "  rejectionReason  String?",
+        "  createdAt        DateTime                 @default(now())",
+        "  aiUsageFlow      AIUsageFlow?",
+        "  assessment       Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  evidenceReport   TechnicalEvidenceReport  @relation(fields: [evidenceReportId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "TechnicalProfile",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "AIUsageFlow",
+      "text": "model AIUsageFlow {\n  id                 String                   @id @default(uuid())\n  technicalProfileId String                   @unique\n  assessmentId       String\n  schemaVersion      String\n  providerVersion    String\n  claims             Json\n  unknownUsages      Json\n  privacyFlags       Json\n  status             EvidenceAcceptanceStatus @default(ACCEPTED)\n  rejectionReason    String?\n  createdAt          DateTime                 @default(now())\n  assessment         Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  conflictRecords    ConflictRecord[]\n  technicalProfile   TechnicalProfile         @relation(fields: [technicalProfileId], references: [id], onDelete: Cascade)\n  verifiedProfiles   VerifiedProfile[]\n\n  @@index([assessmentId])\n}",
+      "fields": [
+        "  id                 String                   @id @default(uuid())",
+        "  technicalProfileId String                   @unique",
+        "  assessmentId       String",
+        "  schemaVersion      String",
+        "  providerVersion    String",
+        "  claims             Json",
+        "  unknownUsages      Json",
+        "  privacyFlags       Json",
+        "  status             EvidenceAcceptanceStatus @default(ACCEPTED)",
+        "  rejectionReason    String?",
+        "  createdAt          DateTime                 @default(now())",
+        "  assessment         Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  conflictRecords    ConflictRecord[]",
+        "  technicalProfile   TechnicalProfile         @relation(fields: [technicalProfileId], references: [id], onDelete: Cascade)",
+        "  verifiedProfiles   VerifiedProfile[]"
+      ],
+      "physical": "AIUsageFlow",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "ConflictRecord",
+      "text": "model ConflictRecord {\n  id               String               @id @default(uuid())\n  aiUsageFlowId    String\n  assessmentId     String\n  conflictType     String\n  conflictScore    Float\n  scoreExplanation String\n  evidenceRefs     Json\n  explanationBasis Json?\n  status           ConflictRecordStatus @default(PENDING)\n  resolvedAt       DateTime?\n  resolvedById     String?\n  resolutionNote   String?\n  createdAt        DateTime             @default(now())\n  aiUsageFlow      AIUsageFlow          @relation(fields: [aiUsageFlowId], references: [id], onDelete: Cascade)\n  assessment       Assessment           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  resolvedBy       User?                @relation(\"ConflictRecordResolver\", fields: [resolvedById], references: [id], onDelete: SetNull)\n\n  @@index([assessmentId, status])\n}",
+      "fields": [
+        "  id               String               @id @default(uuid())",
+        "  aiUsageFlowId    String",
+        "  assessmentId     String",
+        "  conflictType     String",
+        "  conflictScore    Float",
+        "  scoreExplanation String",
+        "  evidenceRefs     Json",
+        "  explanationBasis Json?",
+        "  status           ConflictRecordStatus @default(PENDING)",
+        "  resolvedAt       DateTime?",
+        "  resolvedById     String?",
+        "  resolutionNote   String?",
+        "  createdAt        DateTime             @default(now())",
+        "  aiUsageFlow      AIUsageFlow          @relation(fields: [aiUsageFlowId], references: [id], onDelete: Cascade)",
+        "  assessment       Assessment           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  resolvedBy       User?                @relation(\"ConflictRecordResolver\", fields: [resolvedById], references: [id], onDelete: SetNull)"
+      ],
+      "physical": "ConflictRecord",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "AssessmentInterviewThread",
+      "text": "model AssessmentInterviewThread {\n  id                 String     @id\n  assessmentId       String\n  stateJson          Json\n  privateContextJson Json       @default(\"[]\")\n  contextRevision    Int        @default(0)\n  activeQuestionId   String?\n  processedRevision  Int        @default(0)\n  sourceVersion      String?\n  pgeVersion         String?\n  guidanceVersion    String?\n  createdAt          DateTime   @default(now())\n  updatedAt          DateTime   @updatedAt\n  assessment         Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n\n  @@unique([assessmentId])\n  @@index([assessmentId, contextRevision])\n  @@index([assessmentId, activeQuestionId, contextRevision])\n  @@index([assessmentId, updatedAt])\n}",
+      "fields": [
+        "  id                 String     @id",
+        "  assessmentId       String",
+        "  stateJson          Json",
+        "  privateContextJson Json       @default(\"[]\")",
+        "  contextRevision    Int        @default(0)",
+        "  activeQuestionId   String?",
+        "  processedRevision  Int        @default(0)",
+        "  sourceVersion      String?",
+        "  pgeVersion         String?",
+        "  guidanceVersion    String?",
+        "  createdAt          DateTime   @default(now())",
+        "  updatedAt          DateTime   @updatedAt",
+        "  assessment         Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "AssessmentInterviewThread",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "EngineeringRuleAssessment",
+      "text": "model EngineeringRuleAssessment {\n  id                     String             @id @default(uuid())\n  assessmentId           String\n  engineeringRuleId      String\n  engineeringRuleVersion String\n  repositoryVersion      String\n  contextRevision        Int\n  status                 RuleAnalysisStatus\n  resultId               String\n  criteria               Json\n  limitations            String[]\n  execution              Json\n  attempt                Int\n  createdAt              DateTime           @default(now())\n  updatedAt              DateTime           @updatedAt\n  assessment             Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n\n  @@unique([assessmentId, engineeringRuleId])\n  @@index([assessmentId, updatedAt])\n}",
+      "fields": [
+        "  id                     String             @id @default(uuid())",
+        "  assessmentId           String",
+        "  engineeringRuleId      String",
+        "  engineeringRuleVersion String",
+        "  repositoryVersion      String",
+        "  contextRevision        Int",
+        "  status                 RuleAnalysisStatus",
+        "  resultId               String",
+        "  criteria               Json",
+        "  limitations            String[]",
+        "  execution              Json",
+        "  attempt                Int",
+        "  createdAt              DateTime           @default(now())",
+        "  updatedAt              DateTime           @updatedAt",
+        "  assessment             Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "EngineeringRuleAssessment",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "DecisionModelDecision",
+      "text": "model DecisionModelDecision {\n  decisionId   String                      @id\n  decisionType String\n  assessmentId String?\n  reviewRunId  String?\n  prNumber     Int?\n  baseSha      String?\n  headSha      String?\n  status       DecisionModelDecisionStatus @default(CLAIMED)\n  resultJson   Json?\n  claimedAt    DateTime                    @default(now())\n  completedAt  DateTime?\n  createdAt    DateTime                    @default(now())\n  updatedAt    DateTime                    @updatedAt\n\n  @@index([assessmentId, reviewRunId])\n  @@index([prNumber, headSha])\n  @@index([status, claimedAt])\n}",
+      "fields": [
+        "  decisionId   String                      @id",
+        "  decisionType String",
+        "  assessmentId String?",
+        "  reviewRunId  String?",
+        "  prNumber     Int?",
+        "  baseSha      String?",
+        "  headSha      String?",
+        "  status       DecisionModelDecisionStatus @default(CLAIMED)",
+        "  resultJson   Json?",
+        "  claimedAt    DateTime                    @default(now())",
+        "  completedAt  DateTime?",
+        "  createdAt    DateTime                    @default(now())",
+        "  updatedAt    DateTime                    @updatedAt"
+      ],
+      "physical": "DecisionModelDecision",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "DecisionModelEvent",
+      "text": "model DecisionModelEvent {\n  id           String   @id @default(uuid())\n  decisionId   String\n  decisionType String\n  eventType    String\n  assessmentId String?\n  reviewRunId  String?\n  prNumber     Int?\n  baseSha      String?\n  headSha      String?\n  payloadJson  Json\n  createdAt    DateTime @default(now())\n\n  @@index([decisionId, createdAt])\n  @@index([assessmentId, reviewRunId])\n  @@index([prNumber, headSha])\n  @@index([eventType, createdAt])\n}",
+      "fields": [
+        "  id           String   @id @default(uuid())",
+        "  decisionId   String",
+        "  decisionType String",
+        "  eventType    String",
+        "  assessmentId String?",
+        "  reviewRunId  String?",
+        "  prNumber     Int?",
+        "  baseSha      String?",
+        "  headSha      String?",
+        "  payloadJson  Json",
+        "  createdAt    DateTime @default(now())"
+      ],
+      "physical": "DecisionModelEvent",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "VerifiedAgentEpisode",
+      "text": "model VerifiedAgentEpisode {\n  id                        String                               @id\n  assessmentId              String\n  ownerAgent                String\n  workflowRunId             String?\n  engineeringRuleIds        String[]\n  artifactVersions          Json\n  trustLevel                String\n  validationStatus          VerifiedAgentEpisodeValidationStatus\n  schemaVersion             String\n  contentHash               String\n  domainKey                 String\n  inputSignature            String\n  successfulStrategySummary String\n  evidenceRefs              String[]\n  promptVersion             String\n  modelId                   String\n  summary                   String\n  handoffJson               Json\n  status                    String                               @default(\"ACTIVE\")\n  expiresAt                 DateTime?\n  createdAt                 DateTime                             @default(now())\n  updatedAt                 DateTime                             @updatedAt\n  assessment                Assessment                           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n\n  @@unique([assessmentId, contentHash])\n  @@index([assessmentId, ownerAgent, status, createdAt])\n  @@index([assessmentId, ownerAgent, contentHash])\n}",
+      "fields": [
+        "  id                        String                               @id",
+        "  assessmentId              String",
+        "  ownerAgent                String",
+        "  workflowRunId             String?",
+        "  engineeringRuleIds        String[]",
+        "  artifactVersions          Json",
+        "  trustLevel                String",
+        "  validationStatus          VerifiedAgentEpisodeValidationStatus",
+        "  schemaVersion             String",
+        "  contentHash               String",
+        "  domainKey                 String",
+        "  inputSignature            String",
+        "  successfulStrategySummary String",
+        "  evidenceRefs              String[]",
+        "  promptVersion             String",
+        "  modelId                   String",
+        "  summary                   String",
+        "  handoffJson               Json",
+        "  status                    String                               @default(\"ACTIVE\")",
+        "  expiresAt                 DateTime?",
+        "  createdAt                 DateTime                             @default(now())",
+        "  updatedAt                 DateTime                             @updatedAt",
+        "  assessment                Assessment                           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "VerifiedAgentEpisode",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "VerifiedProfile",
+      "text": "model VerifiedProfile {\n  id                         String                   @id @default(uuid())\n  aiUsageFlowId              String\n  version                    Int                      @default(1)\n  technicalEvidenceReportId  String?\n  reconciliationDecisionRefs Json?\n  idempotencyKey             String?\n  assessmentId               String\n  schemaVersion              String\n  providerVersion            String\n  profileData                Json\n  gatesPassedAt              Json\n  status                     VerifiedProfileStatus    @default(PENDING_APPROVAL)\n  approvedAt                 DateTime?\n  approvedById               String?\n  createdAt                  DateTime                 @default(now())\n  aiUsageFlow                AIUsageFlow              @relation(fields: [aiUsageFlowId], references: [id], onDelete: Cascade)\n  approvedBy                 User?                    @relation(\"VerifiedProfileApprover\", fields: [approvedById], references: [id], onDelete: SetNull)\n  assessment                 Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  classificationResults      ClassificationResult[]\n  legalRuleMatches           LegalRuleMatch[]\n  technicalEvidenceReport    TechnicalEvidenceReport? @relation(fields: [technicalEvidenceReportId], references: [id], onDelete: SetNull)\n\n  @@unique([assessmentId, version])\n  @@index([aiUsageFlowId])\n  @@index([assessmentId])\n  @@index([assessmentId, version])\n}",
+      "fields": [
+        "  id                         String                   @id @default(uuid())",
+        "  aiUsageFlowId              String",
+        "  version                    Int                      @default(1)",
+        "  technicalEvidenceReportId  String?",
+        "  reconciliationDecisionRefs Json?",
+        "  idempotencyKey             String?",
+        "  assessmentId               String",
+        "  schemaVersion              String",
+        "  providerVersion            String",
+        "  profileData                Json",
+        "  gatesPassedAt              Json",
+        "  status                     VerifiedProfileStatus    @default(PENDING_APPROVAL)",
+        "  approvedAt                 DateTime?",
+        "  approvedById               String?",
+        "  createdAt                  DateTime                 @default(now())",
+        "  aiUsageFlow                AIUsageFlow              @relation(fields: [aiUsageFlowId], references: [id], onDelete: Cascade)",
+        "  approvedBy                 User?                    @relation(\"VerifiedProfileApprover\", fields: [approvedById], references: [id], onDelete: SetNull)",
+        "  assessment                 Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  classificationResults      ClassificationResult[]",
+        "  legalRuleMatches           LegalRuleMatch[]",
+        "  technicalEvidenceReport    TechnicalEvidenceReport? @relation(fields: [technicalEvidenceReportId], references: [id], onDelete: SetNull)"
+      ],
+      "physical": "VerifiedProfile",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "ClassificationResult",
+      "text": "model ClassificationResult {\n  id                 String                        @id @default(uuid())\n  legalRuleMatchId   String?                       @unique\n  verifiedProfileId  String?\n  assessmentId       String\n  schemaVersion      String?\n  classificationData Json?\n  guardrailStatus    ClassificationGuardrailStatus @default(PASSED)\n  blockedReason      String?\n  status             EvidenceAcceptanceStatus      @default(ACCEPTED)\n  createdAt          DateTime                      @default(now())\n  assessment         Assessment                    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  documentRequests   DocumentRequest[]\n  legalRuleMatch     LegalRuleMatch?               @relation(fields: [legalRuleMatchId], references: [id], onDelete: SetNull)\n  verifiedProfile    VerifiedProfile?              @relation(fields: [verifiedProfileId], references: [id], onDelete: SetNull)\n\n  @@index([assessmentId])\n}",
+      "fields": [
+        "  id                 String                        @id @default(uuid())",
+        "  legalRuleMatchId   String?                       @unique",
+        "  verifiedProfileId  String?",
+        "  assessmentId       String",
+        "  schemaVersion      String?",
+        "  classificationData Json?",
+        "  guardrailStatus    ClassificationGuardrailStatus @default(PASSED)",
+        "  blockedReason      String?",
+        "  status             EvidenceAcceptanceStatus      @default(ACCEPTED)",
+        "  createdAt          DateTime                      @default(now())",
+        "  assessment         Assessment                    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  documentRequests   DocumentRequest[]",
+        "  legalRuleMatch     LegalRuleMatch?               @relation(fields: [legalRuleMatchId], references: [id], onDelete: SetNull)",
+        "  verifiedProfile    VerifiedProfile?              @relation(fields: [verifiedProfileId], references: [id], onDelete: SetNull)"
+      ],
+      "physical": "ClassificationResult",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "ClassificationReviewRequest",
+      "text": "model ClassificationReviewRequest {\n  id               String                            @id @default(uuid())\n  legalRuleMatchId String\n  assessmentId     String\n  proposalGateRef  String\n  baselineRef      String\n  candidateLabel   String\n  citationRefs     Json\n  requestedById    String\n  idempotencyKey   String\n  status           ClassificationReviewRequestStatus @default(PENDING_INDEPENDENT_REVIEW)\n  expiresAt        DateTime\n  createdAt        DateTime                          @default(now())\n  assessment       Assessment                        @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  legalRuleMatch   LegalRuleMatch                    @relation(fields: [legalRuleMatchId], references: [id], onDelete: Cascade)\n  requestedBy      User                              @relation(\"ClassificationReviewRequester\", fields: [requestedById], references: [id], onDelete: Restrict)\n\n  @@index([assessmentId, status])\n  @@index([legalRuleMatchId])\n}",
+      "fields": [
+        "  id               String                            @id @default(uuid())",
+        "  legalRuleMatchId String",
+        "  assessmentId     String",
+        "  proposalGateRef  String",
+        "  baselineRef      String",
+        "  candidateLabel   String",
+        "  citationRefs     Json",
+        "  requestedById    String",
+        "  idempotencyKey   String",
+        "  status           ClassificationReviewRequestStatus @default(PENDING_INDEPENDENT_REVIEW)",
+        "  expiresAt        DateTime",
+        "  createdAt        DateTime                          @default(now())",
+        "  assessment       Assessment                        @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  legalRuleMatch   LegalRuleMatch                    @relation(fields: [legalRuleMatchId], references: [id], onDelete: Cascade)",
+        "  requestedBy      User                              @relation(\"ClassificationReviewRequester\", fields: [requestedById], references: [id], onDelete: Restrict)"
+      ],
+      "physical": "ClassificationReviewRequest",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "DocumentRequest",
+      "text": "model DocumentRequest {\n  id                     String                @id\n  assessmentId           String\n  requestedById          String\n  classificationResultId String\n  documentType           DocumentType\n  status                 DocumentRequestStatus @default(QUEUED)\n  documentUrl            String?\n  blockedReason          String?\n  correlationId          String\n  createdAt              DateTime              @default(now())\n  updatedAt              DateTime              @updatedAt\n  assessment             Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  classificationResult   ClassificationResult  @relation(fields: [classificationResultId], references: [id], onDelete: Cascade)\n  requestedBy            User                  @relation(\"DocumentRequestRequester\", fields: [requestedById], references: [id], onDelete: Restrict)\n}",
+      "fields": [
+        "  id                     String                @id",
+        "  assessmentId           String",
+        "  requestedById          String",
+        "  classificationResultId String",
+        "  documentType           DocumentType",
+        "  status                 DocumentRequestStatus @default(QUEUED)",
+        "  documentUrl            String?",
+        "  blockedReason          String?",
+        "  correlationId          String",
+        "  createdAt              DateTime              @default(now())",
+        "  updatedAt              DateTime              @updatedAt",
+        "  assessment             Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  classificationResult   ClassificationResult  @relation(fields: [classificationResultId], references: [id], onDelete: Cascade)",
+        "  requestedBy            User                  @relation(\"DocumentRequestRequester\", fields: [requestedById], references: [id], onDelete: Restrict)"
+      ],
+      "physical": "DocumentRequest",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "LegalRuleCatalogVersion",
+      "text": "model LegalRuleCatalogVersion {\n  id               String                   @id @default(uuid())\n  version          String\n  status           LegalRuleLifecycleStatus @default(DRAFT)\n  ruleRefs         Json\n  createdAt        DateTime                 @default(now())\n  approvedAt       DateTime?\n  legalRuleMatches LegalRuleMatch[]\n  rules            LegalRule[]\n  approvals        RuleApprovalRecord[]\n\n  @@index([status])\n}",
+      "fields": [
+        "  id               String                   @id @default(uuid())",
+        "  version          String",
+        "  status           LegalRuleLifecycleStatus @default(DRAFT)",
+        "  ruleRefs         Json",
+        "  createdAt        DateTime                 @default(now())",
+        "  approvedAt       DateTime?",
+        "  legalRuleMatches LegalRuleMatch[]",
+        "  rules            LegalRule[]",
+        "  approvals        RuleApprovalRecord[]"
+      ],
+      "physical": "LegalRuleCatalogVersion",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "CorpusDiscardReceipt",
+      "text": "model CorpusDiscardReceipt {\n  id              String             @id @default(uuid())\n  corpusVersionId String\n  actorId         String\n  idempotencyKey  String\n  createdAt       DateTime           @default(now())\n  corpusVersion   LegalCorpusVersion @relation(fields: [corpusVersionId], references: [id], onDelete: Restrict)\n\n  @@unique([actorId, idempotencyKey])\n  @@index([corpusVersionId])\n}",
+      "fields": [
+        "  id              String             @id @default(uuid())",
+        "  corpusVersionId String",
+        "  actorId         String",
+        "  idempotencyKey  String",
+        "  createdAt       DateTime           @default(now())",
+        "  corpusVersion   LegalCorpusVersion @relation(fields: [corpusVersionId], references: [id], onDelete: Restrict)"
+      ],
+      "physical": "CorpusDiscardReceipt",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "LegalRule",
+      "text": "model LegalRule {\n  id                        String                   @id @default(uuid())\n  legalRuleId               String                   @unique\n  legalRuleCatalogVersionId String\n  ruleFamily                String\n  requiredFacts             Json\n  optionalFacts             Json?\n  blockingFacts             Json?\n  unknownFactPolicy         String\n  citationLocatorRefs       Json\n  status                    LegalRuleLifecycleStatus @default(DRAFT)\n  authoredBy                String\n  catalogVersion            LegalRuleCatalogVersion  @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Cascade)\n\n  @@index([legalRuleCatalogVersionId])\n}",
+      "fields": [
+        "  id                        String                   @id @default(uuid())",
+        "  legalRuleId               String                   @unique",
+        "  legalRuleCatalogVersionId String",
+        "  ruleFamily                String",
+        "  requiredFacts             Json",
+        "  optionalFacts             Json?",
+        "  blockingFacts             Json?",
+        "  unknownFactPolicy         String",
+        "  citationLocatorRefs       Json",
+        "  status                    LegalRuleLifecycleStatus @default(DRAFT)",
+        "  authoredBy                String",
+        "  catalogVersion            LegalRuleCatalogVersion  @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "LegalRule",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "RuleApprovalRecord",
+      "text": "model RuleApprovalRecord {\n  id                        String                   @id @default(uuid())\n  legalRuleCatalogVersionId String\n  approvedBy                String\n  status                    LegalRuleLifecycleStatus\n  scopeDescription          String\n  comments                  String?\n  approvalDate              DateTime                 @default(now())\n  catalogVersion            LegalRuleCatalogVersion  @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Cascade)\n\n  @@index([legalRuleCatalogVersionId])\n}",
+      "fields": [
+        "  id                        String                   @id @default(uuid())",
+        "  legalRuleCatalogVersionId String",
+        "  approvedBy                String",
+        "  status                    LegalRuleLifecycleStatus",
+        "  scopeDescription          String",
+        "  comments                  String?",
+        "  approvalDate              DateTime                 @default(now())",
+        "  catalogVersion            LegalRuleCatalogVersion  @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "RuleApprovalRecord",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "LegalRuleMatch",
+      "text": "model LegalRuleMatch {\n  id                        String                        @id @default(uuid())\n  verifiedProfileId         String\n  assessmentId              String\n  corpusVersionId           String\n  legalRuleCatalogVersionId String\n  schemaVersion             String\n  matches                   Json\n  citationAllowlist         Json\n  overallCoverageStatus     OverallCoverageStatus         @default(NO_CITATION)\n  guardrailStatus           LegalRuleMatchGuardrailStatus @default(PASSED)\n  blockedReason             String?\n  status                    EvidenceAcceptanceStatus      @default(ACCEPTED)\n  createdAt                 DateTime                      @default(now())\n  assessment                Assessment                    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n  catalogVersion            LegalRuleCatalogVersion       @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Restrict)\n  classificationResult      ClassificationResult?\n  classificationReviews     ClassificationReviewRequest[]\n  corpusVersion             LegalCorpusVersion            @relation(fields: [corpusVersionId], references: [id], onDelete: Restrict)\n  verifiedProfile           VerifiedProfile               @relation(fields: [verifiedProfileId], references: [id], onDelete: Cascade)\n\n  @@index([assessmentId])\n}",
+      "fields": [
+        "  id                        String                        @id @default(uuid())",
+        "  verifiedProfileId         String",
+        "  assessmentId              String",
+        "  corpusVersionId           String",
+        "  legalRuleCatalogVersionId String",
+        "  schemaVersion             String",
+        "  matches                   Json",
+        "  citationAllowlist         Json",
+        "  overallCoverageStatus     OverallCoverageStatus         @default(NO_CITATION)",
+        "  guardrailStatus           LegalRuleMatchGuardrailStatus @default(PASSED)",
+        "  blockedReason             String?",
+        "  status                    EvidenceAcceptanceStatus      @default(ACCEPTED)",
+        "  createdAt                 DateTime                      @default(now())",
+        "  assessment                Assessment                    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)",
+        "  catalogVersion            LegalRuleCatalogVersion       @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Restrict)",
+        "  classificationResult      ClassificationResult?",
+        "  classificationReviews     ClassificationReviewRequest[]",
+        "  corpusVersion             LegalCorpusVersion            @relation(fields: [corpusVersionId], references: [id], onDelete: Restrict)",
+        "  verifiedProfile           VerifiedProfile               @relation(fields: [verifiedProfileId], references: [id], onDelete: Cascade)"
+      ],
+      "physical": "LegalRuleMatch",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "LegacyMigrationRun",
+      "text": "model LegacyMigrationRun {\n  id                      String                    @id @default(uuid()) @db.Uuid\n  kind                    LegacyMigrationRunKind\n  status                  LegacyMigrationRunStatus  @default(RUNNING)\n  toolVersion             String\n  /// Sanitized options only; never credentials.\n  parameters              Json                      @default(\"{}\")\n  phaseResults            Json                      @default(\"{}\")\n  restorePointRef         String?\n  restorePointDigest      String?\n  restorePointRecordedAt  DateTime?                 @db.Timestamptz(3)\n  restorePointVerifiedAt  DateTime?                 @db.Timestamptz(3)\n  /// Set when the first accepted V2 write closes the rollback boundary; forward repair only after.\n  restoreBoundaryClosedAt DateTime?                 @db.Timestamptz(3)\n  startedAt               DateTime                  @default(now()) @db.Timestamptz(3)\n  completedAt             DateTime?                 @db.Timestamptz(3)\n  archives                LegacyAssessmentArchive[]\n  records                 LegacyArchiveRecord[]\n  reevaluations          LegacyReevaluation[]\n\n  @@index([kind, startedAt])\n}",
+      "fields": [
+        "  id                      String                    @id @default(uuid()) @db.Uuid",
+        "  kind                    LegacyMigrationRunKind",
+        "  status                  LegacyMigrationRunStatus  @default(RUNNING)",
+        "  toolVersion             String",
+        "  parameters              Json                      @default(\"{}\")",
+        "  phaseResults            Json                      @default(\"{}\")",
+        "  restorePointRef         String?",
+        "  restorePointDigest      String?",
+        "  restorePointRecordedAt  DateTime?                 @db.Timestamptz(3)",
+        "  restorePointVerifiedAt  DateTime?                 @db.Timestamptz(3)",
+        "  restoreBoundaryClosedAt DateTime?                 @db.Timestamptz(3)",
+        "  startedAt               DateTime                  @default(now()) @db.Timestamptz(3)",
+        "  completedAt             DateTime?                 @db.Timestamptz(3)",
+        "  archives                LegacyAssessmentArchive[]",
+        "  records                 LegacyArchiveRecord[]",
+        "  reevaluations          LegacyReevaluation[]"
+      ],
+      "physical": "LegacyMigrationRun",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "LegacyAssessmentArchive",
+      "text": "model LegacyAssessmentArchive {\n  assessmentId     String                      @id\n  ownerId          String\n  disposition      LegacyAssessmentDisposition\n  legacyStatus     AssessmentStatus\n  legacyCreatedAt  DateTime                    @db.Timestamptz(3)\n  legacyUpdatedAt  DateTime                    @db.Timestamptz(3)\n  v2ThreadId       String?                     @db.Uuid\n  v2LifecycleState AssessmentLifecycleState?\n  archiveRunId     String                      @db.Uuid\n  recordCount      Int\n  /// sha256 over the ordered (sourceTable, sourceId, payloadSha256) lines of this assessment's records.\n  payloadDigest    String\n  archivedAt       DateTime                    @default(now()) @db.Timestamptz(3)\n  assessment       Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)\n  run              LegacyMigrationRun          @relation(fields: [archiveRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)\n  reevaluation     LegacyReevaluation?\n\n  @@index([ownerId, archivedAt])\n  @@index([archiveRunId])\n}",
+      "fields": [
+        "  assessmentId     String                      @id",
+        "  ownerId          String",
+        "  disposition      LegacyAssessmentDisposition",
+        "  legacyStatus     AssessmentStatus",
+        "  legacyCreatedAt  DateTime                    @db.Timestamptz(3)",
+        "  legacyUpdatedAt  DateTime                    @db.Timestamptz(3)",
+        "  v2ThreadId       String?                     @db.Uuid",
+        "  v2LifecycleState AssessmentLifecycleState?",
+        "  archiveRunId     String                      @db.Uuid",
+        "  recordCount      Int",
+        "  payloadDigest    String",
+        "  archivedAt       DateTime                    @default(now()) @db.Timestamptz(3)",
+        "  assessment       Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)",
+        "  run              LegacyMigrationRun          @relation(fields: [archiveRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)",
+        "  reevaluation     LegacyReevaluation?"
+      ],
+      "physical": "LegacyAssessmentArchive",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "LegacyArchiveRecord",
+      "text": "model LegacyArchiveRecord {\n  id                   String                              @id @default(uuid()) @db.Uuid\n  archiveRunId         String                              @db.Uuid\n  /// NULL for global catalog rows that belong to no assessment.\n  assessmentId         String?\n  sourceTable          LegacyArchiveSource\n  sourceId             String\n  payload              Json\n  payloadSha256        String\n  reconciliationClass  LegacyArtifactReconciliationClass?\n  reconciliationReason LegacyArtifactReconciliationReason?\n  archivedAt           DateTime                            @default(now()) @db.Timestamptz(3)\n  assessment           Assessment?                         @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)\n  run                  LegacyMigrationRun                  @relation(fields: [archiveRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)\n  blob                 LegacyArchiveBlob?\n\n  @@unique([sourceTable, sourceId])\n  @@index([assessmentId, sourceTable])\n  @@index([archiveRunId, sourceTable])\n}",
+      "fields": [
+        "  id                   String                              @id @default(uuid()) @db.Uuid",
+        "  archiveRunId         String                              @db.Uuid",
+        "  assessmentId         String?",
+        "  sourceTable          LegacyArchiveSource",
+        "  sourceId             String",
+        "  payload              Json",
+        "  payloadSha256        String",
+        "  reconciliationClass  LegacyArtifactReconciliationClass?",
+        "  reconciliationReason LegacyArtifactReconciliationReason?",
+        "  archivedAt           DateTime                            @default(now()) @db.Timestamptz(3)",
+        "  assessment           Assessment?                         @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)",
+        "  run                  LegacyMigrationRun                  @relation(fields: [archiveRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)",
+        "  blob                 LegacyArchiveBlob?"
+      ],
+      "physical": "LegacyArchiveRecord",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "LegacyArchiveBlob",
+      "text": "model LegacyArchiveBlob {\n  recordId      String              @id @db.Uuid\n  contentSha256 String\n  sizeBytes     Int\n  /// Content-addressed reference into the protected blob root: `legacy-archive/<sha256>.blob`.\n  storageRef    String\n  mediaType     String?\n  createdAt     DateTime            @default(now()) @db.Timestamptz(3)\n  record        LegacyArchiveRecord @relation(fields: [recordId], references: [id], onDelete: Cascade, onUpdate: Restrict)\n}",
+      "fields": [
+        "  recordId      String              @id @db.Uuid",
+        "  contentSha256 String",
+        "  sizeBytes     Int",
+        "  storageRef    String",
+        "  mediaType     String?",
+        "  createdAt     DateTime            @default(now()) @db.Timestamptz(3)",
+        "  record        LegacyArchiveRecord @relation(fields: [recordId], references: [id], onDelete: Cascade, onUpdate: Restrict)"
+      ],
+      "physical": "LegacyArchiveBlob",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "LegacyReevaluation",
+      "text": "model LegacyReevaluation {\n  assessmentId  String                  @id\n  ownerId       String\n  runId         String                  @db.Uuid\n  mode          LegacyReevaluationMode\n  /// Operator/ticket that authorized the start; required.\n  startedBy     String\n  /// Outbox id of the single Root command this start enqueued (deterministic per assessment).\n  rootCommandId String\n  startedAt     DateTime                @default(now()) @db.Timestamptz(3)\n  archive       LegacyAssessmentArchive @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)\n  run           LegacyMigrationRun      @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Restrict)\n\n  @@index([runId, startedAt])\n  @@index([ownerId, startedAt])\n}",
+      "fields": [
+        "  assessmentId  String                  @id",
+        "  ownerId       String",
+        "  runId         String                  @db.Uuid",
+        "  mode          LegacyReevaluationMode",
+        "  startedBy     String",
+        "  rootCommandId String",
+        "  startedAt     DateTime                @default(now()) @db.Timestamptz(3)",
+        "  archive       LegacyAssessmentArchive @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)",
+        "  run           LegacyMigrationRun      @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Restrict)"
+      ],
+      "physical": "LegacyReevaluation",
+      "readersWriters": "Retired source removed or pending final schema/enum cleanup; no canonical V2 semantic owner"
+    },
+    {
+      "name": "WorkflowBillingPause",
+      "physical": "WorkflowBillingPause",
+      "text": "model WorkflowBillingPause {\n  id           String   @id @default(uuid())\n  assessmentId String\n  dispatchKey  String   @unique\n  sourceEvent  WorkflowBillingPauseSource\n  payload      Json\n  pausedAt     DateTime @default(now())\n  resumedAt    DateTime?\n  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)\n\n  @@index([assessmentId, resumedAt, pausedAt])\n}",
+      "readersWriters": "zero current production consumers; V1 Scanner/Engineering/Interview-only pause enum"
+    }
+  ],
+  "incoming": [
+    {
+      "from": "User",
+      "field": "approvedVerifiedProfiles",
+      "to": "VerifiedProfile",
+      "ownsFk": false,
+      "definition": "approvedVerifiedProfiles  VerifiedProfile[]             @relation(\"VerifiedProfileApprover\")"
+    },
+    {
+      "from": "User",
+      "field": "classificationReviews",
+      "to": "ClassificationReviewRequest",
+      "ownsFk": false,
+      "definition": "classificationReviews     ClassificationReviewRequest[] @relation(\"ClassificationReviewRequester\")"
+    },
+    {
+      "from": "User",
+      "field": "documentRequests",
+      "to": "DocumentRequest",
+      "ownsFk": false,
+      "definition": "documentRequests          DocumentRequest[]             @relation(\"DocumentRequestRequester\")"
+    },
+    {
+      "from": "User",
+      "field": "readinessExports",
+      "to": "ReadinessExport",
+      "ownsFk": false,
+      "definition": "readinessExports          ReadinessExport[]             @relation(\"ReadinessExportOwner\")"
+    },
+    {
+      "from": "User",
+      "field": "resolvedConflicts",
+      "to": "ConflictRecord",
+      "ownsFk": false,
+      "definition": "resolvedConflicts         ConflictRecord[]              @relation(\"ConflictRecordResolver\")"
+    },
+    {
+      "from": "Assessment",
+      "field": "aiUsageFlows",
+      "to": "AIUsageFlow",
+      "ownsFk": false,
+      "definition": "aiUsageFlows               AIUsageFlow[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "classificationResults",
+      "to": "ClassificationResult",
+      "ownsFk": false,
+      "definition": "classificationResults      ClassificationResult[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "classificationReviews",
+      "to": "ClassificationReviewRequest",
+      "ownsFk": false,
+      "definition": "classificationReviews      ClassificationReviewRequest[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "conflictRecords",
+      "to": "ConflictRecord",
+      "ownsFk": false,
+      "definition": "conflictRecords            ConflictRecord[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "documentRequests",
+      "to": "DocumentRequest",
+      "ownsFk": false,
+      "definition": "documentRequests           DocumentRequest[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "legalRuleMatches",
+      "to": "LegalRuleMatch",
+      "ownsFk": false,
+      "definition": "legalRuleMatches           LegalRuleMatch[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "readinessExports",
+      "to": "ReadinessExport",
+      "ownsFk": false,
+      "definition": "readinessExports           ReadinessExport[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "pipelineReconciliation",
+      "to": "PipelineReconciliation",
+      "ownsFk": false,
+      "definition": "pipelineReconciliation     PipelineReconciliation?"
+    },
+    {
+      "from": "Assessment",
+      "field": "interviewThreads",
+      "to": "AssessmentInterviewThread",
+      "ownsFk": false,
+      "definition": "interviewThreads           AssessmentInterviewThread[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "ruleAssessments",
+      "to": "EngineeringRuleAssessment",
+      "ownsFk": false,
+      "definition": "ruleAssessments            EngineeringRuleAssessment[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "targetedReanalysisRequests",
+      "to": "TargetedReanalysisRequest",
+      "ownsFk": false,
+      "definition": "targetedReanalysisRequests TargetedReanalysisRequest[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "technicalEvidenceReports",
+      "to": "TechnicalEvidenceReport",
+      "ownsFk": false,
+      "definition": "technicalEvidenceReports   TechnicalEvidenceReport[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "technicalProfiles",
+      "to": "TechnicalProfile",
+      "ownsFk": false,
+      "definition": "technicalProfiles          TechnicalProfile[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "verifiedAgentEpisodes",
+      "to": "VerifiedAgentEpisode",
+      "ownsFk": false,
+      "definition": "verifiedAgentEpisodes      VerifiedAgentEpisode[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "verifiedProfiles",
+      "to": "VerifiedProfile",
+      "ownsFk": false,
+      "definition": "verifiedProfiles           VerifiedProfile[]"
+    },
+    {
+      "from": "Assessment",
+      "field": "legacyArchive",
+      "to": "LegacyAssessmentArchive",
+      "ownsFk": false,
+      "definition": "legacyArchive          LegacyAssessmentArchive?"
+    },
+    {
+      "from": "Assessment",
+      "field": "legacyArchiveRecords",
+      "to": "LegacyArchiveRecord",
+      "ownsFk": false,
+      "definition": "legacyArchiveRecords   LegacyArchiveRecord[]"
+    },
+    {
+      "from": "RepositorySnapshot",
+      "field": "targetedReanalysisRequests",
+      "to": "TargetedReanalysisRequest",
+      "ownsFk": false,
+      "definition": "targetedReanalysisRequests TargetedReanalysisRequest[]"
+    },
+    {
+      "from": "RepositorySnapshot",
+      "field": "technicalEvidenceReports",
+      "to": "TechnicalEvidenceReport",
+      "ownsFk": false,
+      "definition": "technicalEvidenceReports   TechnicalEvidenceReport[]"
+    },
+    {
+      "from": "RepositoryScanJob",
+      "field": "targetedReanalysisRequest",
+      "to": "TargetedReanalysisRequest",
+      "ownsFk": false,
+      "definition": "targetedReanalysisRequest TargetedReanalysisRequest?"
+    },
+    {
+      "from": "RepositoryScanJob",
+      "field": "technicalEvidenceReport",
+      "to": "TechnicalEvidenceReport",
+      "ownsFk": false,
+      "definition": "technicalEvidenceReport   TechnicalEvidenceReport?"
+    },
+    {
+      "from": "LegalCorpusVersion",
+      "field": "legalRuleMatches",
+      "to": "LegalRuleMatch",
+      "ownsFk": false,
+      "definition": "legalRuleMatches     LegalRuleMatch[]"
+    },
+    {
+      "from": "LegalCorpusVersion",
+      "field": "discardReceipts",
+      "to": "CorpusDiscardReceipt",
+      "ownsFk": false,
+      "definition": "discardReceipts      CorpusDiscardReceipt[]"
+    }
+  ],
+  "outsideForeignKeys": [],
+  "protectedMixed": [
+    "AssessmentRuntimeTurn: ASSESSMENT_ROOT is live V2",
+    "AssessmentRuntimeEvent: live sanitized stream journal, lineage audit required",
+    "RepositoryScanJob: runtime-hydration keys/pinned Case ticket are V2",
+    "CorpusApprovalRecord: automatic mechanical acquisition activation still writes this table"
+  ],
+  "canonicalLegalRule": "LegalPortfolioRule persists V2 LegalRule; old LegalRule table is the V1 requiredFacts catalog, not the pinned V2 portfolio.",
+  "orderedMigration": "apps/api/prisma/migrations/20261008160000_w7_drop_v1_authority/migration.sql",
+  "retention": "0; legal hold NONE; explicit user authorization",
+  "additionalV1OnlyTables": [
+    "CorpusPreparation: sole producer is retired legal-recovery command, no canonical FK"
+  ]
+}

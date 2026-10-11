@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-ALLOWED_PREFIXES = ("LLM7_", "GOOGLE_API_KEY", "GEMINI_API_KEY", "INCEPTION_", "APX_", "LLM_PROVIDER_TIMEOUT", "LLM_MAX_PROVIDER")
+ALLOWED_PREFIXES = ("GOOGLE_API_KEY", "GEMINI_API_KEY", "INCEPTION_", "APX_", "LLM_PROVIDER_TIMEOUT", "LLM_MAX_PROVIDER")
 
 
 def _load_llm_env() -> None:
@@ -50,8 +50,8 @@ def _route_legal_preparation_to(route_id: str, model: str | None = None) -> None
 def main() -> int:
     base, key, run_id, usage_out = sys.argv[1:5]
     _load_llm_env()
-    if os.environ.get("LCSP_W2_LIVE_ROUTE"):
-        _route_legal_preparation_to(os.environ["LCSP_W2_LIVE_ROUTE"], os.environ.get("LCSP_W2_LIVE_MODEL"))
+    if os.environ.get("LCSP_LEGAL_PREPARATION_EVAL_ROUTE"):
+        _route_legal_preparation_to(os.environ["LCSP_LEGAL_PREPARATION_EVAL_ROUTE"], os.environ.get("LCSP_LEGAL_PREPARATION_EVAL_MODEL"))
 
     from langchain_core.callbacks import BaseCallbackHandler
     from legal_preparation.runner import run_legal_preparation

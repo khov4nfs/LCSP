@@ -1,6 +1,6 @@
 {
   "fixtureId": "legal-preparation-reviewed-candidate",
-  "fixtureVersion": "W2-EVAL-CANDIDATE-1",
+  "fixtureVersion": "LEGAL-PREPARATION-EVAL-CANDIDATE-1",
   "syntheticOnly": true,
   "sourceCorpus": {
     "pinsPath": "../legal_portfolio_context/pins.json",

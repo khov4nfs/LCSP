@@ -35,7 +35,6 @@ jobs:
               - '.github/workflows/test.yml'
               - 'apps/api/**'
               - 'packages/contracts/**'
-              - 'frozen/interview-agent-frozen/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
@@ -45,7 +44,6 @@ jobs:
               - 'apps/web/**'
               - 'packages/contracts/**'
               - 'packages/i18n/**'
-              - 'frozen/interview-agent-frozen/**'
               - 'tests/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
@@ -55,13 +53,13 @@ jobs:
               - '.github/workflows/test.yml'
               - 'deepagents/**'
               - 'deepagents-langgraph/**'
-              - 'frozen/interview-agent-frozen/**'
               - 'scripts/dev-entry.mjs'
               - 'scripts/dev-stop.test.mjs'
               - 'scripts/prepare-cli.mjs'
               - 'scripts/run*.mjs'
               - 'package.json'
             release_gate:
+              - '.dockerignore'
               - '.github/workflows/test.yml'
               - 'apps/api/**'
               - 'apps/web/**'
@@ -69,7 +67,6 @@ jobs:
               - 'deepagents-langgraph/**'
               - 'packages/contracts/**'
               - 'packages/i18n/**'
-              - 'frozen/interview-agent-frozen/**'
               - 'scripts/**'
               - 'tests/**'
               - 'package.json'
@@ -101,6 +98,9 @@ jobs:
 
       - name: Check import policy
         run: pnpm run check:imports
+
+      - name: Prove physical legacy authority absence
+        run: pnpm run check:legal-v1-retired
 
       - name: Check contract literals
         run: pnpm run check:contracts
@@ -154,7 +154,7 @@ jobs:
   web-production-build:
     name: Web lint and production build
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -178,7 +178,7 @@ jobs:
   api-unit:
     name: API unit tests
     needs: changes
-    if: needs.changes.outputs.api == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     env:
       LCSP_TEST_POSTGRES_PORT: 55435
@@ -214,7 +214,7 @@ jobs:
   api-e2e:
     name: API e2e tests
     needs: changes
-    if: needs.changes.outputs.api == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -249,7 +249,7 @@ jobs:
   web:
     name: Web tests
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -270,7 +270,7 @@ jobs:
   python:
     name: Python worker tests
     needs: changes
-    if: needs.changes.outputs.python == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -303,7 +303,6 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
 
-
       - name: Validate LangGraph Agent Runtime config
         env:
           OPENAI_API_KEY: ci-import-only
@@ -329,13 +328,8 @@ jobs:
   docker-sandbox-e2e:
     name: Docker sandbox E2E
     needs: changes
-    if: needs.changes.outputs.python == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
-    env:
-      LCSP_DOCKER_SANDBOX_E2E: "1"
-      LCSP_PRODUCTION_AGENT_SERVER_IMAGE_E2E: "1"
-      LCSP_REPOSITORY_SANDBOX_IMAGE: lcsp-agent-runtime:dev
-      LCSP_PRODUCTION_AGENT_SERVER_IMAGE: lcsp-agent-runtime-server:ci
     steps:
       - uses: actions/checkout@v4
 
@@ -349,25 +343,25 @@ jobs:
         working-directory: deepagents
         run: python -m pip install -e ".[dev]"
 
-      - name: Build LCSP Agent Runtime Docker image
-        run: docker build -f deepagents/Dockerfile.dev -t lcsp-agent-runtime:dev .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
 
-      - name: Build LCSP Agent Server production image
-        run: docker build -f deepagents-langgraph/Dockerfile -t lcsp-agent-runtime-server:ci .
+      - name: Candidate builds, merged-rootfs absence and Docker integrations
+        run: python tests/release-images.py
 
-      - name: Run Docker sandbox E2E
-        working-directory: deepagents
-        run: >-
-          pytest -q
-          tests/integration/test_codebase_memory_runtime_e2e.py
-          tests/integration/test_docker_sandbox_e2e.py
-          tests/integration/test_local_agent_runtime_e2e.py
-          tests/integration/test_production_agent_server_image_e2e.py
+      - name: Upload candidate image evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-images
+          path: reports/release-images/
+          retention-days: 14
 
   assessment-domain-vertical:
     name: Assessment Root vertical
     needs: changes
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.python == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -384,7 +378,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      LCSP_W2_PG_PORT: 55437
+      LCSP_TEST_PG_PORT: 55437
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/postgres?schema=public
       NODE_ENV: test
     steps:
@@ -418,11 +412,40 @@ jobs:
           pnpm --filter @lcsp/contracts build
           pnpm --filter @lcsp/api build
 
+      - name: Canonical lifecycle and legal portfolio persistence
+        run: |
+          node tests/legal-portfolio-persistence.mjs
+          node tests/assessment-lifecycle-migrated-db.mjs
+
+      - name: Disposable migration and V1 physical purge
+        run: PYTHONPATH=deepagents deepagents/.venv/bin/python tests/retired-authority-migration-check.py
+
+      - name: Upload migration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-migration-proof
+          path: reports/retired-authority-migration/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Legal Portfolio vertical
         run: node tests/legal-portfolio-vertical.mjs
 
-      - name: Assessment Root vertical
-        run: node tests/assessment-domain-vertical.mjs
+      - name: Assessment Root and same-thread Human Resolution verticals
+        run: |
+          node tests/assessment-domain-vertical.mjs
+          node tests/assessment-hitl-vertical.mjs
+          node tests/assessment-hitl-vertical.mjs --unresolvable-only
+
+      - name: Upload assessment deletion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assessment-deletion-proof
+          path: reports/assessment-deletion/
+          if-no-files-found: ignore
+          retention-days: 7
 
   admin-playwright-e2e:
     name: Billing and Admin Playwright E2E release gate
@@ -459,3 +482,34 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  v2-release-gate:
+    name: V2 required release gate
+    if: always()
+    needs:
+      - changes
+      - release-gate-static
+      - web-production-build
+      - api-unit
+      - api-e2e
+      - web
+      - python
+      - docker-sandbox-e2e
+      - assessment-domain-vertical
+      - admin-playwright-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every applicable V2 production suite
+        env:
+          CHANGE_RESULT: ${{ needs.changes.result }}
+          RELEASE_CHANGED: ${{ needs.changes.outputs.release_gate }}
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          assert os.environ["CHANGE_RESULT"] == "success", "change detection must succeed"
+          jobs = json.loads(os.environ["JOB_RESULTS"])
+          if os.environ["RELEASE_CHANGED"] == "true":
+              failed = {name: job["result"] for name, job in jobs.items() if job["result"] != "success"}
+              assert not failed, failed
+          PYTHON

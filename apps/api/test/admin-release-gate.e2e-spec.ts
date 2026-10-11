@@ -135,7 +135,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
 
       // 3. Admin legal preparation trigger (the only remaining admin legal write)
       const resVersionMutation = await httpRequest(app)
-        .post("/admin/corpus-versions/prepare")
+        .post("/admin/legal-portfolios/preparations")
         .send({ idempotencyKey: "prep-unauth-1" })
         .set("Accept", "application/json");
 
@@ -168,7 +168,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
 
       // 3. Admin legal preparation trigger
       const resVersionMutation = await httpRequest(app)
-        .post("/admin/corpus-versions/prepare")
+        .post("/admin/legal-portfolios/preparations")
         .set("Authorization", `Bearer ${customerSessionToken}`)
         .send({ idempotencyKey: "prep-customer-1" })
         .set("Accept", "application/json");
@@ -328,24 +328,24 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
   });
 
   describe("Section 5: Dependency Boundary Matrix & Upstream Tracking", () => {
-    it("explicitly records upstream feature boundaries pending LCSP-294..300", () => {
+    it("explicitly records upstream feature boundaries pending ADMIN_SHELL..300", () => {
       const DEPENDENCY_STATUSES = {
-        "LCSP-294": "PENDING_UPSTREAM_MERGE (Admin Shell & Overview UI)",
-        "LCSP-295": "PENDING_UPSTREAM_MERGE (User Accounts Management UI)",
-        "LCSP-296": "PENDING_UPSTREAM_MERGE (Corpus Versions UI)",
-        "LCSP-298": "PENDING_UPSTREAM_MERGE (Admin Overview API & Read Model)",
-        "LCSP-299":
+        "ADMIN_SHELL": "PENDING_UPSTREAM_MERGE (Admin Shell & Overview UI)",
+        "USER_ACCOUNTS": "PENDING_UPSTREAM_MERGE (User Accounts Management UI)",
+        "LEGAL_CORPUS": "PENDING_UPSTREAM_MERGE (Corpus Versions UI)",
+        "ADMIN_OVERVIEW": "PENDING_UPSTREAM_MERGE (Admin Overview API & Read Model)",
+        "ACCOUNT_LIFECYCLE":
           "PENDING_UPSTREAM_MERGE (Admin User Lifecycle API & Mutations)",
-        "LCSP-300":
+        "ADMIN_AUTHORIZATION":
           "PENDING_UPSTREAM_MERGE (Corpus Administration API & Readiness Engine)",
       };
 
-      assert.ok(DEPENDENCY_STATUSES["LCSP-294"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-295"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-296"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-298"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-299"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-300"]);
+      assert.ok(DEPENDENCY_STATUSES["ADMIN_SHELL"]);
+      assert.ok(DEPENDENCY_STATUSES["USER_ACCOUNTS"]);
+      assert.ok(DEPENDENCY_STATUSES["LEGAL_CORPUS"]);
+      assert.ok(DEPENDENCY_STATUSES["ADMIN_OVERVIEW"]);
+      assert.ok(DEPENDENCY_STATUSES["ACCOUNT_LIFECYCLE"]);
+      assert.ok(DEPENDENCY_STATUSES["ADMIN_AUTHORIZATION"]);
     });
   });
 });

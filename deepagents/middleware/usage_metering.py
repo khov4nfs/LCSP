@@ -478,7 +478,7 @@ class _ModelCallTelemetry:
         )
         self._thread.start()
 
-    def complete(self, response: Any = None) -> None:
+    def complete(self, response: Any = None, *, invocation_id: str | None = None) -> None:
         extra: dict[str, Any] = {
             "duration_ms": max(0, int((time.monotonic() - self._started_at) * 1000)),
             **self.routing_summary(),
@@ -486,6 +486,8 @@ class _ModelCallTelemetry:
         usage = provider_usage_telemetry(response)
         if usage:
             extra["usage"] = usage
+        if invocation_id:
+            extra["invocation_id"] = invocation_id
         for message in getattr(response, "result", None) or ():
             message_id = getattr(message, "id", None)
             if isinstance(message_id, str) and message_id:
@@ -722,18 +724,19 @@ class UsageMeteringMiddleware(AgentMiddleware):
             request = request.override(model=bounded_model(model))
         return request, model
 
-    def _record(self, response, model) -> None:
+    def _record(self, response, model, invocation_id: str) -> None:
         state = active_agent_run_state()
         if state is not None:
-            state.record(response, model, str(uuid4()), agent_role=active_agent_role())
+            state.record(response, model, invocation_id, agent_role=active_agent_role())
 
     def wrap_model_call(self, request, handler):
         request, model = self._prepare(request)
+        invocation_id = str(uuid4())
         telemetry = _ModelCallTelemetry(model)
         telemetry.start()
         try:
-            response = cancellable_sync(lambda: handler(request), late_result=lambda result: self._record(result, model))
-            self._record(response, model)
+            response = cancellable_sync(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
+            self._record(response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
             telemetry.fail(error)
@@ -741,18 +744,19 @@ class UsageMeteringMiddleware(AgentMiddleware):
             if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
                 telemetry.cancel()
             raise
-        telemetry.complete(response)
+        telemetry.complete(response, invocation_id=invocation_id)
         return response
 
     async def awrap_model_call(self, request, handler):
         request, model = self._prepare(request)
+        invocation_id = str(uuid4())
         telemetry = _ModelCallTelemetry(model)
         telemetry.start()
         try:
-            response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model))
+            response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
             # Usage-only delivery must not block the graph's async cancellation
             # loop. This thread can finish telemetry after the turn is stopped.
-            await asyncio.to_thread(self._record, response, model)
+            await asyncio.to_thread(self._record, response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
             telemetry.fail(error)
@@ -760,7 +764,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
                 telemetry.cancel()
             raise
-        telemetry.complete(response)
+        telemetry.complete(response, invocation_id=invocation_id)
         return response
 
     def wrap_tool_call(self, request, handler):

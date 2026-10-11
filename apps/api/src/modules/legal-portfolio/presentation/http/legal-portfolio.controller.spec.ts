@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import type { Server } from "node:http";
 
-import { LEGAL_PORTFOLIO_ERROR_CODES } from "@lcsp/contracts/legal-portfolio";
+import {
+  LEGAL_PORTFOLIO_COVERAGE_STATES,
+  LEGAL_PORTFOLIO_ERROR_CODES,
+} from "@lcsp/contracts/legal-portfolio";
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import type { INestApplication } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -9,6 +12,7 @@ import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { Test } from "@nestjs/testing";
 import supertest from "supertest";
 
+import { validPacket } from "../../../../../test/support/legal-portfolio-fixtures.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { isProblemResult } from "../../../../platform/http/filters/error.factory.js";
 import { SubmitLegalPortfolioCommand } from "../../application/commands/submit-legal-portfolio/submit-legal-portfolio.command.js";
@@ -139,6 +143,8 @@ describe("LegalPortfolioController HTTP validation", () => {
         expect(result.problem.meta?.issues).toBe(
           "preparationRunId,idempotencyKey,packet",
         );
+      } else if (route === "validations") {
+        expect(result.problem.meta?.issues).toBe("preparationRunId,packet");
       } else {
         expect(result.problem.meta?.issues).toBeUndefined();
       }
@@ -147,11 +153,112 @@ describe("LegalPortfolioController HTTP validation", () => {
     },
   );
 
-  it("authenticates before parsing a malformed submit", async () => {
-    await supertest(app.getHttpServer())
-      .post("/internal/legal-portfolio/submissions")
-      .send({})
-      .expect(401);
-    expect(commandBus.execute).not.toHaveBeenCalled();
-  });
+  it.each(["validations", "submissions"])(
+    "rejects a structurally invalid coverage in %s as 400 with the exact field and requirement, never dispatching to persistence",
+    async (route) => {
+      const packet = validPacket();
+      packet.legalRules[0].coverage = {
+        state: LEGAL_PORTFOLIO_COVERAGE_STATES.COVERED_BY_ENGINEERING_RULES,
+        nonAssessableReason: "stray reason",
+      };
+      const common = {
+        preparationRunId: "0b6a2f6e-3f0a-4b8e-9a64-5b1b7c2d9e11",
+        packet,
+      };
+      const response = await supertest(app.getHttpServer())
+        .post(`/internal/legal-portfolio/${route}`)
+        .set("x-worker-api-key", workerKey)
+        .send(
+          route === "submissions"
+            ? { ...common, idempotencyKey: "idempotency-key-1" }
+            : common,
+        );
+      expect(response.status).toBe(400);
+      const result: unknown = response.body;
+      assert.ok(isProblemResult(result));
+      expect(result.problem).toMatchObject({
+        status: 400,
+        code: LEGAL_PORTFOLIO_ERROR_CODES.submitRequestInvalid,
+      });
+      expect(result.problem.meta?.issues).toBe(
+        "packet.legalRules.0.coverage.nonAssessableReason",
+      );
+      expect(result.problem.meta?.requirements).toBe(
+        "COVERED_BY_ENGINEERING_RULES requires nonAssessableReason to be null",
+      );
+      expect(commandBus.execute).not.toHaveBeenCalled();
+      expect(queryBus.execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["validations", "submissions"])(
+    "authenticates before parsing malformed %s",
+    async (route) => {
+      await supertest(app.getHttpServer())
+        .post(`/internal/legal-portfolio/${route}`)
+        .send({})
+        .expect(401);
+      expect(commandBus.execute).not.toHaveBeenCalled();
+      expect(queryBus.execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["validations", LEGAL_PORTFOLIO_COVERAGE_STATES.NON_ASSESSABLE],
+    ["submissions", LEGAL_PORTFOLIO_COVERAGE_STATES.NON_ASSESSABLE],
+    [
+      "validations",
+      LEGAL_PORTFOLIO_COVERAGE_STATES.COVERED_BY_ENGINEERING_RULES,
+    ],
+    [
+      "submissions",
+      LEGAL_PORTFOLIO_COVERAGE_STATES.COVERED_BY_ENGINEERING_RULES,
+    ],
+  ] as const)(
+    "rejects contradictory %s coverage declared %s as structured 400 before dispatch",
+    async (route, state) => {
+      const packet = validPacket();
+      const nonAssessable =
+        state === LEGAL_PORTFOLIO_COVERAGE_STATES.NON_ASSESSABLE;
+      if (nonAssessable) {
+        packet.engineeringRules[1].legalRuleIds.push(
+          packet.legalRules[4].legalRuleId,
+        );
+      } else {
+        packet.engineeringRules[1].legalRuleIds.pop();
+      }
+      const common = {
+        preparationRunId: "0b6a2f6e-3f0a-4b8e-9a64-5b1b7c2d9e11",
+        packet,
+      };
+      const response = await supertest(app.getHttpServer())
+        .post(`/internal/legal-portfolio/${route}`)
+        .set("x-worker-api-key", workerKey)
+        .send(
+          route === "submissions"
+            ? { ...common, idempotencyKey: "coverage-graph-check" }
+            : common,
+        );
+      expect(response.status).toBe(400);
+      const result: unknown = response.body;
+      assert.ok(isProblemResult(result));
+      expect(result.problem).toMatchObject({
+        status: 400,
+        code: LEGAL_PORTFOLIO_ERROR_CODES.submitRequestInvalid,
+      });
+      expect(result.problem.meta?.issues).toBe(
+        nonAssessable
+          ? "packet.engineeringRules.1.legalRuleIds.2"
+          : "packet.legalRules.2.coverage.state",
+      );
+      expect(result.problem.meta?.requirements).toEqual(
+        expect.stringContaining(state),
+      );
+      expect(
+        String(result.problem.meta?.requirements).length,
+      ).toBeLessThanOrEqual(800);
+      expect(commandBus.execute).not.toHaveBeenCalled();
+      expect(queryBus.execute).not.toHaveBeenCalled();
+    },
+  );
 });

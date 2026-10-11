@@ -119,10 +119,34 @@ export class AssessmentDetailLoader {
           input.correlationId,
         );
         const domainCase = row.domainCase;
+        // Event history is bounded; assessment totals come from every persisted invocation.
+        const usage = await tx.llmUsageEvent.aggregate({
+          where: { assessmentId: row.id, userId: input.sessionUserId },
+          _sum: { inputTokens: true, outputTokens: true, totalTokens: true },
+          _count: {
+            id: true,
+            inputTokens: true,
+            outputTokens: true,
+            totalTokens: true,
+          },
+        });
         return assessmentDetailSchema.parse({
           assessment_id: row.id,
           name: row.name,
           owner_id: row.ownerId,
+          usage: {
+            invocationCount: usage._count.id,
+            ...Object.fromEntries(
+              Object.entries(usage._sum)
+                .filter(([, value]) => value !== null)
+                .map(([key, value]) => [key, Number(value)]),
+            ),
+            partial: [
+              usage._count.inputTokens,
+              usage._count.outputTokens,
+              usage._count.totalTokens,
+            ].some((count) => count < usage._count.id),
+          },
           lifecycle: projection.lifecycle,
           runtime: projection.runtime,
           case: domainCase

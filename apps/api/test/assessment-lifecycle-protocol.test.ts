@@ -4,27 +4,18 @@ import { test } from "node:test";
 
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
-  AGENT_EXECUTION_STATES,
   ASSESSMENT_EVENT_ACTOR_TYPES,
   ASSESSMENT_LIFECYCLE_STATES,
   type AssessmentLifecycleState,
 } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
-import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import {
-  ASSESSMENT_RUNTIME_CONTROL_ACTIONS,
-  ASSESSMENT_RUNTIME_CONTROL_STATES,
-} from "@lcsp/contracts/evidence";
 
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { AssessmentLifecycleCoordinator } from "../src/modules/assessment/application/services/assessment-lifecycle-coordinator.service.js";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
-import { AssessmentRuntimeControlService } from "../src/platform/runtime-events/assessment-runtime-control.service.js";
-import { AssessmentRuntimeEventService } from "../src/platform/runtime-events/assessment-runtime-event.service.js";
 
-const EXPECTED_DATABASE_URL =
-  "postgresql://postgres:postgres@127.0.0.1:55437/lcsp_api_w13_r2_repair?schema=public";
+const EXPECTED_DATABASE_URL = `postgresql://postgres:postgres@127.0.0.1:${Number(process.env.LCSP_TEST_PG_PORT ?? 55437)}/lcsp_api_w13_r2_repair?schema=public`;
 
 function assertDisposableDatabase(): void {
   assert.equal(
@@ -86,13 +77,6 @@ void test("assessment lifecycle coordinator protocol uses real PostgreSQL transa
   const userIds = [ownerId, otherOwnerId];
   const outbox = new OutboxRepository(prisma);
   const coordinator = new AssessmentLifecycleCoordinator(prisma, outbox);
-  const runtimeEvents = new AssessmentRuntimeEventService(prisma);
-  const controls = new AssessmentRuntimeControlService(
-    prisma,
-    outbox,
-    runtimeEvents,
-    coordinator,
-  );
 
   const createAssessment = async (owner = ownerId): Promise<string> => {
     const assessmentId = randomUUID();
@@ -101,7 +85,7 @@ void test("assessment lifecycle coordinator protocol uses real PostgreSQL transa
       data: {
         id: assessmentId,
         ownerId: owner,
-        name: `W1.3 protocol ${assessmentId}`,
+        name: `CANONICAL.3 protocol ${assessmentId}`,
       },
     });
     await coordinator.initialize({
@@ -394,193 +378,6 @@ void test("assessment lifecycle coordinator protocol uses real PostgreSQL transa
         where: { assessmentId: unavailableGuardAssessment },
       }),
       1,
-    );
-
-    const controlAssessment = await createAssessment();
-    const controlActor = {
-      userId: ownerId,
-      sessionId: "protocol-control-session",
-      role: AUTH_USER_ROLES.customer,
-      scope: null,
-    };
-    const initializedRuntime = await prisma.assessmentRuntime.findUniqueOrThrow(
-      {
-        where: { assessmentId: controlAssessment },
-        select: { threadId: true },
-      },
-    );
-    const controlRunId = randomUUID();
-    const controlBoundary = "ROOT";
-    const controlLogicalRunId = randomUUID();
-    await prisma.assessment.update({
-      where: { id: controlAssessment },
-      data: {
-        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.ACTIVE,
-        lifecycleRevision: 0,
-      },
-    });
-    await prisma.assessmentRuntimeTurn.create({
-      data: {
-        id: controlRunId,
-        assessmentId: controlAssessment,
-        threadId: initializedRuntime.threadId,
-        boundary: controlBoundary,
-        logicalRunId: controlLogicalRunId,
-        correlationId: "protocol:control",
-        state: ASSESSMENT_RUNTIME_CONTROL_STATES.running,
-        contextJson: { assessmentId: controlAssessment },
-      },
-    });
-    await prisma.assessmentRuntime.update({
-      where: { assessmentId: controlAssessment },
-      data: {
-        currentExecutionId: controlRunId,
-        executionState: AGENT_EXECUTION_STATES.RUNNING,
-      },
-    });
-    const acknowledgeControl = (
-      state: (typeof ASSESSMENT_RUNTIME_CONTROL_STATES)[keyof typeof ASSESSMENT_RUNTIME_CONTROL_STATES],
-      targetRunId = controlRunId,
-    ) =>
-      controls.acknowledge({
-        assessmentId: controlAssessment,
-        targetRunId,
-        state,
-        threadId: initializedRuntime.threadId,
-        boundary: controlBoundary,
-        logicalRunId: controlLogicalRunId,
-        correlationId: "protocol:control",
-        checkpoint: { checkpointId: "checkpoint-proof" },
-      });
-
-    await assertProblem(
-      acknowledgeControl(ASSESSMENT_RUNTIME_CONTROL_STATES.stopped),
-      409,
-    );
-    assert.equal(
-      (
-        await prisma.assessmentRuntimeTurn.findUniqueOrThrow({
-          where: { id: controlRunId },
-          select: { state: true },
-        })
-      ).state,
-      ASSESSMENT_RUNTIME_CONTROL_STATES.running,
-    );
-    await controls.request({
-      assessmentId: controlAssessment,
-      actor: controlActor,
-      correlationId: "protocol:control",
-      action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
-      targetRunId: controlRunId,
-    });
-    await prisma.assessmentRuntime.update({
-      where: { assessmentId: controlAssessment },
-      data: { executionState: AGENT_EXECUTION_STATES.INTERRUPTED },
-    });
-    await assertProblem(
-      acknowledgeControl(ASSESSMENT_RUNTIME_CONTROL_STATES.stopped),
-      409,
-    );
-    assert.equal(
-      (
-        await prisma.assessmentRuntimeTurn.findUniqueOrThrow({
-          where: { id: controlRunId },
-          select: { state: true },
-        })
-      ).state,
-      ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested,
-    );
-    await prisma.assessmentRuntime.update({
-      where: { assessmentId: controlAssessment },
-      data: { executionState: AGENT_EXECUTION_STATES.PAUSED },
-    });
-    await acknowledgeControl(ASSESSMENT_RUNTIME_CONTROL_STATES.stopped);
-    assert.equal(
-      (
-        await prisma.assessmentRuntimeTurn.findUniqueOrThrow({
-          where: { id: controlRunId },
-          select: { state: true },
-        })
-      ).state,
-      ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
-    );
-    const lifecycleOutbox = await prisma.outboxMessage.findFirstOrThrow({
-      where: {
-        aggregateId: controlAssessment,
-        eventType: ASSESSMENT_EVENT_TYPES.lifecycleChangedOutbox,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    assert.deepEqual(
-      (lifecycleOutbox.payload as Record<string, unknown>).actor,
-      {
-        id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
-        type: AUDIT_ACTOR_TYPES.service,
-      },
-    );
-    const controlOutboxCount = await prisma.outboxMessage.count({
-      where: { aggregateId: controlAssessment },
-    });
-    await assertProblem(
-      controls.request({
-        assessmentId: controlAssessment,
-        actor: controlActor,
-        correlationId: "protocol:resume-unavailable",
-        action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.resume,
-        targetRunId: controlRunId,
-      }),
-      409,
-    );
-    assert.equal(
-      await prisma.outboxMessage.count({
-        where: { aggregateId: controlAssessment },
-      }),
-      controlOutboxCount,
-    );
-    assert.equal(
-      (
-        await prisma.assessmentRuntimeTurn.findUniqueOrThrow({
-          where: { id: controlRunId },
-          select: { state: true },
-        })
-      ).state,
-      ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
-    );
-
-    const unrelatedRunId = randomUUID();
-    const unrelatedThreadId = randomUUID();
-    await prisma.assessmentRuntimeTurn.create({
-      data: {
-        id: unrelatedRunId,
-        assessmentId: controlAssessment,
-        threadId: unrelatedThreadId,
-        boundary: controlBoundary,
-        logicalRunId: randomUUID(),
-        correlationId: "protocol:unrelated",
-        state: ASSESSMENT_RUNTIME_CONTROL_STATES.running,
-        contextJson: {},
-      },
-    });
-    await assertProblem(
-      controls.request({
-        assessmentId: controlAssessment,
-        actor: controlActor,
-        correlationId: "protocol:unrelated",
-        action: ASSESSMENT_RUNTIME_CONTROL_ACTIONS.stop,
-        targetRunId: unrelatedRunId,
-      }),
-      409,
-    );
-    await prisma.assessmentRuntime.update({
-      where: { assessmentId: controlAssessment },
-      data: {
-        currentExecutionId: unrelatedRunId,
-        executionState: AGENT_EXECUTION_STATES.RUNNING,
-      },
-    });
-    await assertProblem(
-      acknowledgeControl(ASSESSMENT_RUNTIME_CONTROL_STATES.stopped),
-      409,
     );
   } finally {
     await prisma.assessment.deleteMany({

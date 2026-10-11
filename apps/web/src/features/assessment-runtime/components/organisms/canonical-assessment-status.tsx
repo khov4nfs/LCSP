@@ -4,6 +4,8 @@ import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import { Badge } from "@/components/ui/badge";
 import { resolveAppMessage } from "@/lib/i18n";
 import { appLocale } from "@/lib/locale";
+import { AgentStreamUsageSummary } from "../../../workspace/components/molecules/agent-stream-usage-summary";
+import { AgentStreamUsageFooter } from "../../../workspace/components/molecules/agent-stream-usage-footer";
 import { WORKSPACE_RUNTIME_CONNECTION_STATES } from "../../../workspace/types/workspace-runtime.types";
 import {
   canonicalExecutionLabel,
@@ -85,12 +87,13 @@ function CanonicalStateRow({
 
 export function CanonicalAssessmentActivity({
   events,
+  usage,
 }: CanonicalAssessmentActivityProps) {
   const activity = events.filter(
     (event) =>
       event.eventType === AGENTIC_ASSESSMENT_EVENT_TYPES.ACTIVITY_RECORDED,
   );
-  if (activity.length === 0) return null;
+  if (activity.length === 0 && !usage?.invocationCount) return null;
 
   return (
     <section
@@ -103,16 +106,39 @@ export function CanonicalAssessmentActivity({
         {resolveAppMessage("pages.appShell.runtimePanelCanonicalActivity")}
       </p>
       <ol className="rounded-xl border border-border/70 bg-card px-3.5">
-        {activity.slice(0, 5).map((event) => (
-          <li
-            className="border-b border-border/50 py-2.5 text-sm last:border-b-0"
-            data-event-id={event.eventId}
-            key={event.eventId}
-          >
-            {resolveMessage(appLocale, event.payload.labelKey as MessageKey)}
-          </li>
-        ))}
+        {[...activity]
+          .sort((a, b) => b.sequence - a.sequence)
+          .slice(0, 5)
+          .map((event) => (
+            <li
+              className="border-b border-border/50 py-2.5 text-sm last:border-b-0"
+              data-event-id={event.eventId}
+              key={event.eventId}
+            >
+              {resolveMessage(appLocale, event.payload.labelKey as MessageKey)}
+              {event.tokenUsage ? (
+                <AgentStreamUsageFooter
+                  usage={{
+                    inputTokens: event.tokenUsage.promptTokens,
+                    outputTokens: event.tokenUsage.completionTokens,
+                    totalTokens: event.tokenUsage.totalTokens,
+                  }}
+                />
+              ) : null}
+            </li>
+          ))}
       </ol>
+      {usage?.invocationCount ? (
+        <AgentStreamUsageSummary
+          aggregate={{
+            usage,
+            countedModelSteps: usage.invocationCount,
+            partial: usage.partial,
+          }}
+          titleKey="pages.appShell.agentStreamUsage.runtimeTotal"
+          className="mt-3"
+        />
+      ) : null}
     </section>
   );
 }

@@ -36,21 +36,12 @@ export const OUTBOX_EVENT_EXCHANGES = {
 
 export const OUTBOX_AGGREGATE_TYPES = {
   billingPayment: "BILLING_PAYMENT",
-  aiUsageFlow: "AI_USAGE_FLOW",
   assessment: "ASSESSMENT",
   authUser: "AUTH_USER",
-  classificationReviewRequest: "CLASSIFICATION_REVIEW_REQUEST",
-  classificationResult: "CLASSIFICATION_RESULT",
-  documentRequest: "DOCUMENT_REQUEST",
   legalCorpusVersion: "LEGAL_CORPUS_VERSION",
   legalPortfolioVersion: "LEGAL_PORTFOLIO_VERSION",
-  legalRuleMatch: "LEGAL_RULE_MATCH",
   repositoryScanJob: "REPOSITORY_SCAN_JOB",
   repositorySnapshot: "REPOSITORY_SNAPSHOT",
-  technicalEvidenceReport: "TECHNICAL_EVIDENCE_REPORT",
-  technicalProfile: "TECHNICAL_PROFILE",
-  targetedReanalysisRequest: "TARGETED_REANALYSIS_REQUEST",
-  verifiedProfile: "VERIFIED_PROFILE",
 } as const;
 
 export type OutboxStatus =

@@ -3,7 +3,6 @@ from types import SimpleNamespace
 
 import pytest
 from conftest import use_model_routes
-from langchain_core.messages import ToolMessage
 
 from middleware import usage_metering
 from middleware.usage_metering import (
@@ -15,7 +14,6 @@ from middleware.usage_metering import (
 from orchestration.agent_stream import (
     AgentStreamSession,
     activate_agent_stream,
-    invoke_with_stream,
 )
 
 
@@ -23,12 +21,8 @@ from orchestration.agent_stream import (
 def _model_routes(monkeypatch):
     use_model_routes(
         monkeypatch,
-        (
-            {
-                "routes": {"a": {"provider": "llm7", "model": "future-model-v9"}},
-                "roles": {"default": "a"},
-            }
-        ),
+        {"routes": {"a": {"provider": "apx", "model": "future-model-v9"}},
+         "roles": {"default": "a"}},
     )
 
 
@@ -57,10 +51,10 @@ def _run(handlers, monkeypatch):
     )
     session = AgentRunState(
         api_client=Client(), assessment_id="a", run_id="r",
-        agent_role="planner",
+        agent_role="ASSESSMENT_ROOT",
     )
     request = SimpleNamespace(
-        model=SimpleNamespace(provider="llm7", model_name="future-model-v9")
+        model=SimpleNamespace(provider="apx", model_name="future-model-v9")
     )
     outcomes = []
     with activate_agent_run_state(session):
@@ -158,6 +152,11 @@ def test_failed_attempt_has_no_usage_and_usage_attached_once(monkeypatch):
     assert completed[0]["data"]["usage"] == {"input_tokens": 4, "output_tokens": 1}
 
 
+def test_completion_and_persisted_usage_share_the_successful_invocation(monkeypatch):
+    events, session = _run([lambda _r: _message({"input_tokens": 4, "output_tokens": 1, "total_tokens": 5})], monkeypatch)
+    assert _completed(events)[0]["data"]["invocation_id"] == session.api_client.payloads[0].invocationId
+
+
 def test_usage_survives_stream_redaction_of_token_keys():
     events = []
     session = AgentStreamSession(
@@ -193,49 +192,6 @@ def test_usage_key_is_trusted_only_on_the_model_call_completion_event():
     graph, completed = events
     assert graph["data"]["usage"]["details"]["reasoning_tokens"] == ""
     assert completed["data"]["usage"]["details"]["reasoning_tokens"] == 5
-
-
-class _ToolAgent:
-    def __init__(self, content):
-        self.content = content
-
-    def stream(self, _input, **_kwargs):
-        yield {
-            "type": "messages",
-            "ns": (),
-            "data": (
-                ToolMessage(content=self.content, tool_call_id="call-1", name="read_file"),
-                {"langgraph_node": "tools"},
-            ),
-        }
-        yield {"type": "values", "ns": (), "data": {"result": "done"}}
-
-
-def _tool_events(content):
-    events = []
-    session = AgentStreamSession(
-        assessment_id="a", run_id="r", correlation_id="c",
-        boundary_name="b", emit_payload=events.append,
-    )
-    with activate_agent_stream(session):
-        invoke_with_stream(_ToolAgent(content), {"messages": []})
-    return [e for e in events if e["event_type"] in {"TOOL_RESULT", "SEMANTIC_TOOL_RESULT"}]
-
-
-def test_tool_result_metrics_text_and_json_items():
-    results = _tool_events("line one\nline two\nline three")
-    metrics = results[0]["data"]["result_metrics"]
-    assert metrics["bytes"] == len("line one\nline two\nline three")
-    assert metrics["lines"] == 3
-    assert not any("token" in key for key in metrics)
-
-    payload = json.dumps({"matches": [{"p": "a"}, {"p": "b"}], "truncated": True})
-    metrics = _tool_events(payload)[0]["data"]["result_metrics"]
-    assert metrics["items"] == 2 and metrics["truncated"] is True
-    assert metrics["bytes"] == len(payload)
-    # never leaks content beyond the existing safe result text
-    semantic = next(e for e in _tool_events(payload) if e["event_type"] == "SEMANTIC_TOOL_RESULT")
-    assert semantic["data"]["result_metrics"]["items"] == 2
 
 
 def test_colliding_nested_usage_names_keep_both_values():
@@ -295,10 +251,10 @@ def _stepped(handlers, monkeypatch):
     )
     session = AgentRunState(
         api_client=Client(), assessment_id="a", run_id="r",
-        agent_role="planner",
+        agent_role="ASSESSMENT_ROOT",
     )
     request = SimpleNamespace(
-        model=SimpleNamespace(provider="llm7", model_name="future-model-v9")
+        model=SimpleNamespace(provider="apx", model_name="future-model-v9")
     )
 
     def attempts(req):
@@ -315,7 +271,7 @@ def _stepped(handlers, monkeypatch):
 
     with activate_agent_run_state(session):
         try:
-            AgentRoleMiddleware("planner").wrap_model_call(request, attempts)
+            AgentRoleMiddleware("ASSESSMENT_ROOT").wrap_model_call(request, attempts)
         except RuntimeError:
             pass
     return events
@@ -332,7 +288,7 @@ def test_successful_fallback_is_one_logical_turn_with_summary_metadata(monkeypat
     assert "MODEL_CALL_FAILED" not in types
     assert not {"CREDENTIAL_ROTATION", "PROVIDER_FALLBACK"} & set(types)
     data = _completed(events)[0]["data"]
-    assert data["provider"] == "llm7" and data["model"] == "future-model-v9"
+    assert data["provider"] == "apx" and data["model"] == "future-model-v9"
     assert data["provider_attempts"] == 2 and data["fallback_used"] is True
     assert data["credential_attempts"] >= 2
 

@@ -13,9 +13,11 @@ import {
   ASSESSMENT_DECISION_SCOPE,
   ASSESSMENT_DECISION_RECORD_STATES,
   ASSESSMENT_RECORD_STATES,
+  ASSESSMENT_ROOT_BOUNDARY,
   DECISION_VALIDATION_FAILURE_CODES,
   type AssessmentCompletionBlocker,
 } from "@lcsp/contracts/assessment-domain";
+import { ASSESSMENT_RUNTIME_CONTROL_STATES as Controls } from "@lcsp/contracts/evidence";
 import { Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
@@ -133,6 +135,23 @@ export class AssessmentCompletionGate {
       !assessment.runtime.currentExecutionId
     ) {
       add(ASSESSMENT_COMPLETION_BLOCKER_CODES.EXECUTION_FAILURE, assessmentId);
+    }
+
+    if (assessment.runtime?.currentExecutionId) {
+      const control = await tx.assessmentRuntimeTurn.findFirst({
+        where: {
+          id: assessment.runtime.currentExecutionId,
+          assessmentId,
+          boundary: ASSESSMENT_ROOT_BOUNDARY,
+        },
+        select: { state: true },
+      });
+      if (control?.state === Controls.stopRequested) {
+        add(
+          ASSESSMENT_COMPLETION_BLOCKER_CODES.RUNTIME_STOP_REQUESTED,
+          assessment.runtime.currentExecutionId,
+        );
+      }
     }
 
     const assessmentCase = await tx.assessmentCase.findUnique({
@@ -383,7 +402,11 @@ export class AssessmentCompletionGate {
           failure.code ===
             DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_NOT_ACCEPTED ||
           failure.code ===
-            DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_PIN_MISMATCH
+            DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_PIN_MISMATCH ||
+          failure.code ===
+            DECISION_VALIDATION_FAILURE_CODES.SEARCH_COVERAGE_INCOMPLETE ||
+          failure.code ===
+            DECISION_VALIDATION_FAILURE_CODES.FACT_EVIDENCE_MISSING
             ? ASSESSMENT_COMPLETION_BLOCKER_CODES.STALE_EVIDENCE
             : failure.code ===
                   DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_FACT_REFERENCE ||

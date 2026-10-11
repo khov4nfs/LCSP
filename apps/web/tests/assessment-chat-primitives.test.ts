@@ -42,14 +42,6 @@ const resultContainerPath = new URL(
   "../src/features/workspace/components/molecules/chat-result-container.tsx",
   import.meta.url,
 );
-const scannerStepPath = new URL(
-  "../src/features/assessment-flow/components/organisms/scanner-step.tsx",
-  import.meta.url,
-);
-const sharedProgramEvidenceSummaryPath = new URL(
-  "../src/features/workspace/components/molecules/program-evidence-summary.tsx",
-  import.meta.url,
-);
 const typesPath = new URL(
   "../src/features/workspace/types/assessment-chat.types.ts",
   import.meta.url,
@@ -73,7 +65,10 @@ test("assessment transcript is the shared scrollable 680px rail primitive", asyn
   assert.match(source, /data-slot="chat-rail"/);
   assert.match(source, /role="log"/);
   assert.match(source, /aria-live="polite"/);
-  assert.match(source, /no-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden/);
+  assert.match(
+    source,
+    /no-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden/,
+  );
   assert.match(source, /overflow-y-auto/);
   assert.match(source, /max-w-170/);
   assert.doesNotMatch(source, /max-w-\[760px\]/);
@@ -234,41 +229,6 @@ test("chat result container stays domain-neutral and wraps chat results", async 
   assert.match(source, /children\?: ReactNode/);
   assert.match(source, /break-words/);
   assert.doesNotMatch(source, /Program Evidence|Findings|Investigation/);
-});
-
-test("scanner renders the dedicated Program Evidence Graph artifact only after evidence is ready", async () => {
-  const [scannerSource, artifactSource] = await Promise.all([
-    readFile(scannerStepPath, "utf8"),
-    readFile(sharedProgramEvidenceSummaryPath, "utf8"),
-  ]);
-
-  assert.match(scannerSource, /ProgramEvidenceSummary/);
-  assert.match(scannerSource, /assessmentId=\{assessmentId\}/);
-  assert.match(scannerSource, /evidenceReady \? \(/);
-  assert.doesNotMatch(scannerSource, /ChatResultContainer/);
-  assert.doesNotMatch(
-    scannerSource,
-    /pages\.assessmentFlow\.graph\.repository/,
-  );
-  assert.doesNotMatch(scannerSource, /pages\.assessmentFlow\.graph\.commit/);
-  assert.match(artifactSource, /ChatResultContainer/);
-  assert.match(artifactSource, /pages\.assessmentFlow\.graph\.modulesAnalyzed/);
-  assert.match(
-    artifactSource,
-    /pages\.assessmentFlow\.graph\.codeSymbolsIndexed/,
-  );
-  assert.match(
-    artifactSource,
-    /pages\.assessmentFlow\.graph\.aiModelInvocations/,
-  );
-  assert.match(
-    artifactSource,
-    /pages\.assessmentFlow\.graph\.evidenceMappedScope/,
-  );
-  assert.match(
-    artifactSource,
-    /pages\.assessmentFlow\.graph\.viewEvidenceGraph/,
-  );
 });
 
 test("assessment overview does not append raw runtime activity to the customer transcript", async () => {

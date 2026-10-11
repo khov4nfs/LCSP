@@ -1,4 +1,4 @@
-"""Offline native probe for the draft W2 Legal Preparation isolation surface."""
+"""Offline native probe for the draft LEGAL_PORTFOLIO Legal Preparation isolation surface."""
 
 from __future__ import annotations
 

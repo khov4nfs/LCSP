@@ -206,15 +206,6 @@ export class AssessmentCaseSupport {
       ...decision.references,
       ...decision.criteria.flatMap((criterion) => criterion.references),
     ];
-    const evidenceIds = [
-      ...new Set(
-        references.flatMap((r) =>
-          r.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
-            ? [r.evidenceId]
-            : [],
-        ),
-      ),
-    ];
     const factIds = [
       ...new Set(
         references.flatMap((r) =>
@@ -224,16 +215,38 @@ export class AssessmentCaseSupport {
         ),
       ),
     ];
-    const [evidence, facts] = await Promise.all([
-      tx.assessmentEvidence.findMany({
-        where: { assessmentId, evidenceId: { in: evidenceIds } },
-        select: { evidenceId: true, state: true, repositoryCommit: true },
-      }),
-      tx.assessmentCaseFact.findMany({
-        where: { assessmentId, factId: { in: factIds } },
-        select: { factId: true, state: true, caseRevision: true },
-      }),
-    ]);
+    const facts = await tx.assessmentCaseFact.findMany({
+      where: { assessmentId, factId: { in: factIds } },
+      select: {
+        factId: true,
+        state: true,
+        caseRevision: true,
+        authority: true,
+        evidenceLinks: { select: { evidenceId: true } },
+      },
+    });
+    const evidenceIds = [
+      ...new Set([
+        ...references.flatMap((r) =>
+          r.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
+            ? [r.evidenceId]
+            : [],
+        ),
+        ...facts.flatMap((fact) =>
+          fact.evidenceLinks.map((link) => link.evidenceId),
+        ),
+      ]),
+    ];
+    const evidence = await tx.assessmentEvidence.findMany({
+      where: { assessmentId, evidenceId: { in: evidenceIds } },
+      select: {
+        evidenceId: true,
+        state: true,
+        repositoryCommit: true,
+        type: true,
+        payload: true,
+      },
+    });
     return {
       caseRevision: pins.caseRevision,
       pins: {
@@ -250,7 +263,15 @@ export class AssessmentCaseSupport {
           }
         : null,
       evidence: new Map(evidence.map((row) => [row.evidenceId, row])),
-      facts: new Map(facts.map((row) => [row.factId, row])),
+      facts: new Map(
+        facts.map((row) => [
+          row.factId,
+          {
+            ...row,
+            evidenceIds: row.evidenceLinks.map((link) => link.evidenceId),
+          },
+        ]),
+      ),
     };
   }
 

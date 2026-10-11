@@ -29,7 +29,7 @@ import type { z } from "zod";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
-import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
 import { ClaimLegalPreparationCommand } from "../../application/commands/claim-legal-preparation/claim-legal-preparation.command.js";
 import { FailLegalPreparationCommand } from "../../application/commands/fail-legal-preparation/fail-legal-preparation.command.js";
 import { StartLegalPreparationCommand } from "../../application/commands/start-legal-preparation/start-legal-preparation.command.js";
@@ -112,7 +112,7 @@ export class LegalPortfolioController {
   @Post("validations")
   @HttpCode(200)
   async validate(
-    @Body(body(legalPortfolioValidateRequestSchema))
+    @Body(body(legalPortfolioValidateRequestSchema, true))
     request: LegalPortfolioValidateRequest,
     @Req() req: AuthenticatedRequest,
   ) {

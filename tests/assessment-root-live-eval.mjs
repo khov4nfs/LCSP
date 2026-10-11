@@ -34,8 +34,8 @@ import {
 } from "./support/legal-portfolio-stack.mjs";
 
 const mode = process.argv[2] ?? "decisions";
-const outputLabel = process.env.LCSP_W4_EVAL_LABEL ?? mode;
-const resumeReceiptPath = process.env.LCSP_W4_EVAL_RESUME_RECEIPT;
+const outputLabel = process.env.LCSP_ASSESSMENT_EVAL_LABEL ?? mode;
+const resumeReceiptPath = process.env.LCSP_ASSESSMENT_EVAL_RESUME_RECEIPT;
 const previousEval = resumeReceiptPath
   ? JSON.parse(readFileSync(path.resolve(root, resumeReceiptPath), "utf8"))
   : null;
@@ -63,13 +63,13 @@ assert.ok(
   ].includes(mode),
 );
 const artifactStoragePath = mkdtempSync(
-  path.join(tmpdir(), "lcsp-w4-live-artifacts-"),
+  path.join(tmpdir(), "lcsp-assessment-live-artifacts-"),
 );
 const previousArtifactStoragePath = process.env.LCSP_ARTIFACT_STORAGE_PATH;
 process.env.LCSP_ARTIFACT_STORAGE_PATH = artifactStoragePath;
 const stack = await startStack({
-  database: "lcsp_w4_live",
-  apiPort: Number(process.env.LCSP_W4_LIVE_API_PORT ?? 3415),
+  database: "lcsp_assessment_live",
+  apiPort: Number(process.env.LCSP_ASSESSMENT_EVAL_API_PORT ?? 3415),
   resetDatabase: previousEval === null,
 });
 const { q, base, post, stop, seedCorpus, databaseUrl } = stack;
@@ -97,13 +97,13 @@ const httpGet = async (route, token) => {
   return data.data;
 };
 const tests = path.join(root, "deepagents/tests/vertical"),
-  outputDir = path.join(root, "reports/w4-live-eval");
+  outputDir = path.join(root, "reports/assessment-live-eval");
 mkdirSync(outputDir, { recursive: true });
 try {
   const fixture =
     previousEval?.fixture ??
     (await runPython(path.join(tests, "root_semantic_fixture.py"), [mode]));
-  const dir = mkdtempSync(path.join(tmpdir(), "lcsp-w4-live-")),
+  const dir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-live-")),
     repo = path.join(dir, "repo"),
     seed = path.join(dir, "seed.json");
   mkdirSync(repo);
@@ -143,14 +143,14 @@ try {
     id = assessmentId;
   } else {
     const corpus = await seedCorpus({
-      name: `w4-eval-${mode}`,
+      name: `assessment-eval-${mode}`,
       status: "APPROVED",
       documentId: fixture.documentId,
       chunks: fixture.chunks,
     });
     const prep = await post("preparations", {
       legalCorpusVersionId: corpus,
-      idempotencyKey: `w4-eval-${randomUUID()}`,
+      idempotencyKey: `assessment-eval-${randomUUID()}`,
     });
     assert.equal(prep.status, 202, JSON.stringify(prep.body));
     const prepared = await runPython(
@@ -163,7 +163,7 @@ try {
     );
     const owner = randomUUID(),
       password = "CorrectHorseBatteryStaple!",
-      email = "w4-eval@acme.test";
+      email = "assessment-eval@acme.test";
     await q(
       `INSERT INTO "User"(id,email,"passwordHash","emailVerified","failedLoginCount",role,"updatedAt") VALUES ($1,$2,$3,true,0,'CUSTOMER',now())`,
       [owner, email, hashSecret(password)],
@@ -176,14 +176,14 @@ try {
     token = auth.session_token;
     const created = await http(
       "/assessments",
-      { name: `W4 semantic ${mode}` },
+      { name: `ASSESSMENT semantic ${mode}` },
       token,
     );
     id = created.assessment_id ?? created.id;
     const connection = randomUUID(),
       snapshot = randomUUID();
     await q(
-      `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions) VALUES ($1,$2,$3,'w4-eval',$4,'repo','acme/repo','main','{}')`,
+      `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions) VALUES ($1,$2,$3,'assessment-eval',$4,'repo','acme/repo','main','{}')`,
       [connection, id, owner, `repo-${id}`],
     );
     await q(
@@ -217,7 +217,7 @@ try {
       {
         expectedCaseRevision: humanState.caseRevision,
         expectedRequestRevision: request.requestRevision,
-        idempotencyKey: `w4-eval-human-${id}`,
+        idempotencyKey: `assessment-eval-human-${id}`,
         doesNotKnow: false,
         answer:
           "Customer Operations is assigned as the responsible owner for notice notifications.",

@@ -1,7 +1,6 @@
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_LIFECYCLE_STATES,
-  ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
 /**
@@ -48,8 +47,6 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
   });
 
   beforeEach(async () => {
-    await prisma.classificationResult.deleteMany();
-    await prisma.technicalEvidenceReport.deleteMany();
     await prisma.repositoryScanJob.deleteMany();
     await prisma.repositorySnapshot.deleteMany();
     await prisma.repositoryConnection.deleteMany();
@@ -102,7 +99,6 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
         id: otherOwnedId,
         ownerId: "user-2",
         name: "Not Mine",
-        status: ASSESSMENT_STATUS_CODES.wizardInProgress,
       },
     });
 

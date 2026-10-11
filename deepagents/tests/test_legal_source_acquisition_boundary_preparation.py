@@ -152,12 +152,12 @@ def test_recovery_payload_keeps_exact_hierarchy_locators_and_artifact_lineage(
 
     payload = build_official_source_payload(
         [result.manifest_path],
-        "VN-LEGAL-CORPUS-W2",
+        "VN-LEGAL-CORPUS-LEGAL_PORTFOLIO",
     )
 
     document = payload["documents"][0]
     chunks = document["chunks"]
-    namespaced = "VN-LEGAL-CORPUS-W2::"
+    namespaced = "VN-LEGAL-CORPUS-LEGAL_PORTFOLIO::"
     assert document["documentId"] == DOCUMENT_ID
     assert document["sourceSha256"] == _sha256(HTML.encode())
     assert document["snapshotPath"] == f"{DOCUMENT_ID}.source.html"

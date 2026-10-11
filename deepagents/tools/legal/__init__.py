@@ -4,11 +4,6 @@ from .retrieval.legal_basis.chromadb_citation_retriever import (
     ChromaDbCitationRetriever,
     RetrievedChunk,
 )
-from .retrieval.legal_basis.legal_match_builder import LegalMatchBuilder
-from .retrieval.legal_basis.rule_applicability_evaluator import (
-    RuleApplicabilityEvaluator,
-    RuleEvaluationResult,
-)
 from .sources.extraction.official_text_extraction import (
     OfficialSourceSnapshotResolver,
     OfficialTextExtractor,
@@ -40,11 +35,8 @@ from .sources.ocr_quality.ocr_quality_validator import (
 from .sources.vbpl_effects.vbpl_effected_chunk_set_boundary import VbplEffectedChunkSetBoundary
 
 __all__ = [
-    "RuleApplicabilityEvaluator",
-    "RuleEvaluationResult",
     "ChromaDbCitationRetriever",
     "RetrievedChunk",
-    "LegalMatchBuilder",
     "OfficialSourceSnapshotResolver",
     "OfficialTextExtractor",
     "OfficialTextExtractionRequest",

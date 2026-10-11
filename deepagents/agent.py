@@ -26,7 +26,6 @@ from model_policy import effective_model_configs, resolve_agent_model
 from orchestration.context import LCSPRunContext
 from tools.mcp import load_optional_mcp_tools
 from tools.common.capabilities.platform.repository_sandbox import (
-    REPOSITORY_SKILLS,
     RuntimeRepositoryBackend,
 )
 from tools.common.capabilities.platform.logging import (
@@ -76,7 +75,6 @@ def create_root_agent(*, checkpointer=None, store=None):
         model=root_model,
         tools=ROOT_TOOLS,
         backend=RuntimeRepositoryBackend(),
-        skills=[(REPOSITORY_SKILLS, "LCSP Runtime")],
         system_prompt=SYSTEM_PROMPT,
         middleware=[
             dispatch_agent_runtime_system_event,
@@ -87,8 +85,6 @@ def create_root_agent(*, checkpointer=None, store=None):
         ],
         context_schema=LCSPRunContext,
         subagents=[
-            # repository-analyst / interview are run by the deterministic assessment loop
-            # through RootSubagentDispatcher, never `task`. Legal authoring is not a subagent.
             governed_general_purpose_subagent(root_model, role="root"),
         ],
         checkpointer=checkpointer,

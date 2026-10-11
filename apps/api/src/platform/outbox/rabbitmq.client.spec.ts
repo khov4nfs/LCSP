@@ -1,5 +1,5 @@
+import { ASSESSMENT_ROOT_COMMAND_TYPES } from "@lcsp/contracts/assessment-domain";
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
-import { SCAN_EVENT_TYPES } from "@lcsp/contracts/scan/callback";
 import { jest } from "@jest/globals";
 
 interface FakeChannel {
@@ -163,7 +163,7 @@ describe("RabbitMqClient", () => {
       "lcsp.events",
       ASSESSMENT_EVENT_TYPES.createdOutbox,
       { foo: "bar" },
-      { user_id: "user-1", action: "scan:trigger" },
+      { user_id: "user-1", action: "assessment:create" },
     );
 
     expect(channel.publish).toHaveBeenCalledWith(
@@ -177,7 +177,7 @@ describe("RabbitMqClient", () => {
         messageId: expect.any(String) as unknown,
         headers: {
           user_id: "user-1",
-          action: "scan:trigger",
+          action: "assessment:create",
         },
       }),
       expect.any(Function),
@@ -204,13 +204,12 @@ describe("RabbitMqClient", () => {
     expect(
       requiresRoutableDelivery("event.repository-snapshot.created.v1"),
     ).toBe(false);
-    expect(requiresRoutableDelivery("command.scan.requested.v1")).toBe(true);
     expect(
-      requiresRoutableDelivery("command.scan.targeted-reanalysis.v1"),
+      requiresRoutableDelivery(ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED),
     ).toBe(true);
-    expect(requiresRoutableDelivery(SCAN_EVENT_TYPES.evidenceAccepted)).toBe(
-      true,
-    );
+    expect(
+      requiresRoutableDelivery("command.legal-portfolio.prepare.requested.v1"),
+    ).toBe(true);
     expect(
       requiresRoutableDelivery("cron.legal-catalog.check-updates.v1"),
     ).toBe(true);
@@ -232,7 +231,11 @@ describe("RabbitMqClient", () => {
     const client = new RabbitMqClient("amqp://fake");
 
     await expect(
-      client.publish("lcsp.events", "command.scan.requested.v1", {}),
+      client.publish(
+        "lcsp.events",
+        ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
+        {},
+      ),
     ).rejects.toThrow(/unroutable/i);
   });
 

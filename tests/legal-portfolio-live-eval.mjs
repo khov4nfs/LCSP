@@ -1,5 +1,5 @@
-// Run: node tests/legal-portfolio-live-eval.mjs   (needs a built API and LLM7 credentials in .env)
-// W2 LIVE semantic run: the REAL Legal Preparation agent with the CONFIGURED model reads the pinned
+// Run: node tests/legal-portfolio-live-eval.mjs   (needs a built API and provider credentials in .env)
+// LEGAL_PORTFOLIO LIVE semantic run: the REAL Legal Preparation agent with the CONFIGURED model reads the pinned
 // synthetic fixture corpus (real text + real hashes) and submits to the REAL API / PostgreSQL.
 // It spends real provider tokens (default route) and writes the result for rubric REVIEW; it does
 // not itself judge legal quality.
@@ -9,11 +9,11 @@ import path from "node:path";
 
 import { root, runPython, startStack, workerKey } from "./support/legal-portfolio-stack.mjs";
 
-const database = "lcsp_w2_live";
-const apiPort = Number(process.env.LCSP_W2_LIVE_API_PORT ?? 3412);
-const outDir = path.join(root, "reports", "w2-live-eval");
+const database = "lcsp_legal_portfolio_live";
+const apiPort = Number(process.env.LCSP_LEGAL_PREPARATION_EVAL_API_PORT ?? 3412);
+const outDir = path.join(root, "reports", "legal_portfolio-live-eval");
 const tests = path.join(root, "deepagents/tests/vertical");
-const timeoutMs = Number(process.env.LCSP_W2_LIVE_TIMEOUT_MS ?? 20 * 60 * 1000);
+const timeoutMs = Number(process.env.LCSP_LEGAL_PREPARATION_EVAL_TIMEOUT_MS ?? 20 * 60 * 1000);
 
 const fixture = await runPython(path.join(tests, "fixture_chunks.py"), []);
 const stack = await startStack({ database, apiPort });
@@ -26,7 +26,7 @@ try {
   });
   const started = await stack.post("preparations", { legalCorpusVersionId: corpusId, idempotencyKey: `live-${Date.now()}` });
   const runId = started.body.data.preparationRunId;
-  const usageFile = path.join(mkdtempSync(path.join(tmpdir(), "lcsp-w2-live-")), "usage.json");
+  const usageFile = path.join(mkdtempSync(path.join(tmpdir(), "lcsp-legal_portfolio-live-")), "usage.json");
 
   const result = await Promise.race([
     runPython(path.join(tests, "live_preparation.py"), [stack.base, workerKey, runId, usageFile]),

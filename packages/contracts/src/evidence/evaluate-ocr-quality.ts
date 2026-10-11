@@ -1,6 +1,5 @@
 import type {
   AgenticToolCoverageState,
-  AgenticToolName,
   AgenticToolStatus,
 } from "./agentic-tool.ts";
 
@@ -75,12 +74,7 @@ export const EVALUATE_OCR_QUALITY_RESULT_JSON_SCHEMA = {
     checked: {
       type: "object",
       additionalProperties: false,
-      required: [
-        "pageContinuity",
-        "identity",
-        "numbering",
-        "hierarchy",
-      ],
+      required: ["pageContinuity", "identity", "numbering", "hierarchy"],
       properties: {
         pageContinuity: { type: "boolean" },
         identity: { type: "boolean" },
@@ -111,7 +105,7 @@ export type EvaluateOcrQualityLimitation = {
 
 export type EvaluateOcrQualityResponse = {
   status: AgenticToolStatus;
-  toolName: AgenticToolName;
+  toolName: typeof EVALUATE_OCR_QUALITY_TOOL.name;
   toolVersion: string;
   configHash: string;
   correlationId: string;

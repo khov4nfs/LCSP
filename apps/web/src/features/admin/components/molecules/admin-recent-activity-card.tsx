@@ -90,10 +90,6 @@ export function AdminRecentActivityCard({
         return resolveAppMessage(
           "pages.admin.overview.recentActivity.actions.publishedCorpus" as MessageKey,
         );
-      case ADMIN_OVERVIEW_ACTION_KEYS.discardedDraft:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.actions.discardedDraft" as MessageKey,
-        );
       default:
         return actionHeader;
     }
@@ -111,10 +107,6 @@ export function AdminRecentActivityCard({
       case ADMIN_OVERVIEW_ACTION_KEYS.invitedUser:
         return resolveAppMessage(
           "pages.admin.overview.recentActivity.targets.newUser" as MessageKey,
-        );
-      case ADMIN_OVERVIEW_ACTION_KEYS.discardedDraft:
-        return resolveAppMessage(
-          "pages.admin.overview.recentActivity.targets.corpusDraft" as MessageKey,
         );
       case ADMIN_OVERVIEW_ACTION_KEYS.publishedCorpus:
         return resolveAppMessage(

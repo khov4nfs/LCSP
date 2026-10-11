@@ -138,7 +138,7 @@ const legacyRoutePaths = [
   "../src/app/(workspace)/assessments/[id]/conflicts/page.tsx",
 ].map((path) => new URL(path, import.meta.url));
 
-test("assessment app shell exposes the LCSP-267 state machine and slots", async () => {
+test("assessment app shell exposes the state machine and slots", async () => {
   const [shellSource, slotSource, stateSource] = await Promise.all([
     readFile(shellPath, "utf8"),
     readFile(slotPath, "utf8"),
@@ -191,7 +191,7 @@ test("assessment app shell releases the left sidebar space completely when colla
   assert.match(slotSource, /hidden .*xl:flex/);
 });
 
-test("LCSP-272 right assessment sidebar keeps one shared 420px slot and mobile sheet reuse", async () => {
+test("right assessment sidebar keeps one shared 420px slot and mobile sheet reuse", async () => {
   const [shellSource, slotSource, sidebarSource] = await Promise.all([
     readFile(shellPath, "utf8"),
     readFile(slotPath, "utf8"),
@@ -207,13 +207,20 @@ test("LCSP-272 right assessment sidebar keeps one shared 420px slot and mobile s
     2,
   );
   assert.match(shellSource, /<SheetContent[\s\S]*side="right"/);
-  assert.match(shellSource, /<AssessmentRuntimeSidebar assessmentId=/);
+  assert.equal(
+    (
+      shellSource.match(
+        /<AssessmentRuntimeSidebar\s+assessmentId=\{assessmentId\}/g,
+      ) ?? []
+    ).length,
+    2,
+  );
   assert.match(sidebarSource, /export function AssessmentRuntimeSidebar/);
   assert.match(sidebarSource, /min-h-0/);
   assert.match(sidebarSource, /overflow-y-auto/);
 });
 
-test("LCSP-272 right assessment sidebar removes the generic runtime dashboard UI", async () => {
+test("right assessment sidebar removes the generic runtime dashboard UI", async () => {
   const [shellSource, sidebarSource] = await Promise.all([
     readFile(shellPath, "utf8"),
     readFile(runtimeSidebarPath, "utf8"),
@@ -237,7 +244,7 @@ test("LCSP-272 right assessment sidebar removes the generic runtime dashboard UI
   );
 });
 
-test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflow-contained", async () => {
+test("right sidebar layout keeps the center pane shrinkable and overflow-contained", async () => {
   Object.assign(globalThis, { React });
   const { AssessmentRightPanelSlot, CenterContentSlot, LeftSidebarSlot } =
     await import("../src/features/workspace/components/organisms/assessment-shell-slots");
@@ -279,7 +286,7 @@ test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflo
           },
           createElement(
             CenterSlot,
-            { assessmentId: "assessment-lcsp-278" },
+            { assessmentId: "assessment-sidebar-layout" },
             createElement("main", { "data-testid": "workflow-run" }),
           ),
           createElement(
@@ -330,7 +337,7 @@ test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflo
   );
 });
 
-test("LCSP-272 right assessment sidebar uses canonical state instead of F03/F04 screen branching", async () => {
+test("right assessment sidebar uses canonical state instead of F03/F04 screen branching", async () => {
   const [shellSource, sidebarSource] = await Promise.all([
     readFile(shellPath, "utf8"),
     readFile(runtimeSidebarPath, "utf8"),
@@ -343,7 +350,7 @@ test("LCSP-272 right assessment sidebar uses canonical state instead of F03/F04 
   assert.doesNotMatch(combined, /screen === ["']F04["']/);
 });
 
-test("assessment app shell mounts the single shared LCSP-268 AppSidebar through the left slot", async () => {
+test("assessment app shell mounts the single shared AppSidebar through the left slot", async () => {
   const [shellSource, sidebarSource] = await Promise.all([
     readFile(shellPath, "utf8"),
     readFile(appSidebarPath, "utf8"),
@@ -379,7 +386,7 @@ test("assessment app shell mounts the single shared LCSP-268 AppSidebar through 
   });
 });
 
-test("app sidebar keeps LCSP-268 navigation contracts without legacy assessment routes", async () => {
+test("app sidebar keeps navigation contracts without legacy assessment routes", async () => {
   const [sidebarSource, navItemSource, recentItemSource] = await Promise.all([
     readFile(appSidebarPath, "utf8"),
     readFile(sidebarNavItemPath, "utf8"),
@@ -526,7 +533,7 @@ test("recent filter empty and hover-through states are explicitly handled", asyn
   assert.match(combined, /open \? "mt-47" : "mt-7"/);
 });
 
-test("account mount remains available for the LCSP-269 account controls", async () => {
+test("account mount remains available for the account controls", async () => {
   const [sidebarSource, accountMountSource, triggerSource, popoverSource] =
     await Promise.all([
       readFile(appSidebarPath, "utf8"),
@@ -557,7 +564,7 @@ test("account mount remains available for the LCSP-269 account controls", async 
   assert.doesNotMatch(accountMountSource, /window\.location/);
 });
 
-test("LCSP-269 account popover uses one reusable menu item and existing sign-out", async () => {
+test("account popover uses one reusable menu item and existing sign-out", async () => {
   const [mountSource, popoverSource, itemSource] = await Promise.all([
     readFile(sidebarAccountMountPath, "utf8"),
     readFile(accountPopoverPath, "utf8"),
@@ -573,7 +580,7 @@ test("LCSP-269 account popover uses one reusable menu item and existing sign-out
   assert.match(mountSource, /setOpen\(false\)/);
 });
 
-test("LCSP-269 settings modal is owned by the shared app shell", async () => {
+test("settings modal is owned by the shared app shell", async () => {
   const [shellSource, modalSource] = await Promise.all([
     readFile(shellPath, "utf8"),
     readFile(settingsModalPath, "utf8"),
@@ -604,7 +611,7 @@ test("LCSP-269 settings modal is owned by the shared app shell", async () => {
   assert.doesNotMatch(shellSource, /router\.push\(`?\/workspace\/settings/);
 });
 
-test("LCSP-269 settings navigation exposes the seven approved tabs and legacy mapping", async () => {
+test("settings navigation exposes the seven approved tabs and legacy mapping", async () => {
   const [typesSource, sidebarSource, tabSource, utilsSource] =
     await Promise.all([
       readFile(settingsTypesPath, "utf8"),
@@ -634,7 +641,7 @@ test("LCSP-269 settings navigation exposes the seven approved tabs and legacy ma
   assert.match(utilsSource, /return SETTINGS_SECTION_IDS\.general/);
 });
 
-test("LCSP-268 sidebar is split into feature atomic files", async () => {
+test("sidebar is split into feature atomic files", async () => {
   const [
     sidebarSource,
     navItemSource,
@@ -677,7 +684,7 @@ test("LCSP-268 sidebar is split into feature atomic files", async () => {
   assert.match(utilsSource, /export function getVisibleRecentAssessments/);
 });
 
-test("LCSP-268 sidebar copy resolves through the shared app i18n helper", async () => {
+test("sidebar copy resolves through the shared app i18n helper", async () => {
   const [
     sidebarSource,
     filterTriggerSource,
@@ -765,19 +772,9 @@ test("assessment entry points no longer route progression through legacy step pa
   );
 });
 
-test("deprecated assessment step routes redirect back to the shared shell", async () => {
+test("deprecated assessment step routes are absent from production routing", async () => {
   for (const path of legacyRoutePaths) {
-    const source = await readFile(path, "utf8");
-
-    assert.match(source, /import \{ redirect \} from "next\/navigation"/);
-    assert.match(
-      source,
-      /redirect\(`\/assessments\/\$\{encodeURIComponent\(id\)\}`\)/,
-    );
-    assert.doesNotMatch(
-      source,
-      /WizardFormPage|ReadinessStatusPage|TechnicalEvidenceRuntimePage|ClassificationStatusPage|DocumentsPageClient|ConflictResolutionPage/,
-    );
+    await assert.rejects(readFile(path, "utf8"), /ENOENT/);
   }
 });
 

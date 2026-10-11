@@ -108,7 +108,6 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
       payload: {
         assessmentId: assessment.id,
         ownerId: assessment.ownerId,
-        status: assessment.status,
         correlationId: command.correlationId,
       },
     });

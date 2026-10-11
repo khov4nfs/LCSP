@@ -1,6 +1,6 @@
 {
-  "rubricId": "legal-preparation-w2-candidate-rubric",
-  "rubricVersion": "W2-EVAL-RUBRIC-1",
+  "rubricId": "legal-preparation-candidate-rubric",
+  "rubricVersion": "LEGAL-PREPARATION-EVAL-RUBRIC-1",
   "semanticOwner": "LEGAL_PREPARATION_AGENT",
   "deterministicOwner": "PORTFOLIO_INTEGRITY_BOUNDARY",
   "dimensions": [

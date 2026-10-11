@@ -318,7 +318,13 @@ export type HumanRequestRecord = z.infer<typeof humanRequestRecordSchema>;
  * supplied by an agent. */
 export const claimAssessmentRootRequestSchema = z.strictObject({
   assessmentId: uuidSchema,
+  runtimeRunId: uuidSchema.optional(),
 });
+export const claimAssessmentRootExecutionRequestSchema =
+  claimAssessmentRootRequestSchema.omit({ assessmentId: true }).optional();
+export type ClaimAssessmentRootExecutionRequest = z.infer<
+  typeof claimAssessmentRootExecutionRequestSchema
+>;
 export const finishAssessmentRootRequestSchema = z
   .object({
     state: agentExecutionStateSchema,
@@ -360,6 +366,8 @@ export const assessmentRootClaimSchema = z.strictObject({
   checkpointNamespace: z.string().min(1),
   executionState: agentExecutionStateSchema,
   resumeCheckpointId: uuidSchema.nullable(),
+  lifecycleState: assessmentLifecycleStateSchema,
+  recoveredExecution: z.boolean(),
 });
 export type AssessmentRootClaim = z.infer<typeof assessmentRootClaimSchema>;
 
@@ -522,6 +530,17 @@ export const assessmentCaseViewSchema = z.strictObject({
   facts: z.array(assessmentCaseFactSchema),
   artifacts: z.array(assessmentArtifactViewSchema),
 });
+export const assessmentUsageSummarySchema = z.strictObject({
+  invocationCount: revisionSchema,
+  inputTokens: revisionSchema.optional(),
+  outputTokens: revisionSchema.optional(),
+  totalTokens: revisionSchema.optional(),
+  partial: z.boolean(),
+});
+export type AssessmentUsageSummary = z.infer<
+  typeof assessmentUsageSummarySchema
+>;
+
 export const assessmentDetailSchema = z.strictObject({
   assessment_id: uuidSchema,
   name: z.string().trim().min(1).max(ASSESSMENT_NAME_MAX_LENGTH),
@@ -529,6 +548,7 @@ export const assessmentDetailSchema = z.strictObject({
   lifecycle: assessmentLifecycleSchema.nullable(),
   runtime: assessmentRuntimeSchema.nullable(),
   case: assessmentCaseViewSchema.nullable(),
+  usage: assessmentUsageSummarySchema.optional(),
   created_at: z.iso.datetime(),
   updated_at: z.iso.datetime(),
   correlationId: z.string(),
@@ -558,6 +578,7 @@ export const assessmentListSchema = z.strictObject({
     assessmentDetailSchema.omit({
       owner_id: true,
       case: true,
+      usage: true,
       correlationId: true,
     }),
   ),

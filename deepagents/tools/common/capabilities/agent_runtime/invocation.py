@@ -7,12 +7,6 @@ import inspect
 from dataclasses import dataclass
 from typing import Any, Type
 
-from tools.common.capabilities.agentic_evidence import (
-    AgenticToolResolver,
-    bind_runtime_handlers,
-    build_engineering_rule_agentic_registry,
-)
-from tools.common.capabilities.agentic_evidence.governance.authorization import ApiRbacToolAuthorizer
 from tools.common.capabilities.platform.rbac_client import RbacClient
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
@@ -23,9 +17,6 @@ from orchestration.agent_stream import (
     BufferedAgentStreamEmitter,
     activate_agent_stream,
     publish_agent_stream_event,
-)
-from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
-    LEGAL_CORPUS_RECOVERY_COMMAND,
 )
 
 
@@ -57,12 +48,6 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "legal_preparation.boundary:LegalPreparationBoundary",
         "legal.legal-portfolio-preparation",
         "command.legal-portfolio.preparation.requested.v1",
-    ),
-    AgentInvocationBoundary(
-        "legal_corpus_recovery_requested",
-        "tools.legal.sources.recovery.legal_corpus_recovery_boundary:LegalCorpusRecoveryBoundary",
-        "legal.legal-corpus-recovery",
-        LEGAL_CORPUS_RECOVERY_COMMAND,
     ),
     AgentInvocationBoundary(
         "legal_source_ingest_requested",
@@ -132,10 +117,7 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
     ),
 )
 
-# Default live-stream stage for boundaries that serve exactly one stage. The
-# engineering assessment boundary spans Interview, Repository Analyst (Investigate) and
-# Gate, so each of those invocations names its own stage instead.
-_BOUNDARY_STREAM_STAGES: dict[str, str] = {}
+# Boundary telemetry is activity; the Assessment Root owns the persisted lifecycle.
 _BOUNDARY_INDEX = {boundary.name: boundary for boundary in AGENT_INVOCATION_BOUNDARIES}
 if len(_BOUNDARY_INDEX) != len(AGENT_INVOCATION_BOUNDARIES):
     raise RuntimeError("Agent Runtime invocation boundary names must be unique")
@@ -167,7 +149,11 @@ def invoke_boundary(
     session = _agent_stream_session(boundary.name, message, correlation_id)
     run_state = _agent_run_state(boundary.name, message, correlation_id)
     with activate_agent_run_state(run_state), activate_agent_stream(session):
-        _run_boundary_handler(boundary_handler, message, correlation_id, boundary)
+        if boundary.name == "assessment_root_requested":
+            # Root telemetry starts only after the canonical execution lease is claimed.
+            boundary_handler.handle(message, correlation_id)
+        else:
+            _run_boundary_handler(boundary_handler, message, correlation_id, boundary)
     return {
         "boundary": boundary.name,
         "target": boundary.target,
@@ -288,8 +274,8 @@ def _agent_stream_session(
         run_id=run_id,
         correlation_id=correlation_id,
         boundary_name=boundary_name,
-        emit_payload=BufferedAgentStreamEmitter(client.post_agent_stream_event),
-        stage=_BOUNDARY_STREAM_STAGES.get(boundary_name),
+        emit_payload=(client.post_agent_stream_event if boundary_name == "assessment_root_requested"
+                      else BufferedAgentStreamEmitter(client.post_agent_stream_event)),
     )
 
 
@@ -347,28 +333,6 @@ def build_boundary(target: str) -> AgentBoundaryBase:
         kwargs["api_client"] = WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,
-        )
-
-    if "agentic_tool_resolver" in constructor.parameters:
-        api_client = WorkerApiClient(
-            config.nestjs_api_base_url,
-            config.worker_api_key,
-        )
-        registry = build_engineering_rule_agentic_registry()
-        bind_runtime_handlers(
-            registry,
-            api_client=api_client,
-            user_id="agent-runtime",
-        )
-        kwargs["agentic_tool_resolver"] = AgenticToolResolver(
-            registry,
-            ApiRbacToolAuthorizer(
-                rbac_client=RbacClient(
-                    config.nestjs_api_base_url,
-                    config.worker_api_key,
-                    timeout_seconds=config.rbac_preflight.timeout_seconds,
-                ),
-            ),
         )
 
     return boundary_type(config, **kwargs)

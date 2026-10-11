@@ -211,6 +211,18 @@ def test_search_trace_marks_result_truncation_and_reports_dropped_calls(monkeypa
     assert trace.snapshot_and_reset() == ([], 0)
 
 
+def test_repository_tool_activity_never_exposes_arguments_or_source(monkeypatch) -> None:
+    events = []
+    monkeypatch.setattr("orchestration.agent_stream.publish_agent_stream_event", lambda kind, **fields: events.append((kind, fields)))
+    trace = SearchTrace()
+    trace.on_tool_start({"name": "read_file"}, "private-path", run_id="call-a", inputs={"file_path": "/private-path"})
+    trace.on_tool_end("private customer source", run_id="call-a")
+    assert events == [("TOOL_RESULT", {"tool_name": "read_file", "tool_call_id": "call-a", "status": "COMPLETED"})]
+    trace.on_tool_start({"name": "grep"}, "private query", run_id="call-b")
+    trace.on_tool_error(RuntimeError("private failure"), run_id="call-b")
+    assert len(events) == 1
+
+
 @pytest.mark.parametrize(
     ("output", "expected"),
     [
@@ -423,6 +435,61 @@ def test_failed_search_is_recorded_as_a_coverage_gap(tmp_path) -> None:
 # ---- the agent graph ------------------------------------------------------------------------------
 
 
+def test_production_root_filesystem_backend_keeps_permissions_without_shell(tmp_path, monkeypatch) -> None:
+    from assessment_root.boundary import sandbox_backend_factory
+    from tools.common.capabilities.platform import repository_sandbox
+
+    repo = _repo(tmp_path)
+    sandbox = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    monkeypatch.setattr(repository_sandbox, "REPOSITORY_ROOT", "/repo")
+    monkeypatch.setattr(repository_sandbox, "resolve_repository_thread_backend", lambda _config: sandbox)
+    monkeypatch.setattr(repository_sandbox, "hydrate_repository", lambda _backend, **_pins: None)
+    client = FakeClient()
+    claim = client.claim(ASSESSMENT)
+    context = client.context()
+    backend, activation = sandbox_backend_factory(claim, context)
+    assert not hasattr(backend, "execute")
+    run = RootRun(client=client, assessment_id=ASSESSMENT, thread_id=THREAD, execution_id=EXECUTION, backend=backend)
+    run.adopt_context(context)
+    model = RootScriptedModel(responses=[
+        _call("read_file", {"file_path": "/src/retention.py"}, "read"),
+        _call("write_file", {"file_path": "/src/new.py", "content": "forbidden"}, "deny"),
+        _call("write_file", {"file_path": "/.lcsp/scratch.txt", "content": "scratch"}, "scratch"),
+        AIMessage(content="done"),
+    ])
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), graph_tools=[])
+    with activation:
+        output = agent.invoke({"messages": [{"role": "user", "content": "start"}]},
+                              config={"configurable": {"thread_id": THREAD}})
+    replies = {message.tool_call_id: str(message.content) for message in output["messages"] if isinstance(message, ToolMessage)}
+    assert "keep_days = 7" in replies["read"]
+    assert "denied" in replies["deny"].lower()
+    assert not (repo / "src" / "new.py").exists()
+    assert (repo / ".lcsp" / "scratch.txt").read_text() == "scratch"
+    assert "execute" not in model.bound_tool_names[0]
+    assert repository_sandbox.current_repository_backend() is None
+
+
+def test_root_backend_factory_indexes_the_hydrated_snapshot_for_graph_tools(tmp_path, monkeypatch) -> None:
+    """The graph tools answer "not indexed" unless the Root boundary indexes after hydration."""
+    from assessment_root.boundary import sandbox_backend_factory
+    from tools.common.capabilities.platform import codebase_memory, repository_sandbox
+
+    sandbox = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    order: list[object] = []
+    monkeypatch.setattr(repository_sandbox, "resolve_repository_thread_backend", lambda _config: sandbox)
+    monkeypatch.setattr(repository_sandbox, "hydrate_repository", lambda _backend, **_pins: order.append("hydrate"))
+    monkeypatch.setattr(
+        codebase_memory, "ensure_codebase_memory_index",
+        lambda backend, **_kwargs: order.append(("index", backend is sandbox)),
+    )
+    client = FakeClient()
+
+    sandbox_backend_factory(client.claim(ASSESSMENT), client.context())
+
+    assert order == ["hydrate", ("index", True)]
+
+
 def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_tools(tmp_path) -> None:
     client = FakeClient()
     run = _run(tmp_path, client)
@@ -452,6 +519,34 @@ def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_t
     # The pinned repository is read-only for Root and researcher alike; only scratch is writable.
     rules = [(p.operations, p.paths, p.mode) for p in root_permissions()]
     assert rules[-1] == (["write"], ["/**"], "deny")
+
+
+def test_runner_acknowledges_already_complete_recovery_without_model_or_repository_work() -> None:
+    class CompletedClient(FakeClient):
+        def claim(self, assessment_id):
+            return {**super().claim(assessment_id), "lifecycleState": "COMPLETE", "recoveredExecution": True}
+
+    client = CompletedClient()
+    result = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: pytest.fail("completed recovery must not hydrate repository"))
+    assert result["state"] == "SUCCEEDED"
+    assert result["threadId"] == THREAD
+    assert [name for name, _ in client.calls] == ["claim", "finish"]
+
+
+def test_root_reads_shared_generic_learning_through_its_native_store_only(tmp_path):
+    from langgraph.store.memory import InMemoryStore
+    from assessment_root.learning import promote_reviewed_heuristic, HEURISTIC_AUTHORITY
+    from tests.test_assessment_learning import PROPOSAL, REVIEW_KEY, signature
+
+    store = InMemoryStore()
+    heuristic = promote_reviewed_heuristic(store, PROPOSAL, signature(PROPOSAL), REVIEW_KEY)
+    client = FakeClient()
+    model = RootScriptedModel(responses=[_call("retrieve_shared_heuristics", {"query": "search coverage"}, "learning-1"), AIMessage(content="Investigate source; guidance is not evidence.")])
+    agent = create_assessment_root_agent(run=_run(tmp_path, client), model=model, governance=(), checkpointer=InMemorySaver(), store=store, graph_tools=[])
+    output = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config={"configurable": {"thread_id": THREAD}})
+    messages = [message.content for message in output["messages"] if getattr(message, "name", None) == "retrieve_shared_heuristics"]
+    assert len(messages) == 1 and heuristic in messages[0] and HEURISTIC_AUTHORITY in messages[0]
+    assert not any(name in {"evidence", "fact", "decision"} for name, _ in client.calls)
 
 
 def test_runner_binds_the_server_thread_and_settles_the_execution(tmp_path) -> None:
@@ -705,3 +800,50 @@ def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):
     assert resumed["state"] == "SUCCEEDED"
     assert resumed["threadId"] == first["threadId"]
     assert resumed["executionId"] == first["executionId"]
+
+
+def test_stop_arriving_during_model_response_pauses_before_tool_effects(tmp_path):
+    class ControlledClient(FakeClient):
+        control = "RUNNING"
+        checkpoint = None
+
+        def root_control(self):
+            return {"state": self.control, "targetRunId": EXECUTION,
+                    "requestId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}
+
+        def claim(self, assessment_id):
+            return {**super().claim(assessment_id), "resumeCheckpointId": self.checkpoint}
+
+        def finish(self, state, **metadata):
+            if metadata.get("checkpoint_id"):
+                self.checkpoint = metadata["checkpoint_id"]
+            return super().finish(state, **metadata)
+
+    client = ControlledClient()
+
+    class StopDuringResponse(RootScriptedModel):
+        def _generate(self, messages, **kwargs):
+            result = super()._generate(messages, **kwargs)
+            client.control = "STOP_REQUESTED"
+            return result
+
+    model = StopDuringResponse(responses=[_call("accept_case_fact", {
+        "kind": "FACT", "statement": "A bounded source fact.",
+        "evidence_ids": ["66666666-6666-4666-8666-666666666666"],
+    }, "source-fact")])
+    saver = InMemorySaver()
+    backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    first = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (backend, None),
+                                model=model, checkpointer=saver, governance=())
+    assert first["state"] == "PAUSED"
+    assert len(model.prompts) == 1
+    assert not any(kind == "fact" for kind, _ in client.calls)
+    client.control = "RUNNING"
+    resumed_model = RootScriptedModel(responses=[AIMessage(content="Done")])
+    resumed = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (backend, None),
+                                  model=resumed_model, checkpointer=saver, governance=())
+    assert resumed["state"] == "SUCCEEDED"
+    assert resumed["threadId"] == first["threadId"] == THREAD
+    assert resumed["executionId"] == first["executionId"] == EXECUTION
+    assert len(resumed_model.prompts) == 1
+    assert sum(kind == "fact" for kind, _ in client.calls) == 1

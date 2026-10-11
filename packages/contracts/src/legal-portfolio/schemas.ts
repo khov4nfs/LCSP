@@ -63,13 +63,53 @@ const sourceRefListSchema = z
   .min(1)
   .max(LEGAL_PORTFOLIO_LIMITS.maxSourceRefsPerRule);
 
+/**
+ * Structural invariant shared with the database CHECK LegalPortfolioRule_coverage_reason_check:
+ * a rule covered by engineering rules carries no reason; a non-assessable rule carries a
+ * non-blank one. The refinement checks structure only and never judges the legal meaning.
+ */
 export const legalPortfolioCoverageSchema = z
   .object({
-    state: z.enum(LEGAL_PORTFOLIO_COVERAGE_STATES),
-    /** Required when state is NON_ASSESSABLE (agent-declared, server-checked for presence only). */
-    nonAssessableReason: textSchema.nullable(),
+    state: z
+      .enum(LEGAL_PORTFOLIO_COVERAGE_STATES)
+      .describe(
+        "COVERED_BY_ENGINEERING_RULES requires at least one EngineeringRule legalRuleIds reference; NON_ASSESSABLE requires none. The model decides legal assessability.",
+      ),
+    nonAssessableReason: z
+      .string()
+      .trim()
+      .max(LEGAL_PORTFOLIO_LIMITS.maxTextLength)
+      .nullable()
+      .describe(
+        "Must be null when state is COVERED_BY_ENGINEERING_RULES; must be a non-blank reason when state is NON_ASSESSABLE.",
+      ),
   })
-  .strict();
+  .strict()
+  .superRefine((coverage, context) => {
+    const { COVERED_BY_ENGINEERING_RULES, NON_ASSESSABLE } =
+      LEGAL_PORTFOLIO_COVERAGE_STATES;
+    if (
+      coverage.state === COVERED_BY_ENGINEERING_RULES &&
+      coverage.nonAssessableReason !== null
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["nonAssessableReason"],
+        message: `${COVERED_BY_ENGINEERING_RULES} requires nonAssessableReason to be null`,
+      });
+    }
+    if (
+      coverage.state === NON_ASSESSABLE &&
+      (coverage.nonAssessableReason === null ||
+        coverage.nonAssessableReason.length === 0)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["nonAssessableReason"],
+        message: `${NON_ASSESSABLE} requires a non-blank nonAssessableReason`,
+      });
+    }
+  });
 
 /** Agent-authored legal proposition with its context. Meaning only. */
 export const legalPortfolioRuleSchema = z
@@ -81,7 +121,11 @@ export const legalPortfolioRuleSchema = z
     qualifiers: shortTextListSchema,
     exceptions: shortTextListSchema,
     /** True for organizational/document duties that repository evidence cannot establish. */
-    nonRepositoryDuty: z.boolean(),
+    nonRepositoryDuty: z
+      .boolean()
+      .describe(
+        "Whether the duty requires organizational, human, physical or external action that repository/software evidence cannot establish. A software record of an action does not establish performance of that action or create a software obligation absent from the source.",
+      ),
     sourceRefs: sourceRefListSchema,
     coverage: legalPortfolioCoverageSchema,
   })
@@ -114,7 +158,10 @@ export const engineeringRuleSchema = z
     legalRuleIds: z
       .array(idSchema)
       .min(1)
-      .max(LEGAL_PORTFOLIO_LIMITS.maxListItems),
+      .max(LEGAL_PORTFOLIO_LIMITS.maxListItems)
+      .describe(
+        "LegalRule IDs covered by this EngineeringRule; never reference a LegalRule declared NON_ASSESSABLE.",
+      ),
     concept: shortTextSchema,
     legalIntent: textSchema,
     applicabilityGuidance: textSchema,
@@ -149,8 +196,16 @@ export const legalContextRelationSchema = z
     kind: z.enum(LEGAL_CONTEXT_RELATION_KINDS),
     fromLegalRuleId: idSchema,
     /** Exactly one of toLegalRuleId / toSourceRef. */
-    toLegalRuleId: idSchema.nullable(),
-    toSourceRef: legalPortfolioSourceRefSchema.nullable(),
+    toLegalRuleId: idSchema
+      .nullable()
+      .describe(
+        "Target an independently operative LegalRule only. For a context-only provision use toSourceRef and set this field to explicit JSON null; never create a LegalRule merely as a relation target.",
+      ),
+    toSourceRef: legalPortfolioSourceRefSchema
+      .nullable()
+      .describe(
+        "Exact pinned source reference for a context-only definition, scope, qualifier, exception or cross-reference. Set toLegalRuleId to explicit JSON null. When targeting an independently operative LegalRule, this field is explicit JSON null.",
+      ),
   })
   .strict()
   .refine(
@@ -168,7 +223,10 @@ export const legalPortfolioPacketSchema = z
   .object({
     legalRules: z
       .array(legalPortfolioRuleSchema)
-      .max(LEGAL_PORTFOLIO_LIMITS.maxLegalRules),
+      .max(LEGAL_PORTFOLIO_LIMITS.maxLegalRules)
+      .describe(
+        "Operative duties, prohibitions or permissions only. Context-only definitions, scope, exceptions and interpretive cross-references belong in contextRelations with toSourceRef, not standalone LegalRules. Source coverage does not require a LegalRule for every provision.",
+      ),
     engineeringRules: z
       .array(engineeringRuleSchema)
       .max(LEGAL_PORTFOLIO_LIMITS.maxEngineeringRules),
@@ -176,7 +234,46 @@ export const legalPortfolioPacketSchema = z
       .array(legalContextRelationSchema)
       .max(LEGAL_PORTFOLIO_LIMITS.maxContextRelations),
   })
-  .strict();
+  .strict()
+  .superRefine((packet, context) => {
+    const { COVERED_BY_ENGINEERING_RULES, NON_ASSESSABLE } =
+      LEGAL_PORTFOLIO_COVERAGE_STATES;
+    const legalRules = new Map(
+      packet.legalRules.map((rule) => [rule.legalRuleId, rule]),
+    );
+    const coveredIds = new Set<string>();
+    packet.engineeringRules.forEach((rule, ruleIndex) => {
+      rule.legalRuleIds.forEach((legalRuleId, referenceIndex) => {
+        coveredIds.add(legalRuleId);
+        if (legalRules.get(legalRuleId)?.coverage.state === NON_ASSESSABLE) {
+          context.addIssue({
+            code: "custom",
+            path: [
+              "engineeringRules",
+              ruleIndex,
+              "legalRuleIds",
+              referenceIndex,
+            ],
+            message:
+              "Referenced LegalRule declares NON_ASSESSABLE, remove this EngineeringRule coverage or correct the LegalRule coverage declaration",
+          });
+        }
+      });
+    });
+    packet.legalRules.forEach((rule, ruleIndex) => {
+      if (
+        rule.coverage.state === COVERED_BY_ENGINEERING_RULES &&
+        !coveredIds.has(rule.legalRuleId)
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["legalRules", ruleIndex, "coverage", "state"],
+          message:
+            "COVERED_BY_ENGINEERING_RULES requires at least one EngineeringRule legalRuleIds reference to this LegalRule",
+        });
+      }
+    });
+  });
 export type LegalPortfolioPacket = z.infer<typeof legalPortfolioPacketSchema>;
 
 /** Idempotent request that starts one Legal Preparation run for one pinned corpus. */

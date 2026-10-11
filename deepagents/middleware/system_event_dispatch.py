@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from dataclasses import asdict
 from threading import Event, Timer
 from typing import Any, Mapping
 
@@ -14,10 +13,7 @@ from langgraph.config import get_config
 
 from orchestration.context import LCSPRunContext
 from orchestration.runtime_control import (
-    NativeExecutionScope,
-    active_native_execution_scope,
     active_runtime_run_id,
-    hosted_checkpoint_scope,
 )
 from orchestration.agent_stream import (
     AgentStreamInterrupted,
@@ -28,20 +24,6 @@ from tools.common.capabilities.agent_runtime.boundary import AgentRuntimeBoundar
 from tools.common.capabilities.agent_runtime.invocation import (
     invoke_boundary,
     report_external_boundary_timeout,
-)
-from tools.common.capabilities.platform.callback_schemas import (
-    SCAN_CALLBACK_STATUSES,
-    ScanCallbackPayload,
-)
-from tools.common.capabilities.platform.codebase_memory import (
-    ensure_codebase_memory_index,
-)
-from tools.common.capabilities.platform.config import load_config
-from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.platform.repository_sandbox import (
-    activate_repository_backend,
-    ensure_repository_for_event,
-    resolve_repository_thread_backend,
 )
 
 
@@ -116,19 +98,10 @@ def _dispatch_hosted_system_event(state, runtime, configured):
         # The LCSP-owned server already binds and registers its execution scope.
         return _dispatch_system_event(state, runtime)
     run_id, thread_id = str(run_id), str(thread_id)
-    frozen_context = asdict(context)
-    frozen_context["logical_run_id"] = context.logical_run_id or run_id
-    execution_scope = NativeExecutionScope()
     run_token = active_runtime_run_id.set(run_id)
-    execution_token = active_native_execution_scope.set(execution_scope)
     try:
-        with hosted_checkpoint_scope(thread_id, frozen_context["logical_run_id"]):
-            try:
-                return _dispatch_system_event(state, runtime)
-            finally:
-                execution_scope.drain()
+        return _dispatch_system_event(state, runtime)
     finally:
-        active_native_execution_scope.reset(execution_token)
         active_runtime_run_id.reset(run_token)
 
 
@@ -180,28 +153,12 @@ def _report_expired_queued_event(context: LCSPRunContext) -> None:
         or context.system_boundary_name
     )
     try:
-        if context.system_boundary_name == "scan_requested":
-            scan_job_id = _event_text(context.system_event, "scanJobId", "scan_job_id")
-            client = _worker_client()
-            if scan_job_id and client is not None:
-                client.post_scan_terminal_failure(
-                    scan_job_id,
-                    {
-                        "boundary_name": context.system_boundary_name,
-                        "reason_code": _BOUNDARY_TIMEOUT_CODE,
-                        "status": "FAILED",
-                        "summary": "LangGraph repository run expired before execution started",
-                        "timeout_seconds": None,
-                        "correlation_id": correlation_id,
-                    },
-                )
-        else:
-            report_external_boundary_timeout(
-                context.system_boundary_name,
-                dict(context.system_event),
-                correlation_id,
-                _BOUNDARY_TIMEOUT_CODE,
-            )
+        report_external_boundary_timeout(
+            context.system_boundary_name,
+            dict(context.system_event),
+            correlation_id,
+            _BOUNDARY_TIMEOUT_CODE,
+        )
     except Exception as error:
         # The broker may already have settled the timed-out delivery, and the
         # API can still be starting while persisted Agent Server runs wake up.
@@ -218,51 +175,13 @@ def _dispatch_active_system_event(state, runtime) -> dict[str, Any] | None:
     if context is None or not context.system_boundary_name or not context.system_event:
         return None
 
-    backend = resolve_repository_thread_backend(_repository_config(runtime))
     correlation_id = (
         context.correlation_id
         or _event_text(context.system_event, "correlationId", "correlation_id")
         or context.system_boundary_name
     )
-    scan_job_id = _event_text(context.system_event, "scanJobId", "scan_job_id")
-    client = _worker_client()
-    _post_scan_runtime_event(
-        client,
-        scan_job_id,
-        event_type="RUN_STARTED",
-        run_status="RUNNING",
-        summary="Repository scan runtime accepted the scan job",
-    )
-    lifecycle = lambda event: _post_repository_lifecycle_event(  # noqa: E731
-        client,
-        scan_job_id,
-        event,
-    )
-    try:
-        ensure_repository_for_event(
-            backend,
-            context.system_boundary_name,
-            context.system_event,
-            lifecycle=lifecycle,
-        )
-        # Agents query the repository through the Codebase Memory graph; index
-        # the hydrated snapshot before any of them starts (reused if current).
-        ensure_codebase_memory_index(backend, lifecycle=lifecycle)
-    except Exception as exc:
-        _post_repository_hydration_failed(client, scan_job_id, exc)
-        if context.system_boundary_name == "scan_requested" and scan_job_id:
-            try:
-                _post_failed_scan_callback(client, scan_job_id)
-            except Exception:
-                pass
-        raise
-    with activate_repository_backend(backend):
-        check_agent_execution_active()
-        invoke_boundary(
-            context.system_boundary_name,
-            dict(context.system_event),
-            correlation_id,
-        )
+    check_agent_execution_active()
+    invoke_boundary(context.system_boundary_name, dict(context.system_event), correlation_id)
     return {"jump_to": "end"}
 
 
@@ -277,204 +196,18 @@ def _context(value: object) -> LCSPRunContext | None:
     return None
 
 
-def _worker_client() -> WorkerApiClient | None:
-    try:
-        config = load_config()
-    except Exception:
-        return None
-    return WorkerApiClient(config.nestjs_api_base_url, config.worker_api_key)
 
 
-def _post_scan_runtime_event(
-    client: WorkerApiClient | None,
-    scan_job_id: str | None,
-    *,
-    event_type: str,
-    run_status: str,
-    summary: str,
-    tool_name: str | None = None,
-    error_summary: str | None = None,
-    output_summary: Mapping[str, Any] | None = None,
-) -> None:
-    if client is None or not scan_job_id:
-        return
-    payload: dict[str, Any] = {
-        "event_type": event_type,
-        "run_status": run_status,
-        "stage": "SCAN",
-        "summary": summary,
-    }
-    if tool_name:
-        payload["tool_name"] = tool_name
-    if error_summary:
-        payload["error_summary"] = error_summary
-    if output_summary:
-        payload["output_summary"] = dict(output_summary)
-    client.post_scan_runtime_event(scan_job_id, payload)
 
 
-def _post_repository_lifecycle_event(
-    client: WorkerApiClient | None,
-    scan_job_id: str | None,
-    event: str,
-) -> None:
-    mapping = {
-        "repository_archive_downloading": {
-            "event_type": "TOOL_STARTED",
-            "run_status": "RUNNING",
-            "tool_name": "repository_archive_download",
-            "summary": "Downloading repository archive",
-        },
-        "repository_archive_downloaded": {
-            "event_type": "TOOL_COMPLETED",
-            "run_status": "RUNNING",
-            "tool_name": "repository_archive_download",
-            "summary": "Repository archive downloaded",
-        },
-        "repository_sandbox_hydrating": {
-            "event_type": "TOOL_STARTED",
-            "run_status": "RUNNING",
-            "tool_name": "repository_sandbox_hydration",
-            "summary": "Hydrating repository archive into Docker sandbox",
-        },
-        "repository_sandbox_hydrated": {
-            "event_type": "TOOL_COMPLETED",
-            "run_status": "RUNNING",
-            "tool_name": "repository_sandbox_hydration",
-            "summary": "Repository sandbox hydrated",
-        },
-        "repository_sandbox_reused": {
-            "event_type": "TOOL_COMPLETED",
-            "run_status": "RUNNING",
-            "tool_name": "repository_sandbox_hydration",
-            "summary": "Repository sandbox already hydrated",
-        },
-        "codebase_memory_indexing": {
-            "event_type": "TOOL_STARTED",
-            "run_status": "RUNNING",
-            "tool_name": "codebase_memory_index",
-            "summary": "Indexing repository into Codebase Memory graph",
-        },
-        "codebase_memory_indexed": {
-            "event_type": "TOOL_COMPLETED",
-            "run_status": "RUNNING",
-            "tool_name": "codebase_memory_index",
-            "summary": "Codebase Memory graph indexed",
-        },
-        "codebase_memory_index_reused": {
-            "event_type": "TOOL_COMPLETED",
-            "run_status": "RUNNING",
-            "tool_name": "codebase_memory_index",
-            "summary": "Codebase Memory graph already indexed",
-        },
-        "codebase_memory_index_failed": {
-            "event_type": "TOOL_FAILED",
-            "run_status": "FAILED",
-            "tool_name": "codebase_memory_index",
-            "summary": "Codebase Memory graph indexing failed",
-        },
-    }
-    payload = mapping.get(event)
-    if payload:
-        _post_scan_runtime_event(client, scan_job_id, **payload)
 
 
-def _post_repository_hydration_failed(
-    client: WorkerApiClient | None,
-    scan_job_id: str | None,
-    exc: Exception,
-) -> None:
-    error_summary = (
-        "Repository sandbox hydration failed before source analysis started"
-    )
-    _post_scan_runtime_event(
-        client,
-        scan_job_id,
-        event_type="TOOL_FAILED",
-        run_status="FAILED",
-        tool_name="repository_sandbox_hydration",
-        summary="Repository sandbox hydration failed",
-        error_summary=error_summary,
-        output_summary={"errorType": type(exc).__name__},
-    )
-    _post_scan_runtime_event(
-        client,
-        scan_job_id,
-        event_type="RUN_FAILED",
-        run_status="FAILED",
-        summary="Repository scan failed before source analysis started",
-        error_summary=error_summary,
-        output_summary={"errorCode": "REPOSITORY_SANDBOX_HYDRATION_FAILED"},
-    )
 
 
-def _post_failed_scan_callback(
-    client: WorkerApiClient | None,
-    scan_job_id: str,
-) -> None:
-    if client is None:
-        return
-    client.post_scan_callback(
-        scan_job_id,
-        ScanCallbackPayload(
-            scan_job_id=scan_job_id,
-            status=SCAN_CALLBACK_STATUSES["failed"],
-            tools_version={},
-            config_hash={},
-            evidence_payload={
-                "failure": {
-                    "code": "REPOSITORY_SANDBOX_HYDRATION_FAILED",
-                    "phase": "REPOSITORY_SANDBOX_HYDRATING",
-                }
-            },
-            privacy_flags={
-                "containsSourceCode": False,
-                "secretsRedacted": True,
-                "sourceStrippedFromFindings": True,
-            },
-            error_code="REPOSITORY_SANDBOX_HYDRATION_FAILED",
-        ),
-    )
 
 
-def _repository_config(runtime: Any) -> dict[str, dict[str, str]]:
-    config = getattr(runtime, "config", None)
-    if isinstance(config, dict) and isinstance(config.get("configurable"), dict):
-        configurable = config["configurable"]
-        if configurable.get("thread_id"):
-            return config
-
-    context = _context(getattr(runtime, "context", None))
-    if context is None or not context.thread_id:
-        return {"configurable": {}}
-
-    event = context.system_event if isinstance(context.system_event, dict) else {}
-    configurable = {
-        "thread_id": context.thread_id,
-        "cwd": "/workspace/repository",
-    }
-    _copy_if_present(configurable, "assessment_id", context.assessment_id)
-    _copy_if_present(
-        configurable,
-        "snapshot_id",
-        context.snapshot_id or _event_text(event, "snapshotId", "snapshot_id"),
-    )
-    _copy_if_present(
-        configurable,
-        "scan_job_id",
-        context.scan_job_id or _event_text(event, "scanJobId", "scan_job_id"),
-    )
-    _copy_if_present(
-        configurable,
-        "commit_sha",
-        context.commit_sha or _event_text(event, "commitSha", "commit_sha"),
-    )
-    return {"configurable": configurable}
 
 
-def _copy_if_present(target: dict[str, str], key: str, value: str | None) -> None:
-    if value:
-        target[key] = value
 
 
 def _event_text(event: Mapping[str, Any], *keys: str) -> str | None:

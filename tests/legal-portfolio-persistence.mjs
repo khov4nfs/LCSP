@@ -1,7 +1,7 @@
 // Run: node tests/legal-portfolio-persistence.mjs
 // Creates one task-owned database on the existing loopback PostgreSQL test
 // container (default 55441), applies ALL ordered migrations, then proves the
-// W2 portfolio database guarantees. It never reads the caller's DATABASE_URL.
+// LEGAL_PORTFOLIO portfolio database guarantees. It never reads the caller's DATABASE_URL.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -11,8 +11,8 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const api = path.join(root, "apps/api");
 const host = "127.0.0.1";
-const port = Number(process.env.LCSP_W2_PG_PORT ?? 55441);
-const database = "lcsp_w2_portfolio_persistence";
+const port = Number(process.env.LCSP_TEST_PG_PORT ?? 55441);
+const database = "lcsp_legal_portfolio_portfolio_persistence";
 const databaseUrl = `postgresql://postgres:postgres@${host}:${port}/${database}?schema=public`;
 const { Client } = createRequire(path.join(api, "package.json"))("pg");
 let checks = 0;
@@ -316,12 +316,12 @@ try {
     [second.run],
   );
 
-  // 10. V1 approval tables are untouched by the expand migration
+  // The final schema has no approval-era catalog column.
   const v1 = await q(
     `SELECT count(*)::int AS n FROM information_schema.columns
       WHERE table_name = 'LegalRule' AND column_name = 'legalRuleCatalogVersionId'`,
   );
-  assert.equal(v1.rows[0].n, 1);
+  assert.equal(v1.rows[0].n, 0);
   checks += 1;
 } finally {
   await db.end();

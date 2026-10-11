@@ -1,0 +1,9 @@
+{
+  "classification": "V1_ONLY branches in mixed canonical runtime",
+  "files": [
+    "deepagents/middleware/system_event_dispatch.py",
+    "deepagents/tools/common/capabilities/agent_runtime/agent_server_client.py"
+  ],
+  "removed": "Scan observer and callbacks, unused old runtime-control command dispatcher/map, redundant legacy event hydration. Generic native dispatch/poll/deadline/cancel preserved. Root hydrates through assessment_root.boundary.sandbox_backend_factory using claim.threadId and accepted context pins.",
+  "initialFailure": "Observer-only if branch became empty; removed branch before syntax/retest. No provider or domain mutation."
+}

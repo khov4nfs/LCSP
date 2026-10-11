@@ -16,6 +16,44 @@ import { ZodValidationPipe } from "./zod-validation.pipe.ts";
  * Verifies that valid inputs pass through with correct types and invalid inputs throw standard RFC 7807 problem exceptions.
  */
 describe("ZodValidationPipe", () => {
+  it("explains missing required arrays using schema types without input values", () => {
+    const detailed = new ZodValidationPipe(
+      z.object({
+        packet: z.object({
+          engineeringRules: z.array(
+            z.object({
+              startingNodeTypes: z.array(z.string()),
+              investigationGoals: z.array(z.string()),
+            }),
+          ),
+        }),
+      }),
+      AUTH_ERROR_CODES.validationFailed,
+      HttpStatus.BAD_REQUEST,
+      true,
+    );
+    try {
+      detailed.transform({
+        packet: { engineeringRules: [{ privateValue: "must-not-echo" }] },
+      });
+      throw new Error("Expected validation failure");
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpException);
+      const response = (error as HttpException).getResponse();
+      expect(response).toMatchObject({
+        ok: false,
+        problem: {
+          status: HttpStatus.BAD_REQUEST,
+          meta: {
+            requirements:
+              "packet.engineeringRules.0.startingNodeTypes requires array | packet.engineeringRules.0.investigationGoals requires array",
+          },
+        },
+      });
+      expect(JSON.stringify(response)).not.toContain("must-not-echo");
+    }
+  });
+
   const schema = z.object({
     email: z.string().email(),
     age: z.number().min(18),

@@ -11,7 +11,7 @@ import pytest
 
 from tools.legal.corpus.chunk_integrity.chunk_integrity_boundary import ChunkIntegrityBoundary
 from tools.legal.corpus.legal_chunks.legal_chunk_boundary import LegalChunkBoundary
-from tools.legal.sources.recovery.legal_corpus_recovery_driver import LegalCorpusRecoveryDriver
+from tools.legal.sources.ingest.official_corpus_acquisition import OfficialCorpusAcquisition
 from tools.legal.retrieval.index.legal_retrieval_index_boundary import LegalRetrievalIndexBoundary
 from tools.legal.sources.ingest.legal_source_ingest_boundary import LegalSourceIngestBoundary
 from tools.legal.sources.ocr_fallback.ocr_fallback_boundary import OcrFallbackBoundary
@@ -112,9 +112,9 @@ def test_source_fetch_runtime_failure_stays_retryable(tmp_path: Path) -> None:
         )
 
 
-def test_recovery_validation_crosses_canonical_dispatcher() -> None:
-    """Recovery index validation may not own a private Chroma implementation."""
-    source = inspect.getsource(LegalCorpusRecoveryDriver._validate_retrieval_index)
+def test_acquisition_validation_crosses_canonical_dispatcher() -> None:
+    """Acquisition index validation may not own a private Chroma implementation."""
+    source = inspect.getsource(OfficialCorpusAcquisition._validate_retrieval_index)
 
     assert "dispatcher.dispatch(" in source or "_legal_dispatcher.dispatch(" in source
     assert '"validate_retrieval_index"' in source
@@ -122,9 +122,9 @@ def test_recovery_validation_crosses_canonical_dispatcher() -> None:
     assert ".index_corpus(" not in source
 
 
-def test_recovery_activation_crosses_canonical_dispatcher() -> None:
+def test_acquisition_activation_crosses_canonical_dispatcher() -> None:
     """Corpus activation must remain behind the canonical protected API entrypoint."""
-    source = inspect.getsource(LegalCorpusRecoveryDriver._run_locked)
+    source = inspect.getsource(OfficialCorpusAcquisition._run_locked)
 
     assert "_legal_dispatcher.dispatch(" in source
     assert '"activate_validated_corpus_version"' in source

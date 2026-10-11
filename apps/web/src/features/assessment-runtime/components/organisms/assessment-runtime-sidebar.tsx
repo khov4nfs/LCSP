@@ -62,7 +62,10 @@ export function AssessmentRuntimeSidebar({
         </section>
       ) : null}
       <Separator />
-      <CanonicalAssessmentActivity events={timeline.canonicalEvents ?? []} />
+      <CanonicalAssessmentActivity
+        events={timeline.canonicalEvents ?? []}
+        usage={assessment?.usage}
+      />
     </aside>
   );
 }

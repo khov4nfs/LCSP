@@ -28,22 +28,12 @@ export type AuditActorType =
 export const AUDIT_ACTOR_IDS = {
   assessmentOrchestrator: "assessment-orchestrator",
   assessmentRootAgent: "assessment-root-agent",
-  aiUsageFlowWorker: "ai-usage-flow-worker",
-  classificationResultWorker: "classification-result-worker",
-  conflictDetectionWorker: "conflict-detection-worker",
-  documentWorker: "document-worker",
-  interviewAgent: "interview-agent",
-  legalRuleMatchWorker: "legal-rule-match-worker",
-  repositoryAnalysisWorker: "repository-analysis-worker",
-  technicalProfileWorker: "technical-profile-worker",
-  verifiedProfileWorker: "verified-profile-worker",
 } as const;
 
 export type AuditActorId =
   (typeof AUDIT_ACTOR_IDS)[keyof typeof AUDIT_ACTOR_IDS];
 
 export const AUDIT_RESOURCE_TYPES = {
-  aiUsageFlow: "AI_USAGE_FLOW",
   assessment: "ASSESSMENT",
   assessmentRecord: "ASSESSMENT_RECORD",
   auditExportRequest: "AUDIT_EXPORT_REQUEST",
@@ -51,24 +41,15 @@ export const AUDIT_RESOURCE_TYPES = {
   authInvitation: "AUTH_INVITATION",
   authMfaRecoveryCode: "AUTH_MFA_RECOVERY_CODE",
   authSession: "AUTH_SESSION",
-  classificationReviewRequest: "CLASSIFICATION_REVIEW_REQUEST",
-  classificationResult: "CLASSIFICATION_RESULT",
-  conflictRecord: "CONFLICT_RECORD",
-  documentRequest: "DOCUMENT_REQUEST",
   githubAppInstallState: "GITHUB_APP_INSTALL_STATE",
   httpRoute: "HTTP_ROUTE",
   legalPortfolioVersion: "LEGAL_PORTFOLIO_VERSION",
   legalRule: "LEGAL_RULE",
-  legalRuleCatalogVersion: "LEGAL_RULE_CATALOG_VERSION",
-  legalRuleMatch: "LEGAL_RULE_MATCH",
+  legalCorpusVersion: "LEGAL_CORPUS_VERSION",
   outbox: "OUTBOX",
-  readinessExport: "READINESS_EXPORT",
   repositoryConnection: "REPOSITORY_CONNECTION",
   repositoryScanJob: "REPOSITORY_SCAN_JOB",
   repositorySnapshot: "REPOSITORY_SNAPSHOT",
-  technicalEvidenceReport: "TECHNICAL_EVIDENCE_REPORT",
-  technicalProfile: "TECHNICAL_PROFILE",
-  verifiedProfile: "VERIFIED_PROFILE",
   workerTask: "WORKER_TASK",
   workspace: "WORKSPACE",
 } as const;

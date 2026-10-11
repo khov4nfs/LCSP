@@ -1,30 +1,20 @@
 import re
 from pathlib import Path
 
-from tools.legal.sources.recovery.legal_corpus_recovery_boundary import LegalCorpusRecoveryBoundary
-from tools.common.capabilities.reporting.report.final_report.final_report_boundary import FinalReportBoundary
-from tools.common.capabilities.reporting.gap.gap_analysis_boundary import GapAnalysisBoundary
+from assessment_root.boundary import AssessmentRootBoundary
+from legal_preparation.boundary import LegalPreparationBoundary
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_worker_source_events_match_the_shared_contracts():
-    scan_contract = read_contract("packages/contracts/src/scan/callback.ts")
-    github_contract = read_contract(
-        "packages/contracts/src/github-integration/events.ts"
-    )
-    document_contract = read_contract("packages/contracts/src/document/events.ts")
-    legal_matching_contract = read_contract(
-        "packages/contracts/src/legal-rule-catalog/legal-matching.ts"
-    )
+    root_contract = read_contract("packages/contracts/src/assessment-domain/constants.ts")
+    legal_contract = read_contract("packages/contracts/src/legal-portfolio/constants.ts")
 
     expected = {
-        LegalCorpusRecoveryBoundary: event_value(
-            legal_matching_contract, "LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND"
-        ),
-        FinalReportBoundary: event_value(document_contract, "finalReportRequested"),
-        GapAnalysisBoundary: event_value(document_contract, "gapAnalysisRequested"),
+        AssessmentRootBoundary: event_value(root_contract, "ROOT_REQUESTED"),
+        LegalPreparationBoundary: event_value(legal_contract, "preparationRequested"),
     }
 
     assert {boundary: boundary.source_event for boundary in expected} == expected
@@ -102,12 +92,20 @@ def test_fogewise_langgraph_server_image_has_docker_sandbox_control_plane():
 def test_ci_tracks_fogewise_agent_server_image_changes():
     change_detection = read_contract(".github/workflows/check-changed.yml")
     tests = read_contract(".github/workflows/test.yml")
+    image_runner = read_contract("tests/release-images.py")
 
     assert "deepagents-langgraph/**" in change_detection
     assert "deepagents-langgraph/**" in tests
-    assert "docker build -f deepagents-langgraph/Dockerfile" in tests
-    assert "LCSP_PRODUCTION_AGENT_SERVER_IMAGE_E2E" in tests
-    assert "test_production_agent_server_image_e2e.py" in tests
+    assert "run: python tests/release-images.py" in tests
+    assert "'.dockerignore'" in tests.split("release_gate:", maxsplit=1)[1]
+    assert "reports/release-images/" in tests
+    for dockerfile in (
+        "apps/api/Dockerfile", "apps/web/Dockerfile", "deepagents/Dockerfile.dev",
+        "deepagents-langgraph/Dockerfile",
+    ):
+        assert dockerfile in image_runner
+    assert 'LCSP_PRODUCTION_AGENT_SERVER_IMAGE_E2E="1"' in image_runner
+    assert "test_production_agent_server_image_e2e.py" in image_runner
 
 
 def test_redeploy_removes_legacy_worker_processes_without_worker_health_ports():

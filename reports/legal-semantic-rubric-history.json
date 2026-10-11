@@ -1,0 +1,73 @@
+{
+  "rubricId": "legal-preparation-w2-candidate-rubric",
+  "rubricVersion": "W2-EVAL-RUBRIC-1",
+  "semanticOwner": "LEGAL_PREPARATION_AGENT",
+  "deterministicOwner": "PORTFOLIO_INTEGRITY_BOUNDARY",
+  "dimensions": [
+    {
+      "id": "DEFINITIONS",
+      "agentReviewQuestion": "Is each defined term used with its source definition and context references preserved?",
+      "fixtureCaseId": "definition-retained"
+    },
+    {
+      "id": "QUALIFIERS",
+      "agentReviewQuestion": "Are scope, actor, modality, timing, and limiting phrases retained rather than strengthened or dropped?",
+      "fixtureCaseId": "qualifier-retained"
+    },
+    {
+      "id": "EXCEPTIONS",
+      "agentReviewQuestion": "Does an exception remain linked to the provision it qualifies without erasing separately operative duties?",
+      "fixtureCaseId": "exception-retained"
+    },
+    {
+      "id": "CROSS_REFERENCES",
+      "agentReviewQuestion": "Are definitions, scope, and exception references followed to the same pinned corpus version?",
+      "fixtureCaseId": "cross-reference-context"
+    },
+    {
+      "id": "NON_REPOSITORY_DUTIES",
+      "agentReviewQuestion": "Is a duty about an external activity represented without inventing repository evidence or customer context?",
+      "fixtureCaseId": "non-repository-duty-represented"
+    },
+    {
+      "id": "CORPUS_VERSION_PINNING",
+      "agentReviewQuestion": "Does every authored proposition and context relation cite one immutable corpus version and exact source identity?",
+      "fixtureCaseId": "qualifier-retained"
+    }
+  ],
+  "integrityChecks": [
+    "source bytes, source hashes, and corpus versions match the accepted synthetic pins",
+    "every source and context reference resolves to an accepted locator",
+    "all references in one candidate use one corpus version",
+    "duplicate rule IDs and orphan relation endpoints are rejected",
+    "fake, stale, and repealed source references are rejected",
+    "every required source locator is covered or the candidate is rejected with a coverage gap",
+    "a failed portfolio submission does not replace the earlier active portfolio pointer"
+  ],
+  "invalidCaseExpectations": [
+    "fake-reference",
+    "stale-reference",
+    "repealed-reference",
+    "duplicate-rule-id",
+    "orphan-context-relation",
+    "coverage-gap",
+    "mixed-corpus-versions",
+    "failed-attempt-preserves-earlier-active"
+  ],
+  "testBoundary": {
+    "deterministicTestMayAssert": [
+      "fixture identity",
+      "accepted source pin/hash/text identity",
+      "reference resolution and version relationships",
+      "declared invalid-case expectations"
+    ],
+    "deterministicTestMustNotAssert": [
+      "legal interpretation or semantic correctness",
+      "agent quality or model/provider behavior",
+      "portfolio persistence or activation",
+      "customer or repository facts"
+    ],
+    "semanticAcceptance": "NOT_PROVEN",
+    "productionAcceptance": "NOT_PROVEN"
+  }
+}

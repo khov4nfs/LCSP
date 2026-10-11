@@ -1,38 +1,20 @@
 import {
-  AssessmentStatus as PrismaAssessmentStatus,
   AuditExportStatus as PrismaAuditExportStatus,
   AuditResourceType as PrismaAuditResourceType,
   AuthBackupEmailPolicy as PrismaAuthBackupEmailPolicy,
   AuthDecision as PrismaAuthDecision,
   AuthPrimaryEmailAddressPolicy as PrismaAuthPrimaryEmailAddressPolicy,
   AuthUserRole as PrismaAuthUserRole,
-  ClassificationGuardrailStatus as PrismaClassificationGuardrailStatus,
-  ConflictRecordStatus as PrismaConflictRecordStatus,
-  DocumentRequestStatus as PrismaDocumentRequestStatus,
-  DocumentType as PrismaDocumentType,
-  EngineeringEvidenceClaimType as PrismaEngineeringEvidenceClaimType,
-  EngineeringRuleEvaluationStatus as PrismaEngineeringRuleEvaluationStatus,
-  EvidenceAcceptanceStatus as PrismaEvidenceAcceptanceStatus,
   LegalRuleLifecycleStatus as PrismaLegalRuleLifecycleStatus,
-  OverallCoverageStatus as PrismaOverallCoverageStatus,
   OutboxAggregateType as PrismaOutboxAggregateType,
   OutboxStatus as PrismaOutboxStatus,
   CredentialProvider as PrismaCredentialProvider,
   RepositoryConnectionStatus as PrismaRepositoryConnectionStatus,
-  RuleAnalysisStatus as PrismaRuleAnalysisStatus,
   RepositoryScanTriggerSource as PrismaRepositoryScanTriggerSource,
   RepositoryScanJobStatus as PrismaRepositoryScanJobStatus,
   RepositorySnapshotStatus as PrismaRepositorySnapshotStatus,
-  VerifiedProfileStatus as PrismaVerifiedProfileStatus,
 } from "@prisma/client";
-import {
-  RULE_ANALYSIS_STATUSES,
-  type RuleAnalysisStatus,
-} from "@lcsp/contracts/evidence";
-import {
-  ASSESSMENT_STATUS_CODES,
-  type AssessmentStatusCode,
-} from "@lcsp/contracts/assessment";
+
 import {
   AUDIT_EXPORT_STATUSES,
   AUDIT_DECISIONS,
@@ -41,6 +23,7 @@ import {
   type AuditExportStatus,
   type AuditResourceType,
 } from "@lcsp/contracts/audit";
+
 import {
   AUTH_BACKUP_EMAIL_POLICIES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
@@ -49,12 +32,7 @@ import {
   type AuthPrimaryEmailAddressPolicy,
   type AuthUserRole,
 } from "@lcsp/contracts/auth";
-import {
-  DOCUMENT_REQUEST_STATUSES,
-  DOCUMENT_TYPES,
-  type DocumentRequestStatus,
-  type DocumentType,
-} from "@lcsp/contracts/document";
+
 import {
   CREDENTIAL_PROVIDERS,
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -67,41 +45,17 @@ import {
   type RepositoryScanTriggerSource,
   type RepositorySnapshotStatus,
 } from "@lcsp/contracts/github-integration";
+
 import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
-import type { LegalRuleLifecycleStatus } from "@lcsp/contracts/legal-rule-catalog";
+
+import { type LegalRuleLifecycleStatus } from "@lcsp/contracts/legal-rule-catalog";
+
 import {
   OUTBOX_AGGREGATE_TYPES,
   type OutboxAggregateType,
   OUTBOX_STATUSES,
   type OutboxStatus,
 } from "@lcsp/contracts/outbox";
-import {
-  CONFLICT_RECORD_STATUSES,
-  CLASSIFICATION_GUARDRAIL_STATUSES,
-  ENGINEERING_EVIDENCE_CLAIM_TYPES,
-  ENGINEERING_RULE_EVALUATION_STATUSES,
-  OVERALL_COVERAGE_STATUSES,
-  TECHNICAL_EVIDENCE_REPORT_STATUSES,
-  VERIFIED_PROFILE_STATUSES,
-  type AIUsageFlowStatus,
-  type ClassificationGuardrailStatus,
-  type ClassificationResultStatus,
-  type ConflictRecordStatus,
-  type EngineeringEvidenceClaimType,
-  type EngineeringRuleEvaluationStatus,
-  type LegalRuleMatchStatus,
-  type OverallCoverageStatus,
-  type TechnicalEvidenceReportStatus,
-  type TechnicalProfileStatus,
-  type VerifiedProfileStatus,
-} from "@lcsp/contracts/scan";
-
-type EvidenceAcceptanceContractStatus =
-  | TechnicalEvidenceReportStatus
-  | TechnicalProfileStatus
-  | AIUsageFlowStatus
-  | ClassificationResultStatus
-  | LegalRuleMatchStatus;
 
 const AUTH_BACKUP_EMAIL_POLICY_TO_PRISMA = {
   [AUTH_BACKUP_EMAIL_POLICIES.allVerified]:
@@ -147,110 +101,6 @@ const PRISMA_AUTH_DECISION_TO_CONTRACT = {
   [PrismaAuthDecision.DENY]: AUDIT_DECISIONS.deny,
 } as const satisfies Record<PrismaAuthDecision, AuditDecision>;
 
-const ASSESSMENT_STATUS_TO_PRISMA = {
-  [ASSESSMENT_STATUS_CODES.wizardInProgress]:
-    PrismaAssessmentStatus.WIZARD_IN_PROGRESS,
-  [ASSESSMENT_STATUS_CODES.wizardSubmitted]:
-    PrismaAssessmentStatus.WIZARD_SUBMITTED,
-  [ASSESSMENT_STATUS_CODES.evidenceRequired]:
-    PrismaAssessmentStatus.EVIDENCE_REQUIRED,
-  [ASSESSMENT_STATUS_CODES.scanInProgress]:
-    PrismaAssessmentStatus.SCAN_IN_PROGRESS,
-  [ASSESSMENT_STATUS_CODES.classificationLocked]:
-    PrismaAssessmentStatus.CLASSIFICATION_LOCKED,
-  [ASSESSMENT_STATUS_CODES.readyForReview]:
-    PrismaAssessmentStatus.READY_FOR_REVIEW,
-  [ASSESSMENT_STATUS_CODES.aiNotDetected]:
-    PrismaAssessmentStatus.AI_NOT_DETECTED,
-} as const satisfies Record<AssessmentStatusCode, PrismaAssessmentStatus>;
-
-const PRISMA_ASSESSMENT_STATUS_TO_CONTRACT = {
-  [PrismaAssessmentStatus.WIZARD_IN_PROGRESS]:
-    ASSESSMENT_STATUS_CODES.wizardInProgress,
-  [PrismaAssessmentStatus.WIZARD_SUBMITTED]:
-    ASSESSMENT_STATUS_CODES.wizardSubmitted,
-  [PrismaAssessmentStatus.EVIDENCE_REQUIRED]:
-    ASSESSMENT_STATUS_CODES.evidenceRequired,
-  [PrismaAssessmentStatus.SCAN_IN_PROGRESS]:
-    ASSESSMENT_STATUS_CODES.scanInProgress,
-  [PrismaAssessmentStatus.CLASSIFICATION_LOCKED]:
-    ASSESSMENT_STATUS_CODES.classificationLocked,
-  [PrismaAssessmentStatus.READY_FOR_REVIEW]:
-    ASSESSMENT_STATUS_CODES.readyForReview,
-  [PrismaAssessmentStatus.AI_NOT_DETECTED]:
-    ASSESSMENT_STATUS_CODES.aiNotDetected,
-} as const satisfies Record<PrismaAssessmentStatus, AssessmentStatusCode>;
-
-const ENGINEERING_RULE_EVALUATION_STATUS_TO_PRISMA = {
-  [ENGINEERING_RULE_EVALUATION_STATUSES.compliant]:
-    PrismaEngineeringRuleEvaluationStatus.COMPLIANT,
-  [ENGINEERING_RULE_EVALUATION_STATUSES.nonCompliant]:
-    PrismaEngineeringRuleEvaluationStatus.NON_COMPLIANT,
-  [ENGINEERING_RULE_EVALUATION_STATUSES.unknown]:
-    PrismaEngineeringRuleEvaluationStatus.UNKNOWN,
-  [ENGINEERING_RULE_EVALUATION_STATUSES.notApplicable]:
-    PrismaEngineeringRuleEvaluationStatus.NOT_APPLICABLE,
-} as const satisfies Record<
-  EngineeringRuleEvaluationStatus,
-  PrismaEngineeringRuleEvaluationStatus
->;
-
-const PRISMA_ENGINEERING_RULE_EVALUATION_STATUS_TO_CONTRACT = {
-  [PrismaEngineeringRuleEvaluationStatus.COMPLIANT]:
-    ENGINEERING_RULE_EVALUATION_STATUSES.compliant,
-  [PrismaEngineeringRuleEvaluationStatus.NON_COMPLIANT]:
-    ENGINEERING_RULE_EVALUATION_STATUSES.nonCompliant,
-  [PrismaEngineeringRuleEvaluationStatus.UNKNOWN]:
-    ENGINEERING_RULE_EVALUATION_STATUSES.unknown,
-  [PrismaEngineeringRuleEvaluationStatus.NOT_APPLICABLE]:
-    ENGINEERING_RULE_EVALUATION_STATUSES.notApplicable,
-} as const satisfies Record<
-  PrismaEngineeringRuleEvaluationStatus,
-  EngineeringRuleEvaluationStatus
->;
-
-const RULE_ANALYSIS_STATUS_TO_PRISMA = {
-  [RULE_ANALYSIS_STATUSES.completed]: PrismaRuleAnalysisStatus.COMPLETED,
-  [RULE_ANALYSIS_STATUSES.needsContext]: PrismaRuleAnalysisStatus.NEEDS_CONTEXT,
-  [RULE_ANALYSIS_STATUSES.unresolved]: PrismaRuleAnalysisStatus.UNRESOLVED,
-  [RULE_ANALYSIS_STATUSES.failed]: PrismaRuleAnalysisStatus.FAILED,
-} as const satisfies Record<RuleAnalysisStatus, PrismaRuleAnalysisStatus>;
-
-const PRISMA_RULE_ANALYSIS_STATUS_TO_CONTRACT = {
-  [PrismaRuleAnalysisStatus.COMPLETED]: RULE_ANALYSIS_STATUSES.completed,
-  [PrismaRuleAnalysisStatus.NEEDS_CONTEXT]: RULE_ANALYSIS_STATUSES.needsContext,
-  [PrismaRuleAnalysisStatus.UNRESOLVED]: RULE_ANALYSIS_STATUSES.unresolved,
-  [PrismaRuleAnalysisStatus.FAILED]: RULE_ANALYSIS_STATUSES.failed,
-} as const satisfies Record<PrismaRuleAnalysisStatus, RuleAnalysisStatus>;
-
-const ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_PRISMA = {
-  [ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementMet]:
-    PrismaEngineeringEvidenceClaimType.RULE_REQUIREMENT_MET,
-  [ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementNotMet]:
-    PrismaEngineeringEvidenceClaimType.RULE_REQUIREMENT_NOT_MET,
-  [ENGINEERING_EVIDENCE_CLAIM_TYPES.unresolved]:
-    PrismaEngineeringEvidenceClaimType.UNRESOLVED_ENGINEERING_FACT,
-  [ENGINEERING_EVIDENCE_CLAIM_TYPES.ruleScopeNotApplicable]:
-    PrismaEngineeringEvidenceClaimType.RULE_SCOPE_NOT_APPLICABLE,
-} as const satisfies Record<
-  EngineeringEvidenceClaimType,
-  PrismaEngineeringEvidenceClaimType
->;
-
-const PRISMA_ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_CONTRACT = {
-  [PrismaEngineeringEvidenceClaimType.RULE_REQUIREMENT_MET]:
-    ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementMet,
-  [PrismaEngineeringEvidenceClaimType.RULE_REQUIREMENT_NOT_MET]:
-    ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementNotMet,
-  [PrismaEngineeringEvidenceClaimType.UNRESOLVED_ENGINEERING_FACT]:
-    ENGINEERING_EVIDENCE_CLAIM_TYPES.unresolved,
-  [PrismaEngineeringEvidenceClaimType.RULE_SCOPE_NOT_APPLICABLE]:
-    ENGINEERING_EVIDENCE_CLAIM_TYPES.ruleScopeNotApplicable,
-} as const satisfies Record<
-  PrismaEngineeringEvidenceClaimType,
-  EngineeringEvidenceClaimType
->;
-
 const AUDIT_EXPORT_STATUS_TO_PRISMA = {
   [AUDIT_EXPORT_STATUSES.queued]: PrismaAuditExportStatus.QUEUED,
   [AUDIT_EXPORT_STATUSES.generating]: PrismaAuditExportStatus.GENERATING,
@@ -269,7 +119,6 @@ const PRISMA_AUTH_USER_ROLE_TO_CONTRACT = {
 } as const satisfies Record<PrismaAuthUserRole, AuthUserRole>;
 
 const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
-  [AUDIT_RESOURCE_TYPES.aiUsageFlow]: PrismaAuditResourceType.AI_USAGE_FLOW,
   [AUDIT_RESOURCE_TYPES.assessment]: PrismaAuditResourceType.ASSESSMENT,
   [AUDIT_RESOURCE_TYPES.assessmentRecord]:
     PrismaAuditResourceType.ASSESSMENT_RECORD,
@@ -281,39 +130,21 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
   [AUDIT_RESOURCE_TYPES.authMfaRecoveryCode]:
     PrismaAuditResourceType.AUTH_MFA_RECOVERY_CODE,
   [AUDIT_RESOURCE_TYPES.authSession]: PrismaAuditResourceType.AUTH_SESSION,
-  [AUDIT_RESOURCE_TYPES.classificationReviewRequest]:
-    PrismaAuditResourceType.CLASSIFICATION_REVIEW_REQUEST,
-  [AUDIT_RESOURCE_TYPES.classificationResult]:
-    PrismaAuditResourceType.CLASSIFICATION_RESULT,
-  [AUDIT_RESOURCE_TYPES.conflictRecord]:
-    PrismaAuditResourceType.CONFLICT_RECORD,
-  [AUDIT_RESOURCE_TYPES.documentRequest]:
-    PrismaAuditResourceType.DOCUMENT_REQUEST,
   [AUDIT_RESOURCE_TYPES.githubAppInstallState]:
     PrismaAuditResourceType.GITHUB_APP_INSTALL_STATE,
   [AUDIT_RESOURCE_TYPES.httpRoute]: PrismaAuditResourceType.HTTP_ROUTE,
   [AUDIT_RESOURCE_TYPES.legalPortfolioVersion]:
     PrismaAuditResourceType.LEGAL_PORTFOLIO_VERSION,
   [AUDIT_RESOURCE_TYPES.legalRule]: PrismaAuditResourceType.LEGAL_RULE,
-  [AUDIT_RESOURCE_TYPES.legalRuleCatalogVersion]:
-    PrismaAuditResourceType.LEGAL_RULE_CATALOG_VERSION,
-  [AUDIT_RESOURCE_TYPES.legalRuleMatch]:
-    PrismaAuditResourceType.LEGAL_RULE_MATCH,
+  [AUDIT_RESOURCE_TYPES.legalCorpusVersion]:
+    PrismaAuditResourceType.LEGAL_CORPUS_VERSION,
   [AUDIT_RESOURCE_TYPES.outbox]: PrismaAuditResourceType.OUTBOX,
-  [AUDIT_RESOURCE_TYPES.readinessExport]:
-    PrismaAuditResourceType.READINESS_EXPORT,
   [AUDIT_RESOURCE_TYPES.repositoryConnection]:
     PrismaAuditResourceType.REPOSITORY_CONNECTION,
   [AUDIT_RESOURCE_TYPES.repositoryScanJob]:
     PrismaAuditResourceType.REPOSITORY_SCAN_JOB,
   [AUDIT_RESOURCE_TYPES.repositorySnapshot]:
     PrismaAuditResourceType.REPOSITORY_SNAPSHOT,
-  [AUDIT_RESOURCE_TYPES.technicalEvidenceReport]:
-    PrismaAuditResourceType.TECHNICAL_EVIDENCE_REPORT,
-  [AUDIT_RESOURCE_TYPES.technicalProfile]:
-    PrismaAuditResourceType.TECHNICAL_PROFILE,
-  [AUDIT_RESOURCE_TYPES.verifiedProfile]:
-    PrismaAuditResourceType.VERIFIED_PROFILE,
   [AUDIT_RESOURCE_TYPES.workerTask]: PrismaAuditResourceType.WORKER_TASK,
   [AUDIT_RESOURCE_TYPES.workspace]: PrismaAuditResourceType.WORKSPACE,
 } as const satisfies Record<AuditResourceType, PrismaAuditResourceType>;
@@ -321,65 +152,31 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
 const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
   [OUTBOX_AGGREGATE_TYPES.billingPayment]:
     PrismaOutboxAggregateType.BILLING_PAYMENT,
-  [OUTBOX_AGGREGATE_TYPES.aiUsageFlow]: PrismaOutboxAggregateType.AI_USAGE_FLOW,
   [OUTBOX_AGGREGATE_TYPES.assessment]: PrismaOutboxAggregateType.ASSESSMENT,
   [OUTBOX_AGGREGATE_TYPES.authUser]: PrismaOutboxAggregateType.AUTH_USER,
-  [OUTBOX_AGGREGATE_TYPES.classificationReviewRequest]:
-    PrismaOutboxAggregateType.CLASSIFICATION_REVIEW_REQUEST,
-  [OUTBOX_AGGREGATE_TYPES.classificationResult]:
-    PrismaOutboxAggregateType.CLASSIFICATION_RESULT,
-  [OUTBOX_AGGREGATE_TYPES.documentRequest]:
-    PrismaOutboxAggregateType.DOCUMENT_REQUEST,
   [OUTBOX_AGGREGATE_TYPES.legalCorpusVersion]:
     PrismaOutboxAggregateType.LEGAL_CORPUS_VERSION,
   [OUTBOX_AGGREGATE_TYPES.legalPortfolioVersion]:
     PrismaOutboxAggregateType.LEGAL_PORTFOLIO_VERSION,
-  [OUTBOX_AGGREGATE_TYPES.legalRuleMatch]:
-    PrismaOutboxAggregateType.LEGAL_RULE_MATCH,
   [OUTBOX_AGGREGATE_TYPES.repositoryScanJob]:
     PrismaOutboxAggregateType.REPOSITORY_SCAN_JOB,
   [OUTBOX_AGGREGATE_TYPES.repositorySnapshot]:
     PrismaOutboxAggregateType.REPOSITORY_SNAPSHOT,
-  [OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport]:
-    PrismaOutboxAggregateType.TECHNICAL_EVIDENCE_REPORT,
-  [OUTBOX_AGGREGATE_TYPES.technicalProfile]:
-    PrismaOutboxAggregateType.TECHNICAL_PROFILE,
-  [OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest]:
-    PrismaOutboxAggregateType.TARGETED_REANALYSIS_REQUEST,
-  [OUTBOX_AGGREGATE_TYPES.verifiedProfile]:
-    PrismaOutboxAggregateType.VERIFIED_PROFILE,
 } as const satisfies Record<OutboxAggregateType, PrismaOutboxAggregateType>;
 
 const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
   [PrismaOutboxAggregateType.BILLING_PAYMENT]:
     OUTBOX_AGGREGATE_TYPES.billingPayment,
-  [PrismaOutboxAggregateType.AI_USAGE_FLOW]: OUTBOX_AGGREGATE_TYPES.aiUsageFlow,
   [PrismaOutboxAggregateType.ASSESSMENT]: OUTBOX_AGGREGATE_TYPES.assessment,
   [PrismaOutboxAggregateType.AUTH_USER]: OUTBOX_AGGREGATE_TYPES.authUser,
-  [PrismaOutboxAggregateType.CLASSIFICATION_REVIEW_REQUEST]:
-    OUTBOX_AGGREGATE_TYPES.classificationReviewRequest,
-  [PrismaOutboxAggregateType.CLASSIFICATION_RESULT]:
-    OUTBOX_AGGREGATE_TYPES.classificationResult,
-  [PrismaOutboxAggregateType.DOCUMENT_REQUEST]:
-    OUTBOX_AGGREGATE_TYPES.documentRequest,
   [PrismaOutboxAggregateType.LEGAL_CORPUS_VERSION]:
     OUTBOX_AGGREGATE_TYPES.legalCorpusVersion,
   [PrismaOutboxAggregateType.LEGAL_PORTFOLIO_VERSION]:
     OUTBOX_AGGREGATE_TYPES.legalPortfolioVersion,
-  [PrismaOutboxAggregateType.LEGAL_RULE_MATCH]:
-    OUTBOX_AGGREGATE_TYPES.legalRuleMatch,
   [PrismaOutboxAggregateType.REPOSITORY_SCAN_JOB]:
     OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
   [PrismaOutboxAggregateType.REPOSITORY_SNAPSHOT]:
     OUTBOX_AGGREGATE_TYPES.repositorySnapshot,
-  [PrismaOutboxAggregateType.TECHNICAL_EVIDENCE_REPORT]:
-    OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport,
-  [PrismaOutboxAggregateType.TECHNICAL_PROFILE]:
-    OUTBOX_AGGREGATE_TYPES.technicalProfile,
-  [PrismaOutboxAggregateType.TARGETED_REANALYSIS_REQUEST]:
-    OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest,
-  [PrismaOutboxAggregateType.VERIFIED_PROFILE]:
-    OUTBOX_AGGREGATE_TYPES.verifiedProfile,
 } as const satisfies Partial<
   Record<PrismaOutboxAggregateType, OutboxAggregateType>
 >;
@@ -447,50 +244,6 @@ const PRISMA_REPOSITORY_SCAN_TRIGGER_SOURCE_TO_CONTRACT = {
   RepositoryScanTriggerSource
 >;
 
-const EVIDENCE_ACCEPTANCE_STATUS_TO_PRISMA = {
-  [TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted]:
-    PrismaEvidenceAcceptanceStatus.ACCEPTED,
-  [TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected]:
-    PrismaEvidenceAcceptanceStatus.REJECTED,
-} as const satisfies Record<
-  EvidenceAcceptanceContractStatus,
-  PrismaEvidenceAcceptanceStatus
->;
-
-const PRISMA_EVIDENCE_ACCEPTANCE_STATUS_TO_CONTRACT = {
-  [PrismaEvidenceAcceptanceStatus.ACCEPTED]:
-    TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
-  [PrismaEvidenceAcceptanceStatus.REJECTED]:
-    TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected,
-} as const satisfies Record<
-  PrismaEvidenceAcceptanceStatus,
-  TechnicalEvidenceReportStatus
->;
-
-const CLASSIFICATION_GUARDRAIL_STATUS_TO_PRISMA = {
-  [CLASSIFICATION_GUARDRAIL_STATUSES.passed]:
-    PrismaClassificationGuardrailStatus.PASSED,
-  [CLASSIFICATION_GUARDRAIL_STATUSES.degraded]:
-    PrismaClassificationGuardrailStatus.DEGRADED,
-  [CLASSIFICATION_GUARDRAIL_STATUSES.blocked]:
-    PrismaClassificationGuardrailStatus.BLOCKED,
-} as const satisfies Record<
-  ClassificationGuardrailStatus,
-  PrismaClassificationGuardrailStatus
->;
-
-const PRISMA_CLASSIFICATION_GUARDRAIL_STATUS_TO_CONTRACT = {
-  [PrismaClassificationGuardrailStatus.PASSED]:
-    CLASSIFICATION_GUARDRAIL_STATUSES.passed,
-  [PrismaClassificationGuardrailStatus.DEGRADED]:
-    CLASSIFICATION_GUARDRAIL_STATUSES.degraded,
-  [PrismaClassificationGuardrailStatus.BLOCKED]:
-    CLASSIFICATION_GUARDRAIL_STATUSES.blocked,
-} as const satisfies Record<
-  PrismaClassificationGuardrailStatus,
-  ClassificationGuardrailStatus
->;
-
 const REPOSITORY_SCAN_JOB_STATUS_TO_PRISMA = {
   [REPOSITORY_SCAN_JOB_STATUSES.queued]: PrismaRepositoryScanJobStatus.QUEUED,
   [REPOSITORY_SCAN_JOB_STATUSES.running]: PrismaRepositoryScanJobStatus.RUNNING,
@@ -535,75 +288,6 @@ const PRISMA_REPOSITORY_SCAN_JOB_STATUS_TO_CONTRACT = {
   RepositoryScanJobStatus
 >;
 
-const CONFLICT_RECORD_STATUS_TO_PRISMA = {
-  [CONFLICT_RECORD_STATUSES.pending]: PrismaConflictRecordStatus.PENDING,
-  [CONFLICT_RECORD_STATUSES.resolved]: PrismaConflictRecordStatus.RESOLVED,
-  [CONFLICT_RECORD_STATUSES.dismissed]: PrismaConflictRecordStatus.DISMISSED,
-} as const satisfies Record<ConflictRecordStatus, PrismaConflictRecordStatus>;
-
-const PRISMA_CONFLICT_RECORD_STATUS_TO_CONTRACT = {
-  [PrismaConflictRecordStatus.PENDING]: CONFLICT_RECORD_STATUSES.pending,
-  [PrismaConflictRecordStatus.RESOLVED]: CONFLICT_RECORD_STATUSES.resolved,
-  [PrismaConflictRecordStatus.DISMISSED]: CONFLICT_RECORD_STATUSES.dismissed,
-} as const satisfies Record<PrismaConflictRecordStatus, ConflictRecordStatus>;
-
-const VERIFIED_PROFILE_STATUS_TO_PRISMA = {
-  [VERIFIED_PROFILE_STATUSES.pendingApproval]:
-    PrismaVerifiedProfileStatus.PENDING_APPROVAL,
-  [VERIFIED_PROFILE_STATUSES.approved]: PrismaVerifiedProfileStatus.APPROVED,
-  [VERIFIED_PROFILE_STATUSES.autoApproved]:
-    PrismaVerifiedProfileStatus.AUTO_APPROVED,
-  [VERIFIED_PROFILE_STATUSES.stale]: PrismaVerifiedProfileStatus.STALE,
-} as const satisfies Record<VerifiedProfileStatus, PrismaVerifiedProfileStatus>;
-
-const PRISMA_VERIFIED_PROFILE_STATUS_TO_CONTRACT = {
-  [PrismaVerifiedProfileStatus.PENDING_APPROVAL]:
-    VERIFIED_PROFILE_STATUSES.pendingApproval,
-  [PrismaVerifiedProfileStatus.APPROVED]: VERIFIED_PROFILE_STATUSES.approved,
-  [PrismaVerifiedProfileStatus.AUTO_APPROVED]:
-    VERIFIED_PROFILE_STATUSES.autoApproved,
-  [PrismaVerifiedProfileStatus.STALE]: VERIFIED_PROFILE_STATUSES.stale,
-} as const satisfies Record<PrismaVerifiedProfileStatus, VerifiedProfileStatus>;
-
-const DOCUMENT_REQUEST_STATUS_TO_PRISMA = {
-  [DOCUMENT_REQUEST_STATUSES.queued]: PrismaDocumentRequestStatus.QUEUED,
-  [DOCUMENT_REQUEST_STATUSES.generating]:
-    PrismaDocumentRequestStatus.GENERATING,
-  [DOCUMENT_REQUEST_STATUSES.ready]: PrismaDocumentRequestStatus.READY,
-  [DOCUMENT_REQUEST_STATUSES.failed]: PrismaDocumentRequestStatus.FAILED,
-  [DOCUMENT_REQUEST_STATUSES.blocked]: PrismaDocumentRequestStatus.BLOCKED,
-} as const satisfies Record<DocumentRequestStatus, PrismaDocumentRequestStatus>;
-
-const PRISMA_DOCUMENT_REQUEST_STATUS_TO_CONTRACT = {
-  [PrismaDocumentRequestStatus.QUEUED]: DOCUMENT_REQUEST_STATUSES.queued,
-  [PrismaDocumentRequestStatus.GENERATING]:
-    DOCUMENT_REQUEST_STATUSES.generating,
-  [PrismaDocumentRequestStatus.READY]: DOCUMENT_REQUEST_STATUSES.ready,
-  [PrismaDocumentRequestStatus.FAILED]: DOCUMENT_REQUEST_STATUSES.failed,
-  [PrismaDocumentRequestStatus.BLOCKED]: DOCUMENT_REQUEST_STATUSES.blocked,
-} as const satisfies Record<PrismaDocumentRequestStatus, DocumentRequestStatus>;
-
-const DOCUMENT_TYPE_TO_PRISMA = {
-  [DOCUMENT_TYPES.finalReport]: PrismaDocumentType.FINAL_REPORT,
-  [DOCUMENT_TYPES.gapAnalysis]: PrismaDocumentType.GAP_ANALYSIS,
-  [DOCUMENT_TYPES.readinessExport]: PrismaDocumentType.READINESS_EXPORT,
-} as const satisfies Record<DocumentType, PrismaDocumentType>;
-
-const PRISMA_DOCUMENT_TYPE_TO_CONTRACT = {
-  [PrismaDocumentType.FINAL_REPORT]: DOCUMENT_TYPES.finalReport,
-  [PrismaDocumentType.GAP_ANALYSIS]: DOCUMENT_TYPES.gapAnalysis,
-  [PrismaDocumentType.READINESS_EXPORT]: DOCUMENT_TYPES.readinessExport,
-} as const satisfies Record<PrismaDocumentType, DocumentType>;
-
-const OVERALL_COVERAGE_STATUS_TO_PRISMA = {
-  [OVERALL_COVERAGE_STATUSES.noCitation]:
-    PrismaOverallCoverageStatus.NO_CITATION,
-  [OVERALL_COVERAGE_STATUSES.partialCitation]:
-    PrismaOverallCoverageStatus.PARTIAL_CITATION,
-  [OVERALL_COVERAGE_STATUSES.completeCitation]:
-    PrismaOverallCoverageStatus.COMPLETE_CITATION,
-} as const satisfies Record<OverallCoverageStatus, PrismaOverallCoverageStatus>;
-
 const LEGAL_RULE_LIFECYCLE_STATUS_TO_PRISMA = {
   [LEGAL_RULE_LIFECYCLE_STATUSES.draft]: PrismaLegalRuleLifecycleStatus.DRAFT,
   [LEGAL_RULE_LIFECYCLE_STATUSES.approved]:
@@ -630,41 +314,6 @@ const PRISMA_LEGAL_RULE_LIFECYCLE_STATUS_TO_CONTRACT = {
   LegalRuleLifecycleStatus
 >;
 
-/** Maps a document-request status from the contract layer to Prisma. @param status - Contract status. @returns Prisma status. */
-export function toPrismaDocumentRequestStatus(
-  status: DocumentRequestStatus,
-): PrismaDocumentRequestStatus {
-  return DOCUMENT_REQUEST_STATUS_TO_PRISMA[status];
-}
-
-/** Maps a document-request status from Prisma to the contract layer. @param status - Prisma status. @returns Contract status. */
-export function fromPrismaDocumentRequestStatus(
-  status: PrismaDocumentRequestStatus,
-): DocumentRequestStatus {
-  return PRISMA_DOCUMENT_REQUEST_STATUS_TO_CONTRACT[status];
-}
-
-/** Maps a document type from the contract layer to Prisma. @param documentType - Contract document type. @returns Prisma document type. */
-export function toPrismaDocumentType(
-  documentType: DocumentType,
-): PrismaDocumentType {
-  return DOCUMENT_TYPE_TO_PRISMA[documentType];
-}
-
-/** Maps a document type from Prisma to the contract layer. @param documentType - Prisma document type. @returns Contract document type. */
-export function fromPrismaDocumentType(
-  documentType: PrismaDocumentType,
-): DocumentType {
-  return PRISMA_DOCUMENT_TYPE_TO_CONTRACT[documentType];
-}
-
-/** Maps overall evidence coverage status from the contract layer to Prisma. @param status - Contract coverage status. @returns Prisma coverage status. */
-export function toPrismaOverallCoverageStatus(
-  status: OverallCoverageStatus,
-): PrismaOverallCoverageStatus {
-  return OVERALL_COVERAGE_STATUS_TO_PRISMA[status];
-}
-
 /** Maps legal-rule lifecycle status from the contract layer to Prisma. @param status - Contract lifecycle status. @returns Prisma lifecycle status. */
 export function toPrismaLegalRuleLifecycleStatus(
   status: LegalRuleLifecycleStatus,
@@ -677,56 +326,6 @@ export function fromPrismaLegalRuleLifecycleStatus(
   status: PrismaLegalRuleLifecycleStatus,
 ): LegalRuleLifecycleStatus {
   return PRISMA_LEGAL_RULE_LIFECYCLE_STATUS_TO_CONTRACT[status];
-}
-
-export function toPrismaEngineeringRuleEvaluationStatus(
-  status: EngineeringRuleEvaluationStatus,
-): PrismaEngineeringRuleEvaluationStatus {
-  return ENGINEERING_RULE_EVALUATION_STATUS_TO_PRISMA[status];
-}
-
-export function fromPrismaEngineeringRuleEvaluationStatus(
-  status: PrismaEngineeringRuleEvaluationStatus,
-): EngineeringRuleEvaluationStatus {
-  return PRISMA_ENGINEERING_RULE_EVALUATION_STATUS_TO_CONTRACT[status];
-}
-
-export function toPrismaRuleAnalysisStatus(
-  status: RuleAnalysisStatus,
-): PrismaRuleAnalysisStatus {
-  return RULE_ANALYSIS_STATUS_TO_PRISMA[status];
-}
-
-export function fromPrismaRuleAnalysisStatus(
-  status: PrismaRuleAnalysisStatus,
-): RuleAnalysisStatus {
-  return PRISMA_RULE_ANALYSIS_STATUS_TO_CONTRACT[status];
-}
-
-export function toPrismaEngineeringEvidenceClaimType(
-  claimType: EngineeringEvidenceClaimType,
-): PrismaEngineeringEvidenceClaimType {
-  return ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_PRISMA[claimType];
-}
-
-export function fromPrismaEngineeringEvidenceClaimType(
-  claimType: PrismaEngineeringEvidenceClaimType,
-): EngineeringEvidenceClaimType {
-  return PRISMA_ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_CONTRACT[claimType];
-}
-
-/** Maps assessment status from the contract layer to Prisma. @param status - Contract assessment status. @returns Prisma assessment status. */
-export function toPrismaAssessmentStatus(
-  status: AssessmentStatusCode,
-): PrismaAssessmentStatus {
-  return ASSESSMENT_STATUS_TO_PRISMA[status];
-}
-
-/** Maps assessment status from Prisma to the contract layer. @param status - Prisma assessment status. @returns Contract assessment status. */
-export function fromPrismaAssessmentStatus(
-  status: PrismaAssessmentStatus,
-): AssessmentStatusCode {
-  return PRISMA_ASSESSMENT_STATUS_TO_CONTRACT[status];
 }
 
 /** Maps audit-export status from the contract layer to Prisma. @param status - Contract audit-export status. @returns Prisma audit-export status. */
@@ -795,34 +394,6 @@ export function fromPrismaRepositoryScanJobStatus(
   status: PrismaRepositoryScanJobStatus,
 ): RepositoryScanJobStatus {
   return PRISMA_REPOSITORY_SCAN_JOB_STATUS_TO_CONTRACT[status];
-}
-
-/** Maps conflict-record status from the contract layer to Prisma. @param status - Contract conflict status. @returns Prisma conflict status. */
-export function toPrismaConflictRecordStatus(
-  status: ConflictRecordStatus,
-): PrismaConflictRecordStatus {
-  return CONFLICT_RECORD_STATUS_TO_PRISMA[status];
-}
-
-/** Maps conflict-record status from Prisma to the contract layer. @param status - Prisma conflict status. @returns Contract conflict status. */
-export function fromPrismaConflictRecordStatus(
-  status: PrismaConflictRecordStatus,
-): ConflictRecordStatus {
-  return PRISMA_CONFLICT_RECORD_STATUS_TO_CONTRACT[status];
-}
-
-/** Maps verified-profile status from the contract layer to Prisma. @param status - Contract verified-profile status. @returns Prisma verified-profile status. */
-export function toPrismaVerifiedProfileStatus(
-  status: VerifiedProfileStatus,
-): PrismaVerifiedProfileStatus {
-  return VERIFIED_PROFILE_STATUS_TO_PRISMA[status];
-}
-
-/** Maps verified-profile status from Prisma to the contract layer. @param status - Prisma verified-profile status. @returns Contract verified-profile status. */
-export function fromPrismaVerifiedProfileStatus(
-  status: PrismaVerifiedProfileStatus,
-): VerifiedProfileStatus {
-  return PRISMA_VERIFIED_PROFILE_STATUS_TO_CONTRACT[status];
 }
 
 /** Maps backup-email policy from the contract layer to Prisma. @param policy - Contract backup-email policy. @returns Prisma backup-email policy. */
@@ -900,34 +471,6 @@ export function fromPrismaRepositoryScanTriggerSource(
   source: PrismaRepositoryScanTriggerSource,
 ): RepositoryScanTriggerSource {
   return PRISMA_REPOSITORY_SCAN_TRIGGER_SOURCE_TO_CONTRACT[source];
-}
-
-/** Maps an evidence-acceptance-compatible contract status to Prisma. @param status - Contract acceptance/rejection status. @returns Prisma evidence acceptance status. */
-export function toPrismaEvidenceAcceptanceStatus(
-  status: EvidenceAcceptanceContractStatus,
-): PrismaEvidenceAcceptanceStatus {
-  return EVIDENCE_ACCEPTANCE_STATUS_TO_PRISMA[status];
-}
-
-/** Maps Prisma evidence acceptance status to the technical-evidence contract status. @param status - Prisma evidence acceptance status. @returns Contract evidence status. */
-export function fromPrismaEvidenceAcceptanceStatus(
-  status: PrismaEvidenceAcceptanceStatus,
-): TechnicalEvidenceReportStatus {
-  return PRISMA_EVIDENCE_ACCEPTANCE_STATUS_TO_CONTRACT[status];
-}
-
-/** Maps classification guardrail status from the contract layer to Prisma. @param status - Contract classification guardrail status. @returns Prisma guardrail status. */
-export function toPrismaClassificationGuardrailStatus(
-  status: ClassificationGuardrailStatus,
-): PrismaClassificationGuardrailStatus {
-  return CLASSIFICATION_GUARDRAIL_STATUS_TO_PRISMA[status];
-}
-
-/** Maps classification guardrail status from Prisma to the contract layer. @param status - Prisma classification guardrail status. @returns Contract guardrail status. */
-export function fromPrismaClassificationGuardrailStatus(
-  status: PrismaClassificationGuardrailStatus,
-): ClassificationGuardrailStatus {
-  return PRISMA_CLASSIFICATION_GUARDRAIL_STATUS_TO_CONTRACT[status];
 }
 
 /** Maps credential provider from the contract layer to Prisma. @param provider - Contract credential provider. @returns Prisma credential provider. */

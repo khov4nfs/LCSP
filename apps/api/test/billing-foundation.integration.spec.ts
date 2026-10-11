@@ -18,7 +18,7 @@ import { PrismaBillingTransaction } from "../src/modules/billing/infrastructure/
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
 
-describe("LCSP-310 billing persistence constraints", () => {
+describe("billing persistence constraints", () => {
   let prisma: PrismaClient;
   let accounting: BillingAccountingKernel;
   let payments: BillingPaymentKernel;

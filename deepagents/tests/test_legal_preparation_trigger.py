@@ -12,7 +12,7 @@ from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBo
 from tools.common.capabilities.agent_runtime.invocation import AGENT_INVOCATION_BOUNDARIES
 from tools.common.capabilities.platform import api_client as api_client_module
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.legal.sources.recovery import legal_corpus_recovery_driver as driver_module
+from tools.legal.sources.ingest import official_corpus_acquisition as driver_module
 
 CONFIG = SimpleNamespace(nestjs_api_base_url="http://api.invalid", worker_api_key="k" * 40)
 
@@ -60,7 +60,7 @@ def test_client_posts_unredacted_idempotent_start_to_the_portfolio_route(monkeyp
     }
 
 
-def test_recovery_driver_starts_preparation_exactly_at_the_validated_index_point() -> None:
+def test_official_acquisition_starts_preparation_exactly_at_the_validated_index_point() -> None:
     source = (
         __import__("pathlib").Path(driver_module.__file__).read_text(encoding="utf-8")
     )

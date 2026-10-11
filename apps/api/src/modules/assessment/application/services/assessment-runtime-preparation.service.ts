@@ -84,7 +84,7 @@ export class AssessmentRuntimePreparation {
   /**
    * Pins the then-ACTIVE legal portfolio and the repository snapshot, creates the hydration ticket
    * and one decision-coverage row per EngineeringRule. It does NOT change the lifecycle state and
-   * enqueues nothing, so a caller (repository-setup completion, or the W6 backfill) decides when the
+   * enqueues nothing, so a caller (repository-setup completion, or the CUTOVER backfill) decides when the
    * Root starts. Idempotent: re-applying identical pins is allowed by the database guard.
    */
   async pinRuntimeInputsInTx(

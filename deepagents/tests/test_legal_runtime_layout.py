@@ -69,14 +69,11 @@ def test_legal_runtime_is_grouped_by_capability() -> None:
     }
     assert _py(retrieval / "legal_basis") == {
         "chromadb_citation_retriever.py",
-        "legal_match_builder.py",
-        "rule_applicability_evaluator.py",
         "structural_chunk_filter.py",
     }
 
     assert _dirs(sources) == {
         "change_detection",
-        "recovery",
         "ingest",
         "extraction",
         "ocr_fallback",
@@ -85,6 +82,13 @@ def test_legal_runtime_is_grouped_by_capability() -> None:
         "scripts",
     }
     assert _py(sources) == set()
+    assert _py(sources / "ingest") == {
+        "official_corpus_acquisition.py",
+        "official_source_payload.py",
+        "official_source_snapshot.py",
+        "legal_source_ingest_boundary.py",
+    }
+    assert not (sources / "recovery").exists()
 
 
 def test_canonical_legal_imports_resolve() -> None:

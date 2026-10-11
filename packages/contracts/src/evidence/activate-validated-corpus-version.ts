@@ -1,6 +1,5 @@
 import type {
   AgenticToolCoverageState,
-  AgenticToolName,
   AgenticToolStatus,
 } from "./agentic-tool.ts";
 
@@ -64,7 +63,7 @@ export type ActivateValidatedCorpusVersionLimitation = {
 
 export type ActivateValidatedCorpusVersionResponse = {
   status: AgenticToolStatus;
-  toolName: AgenticToolName;
+  toolName: typeof ACTIVATE_VALIDATED_CORPUS_VERSION_TOOL.name;
   toolVersion: string;
   configHash: string;
   correlationId: string;

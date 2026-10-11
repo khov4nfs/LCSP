@@ -4,7 +4,9 @@ import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import type { z } from "zod";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
+  LEGAL_PORTFOLIO_COVERAGE_STATES,
   LEGAL_PORTFOLIO_ERROR_CODES,
   LEGAL_PORTFOLIO_EVENT_TYPES,
   LEGAL_PORTFOLIO_FAILURE_CODES,
@@ -616,6 +618,88 @@ describeDatabase("Legal portfolio use cases PostgreSQL integration", () => {
     );
   });
 
+  it("rejects a coverage-invalid packet at the shared contract as a 400 before anything is persisted", async () => {
+    const run = await startRun((await createCorpus()).id);
+    const covered = validPacket();
+    covered.legalRules[0].coverage = {
+      state: LEGAL_PORTFOLIO_COVERAGE_STATES.COVERED_BY_ENGINEERING_RULES,
+      nonAssessableReason: "stray reason",
+    };
+    const blank = validPacket();
+    blank.legalRules[0].coverage = {
+      state: LEGAL_PORTFOLIO_COVERAGE_STATES.NON_ASSESSABLE,
+      nonAssessableReason: "  ",
+    };
+    for (const packet of [covered, blank]) {
+      await expectProblem(
+        submit(run.preparationRunId, packet),
+        LEGAL_PORTFOLIO_ERROR_CODES.submitRequestInvalid,
+        400,
+      );
+    }
+    expect(
+      await prisma.legalPortfolioVersion.count({
+        where: { preparationRunId: run.preparationRunId },
+      }),
+    ).toBe(0);
+  });
+
+  it("keeps the coverage CHECK as database defense-in-depth beside the contract", async () => {
+    if (!(await migrationGuardsPresent())) return;
+    const rows = await prisma.$queryRaw<
+      Array<{ definition: string }>
+    >`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = 'LegalPortfolioRule_coverage_reason_check'`;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].definition).toEqual(
+      expect.stringContaining("COVERED_BY_ENGINEERING_RULES"),
+    );
+    expect(rows[0].definition).toEqual(
+      expect.stringContaining("NON_ASSESSABLE"),
+    );
+    expect(rows[0].definition).toEqual(expect.stringContaining("IS NULL"));
+    expect(rows[0].definition).toEqual(expect.stringContaining("IS NOT NULL"));
+    expect(rows[0].definition).toEqual(expect.stringContaining("btrim"));
+  });
+
+  it("rejects contradictory declared coverage before persistence and still accepts a valid packet", async () => {
+    const run = await startRun((await createCorpus()).id);
+    const nonAssessable = validPacket();
+    nonAssessable.engineeringRules[1].legalRuleIds.push(
+      nonAssessable.legalRules[4].legalRuleId,
+    );
+    const uncovered = validPacket();
+    uncovered.engineeringRules[1].legalRuleIds.pop();
+    const before = await Promise.all([
+      prisma.legalPortfolioVersion.count(),
+      prisma.legalPortfolioRule.count(),
+      prisma.engineeringRule.count(),
+    ]);
+    for (const packet of [nonAssessable, uncovered]) {
+      await expectProblem(
+        submit(run.preparationRunId, packet),
+        LEGAL_PORTFOLIO_ERROR_CODES.submitRequestInvalid,
+        400,
+      );
+      await expectProblem(
+        service.validate({
+          body: { preparationRunId: run.preparationRunId, packet },
+          correlationId: randomUUID(),
+        }),
+        LEGAL_PORTFOLIO_ERROR_CODES.submitRequestInvalid,
+        400,
+      );
+    }
+    expect(
+      await Promise.all([
+        prisma.legalPortfolioVersion.count(),
+        prisma.legalPortfolioRule.count(),
+        prisma.engineeringRule.count(),
+      ]),
+    ).toEqual(before);
+    const accepted = await submit(run.preparationRunId, validPacket());
+    expect(accepted.lifecycleState).toBe(ARTIFACT_LIFECYCLE_STATES.ACTIVE);
+  });
+
   it("claims a run (QUEUED -> RUNNING) and serves only its pinned corpus", async () => {
     const corpus = await createCorpus();
     await createCorpus(true); // an unrelated corpus must never appear in the bundle
@@ -672,7 +756,7 @@ describeDatabase("Legal portfolio use cases PostgreSQL integration", () => {
     const run = await startRun((await createCorpus()).id);
     const before = await prisma.legalPortfolioVersion.count();
     const bad = validPacket();
-    bad.engineeringRules[0].legalRuleIds = ["LR-MISSING"];
+    bad.engineeringRules[0].legalRuleIds.push("LR-MISSING");
 
     const failed = await service.validate({
       body: { preparationRunId: run.preparationRunId, packet: bad },

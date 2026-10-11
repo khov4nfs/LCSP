@@ -9,6 +9,9 @@ import {
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_SCOPE,
+  ASSESSMENT_EVIDENCE_TYPES,
+  ASSESSMENT_FACT_AUTHORITIES,
+  SEARCH_COVERAGE_SCOPE_KINDS,
   DECISION_VALIDATION_FAILURE_CODES as FAIL,
 } from "@lcsp/contracts/assessment-domain";
 
@@ -39,9 +42,27 @@ const context = (): DecisionValidationContext => ({
     legalContextIds: new Set(["LR-RET", "LR-EXC"]),
   },
   evidence: new Map([
-    [ids.evidence, { state: "ACCEPTED", repositoryCommit: COMMIT }],
+    [
+      ids.evidence,
+      {
+        state: "ACCEPTED",
+        repositoryCommit: COMMIT,
+        type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+        payload: {},
+      },
+    ],
   ]),
-  facts: new Map([[ids.fact, { state: "ACCEPTED", caseRevision: 2 }]]),
+  facts: new Map([
+    [
+      ids.fact,
+      {
+        state: "ACCEPTED",
+        caseRevision: 2,
+        authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+        evidenceIds: [],
+      },
+    ],
+  ]),
 });
 
 const evidenceRef = {
@@ -84,6 +105,209 @@ const codes = (decision: RuleDecision, ctx = context()) =>
   validateRuleDecision(decision, ctx).map((failure) => failure.code);
 
 describe("validateRuleDecision (identity and provenance only)", () => {
+  it.each([
+    ["complete", null],
+    ["truncated", FAIL.SEARCH_COVERAGE_INCOMPLETE],
+    ["known-gap", FAIL.SEARCH_COVERAGE_INCOMPLETE],
+    ["missing-payload", FAIL.SEARCH_COVERAGE_INCOMPLETE],
+    ["unknown", FAIL.UNKNOWN_EVIDENCE_REFERENCE],
+    ["invalidated", FAIL.EVIDENCE_NOT_ACCEPTED],
+    ["mispinned", FAIL.EVIDENCE_PIN_MISMATCH],
+  ])(
+    "checks %s evidence reached only through a cited fact",
+    (scenario, code) => {
+      const ctx = context();
+      ctx.facts = new Map([
+        [
+          ids.fact,
+          {
+            state: "ACCEPTED",
+            caseRevision: 2,
+            authority: ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED,
+            evidenceIds: [ids.evidence],
+          },
+        ],
+      ]);
+      ctx.evidence =
+        scenario === "unknown"
+          ? new Map()
+          : new Map([
+              [
+                ids.evidence,
+                {
+                  state:
+                    scenario === "invalidated" ? "INVALIDATED" : "ACCEPTED",
+                  repositoryCommit:
+                    scenario === "mispinned" ? "b".repeat(40) : COMMIT,
+                  type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
+                  payload:
+                    scenario === "missing-payload"
+                      ? {}
+                      : {
+                          scopes: [
+                            {
+                              kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+                              path: ".",
+                            },
+                          ],
+                          queries: [
+                            {
+                              tool: "search_code",
+                              query: "retention",
+                              resultCount: 0,
+                              truncated: scenario === "truncated",
+                            },
+                          ],
+                          inspectedEntryPoints: ["service.py"],
+                          knownGaps:
+                            scenario === "known-gap"
+                              ? ["Incomplete index."]
+                              : [],
+                          directSourceFallbacks: [],
+                        },
+                },
+              ],
+            ]);
+      const decision = applicable({
+        references: [factRef],
+        criteria: applicable().criteria.map((c) => ({
+          ...c,
+          references: [factRef],
+        })),
+      });
+      expect(validateRuleDecision(decision, ctx)).toEqual(
+        code ? [{ code, ref: ids.evidence }] : [],
+      );
+    },
+  );
+
+  it("rejects an evidence-cited fact with no linked evidence", () => {
+    const ctx = context();
+    ctx.facts = new Map([
+      [
+        ids.fact,
+        {
+          state: "ACCEPTED",
+          caseRevision: 2,
+          authority: ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED,
+          evidenceIds: [],
+        },
+      ],
+    ]);
+    expect(validateRuleDecision(applicable(), ctx)).toEqual([
+      { code: FAIL.FACT_EVIDENCE_MISSING, ref: ids.fact },
+    ]);
+  });
+
+  it("allows a human-provided fact without repository evidence", () => {
+    const ctx = context();
+    ctx.facts = new Map([
+      [
+        ids.fact,
+        {
+          state: "ACCEPTED",
+          caseRevision: 2,
+          authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+          evidenceIds: [],
+        },
+      ],
+    ]);
+    expect(codes(applicable(), ctx)).toEqual([]);
+  });
+
+  it.each(["known-gap", "truncated", "missing-payload"])(
+    "rejects %s search coverage as final decision provenance",
+    (scenario) => {
+      const ctx = context();
+      const payload = {
+        scopes: [
+          { kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY, path: "." },
+        ],
+        queries: [
+          {
+            tool: "search_code",
+            query: "retention",
+            resultCount: 0,
+            truncated: scenario === "truncated",
+          },
+        ],
+        inspectedEntryPoints: [],
+        knownGaps:
+          scenario === "known-gap" ? ["Index coverage is incomplete."] : [],
+        directSourceFallbacks: [],
+      };
+      const evidence = {
+        state: "ACCEPTED",
+        repositoryCommit: COMMIT,
+        type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
+        payload: scenario === "missing-payload" ? {} : payload,
+      };
+      expect(
+        validateRuleDecision(applicable(), {
+          ...ctx,
+          evidence: new Map([[ids.evidence, evidence]]),
+        }),
+      ).toEqual([{ code: FAIL.SEARCH_COVERAGE_INCOMPLETE, ref: ids.evidence }]);
+    },
+  );
+
+  it.each([
+    RULE_DECISION_CRITERION_OUTCOMES.MET,
+    RULE_DECISION_CRITERION_OUTCOMES.NOT_MET,
+  ])(
+    "accepts complete search coverage without judging a %s conclusion",
+    (outcome) => {
+      const ctx = context();
+      ctx.evidence = new Map([
+        [
+          ids.evidence,
+          {
+            state: "ACCEPTED",
+            repositoryCommit: COMMIT,
+            type: ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
+            payload: {
+              scopes: [
+                {
+                  kind: SEARCH_COVERAGE_SCOPE_KINDS.SOURCE_DIRECTORY,
+                  path: ".",
+                },
+              ],
+              queries: [
+                {
+                  tool: "search_code",
+                  query: "retention",
+                  resultCount: 0,
+                  truncated: false,
+                },
+              ],
+              inspectedEntryPoints: ["service.py"],
+              knownGaps: [],
+              directSourceFallbacks: [
+                {
+                  path: "service.py",
+                  reason: "Read the bounded source directly.",
+                },
+              ],
+            },
+          },
+        ],
+      ]);
+      const decision = applicable({
+        criteria: applicable().criteria.map((criterion) => ({
+          ...criterion,
+          outcome,
+        })),
+        compliance:
+          outcome === RULE_DECISION_CRITERION_OUTCOMES.MET
+            ? RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT
+            : RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT,
+      });
+      expect(codes(decision, ctx)).toEqual([]);
+      ctx.evidence = new Map();
+      expect(codes(decision, ctx)).toEqual([FAIL.UNKNOWN_EVIDENCE_REFERENCE]);
+    },
+  );
+
   it("accepts a complete, correctly pinned decision without judging it", () => {
     expect(codes(applicable())).toEqual([]);
     // The validator never second-guesses meaning: a NON_COMPLIANT, a COMPLIANT and a
@@ -187,21 +411,30 @@ describe("validateRuleDecision (identity and provenance only)", () => {
     );
     const invalidated = context();
     invalidated.evidence = new Map([
-      [ids.evidence, { state: "INVALIDATED", repositoryCommit: COMMIT }],
+      [
+        ids.evidence,
+        { ...context().evidence.get(ids.evidence)!, state: "INVALIDATED" },
+      ],
     ]);
     expect(codes(applicable(), invalidated)).toContain(
       FAIL.EVIDENCE_NOT_ACCEPTED,
     );
     const wrongCommit = context();
     wrongCommit.evidence = new Map([
-      [ids.evidence, { state: "ACCEPTED", repositoryCommit: "c".repeat(40) }],
+      [
+        ids.evidence,
+        {
+          ...context().evidence.get(ids.evidence)!,
+          repositoryCommit: "c".repeat(40),
+        },
+      ],
     ]);
     expect(codes(applicable(), wrongCommit)).toContain(
       FAIL.EVIDENCE_PIN_MISMATCH,
     );
     const futureFact = context();
     futureFact.facts = new Map([
-      [ids.fact, { state: "ACCEPTED", caseRevision: 9 }],
+      [ids.fact, { ...context().facts.get(ids.fact)!, caseRevision: 9 }],
     ]);
     expect(codes(applicable(), futureFact)).toContain(
       FAIL.FACT_REVISION_MISMATCH,

@@ -2,7 +2,6 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { RETIRED_API_ROUTES } from "@lcsp/contracts/legacy-migration";
 import { RequestMethod } from "@nestjs/common";
 import { describe, expect, it } from "@jest/globals";
 
@@ -73,7 +72,7 @@ function registeredRoutes(): string[] {
 
 const shape = (route: string) => route.replaceAll(/:[A-Za-z0-9_]+/gu, ":");
 
-describe("API route surface after the W6 cutover", () => {
+describe("API route surface after the CUTOVER cutover", () => {
   const routes = registeredRoutes();
 
   it("matches the committed allowlist exactly (adding or removing a route is a reviewed change)", () => {
@@ -85,7 +84,16 @@ describe("API route surface after the W6 cutover", () => {
     expect(routes).toEqual(allowlist);
   });
 
-  it("registers no handler for a retired V1 route (they answer 410 through the middleware)", () => {
+  it("registers no handler for a retired V1 route", () => {
+    const RETIRED_API_ROUTES = JSON.parse(
+      readFileSync(
+        new URL(
+          "../../../tests/fixtures/retired-routes.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ) as Array<{ method: string; path: string }>;
     const registered = new Set(routes.map(shape));
     const resurrected = RETIRED_API_ROUTES.filter((route) =>
       registered.has(shape(`${route.method} /${route.path}`)),
@@ -93,10 +101,13 @@ describe("API route surface after the W6 cutover", () => {
     expect(resurrected).toEqual([]);
   });
 
-  it("keeps the one live /internal/scan-jobs route and nothing else under it", () => {
+  it("has no Scan route and registers the canonical stream ingress", () => {
     expect(
       routes.filter((route) => route.includes("/internal/scan-jobs")),
-    ).toEqual(["POST /internal/scan-jobs/agent-stream-events"]);
+    ).toEqual([]);
+    expect(routes).toContain(
+      "POST /internal/assessment-runtime/agent-stream-events",
+    );
   });
 
   it("has no duplicated route", () => {

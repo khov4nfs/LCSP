@@ -18,7 +18,7 @@ from legal_preparation.runner import (
     NO_SUBMISSION,
     run_legal_preparation,
 )
-from legal_preparation.tools import LegalPreparationContext
+from legal_preparation.tools import LegalPreparationContext, build_portfolio_tools
 from test_legal_preparation_native_isolation_preparation import LegalPreparationScriptedModel
 
 RUN_ID = "11111111-1111-4111-8111-111111111111"
@@ -175,6 +175,35 @@ def _tool_messages(model: LegalPreparationScriptedModel) -> dict[str, ToolMessag
     return found
 
 
+def test_portfolio_tools_expose_required_nested_contract_to_the_provider() -> None:
+    from langchain_core.utils.function_calling import convert_to_openai_tool
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    tools = build_portfolio_tools(LegalPreparationContext(RUN_ID, FakeApi()))
+    # Binding exercises Gemini's schema conversion without a provider request.
+    ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite", api_key="fixture").bind_tools(tools)
+    for tool in tools:
+        schema = convert_to_openai_tool(tool)["function"]["parameters"]
+        packet = schema["properties"]["packet"]
+        assert set(packet["required"]) == {"legalRules", "engineeringRules", "contextRelations"}
+        assert "Operative duties, prohibitions or permissions only" in packet["properties"]["legalRules"]["description"]
+        assert "Source coverage does not require a LegalRule for every provision" in packet["properties"]["legalRules"]["description"]
+        legal = packet["properties"]["legalRules"]["items"]
+        assert "software record of an action does not establish performance" in legal["properties"]["nonRepositoryDuty"]["description"]
+        coverage = legal["properties"]["coverage"]
+        assert set(coverage["required"]) == {"state", "nonAssessableReason"}
+        assert coverage["type"] == "object"
+        assert "oneOf" not in coverage and "anyOf" not in coverage
+        assert "NON_ASSESSABLE requires none" in coverage["properties"]["state"]["description"]
+        engineering = packet["properties"]["engineeringRules"]["items"]
+        assert "never reference a LegalRule declared NON_ASSESSABLE" in engineering["properties"]["legalRuleIds"]["description"]
+        assert {"engineeringRuleId", "criteria", "applicabilityGuidance", "supportingEvidence", "sourceRefs"} <= set(engineering["required"])
+        relation = packet["properties"]["contextRelations"]["items"]
+        assert {"toLegalRuleId", "toSourceRef"} <= set(relation["required"])
+        assert "independently operative LegalRule only" in relation["properties"]["toLegalRuleId"]["description"]
+        assert "context-only definition" in relation["properties"]["toSourceRef"]["description"]
+
+
 def test_corpus_files_carry_exact_citation_headers_and_only_the_pinned_corpus(tmp_path: Path) -> None:
     paths = materialize_corpus(_bundle(), tmp_path)
     assert paths[0] == INDEX_PATH
@@ -189,6 +218,8 @@ def test_corpus_files_carry_exact_citation_headers_and_only_the_pinned_corpus(tm
 
 
 def test_agent_has_only_read_only_corpus_tools_and_the_two_portfolio_tools(tmp_path: Path) -> None:
+    from legal_preparation.agent import INSTRUCTIONS
+
     materialize_corpus(_bundle(), tmp_path)
     model = _model([AIMessage(content="done")])
     agent = create_legal_preparation_agent(
@@ -199,6 +230,7 @@ def test_agent_has_only_read_only_corpus_tools_and_the_two_portfolio_tools(tmp_p
     assert {"read_file", "ls", "glob", "grep", "validate_legal_portfolio", "submit_legal_portfolio"} <= bound
     forbidden = {"write_file", "edit_file", "execute", "task", "ask_human", "submit_rule_decision"}
     assert bound.isdisjoint(forbidden), bound & forbidden
+    assert INSTRUCTIONS in model.prompts[0][0].content
 
 
 def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_path: Path) -> None:
@@ -224,6 +256,37 @@ def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_p
     assert json.loads(messages["submit-2"].content)["alreadySubmitted"] is True
 
 
+def test_managed_agent_serializes_gemini_nullable_tools_without_rewriting_packet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from langchain_core.outputs import ChatGeneration, ChatResult
+    from langchain_google_genai import ChatGoogleGenerativeAI
+
+    packet = _packet()
+    responses = [
+        _call("validate_legal_portfolio", {"packet": packet}, "validate"),
+        _call("submit_legal_portfolio", {"packet": packet}, "submit"),
+        AIMessage(content="DONE"),
+    ]
+    calls = []
+
+    def generate(model, messages, stop=None, run_manager=None, **kwargs):
+        prepared = model._prepare_request(messages, stop=stop, **kwargs)
+        declarations = [d for t in prepared["config"].tools for d in t.function_declarations or []]
+        portfolio = next(d for d in declarations if d.name == "submit_legal_portfolio")
+        reason = portfolio.parameters.properties["packet"].properties["legalRules"].items.properties["coverage"].properties["nonAssessableReason"]
+        assert any(branch.type.value == "NULL" for branch in reason.any_of or [])
+        calls.append(prepared)
+        return ChatResult(generations=[ChatGeneration(message=responses[len(calls) - 1])])
+
+    monkeypatch.setattr(ChatGoogleGenerativeAI, "_generate", generate)
+    model = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite", api_key="fixture")
+    api = FakeApi()
+    result = run_legal_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+    assert result["state"] == "SUCCEEDED"
+    assert len(calls) == 3
+    assert api.names() == ["claim", "validate", "submit"]
+    assert api.calls[1][1][-1] == api.calls[2][1][-1] == packet
+
+
 def test_invalid_submission_finishes_the_run_as_failed_without_retry_authority(tmp_path: Path) -> None:
     packet = _packet()
     model = _model([_call("submit_legal_portfolio", {"packet": packet}, "s"), AIMessage(content="stop")])
@@ -232,6 +295,61 @@ def test_invalid_submission_finishes_the_run_as_failed_without_retry_authority(t
     assert result["state"] == "FAILED"
     assert result["failureReason"] == "PORTFOLIO_VALIDATION_FAILED"
     assert "fail" not in api.names()  # the submit transaction already recorded FAILED
+
+
+@pytest.mark.parametrize("scenario", ["uncovered", "non-assessable", "missing-array"])
+def test_packet_graph_400_feedback_reaches_model_and_can_be_corrected(tmp_path: Path, scenario: str) -> None:
+    import copy
+    from unittest.mock import patch
+
+    import httpx
+    from tools.common.capabilities.platform.api_client import WorkerApiClient
+
+    corrected = _packet()
+    invalid = copy.deepcopy(corrected)
+    if scenario == "missing-array":
+        del invalid["engineeringRules"][0]["investigationGoals"]
+        field = "packet.engineeringRules.0.investigationGoals"
+        requirement = "packet.engineeringRules.0.investigationGoals requires array"
+    elif scenario == "non-assessable":
+        invalid["legalRules"][0]["coverage"] = {"state": "NON_ASSESSABLE", "nonAssessableReason": "Declared external duty"}
+        field = "packet.engineeringRules.0.legalRuleIds.0"
+        requirement = "Referenced LegalRule declares NON_ASSESSABLE, remove this EngineeringRule coverage or correct the LegalRule coverage declaration"
+    else:
+        invalid["engineeringRules"] = []
+        field = "packet.legalRules.0.coverage.state"
+        requirement = "COVERED_BY_ENGINEERING_RULES requires at least one EngineeringRule legalRuleIds reference to this LegalRule"
+
+    client = WorkerApiClient(base_url="http://testserver", api_key="fixture-key")
+
+    class FeedbackApi(FakeApi):
+        def validate_legal_portfolio(self, run_id: str, packet: dict) -> dict:
+            self.calls.append(("validate", (run_id, packet)))
+            return client.validate_legal_portfolio(run_id, packet)
+
+    api = FeedbackApi()
+    model = _model([
+        _call("validate_legal_portfolio", {"packet": invalid}, "invalid"),
+        _call("validate_legal_portfolio", {"packet": corrected}, "corrected"),
+        _call("submit_legal_portfolio", {"packet": corrected}, "submit"),
+        AIMessage(content="DONE"),
+    ])
+    responses = [
+        httpx.Response(400, json={"ok": False, "problem": {
+            "status": 400, "code": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID",
+            "meta": {"issues": field, "requirements": requirement, "input": "PRIVATE_PACKET_VALUE"},
+        }}),
+        httpx.Response(200, json={"ok": True, "data": {"outcome": "PASSED", "failures": []}}),
+    ]
+    with patch("tools.common.capabilities.platform.api_client.httpx.post", side_effect=responses) as post:
+        result = run_legal_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+    assert post.call_count == 2  # the 400 is not retried as a transport failure
+    assert result["state"] == "SUCCEEDED"
+    assert api.names() == ["claim", "validate", "validate", "submit"]
+    feedback = json.loads(_tool_messages(model)["invalid"].content)["error"]
+    assert f"Invalid fields: {field} Requirements: {requirement}" in feedback
+    assert len(feedback) < 1100 and "PRIVATE_PACKET_VALUE" not in feedback
+    assert api.calls[-1][1][-1] == corrected
 
 
 def test_no_submission_is_recorded_as_failed(tmp_path: Path) -> None:
@@ -343,7 +461,7 @@ def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(
 
     from legal_preparation.agent import _lookup_profile_key
 
-    # An OpenAI-compatible route (llm7) is looked up as "openai:<model>", not "llm7:<model>".
+    # An OpenAI-compatible route (apx) is looked up as "openai:<model>", not "apx:<model>".
     model = ChatOpenAI(model="GLM-5.3-Flash", api_key="unused", base_url="http://127.0.0.1:9/v1")
     key = _lookup_profile_key(model)
     assert key == "openai:GLM-5.3-Flash"
@@ -375,3 +493,55 @@ def test_instructions_state_the_authority_boundary() -> None:
     assert "including its own limiting sentences" in lowered
     for forbidden_tool in ("ask_human", "execute", "task("):
         assert forbidden_tool not in lowered
+
+
+def test_instructions_require_general_semantic_completeness_before_validation() -> None:
+    from legal_preparation.agent import INSTRUCTIONS
+
+    # Prompt wiring/policy guard only; generated legal meaning requires reasoned live review.
+    text = " ".join(INSTRUCTIONS.split())
+    assert "An EngineeringRule must not be a lossy summary" in text
+    assert "every semantic component of **all** linked LegalRules and their relevant context relations" in text
+    for component in (
+        "actor", "modality", "action", "object", "scope", "conditions",
+        "triggering event and its meaning", "timing start and end", "duration", "ordering",
+        "qualifiers", "exceptions and exception limitations", "required retained content",
+        "content-integrity or preservation requirements", "required associated metadata",
+        "cross-reference-derived conditions",
+    ):
+        assert component in text
+    assert "one criterion per sentence is not required" in text
+    assert "Keep applicability separate from the behavior required for compliance" in text
+    assert "Missing or incorrect implementation does not itself remove an applicable duty" in text
+    assert "evidence availability was promoted into a condition" in text
+    assert "Do not create one LegalRule per provision or per citation" in text
+    assert "A register or log is not performance of the action itself" in text
+    assert "do not repair the graph by adding EngineeringRule coverage to context" in text
+    assert "Mechanical coverage must never motivate a semantically false link" in text
+    assert "attach the exception only to the first duty" in text
+    assert "Apply the same target restriction to the LegalRule `exceptions` array" in text
+    assert "it must have no EXCEPTION relation to that provision" in text
+    assert "cite those material child clauses explicitly" in text
+    assert "does not replace references to the provisions it incorporates" in text
+    assert "complete criteria alone do not excuse incomplete evidence guidance" in text
+    assert "If it changes nothing, delete it" in text
+    assert "Correct the reported shape failures without dropping previously correct fields" in text
+    assert "Every context relation includes BOTH `toLegalRuleId` and `toSourceRef`" in text
+    assert "Compare the relevant `contextRelations.toSourceRef` identities" in text
+    assert "insert every missing identity into the actual EngineeringRule `sourceRefs` array" in text
+    assert "An inline definition or paraphrase in a criterion does not replace its source reference" in text
+    assert "repeat this comparison after every packet repair" in text
+    assert "Repeat the private semantic completeness pass on that final packet" in text
+    assert "using the exact packet that just passed validation" in text
+    assert "Do not regenerate, shorten or change that packet between the two calls" in text
+    assert "Preserve inherited scope and other relevant context for NON_ASSESSABLE LegalRules too" in text
+    assert "A LegalRule declared `NON_ASSESSABLE` must have no EngineeringRule referencing its `legalRuleId`" in text
+    assert "Never mark the entire duty `NON_ASSESSABLE` while also authoring an EngineeringRule to assess it" in text
+    assert "it does not decide legal assessability for you" in text
+    assert "Immediately before `validate_legal_portfolio`, for every LegalRule" in text
+    assert "private agent reasoning, not a packet field" in text
+    for fixture_detail in (
+        "Article 1", "Article 3", "Article 4", "Article 5", "Article 6",
+        "seven days", "temporary test record", "notice text",
+    ):
+        assert fixture_detail not in text

@@ -1,5 +1,5 @@
 // Run: node tests/legal-portfolio-vertical.mjs   (needs a built API: pnpm --dir apps/api run build)
-// W2 corpus -> portfolio vertical on REAL components: a fresh migrated PostgreSQL database on the
+// LEGAL_PORTFOLIO corpus -> portfolio vertical on REAL components: a fresh migrated PostgreSQL database on the
 // loopback test container (default 55441), the REAL built API process over HTTP, and the REAL
 // Python Legal Preparation agent + WorkerApiClient. Only the model is scripted (provider-free), so
 // this proves plumbing, authority, atomicity and concurrency - NOT legal-reading quality.
@@ -17,8 +17,8 @@ import {
   workerKey,
 } from "./support/legal-portfolio-stack.mjs";
 
-const database = "lcsp_w2_vertical";
-const apiPort = Number(process.env.LCSP_W2_API_PORT ?? 3411);
+const database = "lcsp_legal_portfolio_vertical";
+const apiPort = Number(process.env.LCSP_LEGAL_PORTFOLIO_TEST_API_PORT ?? 3411);
 let checks = 0;
 const ok = (value, message) => {
   assert.ok(value, message);
@@ -69,7 +69,7 @@ try {
     });
   const corpusA = await seed("vertical-a", "a", "APPROVED");
   const corpusB = await seed("vertical-b", "b", "SUPERSEDED");
-  const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-w2-vertical-"));
+  const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-legal_portfolio-vertical-"));
   const seedFile = path.join(seedDir, "seed.json");
   writeFileSync(
     seedFile,
@@ -331,7 +331,7 @@ try {
   );
 
   console.log(
-    `PASS: ${checks} W2 vertical checks (real API + PostgreSQL + Python agent; model scripted) on ${database}`,
+    `PASS: ${checks} LEGAL_PORTFOLIO vertical checks (real API + PostgreSQL + Python agent; model scripted) on ${database}`,
   );
 } finally {
   await stop();

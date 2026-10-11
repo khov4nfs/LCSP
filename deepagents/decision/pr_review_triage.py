@@ -1,4 +1,4 @@
-"""Best-effort PR-review shadow triage entrypoint for LCSP-336."""
+"""Best-effort PR-review shadow triage entrypoint."""
 
 from __future__ import annotations
 
@@ -17,9 +17,7 @@ from .shadow import (
     InMemoryDecisionIdempotencyStore,
     PrReviewTriagePacket,
     ShadowDecisionObserver,
-    WorkerApiDecisionIdempotencyStore,
     shadow_record_payload,
-    worker_api_decision_event_sink,
 )
 
 
@@ -259,11 +257,11 @@ def record_pr_review_shadow_triage_packet(
     authoritative_domain = authoritative_domain or infer_authoritative_domain(
         packet.changed_filenames
     )
-    if require_durable and _api_client_from_environment() is None and observer_factory is None:
+    if require_durable and observer_factory is None:
         payload = {
             **_packet_correlation(packet),
             "schemaVersion": "LCSP_PR_REVIEW_TRIAGE_RECORD_V1",
-            "recordingStatus": "TYPED_RESULT_NOT_RECORDED_DURABLE_CREDENTIALS_MISSING",
+            "recordingStatus": "TYPED_RESULT_NOT_RECORDED_DURABLE_STORE_UNAVAILABLE",
             "typedResultRecorded": False,
             "authoritativeReviewDomain": authoritative_domain,
         }
@@ -274,7 +272,7 @@ def record_pr_review_shadow_triage_packet(
     observer = (
         observer_factory(sink)
         if observer_factory
-        else _default_observer(sink, require_durable=require_durable)
+        else _default_observer(sink)
     )
     return _record_packet(
         packet,
@@ -406,7 +404,7 @@ def _trusted_packet_from_compare(
         acceptance_criteria_ids=(),
         bounded_summary=_bounded_summary(title=title, categories=categories),
         ci_state_codes=tuple(value for value in trusted_ci_state_codes if value),
-        scanner_change_metadata=_scanner_metadata(trusted_paths),
+        repository_change_metadata=_repository_metadata(trusted_paths),
         diff_stat_keys=_diff_stat_keys(trusted_paths),
         addition_count=additions,
         deletion_count=deletions,
@@ -446,7 +444,7 @@ def build_packet_from_environment(
         acceptance_criteria_ids=(),
         bounded_summary=_bounded_summary(title=title, categories=categories),
         ci_state_codes=_ci_state_codes(),
-        scanner_change_metadata=_scanner_metadata(changed_filenames),
+        repository_change_metadata=_repository_metadata(changed_filenames),
         diff_stat_keys=_diff_stat_keys(changed_filenames),
         addition_count=addition_count,
         deletion_count=deletion_count,
@@ -459,7 +457,7 @@ def infer_authoritative_domain(paths: tuple[str, ...]) -> str:
     for preferred in (
         "AUTH",
         "BILLING",
-        "SCANNER",
+        "REPOSITORY",
         "AGENT_RUNTIME",
         "LEGAL_RULES",
         "CI_RELEASE",
@@ -471,29 +469,8 @@ def infer_authoritative_domain(paths: tuple[str, ...]) -> str:
     return "OTHER"
 
 
-def _default_observer(
-    sink: JsonlTelemetrySink,
-    *,
-    require_durable: bool = False,
-) -> ShadowDecisionObserver:
-    api_client = _api_client_from_environment()
-    telemetry_sink: Callable[[dict[str, Any]], None] = sink
-    idempotency_store: Any = InMemoryDecisionIdempotencyStore()
-    if require_durable and api_client is None:
-        raise RuntimeError("durable decision idempotency is required")
-    if api_client is not None:
-        api_sink = worker_api_decision_event_sink(api_client)
-
-        def telemetry_sink(event: dict[str, Any]) -> None:
-            sink(event)
-            api_sink(event)
-
-        idempotency_store = WorkerApiDecisionIdempotencyStore(api_client)
-    return ShadowDecisionObserver(
-        gateway=DecisionGateway(),
-        telemetry_sink=telemetry_sink,
-        idempotency_store=idempotency_store,
-    )
+def _default_observer(sink: JsonlTelemetrySink) -> ShadowDecisionObserver:
+    return ShadowDecisionObserver(gateway=DecisionGateway(), telemetry_sink=sink)
 
 
 def _packet_payload(packet: PrReviewTriagePacket) -> dict[str, Any]:
@@ -509,7 +486,7 @@ def _packet_from_payload(payload: Any) -> PrReviewTriagePacket:
         "jira_issue_ids",
         "acceptance_criteria_ids",
         "ci_state_codes",
-        "scanner_change_metadata",
+        "repository_change_metadata",
         "diff_stat_keys",
     }
     values = {
@@ -529,14 +506,6 @@ def _packet_correlation(packet: PrReviewTriagePacket) -> dict[str, Any]:
     }
 
 
-def _api_client_from_environment() -> Any | None:
-    base_url = _text(os.getenv("LCSP_API_BASE_URL"))
-    api_key = _text(os.getenv("WORKER_API_KEY"))
-    if not base_url or not api_key:
-        return None
-    from tools.common.capabilities.platform.api_client import WorkerApiClient
-
-    return WorkerApiClient(base_url, api_key)
 
 
 def _github_event() -> dict[str, Any]:
@@ -611,7 +580,7 @@ def _domain_for_path(path: str) -> str:
     if "billing" in lowered:
         return "BILLING"
     if "scanner" in lowered or "program_graph" in lowered:
-        return "SCANNER"
+        return "REPOSITORY"
     if path.startswith("deepagents/decision/") or path.startswith("deepagents/orchestration/"):
         return "AGENT_RUNTIME"
     if "legal" in lowered or "engineering_rule" in lowered:
@@ -644,10 +613,10 @@ def _ci_state_codes() -> tuple[str, ...]:
     return tuple(value for value in values if value)
 
 
-def _scanner_metadata(paths: tuple[str, ...]) -> tuple[str, ...]:
+def _repository_metadata(paths: tuple[str, ...]) -> tuple[str, ...]:
     values: list[str] = []
     if any(path.startswith("deepagents/tools/common/capabilities/evidence/") for path in paths):
-        values.append("SCANNER_SURFACE_CHANGED")
+        values.append("REPOSITORY_SURFACE_CHANGED")
     if any("program_graph" in path for path in paths):
         values.append("PGE_SURFACE_CHANGED")
     return tuple(values)

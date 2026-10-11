@@ -1,11 +1,6 @@
-import { isRetiredOutboxEventType } from "@lcsp/contracts/legacy-migration";
+import { isRetiredOutboxEventType } from "./retired-event-policy.js";
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import {
-  TARGETED_REANALYSIS_CAPACITY_POLICY,
-  TARGETED_REANALYSIS_CHECKPOINT_STATES,
-  TARGETED_REANALYSIS_REQUEST_STATES,
-} from "@lcsp/contracts/scan";
 import {
   type OutboxAggregateType,
   OUTBOX_STATUSES,
@@ -38,14 +33,14 @@ interface OutboxRow {
 }
 
 /**
- * Encapsulates transactional outbox persistence, delivery-state updates, and targeted-reanalysis dispatch reservation.
+ * Encapsulates transactional outbox persistence and delivery-state updates.
  */
 @Injectable()
 export class OutboxRepository {
   /**
    * Creates the repository with the application Prisma client.
    *
-   * @param prisma - Prisma service used for outbox and targeted-reanalysis database operations.
+   * @param prisma - Prisma service used for outbox database operations.
    */
   constructor(private readonly prisma: PrismaService) {}
 
@@ -65,7 +60,7 @@ export class OutboxRepository {
     input: OutboxMessageInput,
     tx?: Prisma.TransactionClient,
   ): Promise<string> {
-    // W6 fence: a retired V1 command/event must never be created again, whatever code path asks.
+    // CUTOVER fence: a retired V1 command/event must never be created again, whatever code path asks.
     if (isRetiredOutboxEventType(input.eventType))
       throw new Error(`OUTBOX_EVENT_TYPE_RETIRED: ${input.eventType}`);
     const client = tx ?? this.prisma;
@@ -190,117 +185,6 @@ export class OutboxRepository {
         errorMessage: errorMessage.slice(0, 500),
       },
     });
-  }
-
-  /**
-   * Keeps a targeted-reanalysis request and checkpoint observable while its command publication is retrying or exhausted.
-   * This update intentionally runs in the same outbox transaction as `markFailure`, so an outbox message entering DLQ cannot leave the request appearing queued.
-   *
-   * @param tx - Prisma transaction shared with the outbox failure update.
-   * @param requestId - Targeted-reanalysis request identifier represented by the message.
-   * @param attempts - Updated API-side publication-attempt count.
-   * @param terminalFailureCode - Safe failure code when retries are exhausted; null while retryable.
-   * @returns A promise that resolves after request and checkpoint state are synchronized.
-   */
-  async recordTargetedReanalysisPublishFailure(
-    tx: Prisma.TransactionClient,
-    requestId: string,
-    attempts: number,
-    terminalFailureCode: string | null,
-  ): Promise<void> {
-    await tx.targetedReanalysisRequest.updateMany({
-      where: {
-        id: requestId,
-        state: {
-          in: [
-            TARGETED_REANALYSIS_REQUEST_STATES.queued,
-            TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
-          ],
-        },
-      },
-      data: {
-        apiPublishAttempts: attempts,
-        ...(terminalFailureCode
-          ? {
-              state: TARGETED_REANALYSIS_REQUEST_STATES.dlq,
-              safeFailureCode: terminalFailureCode,
-            }
-          : {}),
-      },
-    });
-    await tx.targetedReanalysisCheckpoint.updateMany({
-      where: { requestId },
-      data: {
-        apiPublishAttempts: attempts,
-        ...(terminalFailureCode
-          ? {
-              state: TARGETED_REANALYSIS_CHECKPOINT_STATES.dlq,
-              safeFailureCode: terminalFailureCode,
-            }
-          : {}),
-      },
-    });
-  }
-
-  /**
-   * Atomically reserves one of an organization's targeted-reanalysis worker slots before AMQP publication.
-   * The organization-scoped PostgreSQL advisory lock serializes competing reservations for the same tenant without globally serializing unrelated organizations.
-   * Capacity is enforced by `TARGETED_REANALYSIS_CAPACITY_POLICY.maxRunningPerOrganization` rather than by this method assuming a hard-coded slot count.
-   *
-   * @param tx - Prisma transaction used for the organization-scoped advisory lock and state transition.
-   * @param requestId - Targeted-reanalysis request that should be dispatched.
-   * @returns True when the request is already dispatched or successfully reserved; otherwise false.
-   */
-  async reserveTargetedReanalysisDispatch(
-    tx: Prisma.TransactionClient,
-    requestId: string,
-  ): Promise<boolean> {
-    const request = await tx.targetedReanalysisRequest.findUnique({
-      where: { id: requestId },
-      select: { assessmentId: true, state: true },
-    });
-    if (!request) return false;
-    if (request.state === TARGETED_REANALYSIS_REQUEST_STATES.dispatched) {
-      return true;
-    }
-    if (request.state !== TARGETED_REANALYSIS_REQUEST_STATES.queued) {
-      return false;
-    }
-
-    await tx.$executeRaw`
-      SELECT pg_advisory_xact_lock(hashtext(${request.assessmentId}))
-    `;
-    const reservedCount = await tx.targetedReanalysisRequest.count({
-      where: {
-        state: {
-          in: [
-            TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
-            TARGETED_REANALYSIS_REQUEST_STATES.running,
-          ],
-        },
-      },
-    });
-    if (
-      reservedCount >=
-      TARGETED_REANALYSIS_CAPACITY_POLICY.maxRunningPerOrganization
-    ) {
-      return false;
-    }
-
-    const claimed = await tx.targetedReanalysisRequest.updateMany({
-      where: {
-        id: requestId,
-        state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
-      },
-      data: { state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched },
-    });
-    if (claimed.count === 1) {
-      await tx.targetedReanalysisCheckpoint.updateMany({
-        where: { requestId },
-        data: { state: TARGETED_REANALYSIS_CHECKPOINT_STATES.dispatched },
-      });
-    }
-    return claimed.count === 1;
   }
 
   /**
