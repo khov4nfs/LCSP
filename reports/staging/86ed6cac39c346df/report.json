@@ -1,0 +1,26 @@
+{
+  "scope": "RELEASE_ISOLATED_VERIFIED_IMAGE_STAGING_READINESS",
+  "status": "READY_FOR_ACCEPTANCE",
+  "runId": "86ed6cac39c346df",
+  "imageReceipt": "reports/release-images/20261011210628_a047d4ca2aa1/report.json",
+  "images": {
+    "api": "sha256:03f6791f4c985e62d070ad0d4c50d24850f5f7d622106850b0c9b905ecf49ca8",
+    "web": "sha256:4c0e4ea1c43bc6292183eb6b3f318f7525304cd93133c8e1c0592a8048d5ff67",
+    "worker": "sha256:4413a4fa47f5ce3beaff31ec76c5343c5de921929ecd49c131f003f9f1d88f98",
+    "server": "sha256:57c772b3bd42ab10af6ad220ac50d4c3526d8598a19de34742064dfc4d670d31",
+    "postgres": "sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+    "rabbitmq": "sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69",
+    "bridge": "sha256:4413a4fa47f5ce3beaff31ec76c5343c5de921929ecd49c131f003f9f1d88f98"
+  },
+  "api": "http://localhost:32782",
+  "web": "http://localhost:32783",
+  "agentServer": "http://localhost:32781",
+  "readyBoundaryConsumers": 14,
+  "retiredTablesAbsent": 29,
+  "fixtureAccounts": 3,
+  "liveModelAcceptance": "REUSED_UNCHANGED_AGENT_PAYLOADS_FROM_9ae7757edbaf422b",
+  "stagingAcceptance": "PASS_BOUNDED_POST_CI_RECONCILIATION",
+  "browserAcceptance": "PASS_WORKERS_1",
+  "productionDeployment": false,
+  "releaseEligible": false
+}

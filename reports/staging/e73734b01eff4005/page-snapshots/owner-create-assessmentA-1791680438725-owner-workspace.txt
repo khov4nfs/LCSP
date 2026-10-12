@@ -1,0 +1,30 @@
+- complementary:
+  - navigation "Workspace":
+    - button "Toggle workspace navigation"
+    - button "Search assessments"
+    - button "Back"
+    - button "Forward"
+    - link "New":
+      - /url: /assessments/new
+    - link "Artifacts":
+      - /url: /artifacts
+    - heading "Recents" [level=2]
+    - button "Filter recent assessments"
+    - paragraph: No assessments match the current filters
+    - button "Account menu": R RELEASE owner
+- banner:
+  - paragraph: Workspace
+  - paragraph: Overview
+- main:
+  - text: RELEASE owner Workspace dashboard Review organization context, granted workspace actions, and active assessments.
+  - button "Create Assessment"
+  - term: Organization
+  - definition: RELEASE owner
+  - term: Membership role
+  - definition: CUSTOMER
+  - region "Assessment overview": Total assessments 0 Needs follow-up 0 Completed assessments 0
+  - text: Recent assessments Quickly open recently created assessments or view the full list.
+  - button "Open assessment list"
+  - text: Recent assessments Create your first assessment.
+- region "Notifications alt+T"
+- alert: Workspace | LCSP

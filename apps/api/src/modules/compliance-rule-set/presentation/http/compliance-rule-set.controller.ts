@@ -1,0 +1,132 @@
+import { randomUUID } from "node:crypto";
+
+import {
+  COMPLIANCE_RULE_SET_ERROR_CODES,
+  type ComplianceRuleSetSubmitRequest,
+  type ComplianceRuleSetValidateRequest,
+  type RuleSetPreparationClaimRequest,
+  type RuleSetPreparationFailRequest,
+  complianceRuleSetSubmitRequestSchema,
+  complianceRuleSetValidateRequestSchema,
+  ruleSetPreparationClaimRequestSchema,
+  ruleSetPreparationFailRequestSchema,
+} from "@lcsp/contracts/compliance-rule-set";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
+import { CommandBus, QueryBus } from "@nestjs/cqrs";
+import type { z } from "zod";
+
+import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
+import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
+import { ClaimRuleSetPreparationCommand } from "../../application/commands/claim-rule-set-preparation/claim-rule-set-preparation.command.js";
+import { FailRuleSetPreparationCommand } from "../../application/commands/fail-rule-set-preparation/fail-rule-set-preparation.command.js";
+import { SubmitComplianceRuleSetCommand } from "../../application/commands/submit-compliance-rule-set/submit-compliance-rule-set.command.js";
+import { GetActiveComplianceRuleSetQuery } from "../../application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.query.js";
+import { ValidateComplianceRuleSetQuery } from "../../application/queries/validate-compliance-rule-set/validate-compliance-rule-set.query.js";
+
+const RULE_SET_PREPARATION_WORKER = "rule-set-preparation-worker";
+const body = (schema: z.ZodTypeAny, includeIssuePaths = false) =>
+  new ZodValidationPipe(
+    schema,
+    COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+    HttpStatus.BAD_REQUEST,
+    includeIssuePaths,
+  );
+
+/**
+ * Worker-authenticated rule set boundary: claim, fail, validate, one submit -> activate, and the
+ * single runtime reader of the ACTIVE rule set. A preparation is never started here: it is
+ * started by the Legal Source activation consumer. Transport only: Zod validates the body and
+ * each call is one Command/Query.
+ */
+@Controller("internal/compliance-rule-set")
+@UseGuards(WorkerApiKeyGuard)
+export class ComplianceRuleSetController {
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
+
+  private correlation(req: AuthenticatedRequest): string {
+    return req.correlationId || randomUUID();
+  }
+
+  @Post("claims")
+  @HttpCode(200)
+  async claim(
+    @Body(body(ruleSetPreparationClaimRequestSchema))
+    request: RuleSetPreparationClaimRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ClaimRuleSetPreparationCommand(request, this.correlation(req)),
+      ),
+    );
+  }
+
+  @Post("failures")
+  @HttpCode(200)
+  async fail(
+    @Body(body(ruleSetPreparationFailRequestSchema))
+    request: RuleSetPreparationFailRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new FailRuleSetPreparationCommand(request, this.correlation(req)),
+      ),
+    );
+  }
+
+  @Post("validations")
+  @HttpCode(200)
+  async validate(
+    @Body(body(complianceRuleSetValidateRequestSchema, true))
+    request: ComplianceRuleSetValidateRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new ValidateComplianceRuleSetQuery(request, this.correlation(req)),
+      ),
+    );
+  }
+
+  @Post("submissions")
+  @HttpCode(200)
+  async submit(
+    @Body(body(complianceRuleSetSubmitRequestSchema, true))
+    request: ComplianceRuleSetSubmitRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new SubmitComplianceRuleSetCommand(
+          request,
+          RULE_SET_PREPARATION_WORKER,
+          this.correlation(req),
+        ),
+      ),
+    );
+  }
+
+  @Get("active")
+  async active(@Req() req: AuthenticatedRequest) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new GetActiveComplianceRuleSetQuery(this.correlation(req)),
+      ),
+    );
+  }
+}

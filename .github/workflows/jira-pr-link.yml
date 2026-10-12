@@ -127,7 +127,7 @@ jobs:
               return null;
             }
 
-            // A Story-type Jira issue (e.g. "LCSP-28: Story 1.3: ...") has no single task_id of
+            // A Story-type Jira issue (e.g. "FEATURE: Story 1.3: ...") has no single task_id of
             // its own — it spans every Task doc marked with a matching `epic_story:` frontmatter
             // field (the CSV's `Parent` column only tracks Epic parentage, not Story, so it can't
             // be used for this lookup). Returns all matches, sorted by task_id for determinism.

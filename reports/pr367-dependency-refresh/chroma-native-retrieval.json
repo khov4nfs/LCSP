@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "chromadb": "1.5.9",
+  "checks": 8,
+  "surfaces": [
+    "canonical index-store write",
+    "idempotent collection replacement",
+    "exact citation retrieval",
+    "parent/reference context",
+    "content hash provenance",
+    "repealed citation exclusion",
+    "immutable source-version isolation",
+    "persistence across a fresh Python process"
+  ],
+  "embeddingOrModelCalls": 0,
+  "syntheticTemporaryStorageOnly": true,
+  "headAtStart": "63985c8ffaeead46337c121ef5bae00c445d0800"
+}

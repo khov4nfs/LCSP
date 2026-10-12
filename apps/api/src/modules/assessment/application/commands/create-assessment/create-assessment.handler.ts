@@ -108,7 +108,6 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
       payload: {
         assessmentId: assessment.id,
         ownerId: assessment.ownerId,
-        status: assessment.status,
         correlationId: command.correlationId,
       },
     });
@@ -125,7 +124,7 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
         },
         tx,
       );
-      // Pins the then-ACTIVE legal portfolio; the repository snapshot pins at setup completion.
+      // Pins the then-ACTIVE compliance rule set; the repository snapshot pins at setup completion.
       await this.runtimePreparation.createCaseInTx(tx, assessment.id);
       await this.lifecycle.transitionInTx(
         {

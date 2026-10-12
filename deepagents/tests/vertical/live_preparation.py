@@ -1,4 +1,4 @@
-"""Run the REAL Legal Preparation agent with the configured model against a live API.
+"""Run the REAL Rule Set Preparation agent with the configured model against a live API.
 
 usage: live_preparation.py <apiBase> <workerKey> <runId> <usageOut>
 Only LLM provider credentials from the repository .env are loaded into this process.
@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-ALLOWED_PREFIXES = ("LLM7_", "GOOGLE_API_KEY", "GEMINI_API_KEY", "INCEPTION_", "APX_", "LLM_PROVIDER_TIMEOUT", "LLM_MAX_PROVIDER")
+ALLOWED_PREFIXES = ("GOOGLE_API_KEY", "GEMINI_API_KEY", "INCEPTION_", "APX_", "LLM_PROVIDER_TIMEOUT", "LLM_MAX_PROVIDER")
 
 
 def _load_llm_env() -> None:
@@ -29,8 +29,8 @@ def _load_llm_env() -> None:
             os.environ[name] = value.strip().strip('"').strip("'")
 
 
-def _route_legal_preparation_to(route_id: str, model: str | None = None) -> None:
-    """Point only the legal-preparation role at ``route_id`` (optionally overriding that
+def _route_rule_set_preparation_to(route_id: str, model: str | None = None) -> None:
+    """Point only the rule-set-preparation role at ``route_id`` (optionally overriding that
     route's model) through a temporary routes file; the repository config is never changed."""
     import tempfile
 
@@ -41,7 +41,7 @@ def _route_legal_preparation_to(route_id: str, model: str | None = None) -> None
         raise RuntimeError(f"unknown route {route_id!r}")
     if model:
         config["routes"][route_id]["model"] = model
-    config["roles"]["legal-preparation"] = route_id
+    config["roles"]["rule-set-preparation"] = route_id
     target = Path(tempfile.mkdtemp(prefix="lcsp-live-routes-")) / "model_routes.yaml"
     target.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
     os.environ["LCSP_MODEL_ROUTES_FILE"] = str(target)
@@ -50,11 +50,11 @@ def _route_legal_preparation_to(route_id: str, model: str | None = None) -> None
 def main() -> int:
     base, key, run_id, usage_out = sys.argv[1:5]
     _load_llm_env()
-    if os.environ.get("LCSP_W2_LIVE_ROUTE"):
-        _route_legal_preparation_to(os.environ["LCSP_W2_LIVE_ROUTE"], os.environ.get("LCSP_W2_LIVE_MODEL"))
+    if os.environ.get("LCSP_RULE_SET_PREPARATION_EVAL_ROUTE"):
+        _route_rule_set_preparation_to(os.environ["LCSP_RULE_SET_PREPARATION_EVAL_ROUTE"], os.environ.get("LCSP_RULE_SET_PREPARATION_EVAL_MODEL"))
 
     from langchain_core.callbacks import BaseCallbackHandler
-    from legal_preparation.runner import run_legal_preparation
+    from rule_set_preparation.runner import run_rule_set_preparation
     from tools.common.capabilities.platform.api_client import WorkerApiClient
 
     class Usage(BaseCallbackHandler):
@@ -85,13 +85,13 @@ def main() -> int:
     api = WorkerApiClient(base, key)
     started = time.time()
     # Count tokens from every model call by wrapping the default model's callbacks.
-    from legal_preparation.agent import LEGAL_PREPARATION_ROLE
+    from rule_set_preparation.agent import RULE_SET_PREPARATION_ROLE
     from model_policy import resolve_role, resolve_agent_model
 
-    config = resolve_role(LEGAL_PREPARATION_ROLE)
-    model = resolve_agent_model(LEGAL_PREPARATION_ROLE)
+    config = resolve_role(RULE_SET_PREPARATION_ROLE)
+    model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
     model.callbacks = [usage]
-    result = run_legal_preparation(api, run_id, model=model, recursion_limit=120, callbacks=[usage])
+    result = run_rule_set_preparation(api, run_id, model=model, recursion_limit=120, callbacks=[usage])
     Path(usage_out).write_text(json.dumps({
         "modelCalls": usage.calls,
         "toolCalls": usage.tool_calls,

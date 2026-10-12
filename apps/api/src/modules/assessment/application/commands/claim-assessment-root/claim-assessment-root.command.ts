@@ -5,6 +5,7 @@ export class ClaimAssessmentRootCommand extends Command<AssessmentRootClaim> {
   constructor(
     public readonly assessmentId: string,
     public readonly correlationId: string,
+    public readonly runtimeRunId?: string,
   ) {
     super();
   }

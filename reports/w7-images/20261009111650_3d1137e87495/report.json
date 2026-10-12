@@ -1,0 +1,16 @@
+{
+  "scope": "W7_CANDIDATE_BUILDS_MERGED_ROOTFS_AND_SEVEN_DOCKER_INTEGRATIONS",
+  "status": "FAIL",
+  "productionDeployment": false,
+  "images": {
+    "api": {
+      "imageId": "sha256:59ba85f631b51ad47981d26c51d7996749409368e30a687273289f9e4d0e38a7",
+      "dockerfile": "apps/api/Dockerfile",
+      "mergedRootfs": "FAIL",
+      "files": 3419
+    }
+  },
+  "failedStage": "api merged-rootfs audit",
+  "errorType": "AssertionError",
+  "exitCode": 1
+}

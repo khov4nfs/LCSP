@@ -1,0 +1,10 @@
+{
+  "file": "apps/api/src/platform/runtime-events/assessment-runtime-control.service.ts",
+  "definitions": [
+    "acknowledge",
+    "loadCanonicalTurn",
+    "emit"
+  ],
+  "classification": "V1_ONLY",
+  "callerAudit": "Only the unregistered InternalAssessmentRuntimeControlController and legacy acknowledgement tests call this wrapper. Canonical Root finish/control authority owns acknowledgements; current/request/target and lifecycle locking remain."
+}

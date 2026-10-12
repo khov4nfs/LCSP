@@ -1,0 +1,48 @@
+{
+  "scope": "EXACT_IMAGE_REASONED_RULE_SET_SEMANTIC_REVIEW",
+  "status": "FAIL",
+  "runId": "a24cb757ce484f9d",
+  "imageReceipt": "reports/release-images/20261011181622_430ea3ff8aeb/report.json",
+  "preparationRunId": "b88f46c6-bbca-4ade-943d-b9f9cfae35e3",
+  "ruleSetVersionId": "ec8fce1c-4a59-40d7-839d-126d237b9624",
+  "rubric": "deepagents/tests/fixtures/rule_set_preparation_eval/rubric.json",
+  "rubricSha256": "3f81ec40c00090902f863501fdf0ec2f130c9f7ad4beeed82766f8d3797d6776",
+  "dimensions": [
+    {
+      "id": "DEFINITIONS",
+      "status": "PASS",
+      "reason": "The definition of record as stored notice and receipt timestamp is retained inline; REL-04 points to Article 1. The missing direct Assessment Rule source identity is recorded under CROSS_REFERENCES."
+    },
+    {
+      "id": "QUALIFIERS",
+      "status": "PASS",
+      "reason": "Public-service scope, household exclusion, receipt rather than draft timing, seven days, text with timestamp and limiting-language preservation remain in applicability, criteria and investigative guidance."
+    },
+    {
+      "id": "EXCEPTIONS",
+      "status": "PASS",
+      "reason": "The test-record exemption limits retention only; the in-person duty has no exemption or EXCEPTION relation."
+    },
+    {
+      "id": "CROSS_REFERENCES",
+      "status": "FAIL",
+      "reason": "REL-04 points to Article 1 clause 1, but the Assessment Rule contract.sourceChunkIds omits that material definition. Inline paraphrase does not replace the required source reference."
+    },
+    {
+      "id": "NON_REPOSITORY_DUTIES",
+      "status": "PASS",
+      "reason": "Annual appointment and in-person attendance remain NON_ASSESSABLE with a source-grounded explanation and no invented software coverage."
+    },
+    {
+      "id": "CORPUS_VERSION_PINNING",
+      "status": "PASS",
+      "reason": "All 15 stored source chunk hashes match pins. Provenance and relation identities resolve to the one source version; the defect is missing material reference coverage, not cross-version mixing."
+    }
+  ],
+  "passed": 5,
+  "total": 6,
+  "sourceChunkHashesMatched": 15,
+  "packetManuallyEdited": false,
+  "deterministicSemanticOracle": false,
+  "releaseEligible": false
+}

@@ -1,0 +1,347 @@
+{
+  "scope": "ACTIVE_AUTOMATION_PURPOSE_BASED_NAMING_AUDIT",
+  "status": "PASS",
+  "renamedFiles": {
+    "scripts/w7-purge-v1.py": "scripts/purge-retired-assessment-state.py",
+    "tests/w7-migration-check.py": "tests/retired-authority-migration-check.py",
+    "tests/w7-release-images.py": "tests/release-images.py",
+    "tests/w7-staging-stack.py": "tests/staging-stack.py",
+    "tests/w7-staging-legal-preparation.py": "tests/staging-legal-preparation.py",
+    "tests/run-w7-domain-check.sh": "tests/run-release-domain-check.sh",
+    "tests/run-w4-api-regression.sh": "tests/run-api-regression.sh",
+    "tests/run-w4-final-verification.sh": "tests/run-assessment-final-verification.sh",
+    "tests/w5-browser-stack.mjs": "tests/assessment-browser-stack.mjs",
+    "tests/w6-api-cleanup.test.mjs": "tests/legacy-api-retirement.test.mjs",
+    "tests/support/w6-api.mjs": "tests/support/disposable-migrated-api.mjs",
+    "tests/fixtures/w7-retired-image-paths.json": "tests/fixtures/retired-image-paths.json",
+    "tests/fixtures/w7-outbox-event-policy.json": "tests/fixtures/outbox-event-policy.json",
+    "tests/fixtures/w7-retired-routes.json": "tests/fixtures/retired-routes.json",
+    "deepagents/tests/test_w7_v1_purge.py": "deepagents/tests/test_retired_assessment_state_purge.py",
+    "deepagents/tests/vertical/w5_browser_root.py": "deepagents/tests/vertical/browser_root.py",
+    "apps/api/test/lcsp299-account-lifecycle.e2e-spec.ts": "apps/api/test/account-lifecycle.e2e-spec.ts",
+    "apps/api/test/w1-canonical-browser-support.ts": "apps/api/test/assessment-canonical-browser-support.ts",
+    "apps/api/test/w1-canonical-read-isolation.e2e-spec.ts": "apps/api/test/assessment-canonical-read-isolation.e2e-spec.ts",
+    "apps/web/tsconfig.w6-check.json": "apps/web/tsconfig.legacy-archive-check.json",
+    "apps/web/src/public/assets/mocks/lcsp299-account-lifecycle.json": "apps/web/src/public/assets/mocks/account-lifecycle.json",
+    "tests/lcsp-278-release-gate-ci.web.test.ts": "tests/release-gate-ci.web.test.ts",
+    "docs/architecture/W7_RELEASE_RUNBOOK.md": "docs/architecture/RELEASE_RUNBOOK.md",
+    "docs/implementation/runbooks/RUNBOOK-w6-forward-migration-and-traffic-cutover.md": "docs/implementation/runbooks/RUNBOOK-forward-migration-and-traffic-cutover.md"
+  },
+  "oldCompatibilityAliases": false,
+  "activeTaskOrientedFilenameCount": 0,
+  "activeTaskOrientedAutomationLabelCount": 0,
+  "appliedSqlMigrationFilesUnchanged": 105,
+  "rubricAcceptanceCriteriaUnchanged": true,
+  "rubricMetadataPurposeNamed": true,
+  "retainedIdentityReferences": [
+    {
+      "file": "scripts/purge-retired-assessment-state.py",
+      "line": 484,
+      "reason": "APPLIED_SQL_HISTORICAL_PROOF_KEY_REPLAY"
+    },
+    {
+      "file": "tests/retired-authority-migration-check.py",
+      "line": 34,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    },
+    {
+      "file": "tests/release-images.py",
+      "line": 289,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    },
+    {
+      "file": "tests/staging-stack.py",
+      "line": 99,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    },
+    {
+      "file": "tests/staging-stack.py",
+      "line": 294,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    },
+    {
+      "file": "tests/fixtures/retired-image-paths.json",
+      "line": 212,
+      "reason": "ABSENT_RETIRED_PATH_IDENTITY_FOR_NEGATIVE_AUDIT"
+    },
+    {
+      "file": "tests/fixtures/retired-image-paths.json",
+      "line": 213,
+      "reason": "ABSENT_RETIRED_PATH_IDENTITY_FOR_NEGATIVE_AUDIT"
+    },
+    {
+      "file": "tests/fixtures/retired-image-paths.json",
+      "line": 214,
+      "reason": "ABSENT_RETIRED_PATH_IDENTITY_FOR_NEGATIVE_AUDIT"
+    },
+    {
+      "file": "tests/fixtures/retired-image-paths.json",
+      "line": 215,
+      "reason": "ABSENT_RETIRED_PATH_IDENTITY_FOR_NEGATIVE_AUDIT"
+    },
+    {
+      "file": "apps/api/test/billing-pricing-migration.spec.ts",
+      "line": 7,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 97,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 297,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 335,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 389,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 449,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 450,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 506,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 520,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 529,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_decision_shadow_integrations.py",
+      "line": 552,
+      "reason": "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE"
+    },
+    {
+      "file": "deepagents/tests/test_retired_assessment_state_purge.py",
+      "line": 128,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    },
+    {
+      "file": "deepagents/tests/test_retired_assessment_state_purge.py",
+      "line": 129,
+      "reason": "APPLIED_SQL_HISTORICAL_PROOF_KEY_REPLAY"
+    },
+    {
+      "file": "deepagents/tests/test_retired_assessment_state_purge.py",
+      "line": 152,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    },
+    {
+      "file": "deepagents/tests/test_retired_assessment_state_purge.py",
+      "line": 159,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    },
+    {
+      "file": "deepagents/tests/test_retired_assessment_state_purge.py",
+      "line": 168,
+      "reason": "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE"
+    }
+  ],
+  "retainedIdentityReferenceCounts": {
+    "APPLIED_SQL_HISTORICAL_PROOF_KEY_REPLAY": 2,
+    "APPLIED_SQL_MIGRATION_IDENTITY_REFERENCE": 9,
+    "ABSENT_RETIRED_PATH_IDENTITY_FOR_NEGATIVE_AUDIT": 4,
+    "JIRA_PROTOCOL_ISSUE_KEY_DATA_IN_TRUST_BOUNDARY_FIXTURE": 10
+  },
+  "historicalProgressAndEvidenceProseExcluded": true,
+  "privateDiagnosticsExcluded": true,
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "filenameRecheck": "PASS_AFTER_SHARED_CONTRACT_TOOL_SCHEMA_EXPOSURE",
+  "currentCorrectionReview": {
+    "status": "PASS",
+    "scope": "MATERIALLY_CHANGED_ACTIVITY_USAGE_PROVIDER_AND_STAGING_FILES",
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "compatibilityAliasesIntroduced": false
+  },
+  "declaredCoverageConsistencyEvidence": {
+    "status": "PASS",
+    "verifiedAt": "2026-10-10T11:48:41.751732+00:00",
+    "newArtifactNames": [
+      "reports/legal-portfolio-coverage-graph-consistency.json",
+      "reports/legal-portfolio-coverage-graph-api.json",
+      "reports/legal-portfolio-coverage-graph-db.json",
+      "reports/legal-portfolio-coverage-graph-db-teardown.json",
+      "reports/legal-portfolio-coverage-graph-migrations.log",
+      "reports/legal-portfolio-coverage-graph-python.xml",
+      "reports/synthetic-notice-service/README.md",
+      "reports/synthetic-notice-service/schema.sql",
+      "reports/synthetic-notice-service/service.py"
+    ],
+    "taskOrientedFilenameCount": 0,
+    "newAutomationTaskLabels": 0,
+    "compatibilityAliasesAdded": false
+  },
+  "runtimeRecoveryAndGenericLearning": {
+    "status": "PASS",
+    "reviewedAt": "2026-10-10T16:44:01.128426+00:00",
+    "scope": "MATERIAL_NEW_RECOVERY_LEARNING_AND_BROWSER_FILES",
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "compatibilityAliasesIntroduced": false,
+    "filesReviewed": [
+      "deepagents/assessment_root/learning.py",
+      "apps/api/src/modules/assessment/application/commands/claim-assessment-root/claim-assessment-root.command.ts",
+      "apps/api/src/modules/assessment/application/commands/claim-assessment-root/claim-assessment-root.handler.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-runtime-authority.service.ts",
+      "apps/api/src/modules/assessment/presentation/http/assessment-domain.controller.ts",
+      "deepagents/assessment_root/boundary.py",
+      "deepagents/assessment_root/client.py",
+      "deepagents/assessment_root/instructions.md",
+      "deepagents/assessment_root/runner.py",
+      "deepagents/assessment_root/tools.py",
+      "deepagents/tools/common/capabilities/agent_runtime/local_server.py",
+      "packages/contracts/src/assessment-domain/schemas.ts",
+      "deepagents/tests/test_agent_runtime_recovery.py",
+      "deepagents/tests/test_assessment_learning.py",
+      "apps/api/src/modules/assessment/application/services/assessment-runtime-recovery.spec.ts",
+      "tests/staging-browser-flow.mjs",
+      "reports/agent-runtime-recovery/report.json"
+    ]
+  },
+  "boundedNegativeProvenanceCorrection": {
+    "status": "PASS_FOCUSED",
+    "files": [
+      "packages/contracts/src/assessment-domain/constants.ts",
+      "apps/api/src/modules/assessment/domain/decision-validator.ts",
+      "apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.ts"
+    ],
+    "sharedCanonicalFailureCode": true,
+    "existingSharedPayloadSchema": true,
+    "noControllerOrBffChange": true,
+    "noSemanticJudgment": true,
+    "purposeNamedEvidence": true,
+    "receipt": "reports/bounded-negative-provenance-repair.json"
+  },
+  "indirectProvenanceAndApplicabilityCorrection": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T18:07:02.862822+00:00",
+    "files": [
+      "packages/contracts/src/assessment-domain/constants.ts",
+      "apps/api/src/modules/assessment/domain/decision-validator.ts",
+      "apps/api/src/modules/assessment/domain/decision-validator.spec.ts",
+      "apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.ts",
+      "apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.spec.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts",
+      "deepagents/legal_preparation/instructions.md",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "backend": "DOMAIN_GUARD_AND_INFRASTRUCTURE_PERSISTENCE; existing CQRS/presentation/BFF untouched; shared canonical code.",
+    "web": "NO_PRODUCTION_WEB_CHANGE; Playwright harness only.",
+    "python": "MANAGED_DEEP_AGENTS_UNCHANGED; instruction quality only; model owns legal scope.",
+    "receipt": "reports/indirect-provenance-and-applicability-repair.json"
+  },
+  "stopFinalizationRaceCorrection": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T18:42:45.119962+00:00",
+    "files": [
+      "deepagents/assessment_root/runtime_control.py",
+      "deepagents/tests/test_assessment_root_agent.py",
+      "packages/contracts/src/assessment-domain/constants.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts"
+    ],
+    "backend": "EXISTING_COMPLETION_GATE_OWNS_MECHANICAL_STOP_BLOCKER; SHARED_CANONICAL_CONSTANT; NO_CONTROLLER_PRISMA_CHANGE",
+    "python": "NATIVE_DEEP_AGENT_AFTER_MODEL_INTERRUPT; NO_SEMANTIC_ORCHESTRATION",
+    "web": "NO_PRODUCTION_CHANGE; REAL_VISIBLE_CONTROL_REUSED",
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "compatibilityAliasesIntroduced": false,
+    "receipt": "reports/stop-finalization-race-repair.json"
+  },
+  "legalContextRoleGuidanceCorrection": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T19:19:03.784415+00:00",
+    "files": [
+      "packages/contracts/src/legal-portfolio/schemas.ts",
+      "deepagents/legal_preparation/packet-schema.json",
+      "deepagents/legal_preparation/instructions.md",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "sharedContractDerivedSchema": true,
+    "validationSemanticsUnchanged": true,
+    "classificationModelOwned": true,
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "receipt": "reports/legal-context-contract-guidance-repair.json"
+  },
+  "legalStructuralFeedbackCorrection": {
+    "status": "PASS_FOCUSED",
+    "files": [
+      "apps/api/src/common/pipes/zod-validation.pipe.ts",
+      "apps/api/src/common/pipes/zod-validation.pipe.spec.ts",
+      "packages/contracts/src/legal-portfolio/schemas.ts",
+      "deepagents/legal_preparation/packet-schema.json",
+      "deepagents/legal_preparation/instructions.md",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "sharedContractDerivedToolSchema": true,
+    "expectedTypeValueFreeMetadataOnly": true,
+    "noPresentationPrismaChange": true,
+    "noSemanticJudge": true,
+    "receipt": "reports/legal-structural-feedback-guidance-repair.json"
+  },
+  "geminiToolNullabilityCorrection": {
+    "status": "PASS_SCOPED_MATERIAL_REVIEW",
+    "files": [
+      "deepagents/middleware/provider_schema.py",
+      "deepagents/legal_preparation/agent.py",
+      "deepagents/tests/test_provider_schema_compatibility.py",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "receipt": "reports/gemini-tool-nullability-repair.json",
+    "transportOnly": true,
+    "managedDeepAgentsUnchanged": true,
+    "sharedArtifactAuthorityUnchanged": true,
+    "newTaskOrientedFilenamesOrLabels": 0,
+    "productionTsOrFrontendChanged": false
+  },
+  "finalStagingMaterialReview": {
+    "status": "PASS",
+    "verifiedAt": "2026-10-11T01:59:38.675873+00:00",
+    "newProductionChanges": [
+      "deepagents/middleware/provider_schema.py",
+      "deepagents/legal_preparation/agent.py"
+    ],
+    "newTestOrEvidenceNames": "PURPOSE_BASED",
+    "activeTaskOrientedNamesAdded": 0,
+    "sharedContractAuthority": "UNCHANGED",
+    "newSchemaDefaultsOrSemanticJudges": false,
+    "managedDeepAgents": "UNCHANGED_NATIVE_MIDDLEWARE",
+    "typescriptAndFrontendProductionChangedByThisRepair": false,
+    "previousCqrsLayersZodAtomicShadcnRhfBffEvidence": "REUSED_UNAFFECTED",
+    "currentPlaywright": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+    "currentRootfsAndStaticRetirement": "PASS",
+    "broadAcceptedSuitesRerun": false
+  }
+}

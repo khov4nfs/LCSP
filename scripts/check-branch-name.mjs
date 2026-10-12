@@ -41,7 +41,7 @@ if (
 console.error(`Invalid branch name: ${branch}`);
 console.error("");
 console.error("Expected task branch format:");
-console.error("  feat/LCSP-123-short-description");
+console.error("  feat/LCSP-<issue-number>-short-description");
 console.error("");
 console.error("Allowed type prefixes:");
 console.error("  feat, fix, docs, test, refactor, chore, ci, build, perf, style, revert");

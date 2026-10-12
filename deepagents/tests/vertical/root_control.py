@@ -21,7 +21,7 @@ if mode == "pause":
     def claimed(assessment_id):
         result = claim(assessment_id)
         import httpx
-        response = httpx.post(f"{base}/assessments/{assessment_id}/runtime/stop", headers={"authorization": f"Bearer {os.environ['W5_CUSTOMER_TOKEN']}"}, json={"targetRunId": result["executionId"]})
+        response = httpx.post(f"{base}/assessments/{assessment_id}/runtime/stop", headers={"authorization": f"Bearer {os.environ['ASSESSMENT_CUSTOMER_TOKEN']}"}, json={"targetRunId": result["executionId"]})
         assert response.status_code == 201, response.text
         return result
     client.claim = claimed

@@ -1,0 +1,73 @@
+{
+  "scope": "CURRENT_IMAGE_ACTUAL_CASE_INVALIDATION_SAME_ROOT_REINVESTIGATION",
+  "status": "PASS",
+  "kind": "BACKEND_VERIFICATION",
+  "runId": "9c9c33eee5934b76",
+  "assessmentId": "cc96c444-8a60-45ca-830a-c93b083d28d6",
+  "invalidationReceipt": "advance-case-assessmentA.json",
+  "uiReceipt": "browser-full-flow.json:owner-stale/owner-continue/owner-complete assessmentA",
+  "final": {
+    "case": {
+      "caseRevision": 3,
+      "legalPortfolioVersionId": "f5f1a414-60c4-4382-b55f-e4cd5e76ae9f"
+    },
+    "runtime": {
+      "threadId": "69a1f9cc-1c4c-46c6-b41d-ac056f29cdcb",
+      "executionState": "SUCCEEDED",
+      "currentExecutionId": "bfb314e5-f624-471b-9da9-eee4e6d45019"
+    },
+    "decisions": [
+      {
+        "state": "INVALIDATED",
+        "decisionId": "b39efc5e-690d-485e-9c49-6dcc3d7f2770",
+        "caseRevision": 2,
+        "decisionRevision": 1
+      },
+      {
+        "state": "ACCEPTED",
+        "decisionId": "fdf2ab8b-8350-46d6-8641-8ca28c6d0ef7",
+        "caseRevision": 3,
+        "decisionRevision": 2
+      }
+    ],
+    "lifecycle": "COMPLETE"
+  },
+  "native": {
+    "contextReloads": [
+      {
+        "caseRevision": 0,
+        "coverage": [
+          "PENDING"
+        ]
+      },
+      {
+        "caseRevision": 1,
+        "coverage": [
+          "INVESTIGATING"
+        ]
+      },
+      {
+        "caseRevision": 1,
+        "coverage": [
+          "INVESTIGATING"
+        ]
+      },
+      {
+        "caseRevision": 2,
+        "coverage": [
+          "INVESTIGATING"
+        ]
+      },
+      {
+        "caseRevision": 3,
+        "coverage": [
+          "INVALIDATED"
+        ]
+      }
+    ],
+    "ruleInvestigationCalls": 1,
+    "decisionSubmissionCalls": 3
+  },
+  "artifactSha256": "f5557e48959ab23f856ad975e73962703b71ec9ab1c9554ad9feb04b9a53a709",
+  "manuallyInsertedDecisions": 0
+}

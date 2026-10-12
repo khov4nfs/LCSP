@@ -1,0 +1,277 @@
+{
+  "status": "PASS_LOCAL_ACCEPTANCE_READY_FOR_AUTHORIZED_PUBLICATION",
+  "baseHead": "7e29f3182b6cdb479d802c28b2c480770dec5edf",
+  "branch": "feat/LCSP-357-hard-delete-legacy-architecture-and-prove-release-readiness",
+  "gates": {
+    "pnpm run typecheck": "PASS",
+    "pnpm run check:imports": "PASS",
+    "pnpm run check:contracts": "PASS",
+    "pnpm run check:legal-v1-retired": "PASS"
+  },
+  "tests": {
+    "ruleSetLifecycle": {
+      "passed": 14,
+      "skipped": 0,
+      "receipt": "reports/pr367-rule-set-lifecycle.json"
+    },
+    "ruleSetService": {
+      "passed": 18,
+      "skipped": 0,
+      "receipt": "reports/pr367-rule-set-service.json"
+    },
+    "affectedWeb": {
+      "passed": 31,
+      "skipped": 0
+    },
+    "rootAndTrigger": {
+      "passed": 48,
+      "skipped": 0,
+      "receipt": "reports/pr367-root-focused.xml"
+    },
+    "preparationRoute": {
+      "passed": 279,
+      "skipped": 0,
+      "receipt": "reports/pr367-preparation-route-focused.xml"
+    },
+    "adminTooltip": {
+      "passed": 3,
+      "skipped": 0
+    },
+    "preparationGovernance": {
+      "passed": 208,
+      "skipped": 0,
+      "receipt": "reports/pr367-preparation-governance.xml",
+      "requiredRoutingScenarios": "5/5 PASS"
+    },
+    "preparationCliRegression": {
+      "passed": 6,
+      "skipped": 0,
+      "receipt": "reports/pr367-preparation-cli-regression.xml",
+      "includes": "five real governance scenarios plus standalone provider-free CLI regression"
+    },
+    "adminSecurityRegression": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "reports/pr367-admin-security-regression.json"
+    }
+  },
+  "migration": {
+    "status": "PASS",
+    "receipt": "reports/pr367-terminology-migration.json"
+  },
+  "terminologyAudit": {
+    "activeProductionVocabularyHits": 0,
+    "allowedStorageOrFixtureFiles": [
+      "tests/compliance-rule-set-terminology-migration.py",
+      "tests/compliance-rule-set-persistence.mjs",
+      "tests/assessment-domain-vertical.mjs",
+      "tests/assessment-hitl-vertical.mjs",
+      "tests/assessment-root-live-eval.mjs",
+      "tests/staging-rule-set-preparation.py",
+      "tests/staging-browser-flow.mjs",
+      "tests/compliance-rule-set-vertical.mjs",
+      "tests/compliance-rule-set-live-eval.mjs",
+      "tests/staging-legal-evidence.py",
+      "tests/release-images.py",
+      "tests/support/compliance-rule-set-stack.mjs",
+      "packages/contracts/src/compliance-rule-set/schemas.ts",
+      "tests/fixtures/retired-routes.json",
+      "tests/assessment-canonical-persistence.mjs",
+      "scripts/purge-retired-assessment-state.py",
+      "scripts/check-legal-v1-authority-retired.mjs",
+      "deepagents/tests/vertical/assessment_deletion.py",
+      "apps/api/prisma/schema.prisma",
+      "apps/api/src/modules/assessment/application/services/assessment-evidence-invalidation.service.ts",
+      "apps/api/src/modules/compliance-rule-set/domain/compliance-rule-set-coverage.contract.spec.ts",
+      "apps/api/src/modules/compliance-rule-set/application/services/compliance-rule-set.service.integration.spec.ts"
+    ],
+    "historicalPreFreezeArchitectureFiles": [
+      "docs/operations/lcsp-334-typesafe-jev-system-one-adoption.md",
+      "docs/operations/lcsp-333-managed-sandbox-release-gate.md",
+      "docs/implementation/queue-implementation.md",
+      "docs/implementation/langchain-deepagents-native-runtime.md",
+      "docs/implementation/tasks/modules/agentic-evidence-tools/legal-classification-gap-tools.md",
+      "docs/implementation/tasks/modules/agentic-evidence-tools/artifact-wizard-conflict-tools.md",
+      "docs/implementation/tasks/modules/agentic-evidence-tools/packets/ao-5-06-validate-classification-proposal.md",
+      "docs/implementation/tasks/modules/agentic-evidence-tools/packets/ao-5-05-get-classification-baseline.md",
+      "docs/implementation/tasks/modules/agentic-evidence-tools/packets/ao-5-03-get-legal-rule-match.md",
+      "docs/implementation/tasks/modules/reconciliation/04-verified-profile-callback-endpoint.md",
+      "docs/implementation/tasks/modules/python-workers/legal/01-chromadb-legal-retrieval-worker.md",
+      "docs/implementation/tasks/modules/python-workers/intelligence/04-verified-profile-worker.md",
+      "docs/implementation/tasks/modules/python-workers/classification/01-classification-worker.md",
+      "docs/implementation/tasks/modules/classification/02-classification-result-callback-endpoint.md",
+      "docs/implementation/tasks/modules/classification/01-legal-rule-match-callback-endpoint.md",
+      "docs/specs/user-task-flows.md",
+      "docs/specs/use-cases.md",
+      "docs/specs/requirements-baseline.md",
+      "docs/specs/non-functional-requirements.md",
+      "docs/specs/legal-classification-spec.md",
+      "docs/specs/event-catalog.md",
+      "docs/specs/engineering-rule-spec.md",
+      "docs/specs/domain-model.md",
+      "docs/specs/requirements-traceability-matrix.md",
+      "docs/specs/legal-rule-catalog-spec.md",
+      "docs/specs/legal-matching-domain-spec.md",
+      "docs/specs/functional-requirements.md",
+      "docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md",
+      "docs/specs/domain-state-machines.md",
+      "docs/specs/assessment-lifecycle-spec.md",
+      "docs/specs/acceptance-criteria-catalog.md",
+      "docs/architecture/RELEASE_RUNBOOK.md",
+      "docs/architecture/agentic-production-implementation-plan.md",
+      "docs/architecture/architecture.md",
+      "docs/architecture/program-evidence-graph-and-engineering-rules.md",
+      "docs/architecture/adr/adr-lcsp-managed-deepagents-memory.md",
+      "docs/product/product-brief.md",
+      "docs/product/version-history.md",
+      "docs/architecture/repository-deep-agent-analysis.md",
+      "docs/product/prd.md",
+      "docs/product/system-context.md",
+      "docs/product/business-rules.md",
+      "docs/architecture/LCSP_AGENTIC_MIGRATION_HANDOFF.md"
+    ],
+    "disposition": "Mapped physical schema, migration/retirement fixtures and pre-freeze V1 docs retain historical names. The current runbook and dev seed wording use Legal Source, Compliance Rule Set and Assessment Rule."
+  },
+  "fixes": [
+    "ignored stale Next types removed",
+    "fixture duplicate spread fields removed",
+    "UI contract literals imported",
+    "evidence invalidation physical SQL column aliased",
+    "Root pinned-rule-set tool spelling corrected",
+    "test trigger name restored to actual physical schema",
+    "current dev-seed and runbook vocabulary corrected",
+    "staging harness uses governed source activation and observes automatic preparation",
+    "terminology migration added to candidate build-policy fingerprints",
+    "Human Resolution interruption no longer invents a Stop/Continue pause notice",
+    "chat main-content landmark restored",
+    "native title removed; shared digest Tooltip used",
+    "user approved existing APX primary for failing Rule Set Preparation role",
+    "Preparation reuses canonical credential and provider governance instead of a separate six-retry policy",
+    "Shared depleted-quota classification prevents the last provider pool from cooldown-retrying monthly allowance exhaustion",
+    "Standalone provider-free Preparation CLI omits governance only in its scripted fixture, matching scripted Root; actual production governance unchanged"
+  ],
+  "runtimeAcceptance": "PASS",
+  "publication": {
+    "status": "PUBLISHED_CORRECTION_PLUS_BOT_FORMATTING; FINAL_TEST_PROOF_COMMIT_AND_EXACT_HEAD_CI_PENDING_AT_SNAPSHOT",
+    "correctionCommit": "cbc370e4105b060a3dbbe719eabb01851894c185",
+    "botCommit": "74342ef5722dcb3dcbcc72169a13a19f5ebbb1a3",
+    "pr": "https://github.com/khov4nfs/LCSP/pull/367",
+    "exactFinalHeadAuthority": "PR #367 headRefOid and GitHub checks after final publication"
+  },
+  "ruleset": {
+    "id": 18478777,
+    "name": "develop",
+    "enforcement": "active",
+    "strict": true,
+    "requiredChecks": [
+      "Require Jira issue key",
+      "Docker sandbox E2E",
+      "V2 required release gate"
+    ],
+    "verifiedAgainstGitHub": true
+  },
+  "candidate": {
+    "id": "20261011210628_a047d4ca2aa1",
+    "status": "PASS",
+    "rootfsAudits": 4,
+    "dockerIntegrationsPassed": 7,
+    "skipped": 0,
+    "sourceFingerprints": 1116,
+    "buildPolicyFingerprints": 23,
+    "historicalId": "20261011201401_b17f791a42ea",
+    "reason": "CI autofix formatting changed 14 embedded API source fingerprints; exact-source images refreshed without changing runtime semantics"
+  },
+  "staging": {
+    "id": "9ae7757edbaf422b",
+    "status": "PASS_STOPPED",
+    "failedPreparationRunId": "4ea63e12-4c0e-47f5-83a3-021f45f1be81",
+    "providerCode": "allowance_exhausted",
+    "httpStatus": 429,
+    "candidateRefreshed": true,
+    "successfulPreparationRunId": "1f6dadac-4457-473a-87a6-3297aef9ffa8",
+    "activeRuleSetVersionId": "78261f5b-bb2e-4316-a171-bc3315ac2aa3",
+    "semanticReview": "INITIAL_AND_SUPERSESSION_6/6_PASS",
+    "browserReceipt": "reports/staging/9ae7757edbaf422b/browser-correction-acceptance.json",
+    "browserPhases": 23,
+    "mcpReceipt": "reports/staging/9ae7757edbaf422b/chat-mcp-acceptance.json",
+    "ownedTeardown": "reports/staging/9ae7757edbaf422b/teardown.json"
+  },
+  "approvedPreparationRoute": "primary/apx/claude-sonnet-4-6-free",
+  "historicalStaging": {
+    "id": "a24cb757ce484f9d",
+    "status": "STOPPED_FAILED_HISTORICAL",
+    "semanticReview": "FAIL 5/6 missing direct definition source",
+    "v2Attempts": "2 FAILED/NO_SUBMISSION",
+    "rootInvocations": 16,
+    "rootTokens": 298889,
+    "duplicateCallback": "totals unchanged"
+  },
+  "providerIntegrationCorrection": {
+    "rootCause": "Preparation bypassed the canonical credential rotation and provider fallback stack; previous quota receipt exercised only the first APX slot.",
+    "fix": "AgentRoleMiddleware plus MODEL_GOVERNANCE_MIDDLEWARE; separate six-retry policy removed. Shared depleted-quota classification prevents final-pool cooldown retry.",
+    "routingConfigChangedByThisFix": false,
+    "configuredPrimary": "APX",
+    "configuredPools": {
+      "apx": 7,
+      "google_genai": 6,
+      "inception": 12
+    },
+    "liveRetry": "PASS_APX_SLOT_3_NO_PROVIDER_FALLBACK",
+    "apxSlotsAttempted": 3,
+    "successfulSlot": 3,
+    "successfulProvider": "apx",
+    "providerFallbackPath": [],
+    "routeReceipt": "reports/staging/9ae7757edbaf422b/preparation-provider-routing.json"
+  },
+  "accounting": {
+    "scope": "CORRECTED_EXACT_IMAGE_PROVIDER_AND_USAGE_RECONCILIATION",
+    "status": "PASS",
+    "runId": "9ae7757edbaf422b",
+    "configuredPrimary": "APX",
+    "actualProviders": [
+      "APX"
+    ],
+    "actualModels": [
+      "claude-sonnet-4-6-free"
+    ],
+    "rootInvocations": 39,
+    "rootTokens": 787917,
+    "preparationSuccessfulModelResponses": 10,
+    "preparationProviderReportedTokens": 211550,
+    "totalSuccessfulProviderResponses": 49,
+    "totalProviderReportedTokens": 999467,
+    "actualRouteRequestsAfterCandidateRefresh": 51,
+    "rejectedQuotaAttempts": 2,
+    "zeroUsageAssumedForRejectedRequests": false,
+    "duplicateLogicalPreparations": 0,
+    "preparationSubmissions": 2,
+    "duplicateReplayBilling": "NO_CHANGE; both Root duplicate callbacks returned 201",
+    "chargedCustomerCredits": 0,
+    "poolRotation": "3 of 7 APX slots attempted; slot 3 succeeded; Gemini/Inception untouched",
+    "preparationBilling": "Native provider usage metadata; no customer Assessment ledger entries fabricated",
+    "receipts": [
+      "preparation-accounting.json",
+      "preparation-provider-routing.json",
+      "assessment-accounting-assessmentA.json",
+      "assessment-accounting-assessmentC.json"
+    ]
+  },
+  "matrix": {
+    "passed": 25,
+    "current": 20,
+    "explicitUnchangedReuse": 5,
+    "receipt": "reports/staging-acceptance-matrix.json"
+  },
+  "postCiReconciliation": {
+    "status": "PASS",
+    "receipt": "reports/staging/86ed6cac39c346df/post-ci-acceptance.json",
+    "equivalence": "reports/pr367-ci-formatting-equivalence.json",
+    "adminSecurity": "reports/pr367-admin-security-regression.json",
+    "candidate": "20261011210628_a047d4ca2aa1",
+    "staging": "86ed6cac39c346df",
+    "workerFilesByteIdentical": 198,
+    "serverFilesByteIdentical": 199,
+    "liveModelCalls": 0
+  }
+}

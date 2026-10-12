@@ -1,0 +1,24 @@
+{
+  "scope": "EXACT_IMAGE_LEGAL_PREPARATION_SHAPE_FAILURE",
+  "status": "FAIL",
+  "runId": "a4d4b629847d48cd",
+  "preparationRunId": "e82bfc36-9a59-427e-b8b0-e809f4437a8f",
+  "canonicalFailureReason": "NO_SUBMISSION",
+  "outboxPublished": true,
+  "activationCount": 0,
+  "validationRequestSchemaRejected": true,
+  "shapeFailureFields": [
+    "packet.legalRules",
+    "packet.engineeringRules.0.engineeringRuleId",
+    "packet.engineeringRules.0.applicabilityGuidance",
+    "packet.engineeringRules.0.criteria",
+    "packet.engineeringRules.0.sourceRefs"
+  ],
+  "invalidFieldValuesCaptured": false,
+  "providerToolPacketContractBeforeFix": "UNRESTRICTED_DICTIONARY",
+  "semanticReview": "NOT_PROVEN_NO_ACTIVE_PORTFOLIO",
+  "imageReceipt": "reports/release-images/20261010070630_052554a431e0/report.json",
+  "evidenceDisposition": "HISTORICAL_AFTER_PROVIDER_TOOL_SCHEMA_EXPOSURE",
+  "productionDeployment": false,
+  "releaseEligible": false
+}

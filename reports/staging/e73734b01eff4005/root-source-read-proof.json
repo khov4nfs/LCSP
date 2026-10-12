@@ -1,0 +1,42 @@
+{
+  "scope": "EXACT_IMAGE_ROOT_WHOLE_FILE_AND_LINE_PAGINATION_PROOF",
+  "status": "PASS",
+  "runId": "e73734b01eff4005",
+  "assessmentId": "d30b6364-f031-4318-90af-9569b079c612",
+  "threadId": "de9feef0-c426-4903-b0ef-b09fb8a6e245",
+  "commitSha": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+  "normalization": "Strip only the verified @@ lines header and terminal newlines from native read_file output",
+  "files": [
+    {
+      "file": "README.md",
+      "sourceSha256": "63e81c489daca8413a40e7513e832c59da195c7866ca7fb89844c1811a426a54",
+      "normalizedSha256": "02cd6f584f928250a7f0a357d75ab02a36be316068ae229076619a2d11b1b637",
+      "nativeReadMatches": 1,
+      "lines": 15,
+      "arguments": {
+        "file_path": "/README.md"
+      }
+    },
+    {
+      "file": "schema.sql",
+      "sourceSha256": "3e7af771ecb385cc4019f938b5ce8b8d0bde65f7cf23f53f22a06cbe75389ddb",
+      "normalizedSha256": "3069b3338ed5cda42f8a346f30bbebaca1baae8737995c84af83f97ef004fdb0",
+      "nativeReadMatches": 1,
+      "lines": 7,
+      "arguments": {
+        "file_path": "/schema.sql"
+      }
+    },
+    {
+      "file": "service.py",
+      "sourceSha256": "c101115c498dac957890c20fab33b6ed1f2ede6c093250b8864da86b6f3683d5",
+      "normalizedSha256": "0babd01083693c106014b83bd63d86e95af795cb471e2329a61ad0aa85dd3fec",
+      "nativeReadMatches": 1,
+      "lines": 47,
+      "arguments": {
+        "file_path": "/service.py"
+      }
+    }
+  ],
+  "realModelToolExecution": true
+}

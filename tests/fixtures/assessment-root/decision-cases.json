@@ -6,7 +6,7 @@
       "Every authored RuleDecision has the required pinned scope and structural references.",
       "The material-fact answer with doesNotKnow=true leaves its HumanResolutionRequest OPEN and without a resolved fact.",
       "Missing or malformed references fail where the canonical schemas define those constraints.",
-      "The same evidence identity can be referenced by decisions for more than one engineering rule."
+      "The same evidence identity can be referenced by decisions for more than one assessment rule."
     ],
     "futureSemanticEvaluation": "expectedAgentBehavior is readable review guidance for a future live eval; this packet and its test do not run an agent, classify prose, or judge semantic correctness."
   },
@@ -64,8 +64,8 @@
       ]
     },
     "legal": {
-      "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
-      "portfolioLabel": "Synthetic Data Governance Portfolio 2026.10",
+      "ruleSetVersionId": "55555555-5555-4555-8555-555555555555",
+      "ruleSetLabel": "Synthetic Data Governance Rule Set 2026.10",
       "contexts": [
         {
           "legalContextId": "CTX-CUSTOMER-RETENTION",
@@ -74,7 +74,7 @@
           "ruleText": "A regulated customer record must be deleted within 30 days after service completion.",
           "exceptionText": "A documented statutory hold may extend the period only while a hold identifier is recorded for the affected records.",
           "coverageGaps": [
-            "The portfolio does not define a default retention period when the service-completion date is absent."
+            "The rule set does not define a default retention period when the service-completion date is absent."
           ]
         },
         {
@@ -84,7 +84,7 @@
           "ruleText": "Privileged production access must be reviewed at least every 90 days.",
           "exceptionText": "A temporary emergency grant may remain active during an incident only when its expiry and incident identifier are recorded.",
           "coverageGaps": [
-            "The portfolio does not define how to assess an access review when the approver record is missing."
+            "The rule set does not define how to assess an access review when the approver record is missing."
           ]
         },
         {
@@ -142,7 +142,7 @@
       "id": "applicable-compliant",
       "scenarioInput": {
         "request": "Assess the customer-record retention rule for the primary production data scope.",
-        "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+        "assessmentRuleId": "ER-CUSTOMER-RETENTION",
         "scopeId": "scope-primary-production-data",
         "availableEvidenceIds": ["77777777-7777-4777-8777-777777777777"],
         "knownFacts": [
@@ -161,10 +161,10 @@
       "expected": {
         "decisions": [
           {
-            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
-            "engineeringRuleVersion": "retention-v1",
+            "assessmentRuleId": "ER-CUSTOMER-RETENTION",
+            "assessmentRuleVersion": "retention-v1",
             "scopeId": "scope-primary-production-data",
-            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "ruleSetVersionId": "55555555-5555-4555-8555-555555555555",
             "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
             "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
             "caseRevision": 12,
@@ -204,7 +204,7 @@
       "id": "applicable-non-compliant",
       "scenarioInput": {
         "request": "Assess the customer-record retention rule for the archive data scope.",
-        "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+        "assessmentRuleId": "ER-CUSTOMER-RETENTION",
         "scopeId": "scope-archive-data",
         "availableEvidenceIds": ["88888888-8888-4888-8888-888888888888"],
         "knownFacts": [
@@ -223,10 +223,10 @@
       "expected": {
         "decisions": [
           {
-            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
-            "engineeringRuleVersion": "retention-v1",
+            "assessmentRuleId": "ER-CUSTOMER-RETENTION",
+            "assessmentRuleVersion": "retention-v1",
             "scopeId": "scope-archive-data",
-            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "ruleSetVersionId": "55555555-5555-4555-8555-555555555555",
             "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
             "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
             "caseRevision": 12,
@@ -266,7 +266,7 @@
       "id": "not-applicable",
       "scenarioInput": {
         "request": "Assess the customer-record retention rule for the anonymous telemetry stream.",
-        "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+        "assessmentRuleId": "ER-CUSTOMER-RETENTION",
         "scopeId": "scope-anonymous-telemetry",
         "availableEvidenceIds": ["99999999-9999-4999-8999-999999999999"],
         "knownFacts": [
@@ -284,10 +284,10 @@
       "expected": {
         "decisions": [
           {
-            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
-            "engineeringRuleVersion": "retention-v1",
+            "assessmentRuleId": "ER-CUSTOMER-RETENTION",
+            "assessmentRuleVersion": "retention-v1",
             "scopeId": "scope-anonymous-telemetry",
-            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "ruleSetVersionId": "55555555-5555-4555-8555-555555555555",
             "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
             "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
             "caseRevision": 12,
@@ -315,7 +315,7 @@
       "id": "material-human-fact-unknown",
       "scenarioInput": {
         "request": "Assess whether the archive retention exception applies when the repository has no hold identifier.",
-        "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+        "assessmentRuleId": "ER-CUSTOMER-RETENTION",
         "scopeId": "scope-archive-data",
         "availableEvidenceIds": ["88888888-8888-4888-8888-888888888888"],
         "knownFacts": [
@@ -336,7 +336,7 @@
         "decisions": [],
         "humanResolution": {
           "openRequest": {
-            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+            "assessmentRuleId": "ER-CUSTOMER-RETENTION",
             "criterionIds": ["CR-STATUTORY-HOLD-APPLIES"],
             "question": "Does a documented statutory hold apply to the archived customer records in scope?",
             "unresolvedFact": "Whether a statutory hold exists even though no hold identifier appears in the pinned repository snapshot.",
@@ -371,7 +371,7 @@
             "doesNotKnow": true
           },
           "afterUnknownAnswer": {
-            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
+            "assessmentRuleId": "ER-CUSTOMER-RETENTION",
             "criterionIds": ["CR-STATUTORY-HOLD-APPLIES"],
             "question": "Does a documented statutory hold apply to the archived customer records in scope?",
             "unresolvedFact": "Whether a statutory hold exists even though no hold identifier appears in the pinned repository snapshot.",
@@ -413,7 +413,7 @@
       "id": "shared-evidence-across-two-rules",
       "scenarioInput": {
         "request": "Assess retention and privileged-access review controls together from the same deployment snapshot.",
-        "engineeringRuleIds": [
+        "assessmentRuleIds": [
           "ER-CUSTOMER-RETENTION",
           "ER-PRIVILEGED-ACCESS-REVIEW"
         ],
@@ -443,10 +443,10 @@
       "expected": {
         "decisions": [
           {
-            "engineeringRuleId": "ER-CUSTOMER-RETENTION",
-            "engineeringRuleVersion": "retention-v1",
+            "assessmentRuleId": "ER-CUSTOMER-RETENTION",
+            "assessmentRuleVersion": "retention-v1",
             "scopeId": "scope-primary-production-data",
-            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "ruleSetVersionId": "55555555-5555-4555-8555-555555555555",
             "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
             "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
             "caseRevision": 12,
@@ -487,10 +487,10 @@
             "compliance": "COMPLIANT"
           },
           {
-            "engineeringRuleId": "ER-PRIVILEGED-ACCESS-REVIEW",
-            "engineeringRuleVersion": "access-review-v1",
+            "assessmentRuleId": "ER-PRIVILEGED-ACCESS-REVIEW",
+            "assessmentRuleVersion": "access-review-v1",
             "scopeId": "scope-production-admin-access",
-            "legalPortfolioVersionId": "55555555-5555-4555-8555-555555555555",
+            "ruleSetVersionId": "55555555-5555-4555-8555-555555555555",
             "repositorySnapshotId": "66666666-6666-4666-8666-666666666666",
             "repositoryCommit": "0123456789abcdef0123456789abcdef01234567",
             "caseRevision": 12,

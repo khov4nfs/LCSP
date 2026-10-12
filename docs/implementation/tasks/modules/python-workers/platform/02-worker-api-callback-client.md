@@ -1,3 +1,5 @@
+> **Historical pre-freeze documentation.** This preserves the original V1 planning record; current implementation authority is [the Architecture Freeze](/reports/architecture-freeze-migration-manifest.md).
+
 ---
 task_id: MW-pyp-002
 module: python-workers/platform

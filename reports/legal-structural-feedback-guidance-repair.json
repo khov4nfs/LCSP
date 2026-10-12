@@ -1,0 +1,42 @@
+{
+  "scope": "LEGAL_MISSING_FIELD_FEEDBACK_AND_EXTERNAL_ACTION_GUIDANCE_REPAIR",
+  "status": "PASS_FOCUSED",
+  "verifiedAt": "2026-10-10T19:47:46.073658+00:00",
+  "diagnosis": "reports/staging/aea7c6cc3df44dd6/legal-structural-feedback-diagnosis.json",
+  "runFailure": "reports/staging/aea7c6cc3df44dd6/legal-preparation-failure.json",
+  "rootCause": "Real model repeatedly omitted required arrays. Opt-in detailed Zod feedback named paths but forwarded only custom refinements, omitting safe expected types. It also proposed a software proxy for an external duty.",
+  "fix": "Opt-in feedback includes schema-derived known primitive type requirements without submitted values. Shared schema and private model guidance distinguish actual external action from software records of it.",
+  "classificationStillModelOwned": true,
+  "semanticValidatorAdded": false,
+  "fieldDefaultsAdded": false,
+  "schemaRelaxed": false,
+  "dbChecksUnchanged": true,
+  "focused": {
+    "missingFieldBeforeFailed": 1,
+    "beforeReceipt": "reports/legal-missing-field-feedback-before.json",
+    "apiAfterPassed": 34,
+    "apiAfterFailed": 0,
+    "afterReceipt": "reports/legal-missing-field-feedback-after.json",
+    "pythonAfterPassed": 52,
+    "pythonReceipt": "reports/legal-structural-feedback-focused.xml",
+    "providerModelTransportAndBilling": "NOT_CHANGED",
+    "schemaExportAndBuildParity": "PASS",
+    "workspaceTypecheck": "PASS",
+    "affectedLint": "PASS",
+    "staticPolicies": "PASS",
+    "graphUpdate": "PASS_AST_ONLY",
+    "successfulParseAndDefaultAuthErrorShape": "UNCHANGED_AND_TESTED",
+    "valueLeakage": "REJECTED_BY_FOCUSED_TEST"
+  },
+  "sourceSha256": {
+    "apps/api/src/common/pipes/zod-validation.pipe.ts": "7fc927b14848ca84b57e52688a933a2463f552c2c72926ede380fda7d83fc754",
+    "apps/api/src/common/pipes/zod-validation.pipe.spec.ts": "98426e3a39fb1f53299071e722df9c657ebd4eab0e95236f2fb54583846ebac3",
+    "packages/contracts/src/legal-portfolio/schemas.ts": "42b55c3c1050bd29c8eb1a42e0431211dc0c77dbff338f6020e504b498c9e685",
+    "deepagents/legal_preparation/packet-schema.json": "a09ed5b873cefe5fbc95582866305fd40b54954a3f186e0290c8c21f993b87f3",
+    "deepagents/legal_preparation/instructions.md": "aeaa986359de2005d948db6469b04e2d2a8031318a0f397f83012e8e58e44e03",
+    "deepagents/tests/test_legal_preparation_agent.py": "1875c5324c9d7b3145fb13c81652ccb517c7696b212c28d4b8e28ae56ff8abd8"
+  },
+  "currentCandidateInvalidated": "20261010191904_fdc5b4067be2",
+  "freshExactImageSemanticsAndBrowser": "REQUIRED",
+  "releaseEligible": false
+}

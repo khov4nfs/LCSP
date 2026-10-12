@@ -1,3 +1,5 @@
+> **Historical pre-freeze documentation.** This preserves the original V1 planning record; current implementation authority is [the Architecture Freeze](/reports/architecture-freeze-migration-manifest.md).
+
 # Story 8.4: Generate Evidence Readiness Report When Final Evidence Is Missing
 
 Status: ready-for-dev

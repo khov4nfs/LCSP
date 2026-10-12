@@ -1,0 +1,39 @@
+import { DownloadIcon, FileTextIcon } from "lucide-react";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { copy } from "../../utils/conversation-copy";
+
+/** View the report in the app, or download the stored artifact. Shown only when a report exists. */
+export function AssessmentReportActions({
+  assessmentId,
+  artifactId,
+  className,
+}: {
+  assessmentId: string;
+  artifactId: string;
+  className?: string;
+}) {
+  const id = encodeURIComponent(assessmentId);
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      <Link
+        href={`/assessments/${id}/report`}
+        className={buttonVariants({ size: "sm" })}
+        data-report-action="view"
+      >
+        <FileTextIcon aria-hidden="true" />
+        {copy("completion.viewReport")}
+      </Link>
+      <a
+        href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/download`}
+        data-artifact-id={artifactId}
+        data-report-action="download"
+        className={buttonVariants({ size: "sm", variant: "outline" })}
+      >
+        <DownloadIcon aria-hidden="true" />
+        {copy("completion.downloadReport")}
+      </a>
+    </div>
+  );
+}

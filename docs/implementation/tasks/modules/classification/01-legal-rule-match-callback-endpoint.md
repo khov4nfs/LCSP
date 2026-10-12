@@ -10,6 +10,8 @@ depends_on:
   - platform/outbox/02-outbox-publisher.md
 ---
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # LegalRuleMatch Callback Endpoint
 
 > Superseded: this endpoint and its API e2e contract were removed from the active direct EngineeringRule classification flow. Do not reintroduce `POST /internal/classification/legal-rule-match-callback` without a new architecture decision.

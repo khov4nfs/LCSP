@@ -1,0 +1,279 @@
+{
+  "scope": "AFFECTED_CODEBASE_CONVENTION_VERIFICATION",
+  "status": "PASS",
+  "rootTypecheck": "PASS",
+  "importPolicy": "PASS",
+  "contractLiteralPolicy": "PASS",
+  "physicalRetirementPolicy": "PASS",
+  "taskNamingAudit": "reports/purpose-based-naming-audit.json",
+  "sqlHistoryUnchanged": 105,
+  "tsValueSetRuleForMovedFiles": "PASS",
+  "semanticValidatorChanged": false,
+  "browserAcceptance": "PENDING",
+  "chromeDevTools": "UNAVAILABLE_MISSING_X_SERVER",
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "thisCorrectionChangedFrontendProductionComponents": true,
+  "rootBackendCorrection": {
+    "status": "PASS_FOCUSED",
+    "files": [
+      "deepagents/assessment_root/boundary.py",
+      "deepagents/tools/common/capabilities/platform/repository_sandbox.py"
+    ],
+    "sameThreadSandbox": true,
+    "rootFilesystemPermissionsRetained": true,
+    "shellCapabilityRetainedForExistingRuntimeCallers": true,
+    "nativeRegression": "reports/assessment-root-filesystem-regression.xml",
+    "passed": 47,
+    "exactImageBrowserVerification": "PENDING_REBUILD"
+  },
+  "rootStreamCorrection": {
+    "status": "PASS_FOCUSED",
+    "canonicalExecutionLeaseRequired": true,
+    "transactionPropagatedToJournal": true,
+    "transportIdIsNotAuthority": true,
+    "focusedApiTests": 34,
+    "focusedPythonTests": 69,
+    "exactImageBrowserVerification": "PENDING_REBUILD",
+    "valueSetAudit": "PASS"
+  },
+  "activityMessagesCorrection": {
+    "status": "PASS_FOCUSED",
+    "sharedI18nKeys": "EN_VI",
+    "focusedTests": 1,
+    "exactImageBrowserVerification": "PENDING_REBUILD"
+  },
+  "graphUpdate": "PASS_AST_ONLY",
+  "legalPreparationToolSchema": {
+    "status": "PASS_FOCUSED",
+    "source": "packages/contracts/src/legal-portfolio/schemas.ts",
+    "asset": "deepagents/legal_preparation/packet-schema.json",
+    "sharedContractBuildParity": "PASS",
+    "providerFreeTests": 19,
+    "apiValidatorChanged": false,
+    "deterministicSemanticOracle": false,
+    "liveGeneration": "PENDING_REBUILT_IMAGES"
+  },
+  "canonicalActivityCorrection": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T11:13:25.115557+00:00",
+    "backend": [
+      "CQRS handler consumes server execution authority",
+      "canonical event appender owns event/outbox transaction",
+      "Zod shared contracts validate usage envelopes",
+      "owner-authorized persistence query aggregates usage",
+      "controllers and Next BFF retain transport responsibility"
+    ],
+    "web": [
+      "existing feature components and Atomic Design usage components reused",
+      "existing shadcn controls unchanged",
+      "English and Vietnamese i18n keys added",
+      "no new form or ad hoc form state",
+      "arbitrary 11px existing headings have no equivalent Tailwind scale utility"
+    ],
+    "python": [
+      "managed Deep Agent unchanged",
+      "safe tool completion callbacks without raw source/query content",
+      "one persisted invocation identity per actual provider response",
+      "semantic interpretation stays with Root instructions"
+    ],
+    "verification": {
+      "apiTests": 17,
+      "pythonActivityTests": 100,
+      "providerRoutingTests": 354,
+      "apiTypecheck": "PASS",
+      "webTypecheck": "PASS",
+      "rootTypecheck": "PASS",
+      "importPolicy": "PASS",
+      "contractLiteralPolicy": "PASS",
+      "retiredAuthorityPolicy": "PASS"
+    },
+    "exactImageBrowserVerification": {
+      "status": "PASS_BOUNDED_ACTIVITY_USAGE_PAUSE_UI",
+      "receipt": "reports/staging/804a20977d4a448f/browser-full-flow.json",
+      "accounting": "reports/staging/804a20977d4a448f/assessment-accounting-providerSetup.json",
+      "fullJourney": "NOT_PROVEN"
+    },
+    "semanticValidatorChanged": false
+  },
+  "declaredCoverageConsistencyCorrection": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T11:48:41.751732+00:00",
+    "files": [
+      "packages/contracts/src/legal-portfolio/schemas.ts",
+      "deepagents/legal_preparation/instructions.md",
+      "deepagents/legal_preparation/packet-schema.json",
+      "apps/api/src/modules/legal-portfolio/domain/legal-portfolio-coverage.contract.spec.ts",
+      "apps/api/src/modules/legal-portfolio/presentation/http/legal-portfolio.controller.spec.ts",
+      "apps/api/src/modules/legal-portfolio/application/services/legal-portfolio.service.integration.spec.ts",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "backend": [
+      "shared Zod authority before CQRS dispatch",
+      "no presentation to Prisma change",
+      "existing bounded 400 problem feedback reused",
+      "DB CHECK and same-portfolio foreign keys unchanged"
+    ],
+    "web": "NO_PRODUCTION_WEB_CHANGE",
+    "python": [
+      "managed Deep Agent unchanged",
+      "shared-contract-derived tool schema",
+      "general agent instructions retain semantic choice",
+      "no deterministic semantic oracle or fixture-specific branch"
+    ],
+    "verificationReceipt": "reports/legal-portfolio-coverage-graph-consistency.json",
+    "liveSemanticAndBrowserAcceptance": "NOT_PROVEN"
+  },
+  "runtimeRecoveryAndGenericLearning": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T16:44:01.128426+00:00",
+    "backend": [
+      "Existing CQRS command/handler wiring",
+      "Shared Zod request and claim response",
+      "Canonical locked runtime authority owns carrier identity and lease",
+      "No presentation to Prisma"
+    ],
+    "web": "NO_PRODUCTION_WEB_CHANGE; browser driver now requires persisted COMPLETE and SUCCEEDED",
+    "python": [
+      "Managed Deep Agents and native PostgreSQL checkpointer/Store",
+      "Transport journal only, native graph owns checkpoint replay",
+      "Generic learning read tool cannot write authoritative evidence",
+      "Service-only typed reviewed promotion; no semantic legal oracle"
+    ],
+    "verificationReceipt": "reports/agent-runtime-recovery/report.json",
+    "exactImageBrowserVerification": "PENDING_REBUILD",
+    "graphUpdate": "PASS_AST_ONLY_SQL_PARSER_UNAVAILABLE",
+    "leaseEventBoundaryCorrection": {
+      "status": "PASS_FOCUSED",
+      "sharedEventSchemaRegression": "4_FAIL_BEFORE_6_PASS_AFTER",
+      "rootTypecheck": "PASS",
+      "lint": "PASS",
+      "controllerPrismaChange": false,
+      "semanticValidatorChange": false,
+      "freshExactImageBrowserCrash": "PENDING_REBUILD"
+    }
+  },
+  "boundedNegativeProvenanceCorrection": {
+    "status": "PASS_FOCUSED",
+    "files": [
+      "packages/contracts/src/assessment-domain/constants.ts",
+      "apps/api/src/modules/assessment/domain/decision-validator.ts",
+      "apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.ts"
+    ],
+    "sharedCanonicalFailureCode": true,
+    "existingSharedPayloadSchema": true,
+    "noControllerOrBffChange": true,
+    "noSemanticJudgment": true,
+    "purposeNamedEvidence": true,
+    "receipt": "reports/bounded-negative-provenance-repair.json"
+  },
+  "indirectProvenanceAndApplicabilityCorrection": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T18:07:02.862822+00:00",
+    "files": [
+      "packages/contracts/src/assessment-domain/constants.ts",
+      "apps/api/src/modules/assessment/domain/decision-validator.ts",
+      "apps/api/src/modules/assessment/domain/decision-validator.spec.ts",
+      "apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.ts",
+      "apps/api/src/modules/assessment/infrastructure/persistence/assessment-case-support.service.spec.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts",
+      "deepagents/legal_preparation/instructions.md",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "backend": "DOMAIN_GUARD_AND_INFRASTRUCTURE_PERSISTENCE; existing CQRS/presentation/BFF untouched; shared canonical code.",
+    "web": "NO_PRODUCTION_WEB_CHANGE; Playwright harness only.",
+    "python": "MANAGED_DEEP_AGENTS_UNCHANGED; instruction quality only; model owns legal scope.",
+    "receipt": "reports/indirect-provenance-and-applicability-repair.json"
+  },
+  "stopFinalizationRaceCorrection": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T18:42:45.119962+00:00",
+    "files": [
+      "deepagents/assessment_root/runtime_control.py",
+      "deepagents/tests/test_assessment_root_agent.py",
+      "packages/contracts/src/assessment-domain/constants.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.ts",
+      "apps/api/src/modules/assessment/application/services/assessment-completion-gate.service.spec.ts"
+    ],
+    "backend": "EXISTING_COMPLETION_GATE_OWNS_MECHANICAL_STOP_BLOCKER; SHARED_CANONICAL_CONSTANT; NO_CONTROLLER_PRISMA_CHANGE",
+    "python": "NATIVE_DEEP_AGENT_AFTER_MODEL_INTERRUPT; NO_SEMANTIC_ORCHESTRATION",
+    "web": "NO_PRODUCTION_CHANGE; REAL_VISIBLE_CONTROL_REUSED",
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "compatibilityAliasesIntroduced": false,
+    "receipt": "reports/stop-finalization-race-repair.json",
+    "exactImageGate": "reports/release-images/20261010184344_065bd8fec4a3/report.json",
+    "currentBrowser": "IN_PROGRESS_9c9c33eee5934b76"
+  },
+  "legalContextRoleGuidanceCorrection": {
+    "status": "PASS_FOCUSED",
+    "verifiedAt": "2026-10-10T19:19:03.784415+00:00",
+    "files": [
+      "packages/contracts/src/legal-portfolio/schemas.ts",
+      "deepagents/legal_preparation/packet-schema.json",
+      "deepagents/legal_preparation/instructions.md",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "sharedContractDerivedSchema": true,
+    "validationSemanticsUnchanged": true,
+    "classificationModelOwned": true,
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "receipt": "reports/legal-context-contract-guidance-repair.json"
+  },
+  "legalStructuralFeedbackCorrection": {
+    "status": "PASS_FOCUSED",
+    "files": [
+      "apps/api/src/common/pipes/zod-validation.pipe.ts",
+      "apps/api/src/common/pipes/zod-validation.pipe.spec.ts",
+      "packages/contracts/src/legal-portfolio/schemas.ts",
+      "deepagents/legal_preparation/packet-schema.json",
+      "deepagents/legal_preparation/instructions.md",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "newTaskOrientedFilenames": 0,
+    "newTaskOrientedAutomationLabels": 0,
+    "sharedContractDerivedToolSchema": true,
+    "expectedTypeValueFreeMetadataOnly": true,
+    "noPresentationPrismaChange": true,
+    "noSemanticJudge": true,
+    "receipt": "reports/legal-structural-feedback-guidance-repair.json"
+  },
+  "geminiToolNullabilityCorrection": {
+    "status": "PASS_SCOPED_MATERIAL_REVIEW",
+    "files": [
+      "deepagents/middleware/provider_schema.py",
+      "deepagents/legal_preparation/agent.py",
+      "deepagents/tests/test_provider_schema_compatibility.py",
+      "deepagents/tests/test_legal_preparation_agent.py"
+    ],
+    "receipt": "reports/gemini-tool-nullability-repair.json",
+    "transportOnly": true,
+    "managedDeepAgentsUnchanged": true,
+    "sharedArtifactAuthorityUnchanged": true,
+    "newTaskOrientedFilenamesOrLabels": 0,
+    "productionTsOrFrontendChanged": false
+  },
+  "finalStagingMaterialReview": {
+    "status": "PASS",
+    "verifiedAt": "2026-10-11T01:59:38.675873+00:00",
+    "newProductionChanges": [
+      "deepagents/middleware/provider_schema.py",
+      "deepagents/legal_preparation/agent.py"
+    ],
+    "newTestOrEvidenceNames": "PURPOSE_BASED",
+    "activeTaskOrientedNamesAdded": 0,
+    "sharedContractAuthority": "UNCHANGED",
+    "newSchemaDefaultsOrSemanticJudges": false,
+    "managedDeepAgents": "UNCHANGED_NATIVE_MIDDLEWARE",
+    "typescriptAndFrontendProductionChangedByThisRepair": false,
+    "previousCqrsLayersZodAtomicShadcnRhfBffEvidence": "REUSED_UNAFFECTED",
+    "currentPlaywright": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+    "currentRootfsAndStaticRetirement": "PASS",
+    "broadAcceptedSuitesRerun": false
+  }
+}

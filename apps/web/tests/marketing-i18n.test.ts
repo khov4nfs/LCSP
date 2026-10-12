@@ -66,7 +66,7 @@ const marketingLayoutPath = new URL(
 );
 const proxyPath = new URL("../src/proxy.ts", import.meta.url);
 
-test("LCSP-291 exposes all localized public marketing routes with locale copy", async () => {
+test("exposes all localized public marketing routes with locale copy", async () => {
   assert.deepEqual(LOCALES, ["en", "vi"]);
 
   for (const route of routeCases) {

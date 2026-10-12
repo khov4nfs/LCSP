@@ -91,7 +91,7 @@ export class AssessmentDetailLoader {
               include: {
                 coverage: {
                   include: { currentDecision: true },
-                  orderBy: { engineeringRuleId: "asc" },
+                  orderBy: { assessmentRuleId: "asc" },
                 },
                 facts: {
                   include: { evidenceLinks: true },
@@ -119,22 +119,78 @@ export class AssessmentDetailLoader {
           input.correlationId,
         );
         const domainCase = row.domainCase;
+        const pinnedRuleSet = domainCase?.ruleSetVersionId
+          ? await tx.complianceRuleSetVersion.findUnique({
+              where: { id: domainCase.ruleSetVersionId },
+              include: {
+                legalSourceVersion: { select: { version: true } },
+                _count: { select: { rules: true, assessmentRules: true } },
+              },
+            })
+          : null;
+        const concepts = new Map(
+          domainCase?.ruleSetVersionId
+            ? (
+                await tx.assessmentRule.findMany({
+                  where: { ruleSetVersionId: domainCase.ruleSetVersionId },
+                  select: { assessmentRuleId: true, concept: true },
+                })
+              ).map((rule) => [rule.assessmentRuleId, rule.concept] as const)
+            : [],
+        );
+        // Event history is bounded; assessment totals come from every persisted invocation.
+        const usage = await tx.llmUsageEvent.aggregate({
+          where: { assessmentId: row.id, userId: input.sessionUserId },
+          _sum: { inputTokens: true, outputTokens: true, totalTokens: true },
+          _count: {
+            id: true,
+            inputTokens: true,
+            outputTokens: true,
+            totalTokens: true,
+          },
+        });
         return assessmentDetailSchema.parse({
           assessment_id: row.id,
           name: row.name,
           owner_id: row.ownerId,
+          usage: {
+            invocationCount: usage._count.id,
+            ...Object.fromEntries(
+              Object.entries(usage._sum)
+                .filter(([, value]) => value !== null)
+                .map(([key, value]) => [key, Number(value)]),
+            ),
+            partial: [
+              usage._count.inputTokens,
+              usage._count.outputTokens,
+              usage._count.totalTokens,
+            ].some((count) => count < usage._count.id),
+          },
           lifecycle: projection.lifecycle,
           runtime: projection.runtime,
           case: domainCase
             ? {
                 caseRevision: domainCase.caseRevision,
-                legalPortfolioVersionId: domainCase.legalPortfolioVersionId,
+                ruleSetVersionId: domainCase.ruleSetVersionId,
+                ruleSet: pinnedRuleSet
+                  ? {
+                      ruleSetVersionId: pinnedRuleSet.id,
+                      version: pinnedRuleSet.version,
+                      legalSourceVersion:
+                        pinnedRuleSet.legalSourceVersion.version,
+                      legalRequirementCount: pinnedRuleSet._count.rules,
+                      assessmentRuleCount: pinnedRuleSet._count.assessmentRules,
+                    }
+                  : null,
                 repositorySnapshotId: domainCase.repositorySnapshotId,
                 repositoryScanJobId: domainCase.repositoryScanJobId,
                 repositoryCommit: domainCase.repositoryCommit,
                 coverage: domainCase.coverage.map((coverage) => ({
-                  engineeringRuleId: coverage.engineeringRuleId,
-                  engineeringRuleVersion: coverage.engineeringRuleVersion,
+                  assessmentRuleId: coverage.assessmentRuleId,
+                  concept:
+                    concepts.get(coverage.assessmentRuleId) ??
+                    coverage.assessmentRuleId,
+                  assessmentRuleVersion: coverage.assessmentRuleVersion,
                   resolutionState: coverage.resolutionState,
                   currentDecisionId: coverage.currentDecisionId,
                   decisionRevision: coverage.decisionRevision,
@@ -146,7 +202,7 @@ export class AssessmentDetailLoader {
                           {
                             decisionId: decision.decisionId,
                             assessmentId: decision.assessmentId,
-                            engineeringRuleId: decision.engineeringRuleId,
+                            assessmentRuleId: decision.assessmentRuleId,
                             scopeId: decision.scopeId,
                             decisionRevision: decision.decisionRevision,
                             state: decision.state,
@@ -173,7 +229,7 @@ export class AssessmentDetailLoader {
                   artifactId: artifact.artifactId,
                   kind: artifact.kind,
                   lifecycleState: artifact.lifecycleState,
-                  legalPortfolioVersionId: artifact.legalPortfolioVersionId,
+                  ruleSetVersionId: artifact.ruleSetVersionId,
                   repositorySnapshotId: artifact.repositorySnapshotId,
                   repositoryCommit: artifact.repositoryCommit,
                   caseRevision: artifact.caseRevision,

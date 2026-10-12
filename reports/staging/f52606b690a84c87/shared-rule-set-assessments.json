@@ -1,0 +1,23 @@
+{
+  "status": "PASS",
+  "candidateId": "20261012054358_c13bae52f1ac",
+  "runId": "f52606b690a84c87",
+  "UI_ACTION": "Assessment A and B created through Playwright forms",
+  "BACKEND_VERIFICATION": {
+    "preparationRuns": 1,
+    "pins": [
+      {
+        "assessmentId": "dbbaf5f9-3765-40c5-9606-19a22a4c2ac8",
+        "ruleSetVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+        "legalSourceVersionId": "45513c31-3602-4ef2-9e67-bd6f4a668f90"
+      },
+      {
+        "assessmentId": "c69448c1-9318-4b33-b056-25622e919bb6",
+        "ruleSetVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+        "legalSourceVersionId": "45513c31-3602-4ef2-9e67-bd6f4a668f90"
+      }
+    ]
+  },
+  "assessmentTriggeredPreparationCount": 0,
+  "sharedVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe"
+}

@@ -16,6 +16,8 @@ excluded_sources:
   - git history for deprecated UX specification artifacts
 ---
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # Canonical UX Review
 
 ## Verdict

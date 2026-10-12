@@ -1,0 +1,70 @@
+{
+  "scope": "LOCAL_STAGING_ACCEPTANCE_HANDOFF",
+  "status": "WAITING_FOR_SEMANTIC_FIXTURE_AND_LEGAL_CORRECTION",
+  "head": "836607eb2b5e2ad89a966d06212134941ecc2cc1",
+  "branch": "feat/LCSP-357-hard-delete-legacy-architecture-and-prove-release-readiness",
+  "dirtyWorktreePreserved": true,
+  "imageReceipt": "reports/release-images/20261010111038_e7b5ed769ac0/report.json",
+  "sourceHashes": {
+    "matched": 1077,
+    "total": 1077,
+    "drift": 0
+  },
+  "buildPolicyHashes": {
+    "matched": 22,
+    "total": 22
+  },
+  "stagingRunId": "804a20977d4a448f",
+  "modelPolicy": "apx:claude-sonnet-4-6-free primary; Gemini and Inception fallbacks; legal-preparation on Gemini",
+  "rootThreadId": "14bfa73a-f069-443b-8238-ca645c745094",
+  "assessmentId": "c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+  "observedLifecycle": "PAUSED",
+  "observedExecution": "PAUSED",
+  "actualPrimaryFallbackUsed": false,
+  "acceptedCurrentProof": [
+    "four rootfs audits",
+    "seven Docker integrations",
+    "admin automatic activation without human approval",
+    "owner login and Create Assessment form",
+    "approved real Git-provider secure credential entry and password reauthentication",
+    "repository connection and immutable commit through visible UI",
+    "Stop and persisted PAUSED reload on the same thread",
+    "visible safe activity and token totals",
+    "nine persisted invocation usage events and nine matching canonical token events",
+    "exact duplicate callback HTTP 201 without double counting"
+  ],
+  "blockedProof": {
+    "legalSemantic": "NON_REPOSITORY_DUTIES FAIL; generated ER-INPERSON for NON_ASSESSABLE LR-INPERSON",
+    "fixture": "Approved PR bot lacks notice storage/timestamps, retention logic, temporary-test classification, and material external notice deployment context. No modification or repository substitution authorized.",
+    "fullBrowserFlow": "NOT_PROVEN",
+    "matrix": "25 rows: 4 PASS, 2 reused, 4 PARTIAL, 14 NOT_PROVEN, 1 FAIL",
+    "remoteCi": "NOT_PROVEN; no current-source Git publication authorized"
+  },
+  "evidence": {
+    "legalSemantic": "legal-semantic-review.json",
+    "browser": "browser-full-flow.json",
+    "repositoryScope": "approved-repository-scope.json",
+    "usage": "assessment-accounting-providerSetup.json",
+    "primary": "root-model-evidence-providerSetup.json",
+    "screenshots": "screenshots/"
+  },
+  "nextRequiredInputs": [
+    "Approved path for missing reviewed synthetic notice-service inputs through real repository setup"
+  ],
+  "productionDeployment": false,
+  "gitPublication": false,
+  "releaseEligible": false,
+  "remainingSourceWork": [
+    "Correct non-repository Legal Preparation guidance and repeat fresh semantic acceptance without editing generated portfolios"
+  ],
+  "teardown": {
+    "scope": "RELEASE_OWNED_STAGING_TEARDOWN",
+    "status": "STOPPED",
+    "runId": "804a20977d4a448f",
+    "ownedContainersRemoved": 6,
+    "ownedSandboxesRemoved": 1,
+    "sandboxScope": "OWNED_DATABASE_THREADS_EXCLUDING_PRELAUNCH_CONTAINERS",
+    "privateEvidenceRetained": true,
+    "productionDeployment": false
+  }
+}

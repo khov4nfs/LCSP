@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "data": {
+    "id": "7abe1da3-6dc7-415f-8d9f-b328690d14f5",
+    "version": "release-synthetic-f52606b690a84c87-supersession",
+    "status": "ACTIVE",
+    "correlationId": "01d681c4-84ef-4dd7-b0a8-15790ff26386",
+    "toolName": "activate_validated_legal_source_version",
+    "toolVersion": "1.0.0",
+    "configHash": "sha256:activation-v1",
+    "artifactVersions": {
+      "legalSourceVersionId": "7abe1da3-6dc7-415f-8d9f-b328690d14f5"
+    },
+    "provenanceRef": "tool-execution:01d681c4-84ef-4dd7-b0a8-15790ff26386",
+    "coverageState": "SUFFICIENT",
+    "evidenceRefs": [
+      "legal-source-activation:57a506a8-bb59-409b-94eb-f1b58f4b0a83",
+      "outbox:outbox:d7bab71a5c5162905a655a1dd54d11b1a44f57155a51f229b99a3e3a4704693d"
+    ],
+    "limitations": [],
+    "result": {
+      "activeLegalSourceVersionRef": "legal-source-version:7abe1da3-6dc7-415f-8d9f-b328690d14f5",
+      "lifecycleStatus": "ACTIVE",
+      "activationRecordRef": "legal-source-activation:57a506a8-bb59-409b-94eb-f1b58f4b0a83",
+      "outboxEventRef": "outbox:outbox:d7bab71a5c5162905a655a1dd54d11b1a44f57155a51f229b99a3e3a4704693d",
+      "systemActor": "legal-source-activation-service",
+      "manualApprovalRequired": false
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "scope": "RELEASE_CANDIDATE_BUILDS_MERGED_ROOTFS_AND_SEVEN_DOCKER_INTEGRATIONS",
+  "status": "PASS",
+  "productionDeployment": false,
+  "images": {
+    "api": {
+      "imageId": "sha256:5365f1ad87c19c0062e3ad90fc9571c19bb649dcade8db77acb20233ef79e7d9",
+      "dockerfile": "apps/api/Dockerfile",
+      "mergedRootfs": "PASS",
+      "files": 3428
+    },
+    "web": {
+      "imageId": "sha256:43fddcaa4a4e1854020e22a9b36df3878e722c9525d8aa4f785dc78d43cf2294",
+      "dockerfile": "apps/web/Dockerfile",
+      "mergedRootfs": "PASS",
+      "files": 2977
+    },
+    "worker": {
+      "imageId": "sha256:19202b6a82c9d060f73a9dadd7cae26af209e6516683058d6ae26fc5d115abe1",
+      "dockerfile": "deepagents/Dockerfile.dev",
+      "mergedRootfs": "PASS",
+      "files": 198
+    },
+    "server": {
+      "imageId": "sha256:b4487ef224d217344eac5bbd188ce5272c1413d48e9f8bd08a0782b1d1b434ab",
+      "dockerfile": "deepagents-langgraph/Dockerfile",
+      "mergedRootfs": "PASS",
+      "files": 199
+    }
+  },
+  "integrations": {
+    "passed": 7,
+    "failure": 0,
+    "error": 0,
+    "skipped": 0,
+    "tests": [
+      "test_codebase_memory_indexes_searches_and_reports_coverage_for_repository",
+      "test_docker_sandbox_executes_repository_tools_without_host_secrets",
+      "test_docker_sandbox_hydrates_repository_snapshot_without_removing_mountpoint",
+      "test_local_deep_agent_runtime_uses_docker_repository_sandbox",
+      "test_agent_server_dispatch_hydrates_docker_repository_sandbox[langgraph-dev]",
+      "test_agent_server_dispatch_hydrates_docker_repository_sandbox[lcsp-local]",
+      "test_production_agent_server_image_runs_without_license_and_persists_state"
+    ]
+  },
+  "exitCode": 0
+}

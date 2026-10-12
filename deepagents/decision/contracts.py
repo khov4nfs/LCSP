@@ -34,10 +34,6 @@ POLICY_ACTIONS = {
 }
 DECISION_TYPES = {
     "pr_review_triage": "PR_REVIEW_TRIAGE",
-    "root_non_deterministic_next_stage": "ROOT_NON_DETERMINISTIC_NEXT_STAGE",
-    "interview_topic_routing": "INTERVIEW_TOPIC_ROUTING",
-    "planner_candidate_ranking": "PLANNER_CANDIDATE_RANKING",
-    "investigator_next_action": "INVESTIGATOR_NEXT_ACTION",
 }
 
 DecisionProvider = Literal["jev", "disabled"]

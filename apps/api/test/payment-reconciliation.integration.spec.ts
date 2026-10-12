@@ -29,7 +29,7 @@ import {
   pushPrismaSchema,
 } from "./support/auth-workspace-test-helpers.js";
 
-describe("LCSP-310 payment reconciliation", () => {
+describe("payment reconciliation", () => {
   let prisma: PrismaClient;
   let payments: BillingPaymentKernel;
   let accounting: BillingAccountingKernel;

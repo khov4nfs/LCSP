@@ -36,7 +36,7 @@ class LegalSourceIngestEnvelope:
     document_id: str
     catalog_source_ref: str
     admin_catalog_version: str
-    corpus_version_id: str
+    legal_source_version_id: str
     idempotency_key: str
     actor_ref: str
     source_url: str
@@ -47,7 +47,7 @@ class LegalSourceIngestEnvelope:
 
 
 class LegalSourceIngestBoundary(AgentBoundaryBase):
-    """Fetch an official source into the runtime corpus store and register provenance."""
+    """Fetch an official source into the runtime legal_source store and register provenance."""
 
     boundary_source = LEGAL_SOURCE_INGEST_BOUNDARY_SOURCE
     source_event = LEGAL_SOURCE_INGEST_COMMAND
@@ -72,7 +72,7 @@ class LegalSourceIngestBoundary(AgentBoundaryBase):
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         """Validate the command, dispatch snapshot fetch, and register the result.
 
-        Downloaded bytes are stored under the configured runtime corpus store so
+        Downloaded bytes are stored under the configured runtime legal_source store so
         downstream extraction, review, chunking, and recovery steps consume the
         crawl artifacts from one pipeline-owned workspace. The fetch operation is
         forced through the canonical ``fetch_official_source_snapshot`` boundary
@@ -112,7 +112,7 @@ class LegalSourceIngestBoundary(AgentBoundaryBase):
             "LEGAL_SOURCE_SNAPSHOT_REGISTERED",
             document_id=envelope.document_id,
             catalog_source_ref=envelope.catalog_source_ref,
-            corpus_version_id=envelope.corpus_version_id,
+            legal_source_version_id=envelope.legal_source_version_id,
             idempotency_key=envelope.idempotency_key,
             actor_ref=envelope.actor_ref,
             snapshot_ref=registered.get("snapshotRef"),
@@ -122,7 +122,7 @@ class LegalSourceIngestBoundary(AgentBoundaryBase):
         )
 
     def _storage_root(self) -> Path:
-        """Resolve the runtime legal corpus artifact root or fail terminally."""
+        """Resolve the runtime legal legal_source artifact root or fail terminally."""
         root = getattr(self._config, "legal_source_storage_root", None)
         if not isinstance(root, str) or not root.strip():
             raise NonRetryableAgentBoundaryError("LEGAL_SOURCE_STORAGE_ROOT is not configured")
@@ -134,11 +134,11 @@ class LegalSourceIngestBoundary(AgentBoundaryBase):
         storage_root: Path,
         envelope: LegalSourceIngestEnvelope,
     ) -> Path:
-        """Build the per-document crawl artifact directory under .corpus."""
+        """Build the per-document crawl artifact directory under .legal-source."""
         return (
             storage_root
             / "source-crawl"
-            / _safe_path_segment(envelope.corpus_version_id)
+            / _safe_path_segment(envelope.legal_source_version_id)
             / _safe_path_segment(envelope.document_id)
         )
 
@@ -155,8 +155,8 @@ class LegalSourceIngestBoundary(AgentBoundaryBase):
         admin_catalog_version = self._read_required_string(
             message, "adminCatalogVersion", "admin_catalog_version"
         )
-        corpus_version_id = self._read_required_string(
-            message, "corpusVersionId", "corpus_version_id"
+        legal_source_version_id = self._read_required_string(
+            message, "legalSourceVersionId", "legal_source_version_id"
         )
         idempotency_key = self._read_required_string(
             message, "idempotencyKey", "idempotency_key"
@@ -182,7 +182,7 @@ class LegalSourceIngestBoundary(AgentBoundaryBase):
             document_id=document_id,
             catalog_source_ref=catalog_source_ref,
             admin_catalog_version=admin_catalog_version,
-            corpus_version_id=corpus_version_id,
+            legal_source_version_id=legal_source_version_id,
             idempotency_key=idempotency_key,
             actor_ref=actor_ref,
             source_url=source_url,

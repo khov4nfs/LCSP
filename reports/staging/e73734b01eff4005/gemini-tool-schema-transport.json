@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "model": "gemini-3.5-flash-lite",
+  "provider": "google_genai",
+  "tools": [
+    {
+      "tool": "validate_legal_portfolio",
+      "fieldTypes": {
+        "coverage.nonAssessableReason": [
+          "STRING",
+          "NULL"
+        ],
+        "contextRelations.toLegalRuleId": [
+          "STRING",
+          "NULL"
+        ],
+        "contextRelations.toSourceRef": [
+          "OBJECT",
+          "NULL"
+        ]
+      }
+    },
+    {
+      "tool": "submit_legal_portfolio",
+      "fieldTypes": {
+        "coverage.nonAssessableReason": [
+          "STRING",
+          "NULL"
+        ],
+        "contextRelations.toLegalRuleId": [
+          "STRING",
+          "NULL"
+        ],
+        "contextRelations.toSourceRef": [
+          "OBJECT",
+          "NULL"
+        ]
+      }
+    }
+  ],
+  "modelInvocations": 0,
+  "canonicalPacketAltered": false,
+  "scope": "EXACT_IMAGE_SERIALIZED_GEMINI_TOOL_NULLABILITY",
+  "runId": "e73734b01eff4005",
+  "imageId": "sha256:43088732caa64be62138697e6d922879d61cf863116b065f7ad7d5fba33e6efa"
+}

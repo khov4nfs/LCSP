@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
+import { ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS } from "@lcsp/contracts/evidence";
 
 import {
   sanitizeAgentStreamIdentifier,
@@ -47,7 +48,7 @@ describe("agent stream sanitizer", () => {
   it("hides private prompts, customer context, and hidden reasoning keys", () => {
     expect(
       sanitizeAgentStreamValue({
-        schemaVersion: "AGENT_STREAM_SEMANTIC_V1",
+        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV2,
         kind: "MODEL_REQUEST",
         systemPrompt: "never expose system prompt",
         developer_prompt: "never expose developer prompt",
@@ -57,7 +58,7 @@ describe("agent stream sanitizer", () => {
         model: "gpt-test",
       }),
     ).toEqual({
-      schemaVersion: "AGENT_STREAM_SEMANTIC_V1",
+      schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV2,
       kind: "MODEL_REQUEST",
       systemPrompt: "[HIDDEN_PRIVATE_RUNTIME_STATE]",
       developer_prompt: "[HIDDEN_PRIVATE_RUNTIME_STATE]",

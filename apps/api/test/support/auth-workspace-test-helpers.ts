@@ -12,12 +12,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-  EvidenceAcceptanceStatus,
-  LegalRuleLifecycleStatus,
-  PrismaClient,
-  VerifiedProfileStatus,
-} from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 import {
   encryptMfaSecret,
@@ -71,19 +66,6 @@ export type RepositoryScanGraphFixtureInput =
     scanJobId?: string;
     scanJobStatus?: RepositoryScanJobStatus;
   };
-
-export type VerifiedProfileGraphFixtureInput =
-  RepositoryScanGraphFixtureInput & {
-    evidenceReportId?: string;
-    technicalProfileId?: string;
-    aiUsageFlowId?: string;
-    verifiedProfileId?: string;
-  };
-
-export type LegalClassificationParentsInput = {
-  corpusVersionId?: string;
-  catalogVersionId?: string;
-};
 
 async function ensureAuthUser(
   prisma: PrismaClient,
@@ -240,151 +222,6 @@ export async function seedRepositoryScanGraph(
   });
 }
 
-export async function seedVerifiedProfileGraph(
-  prisma: PrismaClient,
-  input: VerifiedProfileGraphFixtureInput = {},
-): Promise<void> {
-  const evidenceReportId = input.evidenceReportId ?? "evidence-report-1";
-  const technicalProfileId = input.technicalProfileId ?? "technical-profile-1";
-  const aiUsageFlowId = input.aiUsageFlowId ?? "ai-usage-flow-1";
-  const verifiedProfileId = input.verifiedProfileId ?? "vp-1";
-  const assessmentId = input.assessmentId ?? "assessment-1";
-  const scanJobId = input.scanJobId ?? "scan-job-1";
-  const snapshotId = input.snapshotId ?? "snapshot-1";
-
-  await seedRepositoryScanGraph(prisma, {
-    ...input,
-    scanJobId,
-    snapshotId,
-  });
-  await ensureAuthUser(prisma, {
-    userId: input.userId ?? "user-1",
-    email: `${input.userId ?? "user-1"}@fixture.test`,
-    displayName: "Fixture User",
-    role: AUTH_USER_ROLES.customer,
-  });
-  await ensureAssessment(prisma, {
-    assessmentId,
-    ownerId: input.userId ?? "user-1",
-  });
-
-  await prisma.technicalEvidenceReport.upsert({
-    where: { id: evidenceReportId },
-    update: {
-      scanJobId,
-      assessmentId,
-      snapshotId,
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-    create: {
-      id: evidenceReportId,
-      scanJobId,
-      assessmentId,
-      snapshotId,
-      toolsVersion: { "repository-analysis": "1.0.0" },
-      configHash: { "repository-analysis": "sha256:test" },
-      evidencePayload: { findings: [{ finding_id: "finding-1" }] },
-      privacyFlags: { containsSourceCode: false, secretsRedacted: true },
-      schemaVersion: "1.0.0",
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-  });
-
-  await prisma.technicalProfile.upsert({
-    where: { id: technicalProfileId },
-    update: {
-      evidenceReportId,
-      assessmentId,
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-    create: {
-      id: technicalProfileId,
-      evidenceReportId,
-      assessmentId,
-      schemaVersion: "1.0.0",
-      providerVersion: "technical-profile-worker@fixture",
-      profileData: { aiDetected: "confirmed" },
-      privacyFlags: { containsSourceCode: false, secretsRedacted: true },
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-  });
-
-  await prisma.aIUsageFlow.upsert({
-    where: { id: aiUsageFlowId },
-    update: {
-      technicalProfileId,
-      assessmentId,
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-    create: {
-      id: aiUsageFlowId,
-      technicalProfileId,
-      assessmentId,
-      schemaVersion: "1.0.0",
-      providerVersion: "ai-usage-flow-worker@fixture",
-      claims: [],
-      unknownUsages: [],
-      privacyFlags: { containsSourceCode: false, secretsRedacted: true },
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-  });
-
-  await prisma.verifiedProfile.upsert({
-    where: { id: verifiedProfileId },
-    update: {
-      aiUsageFlowId,
-      technicalEvidenceReportId: evidenceReportId,
-      assessmentId,
-      status: VerifiedProfileStatus.APPROVED,
-    },
-    create: {
-      id: verifiedProfileId,
-      aiUsageFlowId,
-      technicalEvidenceReportId: evidenceReportId,
-      assessmentId,
-      schemaVersion: "1.0.0",
-      providerVersion: "reconciliation@fixture",
-      profileData: { source: "e2e-fixture" },
-      gatesPassedAt: { fixture: true },
-      status: VerifiedProfileStatus.APPROVED,
-      approvedAt: new Date("2026-08-25T00:00:00.000Z"),
-      approvedById: input.userId ?? "user-1",
-    },
-  });
-}
-
-export async function seedLegalClassificationParents(
-  prisma: PrismaClient,
-  input: LegalClassificationParentsInput = {},
-): Promise<void> {
-  const corpusVersionId = input.corpusVersionId ?? "LCSP-LEGAL-CORPUS-v0.1.0";
-  const catalogVersionId = input.catalogVersionId ?? "LCSP-RULE-CATALOG-v0.1.0";
-
-  await prisma.legalCorpusVersion.upsert({
-    where: { id: corpusVersionId },
-    update: { status: LegalRuleLifecycleStatus.APPROVED },
-    create: {
-      id: corpusVersionId,
-      version: corpusVersionId,
-      status: LegalRuleLifecycleStatus.APPROVED,
-      sourceManifest: { source: "e2e-fixture" },
-      approvedAt: new Date("2026-08-25T00:00:00.000Z"),
-    },
-  });
-
-  await prisma.legalRuleCatalogVersion.upsert({
-    where: { id: catalogVersionId },
-    update: { status: LegalRuleLifecycleStatus.APPROVED },
-    create: {
-      id: catalogVersionId,
-      version: catalogVersionId,
-      status: LegalRuleLifecycleStatus.APPROVED,
-      ruleRefs: [],
-      approvedAt: new Date("2026-08-25T00:00:00.000Z"),
-    },
-  });
-}
-
 export class CapturingRecoveryNotifier {
   public lastToken: string | null = null;
   public lastEmail: string | null = null;
@@ -444,17 +281,9 @@ export async function resetAuthWorkspaceDatabase(
   prisma: PrismaClient,
 ): Promise<void> {
   await prisma.adminAccountCommandReceipt.deleteMany();
-  await prisma.conflictRecord.deleteMany();
-  await prisma.verifiedProfile.deleteMany();
-  await prisma.aIUsageFlow.deleteMany();
-  await prisma.technicalProfile.deleteMany();
-  await prisma.technicalEvidenceReport.deleteMany();
   await prisma.repositoryScanJob.deleteMany();
   await prisma.repositorySnapshot.deleteMany();
   await prisma.repositoryConnection.deleteMany();
-  await prisma.documentRequest.deleteMany();
-  await prisma.classificationResult.deleteMany();
-  await prisma.legalRuleMatch.deleteMany();
   await prisma.assessment.deleteMany();
   await prisma.outboxMessage.deleteMany();
   await prisma.auditEvent.deleteMany();

@@ -1,0 +1,17 @@
+{
+  "classification": "V1_ONLY",
+  "deleted": [
+    "apps/web/src/public/assets/mocks/m04-interview-mutations.json",
+    "apps/web/src/public/assets/mocks/m03-graph-consistency.json",
+    "apps/web/src/public/assets/mocks/readiness.json",
+    "apps/web/src/public/assets/mocks/conflicts.json",
+    "apps/web/src/public/assets/mocks/assessment-detail.json",
+    "apps/web/src/public/assets/mocks/assessments.json",
+    "apps/web/src/public/assets/mocks/conflict-resolve.json",
+    "apps/web/src/public/assets/mocks/document-action.json",
+    "apps/web/src/public/assets/mocks/documents.json",
+    "apps/web/src/public/assets/mocks/evidence.json"
+  ],
+  "callerAudit": "MCP discovery insufficient; current readMockJson/string path inventory finds no remaining caller; canonical workspace/repository/auth/account/usage assets retained.",
+  "browserProof": "PENDING"
+}

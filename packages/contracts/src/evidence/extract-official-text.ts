@@ -1,6 +1,5 @@
 import type {
   AgenticToolCoverageState,
-  AgenticToolName,
   AgenticToolStatus,
 } from "./agentic-tool.ts";
 
@@ -99,7 +98,7 @@ export type ExtractOfficialTextLimitation = {
 
 export type ExtractOfficialTextResponse = {
   status: AgenticToolStatus;
-  toolName: AgenticToolName;
+  toolName: typeof EXTRACT_OFFICIAL_TEXT_TOOL.name;
   toolVersion: string;
   configHash: string;
   correlationId: string;

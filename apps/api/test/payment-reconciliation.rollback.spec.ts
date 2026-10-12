@@ -42,7 +42,7 @@ class FaultInjectingBillingTransaction implements BillingTransactionPort {
   }
 }
 
-describe("LCSP-310 matched payment rollback", () => {
+describe("matched payment rollback", () => {
   let prisma: PrismaClient;
   let payments: BillingPaymentKernel;
   let normalPayments: BillingPaymentKernel;

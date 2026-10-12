@@ -1,0 +1,1007 @@
+{
+  "checkpointWrites": 111,
+  "packetCalls": [
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.0,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.engineeringRules.1\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "submit_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.legalRules.1.coverage.state,packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.0,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.engineeringRules.1\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.0,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    },
+    {
+      "tool": "submit_legal_portfolio",
+      "legalRuleIds": [
+        "LR-RETENTION-01",
+        "LR-INPERSON-01"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION-01",
+        "ER-INPERSON-01"
+      ],
+      "missingArrayFields": [
+        {
+          "id": "ER-RETENTION-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        },
+        {
+          "id": "ER-INPERSON-01",
+          "fields": [
+            "startingNodeTypes",
+            "investigationGoals"
+          ]
+        }
+      ],
+      "result": "{\"error\": \"LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.0.investigationGoals,packet.engineeringRules.0.startingNodeTypes,packet.engineeringRules.1.investigationGoals,packet.engineeringRules.1.startingNodeTypes\"}"
+    }
+  ],
+  "scope": "REAL_MODEL_MISSING_REQUIRED_FIELD_FEEDBACK_DIAGNOSIS",
+  "runId": "aea7c6cc3df44dd6",
+  "preparationRunId": "39749307-aa5a-4138-8915-49692894a66d",
+  "nativeThreadId": "899f2a50-58bb-510d-9029-1e3463e9b9e4",
+  "rawCredentialsPersisted": false
+}

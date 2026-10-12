@@ -13,15 +13,16 @@ _AUTH_FAILURE_STATUSES = frozenset({401, 403})
 # non-retryable for the same credential, yet another credential or provider may succeed.
 _CREDENTIAL_MODEL_ERRORS = (ModelAuthenticationError, ModelPermissionDeniedError)
 _PROVIDER_CAPACITY_STATUSES = frozenset({402, 429})
-_PROVIDER_CAPACITY_CODES = frozenset(
+_PROVIDER_QUOTA_EXHAUSTION_CODES = frozenset(
     {
+        "allowance_exhausted",
         "billing_hard_limit_reached",
         "insufficient_balance",
         "insufficient_quota",
         "quota_exceeded",
-        "rate_limit_exceeded",
     }
 )
+_PROVIDER_CAPACITY_CODES = _PROVIDER_QUOTA_EXHAUSTION_CODES | {"rate_limit_exceeded"}
 _PROVIDER_ROUTE_INCOMPATIBILITY_CODES = frozenset(
     {
         "upstream_unprocessable_request",
@@ -154,6 +155,11 @@ def is_provider_capacity_failure(error: BaseException) -> bool:
     if error_status(error) in _PROVIDER_CAPACITY_STATUSES:
         return True
     return bool(_error_codes(error) & _PROVIDER_CAPACITY_CODES)
+
+
+def is_provider_quota_exhaustion(error: BaseException) -> bool:
+    """A depleted allowance cannot recover during a short rate-limit cooldown."""
+    return bool(_error_codes(error) & _PROVIDER_QUOTA_EXHAUSTION_CODES)
 
 
 def is_provider_route_incompatibility(error: BaseException) -> bool:

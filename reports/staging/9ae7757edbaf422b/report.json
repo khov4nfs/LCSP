@@ -1,0 +1,81 @@
+{
+  "scope": "OWNED_EXACT_CANDIDATE_STAGING_REFRESH",
+  "status": "PASS",
+  "runId": "9ae7757edbaf422b",
+  "imageReceipt": "reports/release-images/20261011201401_b17f791a42ea/report.json",
+  "images": {
+    "api": "sha256:619b626197f0ad20f695f6af035d4aa6ef2f3b476bc6694caafec86c38650269",
+    "web": "sha256:132bf40dcc0e1e90758ed23efdf36da580151cb24e17145052d76ea92b1cc95d",
+    "worker": "sha256:60196789a00fef340c303b8df396715a18bd453a6fbb32acf618baa4c0a465f7",
+    "server": "sha256:6d06bff851838e7f0c5a920779ae8075d79bd91315f58c1e31c9b900dcd2cb21",
+    "postgres": "sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+    "rabbitmq": "sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69",
+    "bridge": "sha256:60196789a00fef340c303b8df396715a18bd453a6fbb32acf618baa4c0a465f7"
+  },
+  "previousImages": {
+    "api": "sha256:bb5155ef28fd66823248c8e550b30b9e931bcac55bb0006cb1b8a84a12ebb75e",
+    "web": "sha256:62824bf71acb63fbdff0242c4d4be7996327288d5b5843354b39a13e2f448035",
+    "worker": "sha256:ec0d8024462e862a61d2ca13c20c9af63cdcc3cdc8999af67de64160b9cc0a99",
+    "server": "sha256:0a6a8123f9db86e8c5d18499b531093027451dc2506a20f196d9852bfd74afa9",
+    "postgres": "sha256:f1c3376c26f2609ab9f29f71f824103fe2fcd8ee0346485cb6122a4f93df6f94",
+    "rabbitmq": "sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69",
+    "bridge": "sha256:ec0d8024462e862a61d2ca13c20c9af63cdcc3cdc8999af67de64160b9cc0a99"
+  },
+  "databaseRetained": true,
+  "preservedFailedPreparationRunId": "4ea63e12-4c0e-47f5-83a3-021f45f1be81",
+  "configuredPrimary": "APX",
+  "credentialPools": {
+    "apx": {
+      "configuredSlots": 7,
+      "fingerprints": [
+        "bb6759c5268e",
+        "4cddc214cb23",
+        "2d492c597949",
+        "6ad1488184cf",
+        "5da28ee0911e",
+        "6aa674f8f240",
+        "8f5a386203fc"
+      ]
+    },
+    "google_genai": {
+      "configuredSlots": 6,
+      "fingerprints": [
+        "398fcfcf9214",
+        "6bc00f15be90",
+        "724da79fc49b",
+        "fcf97e608430",
+        "2188c5f841df",
+        "d811c07512c2"
+      ]
+    },
+    "inception": {
+      "configuredSlots": 12,
+      "fingerprints": [
+        "c9b31ac9ca3c",
+        "f9919712f76a",
+        "349c31bbc304",
+        "cc98bbfae40a",
+        "cd94ebaf8f3a",
+        "827081ea0870",
+        "3cb3d0a60bc7",
+        "084fa17b1d98",
+        "f42574fbc5d3",
+        "f32b0215e706",
+        "6b5ac69f61d6",
+        "2d21b90c541b"
+      ]
+    }
+  },
+  "readyBoundaryConsumers": 14,
+  "api": "http://localhost:32778",
+  "web": "http://localhost:32779",
+  "agentServer": "http://localhost:32777",
+  "retiredTablesAbsent": 29,
+  "fixtureAccounts": 3,
+  "liveModelAcceptance": "IN_PROGRESS",
+  "stagingAcceptance": "NOT_PROVEN",
+  "browserAcceptance": "NOT_PROVEN",
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "previousReadiness": "readiness-before-governance-refresh.json"
+}

@@ -80,7 +80,7 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
             if applicable:
                 refs = [{"type": "ASSESSMENT_EVIDENCE", "id": ev["source"]}]
                 args = {
-                    "engineering_rule_id": rule,
+                    "assessment_rule_id": rule,
                     "applicability": "APPLICABLE",
                     "rationale": f"{rule} applies to the notice service.",
                     "legal_context_ids": [{"ER-RET": "LR-RET", "ER-XREF": "LR-XREF"}[rule]],
@@ -92,7 +92,7 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
                 }
             else:
                 args = {
-                    "engineering_rule_id": rule,
+                    "assessment_rule_id": rule,
                     "applicability": "NOT_APPLICABLE",
                     "rationale": "The definition is context, not an assessable duty here.",
                     "legal_context_ids": ["LR-DEF"],
@@ -104,8 +104,8 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
 
     steps: list[Step] = [
         lambda m: _call("get_assessment_context", {}, "s1"),
-        lambda m: (keep("context", m), _call("get_pinned_portfolio", {}, "s2"))[1],
-        lambda m: (keep("portfolio", m), _call("grep", {"pattern": "keep_days", "path": "/"}, "s3"))[1],
+        lambda m: (keep("context", m), _call("get_pinned_rule_set", {}, "s2"))[1],
+        lambda m: (keep("rule_set", m), _call("grep", {"pattern": "keep_days", "path": "/"}, "s3"))[1],
         lambda m: _call("cite_repository_source", cite_args("src/retention.py", 3, 3), "s4"),
         lambda m: (
             ev.__setitem__("source", keep("evidence", m)["evidenceId"]),
@@ -115,12 +115,12 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
         lambda m: AIMessage(content="Findings: src/retention.py:3 sets keep_days. No other uses found."),
         lambda m: _call("record_search_coverage", {"known_gaps": ["dynamic configuration not traced"]}, "s6"),
         lambda m: (keep("coverage", m), _call("accept_case_fact", {"kind": "USE_CASE", "statement": "The system stores notices with a receipt timestamp.", "evidence_ids": [ev["source"]]}, "s7"))[1],
-        lambda m: (fact.__setitem__("use_case", keep("fact", m)["factId"]), _call("start_rule_investigation", {"engineering_rule_id": "ER-RET"}, "s8"))[1],
+        lambda m: (fact.__setitem__("use_case", keep("fact", m)["factId"]), _call("start_rule_investigation", {"assessment_rule_id": "ER-RET"}, "s8"))[1],
         # A deliberately incomplete first attempt: the validator must reject it and say why.
         lambda m: _call(
             "submit_rule_decision",
             {
-                "engineering_rule_id": "ER-RET",
+                "assessment_rule_id": "ER-RET",
                 "applicability": "APPLICABLE",
                 "rationale": "Applies.",
                 "legal_context_ids": ["LR-NOT-LINKED"],
@@ -138,9 +138,9 @@ def full_script(captured: dict[str, Any]) -> list[Step]:
             "s9",
         ),
         lambda m: (captured.__setitem__("rejected", last(m)), decide("ER-RET", applicable=True, outcome="MET", key="s10")(m))[1],
-        lambda m: (captured.__setitem__("decision_ret", last(m)), _call("start_rule_investigation", {"engineering_rule_id": "ER-XREF"}, "s11"))[1],
+        lambda m: (captured.__setitem__("decision_ret", last(m)), _call("start_rule_investigation", {"assessment_rule_id": "ER-XREF"}, "s11"))[1],
         decide("ER-XREF", applicable=True, outcome="NOT_MET", key="s12"),
-        lambda m: (captured.__setitem__("decision_xref", last(m)), _call("start_rule_investigation", {"engineering_rule_id": "ER-DEF"}, "s13"))[1],
+        lambda m: (captured.__setitem__("decision_xref", last(m)), _call("start_rule_investigation", {"assessment_rule_id": "ER-DEF"}, "s13"))[1],
         decide("ER-DEF", applicable=False, outcome=None, key="s14"),
         lambda m: (captured.__setitem__("decision_def", last(m)), AIMessage(content="All three rules decided."))[1],
     ]

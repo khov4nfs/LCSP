@@ -2,6 +2,8 @@
 baseline_commit: 4983bf26f6c2853575034990d5d1a2505d4e94b6
 ---
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # Story 1.3: OAuth/OIDC Login Without Repository Authorization
 
 Status: review

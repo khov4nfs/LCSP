@@ -1,5 +1,7 @@
 # Artifact, Wizard, and Conflict Tool Tasks
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 Status: PARTIALLY_SUPERSEDED_FOR_ACTIVE_MVP
 Stories: AO-3 — Missing-Input Orchestration; AO-4 — Wizard Target Verification  
 Template: `agentic-tool-implementation-task-template.md`

@@ -1,0 +1,168 @@
+{
+  "scope": "CURRENT_IMAGE_INTERNAL_ASSESSMENT_MECHANICAL_GATE",
+  "kind": "BACKEND_VERIFICATION",
+  "runId": "9ae7757edbaf422b",
+  "key": "assessmentA",
+  "mode": "completion-blockers",
+  "apiImageId": "sha256:619b626197f0ad20f695f6af035d4aa6ef2f3b476bc6694caafec86c38650269",
+  "imageReceipt": "reports/release-images/20261011201401_b17f791a42ea/report.json",
+  "assessmentId": "d81a9318-b46e-4544-81be-7fe4612391f7",
+  "threadId": "ca52b86a-6514-4c92-91e8-708678673f51",
+  "actualRootDecisionId": "80754091-aa00-4030-a740-00293ff20daf",
+  "status": "PASS_MECHANICAL_GUARD",
+  "baselineBlockers": [
+    {
+      "code": "ASSESSMENT_NOT_ACTIVE",
+      "reference": "PAUSED"
+    },
+    {
+      "code": "EXECUTION_FAILURE",
+      "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+    }
+  ],
+  "results": [
+    {
+      "name": "pending-stop",
+      "expected": "RUNTIME_STOP_REQUESTED",
+      "blockers": [
+        {
+          "code": "ASSESSMENT_NOT_ACTIVE",
+          "reference": "PAUSED"
+        },
+        {
+          "code": "EXECUTION_FAILURE",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        },
+        {
+          "code": "RUNTIME_STOP_REQUESTED",
+          "reference": "3b842fee-e142-48c9-afae-774f2bd84ffd"
+        }
+      ]
+    },
+    {
+      "name": "open-human-request",
+      "expected": "OPEN_HUMAN_REQUEST",
+      "blockers": [
+        {
+          "code": "ASSESSMENT_NOT_ACTIVE",
+          "reference": "PAUSED"
+        },
+        {
+          "code": "EXECUTION_FAILURE",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        },
+        {
+          "code": "OPEN_HUMAN_REQUEST",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        }
+      ]
+    },
+    {
+      "name": "required-input",
+      "expected": "REQUIRED_INPUT_UNRESOLVED",
+      "blockers": [
+        {
+          "code": "EXECUTION_FAILURE",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        },
+        {
+          "code": "REQUIRED_INPUT_UNRESOLVED",
+          "reference": "WAITING_FOR_REQUIRED_INPUT"
+        }
+      ]
+    },
+    {
+      "name": "pending-decision",
+      "expected": "DECISION_UNRESOLVED",
+      "blockers": [
+        {
+          "code": "ASSESSMENT_NOT_ACTIVE",
+          "reference": "PAUSED"
+        },
+        {
+          "code": "DECISION_UNRESOLVED",
+          "reference": "ER-RETENTION"
+        },
+        {
+          "code": "EXECUTION_FAILURE",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        }
+      ]
+    },
+    {
+      "name": "invalidated-decision",
+      "expected": "STALE_DECISION",
+      "blockers": [
+        {
+          "code": "ASSESSMENT_NOT_ACTIVE",
+          "reference": "PAUSED"
+        },
+        {
+          "code": "EXECUTION_FAILURE",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        },
+        {
+          "code": "STALE_DECISION",
+          "reference": "ER-RETENTION"
+        }
+      ]
+    },
+    {
+      "name": "stale-pin",
+      "expected": "REPOSITORY_SNAPSHOT_INVALID",
+      "blockers": [
+        {
+          "code": "ASSESSMENT_NOT_ACTIVE",
+          "reference": "PAUSED"
+        },
+        {
+          "code": "EXECUTION_FAILURE",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        },
+        {
+          "code": "REPOSITORY_SNAPSHOT_INVALID",
+          "reference": "f9ccc607-cdbb-4231-9d6b-619437f41709"
+        },
+        {
+          "code": "STALE_DECISION",
+          "reference": "ER-RETENTION"
+        }
+      ]
+    },
+    {
+      "name": "fatal-execution",
+      "expected": "EXECUTION_FAILURE",
+      "blockers": [
+        {
+          "code": "ASSESSMENT_NOT_ACTIVE",
+          "reference": "PAUSED"
+        },
+        {
+          "code": "EXECUTION_FAILURE",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        }
+      ]
+    },
+    {
+      "name": "invalid-rule-set",
+      "expected": "RULE_SET_INVALID",
+      "blockers": [
+        {
+          "code": "ASSESSMENT_NOT_ACTIVE",
+          "reference": "PAUSED"
+        },
+        {
+          "code": "EXECUTION_FAILURE",
+          "reference": "d81a9318-b46e-4544-81be-7fe4612391f7"
+        },
+        {
+          "code": "RULE_SET_INVALID",
+          "reference": "78261f5b-bb2e-4316-a171-bc3315ac2aa3"
+        }
+      ]
+    }
+  ],
+  "databaseWrites": 0,
+  "method": "NONPERSISTED_PERTURBATIONS_OF_REAL_CURRENT_CASE_READS",
+  "httpRequest": "NOT_PERFORMED"
+}

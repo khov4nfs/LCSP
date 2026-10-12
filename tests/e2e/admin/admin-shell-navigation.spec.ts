@@ -28,7 +28,7 @@ test.describe("Admin Release Gate: Shell & Layout Invariants (Figma 1440x900)", 
     await expect(logo.first()).toBeVisible();
   });
 
-  test("validates 248px admin sidebar specification contract (LCSP-294)", async () => {
+  test("validates 248px admin sidebar specification contract (ADMIN_SHELL)", async () => {
     const FIGMA_ADMIN_SIDEBAR_WIDTH = 248;
     expect(FIGMA_ADMIN_SIDEBAR_WIDTH).toBe(248);
   });

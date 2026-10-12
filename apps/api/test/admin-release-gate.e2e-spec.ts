@@ -133,10 +133,11 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
         AUTH_ERROR_CODES.sessionInvalid,
       );
 
-      // 3. Admin legal preparation trigger (the only remaining admin legal write)
+      // 3. Bounded retry (the only remaining admin rule set write)
       const resVersionMutation = await httpRequest(app)
-        .post("/admin/corpus-versions/prepare")
-        .send({ idempotencyKey: "prep-unauth-1" })
+        .post(
+          "/admin/compliance-rule-sets/preparations/00000000-0000-4000-8000-000000000001/retries",
+        )
         .set("Accept", "application/json");
 
       assert.equal(resVersionMutation.status, 401);
@@ -166,11 +167,12 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
       assert.equal(resAuditExport.status, 403);
       assert.equal(problemCode(resAuditExport), RBAC_REASON_CODES.denied);
 
-      // 3. Admin legal preparation trigger
+      // 3. Bounded rule set preparation retry
       const resVersionMutation = await httpRequest(app)
-        .post("/admin/corpus-versions/prepare")
+        .post(
+          "/admin/compliance-rule-sets/preparations/00000000-0000-4000-8000-000000000001/retries",
+        )
         .set("Authorization", `Bearer ${customerSessionToken}`)
-        .send({ idempotencyKey: "prep-customer-1" })
         .set("Accept", "application/json");
 
       assert.equal(resVersionMutation.status, 403);
@@ -218,16 +220,16 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
     });
   });
 
-  describe("Section 3: Legal Rule Catalog & Corpus Lifecycle Mutations", () => {
+  describe("Section 3: Legal Rule Catalog & LegalSource Lifecycle Mutations", () => {
     it("exposes no human legal authoring, approval, publish or discard route to Admin", async () => {
       const retiredRoutes = [
-        "/internal/legal-rule-catalog/versions",
-        "/internal/legal-rule-catalog/rules",
-        "/internal/legal-rule-catalog/rules/recover-from-active-corpus",
-        "/internal/legal-rule-catalog/versions/any/approve",
-        "/internal/legal-rule-catalog/corpus",
-        "/admin/corpus-versions/any/publish",
-        "/admin/corpus-versions/any/discard",
+        "/internal/legal-sources/versions",
+        "/internal/legal-sources/rules",
+        "/internal/legal-sources/rules/recover-from-active-legalSource",
+        "/internal/legal-sources/versions/any/approve",
+        "/internal/legal-sources",
+        "/admin/legal-source-versions/any/publish",
+        "/admin/legal-source-versions/any/discard",
       ];
       for (const route of retiredRoutes) {
         const response = await httpRequest(app)
@@ -328,24 +330,25 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
   });
 
   describe("Section 5: Dependency Boundary Matrix & Upstream Tracking", () => {
-    it("explicitly records upstream feature boundaries pending LCSP-294..300", () => {
+    it("explicitly records upstream feature boundaries pending ADMIN_SHELL..300", () => {
       const DEPENDENCY_STATUSES = {
-        "LCSP-294": "PENDING_UPSTREAM_MERGE (Admin Shell & Overview UI)",
-        "LCSP-295": "PENDING_UPSTREAM_MERGE (User Accounts Management UI)",
-        "LCSP-296": "PENDING_UPSTREAM_MERGE (Corpus Versions UI)",
-        "LCSP-298": "PENDING_UPSTREAM_MERGE (Admin Overview API & Read Model)",
-        "LCSP-299":
+        ADMIN_SHELL: "PENDING_UPSTREAM_MERGE (Admin Shell & Overview UI)",
+        USER_ACCOUNTS: "PENDING_UPSTREAM_MERGE (User Accounts Management UI)",
+        LEGAL_SOURCE: "PENDING_UPSTREAM_MERGE (LegalSource Versions UI)",
+        ADMIN_OVERVIEW:
+          "PENDING_UPSTREAM_MERGE (Admin Overview API & Read Model)",
+        ACCOUNT_LIFECYCLE:
           "PENDING_UPSTREAM_MERGE (Admin User Lifecycle API & Mutations)",
-        "LCSP-300":
-          "PENDING_UPSTREAM_MERGE (Corpus Administration API & Readiness Engine)",
+        ADMIN_AUTHORIZATION:
+          "PENDING_UPSTREAM_MERGE (LegalSource Administration API & Readiness Engine)",
       };
 
-      assert.ok(DEPENDENCY_STATUSES["LCSP-294"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-295"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-296"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-298"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-299"]);
-      assert.ok(DEPENDENCY_STATUSES["LCSP-300"]);
+      assert.ok(DEPENDENCY_STATUSES["ADMIN_SHELL"]);
+      assert.ok(DEPENDENCY_STATUSES["USER_ACCOUNTS"]);
+      assert.ok(DEPENDENCY_STATUSES["LEGAL_SOURCE"]);
+      assert.ok(DEPENDENCY_STATUSES["ADMIN_OVERVIEW"]);
+      assert.ok(DEPENDENCY_STATUSES["ACCOUNT_LIFECYCLE"]);
+      assert.ok(DEPENDENCY_STATUSES["ADMIN_AUTHORIZATION"]);
     });
   });
 });

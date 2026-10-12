@@ -1,0 +1,96 @@
+{
+  "classification": "V1_ONLY unused custom nested execution/checkpoint reconstruction; canonical Root and governed provider/tool cancellation kept",
+  "removedDefinitions": {
+    "deepagents/tools/common/capabilities/platform/graph_runtime.py": [
+      "GraphNodeContext",
+      "GraphNodeResult",
+      "GraphRunState",
+      "GraphRunResult",
+      "invoke_graph"
+    ],
+    "deepagents/tests/test_graph_runtime_checkpoint.py": [
+      "test_invoke_graph_without_checkpoint_uses_initial_state",
+      "test_invoke_graph_resumes_incomplete_postgres_thread",
+      "test_invoke_graph_reuses_completed_postgres_thread_without_side_effects"
+    ],
+    "deepagents/orchestration/runtime_control.py": [
+      "NativeExecutionScope",
+      "hosted_checkpoint_scope",
+      "invoke_native_values",
+      "checkpointed_invocation",
+      "AsyncCompatibleSaver",
+      "native_stream"
+    ],
+    "deepagents/orchestration/agent_stream.py": [
+      "_FinalValues",
+      "invoke_with_stream",
+      "_invoke_with_stream",
+      "invoke_graph_with_stream",
+      "_invoke_graph_with_stream",
+      "PendingToolCall",
+      "_additional_reasoning_text",
+      "_available_tool_names",
+      "_bound_tool_names",
+      "_content_deltas",
+      "_emit_complete_model_message",
+      "_emit_completed_tool_call",
+      "_emit_message_event",
+      "_emit_model_request_once",
+      "_emit_reasoning_summary",
+      "_emit_update_event",
+      "_emit_values_metadata",
+      "_flush_pending_tool_calls_for_message",
+      "_input_artifact_refs",
+      "_message_metadata",
+      "_model_context_from_metadata",
+      "_model_message_key",
+      "_model_request_key",
+      "_model_result_summary",
+      "_namespace",
+      "_output_refs",
+      "_pop_model_reasoning",
+      "_private_graph_key",
+      "_reasoning_value_text",
+      "_record_model_output_delta",
+      "_record_model_reasoning_delta",
+      "_record_tool_call_chunk",
+      "_safe_graph_update",
+      "_safe_text",
+      "_safe_tool_arguments",
+      "_semantic_payload",
+      "_string_list",
+      "_structured_tool_parameters",
+      "_text",
+      "_tool_call_key",
+      "_tool_result_metrics",
+      "_usage_metadata"
+    ],
+    "deepagents/tests/test_agent_stream.py": [
+      "test_invoke_graph_with_stream_emits_workflow_updates_and_returns_values",
+      "test_invoke_graph_with_stream_raises_agent_stream_interrupted_when_cancel_is_set",
+      "test_invoke_with_stream_falls_back_to_invoke_without_active_session",
+      "test_invoke_with_stream_forwards_visible_events_and_returns_root_values",
+      "test_invoke_with_stream_ignores_an_unset_cancel_event",
+      "test_invoke_with_stream_raises_agent_stream_interrupted_when_cancel_is_set",
+      "test_invoke_with_stream_reconstructs_fragmented_semantic_tool_call_once",
+      "test_invoke_with_stream_returns_final_values_when_nested_in_a_parent_graph_node",
+      "test_model_result_summary_accumulates_prior_content_chunks_without_reasoning",
+      "test_non_streaming_model_step_surfaces_reasoning_tool_calls_and_output",
+      "test_streamed_reasoning_is_one_summary_per_step_not_one_per_token"
+    ],
+    "deepagents/tests/test_usage_telemetry.py": [
+      "_tool_events",
+      "test_tool_result_metrics_text_and_json_items"
+    ],
+    "deepagents/tests/test_runtime_control.py": [
+      "test_explicit_workflow_checkpoint_identity_is_not_replaced_by_root_scope",
+      "test_native_checkpoint_resume_preserves_completed_nodes_for_each_stage",
+      "test_native_server_stop_resume_fences_old_provider_and_reuses_completed_work",
+      "test_stop_waits_for_nested_checkpoint_cleanup"
+    ],
+    "deepagents/tests/test_system_event_dispatch_async.py": [
+      "test_expired_queued_scan_reports_terminal_failure",
+      "test_hosted_native_stop_drains_nested_model_and_resumes_checkpoint"
+    ]
+  }
+}

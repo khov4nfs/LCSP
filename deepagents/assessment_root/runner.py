@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+from dataclasses import replace
 import uuid
 from typing import Any, Callable
 
@@ -13,6 +14,11 @@ from assessment_root.agent import create_assessment_root_agent
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.tools import RootRun, SearchTrace
 from assessment_root.runtime_control import RootRuntimeControl
+from middleware.usage_metering import active_agent_run_state, activate_agent_run_state
+from orchestration.agent_stream import (
+    active_agent_stream, AgentStreamSession, BufferedAgentStreamEmitter,
+    activate_agent_stream, publish_agent_stream_event,
+)
 from tools.common.capabilities.platform.logging import get_logger
 
 logger = get_logger(__name__)
@@ -29,7 +35,7 @@ LABEL_TASK_FINISHED = "assessment.activity.taskFinished"
 
 _START_MESSAGE = (
     "Start (or resume) this assessment. Call get_assessment_context first, then work through "
-    "every EngineeringRule of the pinned portfolio."
+    "every AssessmentRule of the pinned rule set."
 )
 
 
@@ -80,6 +86,32 @@ class TaskLineage(BaseCallbackHandler):
 BackendFactory = Callable[[dict[str, Any], dict[str, Any]], tuple[Any, Any]]
 
 
+@contextlib.contextmanager
+def _root_telemetry(claim: dict[str, Any]):
+    state = active_agent_run_state()
+    parent = active_agent_stream.get()
+    session = None
+    if state is not None and state.api_client is not None and parent is not None:
+        session = AgentStreamSession(
+            assessment_id=claim["assessmentId"], run_id=claim["executionId"],
+            correlation_id=parent.correlation_id, boundary_name=parent.boundary_name,
+            emit_payload=BufferedAgentStreamEmitter(
+                lambda payload: state.api_client.post_agent_stream_event(
+                    payload, lease_token=claim["leaseToken"],
+                ),
+            ),
+        )
+    with activate_agent_run_state(replace(state, run_id=claim["executionId"]) if state else None), activate_agent_stream(session):
+        publish_agent_stream_event("BOUNDARY_STARTED", status="RUNNING")
+        try:
+            yield
+        except Exception as error:
+            publish_agent_stream_event("BOUNDARY_FAILED", status="FAILED", data={"exception_type": type(error).__name__})
+            raise
+        else:
+            publish_agent_stream_event("BOUNDARY_COMPLETED", status="COMPLETED")
+
+
 def run_assessment_root(
     client: AssessmentRuntimeClient,
     assessment_id: str,
@@ -87,8 +119,11 @@ def run_assessment_root(
     backend_factory: BackendFactory,
     model: Any | None = None,
     checkpointer: Any | None = None,
+    store: Any | None = None,
     governance: Any | None = None,
-    recursion_limit: int = 200,
+    # Superstep ceiling, not a round count: each model/tool round also runs the governance middleware
+    # nodes (~17 supersteps observed), so 200 allowed only ~12 rounds. ponytail: fixed ceiling, derive from a round budget if the middleware stack changes.
+    recursion_limit: int = 1000,
     extra_callbacks: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Execute one Root run on the assessment's server-owned thread.
@@ -97,6 +132,10 @@ def run_assessment_root(
     reclaimed under a NEW execution ID on the SAME thread, so the checkpoint continues.
     """
     claim = client.claim(assessment_id)
+    if claim.get("lifecycleState") == "COMPLETE":
+        # Finalization already committed before the crash; only settle its execution acknowledgement.
+        client.finish(EXECUTION_SUCCEEDED)
+        return {"state": EXECUTION_SUCCEEDED, "executionId": claim["executionId"], "threadId": claim["threadId"], "errorType": None, "checkpointId": None}
     context = client.context()
     final_state = EXECUTION_SUCCEEDED
     error_type: str | None = None
@@ -120,6 +159,7 @@ def run_assessment_root(
             run=run,
             model=model,
             checkpointer=checkpointer,
+            store=store,
             governance=governance,
             middleware=[RootRuntimeControl(client, run.execution_id)],
         )
@@ -128,17 +168,18 @@ def run_assessment_root(
             "recursion_limit": recursion_limit,
             "callbacks": [run.trace, TaskLineage(client, run.execution_id), *(extra_callbacks or [])],
         }
-        with activation or contextlib.nullcontext():
+        with activation or contextlib.nullcontext(), _root_telemetry(claim):
             packet: Any = {"messages": [{"role": "user", "content": _START_MESSAGE}]}
             if checkpointer is not None:
                 saved = agent.get_state(config)
                 expected = claim.get("resumeCheckpointId")
                 actual = saved.config.get("configurable", {}).get("checkpoint_id") if saved.config else None
-                if expected and actual != expected:
-                    raise RuntimeError("server checkpoint binding does not match native Root checkpoint")
                 pending = [item for task in saved.tasks for item in task.interrupts]
                 control_wait = [item for item in pending if "controlRequestId" in item.value]
-                if control_wait and not expected:
+                recovered = claim.get("recoveredExecution", False)
+                if expected and actual != expected and (not recovered or (pending and not control_wait)):
+                    raise RuntimeError("server checkpoint binding does not match native Root checkpoint")
+                if control_wait and (not expected or recovered):
                     if len(control_wait) != 1 or control_wait[0].value["targetExecutionId"] != run.execution_id:
                         raise RuntimeError("native Stop checkpoint does not match server execution")
                     checkpoint_id = actual

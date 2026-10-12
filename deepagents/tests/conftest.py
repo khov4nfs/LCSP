@@ -35,7 +35,7 @@ for _dotenv_key in _SESSION_DOTENV_KEYS:
 _DEFAULT_MODEL_ROUTES_YAML = """\
 version: 1
 routes:
-  primary: {provider: llm7, model: model-alpha}
+  primary: {provider: apx, model: model-alpha}
 roles:
   default: primary
 """
@@ -47,7 +47,7 @@ FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
 def _ensure_default_model_routes() -> None:
     os.environ.setdefault("LCSP_MODEL_ROUTES_FILE", str(_DEFAULT_ROUTES_FILE))
-    os.environ.setdefault("LLM7_API_KEY", "test-offline-key")
+    os.environ.setdefault("APX_API_KEY", "test-offline-key")
 
 
 _ensure_default_model_routes()
@@ -168,10 +168,10 @@ def isolated_legal_storage_root(
     tmp_path_factory: pytest.TempPathFactory,
     isolated_process_environment: None,
 ) -> Generator[None, None, None]:
-    """Keep recovery artifacts and singleton locks out of the real .corpus root.
+    """Keep recovery artifacts and singleton locks out of the real .legal-source root.
 
     Recovery artifacts double as triage completion markers, so a test writing into the
-    developer's storage root can silently mark real LegalRules as already triaged.
+    developer's storage root can silently mark real LegalRequirements as already triaged.
 
     This deliberately does not use `monkeypatch`: requesting it here would build it
     before every test's own fixtures and so delay its undo past their teardown, which
@@ -238,7 +238,7 @@ def no_secrets_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in [
         "OPENAI_API_KEY",
         "ANTHROPIC_API_KEY",
-        "LLM7_API_KEY",
+        "APX_API_KEY",
         "INCEPTION_API_KEY",
         "APX_API_KEY",
         "GITHUB_TOKEN",

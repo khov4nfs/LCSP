@@ -1,0 +1,56 @@
+{
+  "status": "FAIL_OBSERVED",
+  "candidateId": "20261012054358_c13bae52f1ac",
+  "runId": "f52606b690a84c87",
+  "publicEvidenceOnly": true,
+  "source": "Persisted C facts and decision rationales; no hidden chain-of-thought",
+  "unknownDeploymentFact": [
+    {
+      "factId": "7799b80c-6458-56a3-b529-0f6aabccfb0d",
+      "assessmentId": "c000b0cc-d884-4322-91c1-360602a11306",
+      "caseRevision": 1,
+      "kind": "USE_CASE",
+      "authority": "EVIDENCE_CITED",
+      "state": "ACCEPTED",
+      "statement": "This is a notice service that stores notices received by an operator, retaining them for a configured statutory retention period. The service stores notice text, receipt timestamp, draft timestamp, and a flag indicating whether records are temporary test records. Temporary test records are excluded from normal retention processing. Deployment exposure (publicly reachable vs private/internal only) is an operator/environment decision not stored in this repository.",
+      "createdAt": "2026-10-12T06:28:10.366+00:00",
+      "invalidatedAt": null
+    }
+  ],
+  "invalidInferenceExamples": [
+    {
+      "decisionId": "1553c585-0323-42b9-8143-706898a9dbb8",
+      "assessmentRuleId": "AR-RETENTION-ASSOCIATION",
+      "state": "ACCEPTED",
+      "rationale": "The system is designed as a notice service for operators with statutory retention requirements, as evidenced by the README stating it 'stores notices received by an operator and retains them for the configured statutory retention period.' This design indicates the system is intended for entities offering the notice service to the public, not for private household use. Therefore, the retention requirements apply."
+    },
+    {
+      "decisionId": "fde2598c-e626-4421-abd4-d1d092ce2cdf",
+      "assessmentRuleId": "AR-RETENTION-DURATION",
+      "state": "INVALIDATED",
+      "rationale": "The system is designed as a notice service for operators with statutory retention requirements, as evidenced by the README stating it 'stores notices received by an operator and retains them for the configured statutory retention period.' This design indicates the system is intended for entities offering the notice service to the public, not for private household use. Therefore, the retention requirements apply."
+    },
+    {
+      "decisionId": "f8935180-1476-411a-b7c4-af3e5d2ef17b",
+      "assessmentRuleId": "AR-RETENTION-INTEGRITY",
+      "state": "ACCEPTED",
+      "rationale": "The system is designed as a notice service for operators with statutory retention requirements, as evidenced by the README stating it 'stores notices received by an operator and retains them for the configured statutory retention period.' This design indicates the system is intended for entities offering the notice service to the public, not for private household use. Therefore, the retention requirements apply."
+    },
+    {
+      "decisionId": "4c781651-0f61-4779-9729-4ae78907d090",
+      "assessmentRuleId": "AR-RETENTION-ASSOCIATION",
+      "state": "INVALIDATED",
+      "rationale": "The system is designed as a notice service for operators with statutory retention requirements, as evidenced by the README stating it 'stores notices received by an operator and retains them for the configured statutory retention period.' This design indicates the system is intended for entities offering the notice service to the public, not for private household use. Therefore, the retention requirements apply."
+    },
+    {
+      "decisionId": "61a0b0a2-8dc1-435d-963c-9b808241bdc7",
+      "assessmentRuleId": "AR-RETENTION-DURATION",
+      "state": "ACCEPTED",
+      "rationale": "The system is designed as a notice service for operators with statutory retention requirements, as evidenced by the README stating it 'stores notices received by an operator and retains them for the configured statutory retention period.' This design indicates the system is intended for entities offering the notice service to the public, not for private household use. Therefore, the retention requirements apply."
+    }
+  ],
+  "humanRequestCount": 0,
+  "fix": "Narrow existing Root applicability guidance: purpose/labels cannot settle an explicitly unresolved operator-owned deployment/audience fact; resolve shared material scope before final decisions.",
+  "dependencyCausation": "NOT_ESTABLISHED; failure discovered by fresh exact-image acceptance",
+  "productionTouched": false
+}

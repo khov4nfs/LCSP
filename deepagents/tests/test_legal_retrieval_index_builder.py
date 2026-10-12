@@ -1,17 +1,17 @@
 import json
 from pathlib import Path
 
-from tools.legal.corpus.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRecord, ChunkIntegrityRepository
-from tools.legal.corpus.legal_chunks.legal_chunk_builder import BuildLegalChunksRequest, LegalChunkBuilder
-from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
+from tools.legal.legal_source.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRecord, ChunkIntegrityRepository
+from tools.legal.legal_source.legal_chunks.legal_chunk_builder import BuildLegalChunksRequest, LegalChunkBuilder
+from tools.legal.legal_source.legal_chunks.legal_chunk_repository import LegalChunkRepository
 from tools.legal.retrieval.index.legal_retrieval_index_builder import (
     BuildLegalRetrievalIndexRequest,
     LegalRetrievalIndexBuilder,
     _effect_metadata,
 )
-from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
-    ReviewedCorpusInputRecord,
-    ReviewedCorpusInputRepository,
+from tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_repository import (
+    ReviewedLegalSourceInputRecord,
+    ReviewedLegalSourceInputRepository,
 )
 
 
@@ -28,7 +28,7 @@ class FakeIndexStore:
 
 
 def _write_reviewed_input(storage_root: Path) -> str:
-    output_dir = storage_root / "reviewed-corpus-inputs" / "reviewed-input-123456"
+    output_dir = storage_root / "reviewed-legal-source-inputs" / "reviewed-input-123456"
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized_text_path = output_dir / "LAW-TEST.reviewed.txt"
     manifest_path = output_dir / "LAW-TEST.reviewed-input.json"
@@ -44,8 +44,8 @@ def _write_reviewed_input(storage_root: Path) -> str:
     from tools.legal.sources.extraction.official_text_extraction import _sha256_text
 
     content_sha256 = _sha256_text(text)
-    ReviewedCorpusInputRepository(storage_root=storage_root).save(
-        ReviewedCorpusInputRecord(
+    ReviewedLegalSourceInputRepository(storage_root=storage_root).save(
+        ReviewedLegalSourceInputRecord(
             reviewed_input_ref="reviewed-input:reviewed-input-123456",
             provenance_ref="prov:reviewed-input:reviewed-input-123456",
             extraction_ref="extraction:canonical-12345678",
@@ -72,7 +72,7 @@ def _build_chunk_set(storage_root: Path) -> str:
     reviewed_input_ref = _write_reviewed_input(storage_root)
     result = LegalChunkBuilder(
         storage_root=storage_root,
-        reviewed_input_repository=ReviewedCorpusInputRepository(storage_root=storage_root),
+        reviewed_input_repository=ReviewedLegalSourceInputRepository(storage_root=storage_root),
     ).build(
         BuildLegalChunksRequest(
             reviewed_input_ref=reviewed_input_ref,

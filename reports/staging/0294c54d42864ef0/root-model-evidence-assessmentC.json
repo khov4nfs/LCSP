@@ -1,0 +1,30 @@
+{
+  "scope": "EXACT_IMAGE_ROOT_MODEL_IDENTITY",
+  "runId": "0294c54d42864ef0",
+  "assessmentId": "663ec102-0c82-4b7e-ab7c-825cfa8bec25",
+  "configuredRole": "assessment-root",
+  "configuredProvider": "apx",
+  "configuredModel": "claude-sonnet-4-6-free",
+  "configuredFallbackRouteIds": [
+    "fallback",
+    "fallback-01"
+  ],
+  "actualProviders": [
+    "apx"
+  ],
+  "actualModels": [
+    "claude-sonnet-4-6-free"
+  ],
+  "usageByRoleProviderModel": [
+    {
+      "agentRole": "assessment-root",
+      "provider": "APX",
+      "model": "claude-sonnet-4-6-free",
+      "status": "SETTLED",
+      "n": 13
+    }
+  ],
+  "circuitOpenedForThisRun": 0,
+  "providerFallbackLogLines": 0,
+  "primaryFallbackUsed": false
+}

@@ -1,0 +1,148 @@
+{
+  "scope": "LEGAL_PORTFOLIO_DECLARED_COVERAGE_CONSISTENCY_AND_SYNTHETIC_FIXTURE_PREPARATION",
+  "status": "PASS_FOCUSED_SOURCE_VERIFICATION",
+  "nextState": "FRESH_RELEASE_CANDIDATE_BUILD_AND_LEGAL_PREPARATION",
+  "verifiedAt": "2026-10-10T11:48:41.751732+00:00",
+  "head": "836607eb2b5e2ad89a966d06212134941ecc2cc1",
+  "sourceHashes": {
+    "packages/contracts/src/legal-portfolio/schemas.ts": "81373667149e23f8942b1bd1a2927b348a7a643ded2c08fe19b324e581312736",
+    "deepagents/legal_preparation/instructions.md": "659a822c2c80f58b9b987a1f57eb1e97c5fed640a5bd82f5072a8969f183a11d",
+    "deepagents/legal_preparation/packet-schema.json": "ef787baecdb95088a4e5e9e51f0a0a6d77c4100f1db6f01d1e4baf87f5b540bc",
+    "apps/api/src/modules/legal-portfolio/domain/legal-portfolio-coverage.contract.spec.ts": "e580b3c5b48fd9dd3b0b54ac24ba70cede9262879cd8e3614375ebf9595b4249",
+    "apps/api/src/modules/legal-portfolio/presentation/http/legal-portfolio.controller.spec.ts": "67edeca2cf97e4eac82222d5343bed5c9389513c8c57ab8b8a9741dc2c8a8c4f",
+    "apps/api/src/modules/legal-portfolio/application/services/legal-portfolio.service.integration.spec.ts": "468f46229bc966b0c7ba93b92bb39f3f3ed4d554682191eb6cb082633e886a07",
+    "deepagents/tests/test_legal_preparation_agent.py": "66ae21858deb5ca82a812952aea77c7c0f36395c7ee2d2d067494a83f87378af"
+  },
+  "rootCause": "Shared packet validation checked coverage reason fields independently. The domain validator required covered rules to be linked, but allowed EngineeringRule legalRuleIds to reference NON_ASSESSABLE rules.",
+  "fix": {
+    "authority": "shared legalPortfolioPacketSchema.superRefine over explicit EngineeringRule.legalRuleIds",
+    "checks": [
+      "NON_ASSESSABLE => no EngineeringRule reference",
+      "COVERED_BY_ENGINEERING_RULES => at least one EngineeringRule reference"
+    ],
+    "issuePaths": [
+      "packet.engineeringRules.<index>.legalRuleIds.<index>",
+      "packet.legalRules.<index>.coverage.state"
+    ],
+    "feedback": "Schema-authored static structural requirements, max 200 characters per issue and 800 total, using the existing shared 400 problem envelope and WorkerApiClient feedback path",
+    "reasonInvariantPreserved": true,
+    "semanticChoiceOwner": "LEGAL_PREPARATION_AGENT",
+    "semanticOracleIntroduced": false,
+    "instruction": "General NON_ASSESSABLE no-reference and mixed-duty decomposition guidance; no fixture-specific production branch"
+  },
+  "fixture": {
+    "localPath": "/tmp/lcsp-synthetic-notice-service",
+    "durableCopies": "reports/synthetic-notice-service",
+    "files": {
+      "README.md": "63e81c489daca8413a40e7513e832c59da195c7866ca7fb89844c1811a426a54",
+      "schema.sql": "3e7af771ecb385cc4019f938b5ce8b8d0bde65f7cf23f53f22a06cbe75389ddb",
+      "service.py": "c101115c498dac957890c20fab33b6ed1f2ede6c093250b8864da86b6f3683d5"
+    },
+    "status": "PASS_LOCAL_BEHAVIOR_CHECK",
+    "published": true,
+    "intendedRepository": "khov4nfs/lcsp-synthetic-notice-service",
+    "humanDeploymentAnswerEncoded": false,
+    "expectedVerdictFiles": false,
+    "checks": [
+      "exactly three files",
+      "notice text preserved byte-for-byte as a Python string",
+      "receipt and draft timestamps stored",
+      "seven-day boundary based on draft timestamp",
+      "temporary-test record excluded",
+      "no external database dependency"
+    ],
+    "readOnlyExistingRepository": "https://github.com/khov4nfs/codex-pr-review-bot",
+    "existingRepositoryModified": false,
+    "publicationCommandNotExecuted": "cd /tmp/lcsp-synthetic-notice-service\ngit init -b main\ngit add README.md schema.sql service.py\ngit commit -m \"Add synthetic notice service assessment fixture\"\ngh repo create khov4nfs/lcsp-synthetic-notice-service --private --source=. --remote=origin --push",
+    "publicationCredentialPrecondition": "GH_TOKEN available in the local shell environment; never copy its value into commands or evidence",
+    "publicationReceipt": "reports/synthetic-notice-service-publication.json",
+    "publishedCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe"
+  },
+  "verification": {
+    "beforeFix": {
+      "contractTestsFailed": 2,
+      "contractTestsPassed": 11
+    },
+    "contractApi": {
+      "passed": 42,
+      "receipt": "reports/legal-portfolio-coverage-graph-api.json"
+    },
+    "postgres": {
+      "passed": 18,
+      "receipt": "reports/legal-portfolio-coverage-graph-db.json",
+      "freshMigratedDatabase": true,
+      "invalidPacketNoRowsPersisted": true,
+      "validPacketAutomaticActivation": true,
+      "teardown": {
+        "status": "STOPPED",
+        "ownedContainer": "lcsp-coverage-check-7f9ddcad942c4e83b0bcf4ca71d342fb",
+        "exitCode": 0
+      }
+    },
+    "python": {
+      "tests": 55,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "receipt": "reports/legal-portfolio-coverage-graph-python.xml",
+      "realWorkerApiClientFeedbackIntoScriptedAgent": true,
+      "providerCallMade": false
+    },
+    "additionalContractTests": {
+      "passed": 6,
+      "command": "pnpm exec tsx --test tests/legal-portfolio-contracts.test.ts"
+    },
+    "schemaExportBuildParity": "PASS",
+    "modelFacingCoverageObject": "SIMPLE_FLAT_OBJECT",
+    "coverageDiscriminatedUnionIntroduced": false,
+    "schemaDefaultsIntroduced": false,
+    "apiTypecheck": "PASS",
+    "workspaceTypecheck": "PASS",
+    "contractLiteralPolicy": "PASS",
+    "affectedApiEslint": "PASS",
+    "changedTsAndGeneratedSchemaPrettier": "PASS",
+    "diffCheck": "PASS"
+  },
+  "databaseDefense": {
+    "coverageReasonCheckRetained": true,
+    "migration": "apps/api/prisma/migrations/20261006120000_legal_portfolio_expand/migration.sql",
+    "sha256": "3e0ab48cdb3b3c0db1d3213213e2497fc2fcc7ff2a4e99aad52abefbea85d008",
+    "samePortfolioForeignKeysRetained": true,
+    "newDatabaseSemanticConstraintIntroduced": false
+  },
+  "candidate": {
+    "previousReceipt": "reports/release-images/20261010111038_e7b5ed769ac0/report.json",
+    "currentSourceMatch": false,
+    "disposition": "HISTORICAL_ACCEPTED_IMAGES_SOURCE_INVALIDATED_BY_CONTRACT_AND_INSTRUCTIONS",
+    "freshBuild": "NOT_RUN_USER_PUBLICATION_BOUNDARY",
+    "recordedInputComparison": {
+      "source": {
+        "recordedHashes": 1077,
+        "matching": 1074,
+        "mismatches": [
+          "deepagents/legal_preparation/packet-schema.json",
+          "deepagents/legal_preparation/instructions.md",
+          "packages/contracts/src/legal-portfolio/schemas.ts"
+        ]
+      },
+      "buildAndPolicyInputs": {
+        "recordedHashes": 22,
+        "matching": 22,
+        "mismatches": []
+      }
+    }
+  },
+  "liveLegalSemantics": {
+    "status": "NOT_RUN_AFTER_SOURCE_CHANGE",
+    "previousFailure": "reports/staging/804a20977d4a448f/legal-semantic-review.json",
+    "requiredDimensions": 6,
+    "rubricWeakened": false,
+    "packetManuallyEdited": false
+  },
+  "fullPlaywright": "NOT_RUN_USER_PUBLICATION_BOUNDARY",
+  "modelRoutingChanged": false,
+  "providerAccountingEvidence": "REUSED_UNAFFECTED",
+  "gitPublicationPerformed": false,
+  "productionDeployment": false,
+  "releaseEligible": false
+}

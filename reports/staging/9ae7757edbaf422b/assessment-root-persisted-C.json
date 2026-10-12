@@ -1,0 +1,5172 @@
+{
+  "scope": "PERSISTED_ROOT_DECISIONS_EVIDENCE_FACTS_EVENTS",
+  "runId": "9ae7757edbaf422b",
+  "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+  "assessment": {
+    "id": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+    "ownerId": "76719a97-166a-4644-9966-2035988f44d2",
+    "name": "Notice retention review after V2 activation",
+    "description": "This synthetic notice service is publicly reachable and operated by an entity offering the service to the public. Review its notice retention.",
+    "createdAt": "2026-10-11T20:39:04.75",
+    "updatedAt": "2026-10-11T20:47:31.214",
+    "blockerReason": null,
+    "blockerReference": null,
+    "lifecycleRevision": 8,
+    "lifecycleState": "COMPLETE"
+  },
+  "case": {
+    "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+    "caseRevision": 2,
+    "legalPortfolioVersionId": "1531de0b-29c1-4e82-8781-58c4e16f16a1",
+    "repositorySnapshotId": "5a0a90cc-e834-4981-b086-4447f6ed05ed",
+    "repositoryScanJobId": "fcd4fb1c-8f72-4176-a010-ade6dabe7208",
+    "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+    "pinnedAt": "2026-10-11T20:39:04.75+00:00",
+    "createdAt": "2026-10-11T20:39:04.753+00:00",
+    "updatedAt": "2026-10-11T20:44:56.361+00:00"
+  },
+  "runtime": {
+    "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+    "threadId": "b55cbc4e-cb67-4b65-950b-41feb9af3981",
+    "rootAgentVersion": "assessment-root-v2",
+    "checkpointNamespace": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+    "checkpointId": "1f1c5b4d-f43e-6085-8160-8e6cfc8b97e3",
+    "currentExecutionId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+    "executionState": "SUCCEEDED",
+    "leaseToken": null,
+    "leaseExpiresAt": null,
+    "eventSequence": 78,
+    "startedAt": "2026-10-11T20:47:10.766+00:00",
+    "lastResumedAt": "2026-10-11T20:47:10.766+00:00",
+    "createdAt": "2026-10-11T20:39:04.752+00:00",
+    "updatedAt": "2026-10-11T20:47:41.379+00:00"
+  },
+  "decisions": [
+    {
+      "decisionId": "cf9aaeab-e280-4b7f-b02f-340054939954",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "portfolioVersionId": "1531de0b-29c1-4e82-8781-58c4e16f16a1",
+      "engineeringRuleId": "AR-RETENTION",
+      "engineeringRuleVersion": "release-synthetic-9ae7757edbaf422b-supersession",
+      "scopeId": "ASSESSMENT",
+      "decisionRevision": 1,
+      "state": "ACCEPTED",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "caseRevision": 2,
+      "idempotencyKey": "decision:b55cbc4e-cb67-4b65-950b-41feb9af3981:72b9c54018b8b81611df738c",
+      "requestDigest": "a80f76f877bbce077d77c8f81b57c22ae2dab43e2bf77f99ab9b2839f25b4a1e",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "The system configures a 7-day retention period (RETENTION_PERIOD = timedelta(days=7)) but critically miscalculates it. The delete_expired method at line 44 uses 'notice.draft_timestamp + RETENTION_PERIOD' to determine expiration, measuring 7 days from the draft timestamp instead of the receipt timestamp as required. This violates the legal requirement that the 7-day period must begin 'from the receipt timestamp' and the qualifier that 'receipt timestamp begins the retention period.' A notice drafted days before receipt would be deleted prematurely.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e2186f61-09ca-5303-910f-4fcafe96146b"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "b4973522-fedf-5766-a6be-a691344546e3"
+              }
+            ],
+            "criterionId": "C-1"
+          },
+          {
+            "outcome": "MET",
+            "rationale": "The database schema defines the notices table with both notice_text (TEXT NOT NULL) and receipt_timestamp (TIMESTAMPTZ NOT NULL) as columns in the same table, ensuring they are stored together. The Notice dataclass in service.py also binds these fields together in a single record structure. Every notice record contains both the text and its receipt timestamp as part of the same stored entity.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "15df8b39-6eed-5e78-b67a-d0af6d55a087"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "1f9d9104-d920-529f-9cca-63abf1d435f3"
+              }
+            ],
+            "criterionId": "C-2"
+          },
+          {
+            "outcome": "MET",
+            "rationale": "The receive method accepts receipt_timestamp as an explicit parameter (line 24) and stores it directly in the Notice record (line 30). This timestamp is passed in by the caller at the point of notice receipt, not derived from the draft_timestamp. The schema and dataclass both maintain receipt_timestamp as a distinct field from draft_timestamp, confirming that the receipt timestamp is recorded when the notice is received, not when drafted.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "7d81232c-6721-50c1-b705-0de113aa554a"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "1f9d9104-d920-529f-9cca-63abf1d435f3"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "15df8b39-6eed-5e78-b67a-d0af6d55a087"
+              }
+            ],
+            "criterionId": "C-3"
+          },
+          {
+            "outcome": "MET",
+            "rationale": "The Notice dataclass is declared frozen=True (line 9), making all fields immutable after creation. The notice_text field is stored as-is with no transformation logic. The NoticeService class has only three methods (receive, get, delete_expired) verified through code graph analysis - none modify notice text. Comprehensive searches (grep for replace, strip, sanitize, remove, filter, clean, transform, update, set, edit, modify, lower, upper, limiting, truncate) found zero text-processing matches. Direct inspection of all source files confirmed no text modification code exists. The frozen dataclass design and verified absence of any text-processing logic ensures that notice text, including any limiting language, is preserved exactly as received.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "1f9d9104-d920-529f-9cca-63abf1d435f3"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "c92a135b-cc60-5cba-b1bf-7033a6166349"
+              }
+            ],
+            "criterionId": "C-4"
+          }
+        ],
+        "rationale": "The rule applies because the customer has confirmed that this notice service is offered to the public by its operator, is publicly reachable, and is not private household use. The applicability condition 'Operator offers the notice service to the public (not private household use)' is satisfied. The system stores notice records (notice text with receipt timestamps) and applies retention logic, falling within the rule's scope.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "8440a7eb-722a-5223-a5b7-63db18d07f48"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "15df8b39-6eed-5e78-b67a-d0af6d55a087"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "e50be33b-04c6-4b1d-a81b-33e4b9b768ed",
+            "caseRevision": 2
+          }
+        ],
+        "caseRevision": 2,
+        "applicability": "APPLICABLE",
+        "assessmentRuleId": "AR-RETENTION",
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-RETENTION"
+          }
+        ],
+        "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+        "ruleSetVersionId": "1531de0b-29c1-4e82-8781-58c4e16f16a1",
+        "repositorySnapshotId": "5a0a90cc-e834-4981-b086-4447f6ed05ed",
+        "assessmentRuleVersion": "release-synthetic-9ae7757edbaf422b-supersession"
+      },
+      "createdAt": "2026-10-11T20:46:38.186+00:00",
+      "supersededAt": null,
+      "invalidatedAt": null
+    }
+  ],
+  "evidence": [
+    {
+      "evidenceId": "8440a7eb-722a-5223-a5b7-63db18d07f48",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:02cd6f584f928250a7f0a357d75ab02a36be316068ae229076619a2d11b1b637",
+      "payload": {
+        "path": "README.md",
+        "endLine": 15,
+        "startLine": 1
+      },
+      "createdAt": "2026-10-11T20:42:55.969+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "evidenceId": "15df8b39-6eed-5e78-b67a-d0af6d55a087",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:3069b3338ed5cda42f8a346f30bbebaca1baae8737995c84af83f97ef004fdb0",
+      "payload": {
+        "path": "schema.sql",
+        "endLine": 7,
+        "startLine": 1
+      },
+      "createdAt": "2026-10-11T20:42:55.978+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "evidenceId": "7d81232c-6721-50c1-b705-0de113aa554a",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:35d564f916291132cf1220a3b694081350b94cb2936f9310c232cb60edec92e7",
+      "payload": {
+        "path": "service.py",
+        "endLine": 34,
+        "startLine": 22
+      },
+      "createdAt": "2026-10-11T20:42:55.994+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "evidenceId": "1f9d9104-d920-529f-9cca-63abf1d435f3",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:93dcf13a62ec244b7b818448c417c1235b19b74f6135a4351b529c5365a54840",
+      "payload": {
+        "path": "service.py",
+        "endLine": 15,
+        "startLine": 9
+      },
+      "createdAt": "2026-10-11T20:42:56.005+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "evidenceId": "b4973522-fedf-5766-a6be-a691344546e3",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:dded047efaae0cf9c0f2e8ea0842918b1627b35050d268b80fffbf836fb943fa",
+      "payload": {
+        "path": "service.py",
+        "endLine": 47,
+        "startLine": 39
+      },
+      "createdAt": "2026-10-11T20:42:56.018+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "evidenceId": "e2186f61-09ca-5303-910f-4fcafe96146b",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:ba8b37a4e3ec006c0b1dcf8eb45f5b1ef7699c8b619155b152dea59842dd2a26",
+      "payload": {
+        "path": "service.py",
+        "endLine": 6,
+        "startLine": 6
+      },
+      "createdAt": "2026-10-11T20:42:56.031+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "evidenceId": "00f79080-630e-54dc-bff5-f00ce08282f4",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "SEARCH_COVERAGE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:df716b83a9a0b5b5eccce77d63f508ecf83e061ace75451cf8b8a345aaa3a8ec",
+      "payload": {
+        "scopes": [
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "."
+          },
+          {
+            "kind": "GRAPH_INDEX",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "README.md"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "service.py"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "schema.sql"
+          }
+        ],
+        "queries": [
+          {
+            "tool": "ls",
+            "query": "{'path': '/'}",
+            "truncated": false,
+            "resultCount": 5
+          },
+          {
+            "tool": "get_repository_architecture",
+            "query": "{'aspects': ['all']}",
+            "truncated": false,
+            "resultCount": 49
+          },
+          {
+            "tool": "glob",
+            "query": "*.{yml,yaml,json,ini,conf,config,txt}",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "glob",
+            "query": ".md",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "glob",
+            "query": "*.md",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "glob",
+            "query": "*",
+            "truncated": false,
+            "resultCount": 3
+          },
+          {
+            "tool": "grep",
+            "query": "replace",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "sanitize",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "strip",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "remove",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "filter",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "clean",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "transform",
+            "truncated": false,
+            "resultCount": 0
+          }
+        ],
+        "knownGaps": [
+          "No deployment configuration present in repository to confirm whether service is offered to the public or used privately",
+          "No runtime configuration files that might modify notice text processing"
+        ],
+        "inspectedEntryPoints": [
+          "README.md",
+          "schema.sql",
+          "service.py"
+        ],
+        "directSourceFallbacks": [
+          {
+            "path": "service.py",
+            "reason": "Read complete service implementation to verify all notice text handling"
+          },
+          {
+            "path": "schema.sql",
+            "reason": "Read complete database schema to verify data structure"
+          }
+        ]
+      },
+      "createdAt": "2026-10-11T20:43:18.724+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "evidenceId": "10318bd9-a46e-4411-b9f5-db58bcdadcb2",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "HUMAN_ANSWER",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:886dfcdf95a30634861549bb8b6325b0e92e1a5e3ebe0898f65828930bdce534",
+      "payload": {
+        "answer": "This synthetic notice service is offered to the public by its operator, is publicly reachable, and is not private household use.",
+        "actorId": "76719a97-166a-4644-9966-2035988f44d2",
+        "requestId": "be3e62f3-21dc-469b-abe7-fc50eddaa45c",
+        "caseRevision": 2,
+        "requestRevision": 1
+      },
+      "createdAt": "2026-10-11T20:44:56.363+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "evidenceId": "c92a135b-cc60-5cba-b1bf-7033a6166349",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "type": "SEARCH_COVERAGE",
+      "state": "ACCEPTED",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "contentSha256": "sha256:7a6552944f7732ab24d3a9e6b34ca1fe95955fd43c2c6385fdaedef45cb9cbf0",
+      "payload": {
+        "scopes": [
+          {
+            "kind": "GRAPH_INDEX",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "."
+          }
+        ],
+        "queries": [
+          {
+            "tool": "search_code_graph",
+            "query": ".*[Nn]otice.*",
+            "truncated": false,
+            "resultCount": 9
+          },
+          {
+            "tool": "trace_call_path",
+            "query": "{'function_name': 'receive', 'direction': 'both', 'depth': 3}",
+            "truncated": false,
+            "resultCount": 9
+          },
+          {
+            "tool": "search_code_graph",
+            "query": ".*[Tt]ext.*",
+            "truncated": false,
+            "resultCount": 6
+          },
+          {
+            "tool": "grep",
+            "query": "set",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "modify",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "update",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "edit",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "search_code_graph",
+            "query": "{'label': 'Method', 'limit': 50}",
+            "truncated": false,
+            "resultCount": 14
+          },
+          {
+            "tool": "grep",
+            "query": "truncate",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "upper(",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "lower(",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "limiting",
+            "truncated": false,
+            "resultCount": 0
+          },
+          {
+            "tool": "grep",
+            "query": "[",
+            "truncated": false,
+            "resultCount": 7
+          }
+        ],
+        "knownGaps": [],
+        "inspectedEntryPoints": [],
+        "directSourceFallbacks": []
+      },
+      "createdAt": "2026-10-11T20:46:19.462+00:00",
+      "invalidatedAt": null
+    }
+  ],
+  "facts": [
+    {
+      "factId": "0a848663-32da-5103-b2ab-c9384468369a",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "caseRevision": 1,
+      "kind": "USE_CASE",
+      "authority": "EVIDENCE_CITED",
+      "state": "ACCEPTED",
+      "statement": "This is a notice service that stores notices received by an operator, retaining notice text, receipt timestamp, draft timestamp, and a flag indicating whether the record is a temporary test record. The service is intended to retain notices for a statutory retention period.",
+      "createdAt": "2026-10-11T20:43:04.422+00:00",
+      "invalidatedAt": null
+    },
+    {
+      "factId": "e50be33b-04c6-4b1d-a81b-33e4b9b768ed",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "caseRevision": 2,
+      "kind": "FACT",
+      "authority": "HUMAN_PROVIDED",
+      "state": "ACCEPTED",
+      "statement": "Whether the operator offers this notice service to the public (making the retention rule applicable) or uses it only for private household purposes (making the rule not applicable).: This synthetic notice service is offered to the public by its operator, is publicly reachable, and is not private household use.",
+      "createdAt": "2026-10-11T20:44:56.364+00:00",
+      "invalidatedAt": null
+    }
+  ],
+  "humanRequests": [
+    {
+      "requestId": "be3e62f3-21dc-469b-abe7-fc50eddaa45c",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "threadId": "b55cbc4e-cb67-4b65-950b-41feb9af3981",
+      "status": "RESOLVED",
+      "caseRevision": 1,
+      "engineeringRuleId": "AR-RETENTION",
+      "criterionIds": [],
+      "question": "Is this notice service offered to the public, or is it used only for private household purposes?",
+      "unresolvedFact": "Whether the operator offers this notice service to the public (making the retention rule applicable) or uses it only for private household purposes (making the rule not applicable).",
+      "decisionImpact": [
+        "Determines whether AR-RETENTION is APPLICABLE or NOT_APPLICABLE",
+        "If offered to the public, all four criteria (C-1 through C-4) must be evaluated for compliance",
+        "If private household use only, the rule does not apply and no criteria need evaluation"
+      ],
+      "resolutionAttempts": [
+        "Read README.md which explicitly states: 'Deployment exposure (publicly reachable vs private/internal only) is an operator/environment decision and is intentionally not stored in this repository'",
+        "Searched entire repository for deployment configuration, infrastructure-as-code, or documentation indicating public vs private use - found no configuration files",
+        "Examined service.py and schema.sql - the code itself contains no indicators of intended audience or deployment context",
+        "Searched for environment-specific configuration that might indicate deployment mode - none present in repository"
+      ],
+      "controlType": "FREE_TEXT",
+      "choices": [],
+      "answers": [
+        {
+          "answer": "This synthetic notice service is offered to the public by its operator, is publicly reachable, and is not private household use.",
+          "actorId": "76719a97-166a-4644-9966-2035988f44d2",
+          "answeredAt": "2026-10-11T20:44:56.367Z",
+          "doesNotKnow": false,
+          "caseRevision": 2,
+          "requestDigest": "70a1ad1ed43dc57f83b353e098bcf9b107bc78d54c06251df59f780d8315b189",
+          "idempotencyKey": "c7e05bee-481b-402c-bbf0-ed3510f81518",
+          "requestRevision": 1
+        }
+      ],
+      "resolvedFactId": "e50be33b-04c6-4b1d-a81b-33e4b9b768ed",
+      "createdAt": "2026-10-11T20:43:47.833+00:00",
+      "resolvedAt": "2026-10-11T20:44:56.367+00:00",
+      "requestRevision": 1,
+      "idempotencyKey": "human:b55cbc4e-cb67-4b65-950b-41feb9af3981:480c5a68d071ff24492f461b2dd9f56f",
+      "requestDigest": "6b26b036a81f962b6cd6637dfb163061a09d45bc880ea445d7d193c93199e703",
+      "checkpointId": "1f1c5b47-5508-6ddd-80ea-1f666f8c6307"
+    }
+  ],
+  "artifacts": [
+    {
+      "artifactId": "1f41edd3-04f6-5f7f-8c26-1159f0d5a657",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "kind": "FINAL_REPORT",
+      "lifecycleState": "ACTIVE",
+      "legalPortfolioVersionId": "1531de0b-29c1-4e82-8781-58c4e16f16a1",
+      "repositorySnapshotId": "5a0a90cc-e834-4981-b086-4447f6ed05ed",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "caseRevision": 2,
+      "schemaVersion": "ASSESSMENT_FINAL_REPORT_V1",
+      "contentSha256": "sha256:e24d5d5768d2c9b1625a442b389b630b4b941ac8ee99abdaf66f3a3346842c5a",
+      "sizeBytes": 7554,
+      "storageRef": "{\"artifact_id\":\"1f41edd3-04f6-5f7f-8c26-1159f0d5a657\",\"total_size\":7554,\"hash\":\"e24d5d5768d2c9b1625a442b389b630b4b941ac8ee99abdaf66f3a3346842c5a\",\"chunks\":[\"e24d5d5768d2c9b1625a442b389b630b4b941ac8ee99abdaf66f3a3346842c5a.chunk\"]}",
+      "createdAt": "2026-10-11T20:47:31.202+00:00",
+      "activatedAt": "2026-10-11T20:47:31.209+00:00",
+      "reportRequestDigest": "a14426b87c5b1da6c903d09f9afc4a37cac3fdb22b8ba7390e853d7afeead46c"
+    }
+  ],
+  "events": [
+    {
+      "id": "a07424f2-1dd6-4a2d-b123-04cc3ac5fe1d",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 1,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream BOUNDARY_STARTED runtime",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "cd3a3d45-3cb9-4b05-9276-8803b2af2b60",
+          "sequence": 1791751321353000,
+          "emittedAt": "2026-10-11T20:42:01.353Z",
+          "eventType": "BOUNDARY_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 1
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:01.354"
+    },
+    {
+      "id": "c59fdeaa-4d54-4311-b41b-6e9480e94fa3",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 2,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "b43d4961-7031-4be1-83e2-b18a50603491",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "1d53008f-6f1a-4d09-b83f-c60bb8c47614",
+          "sequence": 1791751321407000,
+          "emittedAt": "2026-10-11T20:42:01.407Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 2
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "b43d4961-7031-4be1-83e2-b18a50603491",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:01.408"
+    },
+    {
+      "id": "0b56a433-feb8-469e-bf1a-9a9805d2d8da",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 3,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 7055,
+              "total_tokens": 7119,
+              "output_tokens": 64
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-7733-79f0-8557-325561773171-0",
+            "duration_ms": 5496,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "1d096747-3648-4541-b7be-9525bfb10a8b",
+            "model_step_id": "b43d4961-7031-4be1-83e2-b18a50603491",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "b97bfe47-b7ea-44cb-a9f6-d3eae70d6acf",
+          "sequence": 1791751326900000,
+          "emittedAt": "2026-10-11T20:42:06.900Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 3
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 7055,
+              "total_tokens": 7119,
+              "output_tokens": 64
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-7733-79f0-8557-325561773171-0",
+            "duration_ms": 5496,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "1d096747-3648-4541-b7be-9525bfb10a8b",
+            "model_step_id": "b43d4961-7031-4be1-83e2-b18a50603491",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:06.902"
+    },
+    {
+      "id": "07f8a9fe-962c-46b7-9b20-0beb46ab2d99",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 4,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "86ccce37-3747-46b4-bdc1-ec504227c938",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "5281ac26-1cde-45e4-9062-be7abac28c01",
+          "sequence": 1791751326960000,
+          "emittedAt": "2026-10-11T20:42:06.960Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 4
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "86ccce37-3747-46b4-bdc1-ec504227c938",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:06.961"
+    },
+    {
+      "id": "36bd3083-36e0-46b6-ba15-da0cedc41424",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 5,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 7623,
+              "total_tokens": 7677,
+              "output_tokens": 54
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-8ce6-7ba2-b8f0-e2ff9ec049f0-0",
+            "duration_ms": 5114,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "7e05226c-fde2-406a-b84d-64086e5bf56e",
+            "model_step_id": "86ccce37-3747-46b4-bdc1-ec504227c938",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "7822a22d-f76b-4d3d-a9a0-4f4c2e0e4c61",
+          "sequence": 1791751332073000,
+          "emittedAt": "2026-10-11T20:42:12.073Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 5
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 7623,
+              "total_tokens": 7677,
+              "output_tokens": 54
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-8ce6-7ba2-b8f0-e2ff9ec049f0-0",
+            "duration_ms": 5114,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "7e05226c-fde2-406a-b84d-64086e5bf56e",
+            "model_step_id": "86ccce37-3747-46b4-bdc1-ec504227c938",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:12.074"
+    },
+    {
+      "id": "87912906-af30-43e3-86b7-d00f3ad91bf1",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 6,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5fd45cd5-94cf-4283-a2da-eccc4f599375",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "e6bd9f43-bc82-431a-828b-8ce5fb9ebc85",
+          "sequence": 1791751332142000,
+          "emittedAt": "2026-10-11T20:42:12.142Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 6
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5fd45cd5-94cf-4283-a2da-eccc4f599375",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:12.142"
+    },
+    {
+      "id": "b7470dcd-7100-447a-9c97-c734f4d5ceb2",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 7,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 8052,
+              "total_tokens": 8170,
+              "output_tokens": 118
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-a124-7a90-a5a9-859296e27245-0",
+            "duration_ms": 6813,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "5c55a2da-07ab-47f9-b008-57252b42c4a8",
+            "model_step_id": "5fd45cd5-94cf-4283-a2da-eccc4f599375",
+            "elapsed_seconds": 6,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "d199a95b-de11-4cda-b650-926ef48ad51c",
+          "sequence": 1791751338954000,
+          "emittedAt": "2026-10-11T20:42:18.954Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 7
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 8052,
+              "total_tokens": 8170,
+              "output_tokens": 118
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-a124-7a90-a5a9-859296e27245-0",
+            "duration_ms": 6813,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "5c55a2da-07ab-47f9-b008-57252b42c4a8",
+            "model_step_id": "5fd45cd5-94cf-4283-a2da-eccc4f599375",
+            "elapsed_seconds": 6,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:18.955"
+    },
+    {
+      "id": "6e8798b9-349d-4aaa-8ab6-3b6f50a6b77e",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 8,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT ls",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "36094f44-01ff-426a-92c3-8755fd83b54b",
+          "sequence": 1791751339034000,
+          "toolName": "ls",
+          "emittedAt": "2026-10-11T20:42:19.034Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb3-bbd0-7231-863b-d09a6ea32300",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 8
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:19.035"
+    },
+    {
+      "id": "5ae150c7-f64d-4541-bc67-7d3766cc8fe7",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 9,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT get_repository_architecture",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "efb4ddd5-09e6-409a-bcda-1934f0a0896e",
+          "sequence": 1791751343510000,
+          "toolName": "get_repository_architecture",
+          "emittedAt": "2026-10-11T20:42:23.510Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb3-bbd2-78c0-bfe0-fb086b859956",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 9
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:23.511"
+    },
+    {
+      "id": "d3114a23-e1bb-472d-8af5-ba6c9216f116",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 10,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "851ed544-a38c-4322-9e5a-5a8316e6ff83",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "4fd25132-f62a-4453-9ae3-4cf82b1b1e64",
+          "sequence": 1791751343545000,
+          "emittedAt": "2026-10-11T20:42:23.545Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 10
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "851ed544-a38c-4322-9e5a-5a8316e6ff83",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:23.546"
+    },
+    {
+      "id": "b56c9968-44e6-41d3-9062-a11202dc0f2e",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 11,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 15080,
+              "total_tokens": 15255,
+              "output_tokens": 175
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-cdad-7162-8398-2e1b9a14cab3-0",
+            "duration_ms": 7004,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "51b9b525-df1c-4114-a103-18cf5d695b2b",
+            "model_step_id": "851ed544-a38c-4322-9e5a-5a8316e6ff83",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "b8616f96-34f4-4157-9d44-611755a23c0e",
+          "sequence": 1791751350545000,
+          "emittedAt": "2026-10-11T20:42:30.545Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 11
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 15080,
+              "total_tokens": 15255,
+              "output_tokens": 175
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-cdad-7162-8398-2e1b9a14cab3-0",
+            "duration_ms": 7004,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "51b9b525-df1c-4114-a103-18cf5d695b2b",
+            "model_step_id": "851ed544-a38c-4322-9e5a-5a8316e6ff83",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:30.546"
+    },
+    {
+      "id": "0fcd26f8-7acc-48fc-a93d-852f44009f53",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 12,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT read_file",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "01faf0f5-3df1-4360-8e98-28b9b984f6bc",
+          "sequence": 1791751350632000,
+          "toolName": "read_file",
+          "emittedAt": "2026-10-11T20:42:30.632Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb3-e919-72b1-ad0d-68dd56ea4cef",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 12
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:30.633"
+    },
+    {
+      "id": "e10dc06b-dbeb-4f0c-b0ab-82858e63c796",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 13,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT read_file",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "5ff0ae88-3159-4ebe-bd4d-59dbddbfc8a3",
+          "sequence": 1791751350793000,
+          "toolName": "read_file",
+          "emittedAt": "2026-10-11T20:42:30.793Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb3-e91c-7b32-8f8d-28f439f97f69",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 13
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:30.794"
+    },
+    {
+      "id": "9979fc0d-10b1-45b9-86c2-06d93deddd48",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 14,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT read_file",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "983f9fde-7874-47b2-8804-addf487b11d5",
+          "sequence": 1791751350912000,
+          "toolName": "read_file",
+          "emittedAt": "2026-10-11T20:42:30.912Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb3-e91b-7e00-9716-9ff9f92c2d45",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 14
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:30.938"
+    },
+    {
+      "id": "578bde42-da94-4782-8eec-62f9c5cfc3ef",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 15,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "9e63815d-5471-4bf2-9fbd-051ea810c880",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "32b17b6d-2e26-4719-8f31-7b7848e78774",
+          "sequence": 1791751350952000,
+          "emittedAt": "2026-10-11T20:42:30.952Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 15
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "9e63815d-5471-4bf2-9fbd-051ea810c880",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:30.953"
+    },
+    {
+      "id": "7b841044-fb7f-4812-b970-0fc6d80ab233",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 16,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 16519,
+              "total_tokens": 16631,
+              "output_tokens": 112
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-e982-7013-8e6a-55f076b103d7-0",
+            "duration_ms": 7596,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "ebc97001-49c5-44cf-ac84-01e7a204369a",
+            "model_step_id": "9e63815d-5471-4bf2-9fbd-051ea810c880",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "bbf6fedd-f12b-4b1e-838b-bbab4632cd06",
+          "sequence": 1791751358263000,
+          "emittedAt": "2026-10-11T20:42:38.263Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 16
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 16519,
+              "total_tokens": 16631,
+              "output_tokens": 112
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb3-e982-7013-8e6a-55f076b103d7-0",
+            "duration_ms": 7596,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "ebc97001-49c5-44cf-ac84-01e7a204369a",
+            "model_step_id": "9e63815d-5471-4bf2-9fbd-051ea810c880",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:38.264"
+    },
+    {
+      "id": "42cbb68d-252f-444d-9d4f-284b083b2d57",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 17,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT glob",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "0dcbf6e0-2a8b-405e-930e-edbe134f1cff",
+          "sequence": 1791751358349000,
+          "toolName": "glob",
+          "emittedAt": "2026-10-11T20:42:38.349Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-0741-7d81-ae37-047529abb436",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 17
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:38.349"
+    },
+    {
+      "id": "03f6f932-55a3-4a6d-b3ee-bdf9c7264299",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 18,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT glob",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "efcb6505-3339-4a26-ad53-c4cf631ba39a",
+          "sequence": 1791751358374000,
+          "toolName": "glob",
+          "emittedAt": "2026-10-11T20:42:38.374Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-0742-7a42-a0c4-4d828e6bef5e",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 18
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:38.375"
+    },
+    {
+      "id": "f227610c-c3c2-4bb5-926d-51a56288d33d",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 19,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "65ee3ec8-25e2-4b03-8a0b-5343b969e5e4",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "f335536a-934a-49b7-bbd4-e49d3dc15757",
+          "sequence": 1791751358389000,
+          "emittedAt": "2026-10-11T20:42:38.389Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 19
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "65ee3ec8-25e2-4b03-8a0b-5343b969e5e4",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:38.39"
+    },
+    {
+      "id": "4a032682-db36-44e6-9d44-80beb73287f9",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 20,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 16689,
+              "total_tokens": 16759,
+              "output_tokens": 70
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-07a7-70b2-8bda-8dc67c04de84-0",
+            "duration_ms": 5908,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "763f9332-2624-4436-891b-f1f0d686c431",
+            "model_step_id": "65ee3ec8-25e2-4b03-8a0b-5343b969e5e4",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "1d4cd4f2-3631-479c-ab85-4a04e247566f",
+          "sequence": 1791751364292000,
+          "emittedAt": "2026-10-11T20:42:44.292Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 20
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 16689,
+              "total_tokens": 16759,
+              "output_tokens": 70
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-07a7-70b2-8bda-8dc67c04de84-0",
+            "duration_ms": 5908,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "763f9332-2624-4436-891b-f1f0d686c431",
+            "model_step_id": "65ee3ec8-25e2-4b03-8a0b-5343b969e5e4",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:44.293"
+    },
+    {
+      "id": "ba298043-1d6a-46d1-9383-4eeb4c15b054",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 21,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT glob",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "ec378b8b-a1d0-4402-ad94-7c4054ce3022",
+          "sequence": 1791751364376000,
+          "toolName": "glob",
+          "emittedAt": "2026-10-11T20:42:44.376Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-1ecb-74d1-b721-91628c8c1f76",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 21
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:44.377"
+    },
+    {
+      "id": "84019afd-fbcc-4738-aa71-f19dac637f07",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 22,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT glob",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "9c7ef9be-9486-48d9-9c6e-bc4899730d55",
+          "sequence": 1791751364405000,
+          "toolName": "glob",
+          "emittedAt": "2026-10-11T20:42:44.405Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-1ecd-7b71-bcb8-89c1dcdc4416",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 22
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:44.406"
+    },
+    {
+      "id": "3edf0f8a-2b74-4f95-835d-019ae4230027",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 23,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "d159e1c4-59f2-4afa-adb9-b809e0588ade",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "f41ff4e1-9126-4b4f-bc91-ff4f1c4ab099",
+          "sequence": 1791751364418000,
+          "emittedAt": "2026-10-11T20:42:44.418Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 23
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "d159e1c4-59f2-4afa-adb9-b809e0588ade",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:44.419"
+    },
+    {
+      "id": "9b8fba76-bfbd-48fb-98be-b4c415a31945",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 24,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_HEARTBEAT claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "d159e1c4-59f2-4afa-adb9-b809e0588ade",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          },
+          "text": "model call waiting",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "7ad063ec-afcc-42ce-a759-a9dcd71d9db9",
+          "sequence": 1791751374436000,
+          "emittedAt": "2026-10-11T20:42:54.436Z",
+          "eventType": "MODEL_CALL_HEARTBEAT",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 24
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "d159e1c4-59f2-4afa-adb9-b809e0588ade",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:54.437"
+    },
+    {
+      "id": "1fe8d56d-e2cb-4147-8e86-800ea2ca112b",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 25,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 16901,
+              "total_tokens": 17336,
+              "output_tokens": 435
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-1f36-78b3-95cc-541d8af64e8f-0",
+            "duration_ms": 11413,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "2e20c800-9f21-45db-a96a-87f17637a49c",
+            "model_step_id": "d159e1c4-59f2-4afa-adb9-b809e0588ade",
+            "elapsed_seconds": 11,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "ef8d0411-5866-4d16-890e-c24d3b0ebd96",
+          "sequence": 1791751375829000,
+          "emittedAt": "2026-10-11T20:42:55.829Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 25
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 16901,
+              "total_tokens": 17336,
+              "output_tokens": 435
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-1f36-78b3-95cc-541d8af64e8f-0",
+            "duration_ms": 11413,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "2e20c800-9f21-45db-a96a-87f17637a49c",
+            "model_step_id": "d159e1c4-59f2-4afa-adb9-b809e0588ade",
+            "elapsed_seconds": 11,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:55.83"
+    },
+    {
+      "id": "886d79ea-6a9f-4db7-9a9a-4c3c5b958c57",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 26,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "d879d626-235a-4da0-bec5-0ec27ce7b80a",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "e2ee6623-b240-4631-b4d9-6b1115358354",
+          "sequence": 1791751376095000,
+          "emittedAt": "2026-10-11T20:42:56.095Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 26
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "d879d626-235a-4da0-bec5-0ec27ce7b80a",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:42:56.097"
+    },
+    {
+      "id": "2b6e45cb-6c38-4da9-bb3a-139d2676638a",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 27,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 18683,
+              "total_tokens": 18955,
+              "output_tokens": 272
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-4cd2-7651-86c3-5b435a6552b9-0",
+            "duration_ms": 8298,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "edd0ee4d-5a24-4c59-b42f-46f605049e05",
+            "model_step_id": "d879d626-235a-4da0-bec5-0ec27ce7b80a",
+            "elapsed_seconds": 8,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "345d0d55-3ce5-4296-b734-92c009c33857",
+          "sequence": 1791751384399000,
+          "emittedAt": "2026-10-11T20:43:04.399Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 27
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 18683,
+              "total_tokens": 18955,
+              "output_tokens": 272
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-4cd2-7651-86c3-5b435a6552b9-0",
+            "duration_ms": 8298,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "edd0ee4d-5a24-4c59-b42f-46f605049e05",
+            "model_step_id": "d879d626-235a-4da0-bec5-0ec27ce7b80a",
+            "elapsed_seconds": 8,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:04.4"
+    },
+    {
+      "id": "afa1cac7-6d38-4b61-9078-f07cbb74c84b",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 28,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "3425f2bd-2dfd-4069-b446-858d4af47484",
+          "sequence": 1791751384487000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:43:04.487Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-6d5a-7483-9186-2645671dd446",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 28
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:04.487"
+    },
+    {
+      "id": "933c525a-17a4-4727-a68c-2a039d864327",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 29,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "32bf2946-4095-4050-8692-a3b347ec0791",
+          "sequence": 1791751384510000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:43:04.510Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-6d60-7841-9fad-f2b9c3094d7e",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 29
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:04.511"
+    },
+    {
+      "id": "7d6f6671-715f-4e39-b273-cb6af7f93993",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 30,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "5da7a87b-2367-4da8-969e-4d16ea4aa469",
+          "sequence": 1791751384541000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:43:04.541Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-6d5e-77d3-bb8e-2af347391432",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 30
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:04.541"
+    },
+    {
+      "id": "95bc32d4-c24d-4782-a8c6-121b021b7a83",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 31,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "d6fb9fed-7d52-44db-83b0-a72ee93eb4cd",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "2b999901-960a-468e-bb08-361e0b87bad4",
+          "sequence": 1791751384553000,
+          "emittedAt": "2026-10-11T20:43:04.553Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 31
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "d6fb9fed-7d52-44db-83b0-a72ee93eb4cd",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:04.553"
+    },
+    {
+      "id": "4c80abc3-772c-4932-885a-8f4bfcf3be18",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 32,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 19166,
+              "total_tokens": 19292,
+              "output_tokens": 126
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-6dd0-7441-8200-64d6b378ae94-0",
+            "duration_ms": 5766,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "23a67033-3dcd-466c-bcde-5a31004e535a",
+            "model_step_id": "d6fb9fed-7d52-44db-83b0-a72ee93eb4cd",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "d4594fb0-11ff-4c2c-beda-92e0dfa244d6",
+          "sequence": 1791751390310000,
+          "emittedAt": "2026-10-11T20:43:10.310Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 32
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 19166,
+              "total_tokens": 19292,
+              "output_tokens": 126
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-6dd0-7441-8200-64d6b378ae94-0",
+            "duration_ms": 5766,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "23a67033-3dcd-466c-bcde-5a31004e535a",
+            "model_step_id": "d6fb9fed-7d52-44db-83b0-a72ee93eb4cd",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:10.312"
+    },
+    {
+      "id": "d7e1794a-148f-42af-857a-d245a7268960",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 33,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "63b25221-3f8f-4c87-b0df-460ee5d7c88d",
+          "sequence": 1791751390403000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:43:10.403Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-8472-7ac2-bb3a-5f332d10dd8b",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 33
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:10.403"
+    },
+    {
+      "id": "c293a769-633d-4374-824e-911b61b90546",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 34,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "9a27c2b5-6c10-4625-8dd8-b3daee9a9f4c",
+          "sequence": 1791751390440000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:43:10.440Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-846f-7043-9186-36ef29ef1636",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 34
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:10.44"
+    },
+    {
+      "id": "fe7c8b69-fbbb-4407-b671-c72af9226cca",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 35,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "4bc66036-1f11-45d2-8021-bc3f1060a160",
+          "sequence": 1791751390453000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:43:10.453Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb4-8474-7360-898a-b00d212e37bc",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 35
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:10.454"
+    },
+    {
+      "id": "3342bb56-8503-4267-b5dc-1df5359af24f",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 36,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "89c578f9-03d8-4959-88a7-5634ef6ee10e",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "992d1037-a564-445f-859d-004b6ca40ec4",
+          "sequence": 1791751390469000,
+          "emittedAt": "2026-10-11T20:43:10.469Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 37
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "89c578f9-03d8-4959-88a7-5634ef6ee10e",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:10.469"
+    },
+    {
+      "id": "cfc7921a-c42a-47ef-95c9-973a2ca9c8ed",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 37,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 19492,
+              "total_tokens": 19648,
+              "output_tokens": 156
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-84df-7943-a2c4-97aef6598bd2-0",
+            "duration_ms": 8269,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "f2005637-9f70-406a-9b8f-760bfd11f0af",
+            "model_step_id": "89c578f9-03d8-4959-88a7-5634ef6ee10e",
+            "elapsed_seconds": 8,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "9cc9d879-9e30-470b-9a16-46f4746777f1",
+          "sequence": 1791751398710000,
+          "emittedAt": "2026-10-11T20:43:18.710Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 38
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 19492,
+              "total_tokens": 19648,
+              "output_tokens": 156
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-84df-7943-a2c4-97aef6598bd2-0",
+            "duration_ms": 8269,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "f2005637-9f70-406a-9b8f-760bfd11f0af",
+            "model_step_id": "89c578f9-03d8-4959-88a7-5634ef6ee10e",
+            "elapsed_seconds": 8,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:18.71"
+    },
+    {
+      "id": "46d41395-060f-471d-9be6-55c5f7e2ae6d",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 38,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "3bec7e94-3aea-4b2f-a9eb-8177faa394dc",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "2f0e62ec-537f-4023-9fb7-dccb666db910",
+          "sequence": 1791751398769000,
+          "emittedAt": "2026-10-11T20:43:18.769Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 39
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "3bec7e94-3aea-4b2f-a9eb-8177faa394dc",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:18.77"
+    },
+    {
+      "id": "c278e015-3131-4b4e-9b63-96778dd921c7",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 39,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_HEARTBEAT claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "3bec7e94-3aea-4b2f-a9eb-8177faa394dc",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          },
+          "text": "model call waiting",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "8027879d-3efe-4088-8e91-7cd3789f816f",
+          "sequence": 1791751408780000,
+          "emittedAt": "2026-10-11T20:43:28.780Z",
+          "eventType": "MODEL_CALL_HEARTBEAT",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 40
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "3bec7e94-3aea-4b2f-a9eb-8177faa394dc",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:28.781"
+    },
+    {
+      "id": "21d1aa3d-6808-41ec-be33-f2e30efb106e",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 40,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 19882,
+              "total_tokens": 20277,
+              "output_tokens": 395
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-a566-7b93-9186-891fe2f56bcd-0",
+            "duration_ms": 15801,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "57ad3fdd-efae-464c-badb-075baa534981",
+            "model_step_id": "3bec7e94-3aea-4b2f-a9eb-8177faa394dc",
+            "elapsed_seconds": 15,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "f8be7265-2da5-4f6e-b395-68a7ad8469d8",
+          "sequence": 1791751414569000,
+          "emittedAt": "2026-10-11T20:43:34.569Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 41
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 19882,
+              "total_tokens": 20277,
+              "output_tokens": 395
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-a566-7b93-9186-891fe2f56bcd-0",
+            "duration_ms": 15801,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "57ad3fdd-efae-464c-badb-075baa534981",
+            "model_step_id": "3bec7e94-3aea-4b2f-a9eb-8177faa394dc",
+            "elapsed_seconds": 15,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:34.57"
+    },
+    {
+      "id": "83ff269d-39ed-401c-8d20-6225bfebf856",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 41,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "9cbd56f1-c670-4a9d-9e6e-27e614759699",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "ec44471a-a68a-4488-a3b1-013e7fa8261d",
+          "sequence": 1791751414643000,
+          "emittedAt": "2026-10-11T20:43:34.643Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 42
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "9cbd56f1-c670-4a9d-9e6e-27e614759699",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:34.643"
+    },
+    {
+      "id": "190b5f3c-3c02-4e9b-8009-023fe5e2d8bf",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 42,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 20495,
+              "total_tokens": 20539,
+              "output_tokens": 44
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-e363-7723-8b10-8916bc7412d9-0",
+            "duration_ms": 5404,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "e0168454-d3d3-4503-90fd-4c0b78364da7",
+            "model_step_id": "9cbd56f1-c670-4a9d-9e6e-27e614759699",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "641351db-9754-428a-bdca-b12946c41230",
+          "sequence": 1791751420040000,
+          "emittedAt": "2026-10-11T20:43:40.040Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 43
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 20495,
+              "total_tokens": 20539,
+              "output_tokens": 44
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-e363-7723-8b10-8916bc7412d9-0",
+            "duration_ms": 5404,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "e0168454-d3d3-4503-90fd-4c0b78364da7",
+            "model_step_id": "9cbd56f1-c670-4a9d-9e6e-27e614759699",
+            "elapsed_seconds": 5,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:40.042"
+    },
+    {
+      "id": "c5930c24-f68c-4e46-92ea-2551eac12c99",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 43,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "2147544c-d82c-40f5-9d82-346689be40dd",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "747d0893-4e55-4575-bfe7-3e61fd6d113e",
+          "sequence": 1791751420106000,
+          "emittedAt": "2026-10-11T20:43:40.106Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 44
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "2147544c-d82c-40f5-9d82-346689be40dd",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:40.107"
+    },
+    {
+      "id": "ba6b8ab1-85dd-49da-a33f-a30ad489600d",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 44,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 22864,
+              "total_tokens": 23182,
+              "output_tokens": 318
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-f8ba-7681-aad5-aa578c44ef59-0",
+            "duration_ms": 7717,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "61dd0261-2c9c-47c7-8120-96f263aae8d7",
+            "model_step_id": "2147544c-d82c-40f5-9d82-346689be40dd",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "e7bb6af1-5b99-4c54-9a92-8d2f38212ea9",
+          "sequence": 1791751427816000,
+          "emittedAt": "2026-10-11T20:43:47.816Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 45
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 22864,
+              "total_tokens": 23182,
+              "output_tokens": 318
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb4-f8ba-7681-aad5-aa578c44ef59-0",
+            "duration_ms": 7717,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "61dd0261-2c9c-47c7-8120-96f263aae8d7",
+            "model_step_id": "2147544c-d82c-40f5-9d82-346689be40dd",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:47.817"
+    },
+    {
+      "id": "f643ef07-bc60-46d5-9ec0-a1227840dd7c",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 45,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream BOUNDARY_COMPLETED runtime",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "c6245562-13f7-4e8f-a78a-4c342dbf5d58",
+          "sequence": 1791751427870000,
+          "emittedAt": "2026-10-11T20:43:47.870Z",
+          "eventType": "BOUNDARY_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 46
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:43:47.87"
+    },
+    {
+      "id": "46ab05ef-757e-4afd-8409-51e2036e0b56",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 46,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream BOUNDARY_STARTED runtime",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "e8925df9-69fc-498b-a061-4d22c6a2e1dc",
+          "sequence": 1791751501308000,
+          "emittedAt": "2026-10-11T20:45:01.308Z",
+          "eventType": "BOUNDARY_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 1
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:01.309"
+    },
+    {
+      "id": "dfeb0e51-6bab-4a8f-9dbd-5fc2e468c4f7",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 47,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "38020a7a-9eca-476f-98fd-0000ef0b6649",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "33e59ecf-d51e-47f1-9d2b-66e13d8ed3b5",
+          "sequence": 1791751501427000,
+          "emittedAt": "2026-10-11T20:45:01.427Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 2
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "38020a7a-9eca-476f-98fd-0000ef0b6649",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:01.428"
+    },
+    {
+      "id": "49caf2b0-681b-4ee9-ba79-4d73837d8a05",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 48,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_HEARTBEAT claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "38020a7a-9eca-476f-98fd-0000ef0b6649",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          },
+          "text": "model call waiting",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "2b8f947a-c83d-4330-813f-c1a10adb9f36",
+          "sequence": 1791751511420000,
+          "emittedAt": "2026-10-11T20:45:11.420Z",
+          "eventType": "MODEL_CALL_HEARTBEAT",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 3
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "38020a7a-9eca-476f-98fd-0000ef0b6649",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:11.421"
+    },
+    {
+      "id": "b0d74f01-fe2e-4d1f-a892-3ae62b78b8e4",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 49,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_HEARTBEAT claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "38020a7a-9eca-476f-98fd-0000ef0b6649",
+            "elapsed_seconds": 20,
+            "timeout_seconds": 300
+          },
+          "text": "model call waiting",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "3186ff74-05d0-4763-bdae-8a1b856c4e9d",
+          "sequence": 1791751521436000,
+          "emittedAt": "2026-10-11T20:45:21.436Z",
+          "eventType": "MODEL_CALL_HEARTBEAT",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 4
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "38020a7a-9eca-476f-98fd-0000ef0b6649",
+            "elapsed_seconds": 20,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:21.437"
+    },
+    {
+      "id": "d26348d5-509c-4faf-a624-050bffda4931",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 50,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 24167,
+              "total_tokens": 25560,
+              "output_tokens": 1393
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb6-3663-7163-8869-5f6f97fa83b4-0",
+            "duration_ms": 28533,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "5e429dbe-c243-4459-bb8f-dc47b4086dbf",
+            "model_step_id": "38020a7a-9eca-476f-98fd-0000ef0b6649",
+            "elapsed_seconds": 28,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "ab262c18-9cfa-4910-ba7a-344352bc94f4",
+          "sequence": 1791751529953000,
+          "emittedAt": "2026-10-11T20:45:29.953Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 5
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 24167,
+              "total_tokens": 25560,
+              "output_tokens": 1393
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb6-3663-7163-8869-5f6f97fa83b4-0",
+            "duration_ms": 28533,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "5e429dbe-c243-4459-bb8f-dc47b4086dbf",
+            "model_step_id": "38020a7a-9eca-476f-98fd-0000ef0b6649",
+            "elapsed_seconds": 28,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:29.954"
+    },
+    {
+      "id": "6def95c4-9090-4310-80c1-1177ba775eb9",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 51,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "9b8b6bf3-95ec-42a6-b63d-fe4ea1d8a2c2",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "86715efc-a02a-41ee-9136-c08a02b7a487",
+          "sequence": 1791751530029000,
+          "emittedAt": "2026-10-11T20:45:30.029Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 6
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "9b8b6bf3-95ec-42a6-b63d-fe4ea1d8a2c2",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:30.03"
+    },
+    {
+      "id": "a843f7c7-c3ff-4182-91a6-ca2875053fb3",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 52,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 25679,
+              "total_tokens": 25822,
+              "output_tokens": 143
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb6-a61d-7611-b715-ad00c3718c89-0",
+            "duration_ms": 8133,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "5b8759cb-5eeb-475d-9da4-0edabab06177",
+            "model_step_id": "9b8b6bf3-95ec-42a6-b63d-fe4ea1d8a2c2",
+            "elapsed_seconds": 8,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "718d8f25-1b8e-4dbe-bca5-0c53c8d6b8ce",
+          "sequence": 1791751538153000,
+          "emittedAt": "2026-10-11T20:45:38.153Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 7
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 25679,
+              "total_tokens": 25822,
+              "output_tokens": 143
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb6-a61d-7611-b715-ad00c3718c89-0",
+            "duration_ms": 8133,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "5b8759cb-5eeb-475d-9da4-0edabab06177",
+            "model_step_id": "9b8b6bf3-95ec-42a6-b63d-fe4ea1d8a2c2",
+            "elapsed_seconds": 8,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:38.156"
+    },
+    {
+      "id": "53fe752f-3a55-4c0d-a518-0358efed46de",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 53,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT search_code_graph",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "add6540e-5666-483c-8122-2776ea8d8f91",
+          "sequence": 1791751543517000,
+          "toolName": "search_code_graph",
+          "emittedAt": "2026-10-11T20:45:43.517Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb6-c5fa-7093-b9df-0d713e69b06d",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 8
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:43.518"
+    },
+    {
+      "id": "388b451f-70b8-44e7-b9dc-9bec0ecd7a0a",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 54,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT trace_call_path",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "e8b6a922-47c5-4c7a-8b5f-5e11a53794a0",
+          "sequence": 1791751543544000,
+          "toolName": "trace_call_path",
+          "emittedAt": "2026-10-11T20:45:43.544Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb6-c5fd-70d2-960b-ea4a6f3b29d1",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 9
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:43.544"
+    },
+    {
+      "id": "d3ccc583-7319-4c8f-99a1-806a1fb8a6d9",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 55,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT search_code_graph",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "228a5893-0ca0-4127-b338-5fbbf422c939",
+          "sequence": 1791751547049000,
+          "toolName": "search_code_graph",
+          "emittedAt": "2026-10-11T20:45:47.049Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb6-c5fb-7e52-9124-c0ad8471f545",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 10
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:47.05"
+    },
+    {
+      "id": "00bd6fe8-255f-443e-b0e1-bfb4b7bc150b",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 56,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "a68ce70e-e110-45d9-b5c7-d8370970db80",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "fb7fca19-296c-4674-8095-b61bb272c8a5",
+          "sequence": 1791751547090000,
+          "emittedAt": "2026-10-11T20:45:47.090Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 11
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "a68ce70e-e110-45d9-b5c7-d8370970db80",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:47.091"
+    },
+    {
+      "id": "aec73d2a-632b-4958-bbf2-24b0fd3dad35",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 57,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_HEARTBEAT claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "a68ce70e-e110-45d9-b5c7-d8370970db80",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          },
+          "text": "model call waiting",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "9f49c90a-41e9-49bb-bfab-a4330212bded",
+          "sequence": 1791751557089000,
+          "emittedAt": "2026-10-11T20:45:57.089Z",
+          "eventType": "MODEL_CALL_HEARTBEAT",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 12
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "a68ce70e-e110-45d9-b5c7-d8370970db80",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:57.09"
+    },
+    {
+      "id": "3cfb760e-9bc9-494f-9aed-be36fb59991d",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 58,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 26379,
+              "total_tokens": 26552,
+              "output_tokens": 173
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb6-e8c5-76a3-8189-c09be7511f29-0",
+            "duration_ms": 11959,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "74861797-ac0d-4eb2-aed1-25fc3a6fd9aa",
+            "model_step_id": "a68ce70e-e110-45d9-b5c7-d8370970db80",
+            "elapsed_seconds": 11,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "282e5282-c21c-4889-ad3f-2788c5a36ff6",
+          "sequence": 1791751559044000,
+          "emittedAt": "2026-10-11T20:45:59.044Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 13
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 26379,
+              "total_tokens": 26552,
+              "output_tokens": 173
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb6-e8c5-76a3-8189-c09be7511f29-0",
+            "duration_ms": 11959,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "74861797-ac0d-4eb2-aed1-25fc3a6fd9aa",
+            "model_step_id": "a68ce70e-e110-45d9-b5c7-d8370970db80",
+            "elapsed_seconds": 11,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:59.044"
+    },
+    {
+      "id": "e7293dc3-529f-4ba0-8174-379bec4cf70f",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 59,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "8a4c28e7-10c1-48fd-9315-993623ec65f6",
+          "sequence": 1791751559145000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:45:59.145Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb7-178b-7310-9e5f-272a7c46a509",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 14
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:59.146"
+    },
+    {
+      "id": "0d9185d7-6c22-4d1e-8a41-294520964939",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 60,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "871e1c1c-f387-4f8e-8fe7-73182656f320",
+          "sequence": 1791751559160000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:45:59.160Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb7-178f-7af3-9947-f70c775ccd6e",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 15
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:59.16"
+    },
+    {
+      "id": "8a7d212e-8159-40e4-8f4a-2c8bfa74a01e",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 61,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "adf8e2df-af11-4e62-93a7-1e1f0a926c65",
+          "sequence": 1791751559171000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:45:59.171Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb7-178c-73d1-80bb-807549144b9c",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 16
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:45:59.172"
+    },
+    {
+      "id": "60fc9b6c-e53c-4a75-a6e8-261befd6594e",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 62,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT search_code_graph",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "6c9c8c80-7adf-434c-b852-70f35d9535dd",
+          "sequence": 1791751563638000,
+          "toolName": "search_code_graph",
+          "emittedAt": "2026-10-11T20:46:03.638Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb7-1791-7720-82f3-9e1334fa24c5",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 18
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:03.639"
+    },
+    {
+      "id": "50e3c7b7-b80c-4caf-9c7e-e34677e1fd13",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 63,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "25cb660c-a6b5-479c-bf8b-a754a89cdf8e",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "19c51edc-a215-462f-a962-f9b6b2f0a784",
+          "sequence": 1791751563677000,
+          "emittedAt": "2026-10-11T20:46:03.677Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 19
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "25cb660c-a6b5-479c-bf8b-a754a89cdf8e",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:03.677"
+    },
+    {
+      "id": "51c508a1-1b92-4a28-b8c8-6b2f1e0fecd4",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 64,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 27187,
+              "total_tokens": 27398,
+              "output_tokens": 211
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb7-298c-7510-95d0-980c6544feee-0",
+            "duration_ms": 7603,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "a12f555b-4db7-4885-a8be-01a8ef423918",
+            "model_step_id": "25cb660c-a6b5-479c-bf8b-a754a89cdf8e",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "72504a23-7f83-4650-a0c5-8381a0faed18",
+          "sequence": 1791751571277000,
+          "emittedAt": "2026-10-11T20:46:11.277Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 20
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 27187,
+              "total_tokens": 27398,
+              "output_tokens": 211
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb7-298c-7510-95d0-980c6544feee-0",
+            "duration_ms": 7603,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "a12f555b-4db7-4885-a8be-01a8ef423918",
+            "model_step_id": "25cb660c-a6b5-479c-bf8b-a754a89cdf8e",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:11.278"
+    },
+    {
+      "id": "cd35103e-7cad-404b-8be6-3ee490481a95",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 65,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "bcbb9ee5-0226-4cb7-911f-b4c566e9a6ce",
+          "sequence": 1791751571373000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:46:11.373Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb7-475b-7021-b70c-837c707f7d85",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 21
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:11.374"
+    },
+    {
+      "id": "a24c3d9d-e3db-471b-be26-7d85dc504819",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 66,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "009e69a0-6f15-4cd3-a97e-6e6f6956b772",
+          "sequence": 1791751571390000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:46:11.390Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb7-4755-7782-ada1-6b322f122156",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 22
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:11.391"
+    },
+    {
+      "id": "aa5e5d18-40b8-4c2f-a817-f284959da244",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 67,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "259e0486-63b7-49d3-b087-c96f3254f9e7",
+          "sequence": 1791751571556000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:46:11.556Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb7-4753-7c12-94b0-19e49d8286ce",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 23
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:11.558"
+    },
+    {
+      "id": "5325d51f-5c50-4517-942a-35100b07f706",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 68,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream TOOL_RESULT grep",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "42ff71ed-31c4-4fff-b24e-e2ac71e257a6",
+          "sequence": 1791751571683000,
+          "toolName": "grep",
+          "emittedAt": "2026-10-11T20:46:11.683Z",
+          "eventType": "TOOL_RESULT",
+          "namespace": [],
+          "toolCallId": "01a12cb7-4758-76f2-a401-2a498318d622",
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 24
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:11.684"
+    },
+    {
+      "id": "6546db7f-9d9a-4444-aeba-45270f4f542c",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 69,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "fb644c14-5068-4762-ad9b-a74a27f89dfc",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "383a35a0-279d-40a8-a855-e16814560a49",
+          "sequence": 1791751571697000,
+          "emittedAt": "2026-10-11T20:46:11.697Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 26
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "fb644c14-5068-4762-ad9b-a74a27f89dfc",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:11.699"
+    },
+    {
+      "id": "7c66b4bd-bebd-43de-99bf-d30218619e8a",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 70,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 27789,
+              "total_tokens": 27960,
+              "output_tokens": 171
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb7-487b-78b3-9295-98abe3abeb0a-0",
+            "duration_ms": 7853,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "a4d2574b-e7e1-48be-bcc1-397788c381b3",
+            "model_step_id": "fb644c14-5068-4762-ad9b-a74a27f89dfc",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "af2e5f02-d538-4da7-8e1b-e69963fd0eea",
+          "sequence": 1791751579438000,
+          "emittedAt": "2026-10-11T20:46:19.438Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 27
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 27789,
+              "total_tokens": 27960,
+              "output_tokens": 171
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb7-487b-78b3-9295-98abe3abeb0a-0",
+            "duration_ms": 7853,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "a4d2574b-e7e1-48be-bcc1-397788c381b3",
+            "model_step_id": "fb644c14-5068-4762-ad9b-a74a27f89dfc",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:19.439"
+    },
+    {
+      "id": "72949354-8cc7-47e1-9546-16356e123edd",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 71,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5208b9fa-7275-46ad-8f85-83a8132eb427",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "db96e0d4-96a5-4ac9-9a08-a4ce7b6469da",
+          "sequence": 1791751579515000,
+          "emittedAt": "2026-10-11T20:46:19.515Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 28
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5208b9fa-7275-46ad-8f85-83a8132eb427",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:19.516"
+    },
+    {
+      "id": "94154002-59f1-4c91-8180-05e95438ebe0",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 72,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_HEARTBEAT claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5208b9fa-7275-46ad-8f85-83a8132eb427",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          },
+          "text": "model call waiting",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "d30b31ea-5c20-42e7-9684-e8fd9557cf43",
+          "sequence": 1791751589511000,
+          "emittedAt": "2026-10-11T20:46:29.511Z",
+          "eventType": "MODEL_CALL_HEARTBEAT",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 29
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5208b9fa-7275-46ad-8f85-83a8132eb427",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:29.512"
+    },
+    {
+      "id": "17cc7fa7-3105-4677-872f-513bec9af6e7",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 73,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 28183,
+              "total_tokens": 29393,
+              "output_tokens": 1210
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb7-676d-72d2-a138-fcfd090d5ce7-0",
+            "duration_ms": 18659,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "a663e5ce-a6ed-4b9a-b28b-98e9793c93e5",
+            "model_step_id": "5208b9fa-7275-46ad-8f85-83a8132eb427",
+            "elapsed_seconds": 18,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "48a13c96-487a-4325-9ce9-2daab4746cd1",
+          "sequence": 1791751598167000,
+          "emittedAt": "2026-10-11T20:46:38.167Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 30
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 28183,
+              "total_tokens": 29393,
+              "output_tokens": 1210
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb7-676d-72d2-a138-fcfd090d5ce7-0",
+            "duration_ms": 18659,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "a663e5ce-a6ed-4b9a-b28b-98e9793c93e5",
+            "model_step_id": "5208b9fa-7275-46ad-8f85-83a8132eb427",
+            "elapsed_seconds": 18,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:38.168"
+    },
+    {
+      "id": "95fda108-5c89-4899-99a5-5f269b858ec5",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 74,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "7eec55b7-5060-4d41-a717-925971ba34aa",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "59b4ecca-6494-41c1-8b7c-b59d024b243d",
+          "sequence": 1791751598248000,
+          "emittedAt": "2026-10-11T20:46:38.248Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 31
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "7eec55b7-5060-4d41-a717-925971ba34aa",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:38.249"
+    },
+    {
+      "id": "b70dcfdf-e590-4862-9d76-3e9e1ebd81fd",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 75,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 29466,
+              "total_tokens": 29529,
+              "output_tokens": 63
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb7-b096-7570-8681-6bff91471427-0",
+            "duration_ms": 7346,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "7e1f6166-504c-4498-b0df-1e65c7196f9f",
+            "model_step_id": "7eec55b7-5060-4d41-a717-925971ba34aa",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "e57bafa2-8b54-453b-ad08-5da242f995d3",
+          "sequence": 1791751605584000,
+          "emittedAt": "2026-10-11T20:46:45.584Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 32
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 29466,
+              "total_tokens": 29529,
+              "output_tokens": 63
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb7-b096-7570-8681-6bff91471427-0",
+            "duration_ms": 7346,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "7e1f6166-504c-4498-b0df-1e65c7196f9f",
+            "model_step_id": "7eec55b7-5060-4d41-a717-925971ba34aa",
+            "elapsed_seconds": 7,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:45.586"
+    },
+    {
+      "id": "70e39cb0-54d7-4eb0-b64a-27f65fb5685c",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 76,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream BOUNDARY_COMPLETED runtime",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "e7099e20-80d1-4ecc-8f0f-8fcd04cf262b",
+          "sequence": 1791751605608000,
+          "emittedAt": "2026-10-11T20:46:45.608Z",
+          "eventType": "BOUNDARY_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 33
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:46:45.609"
+    },
+    {
+      "id": "50145019-7623-4254-9e9d-25aba8056c11",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 77,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream BOUNDARY_STARTED runtime",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "152b789d-a3bb-4a68-afc0-a394eb858099",
+          "sequence": 1791751635624000,
+          "emittedAt": "2026-10-11T20:47:15.624Z",
+          "eventType": "BOUNDARY_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 1
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:47:15.624"
+    },
+    {
+      "id": "a2091d4b-0291-45bf-bb1f-537a90a80990",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 78,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "b02ec392-e636-41d6-b5b0-2eb5136e35fa",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "c02af51a-191c-499a-bf55-ff8aa8405e82",
+          "sequence": 1791751635835000,
+          "emittedAt": "2026-10-11T20:47:15.835Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 2
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "b02ec392-e636-41d6-b5b0-2eb5136e35fa",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:47:15.836"
+    },
+    {
+      "id": "6f6a4903-2974-49d5-931d-df803d8b2b1c",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 79,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_HEARTBEAT claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "b02ec392-e636-41d6-b5b0-2eb5136e35fa",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          },
+          "text": "model call waiting",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "9fa32f1e-9d82-429a-8e42-42a7c8ce71b0",
+          "sequence": 1791751645842000,
+          "emittedAt": "2026-10-11T20:47:25.842Z",
+          "eventType": "MODEL_CALL_HEARTBEAT",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 3
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "b02ec392-e636-41d6-b5b0-2eb5136e35fa",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:47:25.843"
+    },
+    {
+      "id": "2af24a25-c6b1-45a2-8e8d-7256d2518871",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 80,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 29616,
+              "total_tokens": 30123,
+              "output_tokens": 507
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb8-4367-7041-94ac-23d96dd3010c-0",
+            "duration_ms": 15336,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "9c254543-1930-4782-9ed2-1fc0be34bb00",
+            "model_step_id": "b02ec392-e636-41d6-b5b0-2eb5136e35fa",
+            "elapsed_seconds": 15,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "165f5182-5afa-4d51-b5f7-bb025347880d",
+          "sequence": 1791751651159000,
+          "emittedAt": "2026-10-11T20:47:31.159Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 4
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 29616,
+              "total_tokens": 30123,
+              "output_tokens": 507
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb8-4367-7041-94ac-23d96dd3010c-0",
+            "duration_ms": 15336,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "9c254543-1930-4782-9ed2-1fc0be34bb00",
+            "model_step_id": "b02ec392-e636-41d6-b5b0-2eb5136e35fa",
+            "elapsed_seconds": 15,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:47:31.16"
+    },
+    {
+      "id": "3a2eb550-b7f5-42bd-8d93-c85b1cfef93c",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 81,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_STARTED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5904e376-7add-4053-bec6-d91cc26247a0",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          },
+          "text": "model call started",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "0e55c382-8bc1-4c42-b3bb-28c7933cdd1f",
+          "sequence": 1791751651275000,
+          "emittedAt": "2026-10-11T20:47:31.275Z",
+          "eventType": "MODEL_CALL_STARTED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 5
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5904e376-7add-4053-bec6-d91cc26247a0",
+            "elapsed_seconds": 0,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:47:31.276"
+    },
+    {
+      "id": "cf520a23-66da-46b3-bece-e47c2d0b5cbd",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 82,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_HEARTBEAT claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5904e376-7add-4053-bec6-d91cc26247a0",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          },
+          "text": "model call waiting",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "RUNNING",
+          "eventId": "40c51d1e-14b5-4606-bcb9-8471be0b0980",
+          "sequence": 1791751661286000,
+          "emittedAt": "2026-10-11T20:47:41.286Z",
+          "eventType": "MODEL_CALL_HEARTBEAT",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 6
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "model_step_id": "5904e376-7add-4053-bec6-d91cc26247a0",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:47:41.287"
+    },
+    {
+      "id": "d31130f4-382e-4df5-85f1-64ea2f0f1aea",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 83,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream MODEL_CALL_COMPLETED claude-sonnet-4-6-free",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 30484,
+              "total_tokens": 30766,
+              "output_tokens": 282
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb8-7fb7-7fc1-b0b4-84a29fb2fd0b-0",
+            "duration_ms": 10045,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "d5d7fa8d-bffe-45f6-836b-714b899cf68a",
+            "model_step_id": "5904e376-7add-4053-bec6-d91cc26247a0",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          },
+          "text": "model call completed",
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "d022ff46-b813-4be9-8455-462a99f2c82f",
+          "sequence": 1791751661307000,
+          "emittedAt": "2026-10-11T20:47:41.307Z",
+          "eventType": "MODEL_CALL_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 7
+        },
+        "semanticPayloads": [
+          {
+            "model": "claude-sonnet-4-6-free",
+            "usage": {
+              "input_tokens": 30484,
+              "total_tokens": 30766,
+              "output_tokens": 282
+            },
+            "provider": "apx",
+            "agent_role": "assessment-root",
+            "message_id": "lc_run--01a12cb8-7fb7-7fc1-b0b4-84a29fb2fd0b-0",
+            "duration_ms": 10045,
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+            "fallback_used": false,
+            "invocation_id": "d5d7fa8d-bffe-45f6-836b-714b899cf68a",
+            "model_step_id": "5904e376-7add-4053-bec6-d91cc26247a0",
+            "elapsed_seconds": 10,
+            "timeout_seconds": 300,
+            "provider_attempts": 1,
+            "credential_attempts": "[REDACTED]"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:47:41.307"
+    },
+    {
+      "id": "67a41c95-086b-441e-978c-00edbd1dec42",
+      "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+      "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+      "correlationId": "unknown",
+      "sequence": 84,
+      "toolName": "agent_stream_semantic",
+      "summary": "Agent stream BOUNDARY_COMPLETED runtime",
+      "inputSummaryJson": null,
+      "outputSummaryJson": {
+        "agentStreamEvent": {
+          "data": {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          },
+          "runId": "48fea145-e7cd-4073-bb7d-50dfe972432f",
+          "source": "assessment_root_requested",
+          "status": "COMPLETED",
+          "eventId": "5a0320e0-779a-4b93-ba7a-af6b60e84e2c",
+          "sequence": 1791751661367000,
+          "emittedAt": "2026-10-11T20:47:41.367Z",
+          "eventType": "BOUNDARY_COMPLETED",
+          "namespace": [],
+          "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+          "correlationId": "unknown",
+          "clientSequence": 8
+        },
+        "semanticPayloads": [
+          {
+            "runtimeRunId": "48fea145-e7cd-4073-bb7d-50dfe972432f"
+          }
+        ]
+      },
+      "errorSummary": null,
+      "startedAt": null,
+      "completedAt": null,
+      "durationMs": null,
+      "attempt": null,
+      "waitingReason": null,
+      "createdAt": "2026-10-11T20:47:41.368"
+    }
+  ]
+}

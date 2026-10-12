@@ -33,7 +33,7 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
       const [coverage, facts, evidence, openRequests] = await Promise.all([
         tx.assessmentDecisionCoverage.findMany({
           where: { assessmentId: input.assessmentId },
-          orderBy: { engineeringRuleId: "asc" },
+          orderBy: { assessmentRuleId: "asc" },
         }),
         tx.assessmentCaseFact.findMany({
           where: { assessmentId: input.assessmentId },
@@ -58,14 +58,14 @@ export class GetRootContextHandler implements IQueryHandler<GetRootContextQuery>
         lifecycleState: run.lifecycleState,
         lifecycleRevision: run.lifecycleRevision,
         caseRevision: pins.caseRevision,
-        legalPortfolioVersionId: pins.legalPortfolioVersionId,
+        ruleSetVersionId: pins.ruleSetVersionId,
         repositorySnapshotId: pins.repositorySnapshotId,
         repositoryScanJobId: pins.repositoryScanJobId,
         repositoryCommit: pins.repositoryCommit,
         decisionScopeId: ASSESSMENT_DECISION_SCOPE,
         coverage: coverage.map((row) => ({
-          engineeringRuleId: row.engineeringRuleId,
-          engineeringRuleVersion: row.engineeringRuleVersion,
+          assessmentRuleId: row.assessmentRuleId,
+          assessmentRuleVersion: row.assessmentRuleVersion,
           resolutionState: row.resolutionState,
           currentDecisionId: row.currentDecisionId,
           decisionRevision: row.decisionRevision,

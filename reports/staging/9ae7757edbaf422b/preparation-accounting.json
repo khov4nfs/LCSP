@@ -1,0 +1,223 @@
+{
+  "scope": "EXACT_IMAGE_PREPARATION_PROVIDER_USAGE_RECONCILIATION",
+  "status": "PASS",
+  "runId": "9ae7757edbaf422b",
+  "source": "NATIVE_CHECKPOINT_PROVIDER_REPORTED_AI_MESSAGE_USAGE_DEDUPLICATED_BY_MESSAGE_ID",
+  "billingLedger": "PREPARATION_IS_NOT_ATTACHED_TO_CUSTOMER_ASSESSMENT_LEDGER",
+  "customerCreditsCharged": 0,
+  "rawApiKeysIncluded": false,
+  "attempts": [
+    {
+      "preparationRunId": "4ea63e12-4c0e-47f5-83a3-021f45f1be81",
+      "executionState": "FAILED",
+      "correlationId": "d941182e-60af-4d92-8d8b-3c58d8db4e5e",
+      "threadId": "6a4ab736-d9c9-58c4-bf4b-3bae937eb38a",
+      "successfulProvider": null,
+      "successfulModelResponses": 0,
+      "providerReportedUsage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0
+      },
+      "responses": [],
+      "submissionCalls": 0
+    },
+    {
+      "preparationRunId": "1f6dadac-4457-473a-87a6-3297aef9ffa8",
+      "executionState": "SUCCEEDED",
+      "correlationId": "07a2bee2-6638-4837-b530-dc284335e2bf",
+      "threadId": "02194ae0-a504-54e4-a20f-20c7b15eba61",
+      "successfulProvider": "APX",
+      "successfulModelResponses": 5,
+      "providerReportedUsage": {
+        "input_tokens": 98565,
+        "output_tokens": 7921,
+        "total_tokens": 106486
+      },
+      "responses": [
+        {
+          "messageId": "lc_run--01a12ca3-f059-73a1-9b9f-bf620d065373-0",
+          "usage": {
+            "input_tokens": 11376,
+            "output_tokens": 68,
+            "total_tokens": 11444,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": [
+            "read_file"
+          ]
+        },
+        {
+          "messageId": "lc_run--01a12ca4-0485-72f1-86f1-291fdf89ec9d-0",
+          "usage": {
+            "input_tokens": 14583,
+            "output_tokens": 631,
+            "total_tokens": 15214,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": [
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file"
+          ]
+        },
+        {
+          "messageId": "lc_run--01a12ca4-f34f-7063-8c12-9a6f26e42ed2-0",
+          "usage": {
+            "input_tokens": 23886,
+            "output_tokens": 4010,
+            "total_tokens": 27896,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": [
+            "submit_compliance_rule_set"
+          ]
+        },
+        {
+          "messageId": "lc_run--01a12ca4-2d9d-70a0-be82-97deae2ba170-0",
+          "usage": {
+            "input_tokens": 20864,
+            "output_tokens": 3072,
+            "total_tokens": 23936,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": [
+            "validate_compliance_rule_set"
+          ]
+        },
+        {
+          "messageId": "lc_run--01a12ca5-affe-72b3-9332-55f3c3d75102-0",
+          "usage": {
+            "input_tokens": 27856,
+            "output_tokens": 140,
+            "total_tokens": 27996,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": []
+        }
+      ],
+      "submissionCalls": 1
+    },
+    {
+      "preparationRunId": "b0ba913b-1d21-4a18-b273-ba52b3e83ef6",
+      "executionState": "SUCCEEDED",
+      "correlationId": "bea5ee5b-9fca-46f3-b84a-c36ec74197b8",
+      "threadId": "fd2b413b-ba29-5d56-b693-731443b0e43c",
+      "successfulProvider": "APX",
+      "successfulModelResponses": 5,
+      "providerReportedUsage": {
+        "input_tokens": 97657,
+        "output_tokens": 7407,
+        "total_tokens": 105064
+      },
+      "responses": [
+        {
+          "messageId": "lc_run--01a12cae-c655-7f73-b84c-cc1677930941-0",
+          "usage": {
+            "input_tokens": 11376,
+            "output_tokens": 61,
+            "total_tokens": 11437,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": [
+            "read_file"
+          ]
+        },
+        {
+          "messageId": "lc_run--01a12cae-df19-7a40-9ed6-556695e1ac04-0",
+          "usage": {
+            "input_tokens": 14586,
+            "output_tokens": 625,
+            "total_tokens": 15211,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": [
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file",
+            "read_file"
+          ]
+        },
+        {
+          "messageId": "lc_run--01a12caf-057d-70e3-89be-37f6c374f1f7-0",
+          "usage": {
+            "input_tokens": 20850,
+            "output_tokens": 2904,
+            "total_tokens": 23754,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": [
+            "validate_compliance_rule_set"
+          ]
+        },
+        {
+          "messageId": "lc_run--01a12caf-b216-7532-bf90-1f631c7f6a85-0",
+          "usage": {
+            "input_tokens": 23623,
+            "output_tokens": 3547,
+            "total_tokens": 27170,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": [
+            "submit_compliance_rule_set"
+          ]
+        },
+        {
+          "messageId": "lc_run--01a12cb0-4c7c-7df1-ab55-b763a2e6df02-0",
+          "usage": {
+            "input_tokens": 27222,
+            "output_tokens": 270,
+            "total_tokens": 27492,
+            "input_token_details": {},
+            "output_token_details": {}
+          },
+          "model": "claude-sonnet-4-6-free",
+          "tools": []
+        }
+      ],
+      "submissionCalls": 1
+    }
+  ],
+  "failedQuotaUsage": "No provider usage returned for rejected quota requests; empty successful-response sum is zero, not an estimate of unknown provider billing."
+}

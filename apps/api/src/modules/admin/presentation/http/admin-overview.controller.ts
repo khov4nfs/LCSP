@@ -21,7 +21,7 @@ export class AdminOverviewController {
   constructor(private readonly queryBus: QueryBus) {}
 
   /**
-   * Retrieves high-level dashboard metrics across accounts, assessments, legal rule corpus, and audit activity.
+   * Retrieves high-level dashboard metrics across accounts, assessments, legal rule legalSource, and audit activity.
    */
   @Get()
   @UseGuards(RbacGuard)

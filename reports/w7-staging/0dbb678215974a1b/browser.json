@@ -1,0 +1,97 @@
+{
+  "scope": "W7_EXACT_IMAGE_BOUNDED_REAL_BROWSER_CHECKS",
+  "status": "PASS_BOUNDED_CHECKS",
+  "observedAt": "2026-10-09T17:52:07.411847+00:00",
+  "runId": "0dbb678215974a1b",
+  "readinessReceipt": "reports/w7-staging/0dbb678215974a1b/report.json",
+  "imageReceipt": "reports/w7-images/20261009121713_976c762ea276/report.json",
+  "web": "http://localhost:32772",
+  "browser": "Playwright MCP headless Chrome",
+  "checks": {
+    "ownerRealSignIn": {
+      "status": "PASS",
+      "httpStatus": 200
+    },
+    "minimalCreateWithoutInitialInterview": {
+      "status": "PASS",
+      "httpStatus": 201,
+      "assessmentId": "2ef53f04-a4d2-49fa-895a-8c6d717c361a",
+      "fields": [
+        "name",
+        "description"
+      ]
+    },
+    "canonicalProjectionAndReload": {
+      "status": "PASS",
+      "lifecycleState": "PREPARING",
+      "assessmentRevision": 1,
+      "executionState": "QUEUED",
+      "eventSequence": 1,
+      "threadId": "c7a081d8-e2a8-4308-b950-7d78ab99fc0e",
+      "readOnlyDatabaseParity": "PASS",
+      "reloadPreservesCanonicalState": true,
+      "humanRequests": 0
+    },
+    "ownerArtifactsEmptyState": "PASS",
+    "otherAccountIsolation": {
+      "status": "PASS",
+      "ownListHttpStatus": 200,
+      "ownListTotal": 0,
+      "foreignNameInDOM": false,
+      "foreignDetailHttpStatus": 404,
+      "foreignHumanRequestsHttpStatus": 404,
+      "foreignRepositorySetupHttpStatus": 404,
+      "problemCode": "ASSESSMENT_NOT_FOUND",
+      "scope": "TWO_FIXTURE_USERS_ONE_PREPARING_ASSESSMENT"
+    },
+    "adminLegalPreparationEmptyState": {
+      "status": "PASS",
+      "httpStatus": 200,
+      "startDisabledWithoutCorpus": true,
+      "approvalButtonCount": 0
+    }
+  },
+  "console": {
+    "successfulOwnerFlowErrors": 0,
+    "successfulOwnerFlowWarnings": 0,
+    "expectedForeignAccess404ResourceErrors": 6,
+    "unexpectedErrorsObserved": 0,
+    "warningsObserved": 0,
+    "currentAdminPageErrors": 0
+  },
+  "chromeDevTools": {
+    "status": "UNAVAILABLE",
+    "reason": "Missing X server to start headful browser",
+    "fallback": "Playwright MCP console, network, DOM and screenshots"
+  },
+  "privateArtifacts": [
+    {
+      "path": "tmp/w7-staging/0dbb678215974a1b/browser-create-preparing.png",
+      "sha256": "8159c45d7b2519579e0eac8aca76a06f4b8d78868a4799034b747ef7c01f0c27",
+      "byteLength": 60526
+    },
+    {
+      "path": "tmp/w7-staging/0dbb678215974a1b/browser-admin-empty.png",
+      "sha256": "5247b1700960b83793478c68b65d6839cd4b7cc327c43b109a1778be5f23827e",
+      "byteLength": 51976
+    },
+    {
+      "path": "tmp/w7-staging/0dbb678215974a1b/browser-console.log",
+      "sha256": "91463277710cb42dac41e4cc682fa458cb607ef528ac50a6c69ed8ad91c67834",
+      "byteLength": 1150
+    },
+    {
+      "path": "tmp/w7-staging/0dbb678215974a1b/browser-network.log",
+      "sha256": "8d0252466e7ec54cb930b681fca9f3bfb4f9eab07eb3ad9e9263da5e138912d6",
+      "byteLength": 3087
+    }
+  ],
+  "networkArtifactScope": "ADMIN_LEGAL_PREPARATION_PAGE; earlier flow HTTP statuses were observed separately",
+  "browserAcceptance": "PARTIAL",
+  "liveRootAndHumanRequestFlows": "NOT_RUN",
+  "officialSourceAcquisition": "NOT_RUN",
+  "frozen25RowStagingMatrix": "NOT_PROVEN",
+  "currentHeadRemoteCI": "NOT_PROVEN",
+  "productionDeployment": false,
+  "releaseEligible": false
+}

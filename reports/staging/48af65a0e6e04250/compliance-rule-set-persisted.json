@@ -1,0 +1,584 @@
+{
+  "ruleSet": {
+    "id": "505bc936-1590-447e-b505-68ab283868c6",
+    "version": "release-synthetic-48af65a0e6e04250.p1",
+    "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+    "preparationRunId": "a8c39a99-be2e-4cbb-af46-42f1445402aa",
+    "lifecycleState": "ACTIVE",
+    "ruleSetDigest": "bcefb014909c43347da662ce80357cdfe384227b0f1142f816c667e74d4b7269",
+    "validationOutcome": "PASSED",
+    "validationFailures": [],
+    "createdAt": "2026-10-12T04:13:57.324",
+    "validatedAt": "2026-10-12T04:13:57.323",
+    "activatedAt": "2026-10-12T04:13:57.323",
+    "supersededAt": null
+  },
+  "legalRequirements": [
+    {
+      "id": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "legalRequirementId": "LR-1",
+      "title": "Record Retention Duty",
+      "proposition": "An operator within Article 2 must retain each record for 7 days from receipt, keeping the notice text with its receipt timestamp and preserving the notice text without removing its limiting language, subject to the exception for temporary test records.",
+      "applicabilityConditions": [
+        "The operator offers the notice service to the public (not private household use)."
+      ],
+      "qualifiers": [
+        "The 7-day retention period begins when the receipt timestamp is recorded, which occurs when the notice is received, not when it is drafted."
+      ],
+      "exceptions": [
+        "The retention duty does not apply to a temporary test record."
+      ],
+      "nonRepositoryDuty": false,
+      "coverageState": "COVERED_BY_ASSESSMENT_RULES",
+      "nonAssessableReason": null,
+      "contentDigest": "e6308c51c6e2c5b8505c66ed0c273e5143a01a46546f943cb00c178716a18221",
+      "ordinal": 0
+    },
+    {
+      "id": "1da1dd88-1d09-48cc-954b-25ee3237aecb",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "legalRequirementId": "LR-2",
+      "title": "In-Person Attendance Duty",
+      "proposition": "The operator must appoint a person to attend the annual public information session in person. Attendance is recorded in the session register maintained by the organizer.",
+      "applicabilityConditions": [],
+      "qualifiers": [
+        "Attendance must be in person.",
+        "The annual public information session is the event requiring attendance."
+      ],
+      "exceptions": [],
+      "nonRepositoryDuty": true,
+      "coverageState": "NON_ASSESSABLE",
+      "nonAssessableReason": "This duty requires appointing and ensuring a person physically attends an external annual session. Attendance is recorded in a register maintained by the session organizer, not by the operator's repository. Repository evidence cannot establish the performance of this organizational and in-person action.",
+      "contentDigest": "7cdbae8a0405c49c72ac297975281cacfc1e619a88da22b35c20588efb470314",
+      "ordinal": 1
+    }
+  ],
+  "assessmentRules": [
+    {
+      "id": "4a2f0816-99ab-4c94-a4ca-858925aaf0b2",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "assessmentRuleId": "AR-1",
+      "assessmentRuleVersion": "release-synthetic-48af65a0e6e04250",
+      "concept": "Notice Record Retention with Timestamp and Content Integrity",
+      "legalIntent": "Ensure that operators offering a notice service to the public retain each notice record (the stored notice and its receipt timestamp) for 7 days from receipt, preserving both the notice text with its timestamp association and the integrity of the notice text without removing limiting language. Temporary test records are exempt from this retention requirement.",
+      "applicabilityGuidance": "This rule applies to operators offering the notice service to the public. It does not apply to private household use. The retention duty applies to each record (a stored notice and its receipt timestamp as defined in Article 1). The duty does not apply to temporary test records.",
+      "criteria": [
+        {
+          "statement": "Each non-test notice record must be retained for at least 7 days, measured from the receipt timestamp. The receipt timestamp is recorded when the notice is received, not when it is drafted.",
+          "criterionId": "C-1"
+        },
+        {
+          "statement": "Each retained record must include both the notice text and its associated receipt timestamp together.",
+          "criterionId": "C-2"
+        },
+        {
+          "statement": "The notice text must be preserved without removing its limiting language; the stored content must maintain the original limiting language present in the notice.",
+          "criterionId": "C-3"
+        }
+      ],
+      "contract": {
+        "concept": "Notice Record Retention with Timestamp and Content Integrity",
+        "criteria": [
+          {
+            "statement": "Each non-test notice record must be retained for at least 7 days, measured from the receipt timestamp. The receipt timestamp is recorded when the notice is received, not when it is drafted.",
+            "criterionId": "C-1"
+          },
+          {
+            "statement": "Each retained record must include both the notice text and its associated receipt timestamp together.",
+            "criterionId": "C-2"
+          },
+          {
+            "statement": "The notice text must be preserved without removing its limiting language; the stored content must maintain the original limiting language present in the notice.",
+            "criterionId": "C-3"
+          }
+        ],
+        "keywords": [
+          "notice",
+          "record",
+          "retention",
+          "timestamp",
+          "receipt",
+          "7 days",
+          "preserve",
+          "limiting language"
+        ],
+        "patterns": [],
+        "commonApis": [],
+        "legalIntent": "Ensure that operators offering a notice service to the public retain each notice record (the stored notice and its receipt timestamp) for 7 days from receipt, preserving both the notice text with its timestamp association and the integrity of the notice text without removing limiting language. Temporary test records are exempt from this retention requirement.",
+        "graphQueries": [],
+        "edgeStrategies": [],
+        "sourceChunkIds": [
+          "release-synthetic-48af65a0e6e04250:art-5::cl-1",
+          "release-synthetic-48af65a0e6e04250:art-5::cl-1::pt-a",
+          "release-synthetic-48af65a0e6e04250:art-5::cl-1::pt-b",
+          "release-synthetic-48af65a0e6e04250:art-1::cl-1",
+          "release-synthetic-48af65a0e6e04250:art-2::cl-1",
+          "release-synthetic-48af65a0e6e04250:art-3::cl-1",
+          "release-synthetic-48af65a0e6e04250:art-4::cl-1",
+          "release-synthetic-48af65a0e6e04250:art-4::cl-1::pt-a"
+        ],
+        "commonLibraries": [],
+        "targetNodeTypes": [],
+        "assessmentRuleId": "AR-1",
+        "negativeEvidence": [],
+        "requiredEvidence": [
+          "Storage configuration or policy specifying the retention period for notice records, measured from receipt timestamp.",
+          "Sample records showing the notice text stored together with the receipt timestamp.",
+          "Mechanism or logic demonstrating that the 7-day retention period begins at receipt, not draft time.",
+          "Evidence that the stored notice text preserves limiting language without removal or alteration."
+        ],
+        "startingNodeTypes": [],
+        "investigationGoals": [
+          "Identify systems, databases, or storage mechanisms that hold notice records.",
+          "Determine the retention period applied to each notice record from its receipt timestamp.",
+          "Verify that each record includes both the notice text and the receipt timestamp.",
+          "Assess whether the stored notice text preserves limiting language or if such language is removed or altered.",
+          "Distinguish temporary test records from production records subject to retention."
+        ],
+        "supportingEvidence": [
+          "Database schema or data model showing notice text and timestamp fields associated in the same record.",
+          "Retention policy documentation distinguishing temporary test records from production records.",
+          "Code or configuration that marks or filters temporary test records separately.",
+          "Logs or audit trails showing record creation at receipt time and retention enforcement."
+        ],
+        "legalRequirementIds": [
+          "LR-1"
+        ],
+        "unresolvedConditions": [],
+        "applicabilityGuidance": "This rule applies to operators offering the notice service to the public. It does not apply to private household use. The retention duty applies to each record (a stored notice and its receipt timestamp as defined in Article 1). The duty does not apply to temporary test records."
+      },
+      "sourceFingerprint": "422ae4c3290416290224b0a1bc1f7a1e9bc7a51cfda976c761803bf5476f5d2d",
+      "contentDigest": "2d37d8b016e8ceed1e7a8325a2015b5c6897d68e5e28a80f45060cd819df48f2",
+      "ordinal": 0,
+      "createdAt": "2026-10-12T04:13:57.33"
+    }
+  ],
+  "provenance": [
+    {
+      "id": "bd111aa5-9505-4842-9b21-225d18c77233",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "legalRequirementRowId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "chunkId": "release-synthetic-48af65a0e6e04250:art-5::cl-1",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-5::cl-1",
+      "contentSha256": "sha256:bd8cd881b48df3173ecf660da32079a9f63b775ffe6adf5fba9434d30d1a25ea",
+      "sourceEffectStatus": "C\u00f2n hi\u1ec7u l\u1ef1c",
+      "ordinal": 0
+    },
+    {
+      "id": "99187427-7221-49ab-bb3a-091f50b154d0",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "legalRequirementRowId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "chunkId": "release-synthetic-48af65a0e6e04250:art-5::cl-1::pt-a",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-5::cl-1::pt-a",
+      "contentSha256": "sha256:eecf13d5d761815a81b1a94dbba9307a1000cdc43caa6335b1693f815612772b",
+      "sourceEffectStatus": "C\u00f2n hi\u1ec7u l\u1ef1c",
+      "ordinal": 1
+    },
+    {
+      "id": "d0fdef69-c034-4904-bd70-d3e4091f2e2e",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "legalRequirementRowId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "chunkId": "release-synthetic-48af65a0e6e04250:art-5::cl-1::pt-b",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-5::cl-1::pt-b",
+      "contentSha256": "sha256:61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458",
+      "sourceEffectStatus": "C\u00f2n hi\u1ec7u l\u1ef1c",
+      "ordinal": 2
+    },
+    {
+      "id": "9bbfe135-7bfe-4ef9-8b50-0c7c7dfe7b23",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "legalRequirementRowId": "1da1dd88-1d09-48cc-954b-25ee3237aecb",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "chunkId": "release-synthetic-48af65a0e6e04250:art-6::cl-1",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-6::cl-1",
+      "contentSha256": "sha256:4ca54657d2e573b17f0545d6c627d06defc1931fa7101901e79bcb07b53eb5a8",
+      "sourceEffectStatus": "C\u00f2n hi\u1ec7u l\u1ef1c",
+      "ordinal": 0
+    }
+  ],
+  "contextRelations": [
+    {
+      "id": "f068a7ea-d237-4307-a4b4-96207464abd5",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "relationId": "REL-1",
+      "kind": "DEFINITION",
+      "fromRuleId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "toRuleId": null,
+      "toChunkId": "release-synthetic-48af65a0e6e04250:art-1::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "relationDigest": "8af48427f2ed81cd9e55ccccd23e071a438ca9b5f72f9355755d9bb9d89c6cb8",
+      "ordinal": 0
+    },
+    {
+      "id": "c41d1cae-161e-48b2-a0e4-8782fe898ac4",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "relationId": "REL-2",
+      "kind": "SCOPE",
+      "fromRuleId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "toRuleId": null,
+      "toChunkId": "release-synthetic-48af65a0e6e04250:art-2::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "relationDigest": "95cacda333df48001282dd7ff2ddda4e5699f6c937c75b2473854014daf2e58d",
+      "ordinal": 1
+    },
+    {
+      "id": "c532a3be-088f-4105-a17d-f01cdec51c75",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "relationId": "REL-3",
+      "kind": "EXCEPTION",
+      "fromRuleId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "toRuleId": null,
+      "toChunkId": "release-synthetic-48af65a0e6e04250:art-3::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "relationDigest": "22e17cd37ffdc626229c94ff9df3fbc792256b3569e054e252aeacd56bd778c2",
+      "ordinal": 2
+    },
+    {
+      "id": "18e4586f-1b43-4f30-8b74-2f0b16979454",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "relationId": "REL-4",
+      "kind": "QUALIFIER",
+      "fromRuleId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "toRuleId": null,
+      "toChunkId": "release-synthetic-48af65a0e6e04250:art-4::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "relationDigest": "63411c1d32ba897453624e5af8f00a72807f24c281fc434a9a3cd84870b5a466",
+      "ordinal": 3
+    },
+    {
+      "id": "73a3dca7-cee3-4445-9baf-16350883482e",
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "relationId": "REL-5",
+      "kind": "QUALIFIER",
+      "fromRuleId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee",
+      "toRuleId": null,
+      "toChunkId": "release-synthetic-48af65a0e6e04250:art-4::cl-1::pt-a",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "relationDigest": "ba035794b2a6b52cd13f96cae5edcbe7d1d498ba9ecb172e4ae5d1389d8e4005",
+      "ordinal": 4
+    }
+  ],
+  "coverageLinks": [
+    {
+      "ruleSetVersionId": "505bc936-1590-447e-b505-68ab283868c6",
+      "assessmentRuleRowId": "4a2f0816-99ab-4c94-a4ca-858925aaf0b2",
+      "legalRequirementRowId": "a0fb901f-4a93-4eed-8668-9d3298aec0ee"
+    }
+  ],
+  "sourceChunks": [
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-1",
+      "content": "\u0110i\u1ec1u 1. Defined term",
+      "contentSha256": "sha256:23c8e407995b44f5140686438837e86b0893cdb536b93d23ddb9e58d1414af7b",
+      "hierarchy": {
+        "articleTitle": "Defined term",
+        "chapterTitle": "Synthetic source context",
+        "articleNumber": "1",
+        "chapterNumber": "I"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-1::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-1::cl-1",
+      "content": "1. In this synthetic instrument, \u201crecord\u201d means a stored notice and its receipt timestamp.",
+      "contentSha256": "sha256:6454d5dfce7ca41db7af4c2db9114bba5bffd1554bfa892a6a2fb7aab0e04682",
+      "hierarchy": {
+        "articleTitle": "Defined term",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "1",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-1"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-2",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-2",
+      "content": "\u0110i\u1ec1u 2. Scope",
+      "contentSha256": "sha256:bf41a0694e64ae74fa29b8dccb45a686dafa726fdf2c23d13de5e8363093016b",
+      "hierarchy": {
+        "articleTitle": "Scope",
+        "chapterTitle": "Synthetic source context",
+        "articleNumber": "2",
+        "chapterNumber": "I"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-2::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-2::cl-1",
+      "content": "1. This instrument applies only to operators offering the notice service to the public.\nPrivate household use is outside this scope.",
+      "contentSha256": "sha256:87674bc449c5da27128417aa67fd79b1bcf21188b968ae720588985a1785904a",
+      "hierarchy": {
+        "articleTitle": "Scope",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "2",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-2"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-3",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-3",
+      "content": "\u0110i\u1ec1u 3. Exception",
+      "contentSha256": "sha256:6a3e3e28802717eff3b111632083057d149c37c4d09ec7a4892429dc3e5656b5",
+      "hierarchy": {
+        "articleTitle": "Exception",
+        "chapterTitle": "Synthetic source context",
+        "articleNumber": "3",
+        "chapterNumber": "I"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-3::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-3::cl-1",
+      "content": "1. The retention duty in Article 5 does not apply to a temporary test record.\nThis exception does not remove the in-person duty in Article 6.",
+      "contentSha256": "sha256:efe8ff082b8a80fdae0e5a1322c41fde82b92491a50d8109cb9673a951b1cc58",
+      "hierarchy": {
+        "articleTitle": "Exception",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "3",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-3"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-4",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-4",
+      "content": "\u0110i\u1ec1u 4. Cross-reference",
+      "contentSha256": "sha256:84f5d9f1f5b50662465d12bd3b72d348182dbdafe784caef38a78ac9e75fa586",
+      "hierarchy": {
+        "articleTitle": "Cross-reference",
+        "chapterTitle": "Synthetic source context",
+        "articleNumber": "4",
+        "chapterNumber": "I"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-4::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-4::cl-1",
+      "content": "1. For the duty in Article 5, read \u201crecord\u201d as defined in Article 1, within Article 2 and subject to Article 3.\na) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted.",
+      "contentSha256": "sha256:315d2575bfb3a13eb71e1e0dd4245805690fb888c5a2a351114da6a74b896b08",
+      "hierarchy": {
+        "articleTitle": "Cross-reference",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "4",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-4"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-4::cl-1::pt-a",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-4::cl-1::pt-a",
+      "content": "a) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted.",
+      "contentSha256": "sha256:488c174e0fc05084beb772662b8ddb0a5bf3fac2821c795d1b23d171f157ea5d",
+      "hierarchy": {
+        "pointCode": "a",
+        "articleTitle": "Cross-reference",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "4",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-4::cl-1"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-5",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-5",
+      "content": "\u0110i\u1ec1u 5. Retention duty",
+      "contentSha256": "sha256:1349601e140534059e0eec3a82198f01ddc484c23f2c775dc88c98f20766ebad",
+      "hierarchy": {
+        "articleTitle": "Retention duty",
+        "chapterTitle": "Synthetic source context",
+        "articleNumber": "5",
+        "chapterNumber": "I"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-5::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-5::cl-1",
+      "content": "1. An operator within Article 2 must retain each record for 7 days, subject to Article 3.\na) Keep the notice text with its receipt timestamp.\nb) Preserve the notice text without removing its limiting language.",
+      "contentSha256": "sha256:bd8cd881b48df3173ecf660da32079a9f63b775ffe6adf5fba9434d30d1a25ea",
+      "hierarchy": {
+        "articleTitle": "Retention duty",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "5",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-5"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-5::cl-1::pt-a",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-5::cl-1::pt-a",
+      "content": "a) Keep the notice text with its receipt timestamp.",
+      "contentSha256": "sha256:eecf13d5d761815a81b1a94dbba9307a1000cdc43caa6335b1693f815612772b",
+      "hierarchy": {
+        "pointCode": "a",
+        "articleTitle": "Retention duty",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "5",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-5::cl-1"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-5::cl-1::pt-b",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-5::cl-1::pt-b",
+      "content": "b) Preserve the notice text without removing its limiting language.",
+      "contentSha256": "sha256:61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458",
+      "hierarchy": {
+        "pointCode": "b",
+        "articleTitle": "Retention duty",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "5",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-5::cl-1"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-6",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-6",
+      "content": "\u0110i\u1ec1u 6. In-person duty",
+      "contentSha256": "sha256:7bbeb8a28f292b450c3abc7112d11ed8b634b6fbe2e63cff88ad3cc5b6e463bf",
+      "hierarchy": {
+        "articleTitle": "In-person duty",
+        "chapterTitle": "Synthetic source context",
+        "articleNumber": "6",
+        "chapterNumber": "I"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    },
+    {
+      "id": "release-synthetic-48af65a0e6e04250:art-6::cl-1",
+      "legalSourceVersionId": "557bb8bb-d5a6-4510-841a-8306822a0a36",
+      "legalSourceDocumentId": "b3a528e3-ed57-4be4-9f7f-57d753558659",
+      "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+      "locator": "art-6::cl-1",
+      "content": "1. The operator must appoint a person to attend the annual public information session in person.\nAttendance is recorded in the session register maintained by the organizer.",
+      "contentSha256": "sha256:4ca54657d2e573b17f0545d6c627d06defc1931fa7101901e79bcb07b53eb5a8",
+      "hierarchy": {
+        "articleTitle": "In-person duty",
+        "chapterTitle": "Synthetic source context",
+        "clauseNumber": "1",
+        "articleNumber": "6",
+        "chapterNumber": "I",
+        "parentChunkId": "SYNTHETIC-NOTICE-INSTRUMENT::art-6"
+      },
+      "legalStatus": "IN_FORCE",
+      "pageStart": null,
+      "pageEnd": null,
+      "createdAt": "2026-10-12T04:12:05.866"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "scope": "REVIEWED_SYNTHETIC_CORPUS_PRECONDITION_ONLY",
+  "status": "PASS",
+  "runId": "a24cb757ce484f9d",
+  "corpusVersionId": "680c6b08-53f5-4c57-b825-038786a7aafb",
+  "version": "release-synthetic-a24cb757ce484f9d",
+  "mode": "initial",
+  "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "chunks": 15,
+  "validIndex": true,
+  "preparationStarted": false,
+  "officialAcquisitionAndLiveIndexConstruction": "NOT_SUBSTITUTED"
+}

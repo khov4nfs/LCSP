@@ -1,0 +1,108 @@
+{
+  "scope": "W7_ACTUAL_BROKER_PREPARATION_SCHEMA_REJECTIONS",
+  "status": "FAIL_NO_SUBMISSION",
+  "runId": "2a36c566096f48c5",
+  "preparationRunId": "ab30912a-85ba-4c61-ae1b-b34e8506fef1",
+  "canonicalState": {
+    "executionState": "FAILED",
+    "failureReason": "NO_SUBMISSION",
+    "correlationId": "da3d6f18-85b2-4c9f-8d17-0bdda809af36",
+    "outboxEventId": "outbox:2bb010ca7a6f4ae7eed0e677662c1486150530040bf450f820367bebc43f0401",
+    "portfolioId": null,
+    "lifecycleState": null,
+    "validationOutcome": null,
+    "outboxStatus": "PUBLISHED"
+  },
+  "databaseCounts": {
+    "LegalPreparationRun": 1,
+    "LegalPortfolioVersion": 0,
+    "LegalPortfolioActivationRecord": 0
+  },
+  "httpAttempts": [
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 200
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 200
+    },
+    {
+      "route": "submissions",
+      "status": 400
+    },
+    {
+      "route": "validations",
+      "status": 200
+    },
+    {
+      "route": "submissions",
+      "status": 400
+    }
+  ],
+  "schemaIssuePaths": [
+    "packet.legalRules,packet.engineeringRules,packet.contextRelations,packet",
+    "packet.engineeringRules.0.engineeringRuleId,packet.engineeringRules.0.negativeEvidence,packet.engineeringRules.0.sourceRefs,packet.engineeringRules.0,packet.engineeringRules.1.engineeringRuleId,packet.engineeringRules.1.negativeEvidence,packet.engineeringRules.1.sourceRefs,packet.engineeringRules.1,packet.contextRelations.0.relationId,packet.contextRelations.1.relationId,packet.contextRelations.2.relationId,packet.contextRelations.3.relationId,packet.contextRelations.4.relationId,packet.contextRelations.5.relationId,packet.contextRelations.6.relationId,packet.contextRelations.7.relationId",
+    "packet.legalRules.0.coverage.nonAssessableReason",
+    "packet.legalRules.0.coverage.nonAssessableReason,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId,packet.contextRelations.4.toLegalRuleId,packet.contextRelations.5.toLegalRuleId,packet.contextRelations.6.toLegalRuleId,packet.contextRelations.7.toLegalRuleId",
+    "packet.legalRules.0.coverage.nonAssessableReason",
+    "packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId,packet.contextRelations.4.toLegalRuleId,packet.contextRelations.5.toLegalRuleId,packet.contextRelations.6.toLegalRuleId,packet.contextRelations.7.toLegalRuleId",
+    "packet.legalRules.0.coverage.nonAssessableReason",
+    "packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId,packet.contextRelations.4.toLegalRuleId,packet.contextRelations.5.toLegalRuleId,packet.contextRelations.6.toLegalRuleId,packet.contextRelations.7.toLegalRuleId",
+    "packet.legalRules.0.coverage.nonAssessableReason",
+    "packet.legalRules.0.coverage.nonAssessableReason",
+    "packet.legalRules.0.coverage.nonAssessableReason,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId,packet.contextRelations.4.toLegalRuleId,packet.contextRelations.5.toLegalRuleId,packet.contextRelations.6.toLegalRuleId,packet.contextRelations.7.toLegalRuleId",
+    "packet.legalRules.0.coverage.nonAssessableReason,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId,packet.contextRelations.4.toLegalRuleId,packet.contextRelations.5.toLegalRuleId,packet.contextRelations.6.toLegalRuleId,packet.contextRelations.7.toLegalRuleId",
+    "packet.legalRules.0.coverage.nonAssessableReason,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId,packet.contextRelations.4.toLegalRuleId,packet.contextRelations.5.toLegalRuleId,packet.contextRelations.6.toLegalRuleId,packet.contextRelations.7.toLegalRuleId"
+  ],
+  "nativeRunStatuses": [
+    "success"
+  ],
+  "originalModelTranscript": "NOT_RECOVERED",
+  "productionDeployment": false,
+  "releaseEligible": false
+}

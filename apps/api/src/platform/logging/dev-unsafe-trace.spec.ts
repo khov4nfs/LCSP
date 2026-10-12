@@ -4,7 +4,6 @@ import {
   unsafeDevTraceEnabled,
   unsafeDevUnfilteredEnabled,
 } from "./dev-unsafe-trace.js";
-import { sanitizeOrchestrationLogValue } from "./orchestration-runtime-log.js";
 
 interface TraceRecord {
   event?: string;
@@ -105,22 +104,6 @@ describe("dev-unsafe-trace", () => {
     expect(record.body).toBe("hello");
 
     writeSpy.mockRestore();
-  });
-
-  it("does not redact orchestration log values when unfiltered is enabled", () => {
-    process.env.LCSP_DEV_UNSAFE_TRACE = "true";
-    process.env.LCSP_DEV_UNSAFE_UNFILTERED = "true";
-    process.env.NODE_ENV = "development";
-
-    expect(
-      sanitizeOrchestrationLogValue({
-        apiKey: "secret-key-123",
-        response: { authorization: "Bearer token-123" },
-      }),
-    ).toEqual({
-      apiKey: "secret-key-123",
-      response: { authorization: "Bearer token-123" },
-    });
   });
 
   it("logs actual body size from content-length header and dynamic limit for technical profile callback", () => {

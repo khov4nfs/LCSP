@@ -1,5 +1,7 @@
 # LCSP Acceptance Criteria Catalog
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 Canonical catalog: `AC-001..AC-041` plus Phase 5.2L `AC-050A..AC-050F`. `FR-050` is active as `AUTOMATIC_TRUSTED_SCAN_INITIATION`. `FR-051` is `REMOVED_FROM_PRODUCT`. `FR-052` is `DEFERRED_POST_MVP`. Canonical active UCs are `UC-001..UC-017`; historical `UC-018` structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
 
 | AC      | Acceptance outcome                                                                                                                                                                                                 | UC                  | FR                                   | NFR                                   |

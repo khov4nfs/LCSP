@@ -1,0 +1,47 @@
+{
+  "configuredPrimary": "apx",
+  "source": "existing configured environment; canonical provider_tokens deduplicates slots",
+  "pools": {
+    "apx": {
+      "eligibleConfiguredSlots": 7,
+      "fingerprints": [
+        "bb6759c5268e",
+        "4cddc214cb23",
+        "2d492c597949",
+        "6ad1488184cf",
+        "5da28ee0911e",
+        "6aa674f8f240",
+        "8f5a386203fc"
+      ]
+    },
+    "google_genai": {
+      "eligibleConfiguredSlots": 6,
+      "fingerprints": [
+        "398fcfcf9214",
+        "6bc00f15be90",
+        "724da79fc49b",
+        "fcf97e608430",
+        "2188c5f841df",
+        "d811c07512c2"
+      ]
+    },
+    "inception": {
+      "eligibleConfiguredSlots": 12,
+      "fingerprints": [
+        "c9b31ac9ca3c",
+        "f9919712f76a",
+        "349c31bbc304",
+        "cc98bbfae40a",
+        "cd94ebaf8f3a",
+        "827081ea0870",
+        "3cb3d0a60bc7",
+        "084fa17b1d98",
+        "f42574fbc5d3",
+        "f32b0215e706",
+        "6b5ac69f61d6",
+        "2d21b90c541b"
+      ]
+    }
+  },
+  "rawKeysRecorded": false
+}

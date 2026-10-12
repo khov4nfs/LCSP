@@ -140,7 +140,7 @@ for (const issue of issues) {
       Summary: issue.Summary,
       Status: issue.Status,
       "Current Sprint": issue.Sprint ?? "",
-      Reason: "Epic is a portfolio container and must not be assigned to execution sprints.",
+      Reason: "Epic is a ruleSet container and must not be assigned to execution sprints.",
       URL: issue.URL,
     });
     continue;

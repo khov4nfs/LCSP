@@ -184,19 +184,19 @@ def test_traceable_creates_workflow_parent_and_records_llm_input(monkeypatch) ->
     call_llm(
         Client(),
         "raw prompt Authorization: Bearer secret-input-token visible in phoenix",
-        workflow_run_id="engineering-rule-planner:test",
-        node_name="plan_engineering_rules",
+        workflow_run_id="assessment-root:test",
+        node_name="plan_assessment_rules",
         correlationId="request-123",
     )
 
     parent_span, llm_span = fake_tracer.spans
-    assert parent_span.name == "lcsp.workflow:plan_engineering_rules"
+    assert parent_span.name == "lcsp.workflow:plan_assessment_rules"
     assert parent_span.attributes["metadata.correlationId"] == "request-123"
     assert "status" in parent_span.attributes
     assert llm_span.name == "LangChainAgent.invoke"
     assert llm_span.attributes["openinference.span.kind"] == "LLM"
     assert llm_span.attributes["metadata.workflow_run_id"] == (
-        "engineering-rule-planner:test"
+        "assessment-root:test"
     )
     assert llm_span.attributes["input.value"] == (
         "raw prompt Authorization: Bearer visible in phoenix"
@@ -257,7 +257,7 @@ def test_relative_storage_root_anchors_to_the_repository_not_the_cwd(monkeypatch
     """One durable store for every process, whatever directory it was launched from.
 
     The event bridge and LangGraph runtime may launch from different working
-    directories. A relative root used as-is gave each of them a private .corpus,
+    directories. A relative root used as-is gave each of them a private .legal-source,
     so completed triage work was invisible across processes.
     """
     from pathlib import Path
@@ -267,7 +267,7 @@ def test_relative_storage_root_anchors_to_the_repository_not_the_cwd(monkeypatch
         resolve_legal_source_storage_root,
     )
 
-    monkeypatch.setenv("LEGAL_SOURCE_STORAGE_ROOT", ".corpus")
+    monkeypatch.setenv("LEGAL_SOURCE_STORAGE_ROOT", ".legal-source")
     expected = default_legal_source_storage_root()
     repo_root = Path(expected).parent
 

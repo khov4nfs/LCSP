@@ -1,0 +1,128 @@
+{
+  "scope": "EXACT_IMAGE_TERMINAL_CANCELLATION_TRANSITION_INVARIANT",
+  "kind": "BACKEND_VERIFICATION",
+  "status": "PASS_SHARED_MECHANICAL_TRANSITION_GUARD",
+  "runId": "e73734b01eff4005",
+  "apiImageId": "sha256:8ccb87986add46e51b14fdca74d575c50992fda82b0563d01d7100d943f8aac5",
+  "states": [
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "CREATED",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "PREPARING",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "ACTIVE",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "WAITING_FOR_HUMAN",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "WAITING_FOR_REQUIRED_INPUT",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "PAUSED",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "FINALIZING",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "COMPLETE",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "BLOCKED",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "FAILED",
+      "allowed": false
+    },
+    {
+      "kind": "ASSESSMENT",
+      "from": "CANCELLED",
+      "to": "CANCELLED",
+      "allowed": false
+    },
+    {
+      "kind": "EXECUTION",
+      "from": "CANCELLED",
+      "to": "QUEUED",
+      "allowed": false
+    },
+    {
+      "kind": "EXECUTION",
+      "from": "CANCELLED",
+      "to": "RUNNING",
+      "allowed": false
+    },
+    {
+      "kind": "EXECUTION",
+      "from": "CANCELLED",
+      "to": "INTERRUPTED",
+      "allowed": false
+    },
+    {
+      "kind": "EXECUTION",
+      "from": "CANCELLED",
+      "to": "PAUSED",
+      "allowed": false
+    },
+    {
+      "kind": "EXECUTION",
+      "from": "CANCELLED",
+      "to": "SUCCEEDED",
+      "allowed": false
+    },
+    {
+      "kind": "EXECUTION",
+      "from": "CANCELLED",
+      "to": "FAILED",
+      "allowed": false
+    },
+    {
+      "kind": "EXECUTION",
+      "from": "CANCELLED",
+      "to": "CANCELLED",
+      "allowed": false
+    }
+  ],
+  "persistedAssessmentMutations": 0,
+  "customerCancelUiAction": "NO_VISIBLE_CONTROL; NOT_PERFORMED",
+  "transportSdkCancel": "RESUMABLE_TRANSPORT_INTERRUPT; NOT_CONFUSED_WITH_TERMINAL_ASSESSMENT_CANCELLATION",
+  "canonicalContinueGuard": {
+    "status": "PASS",
+    "httpEquivalentStatus": 409,
+    "code": "ASSESSMENT_CHECKPOINT_INVALID",
+    "queuedOrStateWrites": 0,
+    "method": "NONPERSISTED_CANCELLED_LIFECYCLE_AND_EXECUTION_READS_WITH_ACTUAL_CONTINUE_SERVICE",
+    "authorization": "TARGET_READ_STUBBED; AUTHORIZATION_IS_SEPARATE_LIVE_BROWSER_PROOF"
+  }
+}

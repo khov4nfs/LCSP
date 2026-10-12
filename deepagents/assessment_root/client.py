@@ -76,8 +76,11 @@ class AssessmentRuntimeClient:
     # ---- lifecycle of one Root execution -------------------------------------------------------
 
     def claim(self, assessment_id: str) -> dict[str, Any]:
+        from orchestration.runtime_control import active_runtime_run_id
+
         self.assessment_id = assessment_id
-        claim = self._call("POST", "/claim", with_lease=False)
+        runtime_run_id = active_runtime_run_id.get()
+        claim = self._call("POST", "/claim", {"runtimeRunId": runtime_run_id} if runtime_run_id else {}, with_lease=False)
         self.lease_token = claim["leaseToken"]
         return claim
 
@@ -104,8 +107,8 @@ class AssessmentRuntimeClient:
     def root_control(self) -> dict[str, Any] | None:
         return self._call("GET", "/control")
 
-    def portfolio(self) -> dict[str, Any]:
-        return self._call("GET", "/portfolio")
+    def rule_set(self) -> dict[str, Any]:
+        return self._call("GET", "/rule-set")
 
     # ---- governed writes -----------------------------------------------------------------------
 
@@ -115,8 +118,8 @@ class AssessmentRuntimeClient:
     def post_fact(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/facts", body)
 
-    def start_investigation(self, engineering_rule_id: str) -> dict[str, Any]:
-        return self._call("POST", "/investigations", {"engineeringRuleId": engineering_rule_id})
+    def start_investigation(self, assessment_rule_id: str) -> dict[str, Any]:
+        return self._call("POST", "/investigations", {"assessmentRuleId": assessment_rule_id})
 
     def post_decision(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._call("POST", "/decisions", body)

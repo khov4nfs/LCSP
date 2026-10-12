@@ -12,7 +12,7 @@ SCRIPT_PATH = (
     / "legal"
     / "sources"
     / "scripts"
-    / "build_reviewed_legal_corpus.py"
+    / "build_reviewed_legal_source.py"
 )
 SPEC = importlib.util.spec_from_file_location("reviewed_legal_artifact_contract", SCRIPT_PATH)
 assert SPEC and SPEC.loader

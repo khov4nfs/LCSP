@@ -1,6 +1,5 @@
 import type {
   AgenticToolCoverageState,
-  AgenticToolName,
   AgenticToolStatus,
 } from "./agentic-tool.ts";
 
@@ -96,7 +95,7 @@ export type FetchOfficialSourceSnapshotInput = {
 
 export type FetchOfficialSourceSnapshotResponse = {
   status: AgenticToolStatus;
-  toolName: AgenticToolName;
+  toolName: typeof FETCH_OFFICIAL_SOURCE_SNAPSHOT_TOOL.name;
   toolVersion: string;
   configHash: string;
   correlationId: string;

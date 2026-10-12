@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
-test("LCSP-269 modal shell preserves Figma desktop geometry", async () => {
+test("modal shell preserves Figma desktop geometry", async () => {
   const [modal, sidebar, tab] = await Promise.all([
     read("../src/features/settings/components/organisms/settings-modal.tsx"),
     read("../src/features/settings/components/organisms/settings-sidebar.tsx"),

@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import os
 from typing import Any
+from langgraph.config import get_store
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.runner import run_assessment_root
@@ -22,11 +23,12 @@ _NOT_ACTIVE = "ASSESSMENT_NOT_ACTIVE"
 
 def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
     """Hydrate the pinned snapshot into the assessment's thread sandbox (deterministic runtime)."""
+    from tools.common.capabilities.platform.codebase_memory import ensure_codebase_memory_index
     from tools.common.capabilities.platform.repository_sandbox import (
         activate_repository_backend,
         hydrate_repository,
         resolve_repository_thread_backend,
-        RuntimeRepositoryBackend,
+        RuntimeRepositoryFilesystemBackend,
     )
 
     thread_backend = resolve_repository_thread_backend(
@@ -39,7 +41,10 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
         commit_sha=context["repositoryCommit"],
         assessment_id=context["assessmentId"],
     )
-    return RuntimeRepositoryBackend(), activate_repository_backend(thread_backend)
+    # The Root's graph tools query the Codebase Memory index of the hydrated snapshot; index it
+    # before the Root starts (reused when current) so a run never silently lacks the graph.
+    ensure_codebase_memory_index(thread_backend)
+    return RuntimeRepositoryFilesystemBackend(), activate_repository_backend(thread_backend)
 
 
 @contextlib.contextmanager
@@ -76,11 +81,19 @@ class AssessmentRootBoundary(AgentBoundaryBase):
             raise NonRetryableAgentBoundaryError("assessment root command has no assessmentId")
         try:
             with postgres_checkpointer() as saver:
+                try:
+                    store = get_store()
+                except RuntimeError:
+                    # Direct provider-free callers have no surrounding native runtime.
+                    if os.getenv("LCSP_AGENT_RUNTIME_MODE") == "production":
+                        raise
+                    store = None
                 return self._runner(
                     self._client_factory(),
                     assessment_id.strip(),
                     backend_factory=sandbox_backend_factory,
                     checkpointer=saver,
+                    store=store,
                 )
         except AssessmentApiError as error:
             if error.code in {_LEASE_HELD, _NOT_ACTIVE}:

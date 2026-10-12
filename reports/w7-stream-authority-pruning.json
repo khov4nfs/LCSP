@@ -1,0 +1,19 @@
+{
+  "deletedPythonAuthorities": [
+    "_rule_decision",
+    "_source_location_ref",
+    "_claim_summary",
+    "agent_stream_rule_scope",
+    "AgentStreamRuleScope",
+    "agent_stream_stage"
+  ],
+  "deletedStageOnlyTests": [
+    "test_rule_scope_reports_failed_and_waiting_rules",
+    "test_rule_scope_attributes_activity_and_reports_the_reasoning_result",
+    "test_agent_stream_stages_match_shared_typescript_contract",
+    "test_new_boundary_session_does_not_inherit_scanner_stage_and_restores_parent",
+    "test_nested_stage_wins_over_session_default_and_enclosing_stage",
+    "test_invoke_with_stream_tags_every_event_with_its_pipeline_stage"
+  ],
+  "kept": "model/tool observation, bounded redaction, cancellation and usage attribution"
+}

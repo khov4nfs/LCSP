@@ -73,8 +73,8 @@ const { AdminUserStatusCard } = await import(
 const { AdminRecentActivityCard } = await import(
   "../src/features/admin/components/molecules/admin-recent-activity-card.tsx"
 );
-const { AdminCorpusStatusCard } = await import(
-  "../src/features/admin/components/molecules/admin-corpus-status-card.tsx"
+const { AdminLegalSourceStatusCard } = await import(
+  "../src/features/admin/components/molecules/admin-legal-source-status-card.tsx"
 );
 
 const fixtureData: AdminOverviewStats = {
@@ -84,7 +84,7 @@ const fixtureData: AdminOverviewStats = {
     totalUsers: { count: 876, periodChange: 38 },
     activeUsers: { count: 842, percentageOfTotal: 96.1 },
     assessments: { totalCount: 2417, periodCompletedCount: 312 },
-    currentCorpus: { version: "v2026.08.31", sourceCount: 184, ruleCount: null },
+    currentLegalSource: { version: "v2026.08.31", sourceCount: 184, ruleCount: null },
   },
   assessmentActivity: {
     points: [
@@ -115,20 +115,20 @@ const fixtureData: AdminOverviewStats = {
     },
     {
       id: "evt-2",
-      eventType: "CORPUS_VERSION_ACTIVATED",
-      actionKey: ADMIN_OVERVIEW_ACTION_KEYS.publishedCorpus,
+      eventType: "LEGAL_SOURCE_VERSION_ACTIVATED",
+      actionKey: ADMIN_OVERVIEW_ACTION_KEYS.activatedLegalSource,
       occurredAt: "2026-09-11T09:05:00.000Z",
       adminEmail: "admin@example.com",
       adminName: "Admin",
       target: "v2026.08.31",
     },
   ],
-  corpusStatus: {
+  legalSourceStatus: {
     current: {
       version: "v2026.08.31",
       sourceCount: 184,
       ruleCount: null,
-      publishedAt: "2026-08-31T00:00:00.000Z",
+      activatedAt: "2026-08-31T00:00:00.000Z",
     },
     draft: {
       version: "v2026.09.02-draft",
@@ -383,21 +383,21 @@ test("AdminRecentActivityCard renders audit-safe table rows with localized actio
   fallbackCleanup();
 });
 
-test("AdminCorpusStatusCard renders CURRENT and DRAFT corpus boxes with null rule counts preserved as dash", () => {
+test("AdminLegalSourceStatusCard renders CURRENT and DRAFT legalSource boxes with null rule counts preserved as dash", () => {
   const { container, cleanup } = renderComponent(
-    createElement(AdminCorpusStatusCard, {
-      corpusStatus: fixtureData.corpusStatus,
+    createElement(AdminLegalSourceStatusCard, {
+      legalSourceStatus: fixtureData.legalSourceStatus,
     }),
   );
 
   const title = resolveAppMessage(
-    "pages.admin.overview.corpusStatus.title" as MessageKey,
+    "pages.admin.overview.legalSourceStatus.title" as MessageKey,
   );
   const currentBadge = resolveAppMessage(
-    "pages.admin.overview.corpusStatus.currentLabel" as MessageKey,
+    "pages.admin.overview.legalSourceStatus.currentLabel" as MessageKey,
   );
   const draftBadge = resolveAppMessage(
-    "pages.admin.overview.corpusStatus.draftLabel" as MessageKey,
+    "pages.admin.overview.legalSourceStatus.draftLabel" as MessageKey,
   );
 
   assert.match(container.textContent ?? "", new RegExp(title, "i"));
@@ -409,13 +409,13 @@ test("AdminCorpusStatusCard renders CURRENT and DRAFT corpus boxes with null rul
   assert.match(container.textContent ?? "", /v2026\.09\.02-draft/);
   cleanup();
 
-  // Test missing / error corpusStatus renders dash instead of claiming authoritative absence
+  // Test missing / error legalSourceStatus renders dash instead of claiming authoritative absence
   const noPublishedLabel = resolveAppMessage(
-    "pages.admin.overview.corpusStatus.noPublished" as MessageKey,
+    "pages.admin.overview.legalSourceStatus.noPublished" as MessageKey,
   );
   const { container: missingContainer, cleanup: missingCleanup } = renderComponent(
-    createElement(AdminCorpusStatusCard, {
-      corpusStatus: undefined,
+    createElement(AdminLegalSourceStatusCard, {
+      legalSourceStatus: undefined,
     }),
   );
   assert.doesNotMatch(missingContainer.textContent ?? "", new RegExp(noPublishedLabel, "i"));

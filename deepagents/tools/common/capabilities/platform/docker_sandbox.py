@@ -144,22 +144,33 @@ class DockerSandboxBackend(SandboxBackendProtocol):
         return LsResult(entries=payload.get("entries") or [])
 
     def read(self, file_path: str, offset: int = 0, limit: int = 2000):
+        # offset/limit are LINE counts in the Filesystem tool contract (a byte window cut files mid-word
+        # and exhausted the Root's budget). Content stays exact and errors stay plain codes; the window
+        # metadata lets the tool tell the model where to continue. ponytail: no byte cap on one page.
         path = _sandbox_path(file_path)
         script = (
             "python - <<'PY'\n"
-            "import base64, json, os\n"
-            f"path={path!r}; offset={offset!r}; limit={limit!r}\n"
+            "import base64, io, json, os\n"
+            f"path={path!r}; offset=max({offset!r},0); limit={limit!r}\n"
             "if not os.path.exists(path):\n"
             "    print(json.dumps({'error':'file_not_found'})); raise SystemExit\n"
             "if os.path.isdir(path):\n"
             "    print(json.dumps({'error':'is_directory'})); raise SystemExit\n"
             "data=open(path,'rb').read()\n"
-            "chunk=data[max(offset,0):max(offset,0)+max(limit,0)]\n"
             "try:\n"
-            "    content=chunk.decode('utf-8'); encoding='utf-8'\n"
+            "    lines=io.StringIO(data.decode('utf-8')).readlines()\n"
             "except UnicodeDecodeError:\n"
-            "    content=base64.b64encode(chunk).decode('ascii'); encoding='base64'\n"
-            "print(json.dumps({'file_data': {'content': content, 'encoding': encoding}}))\n"
+            "    print(json.dumps({'file_data': {'content': base64.b64encode(data).decode('ascii'), 'encoding': 'base64'}})); raise SystemExit\n"
+            "total=len(lines)\n"
+            "if limit <= 0:\n"
+            "    print(json.dumps({'file_data': {'content': '', 'encoding': 'utf-8'}, 'no_lines_requested': True})); raise SystemExit\n"
+            "if total and offset >= total:\n"
+            "    print(json.dumps({'error': f'Line offset {offset} exceeds file length ({total} lines)'})); raise SystemExit\n"
+            "end=min(offset+limit, total)\n"
+            "page={'file_data': {'content': ''.join(lines[offset:end]), 'encoding': 'utf-8'}}\n"
+            "if end > offset:\n"
+            "    page.update(total_lines=total, start_line=offset+1, end_line=end, next_offset=end if end < total else None)\n"
+            "print(json.dumps(page))\n"
             "PY"
         )
         result = self._exec(script)
@@ -170,7 +181,12 @@ class DockerSandboxBackend(SandboxBackendProtocol):
             return ReadResult(error=result.output)
         if payload.get("error"):
             return ReadResult(error=str(payload["error"]))
-        return ReadResult(file_data=payload.get("file_data"))
+        window = {
+            key: payload.get(key)
+            for key in ("total_lines", "start_line", "end_line", "next_offset", "no_lines_requested")
+            if payload.get(key) is not None
+        }
+        return ReadResult(file_data=payload.get("file_data"), **window)
 
     def write(self, file_path: str, content: str) -> WriteResult:
         path = _sandbox_path(file_path)
@@ -392,6 +408,23 @@ class DockerSandboxManager:
 
     def delete(self, thread_id: str) -> None:
         DockerSandboxBackend(DockerSandboxSpec(thread_id), runner=self._runner).cleanup()
+
+    def erase(self, thread_id: str) -> None:
+        """Verified, idempotent erasure; a failed Docker command cannot report success."""
+        spec = DockerSandboxSpec(thread_id)
+        backend = DockerSandboxBackend(spec, runner=self._runner)
+        ids = backend._docker(["ps", "-aq", "--filter", f"name=^/{spec.container_name}$"]).stdout.split()
+        if not ids:
+            return
+        container = json.loads(backend._docker(["inspect", spec.container_name]).stdout)[0]
+        labels = container.get("Config", {}).get("Labels") or {}
+        if (container.get("Name", "").lstrip("/") != spec.container_name
+                or labels.get(SANDBOX_LABEL) != "true" or labels.get(THREAD_LABEL) != spec.safe_thread_hash
+                or container.get("Mounts")):
+            raise RuntimeError("Assessment sandbox ownership is not verified")
+        backend._docker(["rm", "-f", spec.container_name])
+        if backend._docker(["ps", "-aq", "--filter", f"name=^/{spec.container_name}$"]).stdout.strip():
+            raise RuntimeError("Assessment sandbox erasure did not complete")
 
     def cleanup_stale(self, *, max_age_seconds: int) -> list[str]:
         if max_age_seconds < 0:

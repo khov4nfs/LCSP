@@ -1,0 +1,124 @@
+{
+  "scope": "W7_LEGAL_PREPARATION_MODEL_ROUTE_REPAIR",
+  "status": "PASS_ROUTE_RUNTIME_SEMANTIC_REVIEW_FAILED",
+  "runId": "8ddd8be907b646a5",
+  "preparationRunId": "913f2ab6-68cf-4708-a0bc-73caf81302df",
+  "originalFailureReceipt": "reports/w7-staging/8ddd8be907b646a5/legal-preparation.json",
+  "rootCause": {
+    "type": "OpenAIInvalidRequestError",
+    "httpStatus": 400,
+    "providerCode": "model_unavailable",
+    "provider": "llm7",
+    "model": "minimax-m2.7",
+    "canonicalState": "FAILED",
+    "canonicalFailureReason": "MODEL_ERROR",
+    "startedAt": "2026-10-09T18:45:21.057",
+    "completedAt": "2026-10-09T18:45:22.067",
+    "claimAndFailurePersistence": "PASS"
+  },
+  "fix": {
+    "file": "deepagents/config/model_routes.yaml",
+    "role": "legal-preparation",
+    "previousRoute": "primary",
+    "route": "fallback",
+    "provider": "google_genai",
+    "model": "gemini-3.5-flash-lite",
+    "authorization": "USER_SELECTED_EXISTING_GEMINI_ROUTE_AND_AUTHORIZED_AGENT_RUN_TESTS",
+    "configSha256": "1c70ed784a09977a41c1822f143183f6859fe8a0733c970d05398c19e194b9d6"
+  },
+  "providerProbe": {
+    "scope": "MINIMAL_RESPONSE_ONLY_NOT_PREPARATION_ACCEPTANCE",
+    "status": "PASS",
+    "hasResponse": true,
+    "usageAvailable": true,
+    "credentialsExposed": false
+  },
+  "focused": [
+    {
+      "receipt": "reports/w7-provider-preparation-focused.xml",
+      "tests": 304,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    },
+    {
+      "receipt": "reports/w7-legal-gemini-route-focused.xml",
+      "tests": 270,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0
+    }
+  ],
+  "imageGate": "PASS",
+  "freshStaging": {
+    "runId": "46903a5b798b40aa",
+    "readiness": "READY_FOR_ACCEPTANCE",
+    "preparation": "PASS_RUNTIME_MECHANICS",
+    "semanticReview": "FAIL",
+    "browser": "PARTIAL",
+    "teardown": "STOPPED",
+    "receipt": "reports/w7-staging/46903a5b798b40aa/acceptance.json"
+  },
+  "semanticReview": "FAIL",
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "candidateSourceDelta": {
+    "sourceFiles": 1074,
+    "changedFiles": [
+      "deepagents/config/model_routes.yaml"
+    ],
+    "changedBuildInputs": 0
+  },
+  "browserCapability": {
+    "playwright": "AVAILABLE_REAL_BROWSER",
+    "chromeDevTools": "UNAVAILABLE_MISSING_X_SERVER"
+  },
+  "imageReceipt": "reports/w7-images/20261009235048_82d862d3af76/report.json",
+  "images": {
+    "api": "sha256:9a74d08c582fec6dc30f22939335dcd5b7bc915c9ac0e0fc87c3c374845c75d8",
+    "web": "sha256:6aed371e2226dcfea9fb82619b5c9f64622aab2f0b3c3eeb81c2078f9e6e61a2",
+    "worker": "sha256:73d37d3670c7391cbd1daa24cf8961e9db9fa70801d5ba94d782f96911880e06",
+    "server": "sha256:1ed2d9572b7701fa015dbe785c522b6cbff33e256c8b29082b2c43a3c49e21d9"
+  },
+  "dockerIntegrations": {
+    "passed": 7,
+    "failure": 0,
+    "error": 0,
+    "skipped": 0,
+    "tests": [
+      "test_codebase_memory_indexes_searches_and_reports_coverage_for_repository",
+      "test_docker_sandbox_executes_repository_tools_without_host_secrets",
+      "test_docker_sandbox_hydrates_repository_snapshot_without_removing_mountpoint",
+      "test_local_deep_agent_runtime_uses_docker_repository_sandbox",
+      "test_agent_server_dispatch_hydrates_docker_repository_sandbox[langgraph-dev]",
+      "test_agent_server_dispatch_hydrates_docker_repository_sandbox[lcsp-local]",
+      "test_production_agent_server_image_runs_without_license_and_persists_state"
+    ]
+  },
+  "oldOwnedTeardown": {
+    "receipt": "reports/w7-staging/8ddd8be907b646a5/teardown.json",
+    "status": "STOPPED",
+    "containers": 6,
+    "sandboxes": 0,
+    "foreignResourcesRemoved": 0
+  },
+  "latestCompletedStagingRun": {
+    "runId": "46903a5b798b40aa",
+    "readiness": "READY_FOR_ACCEPTANCE",
+    "preparation": "PASS_RUNTIME_MECHANICS",
+    "semanticReview": "FAIL",
+    "browser": "PARTIAL",
+    "teardown": "STOPPED",
+    "receipt": "reports/w7-staging/46903a5b798b40aa/acceptance.json"
+  },
+  "nextCandidateImageGate": "PASS",
+  "latestAcceptanceReceipt": "reports/w7-staging/46903a5b798b40aa/acceptance.json",
+  "semanticReviewReceipt": "reports/w7-staging/46903a5b798b40aa/legal-semantic-review.json",
+  "currentOwnedTeardown": {
+    "status": "STOPPED",
+    "ownedContainersRemoved": 6,
+    "ownedSandboxesRemoved": 0,
+    "privateEvidenceRetained": true,
+    "receipt": "reports/w7-staging/46903a5b798b40aa/teardown.json"
+  }
+}

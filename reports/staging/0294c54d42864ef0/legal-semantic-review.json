@@ -1,0 +1,50 @@
+{
+  "scope": "EXACT_IMAGE_REASONED_RULE_SET_SEMANTIC_REVIEW",
+  "status": "PASS",
+  "runId": "0294c54d42864ef0",
+  "candidateId": "20261012041902_4058ec2256a0",
+  "imageReceipt": "reports/release-images/20261012041902_4058ec2256a0/report.json",
+  "preparationRunId": "a653f9dd-f772-4f23-b178-8c57a404f47e",
+  "ruleSetVersionId": "533c7e7b-3a93-482e-82d3-0642c9bf5488",
+  "rubric": "deepagents/tests/fixtures/rule_set_preparation_eval/rubric.json",
+  "rubricSha256": "2cd49df3108ae013e6611de7f2433202b20a04bce76644c38735fa12114f14e6",
+  "dimensions": [
+    {
+      "id": "DEFINITIONS",
+      "status": "PASS",
+      "reason": "LR-RETENTION defines a record as stored notice plus receipt timestamp. DEFINITION REL-001 and direct Assessment Rule source refs retain Article 1 clause 1."
+    },
+    {
+      "id": "QUALIFIERS",
+      "status": "PASS",
+      "reason": "Public offering and household exclusion, seven days from receipt rather than draft time, text plus timestamp, and preserved limiting language are retained across the requirement, guidance, and three criteria."
+    },
+    {
+      "id": "EXCEPTIONS",
+      "status": "PASS",
+      "reason": "The temporary-test-record exemption remains limited to retention, via REL-003 and explicit guidance. It does not erase the independent physical-attendance requirement."
+    },
+    {
+      "id": "CROSS_REFERENCES",
+      "status": "PASS",
+      "reason": "Direct Assessment Rule references resolve Articles 1, 3, 4 and 5 and Article 4 point a; definition, scope, exception and timing qualifier relations preserve the limiting context of the retention cross-reference."
+    },
+    {
+      "id": "NON_REPOSITORY_DUTIES",
+      "status": "PASS",
+      "reason": "Appointment and physical attendance remain a distinct NON_ASSESSABLE requirement with an external-organizer register explanation and no invented software coverage."
+    },
+    {
+      "id": "LEGAL_SOURCE_VERSION_PINNING",
+      "status": "PASS",
+      "reason": "All 15 source content hashes match; every provenance and context endpoint and Assessment Rule source ref belongs to this exact activated source version."
+    }
+  ],
+  "passed": 6,
+  "total": 6,
+  "sourceChunkHashesMatched": 15,
+  "packetManuallyEdited": false,
+  "deterministicSemanticOracle": false,
+  "modelExecution": "FRESH_ON_FINAL_CANDIDATE",
+  "productionTouched": false
+}

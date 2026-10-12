@@ -35,7 +35,6 @@ def test_dispatch_runtime_groups_support_capabilities() -> None:
     # graph_runtime.py + graph schema vocabulary remain as infrastructure only.
     assert _implementation_files(platform) == {
         "api_client.py",
-        "artifact_storage.py",
         "callback_schemas.py",
         "codebase_memory.py",
         "config.py",
@@ -49,7 +48,6 @@ def test_dispatch_runtime_groups_support_capabilities() -> None:
         "logging_config.py",
         "logging_path.py",
         "repository_sandbox.py",
-        "orchestration_logging.py",
         "rbac_client.py",
         "repository_snapshot_client.py",
         "repository_workspace.py",

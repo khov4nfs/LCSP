@@ -130,14 +130,14 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
       const coverage = await this.support.requireCoverage(
         tx,
         input.assessmentId,
-        request.engineeringRuleId,
+        request.assessmentRuleId,
         input.correlationId,
       );
-      const rule = await tx.engineeringRule.findUniqueOrThrow({
+      const rule = await tx.assessmentRule.findUniqueOrThrow({
         where: {
-          portfolioVersionId_engineeringRuleId: {
-            portfolioVersionId: pins.legalPortfolioVersionId,
-            engineeringRuleId: request.engineeringRuleId,
+          ruleSetVersionId_assessmentRuleId: {
+            ruleSetVersionId: pins.ruleSetVersionId,
+            assessmentRuleId: request.assessmentRuleId,
           },
         },
         select: { criteria: true },
@@ -160,10 +160,7 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
             request.unresolvedFact,
             ...request.choices.map((c) => c.label),
           ],
-          await this.support.portfolioIdentifiers(
-            tx,
-            pins.legalPortfolioVersionId,
-          ),
+          await this.support.ruleSetIdentifiers(tx, pins.ruleSetVersionId),
         )
       ) {
         throw invalid(
@@ -178,7 +175,7 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
         await tx.assessmentRuleDecision.updateMany({
           where: {
             assessmentId: input.assessmentId,
-            engineeringRuleId: request.engineeringRuleId,
+            assessmentRuleId: request.assessmentRuleId,
             state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
           },
           data: {
@@ -188,9 +185,9 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
         });
         await tx.assessmentDecisionCoverage.update({
           where: {
-            assessmentId_engineeringRuleId: {
+            assessmentId_assessmentRuleId: {
               assessmentId: input.assessmentId,
-              engineeringRuleId: request.engineeringRuleId,
+              assessmentRuleId: request.assessmentRuleId,
             },
           },
           data: { resolutionState: DECISION_RESOLUTION_STATES.INVALIDATED },
@@ -203,7 +200,7 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           assessmentId: input.assessmentId,
           threadId: run.threadId,
           caseRevision: pins.caseRevision,
-          engineeringRuleId: request.engineeringRuleId,
+          assessmentRuleId: request.assessmentRuleId,
           criterionIds: request.criterionIds,
           question: request.question,
           unresolvedFact: request.unresolvedFact,
@@ -217,7 +214,7 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
       });
       await this.support.moveCoverageToWaiting(tx, {
         assessmentId: input.assessmentId,
-        engineeringRuleId: request.engineeringRuleId,
+        assessmentRuleId: request.assessmentRuleId,
         from: coverage.resolutionState,
       });
       await this.events.appendInTx(tx, {
@@ -258,7 +255,7 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           decision: AUDIT_DECISIONS.allow,
           correlationId: input.correlationId,
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          payload: { requestId, engineeringRuleId: request.engineeringRuleId },
+          payload: { requestId, assessmentRuleId: request.assessmentRuleId },
         },
         tx,
       );

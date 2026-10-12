@@ -1,0 +1,135 @@
+{
+  "scope": "W7_EXACT_IMAGE_BOUNDED_REAL_BROWSER_CHECKS",
+  "status": "PASS_BOUNDED_CHECKS",
+  "runId": "2a36c566096f48c5",
+  "readinessReceipt": "reports/w7-staging/2a36c566096f48c5/report.json",
+  "imageReceipt": "reports/w7-images/20261009233556_afd08ec641c5/report.json",
+  "web": "http://localhost:32784",
+  "browser": "Playwright MCP headless Chrome",
+  "checks": {
+    "ownerRealSignIn": {
+      "status": "PASS",
+      "httpStatus": 200
+    },
+    "minimalCreateWithoutInitialInterview": {
+      "status": "PASS",
+      "httpStatus": 201,
+      "statusEvidence": "Playwright MCP network request 96",
+      "assessmentId": "36389b0e-2aca-4382-abfd-faa0be513ba7",
+      "fields": [
+        "name",
+        "description"
+      ]
+    },
+    "canonicalProjectionAndReload": {
+      "status": "PASS",
+      "lifecycle": {
+        "state": "PREPARING",
+        "assessmentRevision": 1
+      },
+      "runtime": {
+        "threadId": "98bb013c-3fd2-4ce3-aa91-26224fc4ed51",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "36389b0e-2aca-4382-abfd-faa0be513ba7",
+        "checkpointId": null,
+        "currentExecutionId": null,
+        "executionState": "QUEUED",
+        "eventSequence": 1,
+        "startedAt": null,
+        "lastResumedAt": null,
+        "updatedAt": "2026-10-09T23:45:05.983Z"
+      },
+      "readOnlyDatabaseParity": "PASS",
+      "reloadPreservesCanonicalState": true,
+      "humanRequests": 0
+    },
+    "ownerArtifactsEmptyState": "PASS",
+    "otherAccountIsolation": {
+      "status": "PASS",
+      "own": {
+        "status": 200,
+        "ok": true,
+        "total": 0
+      },
+      "foreign": {
+        "status": 404,
+        "ok": false,
+        "code": "ASSESSMENT_NOT_FOUND"
+      },
+      "human": {
+        "status": 404,
+        "ok": false,
+        "code": "ASSESSMENT_NOT_FOUND"
+      },
+      "repo": {
+        "status": 404,
+        "ok": false,
+        "code": "ASSESSMENT_NOT_FOUND"
+      },
+      "foreignNameInDOM": false,
+      "pageUrl": "http://localhost:32784/assessments/36389b0e-2aca-4382-abfd-faa0be513ba7",
+      "scope": "TWO_FIXTURE_USERS_ONE_PREPARING_ASSESSMENT"
+    },
+    "adminLegalPreparationFailureProjection": {
+      "status": "PASS",
+      "httpStatus": 200,
+      "portfolios": 0,
+      "preparations": [
+        {
+          "preparationRunId": "ab30912a-85ba-4c61-ae1b-b34e8506fef1",
+          "executionState": "FAILED"
+        }
+      ],
+      "approvalButtons": 0
+    }
+  },
+  "console": {
+    "successfulOwnerFlowErrors": 0,
+    "successfulOwnerFlowWarnings": 0,
+    "expectedForeignAccess404ResourceErrors": 6,
+    "unexpectedErrorsObserved": 0,
+    "warningsObserved": 0
+  },
+  "chromeDevTools": {
+    "status": "UNAVAILABLE",
+    "reason": "Missing X server to start headful browser",
+    "fallback": "Playwright MCP console, network, DOM and inspected screenshots"
+  },
+  "browserAcceptance": "PARTIAL",
+  "liveRootAndHumanRequestFlows": "NOT_RUN",
+  "frozen25RowStagingMatrix": "NOT_PROVEN",
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "privateArtifacts": [
+    {
+      "path": "tmp/w7-staging/2a36c566096f48c5/browser-owner-preparing.png",
+      "sha256": "9d6f64aad48fd4f6c65944b4a27835ec7f2197b2c2ba0798c075d1a218995f66",
+      "byteLength": 63072
+    },
+    {
+      "path": "tmp/w7-staging/2a36c566096f48c5/browser-other-denied.png",
+      "sha256": "724750faa1316a1624e5c7a54af5631aa3adb4b1f888789dce9aeccf5f22e56c",
+      "byteLength": 33189
+    },
+    {
+      "path": "tmp/w7-staging/2a36c566096f48c5/browser-admin-preparation.png",
+      "sha256": "bbc107da79e591680b4d3ee28a49f518adf2e606cb3b78fafd995593961cd4bb",
+      "byteLength": 55883
+    },
+    {
+      "path": "tmp/w7-staging/2a36c566096f48c5/browser-console.log",
+      "sha256": "016cfaf7174d0511a8cd071d4d7a21392433bba76802b606fb4ac7f578424366",
+      "byteLength": 1150
+    },
+    {
+      "path": "tmp/w7-staging/2a36c566096f48c5/browser-network.log",
+      "sha256": "007b7a33317d0f65320b4c8614f36348f2dba11c7458db01add496625e6d4371",
+      "byteLength": 908
+    },
+    {
+      "path": "tmp/w7-staging/2a36c566096f48c5/browser-canonical-db.json",
+      "sha256": "2d0ddde98dfb7f9d5a786f4876747c1354614536b54c72648c588a4c7482fa5e",
+      "byteLength": 242
+    }
+  ]
+}

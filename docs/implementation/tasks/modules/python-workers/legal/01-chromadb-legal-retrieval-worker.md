@@ -10,6 +10,8 @@ depends_on:
   - python-workers/intelligence/04-verified-profile-worker.md
 ---
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # Legal Matching Worker (Rule Applicability + ChromaDB Citation Retrieval)
 
 > Superseded: the active runtime no longer consumes `verified-profile-ready` to produce `LegalRuleMatch`. Approved LegalRules are compiled into EngineeringRules; the direct assessment runtime uses citations and legal provenance without the legacy legal-rule-match callback surface.

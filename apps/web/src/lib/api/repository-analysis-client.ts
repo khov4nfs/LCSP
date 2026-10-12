@@ -89,28 +89,6 @@ type SnapshotPayload = {
   commit_sha: string;
 };
 
-type ScanPayload = {
-  scan_job_id: string;
-  status: string;
-};
-
-type RepositorySetupPayload = {
-  assessment_id: string;
-  repository_connection_id: string;
-  snapshot_id: string;
-  commit_sha: string;
-};
-
-export type RerunRepositoryScanInput = {
-  snapshotId: string;
-  idempotencyKey?: string;
-};
-
-export type RerunRepositoryScanResult = {
-  scanJobId: string;
-  scanStatus: string;
-};
-
 /** Fetch an authoritative checkpoint; never infer success from a stale UI cache. */
 export async function getRepositorySetupState(
   assessmentId: string,
@@ -224,52 +202,10 @@ async function resumeRepositoryAnalysis(
   throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
 }
 
-export async function rerunRepositoryScan(
-  assessmentId: string,
-  input: RerunRepositoryScanInput,
-): Promise<RerunRepositoryScanResult> {
-  const idempotencyKey = input.idempotencyKey ?? crypto.randomUUID();
-  const response = await apiRequest(
-    `/api/assessments/${encodeURIComponent(assessmentId)}/scan-jobs/rerun`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        snapshot_id: input.snapshotId,
-        idempotency_key: idempotencyKey,
-      }),
-    },
-  );
-
-  if (!response.ok || !isScanPayload(response.payload)) {
-    throw new Error(response.problemCode ?? "repository-scan-rerun-failed");
-  }
-
-  return {
-    scanJobId: response.payload.scan_job_id,
-    scanStatus: response.payload.status,
-  };
-}
-
 function isSnapshotPayload(payload: unknown): payload is SnapshotPayload {
   return (
     isRecord(payload) &&
     isString(payload.snapshot_id) &&
     isString(payload.commit_sha)
   );
-}
-
-function isScanPayload(payload: unknown): payload is ScanPayload {
-  return (
-    isRecord(payload) &&
-    isString(payload.scan_job_id) &&
-    isString(payload.status)
-  );
-}
-
-function buildSnapshotScanIdempotencyKey(
-  assessmentId: string,
-  snapshotId: string,
-): string {
-  return ["snapshot-auto", assessmentId, snapshotId].join(":");
 }

@@ -8,7 +8,7 @@ const databaseUrl =
   process.env.LCSP328_TEST_DATABASE_URL || process.env.DATABASE_URL;
 const integration = databaseUrl ? describe : describe.skip;
 
-integration("LCSP-328 Account invitation removal migration", () => {
+integration("Account invitation removal migration", () => {
   it("safely drops AccountInvitation and cleans up historical INVITE command receipts", async () => {
     const client = new Client({ connectionString: databaseUrl });
     const schema = `lcsp328_migration_${randomUUID().replaceAll("-", "")}`;
@@ -17,7 +17,7 @@ integration("LCSP-328 Account invitation removal migration", () => {
       await client.query(`CREATE SCHEMA "${schema}"`);
       await client.query(`SET search_path TO "${schema}"`);
 
-      // 1. Seed pre-LCSP-328 state with AccountInvitation table and AdminAccountOperation containing INVITE
+      // 1. Seed pre-invitation-removal state with AccountInvitation table and AdminAccountOperation containing INVITE
       await client.query(`
         CREATE TYPE "AccountInvitationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'EXPIRED', 'REVOKED');
         CREATE TYPE "InvitationDeliveryStatus" AS ENUM ('DELIVERED', 'FAILED');

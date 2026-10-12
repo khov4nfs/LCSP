@@ -1,0 +1,126 @@
+{
+  "scope": "LEGAL_PREPARATION_SEMANTIC_COMPLETENESS_CORRECTION",
+  "status": "IN_PROGRESS",
+  "instruction": "deepagents/legal_preparation/instructions.md",
+  "instructionSha256": "a3d28d205c9fd38b8e77caa1e50aaae1d0d26092e5a37092d518cdcc4aecb97e",
+  "focusedTests": {
+    "passed": 279,
+    "failure": 0,
+    "skipped": 0,
+    "junit": "reports/legal-preparation-semantic-instructions-python.xml"
+  },
+  "semanticAttempts": [
+    {
+      "runId": "78882e6fa5ef4571",
+      "status": "FAIL",
+      "review": "reports/w7-staging/78882e6fa5ef4571/legal-semantic-review.json",
+      "teardown": "STOPPED"
+    },
+    {
+      "runId": "0d077463be814c7f",
+      "status": "FAIL",
+      "review": "reports/w7-staging/0d077463be814c7f/legal-semantic-review.json",
+      "teardown": "STOPPED"
+    },
+    {
+      "runId": "0683d005b80349fc",
+      "status": "NOT_PROVEN_OBSERVER_DEADLINE",
+      "diagnostics": "reports/w7-staging/0683d005b80349fc/legal-observer-diagnostics.json",
+      "teardown": "STOPPED"
+    },
+    {
+      "runId": "d6b436f73c6c4e3c",
+      "status": "FAIL",
+      "review": "reports/staging/d6b436f73c6c4e3c/legal-semantic-review.json",
+      "teardown": "STOPPED"
+    },
+    {
+      "runId": "deb86bea4e94463f",
+      "status": "FAIL",
+      "review": "reports/staging/deb86bea4e94463f/legal-semantic-review.json",
+      "evidenceDisposition": "HISTORICAL_AFTER_SOURCE_CHANGE"
+    },
+    {
+      "runId": "8b6a8e47533445c7",
+      "status": "FAIL_NO_SUBMISSION",
+      "diagnostics": "reports/staging/8b6a8e47533445c7/legal-shape-diagnosis.json",
+      "evidenceDisposition": "HISTORICAL_AFTER_SOURCE_CHANGE"
+    },
+    {
+      "runId": "a4d4b629847d48cd",
+      "status": "FAIL_NO_SUBMISSION",
+      "diagnostics": "reports/staging/a4d4b629847d48cd/legal-shape-diagnosis.json",
+      "evidenceDisposition": "HISTORICAL_AFTER_PROVIDER_TOOL_SCHEMA_EXPOSURE",
+      "teardown": "STOPPED"
+    }
+  ],
+  "currentImageGate": "REBUILD_REQUIRED_AFTER_PROVIDER_TOOL_SCHEMA_EXPOSURE",
+  "validatorChanged": false,
+  "packetSchemaChanged": false,
+  "rubricChanged": true,
+  "packetManuallyEdited": false,
+  "productionFixtureSpecialCases": false,
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "currentImageReceipt": null,
+  "currentStagingRunId": null,
+  "currentSemanticReview": "NOT_PROVEN_CURRENT_SOURCE",
+  "rubricMetadataOnlyChanged": true,
+  "rubricAcceptanceCriteriaChanged": false,
+  "historicalRubricSnapshot": "reports/legal-semantic-rubric-history.json",
+  "purposeNamingAudit": "reports/purpose-based-naming-audit.json",
+  "currentReportConvention": "reports/release-images and reports/staging",
+  "focusedNamingTests": {
+    "python": 305,
+    "extraFixtures": 14,
+    "web": 34,
+    "finalPolicy": 23,
+    "pythonFinalPolicy": 23
+  },
+  "rootBrowserFailureReceipt": "reports/staging/360f2a8631fb44da/browser-root-construction.json",
+  "rootBackendFocusedTests": {
+    "receipt": "reports/assessment-root-filesystem-regression.xml",
+    "passed": 47
+  },
+  "rootBackendImageAttempts": [
+    {
+      "receipt": "reports/release-images/20261010043859_769f113ae3f4/report.json",
+      "status": "FAIL_WEB_PNPM_BINARY_DOWNLOAD",
+      "apiRootfs": "PASS",
+      "sourceChangedForRetry": false
+    }
+  ],
+  "historicalImageReceipt": "reports/release-images/20261010070630_052554a431e0/report.json",
+  "contextCitationFocusedTests": {
+    "passed": 18,
+    "junit": "reports/legal-preparation-context-citations.xml"
+  },
+  "rootTelemetryFocusedTests": {
+    "passed": 69,
+    "junit": "reports/root-telemetry-focused.xml"
+  },
+  "rootStreamApiFocusedTests": {
+    "passed": 34,
+    "receipt": "reports/root-stream-authorization-api.json"
+  },
+  "activityMessagesFocusedTests": {
+    "passed": 1
+  },
+  "historicalSemanticReceipt": "reports/staging/360f2a8631fb44da/legal-semantic-review.json",
+  "currentSemanticReceipt": null,
+  "historicalBrowserReceipt": "reports/staging/deb86bea4e94463f/browser-acceptance.json",
+  "validatedPacketFocusedTests": {
+    "passed": 18,
+    "junit": "reports/legal-preparation-validated-packet.xml"
+  },
+  "currentReadiness": "READY_FOR_ACCEPTANCE",
+  "toolSchemaChanged": true,
+  "toolSchemaSource": "packages/contracts/src/legal-portfolio/schemas.ts",
+  "toolSchemaAsset": "deepagents/legal_preparation/packet-schema.json",
+  "toolSchemaFocusedTests": {
+    "passed": 19,
+    "junit": "reports/legal-preparation-tool-schema.xml"
+  },
+  "apiValidatorChanged": false,
+  "apiPacketSchemaChanged": false
+}

@@ -1,0 +1,30 @@
+{
+  "scope": "W7_CURRENT_SOURCE_STATIC_AND_IMAGE_RECONCILIATION",
+  "status": "PASS_BOUNDED_VERIFICATION",
+  "head": "836607eb2b5e2ad89a966d06212134941ecc2cc1",
+  "imageReceipt": "reports/w7-images/20261009121713_976c762ea276/report.json",
+  "canonicalSourceHashesUnchanged": 1074,
+  "buildPolicyInputsUnchanged": 22,
+  "checks": [
+    {
+      "command": "rtk proxy env NODE_OPTIONS=--max-old-space-size=1536 pnpm run typecheck",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "command": "rtk proxy pnpm run check:imports",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "command": "rtk proxy pnpm run check:contracts",
+      "status": "PASS",
+      "exitCode": 0
+    }
+  ],
+  "productionDeployment": false,
+  "staging": "NOT_PROVEN",
+  "browser": "NOT_PROVEN",
+  "remoteCurrentHeadCI": "NOT_PROVEN",
+  "releaseEligible": false
+}

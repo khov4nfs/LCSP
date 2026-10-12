@@ -1,5 +1,7 @@
 # LCSP System Context
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 This document defines what LCSP is, who uses it, and how an assessment moves from Manager intent to evidence-backed classification, reporting, and audit. It is a domain-level source of truth, not backlog, story, implementation, or validation material.

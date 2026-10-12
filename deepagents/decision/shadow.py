@@ -13,23 +13,13 @@ from .telemetry import TelemetrySink
 PR_REVIEW_DOMAIN_CHOICES = (
     "AUTH",
     "BILLING",
-    "SCANNER",
+    "REPOSITORY",
     "AGENT_RUNTIME",
-    "LEGAL_RULES",
+    "LEGAL_REQUIREMENTS",
     "CI_RELEASE",
     "WEB",
     "DATA",
     "OTHER",
-)
-ROOT_ROUTE_CHOICES = ("PLAN", "INVESTIGATE", "INTERVIEW", "GATE", "STOP")
-INTERVIEW_TOPIC_CHOICES = (
-    "DEPLOYMENT",
-    "PURPOSE",
-    "HUMAN_REVIEW",
-    "DATA_SOURCE",
-    "DATA_REUSE",
-    "FEATURE_OR_WORKFLOW",
-    "NONE",
 )
 NOUL_REASON_CODES = (
     "YES",
@@ -52,42 +42,15 @@ class PrReviewTriagePacket:
     acceptance_criteria_ids: tuple[str, ...] = ()
     bounded_summary: str | None = None
     ci_state_codes: tuple[str, ...] = ()
-    scanner_change_metadata: tuple[str, ...] = ()
+    repository_change_metadata: tuple[str, ...] = ()
     diff_stat_keys: tuple[str, ...] = ()
     addition_count: int | None = None
     deletion_count: int | None = None
     pge_artifact_version: str | None = None
 
 
-@dataclass(frozen=True)
-class RootRoutingPacket:
-    assessment_id: str
-    review_run_id: str
-    checkpoint_id: str
-    current_stage: str
-    run_status: str
-    authoritative_route: str
-    deterministic_transition_available: bool = False
-    pending_stage_candidates: tuple[str, ...] = ()
-    route_candidates: tuple[str, ...] = ROOT_ROUTE_CHOICES
-    coverage_state: str | None = None
-    transition_reason_code: str | None = None
-    is_replay: bool = False
 
 
-@dataclass(frozen=True)
-class InterviewRoutingPacket:
-    assessment_id: str
-    review_run_id: str
-    authoritative_topic: str
-    active_question_id: str | None = None
-    active_topic_key: str | None = None
-    context_revision: int | None = None
-    customer_safe_topic_keys: tuple[str, ...] = ()
-    owned_topic_candidates: tuple[str, ...] = INTERVIEW_TOPIC_CHOICES
-    confirmed_topic_keys: tuple[str, ...] = ()
-    unresolved_topic_keys: tuple[str, ...] = ()
-    resolution_criteria_keys: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -135,41 +98,6 @@ class InMemoryDecisionIdempotencyStore:
         self.records[record.decision_id] = record
 
 
-class WorkerApiDecisionIdempotencyStore:
-    """API-backed idempotency adapter for worker replay/process boundaries."""
-
-    def __init__(self, api_client: Any) -> None:
-        self._api_client = api_client
-
-    def claim(self, decision_id: str, *, request: DecisionRequest) -> bool:
-        claim = getattr(self._api_client, "claim_decision_model_request", None)
-        if not callable(claim):
-            raise DecisionIdempotencyClaimUnavailable(
-                "decision idempotency claim API is unavailable"
-            )
-        try:
-            return bool(
-                claim(
-                    decision_id,
-                    {
-                        "decisionType": request.decision_type,
-                        "assessmentId": request.assessment_id,
-                        "reviewRunId": request.review_run_id,
-                        "prNumber": request.pr_number,
-                        "baseSha": request.base_sha,
-                        "headSha": request.head_sha,
-                    },
-                )
-            )
-        except Exception as exc:
-            raise DecisionIdempotencyClaimUnavailable(
-                "decision idempotency claim failed"
-            ) from exc
-
-    def complete(self, record: ShadowDecisionRecord) -> None:
-        complete = getattr(self._api_client, "complete_decision_model_request", None)
-        if callable(complete):
-            complete(record.decision_id, shadow_record_payload(record))
 
 
 class ShadowDecisionObserver:
@@ -207,34 +135,7 @@ class ShadowDecisionObserver:
             comparison_question_id="affected_domain",
         )
 
-    def observe_root_routing(self, packet: RootRoutingPacket) -> ShadowDecisionRecord:
-        request = build_root_routing_request(packet)
-        if packet.deterministic_transition_available:
-            return ShadowDecisionRecord(
-                decision_id=request.decision_id,
-                decision_type=request.decision_type,
-                authoritative_action=packet.authoritative_route,
-                shadow_proposed_action=None,
-                agreement=None,
-                confidence=None,
-                fallback_reason="DETERMINISTIC_TRANSITION",
-                skipped=True,
-            )
-        return self._observe(
-            request,
-            integration="ROOT_ROUTING",
-            authoritative_action=packet.authoritative_route,
-            comparison_question_id="route",
-        )
 
-    def observe_interview_routing(self, packet: InterviewRoutingPacket) -> ShadowDecisionRecord:
-        request = build_interview_routing_request(packet)
-        return self._observe(
-            request,
-            integration="INTERVIEW_ROUTING",
-            authoritative_action=packet.authoritative_topic,
-            comparison_question_id="missing_topic",
-        )
 
     def _observe(
         self,
@@ -323,7 +224,7 @@ def build_pr_review_triage_request(packet: PrReviewTriagePacket) -> DecisionRequ
         "jira_issue_ids": _bounded_tuple(packet.jira_issue_ids, limit=40),
         "acceptance_criteria_ids": _bounded_tuple(packet.acceptance_criteria_ids, limit=80),
         "ci_state_codes": _bounded_tuple(packet.ci_state_codes, limit=40),
-        "scanner_change_metadata": _bounded_tuple(packet.scanner_change_metadata, limit=80),
+        "repository_change_metadata": _bounded_tuple(packet.repository_change_metadata, limit=80),
         "diff_stat_keys": _bounded_tuple(packet.diff_stat_keys, limit=80),
     }
     if packet.base_sha:
@@ -374,95 +275,8 @@ def build_pr_review_triage_request(packet: PrReviewTriagePacket) -> DecisionRequ
     )
 
 
-def build_root_routing_request(packet: RootRoutingPacket) -> DecisionRequest:
-    state_payload: dict[str, Any] = {
-        "current_stage": packet.current_stage,
-        "run_status": packet.run_status,
-        "deterministic_transition_available": packet.deterministic_transition_available,
-        "pending_stage_candidates": _bounded_tuple(packet.pending_stage_candidates, limit=20),
-        "route_candidates": _bounded_tuple(packet.route_candidates, limit=10),
-        "is_replay": packet.is_replay,
-    }
-    if packet.coverage_state:
-        state_payload["coverage_state"] = packet.coverage_state
-    if packet.transition_reason_code:
-        state_payload["transition_reason_code"] = packet.transition_reason_code
-
-    return DecisionRequest(
-        decision_id=f"root-route-v1:{packet.assessment_id}:{packet.review_run_id}:{packet.checkpoint_id}",
-        decision_type=DECISION_TYPES["root_non_deterministic_next_stage"],
-        assessment_id=packet.assessment_id,
-        review_run_id=packet.review_run_id,
-        artifact_versions={"checkpoint": packet.checkpoint_id},
-        state_payload=state_payload,
-        questions=(
-            DecisionQuestion(
-                question_id="route",
-                question_type="CHOICE",
-                prompt="Choose the bounded root orchestration route.",
-                choices=ROOT_ROUTE_CHOICES,
-            ),
-            DecisionQuestion(
-                question_id="needs_reasoning_escalation",
-                question_type="NOUL",
-                prompt="Return whether bounded routing state needs reasoning escalation.",
-                noul_schema=_boolean_noul_schema(),
-            ),
-            _score_question("ambiguity_score", "Score bounded routing ambiguity."),
-        ),
-    )
 
 
-def build_interview_routing_request(packet: InterviewRoutingPacket) -> DecisionRequest:
-    candidates = tuple(
-        item for item in packet.owned_topic_candidates if item in INTERVIEW_TOPIC_CHOICES
-    ) or INTERVIEW_TOPIC_CHOICES
-    state_payload: dict[str, Any] = {
-        "owned_topic_candidates": candidates,
-        "customer_safe_topic_keys": _bounded_tuple(packet.customer_safe_topic_keys, limit=30),
-        "confirmed_topic_keys": _bounded_tuple(packet.confirmed_topic_keys, limit=30),
-        "unresolved_topic_keys": _bounded_tuple(packet.unresolved_topic_keys, limit=30),
-        "resolution_criteria_keys": _bounded_tuple(packet.resolution_criteria_keys, limit=30),
-    }
-    if packet.active_question_id:
-        state_payload["active_question_id"] = packet.active_question_id
-    if packet.active_topic_key:
-        state_payload["active_topic_key"] = packet.active_topic_key
-    if packet.context_revision is not None:
-        state_payload["context_revision"] = max(0, int(packet.context_revision))
-
-    return DecisionRequest(
-        decision_id=(
-            "interview-topic-v1:"
-            f"{packet.assessment_id}:{packet.review_run_id}:"
-            f"rev-{max(0, int(packet.context_revision or 0))}"
-        ),
-        decision_type=DECISION_TYPES["interview_topic_routing"],
-        assessment_id=packet.assessment_id,
-        review_run_id=packet.review_run_id,
-        state_payload=state_payload,
-        questions=(
-            DecisionQuestion(
-                question_id="material_customer_fact_unresolved",
-                question_type="NOUL",
-                prompt="Return whether a material Customer-owned fact remains unresolved.",
-                noul_schema=_boolean_noul_schema(),
-            ),
-            DecisionQuestion(
-                question_id="missing_topic",
-                question_type="CHOICE",
-                prompt="Choose the server-owned Interview topic category.",
-                choices=candidates,
-            ),
-            DecisionQuestion(
-                question_id="current_context_sufficient",
-                question_type="NOUL",
-                prompt="Return whether current confirmed context is sufficient to resume.",
-                noul_schema=_boolean_noul_schema(),
-            ),
-            _score_question("clarification_ambiguity", "Score bounded Interview clarification ambiguity."),
-        ),
-    )
 
 
 def _noul_questions(*items: str) -> tuple[DecisionQuestion, ...]:
@@ -568,50 +382,18 @@ def shadow_record_payload(record: ShadowDecisionRecord) -> dict[str, Any]:
     }
 
 
-def worker_api_decision_event_sink(api_client: Any) -> TelemetrySink:
-    def sink(event: dict[str, Any]) -> None:
-        post = getattr(api_client, "post_decision_model_event", None)
-        if callable(post):
-            post(event)
-            return
-        post_agent_event = getattr(api_client, "post_agent_stream_event", None)
-        if callable(post_agent_event):
-            post_agent_event(
-                {
-                    "event_type": event.get("eventType"),
-                    "schemaVersion": "LCSP_DECISION_MODEL_EVENT_V1",
-                    "kind": "DECISION_MODEL",
-                    "durability": "DURABLE",
-                    "payload": event,
-                }
-            )
 
 
-def observer_from_api_client(api_client: Any, *, gateway: DecisionGateway | None = None) -> ShadowDecisionObserver:
-    return ShadowDecisionObserver(
-        gateway=gateway,
-        telemetry_sink=worker_api_decision_event_sink(api_client),
-        idempotency_store=WorkerApiDecisionIdempotencyStore(api_client),
-    )
 
 
 __all__ = [
-    "INTERVIEW_TOPIC_CHOICES",
     "PR_REVIEW_DOMAIN_CHOICES",
-    "ROOT_ROUTE_CHOICES",
     "DecisionIdempotencyClaimUnavailable",
     "DecisionIdempotencyStore",
     "InMemoryDecisionIdempotencyStore",
-    "InterviewRoutingPacket",
     "PrReviewTriagePacket",
-    "RootRoutingPacket",
     "ShadowDecisionObserver",
     "ShadowDecisionRecord",
-    "WorkerApiDecisionIdempotencyStore",
-    "build_interview_routing_request",
     "build_pr_review_triage_request",
-    "build_root_routing_request",
-    "observer_from_api_client",
     "shadow_record_payload",
-    "worker_api_decision_event_sink",
 ]

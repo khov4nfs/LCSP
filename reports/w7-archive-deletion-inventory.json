@@ -1,0 +1,3265 @@
+{
+  "head": "836607eb2b5e2ad89a966d06212134941ecc2cc1",
+  "userDecision": "V1 retention zero; no final product history; V1_ONLY DELETE",
+  "files": [
+    {
+      "file": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+      "declarations": [
+        "DownloadLegacyArchiveReportHandler"
+      ],
+      "deps": [
+        "node:crypto",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.query.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/legacy-archive-queries.spec.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+          "spec": "./download-legacy-archive-report/download-legacy-archive-report.handler.js",
+          "names": [
+            "DownloadLegacyArchiveReportHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+          "spec": "./application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.js",
+          "names": [
+            "DownloadLegacyArchiveReportHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.query.ts",
+      "declarations": [
+        "LegacyArchiveReportFile",
+        "DownloadLegacyArchiveReportQuery"
+      ],
+      "deps": [
+        "@nestjs/cqrs"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.query.ts",
+          "spec": "./download-legacy-archive-report.query.js",
+          "names": [
+            "DownloadLegacyArchiveReportQuery",
+            "LegacyArchiveReportFile"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/legacy-archive-queries.spec.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.query.ts",
+          "spec": "./download-legacy-archive-report/download-legacy-archive-report.query.js",
+          "names": [
+            "DownloadLegacyArchiveReportQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/presentation/http/legacy-archive.controller.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.query.ts",
+          "spec": "../../application/queries/download-legacy-archive-report/download-legacy-archive-report.query.js",
+          "names": [
+            "DownloadLegacyArchiveReportQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.handler.ts",
+      "declarations": [
+        "GetLegacyArchiveHandler"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.query.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/legacy-archive-queries.spec.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.handler.ts",
+          "spec": "./get-legacy-archive/get-legacy-archive.handler.js",
+          "names": [
+            "GetLegacyArchiveHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.handler.ts",
+          "spec": "./application/queries/get-legacy-archive/get-legacy-archive.handler.js",
+          "names": [
+            "GetLegacyArchiveHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.query.ts",
+      "declarations": [
+        "GetLegacyArchiveQuery"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.handler.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.query.ts",
+          "spec": "./get-legacy-archive.query.js",
+          "names": [
+            "GetLegacyArchiveQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/legacy-archive-queries.spec.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.query.ts",
+          "spec": "./get-legacy-archive/get-legacy-archive.query.js",
+          "names": [
+            "GetLegacyArchiveQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/presentation/http/legacy-archive.controller.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.query.ts",
+          "spec": "../../application/queries/get-legacy-archive/get-legacy-archive.query.js",
+          "names": [
+            "GetLegacyArchiveQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/application/queries/legacy-archive-queries.spec.ts",
+      "declarations": [
+        "download",
+        "build"
+      ],
+      "deps": [
+        "node:crypto",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@jest/globals",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.query.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.handler.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.query.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.handler.ts",
+      "declarations": [
+        "ListLegacyArchivesHandler"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs",
+        "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.query.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.handler.ts",
+          "spec": "./application/queries/list-legacy-archives/list-legacy-archives.handler.js",
+          "names": [
+            "ListLegacyArchivesHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.query.ts",
+      "declarations": [
+        "ListLegacyArchivesQuery"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.handler.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.query.ts",
+          "spec": "./list-legacy-archives.query.js",
+          "names": [
+            "ListLegacyArchivesQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/presentation/http/legacy-archive.controller.ts",
+          "target": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.query.ts",
+          "spec": "../../application/queries/list-legacy-archives/list-legacy-archives.query.js",
+          "names": [
+            "ListLegacyArchivesQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.spec.ts",
+      "declarations": [],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@jest/globals",
+        "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.ts",
+      "declarations": [
+        "Availability",
+        "availabilityOf",
+        "mediaTypeForReference",
+        "utcIso"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.spec.ts",
+          "target": "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.ts",
+          "spec": "./legacy-report-availability.js",
+          "names": [
+            "availabilityOf",
+            "mediaTypeForReference",
+            "utcIso"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+          "target": "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.ts",
+          "spec": "../../domain/legacy-report-availability.js",
+          "names": [
+            "availabilityOf",
+            "mediaTypeForReference",
+            "utcIso"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+      "declarations": [
+        "ReportRecord",
+        "ArchivedReportDownload",
+        "LegacyArchiveReadRepository"
+      ],
+      "deps": [
+        "node:crypto",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive-read.repository.js",
+          "names": [
+            "LegacyArchiveReadRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.handler.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive-read.repository.js",
+          "names": [
+            "LegacyArchiveReadRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/legacy-archive-queries.spec.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+          "spec": "../../infrastructure/persistence/legacy-archive-read.repository.js",
+          "names": [
+            "ArchivedReportDownload",
+            "LegacyArchiveReadRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.handler.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive-read.repository.js",
+          "names": [
+            "LegacyArchiveReadRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+          "spec": "./infrastructure/persistence/legacy-archive-read.repository.js",
+          "names": [
+            "LegacyArchiveReadRepository"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+      "declarations": [
+        "StoredLegacyBlob",
+        "LegacyArchiveBlobStore"
+      ],
+      "deps": [
+        "node:crypto",
+        "node:fs",
+        "node:path",
+        "@nestjs/common",
+        "apps/api/src/platform/logging/logging-context.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+          "spec": "../../../infrastructure/storage/legacy-archive-blob.store.js",
+          "names": [
+            "LegacyArchiveBlobStore"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/legacy-archive-queries.spec.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+          "spec": "../../infrastructure/storage/legacy-archive-blob.store.js",
+          "names": [
+            "LegacyArchiveBlobStore"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+          "spec": "./infrastructure/storage/legacy-archive-blob.store.js",
+          "names": [
+            "LegacyArchiveBlobStore"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+          "spec": "../../../../legacy-archive/infrastructure/storage/legacy-archive-blob.store.js",
+          "names": [
+            "LegacyArchiveBlobStore"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+          "spec": "../../../legacy-archive/infrastructure/storage/legacy-archive-blob.store.js",
+          "names": [
+            "LegacyArchiveBlobStore"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+          "spec": "../legacy-archive/infrastructure/storage/legacy-archive-blob.store.js",
+          "names": [
+            "LegacyArchiveBlobStore"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+      "declarations": [
+        "LegacyArchiveModule"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "apps/api/src/platform/rbac/rbac.module.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.handler.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.handler.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+        "apps/api/src/modules/legacy-archive/presentation/http/legacy-archive.controller.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/app.module.ts",
+          "target": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+          "spec": "./modules/legacy-archive/legacy-archive.module.js",
+          "names": [
+            "LegacyArchiveModule"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-archive/presentation/http/legacy-archive.controller.ts",
+      "declarations": [
+        "LegacyArchiveController"
+      ],
+      "deps": [
+        "node:crypto",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "express",
+        "zod",
+        "apps/api/src/common/interfaces/authenticated-request.interface.ts",
+        "apps/api/src/common/pipes/zod-validation.pipe.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/platform/rbac/decorators/require-roles.decorator.ts",
+        "apps/api/src/platform/rbac/rbac.guard.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.query.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.query.ts",
+        "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.query.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+          "target": "apps/api/src/modules/legacy-archive/presentation/http/legacy-archive.controller.ts",
+          "spec": "./presentation/http/legacy-archive.controller.js",
+          "names": [
+            "LegacyArchiveController"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.command.ts",
+      "declarations": [
+        "ArchiveLegacyDataResult",
+        "ArchiveLegacyDataCommand"
+      ],
+      "deps": [
+        "@nestjs/cqrs",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.command.ts",
+          "spec": "./archive-legacy-data.command.js",
+          "names": [
+            "ArchiveLegacyDataCommand",
+            "ArchiveLegacyDataResult"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.command.ts",
+          "spec": "../commands/archive-legacy-data/archive-legacy-data.command.js",
+          "names": [
+            "ArchiveLegacyDataCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+      "declarations": [
+        "ArchiveLegacyDataHandler",
+        "listFiles"
+      ],
+      "deps": [
+        "node:crypto",
+        "node:fs",
+        "node:path",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.command.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+          "spec": "./application/commands/archive-legacy-data/archive-legacy-data.handler.js",
+          "names": [
+            "ArchiveLegacyDataHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.command.ts",
+      "declarations": [
+        "BackfillLegacyAssessmentsResult",
+        "BackfillLegacyAssessmentsCommand"
+      ],
+      "deps": [
+        "@nestjs/cqrs"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.command.ts",
+          "spec": "./backfill-legacy-assessments.command.js",
+          "names": [
+            "BackfillLegacyAssessmentsCommand",
+            "BackfillLegacyAssessmentsResult"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.command.ts",
+          "spec": "../commands/backfill-legacy-assessments/backfill-legacy-assessments.command.js",
+          "names": [
+            "BackfillLegacyAssessmentsCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+      "declarations": [
+        "Outcome",
+        "BackfillLegacyAssessmentsHandler"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-lifecycle-coordinator.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-runtime-preparation.service.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-backfill-plan.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.command.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+          "spec": "./application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.js",
+          "names": [
+            "BackfillLegacyAssessmentsHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.command.ts",
+      "declarations": [
+        "QuiesceLegacyRuntimeResult",
+        "QuiesceLegacyRuntimeCommand"
+      ],
+      "deps": [
+        "@nestjs/cqrs"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.command.ts",
+          "spec": "./quiesce-legacy-runtime.command.js",
+          "names": [
+            "QuiesceLegacyRuntimeCommand",
+            "QuiesceLegacyRuntimeResult"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.command.ts",
+          "spec": "../commands/quiesce-legacy-runtime/quiesce-legacy-runtime.command.js",
+          "names": [
+            "QuiesceLegacyRuntimeCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.ts",
+      "declarations": [
+        "QuiesceLegacyRuntimeHandler"
+      ],
+      "deps": [
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.command.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.ts",
+          "spec": "./application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.js",
+          "names": [
+            "QuiesceLegacyRuntimeHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.command.ts",
+      "declarations": [
+        "RestorePointResult",
+        "RecordLegacyRestorePointCommand",
+        "CloseLegacyRestoreBoundaryCommand"
+      ],
+      "deps": [
+        "@nestjs/cqrs"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.command.ts",
+          "spec": "./record-legacy-restore-point.command.js",
+          "names": [
+            "CloseLegacyRestoreBoundaryCommand",
+            "RecordLegacyRestorePointCommand",
+            "RestorePointResult"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.command.ts",
+          "spec": "../../application/commands/record-legacy-restore-point/record-legacy-restore-point.command.js",
+          "names": [
+            "CloseLegacyRestoreBoundaryCommand",
+            "RecordLegacyRestorePointCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.handler.ts",
+      "declarations": [
+        "RecordLegacyRestorePointHandler",
+        "CloseLegacyRestoreBoundaryHandler"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.command.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.handler.ts",
+          "spec": "./application/commands/record-legacy-restore-point/record-legacy-restore-point.handler.js",
+          "names": [
+            "CloseLegacyRestoreBoundaryHandler",
+            "RecordLegacyRestorePointHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+      "declarations": [
+        "LegacyMigrationErrorCode",
+        "LegacyMigrationError"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+          "spec": "../../legacy-migration.error.js",
+          "names": [
+            "LegacyMigrationError"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+          "spec": "../../legacy-migration.error.js",
+          "names": [
+            "LegacyMigrationError"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+          "spec": "../../legacy-migration.error.js",
+          "names": [
+            "LegacyMigrationError"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+          "spec": "../../legacy-migration.error.js",
+          "names": [
+            "LegacyMigrationError"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+          "spec": "../legacy-migration.error.js",
+          "names": [
+            "LegacyMigrationError"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+          "spec": "../legacy-migration.error.js",
+          "names": [
+            "LegacyMigrationError"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+      "declarations": [
+        "LegacyReportPolicyOptions",
+        "LegacyMigrationExecution",
+        "ReportArchiveResult"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.command.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+          "spec": "../../legacy-migration.types.js",
+          "names": [
+            "ReportArchiveResult",
+            "LegacyReportPolicyOptions"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.query.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+          "spec": "../../legacy-migration.types.js",
+          "names": [
+            "LegacyReportPolicyOptions"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+          "spec": "../legacy-migration.types.js",
+          "names": [
+            "LegacyMigrationExecution",
+            "LegacyReportPolicyOptions"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+          "spec": "../legacy-migration.types.js",
+          "names": [
+            "LegacyReportPolicyOptions",
+            "ReportArchiveResult"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-policy.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+          "spec": "../legacy-migration.types.js",
+          "names": [
+            "LegacyReportPolicyOptions"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-reevaluation.startup-safety.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+          "spec": "./application/legacy-migration.types.js",
+          "names": [
+            "DEFAULT_PHASES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+          "spec": "../../application/legacy-migration.types.js",
+          "names": [
+            "DEFAULT_PHASES"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/legacy-reevaluation.types.ts",
+      "declarations": [
+        "ReevaluationLimits",
+        "ReevaluationStartOptions",
+        "ReevaluationPreflightOptions",
+        "ReevaluationPreflight",
+        "ReevaluationStatus",
+        "CanaryVerification",
+        "ReevaluationStartResult"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-reevaluation.types.ts",
+          "spec": "../legacy-reevaluation.types.js",
+          "names": [
+            "CanaryVerification",
+            "ReevaluationPreflight",
+            "ReevaluationPreflightOptions",
+            "ReevaluationStartOptions",
+            "ReevaluationStartResult",
+            "ReevaluationStatus"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/legacy-reevaluation.types.ts",
+          "spec": "../../application/legacy-reevaluation.types.js",
+          "names": [
+            "ReevaluationLimits"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+      "declarations": [
+        "PreflightLegacyMigrationHandler"
+      ],
+      "deps": [
+        "packages/contracts/src/document/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs",
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-report-policy.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.query.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "spec": "./application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.js",
+          "names": [
+            "PreflightLegacyMigrationHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.query.ts",
+      "declarations": [
+        "PreflightReport",
+        "PreflightLegacyMigrationQuery"
+      ],
+      "deps": [
+        "@nestjs/cqrs",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.query.ts",
+          "spec": "./preflight-legacy-migration.query.js",
+          "names": [
+            "PreflightLegacyMigrationQuery",
+            "PreflightReport"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.query.ts",
+          "spec": "../queries/preflight-legacy-migration/preflight-legacy-migration.query.js",
+          "names": [
+            "PreflightLegacyMigrationQuery",
+            "PreflightReport"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/legacy-validation-checks.ts",
+      "declarations": [
+        "Spec",
+        "check",
+        "summarize",
+        "jsonEqual",
+        "withoutKeys"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/legacy-validation-checks.ts",
+          "spec": "./legacy-validation-checks.js",
+          "names": [
+            "check",
+            "jsonEqual",
+            "summarize",
+            "withoutKeys",
+            "zero"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+      "declarations": [
+        "Run",
+        "volatileKeys",
+        "ValidateLegacyMigrationHandler"
+      ],
+      "deps": [
+        "node:crypto",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs",
+        "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/legacy-validation-checks.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "spec": "./application/queries/validate-legacy-migration/validate-legacy-migration.handler.js",
+          "names": [
+            "ValidateLegacyMigrationHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+      "declarations": [
+        "ValidateLegacyMigrationQuery"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/cqrs"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+          "spec": "./validate-legacy-migration.query.js",
+          "names": [
+            "ValidateLegacyMigrationQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+          "spec": "../queries/validate-legacy-migration/validate-legacy-migration.query.js",
+          "names": [
+            "ValidateLegacyMigrationQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+          "spec": "../queries/validate-legacy-migration/validate-legacy-migration.query.js",
+          "names": [
+            "ValidateLegacyMigrationQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+          "spec": "../../application/queries/validate-legacy-migration/validate-legacy-migration.query.js",
+          "names": [
+            "ValidateLegacyMigrationQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+      "declarations": [
+        "legacyAuditEvent"
+      ],
+      "deps": [
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+          "spec": "../../services/legacy-audit.js",
+          "names": [
+            "legacyAuditEvent"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+          "spec": "../../services/legacy-audit.js",
+          "names": [
+            "LEGACY_MIGRATION_ACTOR",
+            "legacyAuditEvent"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+          "spec": "../../services/legacy-audit.js",
+          "names": [
+            "legacyAuditEvent"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+          "spec": "./legacy-audit.js",
+          "names": [
+            "legacyAuditEvent"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+          "spec": "./legacy-audit.js",
+          "names": [
+            "legacyAuditEvent"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+      "declarations": [
+        "ExecutionOutcome",
+        "LegacyMigrationRunner"
+      ],
+      "deps": [
+        "node:crypto",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.command.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.command.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.command.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.query.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "spec": "./application/services/legacy-migration-runner.service.js",
+          "names": [
+            "LegacyMigrationRunner"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "spec": "../../application/services/legacy-migration-runner.service.js",
+          "names": [
+            "LegacyMigrationRunner"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+      "declarations": [
+        "StartOutcome",
+        "failureCode",
+        "summarizeCohort",
+        "LegacyReevaluationService"
+      ],
+      "deps": [
+        "node:timers/promises",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-runtime-preparation.service.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-reevaluation.types.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "spec": "./application/services/legacy-reevaluation.service.js",
+          "names": [
+            "LegacyReevaluationService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "spec": "../../application/services/legacy-reevaluation.service.js",
+          "names": [
+            "LegacyReevaluationService"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+      "declarations": [
+        "PendingBlob",
+        "LegacyReportArchiver",
+        "tally"
+      ],
+      "deps": [
+        "packages/contracts/src/document/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/storage/legacy-report-source.reader.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-report-policy.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "spec": "../../services/legacy-report-archiver.service.js",
+          "names": [
+            "LegacyReportArchiver"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "spec": "./application/services/legacy-report-archiver.service.js",
+          "names": [
+            "LegacyReportArchiver"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-policy.ts",
+      "declarations": [
+        "buildLegacyReportPolicy"
+      ],
+      "deps": [
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-report-policy.ts",
+          "spec": "../../services/legacy-report-policy.js",
+          "names": [
+            "buildLegacyReportPolicy"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/application/services/legacy-report-policy.ts",
+          "spec": "./legacy-report-policy.js",
+          "names": [
+            "buildLegacyReportPolicy"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-archive-hash.ts",
+      "declarations": [
+        "archiveDigest"
+      ],
+      "deps": [
+        "node:crypto"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-migration.domain.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-archive-hash.ts",
+          "spec": "./legacy-archive-hash.js",
+          "names": [
+            "archiveDigest",
+            "sha256Hex"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-assessment-classification.ts",
+      "declarations": [
+        "classifyLegacyAssessment"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-migration.domain.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-assessment-classification.ts",
+          "spec": "./legacy-assessment-classification.js",
+          "names": [
+            "classifyLegacyAssessment"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-backfill-plan.ts",
+      "declarations": [
+        "LegacySnapshotCandidate",
+        "LegacyBackfillPlan",
+        "planLegacyBackfill"
+      ],
+      "deps": [
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-backfill-plan.ts",
+          "spec": "../../../domain/legacy-backfill-plan.js",
+          "names": [
+            "legacyBackfillLifecycle",
+            "planLegacyBackfill"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-migration.domain.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-backfill-plan.ts",
+          "spec": "./legacy-backfill-plan.js",
+          "names": [
+            "legacyBackfillLifecycle",
+            "planLegacyBackfill"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-migration.domain.spec.ts",
+      "declarations": [],
+      "deps": [
+        "node:crypto",
+        "node:fs",
+        "node:path",
+        "node:url",
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-archive-hash.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-assessment-classification.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-backfill-plan.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+      "declarations": [
+        "classifyOutboxEventType"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+          "spec": "../../../domain/legacy-outbox-classification.js",
+          "names": [
+            "LEGACY_OUTBOX_EVENT_TYPE_LIST"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+          "spec": "../../../domain/legacy-outbox-classification.js",
+          "names": [
+            "classifyOutboxEventType"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+          "spec": "../../../domain/legacy-outbox-classification.js",
+          "names": [
+            "classifyOutboxEventType",
+            "LEGACY_OUTBOX_EVENT_TYPE_LIST"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+          "spec": "../../domain/legacy-outbox-classification.js",
+          "names": [
+            "LEGACY_OUTBOX_EVENT_TYPE_LIST"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-migration.domain.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+          "spec": "./legacy-outbox-classification.js",
+          "names": [
+            "classifyOutboxEventType"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.domain.spec.ts",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+      "declarations": [
+        "ReevaluationFacts",
+        "exclusionsOf",
+        "deriveReevaluationState",
+        "PassLimits",
+        "CanonicalLoad",
+        "Admission",
+        "admitStart",
+        "nextDelayMs",
+        "CanaryEvidence",
+        "CanaryCheckResult",
+        "pendingOrFail",
+        "evaluateCanary",
+        "CanaryVerdict",
+        "canaryVerified"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/legacy-reevaluation.types.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+          "spec": "../domain/legacy-reevaluation.js",
+          "names": [
+            "CanaryCheckResult",
+            "PassLimits"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+          "spec": "../../domain/legacy-reevaluation.js",
+          "names": [
+            "admitStart",
+            "canaryVerified",
+            "deriveReevaluationState",
+            "evaluateCanary",
+            "exclusionsOf",
+            "nextDelayMs",
+            "PassLimits"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.domain.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+          "spec": "./legacy-reevaluation.js",
+          "names": [
+            "admitStart",
+            "canaryVerified",
+            "deriveReevaluationState",
+            "evaluateCanary",
+            "exclusionsOf",
+            "nextDelayMs",
+            "CanaryEvidence",
+            "PassLimits",
+            "ReevaluationFacts"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+          "spec": "../../domain/legacy-reevaluation.js",
+          "names": [
+            "admitStart"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+          "spec": "../../domain/legacy-reevaluation.js",
+          "names": [
+            "CanaryEvidence",
+            "CanonicalLoad",
+            "ReevaluationFacts"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+      "declarations": [
+        "LegacyReportOutcome",
+        "LegacyReportProbe",
+        "LegacyReportPolicy",
+        "classifyLegacyReportReference",
+        "classifyLegacyReportProbe",
+        "classifyLegacyReadinessExport"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+          "spec": "../../../domain/legacy-report-classification.js",
+          "names": [
+            "classifyLegacyReportReference"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+          "spec": "../../domain/legacy-report-classification.js",
+          "names": [
+            "classifyLegacyReadinessExport",
+            "classifyLegacyReportProbe",
+            "classifyLegacyReportReference",
+            "LegacyReportOutcome",
+            "LegacyReportPolicy",
+            "LegacyReportProbe"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-policy.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+          "spec": "../../domain/legacy-report-classification.js",
+          "names": [
+            "LegacyReportPolicy"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-migration.domain.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+          "spec": "./legacy-report-classification.js",
+          "names": [
+            "classifyLegacyReadinessExport",
+            "classifyLegacyReportProbe",
+            "classifyLegacyReportReference",
+            "LegacyReportPolicy"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts",
+      "declarations": [
+        "LegacyReportReference",
+        "parseLegacyReportReference",
+        "redactLegacyReportReference"
+      ],
+      "deps": [
+        "node:url"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts",
+          "spec": "../../../domain/legacy-report-reference.js",
+          "names": [
+            "parseLegacyReportReference"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts",
+          "spec": "../../domain/legacy-report-reference.js",
+          "names": [
+            "parseLegacyReportReference"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-migration.domain.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts",
+          "spec": "./legacy-report-reference.js",
+          "names": [
+            "parseLegacyReportReference",
+            "redactLegacyReportReference"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts",
+          "spec": "./legacy-report-reference.js",
+          "names": [
+            "LegacyReportReference"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/storage/legacy-report-source.reader.ts",
+          "target": "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts",
+          "spec": "../../domain/legacy-report-reference.js",
+          "names": [
+            "LegacyReportReference"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+      "declarations": [
+        "SqlArchiveSource",
+        "InFlightClosureRule"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment-domain/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/document/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive-registry.js",
+          "names": [
+            "SQL_ARCHIVE_SOURCES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive-registry.js",
+          "names": [
+            "IN_FLIGHT_CLOSURE_RULES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive-registry.js",
+          "names": [
+            "CLOSED_AT_QUIESCENCE_SOURCES",
+            "IN_FLIGHT_CLOSURE_RULES",
+            "REPORT_ARCHIVE_SOURCES",
+            "SQL_ARCHIVE_SOURCES",
+            "InFlightClosureRule",
+            "SqlArchiveSource"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+          "spec": "../../infrastructure/persistence/legacy-archive-registry.js",
+          "names": [
+            "IN_FLIGHT_CLOSURE_RULES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+          "spec": "./legacy-archive-registry.js",
+          "names": [
+            "ARCHIVE_RECORD_ID_SQL",
+            "closureUpdateSql",
+            "IN_FLIGHT_CLOSURE_RULES",
+            "PAYLOAD_SHA256_SQL",
+            "InFlightClosureRule",
+            "SqlArchiveSource"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+          "spec": "./legacy-archive-registry.js",
+          "names": [
+            "NOT_V2_ROOT_TURN"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+          "spec": "./legacy-archive-registry.js",
+          "names": [
+            "PAYLOAD_SHA256_SQL",
+            "SQL_ARCHIVE_SOURCES",
+            "InFlightClosureRule",
+            "SqlArchiveSource"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+      "declarations": [
+        "Client",
+        "CancelledOutboxMessage",
+        "LegacyArchiveRepository"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "../../infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "../../infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "../../infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "spec": "./infrastructure/persistence/legacy-archive.repository.js",
+          "names": [
+            "LegacyArchiveRepository"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.spec.ts",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@prisma/client",
+        "pg",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+      "declarations": [
+        "CohortMember",
+        "CanaryRows",
+        "ObservedRoutes",
+        "Client",
+        "LegacyReevaluationRepository"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/assessment-domain/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+          "spec": "../../infrastructure/persistence/legacy-reevaluation.repository.js",
+          "names": [
+            "LegacyReevaluationRepository",
+            "CohortMember"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.spec.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+          "spec": "./legacy-reevaluation.repository.js",
+          "names": [
+            "LegacyReevaluationRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+          "spec": "./infrastructure/persistence/legacy-reevaluation.repository.js",
+          "names": [
+            "LegacyReevaluationRepository"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+      "declarations": [
+        "PortfolioFacts",
+        "LegacyValidationRepository"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment-domain/index.ts",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-validation.repository.js",
+          "names": [
+            "LegacyValidationRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-validation.repository.js",
+          "names": [
+            "LegacyValidationRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.query.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-validation.repository.js",
+          "names": [
+            "PortfolioFacts"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "spec": "../../../infrastructure/persistence/legacy-validation.repository.js",
+          "names": [
+            "LegacyValidationRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "spec": "../../infrastructure/persistence/legacy-validation.repository.js",
+          "names": [
+            "LegacyValidationRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "spec": "../../infrastructure/persistence/legacy-validation.repository.js",
+          "names": [
+            "LegacyValidationRepository"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "spec": "./infrastructure/persistence/legacy-validation.repository.js",
+          "names": [
+            "LegacyValidationRepository"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/infrastructure/storage/legacy-report-source.reader.ts",
+      "declarations": [
+        "LegacyReportReaderConfig",
+        "LegacyReportReadResult",
+        "LegacyReportSourceReader"
+      ],
+      "deps": [
+        "node:crypto",
+        "node:fs",
+        "node:path",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/api/src/modules/legacy-migration/domain/legacy-report-reference.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/storage/legacy-report-source.reader.ts",
+          "spec": "../../infrastructure/storage/legacy-report-source.reader.js",
+          "names": [
+            "LegacyReportSourceReader"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "apps/api/src/modules/legacy-migration/infrastructure/storage/legacy-report-source.reader.ts",
+          "spec": "../../infrastructure/storage/legacy-report-source.reader.js",
+          "names": [
+            "DEFAULT_LEGACY_REPORT_MAX_BYTES"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+      "declarations": [
+        "LegacyMigrationModule"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "apps/api/src/platform/outbox/outbox.repository.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-lifecycle-coordinator.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-runtime-preparation.service.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.handler.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+        "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+        "apps/api/src/modules/legacy-archive/infrastructure/storage/legacy-archive-blob.store.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration-cli.module.ts",
+          "target": "apps/api/src/modules/legacy-migration/legacy-migration.module.ts",
+          "spec": "../../legacy-migration.module.js",
+          "names": [
+            "LegacyMigrationModule"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/legacy-reevaluation.startup-safety.spec.ts",
+      "declarations": [],
+      "deps": [
+        "node:fs",
+        "node:path",
+        "node:url",
+        "@jest/globals",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration-cli.module.ts",
+      "declarations": [
+        "LegacyMigrationCliModule"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "apps/api/src/infrastructure/prisma/prisma.module.ts",
+        "apps/api/src/platform/audit/audit.module.ts",
+        "apps/api/src/modules/legacy-migration/legacy-migration.module.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration-cli.module.ts",
+          "spec": "./legacy-migration-cli.module.js",
+          "names": [
+            "LegacyMigrationCliModule"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+      "declarations": [
+        "UsageError",
+        "StderrLogger",
+        "confirmedDatabase",
+        "positiveInteger",
+        "nonNegativeInteger",
+        "reevaluationMode",
+        "attestedChecks",
+        "reevaluationLimits",
+        "runKind",
+        "phases",
+        "main"
+      ],
+      "deps": [
+        "node:fs",
+        "node:util",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "@nestjs/core",
+        "apps/api/src/modules/legacy-migration/infrastructure/storage/legacy-report-source.reader.ts",
+        "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.command.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+        "apps/api/src/modules/legacy-migration/application/legacy-reevaluation.types.ts",
+        "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+        "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+        "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration-cli.module.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/web/src/app/api/legacy-archive/assessments/[id]/reports/[recordId]/download/route.ts",
+      "declarations": [
+        "GET"
+      ],
+      "deps": [
+        "next/server",
+        "apps/web/src/lib/server/legacy-archive-proxy.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/web/src/app/api/legacy-archive/assessments/[id]/route.ts",
+      "declarations": [
+        "GET"
+      ],
+      "deps": [
+        "next/server",
+        "apps/web/src/lib/server/legacy-archive-proxy.ts"
+      ],
+      "callersAndTests": []
+    },
+    {
+      "file": "apps/web/src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+      "declarations": [
+        "LegacyArchiveReportRow"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/web/src/components/ui/button.tsx",
+        "apps/web/src/lib/i18n.ts",
+        "apps/web/src/lib/locale.ts",
+        "apps/web/src/features/workspace/config/legacy-archive-messages.ts",
+        "apps/web/src/features/workspace/types/legacy-archive.types.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/web/src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+          "target": "apps/web/src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+          "spec": "../molecules/legacy-archive-report-row",
+          "names": [
+            "LegacyArchiveReportRow"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/tests/legacy-archive-report-row.test.ts",
+          "target": "apps/web/src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+          "spec": "../src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+          "names": [
+            "LegacyArchiveReportRow"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+      "declarations": [
+        "LegacyArchivePanel"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/web/src/components/ui/alert.tsx",
+        "apps/web/src/components/ui/button.tsx",
+        "apps/web/src/lib/api/legacy-archive-queries.ts",
+        "apps/web/src/lib/i18n.ts",
+        "apps/web/src/lib/locale.ts",
+        "apps/web/src/features/workspace/config/legacy-archive-messages.ts",
+        "apps/web/src/features/workspace/types/legacy-archive.types.ts",
+        "apps/web/src/features/workspace/components/molecules/legacy-archive-report-row.tsx"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/web/src/features/workspace/components/organisms/assessment-overview.tsx",
+          "target": "apps/web/src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+          "spec": "./legacy-archive-panel",
+          "names": [
+            "LegacyArchivePanel"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/features/workspace/config/legacy-archive-messages.ts",
+      "declarations": [
+        "legacyDocumentTypeKey",
+        "legacyStatusKey"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts",
+        "packages/i18n/src/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/web/src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+          "target": "apps/web/src/features/workspace/config/legacy-archive-messages.ts",
+          "spec": "../../config/legacy-archive-messages",
+          "names": [
+            "LEGACY_AVAILABILITY_DETAIL_KEYS",
+            "LEGACY_AVAILABILITY_LABEL_KEYS",
+            "legacyDocumentTypeKey"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+          "target": "apps/web/src/features/workspace/config/legacy-archive-messages.ts",
+          "spec": "../../config/legacy-archive-messages",
+          "names": [
+            "legacyStatusKey"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/features/workspace/types/legacy-archive.types.ts",
+      "declarations": [
+        "LegacyArchiveReportRowProps",
+        "LegacyArchivePanelProps"
+      ],
+      "deps": [
+        "packages/contracts/src/legacy-migration/index.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/web/src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+          "target": "apps/web/src/features/workspace/types/legacy-archive.types.ts",
+          "spec": "../../types/legacy-archive.types",
+          "names": [
+            "LegacyArchiveReportRowProps"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+          "target": "apps/web/src/features/workspace/types/legacy-archive.types.ts",
+          "spec": "../../types/legacy-archive.types",
+          "names": [
+            "LegacyArchivePanelProps"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/lib/api/legacy-archive-queries.ts",
+      "declarations": [
+        "useLegacyArchiveDetailQuery"
+      ],
+      "deps": [
+        "@tanstack/react-query",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "apps/web/src/lib/api/api-request.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/web/src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+          "target": "apps/web/src/lib/api/legacy-archive-queries.ts",
+          "spec": "@/lib/api/legacy-archive-queries",
+          "names": [
+            "useLegacyArchiveDetailQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/lib/server/legacy-archive-proxy.ts",
+      "declarations": [
+        "proxyLegacyArchiveDetail",
+        "proxyLegacyArchiveDownload"
+      ],
+      "deps": [
+        "next/server",
+        "zod",
+        "packages/contracts/src/legacy-migration/index.ts",
+        "packages/contracts/src/shared/index.ts",
+        "apps/web/src/lib/server/problem-json.ts",
+        "apps/web/src/lib/server/session-token.ts",
+        "apps/web/src/lib/server/upstream-request.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/web/src/app/api/legacy-archive/assessments/[id]/reports/[recordId]/download/route.ts",
+          "target": "apps/web/src/lib/server/legacy-archive-proxy.ts",
+          "spec": "@/lib/server/legacy-archive-proxy",
+          "names": [
+            "proxyLegacyArchiveDownload"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/app/api/legacy-archive/assessments/[id]/route.ts",
+          "target": "apps/web/src/lib/server/legacy-archive-proxy.ts",
+          "spec": "@/lib/server/legacy-archive-proxy",
+          "names": [
+            "proxyLegacyArchiveDetail"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/tests/legacy-archive-bff.test.ts",
+          "target": "apps/web/src/lib/server/legacy-archive-proxy.ts",
+          "spec": "../src/lib/server/legacy-archive-proxy.ts",
+          "names": [
+            "proxyLegacyArchiveDetail",
+            "proxyLegacyArchiveDownload"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "packages/contracts/src/legacy-migration/constants.ts",
+      "declarations": [
+        "LegacyMigrationRunKind",
+        "LegacyMigrationRunStatus",
+        "LegacyMigrationPhase",
+        "LegacyAssessmentDisposition",
+        "LegacyArchiveSource",
+        "LegacyArtifactReconciliationClass",
+        "LegacyArtifactReconciliationReason",
+        "LegacyOutboxEventType",
+        "LegacyOutboxDisposition",
+        "LegacyBackfillReason",
+        "LegacyValidationStatus",
+        "LegacyArtifactAvailability",
+        "LegacyReevaluationMode",
+        "LegacyReevaluationState",
+        "LegacyReevaluationExclusion",
+        "LegacyReevaluationStopReason",
+        "LegacyReevaluationCanaryCheck",
+        "LegacyReevaluationCheckStatus"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/statuses.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "packages/contracts/src/legacy-migration/index.ts",
+          "target": "packages/contracts/src/legacy-migration/constants.ts",
+          "spec": "./constants.ts",
+          "names": [],
+          "kind": "export"
+        },
+        {
+          "file": "packages/contracts/src/legacy-migration/schemas.ts",
+          "target": "packages/contracts/src/legacy-migration/constants.ts",
+          "spec": "./constants.ts",
+          "names": [
+            "LEGACY_ARCHIVE_SOURCES",
+            "LEGACY_ARTIFACT_AVAILABILITIES",
+            "LEGACY_ARTIFACT_RECONCILIATION_CLASSES",
+            "LEGACY_ARTIFACT_RECONCILIATION_REASONS",
+            "LEGACY_ASSESSMENT_DISPOSITIONS",
+            "LEGACY_MIGRATION_PHASES",
+            "LEGACY_MIGRATION_RUN_KINDS",
+            "LEGACY_VALIDATION_STATUSES"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "packages/contracts/src/legacy-migration/index.ts",
+      "declarations": [],
+      "deps": [
+        "packages/contracts/src/legacy-migration/constants.ts",
+        "packages/contracts/src/legacy-migration/schemas.ts",
+        "packages/contracts/src/legacy-migration/retired-routes.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "apps/api/src/app.module.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "RETIRED_API_ROUTES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/app.routes.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "RETIRED_API_ROUTES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/download-legacy-archive-report/download-legacy-archive-report.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_AVAILABILITIES",
+            "LEGACY_MIGRATION_AUDIT_EVENT_TYPES",
+            "LEGACY_MIGRATION_ERROR_CODES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ERROR_CODES",
+            "legacyArchiveDetailSchema",
+            "LegacyArchiveDetail"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/get-legacy-archive/get-legacy-archive.query.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LegacyArchiveDetail"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/legacy-archive-queries.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ERROR_CODES",
+            "LEGACY_MIGRATION_AUDIT_EVENT_TYPES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "legacyArchiveListSchema",
+            "LegacyArchiveList"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/application/queries/list-legacy-archives/list-legacy-archives.query.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LegacyArchiveList"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_AVAILABILITIES",
+            "LEGACY_ARTIFACT_RECONCILIATION_CLASSES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/domain/legacy-report-availability.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_AVAILABILITIES",
+            "LEGACY_ARTIFACT_RECONCILIATION_CLASSES",
+            "LegacyArtifactReconciliationClass"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/infrastructure/persistence/legacy-archive-read.repository.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARCHIVE_SOURCES",
+            "LEGACY_ARTIFACT_AVAILABILITIES",
+            "LegacyArchiveDetail",
+            "LegacyArchiveReportItem",
+            "LegacyArchiveSummary"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-archive/presentation/http/legacy-archive.controller.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ERROR_CODES",
+            "legacyArchiveListQuerySchema",
+            "LegacyArchiveList"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/archive-legacy-data/archive-legacy-data.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_CLOSURE_MARKERS",
+            "LEGACY_MIGRATION_AUDIT_EVENT_TYPES",
+            "LEGACY_MIGRATION_ERROR_CODES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/backfill-legacy-assessments/backfill-legacy-assessments.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_PHASES",
+            "LEGACY_MIGRATION_AUDIT_EVENT_TYPES",
+            "LEGACY_MIGRATION_ERROR_CODES",
+            "LegacyBackfillReason"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/quiesce-legacy-runtime/quiesce-legacy-runtime.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_CLOSURE_MARKERS",
+            "LEGACY_MIGRATION_AUDIT_EVENT_TYPES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/commands/record-legacy-restore-point/record-legacy-restore-point.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ERROR_CODES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/legacy-migration.error.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ERROR_CODES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/legacy-migration.types.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LegacyArtifactReconciliationClass",
+            "LegacyArtifactReconciliationReason",
+            "LegacyMigrationPhase"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/legacy-reevaluation.types.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LegacyReevaluationCanaryCheck",
+            "LegacyReevaluationExclusion",
+            "LegacyReevaluationMode",
+            "LegacyReevaluationState",
+            "LegacyReevaluationStopReason"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/preflight-legacy-migration/preflight-legacy-migration.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_RECONCILIATION_REASONS",
+            "LEGACY_OUTBOX_DISPOSITIONS"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/legacy-validation-checks.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_VALIDATION_STATUSES",
+            "LegacyValidationCheck"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.handler.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_RECONCILIATION_CLASSES",
+            "LEGACY_ARTIFACT_RECONCILIATION_REASONS",
+            "LEGACY_MIGRATION_ERROR_CODES",
+            "LEGACY_MIGRATION_PHASES",
+            "LEGACY_OUTBOX_DISPOSITIONS",
+            "LEGACY_REPORT_LIMITATION",
+            "LEGACY_REPORT_UPLOADER_EVIDENCE",
+            "legacyMigrationValidationReportSchema",
+            "LegacyArchiveSource",
+            "LegacyMigrationValidationReport",
+            "LegacyValidationCheck"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/queries/validate-legacy-migration/validate-legacy-migration.query.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LegacyMigrationValidationReport"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-audit.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ACTOR_ID"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-migration-runner.service.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_CORRELATION_PREFIXES",
+            "LEGACY_MIGRATION_AUDIT_EVENT_TYPES",
+            "LEGACY_MIGRATION_ERROR_CODES",
+            "LEGACY_MIGRATION_PHASES",
+            "LEGACY_MIGRATION_RUN_KINDS",
+            "LEGACY_MIGRATION_RUN_STATUSES",
+            "LEGACY_MIGRATION_TOOL_VERSION",
+            "LegacyMigrationRunKind",
+            "LegacyMigrationValidationReport"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-reevaluation.service.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_CORRELATION_PREFIXES",
+            "LEGACY_MIGRATION_AUDIT_EVENT_TYPES",
+            "LEGACY_MIGRATION_ERROR_CODES",
+            "LEGACY_MIGRATION_RUN_KINDS",
+            "LEGACY_MIGRATION_RUN_STATUSES",
+            "LEGACY_MIGRATION_TOOL_VERSION",
+            "LEGACY_REEVALUATION_DEFAULTS",
+            "LEGACY_REEVALUATION_EXCLUSIONS",
+            "LEGACY_REEVALUATION_MAX_BACKOFF_MS",
+            "LEGACY_REEVALUATION_MODES",
+            "LEGACY_REEVALUATION_STATES",
+            "LEGACY_REEVALUATION_STOP_REASONS",
+            "LEGACY_REEVALUATION_USAGE_POLICY",
+            "LEGACY_VALIDATION_STATUSES",
+            "LegacyReevaluationExclusion",
+            "LegacyReevaluationState",
+            "LegacyReevaluationStopReason"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/application/services/legacy-report-archiver.service.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARCHIVE_SOURCES",
+            "LegacyArtifactReconciliationClass",
+            "LegacyArtifactReconciliationReason"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-assessment-classification.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ASSESSMENT_DISPOSITIONS",
+            "LEGACY_TERMINAL_ASSESSMENT_STATUSES",
+            "LegacyAssessmentDisposition"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-backfill-plan.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_BACKFILL_REASONS",
+            "LegacyBackfillReason"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-migration.domain.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_RECONCILIATION_CLASSES",
+            "LEGACY_ARTIFACT_RECONCILIATION_REASONS",
+            "LEGACY_ASSESSMENT_DISPOSITIONS",
+            "LEGACY_BACKFILL_REASONS",
+            "LEGACY_OUTBOX_DISPOSITIONS",
+            "LEGACY_OUTBOX_EVENT_TYPES",
+            "LEGACY_REPORT_UPLOADER_EVIDENCE",
+            "RETAINED_OUTBOX_EVENT_TYPES",
+            "V2_WORKER_BOUND_EVENT_TYPES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-outbox-classification.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_OUTBOX_DISPOSITIONS",
+            "LEGACY_OUTBOX_EVENT_TYPES",
+            "RETAINED_OUTBOX_EVENT_TYPES",
+            "V2_WORKER_BOUND_EVENT_TYPES",
+            "LegacyOutboxDisposition"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.domain.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_REEVALUATION_CANARY_CHECKS",
+            "LEGACY_REEVALUATION_CHECK_STATUSES",
+            "LEGACY_REEVALUATION_DEFAULTS",
+            "LEGACY_REEVALUATION_EXCLUSIONS",
+            "LEGACY_REEVALUATION_MAX_BACKOFF_MS",
+            "LEGACY_REEVALUATION_MODES",
+            "LEGACY_REEVALUATION_STATES",
+            "LEGACY_REEVALUATION_STOP_REASONS"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-reevaluation.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_REEVALUATION_CANARY_CHECKS",
+            "LEGACY_REEVALUATION_CHECK_STATUSES",
+            "LEGACY_REEVALUATION_EXCLUSIONS",
+            "LEGACY_REEVALUATION_STATES",
+            "LEGACY_REEVALUATION_STOP_REASONS",
+            "LegacyReevaluationCanaryCheck",
+            "LegacyReevaluationCheckStatus",
+            "LegacyReevaluationExclusion",
+            "LegacyReevaluationMode",
+            "LegacyReevaluationState",
+            "LegacyReevaluationStopReason"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/domain/legacy-report-classification.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_RECONCILIATION_CLASSES",
+            "LEGACY_ARTIFACT_RECONCILIATION_REASONS",
+            "LEGACY_PLACEHOLDER_STORAGE_HOSTS",
+            "LegacyArtifactReconciliationClass",
+            "LegacyArtifactReconciliationReason"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive-registry.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARCHIVE_SOURCES",
+            "LegacyArchiveSource"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-archive.repository.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ASSESSMENT_DISPOSITIONS",
+            "LEGACY_MIGRATION_RUN_STATUSES",
+            "LEGACY_TERMINAL_ASSESSMENT_STATUSES",
+            "LegacyArchiveSource",
+            "LegacyArtifactReconciliationClass",
+            "LegacyArtifactReconciliationReason",
+            "LegacyMigrationPhase",
+            "LegacyMigrationRunKind"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_REEVALUATION_STOP_REASONS"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-reevaluation.repository.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ASSESSMENT_DISPOSITIONS",
+            "LEGACY_MIGRATION_RUN_KINDS",
+            "LEGACY_REEVALUATION_MODES",
+            "LegacyReevaluationMode"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/persistence/legacy-validation.repository.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ASSESSMENT_DISPOSITIONS",
+            "LEGACY_CORRELATION_PREFIXES",
+            "LEGACY_MIGRATION_RUN_KINDS",
+            "LEGACY_TERMINAL_ASSESSMENT_STATUSES",
+            "LegacyArchiveSource"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/infrastructure/storage/legacy-report-source.reader.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_RECONCILIATION_REASONS"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/legacy-reevaluation.startup-safety.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_PHASES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/legacy-migration/presentation/cli/legacy-migration.cli.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_PHASES",
+            "LEGACY_MIGRATION_RUN_KINDS",
+            "LEGACY_REEVALUATION_CANARY_CHECKS",
+            "LEGACY_REEVALUATION_DEFAULTS",
+            "LEGACY_REEVALUATION_MODES",
+            "LEGACY_REEVALUATION_STOP_REASONS",
+            "LegacyMigrationPhase",
+            "LegacyMigrationRunKind",
+            "LegacyReevaluationCanaryCheck",
+            "LegacyReevaluationMode"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/platform/http/retired-legacy-route.middleware.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "RETIRED_API_ROUTES",
+            "LEGACY_ROUTE_RETIRED_ERROR_CODE"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/platform/http/retired-legacy-route.middleware.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ROUTE_RETIRED_ERROR_CODE",
+            "LEGACY_ROUTE_RETIRED_STATUS"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/platform/outbox/outbox-dlq.service.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_OUTBOX_EVENT_TYPES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/platform/outbox/outbox-dlq.service.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "isRetiredOutboxEventType"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/platform/outbox/outbox.repository.spec.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_OUTBOX_EVENT_TYPES",
+            "RETAINED_OUTBOX_EVENT_TYPES",
+            "V2_WORKER_BOUND_EVENT_TYPES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/platform/outbox/outbox.repository.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "isRetiredOutboxEventType"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_AVAILABILITIES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ERROR_CODES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/features/workspace/config/legacy-archive-messages.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARCHIVE_SOURCES",
+            "LEGACY_ARTIFACT_AVAILABILITIES",
+            "LEGACY_TERMINAL_ASSESSMENT_STATUSES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/features/workspace/types/legacy-archive.types.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LegacyArchiveReportItem"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/lib/api/legacy-archive-queries.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "legacyArchiveDetailSchema"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/src/lib/server/legacy-archive-proxy.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ERROR_CODES",
+            "legacyArchiveDetailSchema"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/tests/legacy-archive-bff.test.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_MIGRATION_ERROR_CODES"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/web/tests/legacy-archive-report-row.test.ts",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ARTIFACT_AVAILABILITIES",
+            "LEGACY_ARTIFACT_RECONCILIATION_CLASSES",
+            "LEGACY_ARTIFACT_RECONCILIATION_REASONS",
+            "LegacyArchiveReportItem"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "tests/assessment-domain-vertical.mjs",
+          "target": "packages/contracts/src/legacy-migration/index.ts",
+          "spec": "@lcsp/contracts/legacy-migration",
+          "names": [
+            "LEGACY_ROUTE_RETIRED_ERROR_CODE",
+            "LEGACY_ROUTE_RETIRED_STATUS"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "packages/contracts/src/legacy-migration/retired-routes.ts",
+      "declarations": [],
+      "deps": [],
+      "callersAndTests": [
+        {
+          "file": "packages/contracts/src/legacy-migration/index.ts",
+          "target": "packages/contracts/src/legacy-migration/retired-routes.ts",
+          "spec": "./retired-routes.ts",
+          "names": [],
+          "kind": "export"
+        }
+      ]
+    },
+    {
+      "file": "packages/contracts/src/legacy-migration/schemas.ts",
+      "declarations": [
+        "LegacyArchiveReportItem",
+        "LegacyArchiveSummary",
+        "LegacyArchiveList",
+        "LegacyArchiveDetail",
+        "LegacyValidationCheck",
+        "LegacyArtifactReconciliationSummary",
+        "LegacyMigrationValidationReport"
+      ],
+      "deps": [
+        "zod",
+        "packages/contracts/src/legacy-migration/constants.ts"
+      ],
+      "callersAndTests": [
+        {
+          "file": "packages/contracts/src/legacy-migration/index.ts",
+          "target": "packages/contracts/src/legacy-migration/schemas.ts",
+          "spec": "./schemas.ts",
+          "names": [],
+          "kind": "export"
+        }
+      ]
+    }
+  ],
+  "inbound": [
+    {
+      "file": "apps/api/src/app.module.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "RETIRED_API_ROUTES"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/app.module.ts",
+      "target": "apps/api/src/modules/legacy-archive/legacy-archive.module.ts",
+      "spec": "./modules/legacy-archive/legacy-archive.module.js",
+      "names": [
+        "LegacyArchiveModule"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/app.routes.spec.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "RETIRED_API_ROUTES"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/platform/http/retired-legacy-route.middleware.spec.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "RETIRED_API_ROUTES",
+        "LEGACY_ROUTE_RETIRED_ERROR_CODE"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/platform/http/retired-legacy-route.middleware.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "LEGACY_ROUTE_RETIRED_ERROR_CODE",
+        "LEGACY_ROUTE_RETIRED_STATUS"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/platform/outbox/outbox-dlq.service.spec.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "LEGACY_OUTBOX_EVENT_TYPES"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/platform/outbox/outbox-dlq.service.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "isRetiredOutboxEventType"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/platform/outbox/outbox.repository.spec.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "LEGACY_OUTBOX_EVENT_TYPES",
+        "RETAINED_OUTBOX_EVENT_TYPES",
+        "V2_WORKER_BOUND_EVENT_TYPES"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/platform/outbox/outbox.repository.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "isRetiredOutboxEventType"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/web/src/features/workspace/components/organisms/assessment-overview.tsx",
+      "target": "apps/web/src/features/workspace/components/organisms/legacy-archive-panel.tsx",
+      "spec": "./legacy-archive-panel",
+      "names": [
+        "LegacyArchivePanel"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/web/tests/legacy-archive-bff.test.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "LEGACY_MIGRATION_ERROR_CODES"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/web/tests/legacy-archive-bff.test.ts",
+      "target": "apps/web/src/lib/server/legacy-archive-proxy.ts",
+      "spec": "../src/lib/server/legacy-archive-proxy.ts",
+      "names": [
+        "proxyLegacyArchiveDetail",
+        "proxyLegacyArchiveDownload"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/web/tests/legacy-archive-report-row.test.ts",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "LEGACY_ARTIFACT_AVAILABILITIES",
+        "LEGACY_ARTIFACT_RECONCILIATION_CLASSES",
+        "LEGACY_ARTIFACT_RECONCILIATION_REASONS",
+        "LegacyArchiveReportItem"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/web/tests/legacy-archive-report-row.test.ts",
+      "target": "apps/web/src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+      "spec": "../src/features/workspace/components/molecules/legacy-archive-report-row.tsx",
+      "names": [
+        "LegacyArchiveReportRow"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "tests/assessment-domain-vertical.mjs",
+      "target": "packages/contracts/src/legacy-migration/index.ts",
+      "spec": "@lcsp/contracts/legacy-migration",
+      "names": [
+        "LEGACY_ROUTE_RETIRED_ERROR_CODE",
+        "LEGACY_ROUTE_RETIRED_STATUS"
+      ],
+      "kind": "import"
+    }
+  ]
+}

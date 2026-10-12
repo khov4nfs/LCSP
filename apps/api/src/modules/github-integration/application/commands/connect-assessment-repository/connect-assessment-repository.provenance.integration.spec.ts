@@ -1,7 +1,7 @@
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 /* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-unused-vars */
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
-  AssessmentStatus,
   CredentialProvider,
   PrismaClient,
   RepositoryAuthenticationMode,
@@ -210,7 +210,8 @@ run("ConnectAssessmentRepository credential provenance", () => {
         id,
         ownerId,
         name: id,
-        status: AssessmentStatus.WIZARD_SUBMITTED,
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+        lifecycleRevision: 0,
       },
     });
   };

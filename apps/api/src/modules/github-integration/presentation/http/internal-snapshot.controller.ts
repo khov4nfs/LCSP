@@ -11,7 +11,7 @@ import { QueryBus } from "@nestjs/cqrs";
 import { pipeline } from "node:stream/promises";
 import type { Response } from "express";
 
-import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
 import type { InternalSnapshotRequest } from "./dto/internal-snapshot.request.js";
 import { type SnapshotArchiveStreamResult } from "../../application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.js";
 import { StreamSnapshotArchiveQuery } from "../../application/queries/stream-snapshot-archive/stream-snapshot-archive.query.js";

@@ -1,11 +1,12 @@
 import {
   ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_LIFECYCLE_STATES,
+  AGENT_EXECUTION_STATES,
 } from "@lcsp/contracts/assessment";
 import type { AssessmentDetail } from "@lcsp/contracts/assessment-domain";
 /**
  * AC-001: RBAC-authorized assessment creation, audit event.
- * AC-003: Readiness-only state, no risk level, blocked/degraded messaging.
+ * AC-003: Persisted canonical lifecycle; retired readiness route is absent.
  */
 
 import * as assert from "node:assert/strict";
@@ -14,9 +15,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { jest } from "@jest/globals";
 import { httpRequest, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
+import {
+  ASSESSMENT_RUNTIME_ERASURE,
+  type AssessmentRuntimeErasurePort,
+} from "../src/modules/assessment/application/ports/assessment-runtime-erasure.port.js";
 import type { CreateAssessmentDto } from "../src/modules/assessment/application/contracts/assessment/create-assessment.contract.js";
 import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import {
@@ -26,11 +32,13 @@ import {
   seedAuthWorkspaceFixture,
 } from "./support/auth-workspace-test-helpers.js";
 
-describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () => {
+describe("Assessment ownership, canonical lifecycle and deletion (e2e) [AC-001, AC-003]", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
   let managerToken: string;
   const orgId = "org-1";
+  // Native checkpoint/sandbox erasure is verified separately by the RELEASE deletion vertical.
+  const erase = jest.fn<AssessmentRuntimeErasurePort["erase"]>();
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
@@ -41,7 +49,10 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(ASSESSMENT_RUNTIME_ERASURE)
+      .useValue({ erase })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -50,6 +61,36 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
   beforeEach(async () => {
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
+    erase.mockReset().mockImplementation(async (input) => {
+      const assessment = await prisma.assessment.findUniqueOrThrow({
+        where: { id: input.assessmentId },
+        select: {
+          ownerId: true,
+          lifecycleState: true,
+          runtime: {
+            select: {
+              threadId: true,
+              executionState: true,
+              leaseToken: true,
+              leaseExpiresAt: true,
+            },
+          },
+        },
+      });
+      assert.equal(assessment.ownerId, input.ownerId);
+      assert.equal(
+        assessment.lifecycleState,
+        ASSESSMENT_LIFECYCLE_STATES.CANCELLED,
+      );
+      assert.ok(assessment.runtime);
+      assert.equal(assessment.runtime.threadId, input.threadId);
+      assert.equal(
+        assessment.runtime.executionState,
+        AGENT_EXECUTION_STATES.CANCELLED,
+      );
+      assert.equal(assessment.runtime.leaseToken, null);
+      assert.equal(assessment.runtime.leaseExpiresAt, null);
+    });
 
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
       email: "manager@acme.test",
@@ -57,6 +98,7 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
       organization_id: orgId,
     });
     managerToken = successBody<SignInSuccess>(signIn).session_token ?? "";
+    assert.ok(managerToken, "Fixture authentication must succeed");
   });
 
   afterAll(async () => {
@@ -66,7 +108,6 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
 
   // AC-001: Assessment creation
   it("AC-001: Manager can create an assessment and receives assessment ID", async () => {
-    if (!managerToken) return;
     const result = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
@@ -84,7 +125,6 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
   });
 
   it("AC-001: Assessment creation writes ASSESSMENT_CREATED audit event", async () => {
-    if (!managerToken) return;
     await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
@@ -105,7 +145,6 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
   });
 
   it("renames an owned assessment and records an audit event", async () => {
-    if (!managerToken) return;
     const create = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
@@ -136,13 +175,16 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
   });
 
   it("deletes an owned assessment and records an audit event", async () => {
-    if (!managerToken) return;
     const create = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ name: "Delete me" });
     const assessmentId = successBody<CreateAssessmentDto>(create).assessment_id;
 
+    const runtime = await prisma.assessmentRuntime.findUniqueOrThrow({
+      where: { assessmentId },
+      select: { threadId: true },
+    });
     const result = await httpRequest(app)
       .delete(`/assessments/${assessmentId}`)
       .set("Authorization", `Bearer ${managerToken}`);
@@ -152,6 +194,12 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
 
     assert.equal(result.status, 200);
     assert.equal(body.deleted, true);
+    expect(erase).toHaveBeenCalledTimes(1);
+    expect(erase).toHaveBeenCalledWith({
+      assessmentId,
+      ownerId: "user-1",
+      threadId: runtime.threadId,
+    });
     assert.equal(
       await prisma.assessment.findUnique({ where: { id: assessmentId } }),
       null,
@@ -164,18 +212,21 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
         },
       }),
     );
+    const afterDelete = await httpRequest(app)
+      .get(`/assessments/${assessmentId}`)
+      .set("Authorization", `Bearer ${managerToken}`);
+    assert.equal(afterDelete.status, 404);
   });
 
-  // AC-003 (W5): readiness/classification are retired; lifecycle is canonical only
+  // AC-003 (BROWSER): readiness/classification are retired; lifecycle is canonical only
   it("AC-003: retired readiness route is gone and canonical detail exposes no readiness/classification", async () => {
-    if (!managerToken) return;
     const create = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ name: "No Readiness" });
 
-    const assessmentId = (create.body as CreateAssessmentDto)?.assessment_id;
-    if (!assessmentId) return;
+    const assessmentId = successBody<CreateAssessmentDto>(create).assessment_id;
+    assert.ok(assessmentId);
 
     const readiness = await httpRequest(app)
       .get(`/assessments/${assessmentId}/readiness`)
