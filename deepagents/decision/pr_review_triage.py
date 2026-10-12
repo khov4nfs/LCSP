@@ -589,7 +589,20 @@ def _safe_nonnegative_int(value: Any) -> int | None:
 
 def _safe_identifier(value: Any) -> str | None:
     text = _text(value)
-    return text if text and _IDENTIFIER_PATTERN.fullmatch(text) else None
+    if not text or not _IDENTIFIER_PATTERN.fullmatch(text):
+        return None
+    if any(pattern.search(text) for pattern in _SENSITIVE_VALUE_PATTERNS):
+        return None
+    return text
+
+
+def _safe_path(value: Any) -> str | None:
+    text = _text(value)
+    if not text or not _PATH_PATTERN.fullmatch(text):
+        return None
+    if any(pattern.search(text) for pattern in _SENSITIVE_VALUE_PATTERNS):
+        return None
+    return text
 
 
 def _safe_domain(value: Any) -> str:
@@ -599,8 +612,8 @@ def _safe_domain(value: Any) -> str:
 def _safe_identifiers(value: Any, *, path_values: bool = False) -> list[str]:
     if not isinstance(value, (list, tuple)):
         return []
-    pattern = _PATH_PATTERN if path_values else _IDENTIFIER_PATTERN
-    return [text for item in value if (text := _text(item)) and pattern.fullmatch(text)]
+    validator = _safe_path if path_values else _safe_identifier
+    return [text for item in value if (text := validator(item)) is not None]
 
 
 def _safe_telemetry_event(event: dict[str, Any]) -> dict[str, Any]:

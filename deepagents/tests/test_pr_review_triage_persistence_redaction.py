@@ -56,3 +56,21 @@ def test_report_writer_persists_only_bounded_packet_schema(tmp_path):
     assert "secret-sentinel" not in persisted
     assert "changed_filenames" in persisted
     assert "bounded_summary" not in persisted
+
+
+def test_report_projection_rejects_secret_patterns_in_allowed_scalar_fields(tmp_path):
+    output = tmp_path / "record.json"
+    _write_safe_json(
+        output,
+        {
+            "schemaVersion": "LCSP_PR_REVIEW_TRIAGE_RECORD_V1",
+            "recordingStatus": "TYPED_RESULT_NOT_RECORDED_FALLBACK",
+            "fallbackReason": "ghp_123456789012345678901234567890123456",
+            "packet": {
+                "changed_filenames": ["deepagents/ghp_123456789012345678901234567890123456.py"],
+            },
+        },
+    )
+
+    persisted = output.read_text(encoding="utf-8")
+    assert "ghp_123456789012345678901234567890123456" not in persisted
