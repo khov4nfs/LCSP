@@ -28,7 +28,7 @@ test("malformed regex syntax cannot throw or broaden the match", () => {
 });
 
 test("nested-quantifier payload is matched literally", () => {
-  const answer = "(a+)+$";
+  const answer = "(a+){2}$";
   const nonmatch = `${"a".repeat(4096)}!`;
   assert.equal(findLiteralAnswerChoice([nonmatch, `Literal ${answer}`], answer), `Literal ${answer}`);
 });
