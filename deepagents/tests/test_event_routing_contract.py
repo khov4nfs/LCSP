@@ -74,7 +74,7 @@ def test_fogewise_langgraph_server_image_has_docker_sandbox_control_plane():
     assert "FROM python:3.11-slim-trixie" in dockerfile
     assert "langchain/langgraph-api" not in dockerfile
     assert "LANGSERVE_GRAPHS" not in dockerfile
-    assert "docker.io" in dockerfile
+    assert "apt-get install -y --no-install-recommends bash ca-certificates docker.io git" in dockerfile
     assert "docker-cli" in dockerfile
     assert "COPY deepagents /app/deepagents" in dockerfile
     assert "HEALTHCHECK" in dockerfile

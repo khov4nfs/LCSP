@@ -15,7 +15,20 @@ const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 const TOTP_WINDOW_STEPS = 2;
 
 function base32Decode(input: string): Buffer {
-  const str = input.toUpperCase().replace(/=+$/, "");
+  const normalized = input.toUpperCase();
+  let paddingStart = normalized.length;
+  for (let index = 0; index < normalized.length; index += 1) {
+    if (normalized[index] === "=") {
+      paddingStart = index;
+      break;
+    }
+  }
+  for (let index = paddingStart; index < normalized.length; index += 1) {
+    if (normalized[index] !== "=") {
+      throw new Error("Invalid base32 padding");
+    }
+  }
+  const str = normalized.slice(0, paddingStart);
   const output: number[] = [];
   let bits = 0;
   let value = 0;

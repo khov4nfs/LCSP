@@ -22,6 +22,19 @@ from .shadow import (
 
 
 JIRA_ID_PATTERN = re.compile(r"\bLCSP-\d+\b")
+_SENSITIVE_KEY_PATTERN = re.compile(
+    r"(?:secret|token|password|credential|authorization|api[_-]?key)", re.IGNORECASE
+)
+_SENSITIVE_VALUE_PATTERNS = (
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]+=*\b"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9._-]{20,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(
+        r"\b(?:api[_-]?key|token|secret|password|credential)\s*[:=]\s*['\"]?[A-Za-z0-9._~+/-]{12,}",
+        re.IGNORECASE,
+    ),
+)
 
 
 class JsonlTelemetrySink:
@@ -32,10 +45,11 @@ class JsonlTelemetrySink:
         self.events: list[dict[str, Any]] = []
 
     def __call__(self, event: dict[str, Any]) -> None:
-        self.events.append(event)
+        safe_event = _redact_persisted_value(event)
+        self.events.append(safe_event)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event, sort_keys=True) + "\n")
+            handle.write(json.dumps(safe_event, sort_keys=True) + "\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -108,16 +122,13 @@ def main(argv: list[str] | None = None) -> int:
         )
     except Exception as exc:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(
-                {
-                    "skipped": True,
-                    "fallbackReason": "PR_REVIEW_TRIAGE_OBSERVATION_FAILED",
-                    "errorType": type(exc).__name__,
-                },
-                sort_keys=True,
-            ),
-            encoding="utf-8",
+        _write_safe_json(
+            output_path,
+            {
+                "skipped": True,
+                "fallbackReason": "PR_REVIEW_TRIAGE_OBSERVATION_FAILED",
+                "errorType": type(exc).__name__,
+            },
         )
         print(
             "LCSP PR-review shadow triage skipped "
@@ -176,7 +187,7 @@ def write_pr_review_shadow_triage_packet(
         "packet": _packet_payload(packet),
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    _write_safe_json(output_path, payload)
     return payload
 
 
@@ -221,7 +232,7 @@ def record_pr_review_shadow_triage_packet(
             ),
         }
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        _write_safe_json(output_path, payload)
         return payload
     trusted_metadata_error: str | None = None
     if trusted_compare_path is not None:
@@ -252,7 +263,7 @@ def record_pr_review_shadow_triage_packet(
             "trustedMetadataError": trusted_metadata_error,
         }
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        _write_safe_json(output_path, payload)
         return payload
     authoritative_domain = authoritative_domain or infer_authoritative_domain(
         packet.changed_filenames
@@ -266,7 +277,7 @@ def record_pr_review_shadow_triage_packet(
             "authoritativeReviewDomain": authoritative_domain,
         }
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        _write_safe_json(output_path, payload)
         return payload
     sink = JsonlTelemetrySink(output_path.with_suffix(".events.jsonl"))
     observer = (
@@ -318,8 +329,7 @@ def _record_packet(
         "ciStateCodes": list(packet.ci_state_codes),
         "eventCount": len(sink.events),
     }
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    _write_safe_json(output_path, payload)
     return payload
 
 
@@ -474,7 +484,35 @@ def _default_observer(sink: JsonlTelemetrySink) -> ShadowDecisionObserver:
 
 
 def _packet_payload(packet: PrReviewTriagePacket) -> dict[str, Any]:
-    return {key: value for key, value in asdict(packet).items() if value is not None}
+    return _redact_persisted_value(
+        {key: value for key, value in asdict(packet).items() if value is not None}
+    )
+
+
+def _write_safe_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(_redact_persisted_value(payload), sort_keys=True), encoding="utf-8"
+    )
+
+
+def _redact_persisted_value(value: Any, *, key: str | None = None) -> Any:
+    if key and _SENSITIVE_KEY_PATTERN.search(key):
+        return "[REDACTED]"
+    if isinstance(value, dict):
+        return {
+            str(item_key): _redact_persisted_value(item, key=str(item_key))
+            for item_key, item in value.items()
+        }
+    if isinstance(value, tuple):
+        return tuple(_redact_persisted_value(item) for item in value)
+    if isinstance(value, list):
+        return [_redact_persisted_value(item) for item in value]
+    if isinstance(value, str) and any(
+        pattern.search(value) for pattern in _SENSITIVE_VALUE_PATTERNS
+    ):
+        return "[REDACTED]"
+    return value
 
 
 def _packet_from_payload(payload: Any) -> PrReviewTriagePacket:

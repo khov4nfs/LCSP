@@ -2,6 +2,7 @@
 
 import fs from "fs";
 import path from "path";
+import { findAllowedJiraPage } from "./jira-page-url.mjs";
 
 const ROOT = process.cwd();
 const CDP_BASE = process.env.CDP_BASE_URL || "http://127.0.0.1:9222";
@@ -10,7 +11,9 @@ const DEV_DIR = path.join(ROOT, "docs", "developer");
 async function fetchJson(url) {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
+    );
   }
   return response.json();
 }
@@ -26,7 +29,10 @@ class CdpPage {
   async connect() {
     this.ws = new WebSocket(this.target.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("WebSocket timeout")), 10000);
+      const timeout = setTimeout(
+        () => reject(new Error("WebSocket timeout")),
+        10000,
+      );
       this.ws.onopen = () => {
         clearTimeout(timeout);
         resolve();
@@ -93,9 +99,11 @@ function writeCsv(filePath, header, rows) {
 
 async function getAtlassianPage() {
   const pages = await fetchJson(`${CDP_BASE}/json/list`);
-  const target = pages.find((page) => page.type === "page" && page.url.includes("atlassian.net"));
+  const target = findAllowedJiraPage(pages);
   if (!target) {
-    throw new Error("No logged-in Atlassian page found in Chrome DevTools targets.");
+    throw new Error(
+      "No logged-in Atlassian page found in Chrome DevTools targets.",
+    );
   }
   const page = new CdpPage(target);
   await page.connect();
@@ -175,7 +183,20 @@ async function main() {
 
     writeCsv(
       path.join(DEV_DIR, "jira-lcsp-push-result.csv"),
-      ["Key", "Issue Type", "Summary", "Status", "Parent", "Labels", "Sprint", "Start Date", "Due Date", "Story Points", "Priority", "URL"],
+      [
+        "Key",
+        "Issue Type",
+        "Summary",
+        "Status",
+        "Parent",
+        "Labels",
+        "Sprint",
+        "Start Date",
+        "Due Date",
+        "Story Points",
+        "Priority",
+        "URL",
+      ],
       rows,
     );
 
@@ -183,7 +204,9 @@ async function main() {
       acc[row["Issue Type"]] = (acc[row["Issue Type"]] ?? 0) + 1;
       return acc;
     }, {});
-    const taskWithoutParent = rows.filter((row) => row["Issue Type"] === "Task" && !row.Parent);
+    const taskWithoutParent = rows.filter(
+      (row) => row["Issue Type"] === "Task" && !row.Parent,
+    );
 
     fs.writeFileSync(
       path.join(DEV_DIR, "jira-lcsp-push-result.md"),
@@ -212,7 +235,17 @@ async function main() {
       "utf8",
     );
 
-    console.log(JSON.stringify({ total: rows.length, byType, taskWithoutParent: taskWithoutParent.length }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          total: rows.length,
+          byType,
+          taskWithoutParent: taskWithoutParent.length,
+        },
+        null,
+        2,
+      ),
+    );
   } finally {
     await page.close();
   }
