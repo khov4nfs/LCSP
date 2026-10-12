@@ -241,7 +241,9 @@ export class AssessmentRuntimeAuthority {
           correlationId: input.correlationId,
           state: Controls.running,
           contextJson: {
-            ...(persistedLanguage ? { responseLanguage: persistedLanguage } : {}),
+            ...(persistedLanguage
+              ? { responseLanguage: persistedLanguage }
+              : {}),
             ...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
           },
         },
@@ -249,7 +251,9 @@ export class AssessmentRuntimeAuthority {
           state: recoveringStop ? Controls.stopRequested : Controls.running,
           contextJson: {
             ...((previousTurn?.contextJson as Prisma.JsonObject) ?? {}),
-            ...(persistedLanguage ? { responseLanguage: persistedLanguage } : {}),
+            ...(persistedLanguage
+              ? { responseLanguage: persistedLanguage }
+              : {}),
             ...(input.runtimeRunId ? { runtimeRunId: input.runtimeRunId } : {}),
           },
         },
