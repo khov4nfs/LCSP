@@ -80,12 +80,15 @@ export class AssessmentController {
     @Param("assessmentId", idPipe()) assessmentId: string,
     @Req() request: AuthenticatedRequest,
   ) {
+    const locale =
+      (request.headers?.["x-lcsp-locale"] as string | undefined) ?? null;
     return resultEnvelope(
       await this.commandBus.execute(
         new CompleteRepositorySetupCommand(
           assessmentId,
           request.rbacContext.userId,
           request.correlationId || randomUUID(),
+          locale,
         ),
       ),
     );

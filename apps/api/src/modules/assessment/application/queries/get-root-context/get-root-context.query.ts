@@ -6,6 +6,7 @@ export class GetRootContextQuery extends Query<AssessmentRootContext> {
     public readonly assessmentId: string,
     public readonly leaseToken: string,
     public readonly correlationId: string,
+    public readonly responseLanguage?: string | null,
   ) {
     super();
   }

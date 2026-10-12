@@ -13,6 +13,7 @@ import {
   upstreamRequest,
   validatedUpstreamJson,
 } from "@/lib/server/upstream-request";
+import { getAuthoritativeRequestLocale } from "@/lib/server/assessment-domain-proxy";
 export async function GET(request: NextRequest) {
   const session = requireSessionToken(request);
   if (!session.ok) return session.response;
@@ -50,10 +51,12 @@ export async function POST(request: NextRequest) {
     return problemJson(ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID, {
       status: 422,
     });
+  const locale = getAuthoritativeRequestLocale(request);
   return validatedUpstreamJson(
     await upstreamRequest("/assessments", {
       method: "POST",
       bearerToken: session.token,
+      locale,
       headers: { "content-type": "application/json" },
       body: JSON.stringify(parsed.data),
     }),

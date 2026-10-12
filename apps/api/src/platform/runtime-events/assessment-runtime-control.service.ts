@@ -28,6 +28,7 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   AssessmentRuntimeControlState as DbState,
@@ -98,6 +99,7 @@ export class AssessmentRuntimeControlService {
     correlationId: string;
     action: AssessmentRuntimeControlAction;
     targetRunId?: string;
+    responseLanguage?: string | null;
   }): Promise<AssessmentRuntimeControlResult> {
     const outcome = await this.prisma.$transaction(async (tx) => {
       const { runtime, row } = await this.loadCanonicalTarget(
@@ -211,7 +213,10 @@ export class AssessmentRuntimeControlService {
       }
       // Stop is observed at the Root's next native checkpoint boundary. Resume is an
       // ordinary Root command on the server-owned thread, never an Interview continuation.
-      if (!stop)
+      if (!stop) {
+        const responseLanguage = input.responseLanguage
+          ? resolveResponseLanguage(input.responseLanguage)
+          : undefined;
         await this.outbox.enqueue(
           buildOutboxMessageInput({
             aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
@@ -224,10 +229,28 @@ export class AssessmentRuntimeControlService {
             result: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
             redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
             idempotencyKey: `root-resume:${row.id}:${requestId}`,
-            payload: { assessmentId: input.assessmentId },
+            payload: {
+              assessmentId: input.assessmentId,
+              ...(responseLanguage ? { responseLanguage } : {}),
+            },
           }),
           tx,
         );
+        if (responseLanguage) {
+          await tx.assessmentRuntimeTurn.updateMany({
+            where: { id: row.id },
+            data: {
+              contextJson: {
+                ...(typeof row.contextJson === "object" &&
+                row.contextJson !== null
+                  ? (row.contextJson as Record<string, unknown>)
+                  : {}),
+                responseLanguage,
+              },
+            },
+          });
+        }
+      }
       return {
         control: { state: requested, targetRunId: row.id, requestId },
         changed: true,

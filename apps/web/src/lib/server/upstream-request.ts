@@ -17,6 +17,7 @@ type WebAppResult = AppResult<unknown, string>;
 
 export type UpstreamRequestInit = RequestInit & {
   bearerToken?: string;
+  locale?: string;
 };
 
 export type UpstreamRequestResult = {
@@ -44,10 +45,13 @@ export async function upstreamRequest(
   path: string | URL,
   init: UpstreamRequestInit = {},
 ): Promise<UpstreamRequestResult> {
-  const { bearerToken, headers, ...fetchInit } = init;
+  const { bearerToken, locale, headers, ...fetchInit } = init;
   const requestHeaders = new Headers(headers);
   if (bearerToken) {
     requestHeaders.set("authorization", `Bearer ${bearerToken}`);
+  }
+  if (locale && !requestHeaders.has("x-lcsp-locale")) {
+    requestHeaders.set("x-lcsp-locale", locale);
   }
 
   const response = await fetch(
@@ -85,10 +89,13 @@ export async function upstreamBinaryRequest(
   path: string | URL,
   init: UpstreamRequestInit = {},
 ): Promise<UpstreamBinaryResult> {
-  const { bearerToken, headers, ...fetchInit } = init;
+  const { bearerToken, locale, headers, ...fetchInit } = init;
   const requestHeaders = new Headers(headers);
   if (bearerToken) {
     requestHeaders.set("authorization", `Bearer ${bearerToken}`);
+  }
+  if (locale && !requestHeaders.has("x-lcsp-locale")) {
+    requestHeaders.set("x-lcsp-locale", locale);
   }
 
   const response = await fetch(

@@ -17,6 +17,7 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   ArtifactLifecycleState,
@@ -188,6 +189,7 @@ export class AssessmentRuntimePreparation {
       assessmentId: string;
       snapshotId: string;
       correlationId: string;
+      responseLanguage?: string | null;
     },
   ): Promise<{ result: PreparationResult }> {
     const assessment = await tx.assessment.findUnique({
@@ -249,8 +251,17 @@ export class AssessmentRuntimePreparation {
         result: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
         redactionStatus: AUDIT_REDACTION_STATUSES.none,
         idempotencyKey: `${input.assessmentId}:${ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED}:start`,
-        // Identifiers only: the Root loads everything else from server state with its lease.
-        payload: { assessmentId: input.assessmentId },
+        // Identifiers and runtime settings: the Root loads everything else from server state with its lease.
+        payload: {
+          assessmentId: input.assessmentId,
+          ...(input.responseLanguage
+            ? {
+                responseLanguage: resolveResponseLanguage(
+                  input.responseLanguage,
+                ),
+              }
+            : {}),
+        },
       }),
       tx,
     );
