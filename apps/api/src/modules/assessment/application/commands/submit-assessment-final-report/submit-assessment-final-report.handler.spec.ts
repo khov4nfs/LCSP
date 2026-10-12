@@ -31,13 +31,13 @@ import { SubmitAssessmentFinalReportHandler } from "./submit-assessment-final-re
 
 const assessmentId = randomUUID();
 const evidenceId = randomUUID();
-const portfolioId = randomUUID();
+const ruleSetId = randomUUID();
 const snapshotId = randomUUID();
 const decision = ruleDecisionSchema.parse({
-  engineeringRuleId: "ER-1",
-  engineeringRuleVersion: "v1",
+  assessmentRuleId: "ER-1",
+  assessmentRuleVersion: "v1",
   scopeId: ASSESSMENT_DECISION_SCOPE,
-  legalPortfolioVersionId: portfolioId,
+  ruleSetVersionId: ruleSetId,
   repositorySnapshotId: snapshotId,
   repositoryCommit: "a".repeat(40),
   caseRevision: 1,
@@ -75,7 +75,7 @@ function buildHandler(
   const snapshot = {
     caseRevision: 1,
     pins: {
-      legalPortfolioVersionId: portfolioId,
+      ruleSetVersionId: ruleSetId,
       repositorySnapshotId: snapshotId,
       repositoryScanJobId: "scan-1",
       repositoryCommit: "a".repeat(40),
@@ -187,7 +187,7 @@ describe("SubmitAssessmentFinalReportHandler", () => {
     summary: text.summary ?? "The assessment is complete.",
     findings: [
       {
-        engineeringRuleId: "ER-1",
+        assessmentRuleId: "ER-1",
         summary:
           text.findingSummary ?? "The accepted rule decision is complete.",
         recommendations: text.recommendation ? [text.recommendation] : [],
@@ -228,7 +228,7 @@ describe("SubmitAssessmentFinalReportHandler", () => {
       assessmentId,
       kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
       pins: {
-        legalPortfolioVersionId: portfolioId,
+        ruleSetVersionId: ruleSetId,
         repositorySnapshotId: snapshotId,
         repositoryScanJobId: "scan-1",
         repositoryCommit: "a".repeat(40),
@@ -240,7 +240,7 @@ describe("SubmitAssessmentFinalReportHandler", () => {
       summary: request.summary,
       findings: [
         {
-          engineeringRuleId: "ER-1",
+          assessmentRuleId: "ER-1",
           decisionId,
           decisionRevision: 1,
           decision,
@@ -267,7 +267,7 @@ describe("SubmitAssessmentFinalReportHandler", () => {
       assessmentId,
       kind: AssessmentArtifactKind.FINAL_REPORT,
       lifecycleState: ArtifactLifecycleState.ACTIVE,
-      legalPortfolioVersionId: portfolioId,
+      ruleSetVersionId: ruleSetId,
       repositorySnapshotId: snapshotId,
       repositoryCommit: "a".repeat(40),
       caseRevision: 1,

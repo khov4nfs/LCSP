@@ -1,5 +1,7 @@
 # 08 — Kế hoạch triển khai
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Điều kiện bắt đầu
 
 Kế hoạch hiện mới là build order. Coding chỉ được bắt đầu sau khi có:

@@ -43,7 +43,7 @@ type OrderResponse = {
   };
 };
 
-describe("LCSP-312 customer billing HTTP API (e2e)", () => {
+describe("customer billing HTTP API (e2e)", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
   let customerA: Customer;

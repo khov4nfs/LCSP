@@ -51,8 +51,8 @@ test("authored Assessment Root decision/HITL packets prove structure only", () =
   for (const decision of decisions) {
     assert.equal(ruleDecisionSchema.safeParse(decision).success, true);
     assert.equal(
-      decision.legalPortfolioVersionId,
-      context.legal.legalPortfolioVersionId,
+      decision.ruleSetVersionId,
+      context.legal.ruleSetVersionId,
     );
     assert.equal(
       decision.repositorySnapshotId,

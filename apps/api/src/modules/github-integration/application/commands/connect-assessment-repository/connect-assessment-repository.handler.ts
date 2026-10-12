@@ -12,8 +12,7 @@ import {
   CREDENTIAL_AUTHORIZATION_STATUSES,
   REPOSITORY_CONNECTION_STATUSES,
 } from "@lcsp/contracts/github-integration";
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { fromPrismaAssessmentStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 
 import type { AppConfig } from "../../../../../config/config.types.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
@@ -55,7 +54,7 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
   async execute(command: ConnectAssessmentRepositoryCommand) {
     const assessment = await this.prisma.assessment.findFirst({
       where: { id: command.assessmentId, ownerId: command.userId },
-      select: { id: true, status: true },
+      select: { id: true, lifecycleState: true },
     });
     if (!assessment) {
       throw problemException(
@@ -64,10 +63,11 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
         { status: HttpStatus.BAD_REQUEST },
       );
     }
-    const assessmentStatus = fromPrismaAssessmentStatus(assessment.status);
     if (
-      assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardInProgress &&
-      assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardSubmitted
+      assessment.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.CREATED &&
+      assessment.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.PREPARING &&
+      assessment.lifecycleState !==
+        ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_REQUIRED_INPUT
     ) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.assessmentStateInvalid,

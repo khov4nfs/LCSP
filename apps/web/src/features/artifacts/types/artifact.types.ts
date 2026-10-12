@@ -1,30 +1,15 @@
-import { ASSESSMENT_TECHNICAL_COVERAGE_STATES } from "@lcsp/contracts/evidence";
-import type { AssessmentStatus } from "@/features/workspace/types/workspace.types";
-
 export const ARTIFACT_TYPES = {
-  businessContext: "BUSINESS_CONTEXT",
-  programEvidenceGraph: "PROGRAM_EVIDENCE_GRAPH",
-  evidenceGraph: "EVIDENCE_GRAPH",
-  findingsReport: "FINDINGS_REPORT",
-  remediationPatch: "REMEDIATION_PATCH",
   finalReport: "FINAL_REPORT",
-  verificationReport: "VERIFICATION_REPORT",
-  investigationNotes: "INVESTIGATION_NOTES",
-  technicalEvidence: "TECHNICAL_EVIDENCE",
-  repositorySnapshot: "REPOSITORY_SNAPSHOT",
-  scanJob: "SCAN_JOB",
-  gapAnalysis: "GAP_ANALYSIS",
-  readinessExport: "READINESS_EXPORT",
 } as const;
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[keyof typeof ARTIFACT_TYPES];
 
 export const ARTIFACT_STATUSES = {
-  ready: ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready,
+  ready: "AVAILABLE",
   waiting: "WAITING",
   updating: "UPDATING",
   paused: "PAUSED",
-  unavailable: ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable,
+  unavailable: "UNAVAILABLE",
 } as const;
 
 export type ArtifactStatus =
@@ -34,9 +19,6 @@ export type ArtifactRef = {
   assessmentId: string;
   type: ArtifactType;
   resourceId?: string;
-  /** Preserve source/run identity for historical graph selections. */
-  snapshotId?: string;
-  scanJobId?: string;
 };
 
 export type ArtifactListItemModel = {
@@ -61,10 +43,3 @@ export const ARTIFACT_TABS = {
 } as const;
 
 export type ArtifactTab = (typeof ARTIFACT_TABS)[keyof typeof ARTIFACT_TABS];
-
-type ArtifactAssessmentSummary = {
-  id: string;
-  name: string;
-  status: AssessmentStatus;
-  created_at: string;
-};

@@ -17,7 +17,7 @@ def base_cfg() -> dict:
         "routes": {
             "a": {"provider": "openai", "model": "Model-Alpha", "options": {"reasoning": {"effort": "low"}}},
             "b": {"provider": "google_genai", "model": "Future-Model-X9"},
-            "c": {"provider": "llm7", "model": "model-gamma"},
+            "c": {"provider": "apx", "model": "model-gamma"},
         },
         "roles": {"default": "a", "narrator": "b", "triage": "a"},
         "fallbacks": {"a": ["b", "c"]},
@@ -50,11 +50,11 @@ def test_default_file_loads_without_override(monkeypatch):
     monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
     routes = mp.load_model_routes()
     assert mp.DEFAULT_ROUTES_FILE == Path(mp.__file__).resolve().parent / "config" / "model_routes.yaml"
-    assert routes.roles["default"] == "primary" and routes.fallbacks["primary"] == ("fallback",)
-    for role in ("root", "triage", "repository-analyst", "interview", "narrator", "legal-chunk-triage", "legal-compiler"):
+    assert routes.roles["default"] == "primary" and routes.fallbacks["primary"] == ("fallback", "fallback-01")
+    for role in ("root", "assessment-root", "repository-researcher", "rule-set-preparation"):
         assert role in routes.roles
     # The committed default names a model, but tests must not pin which one: model id is configuration.
-    assert routes.routes["primary"]["provider"] == "llm7"
+    assert routes.routes["primary"]["provider"] == "apx"
     assert isinstance(routes.routes["primary"]["model"], str) and routes.routes["primary"]["model"].strip()
 
 
@@ -188,13 +188,13 @@ def test_openai_compatible_gateway_uses_openai_transport(monkeypatch, set_model_
 
 
 def test_credentials_are_not_read_from_yaml(monkeypatch, set_model_routes):
-    set_model_routes("version: 1\nroutes:\n  r: {provider: llm7, model: m, options: {api_key: sk-123}}\nroles: {default: r}\n")
+    set_model_routes("version: 1\nroutes:\n  r: {provider: apx, model: m, options: {api_key: sk-123}}\nroles: {default: r}\n")
     with pytest.raises(RuntimeError, match="protected option key"):
         mp.load_model_routes()
     cfg = base_cfg()
     cfg["roles"] = {"default": "c"}
     set_model_routes(cfg)
-    monkeypatch.setenv("LLM7_API_KEY", "env-key")
+    monkeypatch.setenv("APX_API_KEY", "env-key")
     seen = capture(monkeypatch)
     mp.resolve_agent_model("root")
     assert seen["kw"]["api_key"] == "env-key"  # credentials come from the environment only
@@ -205,11 +205,11 @@ def test_options_colliding_with_credential_kwargs_do_not_crash_and_credentials_w
     cfg["roles"] = {"default": "c"}
     cfg["routes"]["c"]["options"] = {"max_retries": 3, "temperature": 0.2}
     set_model_routes(cfg)
-    monkeypatch.setenv("LLM7_API_KEY", "env-key")
+    monkeypatch.setenv("APX_API_KEY", "env-key")
     seen = capture(monkeypatch)
     mp.resolve_agent_model("root")
     assert seen["kw"]["temperature"] == 0.2
-    assert seen["kw"]["max_retries"] == mp.credential_init_kwargs("llm7")["max_retries"] != 3
+    assert seen["kw"]["max_retries"] == mp.credential_init_kwargs("apx")["max_retries"] != 3
 
 
 def test_snapshot_deterministic_and_content_addressed(set_model_routes):
@@ -235,5 +235,5 @@ def test_effective_telemetry_and_identities(routes):
     assert mp.distinct_runtime_identities() == {
         ("OPENAI", "Model-Alpha"),
         ("GOOGLE_GENAI", "Future-Model-X9"),
-        ("LLM7", "model-gamma"),
+        ("APX", "model-gamma"),
     }

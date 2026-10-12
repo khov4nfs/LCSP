@@ -1,5 +1,7 @@
 # LCSP Domain Model
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 This document is the domain-level source of truth for LCSP entities, ownership, relationships, and lifecycle semantics. Physical Prisma definitions remain owned by `docs/implementation/persistence-implementation.md`.

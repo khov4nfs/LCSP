@@ -1,30 +1,18 @@
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import {
-  ASSESSMENT_RUNTIME_CONTROL_ACTIONS,
-  ASSESSMENT_RUNTIME_CONTROL_STATES,
-  isAssessmentRuntimeControlState,
-  type AssessmentRuntimeControlAcknowledgement,
-} from "@lcsp/contracts/evidence";
-import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
+import { ASSESSMENT_RUNTIME_CONTROL_ACTIONS } from "@lcsp/contracts/evidence";
 import {
   Body,
   Controller,
   Get,
-  HttpStatus,
   Param,
   Post,
   Req,
   UseGuards,
 } from "@nestjs/common";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import {
-  problemException,
-  resultEnvelope,
-} from "../../../../platform/http/filters/error.factory.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { AssessmentRuntimeControlService } from "../../../../platform/runtime-events/assessment-runtime-control.service.js";
-import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
@@ -107,45 +95,5 @@ export class AssessmentRuntimeControlController {
         ),
       ),
     );
-  }
-}
-
-@Controller("internal/assessment-runtime-controls")
-@UseGuards(WorkerApiKeyGuard)
-export class InternalAssessmentRuntimeControlController {
-  constructor(private readonly controls: AssessmentRuntimeControlService) {}
-
-  @Post()
-  acknowledge(@Body() body: AssessmentRuntimeControlAcknowledgement) {
-    if (
-      !body ||
-      !isAssessmentRuntimeControlState(body.state) ||
-      ![
-        ASSESSMENT_RUNTIME_CONTROL_STATES.running,
-        ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
-        ASSESSMENT_RUNTIME_CONTROL_STATES.completed,
-      ].includes(body.state as never) ||
-      ![body.assessmentId, body.targetRunId, body.correlationId].every(
-        (value) => typeof value === "string" && value.trim(),
-      ) ||
-      !body.threadId ||
-      !body.boundary ||
-      !body.logicalRunId ||
-      (body.state === ASSESSMENT_RUNTIME_CONTROL_STATES.running &&
-        (!body.context ||
-          typeof body.context !== "object" ||
-          Array.isArray(body.context))) ||
-      (body.state === ASSESSMENT_RUNTIME_CONTROL_STATES.stopped &&
-        (!body.checkpoint ||
-          typeof body.checkpoint !== "object" ||
-          Array.isArray(body.checkpoint)))
-    ) {
-      throw problemException(
-        SHARED_ERROR_CODES.validationFailed,
-        "runtime-control",
-        { status: HttpStatus.BAD_REQUEST },
-      );
-    }
-    return this.controls.acknowledge(body).then(resultEnvelope);
   }
 }

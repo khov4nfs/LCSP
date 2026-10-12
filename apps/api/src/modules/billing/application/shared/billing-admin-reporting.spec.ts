@@ -38,7 +38,7 @@ function prismaStub(): PrismaStub {
           user: { id: "user-1", email: "user@example.com" },
           billingOrder: {
             id: "order-1",
-            paymentCode: "LCSP-1",
+            paymentCode: "PAYMENT-1",
             status: "CREDITED",
             amountMinorUnits: 500n,
             creditUnits: 500n,
@@ -95,7 +95,7 @@ describe("billing admin reporting", () => {
         provider: "SEPAY",
         userId: "user-1",
         email: "user@example.com",
-        paymentCode: "LCSP-1",
+        paymentCode: "PAYMENT-1",
         orderId: "order-1",
         cursor: Buffer.from(
           JSON.stringify({
@@ -118,7 +118,7 @@ describe("billing admin reporting", () => {
       user: { id: "user-1", email: "user@example.com" },
       order: {
         id: "order-1",
-        paymentCode: "LCSP-1",
+        paymentCode: "PAYMENT-1",
         status: "CREDITED",
         amountMinorUnits: "500",
         creditUnits: "500",

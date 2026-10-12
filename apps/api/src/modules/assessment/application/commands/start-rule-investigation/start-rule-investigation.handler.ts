@@ -43,7 +43,7 @@ export class StartRuleInvestigationHandler implements ICommandHandler<StartRuleI
       const row = await this.support.requireCoverage(
         tx,
         input.assessmentId,
-        request.engineeringRuleId,
+        request.assessmentRuleId,
         input.correlationId,
       );
       if (row.resolutionState === DECISION_RESOLUTION_STATES.INVESTIGATING) {
@@ -58,9 +58,9 @@ export class StartRuleInvestigationHandler implements ICommandHandler<StartRuleI
       }
       await tx.assessmentDecisionCoverage.update({
         where: {
-          assessmentId_engineeringRuleId: {
+          assessmentId_assessmentRuleId: {
             assessmentId: input.assessmentId,
-            engineeringRuleId: request.engineeringRuleId,
+            assessmentRuleId: request.assessmentRuleId,
           },
         },
         data: { resolutionState: DECISION_RESOLUTION_STATES.INVESTIGATING },

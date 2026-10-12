@@ -1,8 +1,5 @@
 import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
-import {
-  ASSESSMENT_EVENT_TYPES,
-  ASSESSMENT_STATUS_CODES,
-} from "@lcsp/contracts/assessment";
+import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_DOMAIN_ERROR_CODES } from "@lcsp/contracts/assessment-domain";
 import {
   AUDIT_EVENT_SCHEMA_VERSION,
@@ -126,7 +123,7 @@ describe("Create Assessment Endpoint (e2e) [MW-asmt-001]", () => {
   });
 
   // T04, T05, T06
-  it("T04/T05/T06: DB row has WIZARD_IN_PROGRESS status and correct ownerId", async () => {
+  it("T04/T05/T06: DB row has canonical PREPARING lifecycle and correct ownerId", async () => {
     const result = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${customerToken}`)
@@ -138,7 +135,7 @@ describe("Create Assessment Endpoint (e2e) [MW-asmt-001]", () => {
     });
 
     assert.ok(row, "assessment row must exist");
-    assert.equal(row?.status, ASSESSMENT_STATUS_CODES.wizardInProgress);
+    assert.equal(row?.lifecycleState, ASSESSMENT_LIFECYCLE_STATES.PREPARING);
     assert.equal(row?.ownerId, "user-1");
   });
 

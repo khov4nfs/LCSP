@@ -1,0 +1,50 @@
+{
+  "scope": "EXACT_IMAGE_REASONED_RULE_SET_SEMANTIC_REVIEW",
+  "status": "PASS",
+  "runId": "9ae7757edbaf422b",
+  "imageReceipt": "reports/release-images/20261011201401_b17f791a42ea/report.json",
+  "preparationRunId": "b0ba913b-1d21-4a18-b273-ba52b3e83ef6",
+  "ruleSetVersionId": "1531de0b-29c1-4e82-8781-58c4e16f16a1",
+  "rubric": "deepagents/tests/fixtures/rule_set_preparation_eval/rubric.json",
+  "rubricSha256": "3f81ec40c00090902f863501fdf0ec2f130c9f7ad4beeed82766f8d3797d6776",
+  "dimensions": [
+    {
+      "id": "DEFINITIONS",
+      "status": "PASS",
+      "reason": "The record definition retains notice text plus receipt timestamp; DEFINITION REL-1 and the Assessment Rule direct sourceChunkIds both include Article 1 clause 1."
+    },
+    {
+      "id": "QUALIFIERS",
+      "status": "PASS",
+      "reason": "Public operator scope and household exclusion remain in applicability; retention is seven days from receipt, not draft; four criteria preserve notice text with timestamp, receipt-time capture and limiting language. Temporary-test exception is explicit in applicability guidance and LR-RETENTION exceptions."
+    },
+    {
+      "id": "EXCEPTIONS",
+      "status": "PASS",
+      "reason": "The temporary-test-record exemption limits retention; LR-INPERSON has no exception, and no EXCEPTION relation targets that independently operative duty."
+    },
+    {
+      "id": "CROSS_REFERENCES",
+      "status": "PASS",
+      "reason": "AR-RETENTION directly cites Articles 1 through 5, Article 4 point a and Article 5 points a/b. Retention has DEFINITION/SCOPE/EXCEPTION/CROSS_REFERENCE/QUALIFIER relations; the independent in-person duty only has SCOPE."
+    },
+    {
+      "id": "NON_REPOSITORY_DUTIES",
+      "status": "PASS",
+      "reason": "Appointment and physical attendance remain a separate NON_ASSESSABLE duty with no invented software coverage and an explanation that the external organizer owns the register."
+    },
+    {
+      "id": "CORPUS_VERSION_PINNING",
+      "status": "PASS",
+      "reason": "All 15 source hashes match the immutable fixture pins, and all rule/context/provenance references belong to the one activated source version."
+    }
+  ],
+  "passed": 6,
+  "total": 6,
+  "sourceChunkHashesMatched": 15,
+  "packetManuallyEdited": false,
+  "deterministicSemanticOracle": false,
+  "releaseEligible": false,
+  "mode": "SUPERSESSION",
+  "source": "compliance-rule-set-persisted-supersession.json"
+}

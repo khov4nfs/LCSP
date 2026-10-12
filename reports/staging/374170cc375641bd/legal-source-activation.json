@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "data": {
+    "id": "c5eaac5b-3103-45af-8ff6-6c859faad7fa",
+    "version": "release-synthetic-374170cc375641bd",
+    "status": "ACTIVE",
+    "correlationId": "5abec006-00d4-4123-ab91-539375ca3591",
+    "toolName": "activate_validated_legal_source_version",
+    "toolVersion": "1.0.0",
+    "configHash": "sha256:activation-v1",
+    "artifactVersions": {
+      "legalSourceVersionId": "c5eaac5b-3103-45af-8ff6-6c859faad7fa"
+    },
+    "provenanceRef": "tool-execution:5abec006-00d4-4123-ab91-539375ca3591",
+    "coverageState": "SUFFICIENT",
+    "evidenceRefs": [
+      "legal-source-activation:873cc714-0b0d-4188-959f-9036fcb52666",
+      "outbox:outbox:9aa98bdfd3dd4a38e046a1bb3cd22702440b9a4b21cec6af54abd4bd8d69b529"
+    ],
+    "limitations": [],
+    "result": {
+      "activeLegalSourceVersionRef": "legal-source-version:c5eaac5b-3103-45af-8ff6-6c859faad7fa",
+      "lifecycleStatus": "ACTIVE",
+      "activationRecordRef": "legal-source-activation:873cc714-0b0d-4188-959f-9036fcb52666",
+      "outboxEventRef": "outbox:outbox:9aa98bdfd3dd4a38e046a1bb3cd22702440b9a4b21cec6af54abd4bd8d69b529",
+      "systemActor": "legal-source-activation-service",
+      "manualApprovalRequired": false
+    }
+  }
+}

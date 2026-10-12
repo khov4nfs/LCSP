@@ -1,0 +1,10 @@
+{
+  "scope": "W7_OWNED_STAGING_TEARDOWN",
+  "status": "STOPPED",
+  "runId": "3e99dadafc054c62",
+  "ownedContainersRemoved": 2,
+  "ownedSandboxesRemoved": 0,
+  "sandboxScope": "OWNED_DATABASE_THREADS_EXCLUDING_PRELAUNCH_CONTAINERS",
+  "privateEvidenceRetained": true,
+  "productionDeployment": false
+}

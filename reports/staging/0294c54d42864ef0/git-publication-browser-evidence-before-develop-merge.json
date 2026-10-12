@@ -1,0 +1,18 @@
+{
+  "scope": "CURRENT_PR367_FINAL_PHYSICAL_TERMINOLOGY_PUBLICATION_BINDING",
+  "status": "PASS_LOCAL_ACCEPTANCE",
+  "headRef": "refs/pull/367/head",
+  "exactPublishedHeadAuthority": "https://github.com/khov4nfs/LCSP/pull/367#issuecomment-6109881367",
+  "base": "047922c58147f5be3de093dc88db164daadedea8",
+  "candidateId": "20261012041902_4058ec2256a0",
+  "stagingId": "0294c54d42864ef0",
+  "fullBrowserReceipt": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+  "fingerprintReceipt": "reports/staging/0294c54d42864ef0/exact-candidate-fingerprints.json",
+  "matrix": "reports/staging-acceptance-matrix.json",
+  "migration": "reports/pr367-physical-rename/receipt.json",
+  "remoteCiAuthority": "Exact-head workflow/job links are published in the evidence comment; this tracked binding does not embed its own Git commit hash.",
+  "releaseEligible": false,
+  "releaseEligibilityReason": "ONE_REQUIRED_HUMAN_APPROVAL; NO_MERGE_AUTHORIZED",
+  "productionTouched": false,
+  "historicalReceipt": "reports/staging/9ae7757edbaf422b/git-publication-browser-evidence-before-physical-cutover.json"
+}

@@ -1,0 +1,48 @@
+- complementary:
+  - navigation "Workspace":
+    - button "Toggle workspace navigation"
+    - button "Search assessments"
+    - button "Back"
+    - button "Forward"
+    - link "New":
+      - /url: /assessments/new
+    - link "Artifacts":
+      - /url: /artifacts
+    - heading "Recents" [level=2]
+    - button "Filter recent assessments"
+    - link "Receipt retention investigation":
+      - /url: /assessments/29fd06b3-d72d-4a13-b23d-d2dd3d1c6b96
+    - 'button "Assessment options: Receipt retention investigation"'
+    - link "Notice retention review assessmentB":
+      - /url: /assessments/8c91d731-eafb-4002-849e-8dd565f23e29
+    - 'button "Assessment options: Notice retention review assessmentB"'
+    - link "Notice retention review assessmentA":
+      - /url: /assessments/d30b6364-f031-4318-90af-9569b079c612
+    - 'button "Assessment options: Notice retention review assessmentA"'
+    - button "Account menu": R RELEASE owner
+- banner:
+  - paragraph: Receipt retention investigation
+  - button "Runtime activity" [pressed]
+- main:
+  - region "Assessment state":
+    - paragraph: Assessment state
+    - term: Lifecycle
+    - definition: Active
+    - term: Execution
+    - definition: Running
+  - button "Stop"
+- complementary:
+  - complementary:
+    - heading "Receipt retention investigation" [level=2]
+    - text: Connected
+    - region "Assessment state":
+      - paragraph: Assessment state
+      - term: Lifecycle
+      - definition: Active
+      - term: Execution
+      - definition: Running
+    - paragraph: khov4nfs/lcsp-synthetic-notice-service
+    - code: c14f518437c1b8cef94b4f9a176c04b1acaff6fe
+    - separator
+- region "Notifications alt+T"
+- alert

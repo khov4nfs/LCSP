@@ -1,5 +1,7 @@
 # Requirements Baseline
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 This document defines the active requirements baseline from existing active documents and historical traceability aliases. It does not create new requirements.

@@ -1,0 +1,35 @@
+{
+  "scope": "RECONCILED_API_E2E_REUSED_AND_REVALIDATED",
+  "generatedAt": "2026-10-09T08:58:03.852635+00:00",
+  "aggregateExecutedInOneRun": false,
+  "sourceReceipts": [
+    "reports/w4-regression/20261009_083106_620958/api-jest-results.json",
+    "reports/w4-regression/20261009_084616_654649/api-jest-results.json"
+  ],
+  "reuse": "19 unaffected passing suites and three skipped opt-in/exact-target suites remain unchanged; only assessment.e2e-spec.ts was changed and rerun.",
+  "suites": {
+    "passed": 20,
+    "skipped": 3,
+    "failed": 0
+  },
+  "tests": {
+    "passed": 157,
+    "failed": 0,
+    "pending": 21
+  },
+  "skips": [
+    {
+      "file": "/home/khovan/Workplaces/LCSP/apps/api/test/lcsp299-account-lifecycle.e2e-spec.ts",
+      "tests": 17
+    },
+    {
+      "file": "/home/khovan/Workplaces/LCSP/apps/api/test/w1-canonical-read-isolation.e2e-spec.ts",
+      "tests": 3
+    },
+    {
+      "file": "/home/khovan/Workplaces/LCSP/apps/api/test/admin-role-retirement.e2e-spec.ts",
+      "tests": 1
+    }
+  ],
+  "limitations": "This reconciles receipts; it is not a new full e2e execution, a skipped-test PASS, image/staging/browser proof or remote CI receipt."
+}

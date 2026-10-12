@@ -1,19 +1,10 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  ASSESSMENT_ERROR_CODES,
-  ASSESSMENT_STATUS_CODES,
-  type AssessmentStatusCode,
-} from "@lcsp/contracts/assessment";
-
-export type AssessmentStatus = AssessmentStatusCode;
-
 type AssessmentProps = {
   id: string;
   ownerId: string;
   name: string;
   description: string | null;
-  status: AssessmentStatus;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -21,7 +12,7 @@ type AssessmentProps = {
 type NewAssessmentProps = Omit<AssessmentProps, "id">;
 
 /**
- * Represents an assessment aggregate and its owner, lifecycle, and descriptive state.
+ * Represents an assessment aggregate and its owner and descriptive state.
  */
 export class Assessment {
   /**
@@ -36,7 +27,7 @@ export class Assessment {
   private props: AssessmentProps;
 
   /**
-   * Creates a new assessment in the wizard-in-progress lifecycle state.
+   * Creates the descriptive aggregate; the lifecycle coordinator initializes ALS.
    *
    * @param input - Owner, name, and optional description for the assessment.
    * @returns A newly created assessment aggregate with normalized text fields and timestamps.
@@ -52,7 +43,6 @@ export class Assessment {
       ownerId: input.ownerId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
-      status: ASSESSMENT_STATUS_CODES.wizardInProgress,
       createdAt: now,
       updatedAt: now,
     });
@@ -90,11 +80,6 @@ export class Assessment {
     return this.props.description;
   }
 
-  /** @returns The current assessment lifecycle status. */
-  get status(): AssessmentStatus {
-    return this.props.status;
-  }
-
   /** @returns The assessment creation timestamp. */
   get createdAt(): Date {
     return this.props.createdAt;
@@ -108,36 +93,6 @@ export class Assessment {
   /** Renames the assessment while preserving its identity and lifecycle state. */
   rename(name: string): void {
     this.props.name = name.trim();
-    this.props.updatedAt = new Date();
-  }
-
-  /**
-   * Ends the assessment as "AI not detected" once governed evidence proves absence.
-   * Terminal and idempotent; a locked classification is never overridden.
-   */
-  markAiNotDetected(): void {
-    if (this.props.status === ASSESSMENT_STATUS_CODES.aiNotDetected) {
-      return;
-    }
-    if (
-      this.props.status === ASSESSMENT_STATUS_CODES.wizardInProgress ||
-      this.props.status === ASSESSMENT_STATUS_CODES.classificationLocked
-    ) {
-      throw new Error(ASSESSMENT_ERROR_CODES.aiNotDetectedStateInvalid);
-    }
-    this.props.status = ASSESSMENT_STATUS_CODES.aiNotDetected;
-    this.props.updatedAt = new Date();
-  }
-
-  /** Marks the legacy wizard boundary complete after repository prerequisites are verified. */
-  completeRepositorySetup(): void {
-    if (this.props.status === ASSESSMENT_STATUS_CODES.wizardSubmitted) {
-      return;
-    }
-    if (this.props.status !== ASSESSMENT_STATUS_CODES.wizardInProgress) {
-      throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid);
-    }
-    this.props.status = ASSESSMENT_STATUS_CODES.wizardSubmitted;
     this.props.updatedAt = new Date();
   }
 }

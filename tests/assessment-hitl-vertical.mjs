@@ -21,16 +21,16 @@ import {
   runPython,
   startStack,
   workerKey,
-} from "./support/legal-portfolio-stack.mjs";
+} from "./support/compliance-rule-set-stack.mjs";
 
 const unresolvableOnly = process.argv.includes("--unresolvable-only");
 const stack = await startStack({
   database: unresolvableOnly
-    ? "lcsp_w4_unresolvable_vertical"
-    : "lcsp_w4_vertical",
-  apiPort: Number(process.env.LCSP_W4_API_PORT ?? 3414),
+    ? "lcsp_assessment_unresolvable_vertical"
+    : "lcsp_assessment_vertical",
+  apiPort: Number(process.env.LCSP_HITL_TEST_API_PORT ?? 3414),
 });
-const { q, base, post, stop, seedCorpus, databaseUrl } = stack;
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = stack;
 let checks = 0;
 const eq = (actual, expected, message) => {
   assert.deepEqual(actual, expected, message);
@@ -53,7 +53,7 @@ const http = async (method, route, body, token, worker = false) => {
   if (res.status >= 500) console.error(stack.logs.join("").slice(-8000));
   return { status: res.status, body: await res.json() };
 };
-const dir = mkdtempSync(path.join(tmpdir(), "lcsp-w4-hitl-"));
+const dir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-hitl-"));
 writeFileSync(
   path.join(dir, "README.md"),
   "Notification owner is maintained outside the repository.\n",
@@ -100,9 +100,9 @@ try {
   const hashes = Object.fromEntries(
     locators.map((l) => [l, contentHash(`content ${l}`)]),
   );
-  const corpus = await seedCorpus({
-    name: "w4-hitl",
-    status: "APPROVED",
+  const legalSource = await seedLegalSource({
+    name: "assessment-hitl",
+    status: "ACTIVE",
     documentId: "SYNTHETIC-NOTICE-INSTRUMENT",
     chunks: locators.map((locator) => ({
       locator,
@@ -112,14 +112,11 @@ try {
   });
   const seed = path.join(dir, "seed.json");
   writeFileSync(seed, JSON.stringify({ hashes }));
-  const prep = await post("preparations", {
-    legalCorpusVersionId: corpus,
-    idempotencyKey: `w4-prep-${randomUUID()}`,
-  });
-  eq(prep.status, 202, JSON.stringify(prep.body));
+  const prep = await activateLegalSource(legalSource);
+  eq(prep.runs.length, 1, "one Legal Source -> one automatic preparation");
   const prepared = await runPython(
     path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),
-    [base, workerKey, prep.body.data.preparationRunId, seed, "valid"],
+    [base, workerKey, prep.preparationRunId, seed, "valid"],
   );
   eq(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
   const { hashSecret } = await import(
@@ -140,8 +137,8 @@ try {
     eq(result.status, 200, JSON.stringify(result.body));
     return { id, token: result.body.data.session_token };
   };
-  const owner = await customer("w4-owner@acme.test"),
-    other = await customer("w4-other@acme.test");
+  const owner = await customer("assessment-owner@acme.test"),
+    other = await customer("assessment-other@acme.test");
   const create = async (name) => {
     const created = await http("POST", "/assessments", { name }, owner.token);
     eq(created.status, 201, JSON.stringify(created.body));
@@ -149,7 +146,7 @@ try {
       connection = randomUUID(),
       snapshot = randomUUID();
     await q(
-      `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions) VALUES ($1,$2,$3,'w4',$4,'repo','acme/repo','main','{}')`,
+      `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions) VALUES ($1,$2,$3,'assessment',$4,'repo','acme/repo','main','{}')`,
       [connection, id, owner.id, `repo-${id}`],
     );
     await q(
@@ -165,10 +162,10 @@ try {
     eq(setup.status, 201, JSON.stringify(setup.body));
     return id;
   };
-  // W5 customer Stop/Continue uses native checkpoints of the Root, separate from human waits.
-  const pausedAssessment = await create("W5 native Root Stop and Continue");
+  // BROWSER customer Stop/Continue uses native checkpoints of the Root, separate from human waits.
+  const pausedAssessment = await create("BROWSER native Root Stop and Continue");
   const controlScript = path.join(root, "deepagents/tests/vertical/root_control.py");
-  const controlRun = (mode) => runPython(controlScript, [base, workerKey, pausedAssessment, dir, mode], { env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0], W5_CUSTOMER_TOKEN: owner.token } });
+  const controlRun = (mode) => runPython(controlScript, [base, workerKey, pausedAssessment, dir, mode], { env: { LANGGRAPH_CHECKPOINT_DATABASE_URL: databaseUrl.split("?")[0], ASSESSMENT_CUSTOMER_TOKEN: owner.token } });
   const paused = await controlRun("pause");
   eq(paused.result.state, AGENT_EXECUTION_STATES.PAUSED, JSON.stringify(paused));
   const pausedState = await state(pausedAssessment);
@@ -198,7 +195,7 @@ try {
       path.join(dir, "README.md"),
       "Historical notification ownership records were permanently destroyed; no alternate records are available under this assessment contract.\n",
     );
-    const E = await create("W4 permanently unobtainable human fact");
+    const E = await create("ASSESSMENT permanently unobtainable human fact");
     const blocked = await run(E, "unresolvable");
     eq(
       blocked.result.state,
@@ -240,7 +237,7 @@ try {
     const unknown = await answer(E, request.requestId, owner.token, {
       expectedCaseRevision: 0,
       expectedRequestRevision: 0,
-      idempotencyKey: "w4-blocked-unknown",
+      idempotencyKey: "assessment-blocked-unknown",
       doesNotKnow: true,
     });
     eq(
@@ -269,7 +266,7 @@ try {
     eq(
       (
         await q(
-          `SELECT "resolutionState" FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1 AND "engineeringRuleId"=$2`,
+          `SELECT "resolutionState" FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1 AND "assessmentRuleId"=$2`,
           [E, "ER-RET"],
         )
       ).rows[0].resolutionState,
@@ -278,7 +275,7 @@ try {
     const known = await answer(E, request.requestId, owner.token, {
       expectedCaseRevision: 0,
       expectedRequestRevision: 1,
-      idempotencyKey: "w4-blocked-recovered-fact",
+      idempotencyKey: "assessment-blocked-recovered-fact",
       doesNotKnow: false,
       answer:
         "A newly recovered approved archive identifies Customer Operations as the historical owner.",
@@ -310,7 +307,7 @@ try {
       1,
     );
 
-    const F = await create("W4 blocked human checkpoint crash");
+    const F = await create("ASSESSMENT blocked human checkpoint crash");
     await assert.rejects(run(F, "unresolvable-crash"), /exited 73/);
     checks++;
     const crashed = await state(F);
@@ -333,7 +330,7 @@ try {
         await answer(F, recoveredRequest.requestId, owner.token, {
           expectedCaseRevision: 0,
           expectedRequestRevision: 0,
-          idempotencyKey: "w4-blocked-crash-answer",
+          idempotencyKey: "assessment-blocked-crash-answer",
           doesNotKnow: false,
           answer: "Recovered archive identifies Customer Operations.",
         })
@@ -342,7 +339,7 @@ try {
     );
     eq((await run(F, "resume")).result.threadId, crashed.thread);
     eq((await list(F, owner.token)).body.data.requests.length, 1);
-    const G = await create("W4 blocked human crash before checkpoint");
+    const G = await create("ASSESSMENT blocked human crash before checkpoint");
     await assert.rejects(
       run(G, "unresolvable-crash-before-checkpoint"),
       /exited 75/,
@@ -376,7 +373,7 @@ try {
       1,
     );
 
-    const H = await create("W4 multiple permanently unavailable facts");
+    const H = await create("ASSESSMENT multiple permanently unavailable facts");
     eq(
       (await run(H, "unresolvable-multiple")).result.state,
       AGENT_EXECUTION_STATES.INTERRUPTED,
@@ -394,7 +391,7 @@ try {
     const knownAnswer = (revision) => ({
       expectedCaseRevision: revision,
       expectedRequestRevision: 0,
-      idempotencyKey: `w4-multiple-blocked-answer-${revision}`,
+      idempotencyKey: `assessment-multiple-blocked-answer-${revision}`,
       doesNotKnow: false,
       answer:
         "Newly recovered approved archive identifies Customer Operations.",
@@ -440,7 +437,7 @@ try {
       2,
     );
 
-    const I = await create("W4 rejected unavailable claim retains native wait");
+    const I = await create("ASSESSMENT rejected unavailable claim retains native wait");
     eq(
       (await run(I, "unresolvable-rejected")).result.state,
       AGENT_EXECUTION_STATES.INTERRUPTED,
@@ -469,7 +466,7 @@ try {
 
     console.log(
       JSON.stringify({
-        gate: "W4 unresolvable human fact mechanics",
+        gate: "ASSESSMENT unresolvable human fact mechanics",
         checks,
         result: "PASS",
         sameThread: waiting.thread,
@@ -480,7 +477,7 @@ try {
       }),
     );
   } else {
-    const A = await create("W4 known and unknown answer");
+    const A = await create("ASSESSMENT known and unknown answer");
     const first = await run(A, "ask");
     eq(first.result.state, "INTERRUPTED", JSON.stringify(first));
     const waiting = await state(A);
@@ -495,7 +492,7 @@ try {
     const unknown = {
       expectedCaseRevision: 0,
       expectedRequestRevision: 0,
-      idempotencyKey: "w4-unknown-answer",
+      idempotencyKey: "assessment-unknown-answer",
       doesNotKnow: true,
     };
     eq((await answer(A, request.requestId, other.token, unknown)).status, 404);
@@ -532,7 +529,7 @@ try {
     const known = {
       expectedCaseRevision: 0,
       expectedRequestRevision: 1,
-      idempotencyKey: "w4-known-answer",
+      idempotencyKey: "assessment-known-answer",
       doesNotKnow: false,
       answer: "Customer operations team",
     };
@@ -584,7 +581,7 @@ try {
     ok(resumed.pid !== first.pid, "new process");
     eq((await list(A, owner.token)).body.data.requests.length, 1);
     eq((await state(A)).revision, 1);
-    const B = await create("W4 multiple blockers");
+    const B = await create("ASSESSMENT multiple blockers");
     const multi = await run(B, "multiple");
     eq(multi.result.state, "INTERRUPTED", JSON.stringify(multi));
     const requests = (await list(B, owner.token)).body.data.requests;
@@ -592,7 +589,7 @@ try {
     const body = (i) => ({
       expectedCaseRevision: i,
       expectedRequestRevision: 0,
-      idempotencyKey: `w4-multiple-${i}`,
+      idempotencyKey: `assessment-multiple-${i}`,
       doesNotKnow: false,
       answer: "Customer operations team",
     });
@@ -614,7 +611,7 @@ try {
     );
     eq((await run(B, "resume")).result.state, "SUCCEEDED");
     eq((await list(B, owner.token)).body.data.requests.length, 2);
-    const C = await create("W4 crash before settlement");
+    const C = await create("ASSESSMENT crash before settlement");
     await assert.rejects(run(C, "crash"), /exited 73/);
     checks++;
     const crashed = await state(C);
@@ -637,7 +634,7 @@ try {
     eq(final.result.state, "SUCCEEDED", JSON.stringify(final));
     eq(final.result.threadId, crashed.thread);
     eq((await list(C, owner.token)).body.data.requests.length, 1);
-    const D = await create("W4 crash before native checkpoint");
+    const D = await create("ASSESSMENT crash before native checkpoint");
     await assert.rejects(run(D, "crash-before-checkpoint"), /exited 74/);
     checks++;
     const beforeCheckpoint = await state(D);
@@ -666,7 +663,7 @@ try {
     eq((await list(D, owner.token)).body.data.requests.length, 1);
     console.log(
       JSON.stringify({
-        gate: "W4 HITL mechanics",
+        gate: "ASSESSMENT HITL mechanics",
         checks,
         result: "PASS",
         sameThread: waiting.thread,

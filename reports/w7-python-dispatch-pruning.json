@@ -1,0 +1,82 @@
+{
+  "classification": "V1_ONLY",
+  "files": [
+    "deepagents/tools/common/capabilities/agentic_evidence/dispatch/runtime_binding.py",
+    "deepagents/tools/common/capabilities/agentic_evidence/entrypoints/remediation_tool_entrypoints.py",
+    "deepagents/tools/common/capabilities/agentic_evidence/entrypoints/tool_entrypoints.py",
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/__init__.py",
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/registry.py",
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/authorization.py",
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/catalog.py",
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/resolver.py"
+  ],
+  "removed": "Unused EngineeringRule semantic registry/CQRS adapters, invocation injection, episode dispatch overlay. No live boundary constructor accepts the old resolver. Mechanical legal bindings and exact input validation preserved.",
+  "callers": {
+    "deepagents/tools/common/capabilities/agentic_evidence/dispatch/runtime_binding.py": [
+      "tools.common.capabilities.agentic_evidence",
+      "tools.common.capabilities.scripts.list_agentic_tool_bindings",
+      "tests.agentic_evidence.test_runtime_binding"
+    ],
+    "deepagents/tools/common/capabilities/agentic_evidence/entrypoints/remediation_tool_entrypoints.py": [
+      "tools.common.capabilities.agentic_evidence.dispatch.dispatcher"
+    ],
+    "deepagents/tools/common/capabilities/agentic_evidence/entrypoints/tool_entrypoints.py": [
+      "tools.common.capabilities.agentic_evidence",
+      "tools.common.capabilities.agentic_evidence.dispatch.runtime_binding",
+      "tools.common.capabilities.agentic_evidence.dispatch.dispatcher",
+      "tests.agentic_evidence.test_api_tool_discovery_bindings",
+      "tests.agentic_evidence.test_dispatcher"
+    ],
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/__init__.py": [
+      "tools.common.capabilities.agentic_evidence",
+      "tools.common.capabilities.agentic_evidence.dispatch.runtime_binding",
+      "tools.common.capabilities.agentic_evidence.dispatch.dispatcher",
+      "tools.common.capabilities.agentic_evidence.entrypoints.remediation_tool_entrypoints",
+      "tools.common.capabilities.agentic_evidence.entrypoints.tool_entrypoints",
+      "tools.common.capabilities.agentic_evidence.governance.registry",
+      "tools.common.capabilities.agentic_evidence.governance.authorization",
+      "tools.common.capabilities.agentic_evidence.governance.resolver",
+      "tools.common.capabilities.agent_runtime.invocation",
+      "tests.test_worker_config_residue",
+      "tests.agentic_evidence.test_api_tool_discovery_bindings",
+      "tests.agentic_evidence.test_authorization",
+      "tests.agentic_evidence.test_dispatcher",
+      "tests.agentic_evidence.test_registry",
+      "tests.agentic_evidence.test_resolver",
+      "tests.agentic_evidence.test_runtime_binding"
+    ],
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/registry.py": [
+      "tools.common.capabilities.agentic_evidence",
+      "tools.common.capabilities.agentic_evidence.dispatch.runtime_binding",
+      "tools.common.capabilities.agentic_evidence.dispatch.dispatcher",
+      "tools.common.capabilities.agentic_evidence.entrypoints.remediation_tool_entrypoints",
+      "tools.common.capabilities.agentic_evidence.entrypoints.tool_entrypoints",
+      "tools.common.capabilities.agentic_evidence.governance.authorization",
+      "tools.common.capabilities.agentic_evidence.governance.resolver",
+      "tests.agentic_evidence.test_api_tool_discovery_bindings",
+      "tests.agentic_evidence.test_authorization",
+      "tests.agentic_evidence.test_dispatcher",
+      "tests.agentic_evidence.test_registry",
+      "tests.agentic_evidence.test_runtime_binding"
+    ],
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/authorization.py": [
+      "tools.common.capabilities.agentic_evidence",
+      "tools.common.capabilities.agentic_evidence.governance.resolver",
+      "tools.common.capabilities.agent_runtime.invocation",
+      "tests.agentic_evidence.test_authorization",
+      "tests.agentic_evidence.test_resolver"
+    ],
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/catalog.py": [
+      "tools.common.capabilities.agentic_evidence",
+      "tools.common.capabilities.agentic_evidence.dispatch.dispatcher",
+      "tools.common.capabilities.agentic_evidence.governance.registry",
+      "tools.common.capabilities.agentic_evidence.governance.resolver",
+      "tests.agentic_evidence.test_dispatcher",
+      "tests.agentic_evidence.test_registry"
+    ],
+    "deepagents/tools/common/capabilities/agentic_evidence/governance/resolver.py": [
+      "tools.common.capabilities.agentic_evidence",
+      "tests.test_worker_config_residue"
+    ]
+  }
+}

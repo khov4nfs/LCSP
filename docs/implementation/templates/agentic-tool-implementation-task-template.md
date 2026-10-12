@@ -6,6 +6,8 @@ owner: LCSP Engineering
 extends: docs/implementation/templates/implementation-task-template.md
 ---
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # Task Specification — LCSP LLM Tool Calling
 
 Use this template for **one catalog tool**. It adapts the approved LLM Tool Calling template to LCSP's worker-owned capabilities, RBAC, immutable evidence, privacy boundary, and typed orchestration states. A tool packet is not `READY_FOR_SPRINT` until every non-N/A section is filled with concrete values and examples.

@@ -14,16 +14,20 @@ import asyncio
 import os
 import threading
 import uuid
+import hmac
+import hashlib
 from collections.abc import Mapping
-from concurrent.futures import Future, ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from concurrent.futures import CancelledError, Future, ThreadPoolExecutor, TimeoutError
+from contextlib import ExitStack, asynccontextmanager, contextmanager
 from dataclasses import asdict, is_dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import anyio
 import uvicorn
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from langchain_core.messages import BaseMessage, message_to_dict
+from langgraph.store.memory import InMemoryStore
 from langsmith_bootstrap import disable_langsmith_tracing_by_default
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -33,8 +37,7 @@ from starlette.routing import Route
 from tools.common.capabilities.platform.graph_runtime import checkpoint_database_url
 from orchestration.agent_stream import AgentStreamInterrupted, active_agent_stream_cancel
 from orchestration.runtime_control import (
-    active_runtime_run_id, active_checkpoint_scope, AsyncCompatibleSaver,
-    active_native_execution_scope, NativeExecutionScope,
+    active_runtime_run_id,
 )
 
 
@@ -42,17 +45,19 @@ DEFAULT_ASSISTANT_ID = "lcsp-agent"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
 logger = logging.getLogger(__name__)
+RUN_NAMESPACE = "lcsp-agent-runtime-runs"
 
 
 class LocalAgentRuntime:
     """Synchronous LangGraph runner behind a LangGraph-SDK-compatible facade."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, store=None) -> None:
         self._threads: dict[str, dict[str, Any]] = {}
         self._locks: dict[str, threading.Lock] = {}
         self._runs: dict[tuple[str, str], dict[str, Any]] = {}
         self._run_futures: dict[tuple[str, str], Future[None]] = {}
         self._cancel_events: dict[tuple[str, str], threading.Event] = {}
+        self._revoked_threads: set[str] = set()
         self._lock = threading.Lock()
         self._executor = ThreadPoolExecutor(
             max_workers=_run_worker_count(),
@@ -60,14 +65,25 @@ class LocalAgentRuntime:
         )
         self._checkpointer_context = None
         self._checkpointer = None
+        self._store_context = None
+        self._store = store if store is not None else InMemoryStore()
+        self._run_payloads: dict[tuple[str, str], dict[str, Any]] = {}
+        self._database_url: str | None = None
         self.graph = None
 
     def start(self) -> None:
         disable_langsmith_tracing_by_default()
         checkpointer = self._open_checkpointer()
+        if self._database_url:
+            from langgraph.store.postgres import PostgresStore
+
+            self._store_context = PostgresStore.from_conn_string(self._database_url)
+            self._store = self._store_context.__enter__()
+            self._store.setup()
         from agent import create_root_agent
 
-        self.graph = create_root_agent(checkpointer=checkpointer)
+        self.graph = create_root_agent(checkpointer=checkpointer, store=self._store)
+        self._restore_runs()
 
     def close(self) -> None:
         # Drain in-flight runs before tearing down the checkpointer/runtime.
@@ -76,6 +92,9 @@ class LocalAgentRuntime:
         # which produced a cascade of ConnectError warnings and could lose the
         # terminal activity for an otherwise valid run.
         self._executor.shutdown(wait=True, cancel_futures=True)
+        if self._store_context is not None:
+            self._store_context.__exit__(None, None, None)
+            self._store_context = None
         if self._checkpointer_context is not None:
             self._checkpointer_context.__exit__(None, None, None)
             self._checkpointer_context = None
@@ -86,6 +105,8 @@ class LocalAgentRuntime:
         metadata = payload.get("metadata") if isinstance(payload.get("metadata"), Mapping) else {}
         now = _now()
         with self._lock:
+            if thread_id in self._revoked_threads:
+                raise PermissionError("Assessment thread access is revoked")
             existing = self._threads.get(thread_id)
             if existing is not None:
                 return existing
@@ -130,6 +151,8 @@ class LocalAgentRuntime:
         }
         key = (thread_id, run_id)
         with self._lock:
+            if thread_id in self._revoked_threads:
+                raise PermissionError("Assessment thread access is revoked")
             resume_id = (payload.get("metadata") or {}).get("lcsp_resume_request_id")
             if resume_id:
                 for (existing_thread, _), existing in self._runs.items():
@@ -141,14 +164,19 @@ class LocalAgentRuntime:
             ):
                 raise RuntimeError("Agent Server thread already has an active run")
             self._runs[key] = run
+            self._run_payloads[key] = _json_ready(dict(payload))
+            # Persist the transport request before publishing/scheduling its run ID.
+            try:
+                self._save_run(key)
+            except Exception:
+                self._runs.pop(key, None)
+                self._run_payloads.pop(key, None)
+                raise
             self._cancel_events[key] = threading.Event()
-        future = self._executor.submit(
-            self._execute_run,
-            thread_id,
-            run_id,
-            dict(payload),
-        )
-        with self._lock:
+            # Publication and scheduling share the revocation lock.
+            future = self._executor.submit(
+                self._execute_run, thread_id, run_id, dict(payload),
+            )
             self._run_futures[key] = future
         return dict(run)
 
@@ -196,14 +224,131 @@ class LocalAgentRuntime:
                 if current is not None:
                     current["cancel_requested_at"] = _now()
                     current["updated_at"] = _now()
+                    self._save_run(key)
         return self.get_run(thread_id, run_id)
+
+    def erase_assessment(self, assessment_id: str, owner_id: str, root_thread_id: str) -> None:
+        from tools.common.capabilities.agent_runtime.agent_server_client import agent_thread_id
+        from tools.common.capabilities.platform.docker_sandbox import DockerSandboxManager
+        from tools.common.capabilities.platform.logging_path import erase_assessment_logs
+
+        # The transport graph and the Root have distinct storage identities;
+        # neither is a second assessment reasoning authority.
+        threads = {root_thread_id, agent_thread_id("", {"assessmentId": assessment_id}, "")}
+        with self._lock:
+            self._revoked_threads.update(threads)
+            keys = [key for key in self._runs if key[0] in threads]
+            for key in keys:
+                self._cancel_events[key].set()
+            futures = [self._run_futures[key] for key in keys if key in self._run_futures]
+        for future in futures:
+            future.cancel()
+            try:
+                future.result(timeout=30)
+            except CancelledError:
+                pass
+            except TimeoutError:
+                raise RuntimeError("Assessment execution has not drained") from None
+            except Exception:
+                # A terminal failed execution cannot still write its checkpoint.
+                pass
+        saver = self._checkpointer or getattr(self.graph, "checkpointer", None)
+        if saver is None or not callable(getattr(saver, "delete_thread", None)):
+            raise RuntimeError("Assessment checkpointer erasure is unavailable")
+        with ExitStack() as locks:
+            for thread in sorted(threads):
+                locks.enter_context(self._database_thread_lock(thread, blocking=False))
+                lock = self._thread_lock(thread)
+                if not lock.acquire(timeout=30):
+                    raise RuntimeError("Assessment execution has not drained")
+                locks.callback(lock.release)
+            for thread in threads:
+                saver.delete_thread(thread)
+                DockerSandboxManager().erase(thread)
+                for item in list(self._stored_runs(thread)):
+                    self._store.delete(item.namespace, item.key)
+            erase_assessment_logs(owner_id, assessment_id)
+            with self._lock:
+                for thread in threads:
+                    self._threads.pop(thread, None)
+                for key in keys:
+                    self._runs.pop(key, None)
+                    self._run_futures.pop(key, None)
+                    self._cancel_events.pop(key, None)
+                    self._run_payloads.pop(key, None)
 
     def wait_for_run(self, thread_id: str, payload: Mapping[str, Any]) -> Any:
         """Synchronous SDK-compatible wait. No run id is tracked on this path, so
         it cannot be cancelled mid-flight — only the async create/poll/cancel path
         (``create_run``/``_execute_run``) supports cooperative interruption."""
-        result, _interrupted = self._run_graph(thread_id, payload, cancel_event=None)
+        with self._database_thread_lock(thread_id):
+            result, _interrupted = self._run_graph(thread_id, payload, cancel_event=None)
         return _json_ready(result)
+
+    def _stored_runs(self, thread_id: str | None = None):
+        namespace = (RUN_NAMESPACE, thread_id) if thread_id else (RUN_NAMESPACE,)
+        offset = 0
+        while items := self._store.search(namespace, limit=100, offset=offset):
+            yield from items
+            offset += len(items)
+
+    def _save_run(self, key: tuple[str, str]) -> None:
+        self._store.put(
+            (RUN_NAMESPACE, key[0]), key[1],
+            {"run": dict(self._runs[key]), "payload": self._run_payloads.get(key)},
+        )
+
+    def _restore_runs(self) -> None:
+        """Recover transport scheduling; native LangGraph remains the checkpoint authority."""
+        for item in list(self._stored_runs()):
+            run = dict(item.value["run"])
+            key = (run["thread_id"], run["run_id"])
+            self.create_thread({"thread_id": key[0], "metadata": run.get("metadata", {})})
+            self._runs[key] = run
+            self._cancel_events[key] = threading.Event()
+            if run.get("cancel_requested_at"):
+                self._cancel_events[key].set()
+            if run["status"] in {"pending", "running"}:
+                payload = dict(item.value["payload"])
+                # Running work resumes its saved superstep without appending another input.
+                snapshot = self._graph().get_state({"configurable": {"thread_id": key[0]}})
+                if run["status"] == "running" and (getattr(snapshot, "metadata", {}) or {}).get("lcsp_runtime_run_id") == key[1]:
+                    payload["input"] = None
+                self._run_payloads[key] = payload
+                self._run_futures[key] = self._executor.submit(self._execute_restored_run, *key, payload)
+
+    def _execute_restored_run(self, thread_id: str, run_id: str, payload: Mapping[str, Any]) -> None:
+        if (payload.get("context") or {}).get("system_boundary_name"):
+            from tools.common.capabilities.agent_runtime.rabbitmq_consumer import (
+                _wait_for_api_ready,
+            )
+
+            # Restarted graph work has the same API readiness requirement as broker delivery.
+            _wait_for_api_ready(
+                api_base_url=os.getenv("NESTJS_API_BASE_URL"),
+                timeout_seconds=float("inf"),
+                stopping=self._cancel_events[(thread_id, run_id)],
+            )
+        self._execute_run(thread_id, run_id, payload)
+
+    @contextmanager
+    def _database_thread_lock(self, thread_id: str, *, blocking: bool = True):
+        if not self._database_url:
+            yield
+            return
+        import psycopg
+
+        lock_id = int.from_bytes(hashlib.sha256(thread_id.encode()).digest()[:8], "big", signed=True)
+        # Process death releases this lock; another server cannot replay the thread concurrently.
+        with psycopg.connect(self._database_url, autocommit=True) as connection:
+            function = "pg_advisory_lock" if blocking else "pg_try_advisory_lock"
+            acquired = connection.execute(f"SELECT {function}(%s)", (lock_id,)).fetchone()
+            if not blocking and not acquired[0]:
+                raise RuntimeError("Assessment execution has not drained")
+            try:
+                yield
+            finally:
+                connection.execute("SELECT pg_advisory_unlock(%s)", (lock_id,))
 
     def _run_graph(
         self,
@@ -222,6 +367,9 @@ class LocalAgentRuntime:
         self.create_thread({"thread_id": thread_id, "if_exists": "do_nothing"})
         lock = self._thread_lock(thread_id)
         with lock:
+            with self._lock:
+                if thread_id in self._revoked_threads:
+                    raise PermissionError("Assessment thread access is revoked")
             self._set_thread_status(thread_id, "busy")
             try:
                 graph = self._graph()
@@ -260,39 +408,28 @@ class LocalAgentRuntime:
                     )
                 interrupted = False
                 last_chunk: Any = None
-                # Bind the cancel event as the ambient signal so a nested
-                # invoke_with_stream call deep inside a boundary handler (where the
-                # real per-turn reasoning loop actually runs) can observe it too —
-                # this outer loop only ever yields once per root-graph superstep,
-                # which in practice wraps one whole boundary dispatch.
+                # Governed provider/tool calls observe the native run cancellation.
                 cancel_token = (
                     active_agent_stream_cancel.set(cancel_event)
                     if cancel_event is not None
                     else None
                 )
-                saver = getattr(graph, "checkpointer", None)
-                scope_token = active_checkpoint_scope.set((AsyncCompatibleSaver(saver), f"{thread_id}:{context.get('logical_run_id', active_runtime_run_id.get() or thread_id)}") if saver else None)
-                execution_scope = NativeExecutionScope()
-                execution_token = active_native_execution_scope.set(execution_scope)
                 try:
-                    try:
-                        for chunk in stream:
-                            last_chunk = chunk
-                            if cancel_event is not None and cancel_event.is_set():
-                                interrupted = True
-                                break
-                    except (AgentStreamInterrupted, asyncio.CancelledError):
-                        interrupted = True
+                    for chunk in stream:
+                        last_chunk = chunk
+                        if cancel_event is not None and cancel_event.is_set():
+                            interrupted = True
+                            break
+                except (AgentStreamInterrupted, asyncio.CancelledError):
+                    interrupted = True
                 finally:
-                    # The parent can be cancelled while a nested graph is still
-                    # flushing checkpoints in a tool executor thread. Never
-                    # release the root thread or advertise STOPPED before it drains.
-                    execution_scope.drain()
-                    active_native_execution_scope.reset(execution_token)
-                    if scope_token is not None:
-                        active_checkpoint_scope.reset(scope_token)
-                    if cancel_token is not None:
-                        active_agent_stream_cancel.reset(cancel_token)
+                    close = getattr(stream, "close", None)
+                    try:
+                        if callable(close):
+                            close()
+                    finally:
+                        if cancel_token is not None:
+                            active_agent_stream_cancel.reset(cancel_token)
                 snapshot = graph.get_state(config)
                 if interrupted and getattr(snapshot, "created_at", None) and not getattr(snapshot, "next", ()):
                     # Completion wins a late Stop; there is no pending checkpoint
@@ -310,6 +447,15 @@ class LocalAgentRuntime:
         run_id: str,
         payload: Mapping[str, Any],
     ) -> None:
+        with self._database_thread_lock(thread_id):
+            saved = self._store.get((RUN_NAMESPACE, thread_id), run_id)
+            if saved is not None and saved.value["run"]["status"] not in {"pending", "running"}:
+                with self._lock:
+                    self._runs[(thread_id, run_id)] = dict(saved.value["run"])
+                return
+            self._execute_owned_run(thread_id, run_id, payload)
+
+    def _execute_owned_run(self, thread_id: str, run_id: str, payload: Mapping[str, Any]) -> None:
         self._set_run_status(thread_id, run_id, "running")
         key = (thread_id, run_id)
         with self._lock:
@@ -380,6 +526,7 @@ class LocalAgentRuntime:
             or ""
         )
         checkpoint_url = checkpoint_database_url(configured)
+        self._database_url = checkpoint_url or None
         if not checkpoint_url:
             if _production_mode():
                 raise RuntimeError(
@@ -426,6 +573,9 @@ class LocalAgentRuntime:
                 return
             run["status"] = status
             run["updated_at"] = _now()
+            if status not in {"pending", "running"}:
+                self._run_payloads.pop((thread_id, run_id), None)
+            self._save_run((thread_id, run_id))
 
     def _update_thread_error(self, thread_id: str, exc: BaseException) -> None:
         with self._lock:
@@ -473,7 +623,10 @@ async def ok(_request: Request) -> JSONResponse:
 async def create_thread(request: Request) -> JSONResponse:
     runtime: LocalAgentRuntime = request.app.state.runtime
     payload = await request.json()
-    return JSONResponse(_json_ready(runtime.create_thread(payload)))
+    try:
+        return JSONResponse(_json_ready(runtime.create_thread(payload)))
+    except PermissionError:
+        return JSONResponse({"error": "thread not found"}, status_code=404)
 
 
 async def get_thread(request: Request) -> JSONResponse:
@@ -491,6 +644,8 @@ async def wait_for_run(request: Request) -> JSONResponse:
     payload = await request.json()
     try:
         result = await anyio.to_thread.run_sync(runtime.wait_for_run, thread_id, payload)
+    except PermissionError:
+        return JSONResponse({"error": "thread not found"}, status_code=404)
     except Exception as exc:
         logger.exception("LCSP local Agent Server run failed")
         return JSONResponse(
@@ -507,7 +662,10 @@ async def create_run(request: Request) -> JSONResponse:
     runtime: LocalAgentRuntime = request.app.state.runtime
     thread_id = request.path_params["thread_id"]
     payload = await request.json()
-    return JSONResponse(_json_ready(runtime.create_run(thread_id, payload)))
+    try:
+        return JSONResponse(_json_ready(runtime.create_run(thread_id, payload)))
+    except PermissionError:
+        return JSONResponse({"error": "thread not found"}, status_code=404)
 
 
 async def list_runs(request: Request) -> JSONResponse:
@@ -539,7 +697,34 @@ async def cancel_run(request: Request) -> JSONResponse:
 async def get_state(request: Request) -> JSONResponse:
     runtime: LocalAgentRuntime = request.app.state.runtime
     thread_id = request.path_params["thread_id"]
-    return JSONResponse(runtime.get_state(thread_id))
+    try:
+        return JSONResponse(runtime.get_state(thread_id))
+    except PermissionError:
+        return JSONResponse({"error": "thread not found"}, status_code=404)
+
+
+class AssessmentErasureRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    assessmentId: str = Field(pattern=r"^[A-Za-z0-9_-]{1,300}$")
+    ownerId: str = Field(pattern=r"^[A-Za-z0-9_-]{1,300}$")
+    threadId: str = Field(pattern=r"^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
+
+
+async def erase_assessment(request: Request) -> JSONResponse:
+    key = os.environ.get("WORKER_API_KEY", "")
+    if not key or not hmac.compare_digest(request.headers.get("x-worker-api-key", ""), key):
+        return JSONResponse({"erased": False}, status_code=403)
+    try:
+        payload = AssessmentErasureRequest.model_validate(await request.json())
+    except (ValueError, ValidationError):
+        return JSONResponse({"erased": False}, status_code=400)
+    runtime: LocalAgentRuntime = request.app.state.runtime
+    try:
+        await anyio.to_thread.run_sync(runtime.erase_assessment, payload.assessmentId, payload.ownerId, payload.threadId)
+    except Exception:
+        # No checkpoint, sandbox, provider, or customer content in cleanup responses.
+        return JSONResponse({"erased": False}, status_code=409)
+    return JSONResponse({"erased": True})
 
 
 app = Starlette(
@@ -547,6 +732,7 @@ app = Starlette(
     routes=[
         Route("/ok", ok, methods=["GET"]),
         Route("/health", ok, methods=["GET"]),
+        Route("/internal/assessment-erasure", erase_assessment, methods=["POST"]),
         Route("/threads", create_thread, methods=["POST"]),
         Route("/threads/{thread_id}", get_thread, methods=["GET"]),
         Route("/threads/{thread_id}/runs", create_run, methods=["POST"]),
@@ -585,6 +771,8 @@ def _runtime_config(
     if isinstance(metadata, Mapping):
         runtime_metadata.update(dict(metadata))
     runtime_config["metadata"] = runtime_metadata
+    if active_runtime_run_id.get():
+        runtime_metadata["lcsp_runtime_run_id"] = active_runtime_run_id.get()
     return runtime_config
 
 

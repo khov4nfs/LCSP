@@ -1,7 +1,7 @@
 import {
   LEGAL_RISK_LEVELS,
   type LegalRiskLevel,
-} from "@lcsp/contracts/legal-rule-catalog";
+} from "@lcsp/contracts/legal-source";
 
 const LEGAL_DOCUMENT_IDS = {
   aiLaw: "ai-law",

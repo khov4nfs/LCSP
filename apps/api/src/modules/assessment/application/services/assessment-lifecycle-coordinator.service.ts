@@ -311,7 +311,7 @@ export class AssessmentLifecycleCoordinator {
 
     if (assessment.lifecycleRevision !== input.expectedRevision) {
       throw problemException(
-        ASSESSMENT_ERROR_CODES.ruleAssessmentStale,
+        ASSESSMENT_ERROR_CODES.lifecycleRevisionStale,
         input.correlationId,
         {
           status: HttpStatus.CONFLICT,
@@ -368,7 +368,7 @@ export class AssessmentLifecycleCoordinator {
     });
     if (updated.count !== 1) {
       throw problemException(
-        ASSESSMENT_ERROR_CODES.ruleAssessmentStale,
+        ASSESSMENT_ERROR_CODES.lifecycleRevisionStale,
         input.correlationId,
         {
           status: HttpStatus.CONFLICT,

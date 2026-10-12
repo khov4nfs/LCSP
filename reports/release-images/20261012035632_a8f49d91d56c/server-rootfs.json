@@ -1,0 +1,1004 @@
+{
+  "status": "PASS",
+  "files": [
+    {
+      "path": "app/deepagents/.gitignore",
+      "size": 959,
+      "sha256": "24a1489fcad6992210951c03ba7ac82ec8675b72d27efd3f58bbd616367164c1"
+    },
+    {
+      "path": "app/deepagents/.python-version",
+      "size": 5,
+      "sha256": "49a506dd32096b010d75205acf3430c9ae6c40351888129499e5a5e487126c93"
+    },
+    {
+      "path": "app/deepagents/Dockerfile",
+      "size": 754,
+      "sha256": "106c1714785d0bc01a0fe1ddd684df306584a9492c265a116e902bfbe3585393"
+    },
+    {
+      "path": "app/deepagents/Dockerfile.dev",
+      "size": 1192,
+      "sha256": "746cc761499728b30eb375198f7285131e256b65ec6fba9eef7f8fadd1b40ea2"
+    },
+    {
+      "path": "app/deepagents/agent.py",
+      "size": 3247,
+      "sha256": "299f88755c5e1207ee02790efbfb0959f15bf1aa6bbb2e9675e970217309ef7e"
+    },
+    {
+      "path": "app/deepagents/assessment_root/__init__.py",
+      "size": 80,
+      "sha256": "c4a8fc747afb25d11af52809aa6fd48ecffc580c336cae5ed642a1434ec62bf2"
+    },
+    {
+      "path": "app/deepagents/assessment_root/agent.py",
+      "size": 3327,
+      "sha256": "cf0c8a5ccd5b1a4d5bd786454bd1be48a733918b0de8e5591dc3038b3f5fa852"
+    },
+    {
+      "path": "app/deepagents/assessment_root/boundary.py",
+      "size": 4542,
+      "sha256": "89cda276d154675bd4f0c6df8b48d0c7707a9a6c28bd9c7ab4f1b5a3c7f1b91c"
+    },
+    {
+      "path": "app/deepagents/assessment_root/client.py",
+      "size": 5633,
+      "sha256": "5b680146445b003d568429298ae9b64c938ca95293be699985b369799831feb3"
+    },
+    {
+      "path": "app/deepagents/assessment_root/instructions.md",
+      "size": 8003,
+      "sha256": "dffc7c5c9b1cc0eea896d0665641c515ade4d9598f40f01c100073c769e89b2f"
+    },
+    {
+      "path": "app/deepagents/assessment_root/learning.py",
+      "size": 5609,
+      "sha256": "faa2bf2935e239529465596c431e38d562832aaa9b72519908e322086ea4dbe0"
+    },
+    {
+      "path": "app/deepagents/assessment_root/researcher.py",
+      "size": 2217,
+      "sha256": "bf7dd44dbb771e688675c2375b8c04a267d468f5618e8510817f567fb2d09420"
+    },
+    {
+      "path": "app/deepagents/assessment_root/runner.py",
+      "size": 11384,
+      "sha256": "7b69cfacf88684495f0b6ea3084907ed83c5f5fd6b0e0d21cbed7f0f0b9594b3"
+    },
+    {
+      "path": "app/deepagents/assessment_root/runtime_control.py",
+      "size": 908,
+      "sha256": "e78cffdfa6d3852658a8a78c46fced43aff4ac08fa2bd9025b4d5af969f4d5a6"
+    },
+    {
+      "path": "app/deepagents/assessment_root/tools.py",
+      "size": 31939,
+      "sha256": "b74e19279518e5f44759cf8ea450e7a2227cd1aaa94f71d91e6255e85c922666"
+    },
+    {
+      "path": "app/deepagents/config/model_routes.yaml",
+      "size": 1165,
+      "sha256": "992b66c8100e289bba2e958e7b4688c00345837f0ae08609b8954e4b421da807"
+    },
+    {
+      "path": "app/deepagents/entrypoint.py",
+      "size": 8918,
+      "sha256": "00235804084c9b4afaf08e01eb951ae91e564306f083e278ad91e016a1db76ac"
+    },
+    {
+      "path": "app/deepagents/evals/.gitignore",
+      "size": 55,
+      "sha256": "e945d67defeda771ceb790772d6337253416d97307e53542abbcd4bd3464af1d"
+    },
+    {
+      "path": "app/deepagents/evals/scaffold/smoke/instruction.md",
+      "size": 47,
+      "sha256": "52a9b432f1d4349a2a9c401d155f3856ec713b3455e1a8fe0713c2426c33ca8a"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/.gitignore",
+      "size": 14,
+      "sha256": "240a3e0d37d2e86b614063f5347eb02d4f99ca6c254de6b82871ff8d95532a7d"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/baseline_b1_b20.jsonl",
+      "size": 5137,
+      "sha256": "72fc8a63f4b8ebc05b1c32802d2e48c4d31b4977abc0e3f1ab1b9d104c35fefa"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/baseline_b1_b20_outputs.jsonl",
+      "size": 4248,
+      "sha256": "77beea76a75a81f3ada0595d028f804ad10b6d4b97a4a6c05830e799af1420d4"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/deep_research_live_outputs.jsonl",
+      "size": 3171,
+      "sha256": "391af803d4d1f144a66d3c95ae523855b1dc0ea43ecc833b2e100e5cc43da9de"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B1.json",
+      "size": 91,
+      "sha256": "41d084f62e3f769edf0aebff5ec97a7f959607f788130674040cd7c3527ba2af"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B10.json",
+      "size": 87,
+      "sha256": "208e8e5d1d6508bcd961dc0eeb67cd17f2c974dd52cc79ba5905f0bbbf8e27a8"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B11.json",
+      "size": 123,
+      "sha256": "b1de2362244e22ed737968fd3268fa8144356c332304d3c0d0c1966015b4346d"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B12.json",
+      "size": 85,
+      "sha256": "bb82cba84131a81ad86dce2bbe4467b01661e44bb25c82e86374fea814bdade2"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B13.json",
+      "size": 98,
+      "sha256": "c322b12c060fc97ade1dbc0f8a1fe8c5f8a272d7515dcab40b7755bcc13bc18f"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B14.json",
+      "size": 97,
+      "sha256": "a5f17d6ef4398adb68dc989c48cc083a2a942616243d0b0ec08f73ed00ffe76f"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B15.json",
+      "size": 99,
+      "sha256": "259cb2af086b35c3f4eab9f76a2db7db5042c9acdfc21c26ff37dd6c59399e5f"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B16.json",
+      "size": 106,
+      "sha256": "ccc33e170d9c3488068379db85cc116e1abaf51a126df2d0431be3ec52bd7949"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B17.json",
+      "size": 103,
+      "sha256": "547cfe49d089c930adc18519fee34150ad027256040fb03027c4799ea017826a"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B18.json",
+      "size": 99,
+      "sha256": "552b34bc005b9414b4d88fa52a539b196093624a5fafbe6565812607e7644ca9"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B19.json",
+      "size": 104,
+      "sha256": "7774c80e21977f640f9e4f355368ba28c192fc1b8ce6d82bb7ec4386e813e575"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B2.json",
+      "size": 127,
+      "sha256": "741e27e2144e28788195f72346df8d967b2609c2fdd38600540fd4a8dac0dd95"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B20.json",
+      "size": 98,
+      "sha256": "651321b7d3d76f4945c740096d92ba00852e0974a47f12d8175925c2ecd50d60"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B3.json",
+      "size": 112,
+      "sha256": "91efd07370ec4ea3011a8e9be648712445cac85fe33eda53e05457a5717df3a6"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B4.json",
+      "size": 119,
+      "sha256": "66c36e293582a3fab51c5f6abac1bcdaf481f9419293c5c4e6a7d241378fb73c"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B5.json",
+      "size": 89,
+      "sha256": "a18c1436c4fc948765ca3bf99d6741202123c80b8b35413594e3ce3ced3a4347"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B6.json",
+      "size": 109,
+      "sha256": "b77109fe9bf3d8a363d25fb91c312753e2a42c4cadbe0424a7e26a927fadf212"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B7.json",
+      "size": 95,
+      "sha256": "ab3acf84f4f11cc9b7c813d65a4bf8618d2f2e01a574974aeee1089f09186795"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B8.json",
+      "size": 93,
+      "sha256": "2c4b7ce619cb25fc0c7e830069c45f89068f5fff9ff12375b7ed24982ebb1568"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/fixtures/B9.json",
+      "size": 91,
+      "sha256": "51ae096ec01c54beb07e182c0a4c537a607e92a35ea3c6748fb2cb387c96f4e8"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/verified_episode_consolidation_quality.jsonl",
+      "size": 539,
+      "sha256": "82a45debedaa2613fd6ae89c4df7e883bff411ef2631b12c93811c406c664c99"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/verified_episode_memory_utility.jsonl",
+      "size": 502,
+      "sha256": "b3fbbd5198139375c7aeef5c898f3e5c6d66ef423e10e14975ebfd0f4a5f80a4"
+    },
+    {
+      "path": "app/deepagents/evals/tasks/verified_episode_retrieval_precision.jsonl",
+      "size": 634,
+      "sha256": "0d9e9c68bb7cd2b757a582c5cb56a9f63bfe9623ce707f1e7cc8f902f6885804"
+    },
+    {
+      "path": "app/deepagents/harness.py",
+      "size": 1248,
+      "sha256": "0695e8ebf8d1a4255108ff4d7862cf34eb4ed48d586f0e2f570d206a32659dd6"
+    },
+    {
+      "path": "app/deepagents/instructions.md",
+      "size": 873,
+      "sha256": "e64242a6f60586e664248521429ef7ff36384dc44008966f2ca3477ca67739cb"
+    },
+    {
+      "path": "app/deepagents/langgraph.json",
+      "size": 286,
+      "sha256": "d37695adeefa3aafbe987c2be3c1143a5d98066aa4f4394eb2a4fa2f850bfac7"
+    },
+    {
+      "path": "app/deepagents/langsmith_bootstrap.py",
+      "size": 536,
+      "sha256": "7e3fa391b9a1c827ae0b43a7f2293887fc73cfa9f5295540a0944e607dfac298"
+    },
+    {
+      "path": "app/deepagents/middleware/__init__.py",
+      "size": 47,
+      "sha256": "c572060b1fb088be235816ef88ec2b30e41e2de25c936fd173e9a645dc54b660"
+    },
+    {
+      "path": "app/deepagents/middleware/agent_run_budget.py",
+      "size": 10816,
+      "sha256": "35698f5f947b5e8dfa8b1282c7ed5495b4847565dd7b40647a5a7544f7de52e4"
+    },
+    {
+      "path": "app/deepagents/middleware/failure_policy.py",
+      "size": 10152,
+      "sha256": "07a557c83e668ceaba220c886ec06d86a8faf83eeeacab7e7fbecc1433f76c7c"
+    },
+    {
+      "path": "app/deepagents/middleware/model_governance.py",
+      "size": 9009,
+      "sha256": "734bf9461259da49261344be408736e1e408895b9d385b436e56780c15fdc74c"
+    },
+    {
+      "path": "app/deepagents/middleware/provider_fallback.py",
+      "size": 14601,
+      "sha256": "6a9f0ea9cc1f238919fcbf9b100c5c41661c790380661343878f1441e30c7103"
+    },
+    {
+      "path": "app/deepagents/middleware/provider_schema.py",
+      "size": 8927,
+      "sha256": "0d8b2fb2439d96a6bdcf9090b432fd60aa77900669512759ed316364062c9c54"
+    },
+    {
+      "path": "app/deepagents/middleware/redaction.py",
+      "size": 8958,
+      "sha256": "191a0cb1a6896d39f2ff84099cbcc996e9b0e2347c4a6f86dcbc59bdd4dc4ed2"
+    },
+    {
+      "path": "app/deepagents/middleware/runtime_context.py",
+      "size": 2232,
+      "sha256": "e31a88cf03abbd8da6820aa42430e82e21f50b19c7a021741e53e924ee6720ab"
+    },
+    {
+      "path": "app/deepagents/middleware/system_event_dispatch.py",
+      "size": 7745,
+      "sha256": "78f062bbd04c13101c9c37d6e47f76cf2dfcbcb980bbdbe9140057fd9d266bfe"
+    },
+    {
+      "path": "app/deepagents/middleware/token_fallback.py",
+      "size": 27462,
+      "sha256": "69b884afa2f1f9f9ec0476b43c9ecc4a0c40827413def1a87d9d3da4249e2a68"
+    },
+    {
+      "path": "app/deepagents/middleware/usage_metering.py",
+      "size": 38509,
+      "sha256": "a9eeae20b3e923926d3f6226c6b838d8657bcbef67056bbb67714eeafa2fcecc"
+    },
+    {
+      "path": "app/deepagents/middleware/usage_recovery.py",
+      "size": 7621,
+      "sha256": "43485b35439a79099bd57fd5a475504f019fba70bfeb683acbdbbc333677cc00"
+    },
+    {
+      "path": "app/deepagents/model_policy.py",
+      "size": 9696,
+      "sha256": "c12f7e6bf32a995b4864077a64cf961bda90323cb027f28c9507d2d7192de097"
+    },
+    {
+      "path": "app/deepagents/model_routes_config.py",
+      "size": 9543,
+      "sha256": "65894bb75d8cd63da042b9c9b60d84c00afd24ac7a430bc88ee91c5bc0179110"
+    },
+    {
+      "path": "app/deepagents/orchestration/__init__.py",
+      "size": 142,
+      "sha256": "cde2568ad6d6e3329957e5ad469dc9ca84a5adefec43bc8a8a520ab0b69c691f"
+    },
+    {
+      "path": "app/deepagents/orchestration/agent_stream.py",
+      "size": 16548,
+      "sha256": "5d390b5d91050b3892d7414908a4c05ffee2e3b51a4e703b012f1144de4f65da"
+    },
+    {
+      "path": "app/deepagents/orchestration/context.py",
+      "size": 1935,
+      "sha256": "cb29648c402f5ddc6ba4fba2543328d3278aa52230ac298dd548fac9b6f2a914"
+    },
+    {
+      "path": "app/deepagents/orchestration/runtime_control.py",
+      "size": 3155,
+      "sha256": "688ea9ca7d76ab8af7b35fa552506efd2470f66efff6ca09b1a256ff4b27dea8"
+    },
+    {
+      "path": "app/deepagents/provider_credentials.py",
+      "size": 2985,
+      "sha256": "5f5efb9a23a10e368728d668e43832dd2bd1859dbcebe30dbc00e4bc3b66f165"
+    },
+    {
+      "path": "app/deepagents/pyproject.toml",
+      "size": 1072,
+      "sha256": "e9b548c8c542f5b3e596b7613d1fb3742be2f3cb5ecf4933d62f5996f4bcd75d"
+    },
+    {
+      "path": "app/deepagents/pytest.ini",
+      "size": 571,
+      "sha256": "2c3e8a0f031a9e7c7861720f1d15dcaf01d1dfae9b52f3756a0fff437573a2d1"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/__init__.py",
+      "size": 554,
+      "sha256": "ef9d163e9ddbc2f8317523792f5830967df7c4e007972e61a3b8047f8c0cc093"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/agent.py",
+      "size": 4667,
+      "sha256": "beaccf1ffb79deae1a3be6e7f9166d257a2ad0087b8f9905c46a377f5e8a4044"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/boundary.py",
+      "size": 1606,
+      "sha256": "0f006f4d25ffe4dc2b6641c4048d87a4b6ae4e87e4f7aecc4a11e70b77fc4d32"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/instructions.md",
+      "size": 22101,
+      "sha256": "d2ef0c6a98bf06b646f3f8c71f041c2b6f661867374efda72506d19f0dcca4ec"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/legal_source_files.py",
+      "size": 3063,
+      "sha256": "45848d49f854bec63cf9188d63eada97afc4f29052e541f64ad86cb9188cb0d1"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/packet-schema.json",
+      "size": 17909,
+      "sha256": "8d1c85c97eea31bba05d7ffad8639f802d77e7ae2d0d1dcd4164e9feb3fa0d63"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/rule_set_reader.py",
+      "size": 1689,
+      "sha256": "7808e40161e0bb4bebf5d8f957ec7e22ba25db362c3b31e4df4ceabe015f46f0"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/runner.py",
+      "size": 4504,
+      "sha256": "7f7fcfad34942ddae7615f9cc8dc8a539e50850cc9b909b51b1d06a84890a2d8"
+    },
+    {
+      "path": "app/deepagents/rule_set_preparation/tools.py",
+      "size": 4636,
+      "sha256": "a76ddef8232207a315d12627f2a1b25684e3b766df2adbef4e5cccabd73d4936"
+    },
+    {
+      "path": "app/deepagents/sandbox/setup.sh",
+      "size": 2042,
+      "sha256": "4edafba3b139286ae932770976896e1c624e1b1bae54d6f20e5e13d27947680a"
+    },
+    {
+      "path": "app/deepagents/tools/__init__.py",
+      "size": 54,
+      "sha256": "84b54062cbd1eb7d191ca88824cdd30de8a2b1d295b01af618716e3362c950df"
+    },
+    {
+      "path": "app/deepagents/tools/common/__init__.py",
+      "size": 67,
+      "sha256": "ddc3913c198d2b63485d224d1ec3d1f0194259367a41d133d68385a5ebc9b2da"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/__init__.py",
+      "size": 72,
+      "sha256": "8ab53d787b9a61d35edd37fb07faee0bf8e13d0b11289dbdef5f1eecc48ed8b6"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agent_runtime/__init__.py",
+      "size": 72,
+      "sha256": "7ca1a577b658c8e1be0ac937ff4d0d46094e44da0f77d3e24f4159cdbf1f1e2d"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agent_runtime/agent_server_client.py",
+      "size": 19631,
+      "sha256": "bb077736073dbe3e5ce8bbf7163341c24e915317597d15696a5aa5bfe50ce2c0"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agent_runtime/boundary.py",
+      "size": 1330,
+      "sha256": "719a06bd7905cb6c0dcd5233348d21fb2a6f05c5d8247f1d5b122122a027e54f"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agent_runtime/health_boundary.py",
+      "size": 2444,
+      "sha256": "34dce2fabd62f4f318af6daca1471ebe33a6952e4057a174154210121bf2441c"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agent_runtime/invocation.py",
+      "size": 12124,
+      "sha256": "b4548622b94de2364dc463226a2861f106833c68896cbed95a1f5b8a063ac619"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agent_runtime/local_server.py",
+      "size": 35656,
+      "sha256": "0a8b4c5a85f872a49e9998aae6ee4ef8c8ee5970bee146c58d0d663efcc40d69"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agent_runtime/rabbitmq_consumer.py",
+      "size": 33520,
+      "sha256": "7b6b5ea4fb47651d6d1665b6e817ad44ed5525f94b482084c5e648befc0882df"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agent_runtime/skill_loader.py",
+      "size": 3802,
+      "sha256": "025080c7494b824a3f20bdaaa4326f431a115fc9cd4497304766cdc8bd1719fe"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agentic_evidence/__init__.py",
+      "size": 510,
+      "sha256": "537cc7407b24059b4b5f2d7ca7dc87a22b4ee9d5b169c032a96174b31c558af9"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agentic_evidence/dispatch/__init__.py",
+      "size": 87,
+      "sha256": "f70fa4d1f85636006303bb0708758168f8db17907a70bbc4ebf34bbbc64d2e78"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agentic_evidence/dispatch/dispatcher.py",
+      "size": 4212,
+      "sha256": "54197e8e53d05bfc40b4813b2da73d033f13a2b609a748f88398ff7575e4cfbc"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agentic_evidence/entrypoints/__init__.py",
+      "size": 103,
+      "sha256": "d07f451bcac8f4289f49e21b2f88fc2d89e76240bff252e6ea4c4ac5788d3a8d"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/agentic_evidence/entrypoints/legal_tool_entrypoints.py",
+      "size": 17729,
+      "sha256": "264fd86022450631a15daacba2a197cd33763dd5f8373eab0e7a69c9bac90507"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/evidence/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/evidence/graph/__init__.py",
+      "size": 462,
+      "sha256": "7fbb0a49ed66213df77753273a267105778c525700a713494b2866a97843f94f"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/evidence/graph/schema/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/evidence/graph/schema/models.py",
+      "size": 5584,
+      "sha256": "49bd89f03c1745a4441ffd668d34dd2569df8b0fff093dcbf68eefaede92a12b"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/evidence/graph/schema/source_roles.py",
+      "size": 7240,
+      "sha256": "c5a7dc79f0b0125937ed409091c5f2340a0a0e48414338a6c57753a6e17d6ed4"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/evidence/graph/schema/vocabulary.py",
+      "size": 7892,
+      "sha256": "7f469c1189411ac2b876d1c14cfd70b2d80a82469a24bb2a2cb93292d46442df"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/package/__init__.py",
+      "size": 66,
+      "sha256": "bde928d902573b1ce9a20afcf65ccbeaa699e08c62720596c57da83a74c0520e"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/package/contract/__init__.py",
+      "size": 49,
+      "sha256": "ee643cf92accefc5648f1a9aa69630bc541da70004f2f9143358b234718bbf5f"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/package/contract/api_client_contracts.py",
+      "size": 1737,
+      "sha256": "9743ad8a877fe0e9077a9bb3b7cdc75fa9db4f5b6fa3ae7d894baa02740fe5cc"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/__init__.py",
+      "size": 76,
+      "sha256": "1021325bd8119d307d2ce375aa00331f541b689ac1de369e139a08a47b6eafa6"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/api_client.py",
+      "size": 23136,
+      "sha256": "da80528fdc4e8ebe594a3add48a8790fbaa24b23e1ba418946178e9e4b76a8f3"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/callback_schemas.py",
+      "size": 1827,
+      "sha256": "8d646d49db6d1f007a4df9c4fdd28117e1def63e0a14988cf6ad6b57bf635d98"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/codebase_memory.py",
+      "size": 4899,
+      "sha256": "fb17517c6bbe429fa32b41e17fb4f662aa5b47f3157aad9e622db31c8b7b2f69"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/config.py",
+      "size": 5333,
+      "sha256": "808f920418697ff6888b8620b18fed26e6eac5741019256ebb9753964f61460a"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/correlation.py",
+      "size": 1944,
+      "sha256": "722f9b970606780a8f20bba801515b1b56fcfc516244e159df3a615f7c8c92fb"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/dev_unsafe_trace.py",
+      "size": 16280,
+      "sha256": "64bffa35a7bc1f9d58a3889a003154b5e03d3873b02addab570f4e3c0125fc62"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/docker_sandbox.py",
+      "size": 25685,
+      "sha256": "33efcf49be5084369d95db414d2f4b8ffabd29790c1faf7b26d3c48a34277660"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/env.py",
+      "size": 399,
+      "sha256": "0f76104b03b5f9f7495f48ac92856ae317c47e5e7cebacb0a9aa4a6688087e0d"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/file_lock.py",
+      "size": 1657,
+      "sha256": "0edcb9634c9b66387c18fd2ff3c3abbd1d537e348a9c8e2680f96a98cb9164a5"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/graph_runtime.py",
+      "size": 1202,
+      "sha256": "7d5a5176a0c78213fba0d3474a2efc0b89557b915c5af367b1d99e360ce832d0"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/logging.py",
+      "size": 7579,
+      "sha256": "d38558fdd011d9f1a97c0283c4756029e49bda368e87e2fd4c8b2109506bcb53"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/logging_config.py",
+      "size": 132,
+      "sha256": "d8472901f1a7568ce3787f28215aff645b40300b25342c9495a5e0caa292ca49"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/logging_path.py",
+      "size": 2103,
+      "sha256": "9fdbd10dca7817dcdc72299206330d022f29650b65093a0e612de77be8b55c66"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/rbac_client.py",
+      "size": 2862,
+      "sha256": "2b28ceb953076d4858b4d9a491544d68b445f080d4c6b56fe2127ac445311d85"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/repository_sandbox.py",
+      "size": 17441,
+      "sha256": "263dfd082aa064c91d9b6267d5cd2b5bb27caf54ead018ea7244e69075c67b6f"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/repository_snapshot_client.py",
+      "size": 2701,
+      "sha256": "006f17b4604fe3ca2b72b7bbad0f942c393d2ad379014ddbb40d8c6c61727b37"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/repository_workspace.py",
+      "size": 10002,
+      "sha256": "9a0b8cd0d1a467ca34a1a52189255223780e325c687742cf6f838f9c581592ff"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/subject_repository_tools.py",
+      "size": 2213,
+      "sha256": "2f1cebc73f264b250c375338e9377e5e8e50416e96c6740469c84a8fb2c730f0"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/platform/tracing.py",
+      "size": 9122,
+      "sha256": "cdacc14ca5394418ef9822dd6597f659f13f71b2dbd857be26e461be3c86c7f7"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/reporting/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/reporting/report/__init__.py",
+      "size": 62,
+      "sha256": "e9af746f05c23aac81c5adbdd6f53a9e88e8e77b2aacdabc9560c654fcd96623"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/reporting/report/audit_export/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/reporting/report/audit_export/audit_export_boundary.py",
+      "size": 3445,
+      "sha256": "83fcdbbf5dbd6be168c6593f977306b6460202c072faaaf48de97a9f4c89c1fb"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/reporting/report/audit_export/audit_export_generator.py",
+      "size": 3446,
+      "sha256": "0aa58637e8c24d2b9e31f088982dbdc3124bd8344742d3f70b7d539826e85f88"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/scripts/__init__.py",
+      "size": 58,
+      "sha256": "ae19a3a2901b7948de5bf1e3d190d92ee556e31d5e8652fd2bfdaf15e53daa7d"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/scripts/list_agentic_tool_bindings.py",
+      "size": 1765,
+      "sha256": "c1228529b30b8be00473c25052211a18dcc452137e20cc3bf8b791959da3a86a"
+    },
+    {
+      "path": "app/deepagents/tools/common/capabilities/scripts/run_handle_smoke_e2e.sh",
+      "size": 194,
+      "sha256": "9e6af5a52cad0537a6101577f590c272cb11a9e598d55fa989fb5689f0521128"
+    },
+    {
+      "path": "app/deepagents/tools/common/codebase_memory_graph/__init__.py",
+      "size": 233,
+      "sha256": "ce615aabbbbb22789935a0a835a7f992338f6abf7143bd2a0b343c82af1202e2"
+    },
+    {
+      "path": "app/deepagents/tools/common/codebase_memory_graph/code.py",
+      "size": 5466,
+      "sha256": "bd7b4c1d9d99acb4e9c5519f6df6529282f5ca69b36a2c68df9c59eb6b1e3b60"
+    },
+    {
+      "path": "app/deepagents/tools/common/runtime_envelope.py",
+      "size": 898,
+      "sha256": "106407bbfb5f35594c45b955bb0b82481c27d7779d9ed4065bf95f9250de8497"
+    },
+    {
+      "path": "app/deepagents/tools/legal/__init__.py",
+      "size": 2036,
+      "sha256": "13eda87869ee96689a21f1b87666eda86ebbc032c137666fceb777077d24722f"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/__init__.py",
+      "size": 58,
+      "sha256": "91c24219785cf9d5ca2f74c4b83340bdb746443b9629e1aefe6d32cf7c8c7041"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/chunk_integrity/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/chunk_integrity/chunk_integrity_boundary.py",
+      "size": 3455,
+      "sha256": "4bad1d090a5f8f298f26ac1160c786094c95cb60dc5b59bd78da69f973c43d9c"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/chunk_integrity/chunk_integrity_repository.py",
+      "size": 4533,
+      "sha256": "41681080be1cea0714d6d56e2ce29507132b3ceba89094c9d0a073beb3ae7079"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/chunk_integrity/chunk_integrity_validator.py",
+      "size": 26788,
+      "sha256": "f5e6981349634f1715663def73d153ba32032775947c2f0feb6fa1591c3d41ce"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/legal_chunks/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/legal_chunks/legal_chunk_boundary.py",
+      "size": 3434,
+      "sha256": "84619b5ac09ebf8e6d201ec784eff443a5d9572f384c44449dfdc57deed9135f"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/legal_chunks/legal_chunk_builder.py",
+      "size": 18251,
+      "sha256": "b1629e298c1ec5997f34c8b6cffa1e3a855c0707cc72942a09dd4cde07dcaa61"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/legal_chunks/legal_chunk_repository.py",
+      "size": 4240,
+      "sha256": "b8a26b0ae27b2447b4c4b83ad5f40ce76bb4b9b15b07d9c5db41a646a4d5c73e"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/models/__init__.py",
+      "size": 25,
+      "sha256": "c7e0df2324c14189f01ae454817c6003e5e40bbb50814bf6b629e58f75a88508"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/models/partial_update.py",
+      "size": 1916,
+      "sha256": "beb59f96f4460fa09aa464abf8be45acaf406eefc15415320532347dbcf0577b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/partial_update/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/partial_update/partial_update_context_builder.py",
+      "size": 2245,
+      "sha256": "3b70689273bd7084989d704c27455ccc2d9ff1e1ac94baba964926ddb905d9c8"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/relationships/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/relationships/relationship_manifest_repository.py",
+      "size": 4313,
+      "sha256": "c9ef8bc2992d0a589659337aceecfdeae4c204d07b9e986f06b2e80098409def"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/reviewed_input/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/reviewed_input/reviewed_legal_source_input_boundary.py",
+      "size": 3673,
+      "sha256": "49258a3aa588236ff4e630f5bdd86419ebf928321bdbcac5810ad84e2bae8aca"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/reviewed_input/reviewed_legal_source_input_builder.py",
+      "size": 22125,
+      "sha256": "5397c64c3fcdfe28f9277556c35c11f7014f1b3b9026d6cec14846d0029096d3"
+    },
+    {
+      "path": "app/deepagents/tools/legal/legal_source/reviewed_input/reviewed_legal_source_input_repository.py",
+      "size": 4960,
+      "sha256": "c8746436638ffe2e3f489fbc17e142c9323144de05e1e20e63c3eb10f4e14df1"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/__init__.py",
+      "size": 47,
+      "sha256": "d03a5e1887b2e1926ccc19806a2ddca8bf2b4d4a84e16e47610cedcef353e2cd"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/index/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/index/chroma_path.py",
+      "size": 769,
+      "sha256": "f09d07ddace2626a2299f15ef0e7bd466fd314f90671496c9e5fbc72bc181bfa"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/index/chroma_vectorless.py",
+      "size": 357,
+      "sha256": "35a0a541c415126569cca7b5cf2bf03e8e1a69fc0188657823dabf8a445c89bb"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/index/legal_retrieval_index_boundary.py",
+      "size": 3359,
+      "sha256": "e8ba33d95e827d370cb22e77f3fd4812a49b475d570d589f0f4de839740d4b60"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/index/legal_retrieval_index_builder.py",
+      "size": 24482,
+      "sha256": "db5070d83c1640647a3b2b3d398c837bdd4dc7f395a5128eccdcc5c8ee417628"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/index/legal_retrieval_index_repository.py",
+      "size": 4272,
+      "sha256": "3415ae31854005765f604298c91124b9ff2ee4f406e0b955b8e4d6a38ebece03"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/legal_basis/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/legal_basis/chromadb_citation_retriever.py",
+      "size": 6206,
+      "sha256": "63ddf162c32afa2bd27c8fe0a24b3d04f6228972575529f041ad937d711d234c"
+    },
+    {
+      "path": "app/deepagents/tools/legal/retrieval/legal_basis/structural_chunk_filter.py",
+      "size": 1603,
+      "sha256": "4dab7389a44cec4b9a88560a9dc7e287ecf5e51dd8de99c68382852718212dbc"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/__init__.py",
+      "size": 53,
+      "sha256": "9128b0113851f3d91ddcde4a430e280d13fdb03c621c3d716d1d6f6ffd720672"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/change_detection/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/change_detection/legal_change_detector_boundary.py",
+      "size": 9518,
+      "sha256": "6637b7ef8e496512fe6bbe4f6834a6615df03771beb0477576610caea5cc9bd0"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/extraction/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/extraction/official_text_extraction.py",
+      "size": 23180,
+      "sha256": "766c0c85a4a69151b166da6ac73964877352c9550a3714d649966b5499d7f1a0"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/extraction/official_text_extraction_boundary.py",
+      "size": 4959,
+      "sha256": "10637a4019978873299a21fd2c062f7db14039bb4e5d94f039ce74d70d419a0a"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/extraction/official_text_extraction_repository.py",
+      "size": 7487,
+      "sha256": "65638443b76635c284325e1d15e9625a0de5d2c6d797bcb63c6e45d4503a17eb"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ingest/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ingest/legal_source_ingest_boundary.py",
+      "size": 9041,
+      "sha256": "b357c9fe57377dd96ad8c415e3efa4a28751c6a3f0c3eec7f1eb9319bd4d53ac"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ingest/official_legal_source_acquisition.py",
+      "size": 19415,
+      "sha256": "67d175b93cc8ccfc99b944e691f214662d5fdf8b73c41fdb1aabc2ab28fa32f1"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ingest/official_source_payload.py",
+      "size": 6847,
+      "sha256": "31b06b69c321d7ed7cc98e0498e7d683dce293d3290e392b60ffc0b3951a6bdf"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ingest/official_source_snapshot.py",
+      "size": 15814,
+      "sha256": "c80386fca5111d84cd8cd9ac907dbaca9e9274499788fdf38083e5c047ada82b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ocr_fallback/__init__.py",
+      "size": 407,
+      "sha256": "d48045a46a8d9c012d52c9332cb72b9cc02c8e9fada8a152aaed8fc30c95624b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ocr_fallback/ocr_fallback.py",
+      "size": 19325,
+      "sha256": "81c7cce14c9bf4510a40efdea9e7ac9cd0186f179d337356f5ad3d565e04555d"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ocr_fallback/ocr_fallback_boundary.py",
+      "size": 5876,
+      "sha256": "ddd8d33d67406fcfa4aa4c5dbac9b71513c5ff702153773dce46487deabc353f"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ocr_fallback/ocr_fallback_repository.py",
+      "size": 5648,
+      "sha256": "efc43f08eca5b5e7a6b32e24cdd7eede76b5216f69348d32182c5aff27e86506"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ocr_quality/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ocr_quality/ocr_quality_boundary.py",
+      "size": 3419,
+      "sha256": "7298f5afbf47e81f41e6870b7fd3e104f73a1725c0acb699fe71670c139352c1"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ocr_quality/ocr_quality_repository.py",
+      "size": 4475,
+      "sha256": "125ac067da5a6d1559345ad495e8ee4e8128bde53fb439120706bbe6ac40b157"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/ocr_quality/ocr_quality_validator.py",
+      "size": 28184,
+      "sha256": "e51a7ef1deef868fc61bcd9e78e7881d9db7026d5dac61f62321b79cf0ebae0d"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/scripts/build_reviewed_legal_source.py",
+      "size": 24896,
+      "sha256": "12c1d2e9b70f57200efb56c07a4780d0d4d17eac038a838f9c0e8a0e656d5ca8"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/scripts/crawl_congbao_docx.py",
+      "size": 8265,
+      "sha256": "c3e85b3a0818427f7248cf479eb0753bfbdef0f3c263cde9f7340ed78e051f5a"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/scripts/crawl_vbpl_document.py",
+      "size": 8137,
+      "sha256": "d00b1286f8ef63849be7dbb6b025cd8627492399ae88a90d8b189ac5666aa03e"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/scripts/ocr_legal_pdf.py",
+      "size": 5665,
+      "sha256": "ac2b1dff73beeede8637e74bfdaf1b807e1b87395098c1bdd3e944c91f931754"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/vbpl_effects/__init__.py",
+      "size": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/vbpl_effects/vbpl_effect_applier.py",
+      "size": 6888,
+      "sha256": "75a7f605cb6a61c9e23e2f019ffaaa9659c3465bbff731f5274009340b55e177"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/vbpl_effects/vbpl_effect_detector.py",
+      "size": 8122,
+      "sha256": "ae4bbce632b628eafb021aeda4ea4627498588b041b76fa494db365575881317"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/vbpl_effects/vbpl_effected_chunk_set_boundary.py",
+      "size": 5595,
+      "sha256": "01a375b97d043ed23ddf673207a093237abfc8b43fbe465ca4dfd17899a55c1f"
+    },
+    {
+      "path": "app/deepagents/tools/legal/sources/vbpl_effects/vbpl_effected_chunk_set_exporter.py",
+      "size": 11722,
+      "sha256": "157d8d9d389e3165c6c176463618ced6f97b1ae774d981352f816e1740a1e335"
+    },
+    {
+      "path": "app/deepagents/tools/mcp.py",
+      "size": 1772,
+      "sha256": "d1f8e30dc56c4ecb1f662d7cf3427320bba596e1b4f1e5b54eddba0946e9b672"
+    },
+    {
+      "path": "app/deepagents/uv.lock",
+      "size": 661332,
+      "sha256": "89d43726f7e7000d4bf9fcaba3fcf3d1fd88a181abbd069de6a690e38954394d"
+    },
+    {
+      "path": "app/pnpm-workspace.yaml",
+      "size": 570,
+      "sha256": "5ca9df1a4c3d1b96dad268a040ed4b01ec3d6eda2301d8c463b46b668064f2d2"
+    }
+  ],
+  "sourceFilesVerified": 172,
+  "retiredPathsChecked": 461,
+  "retiredPatternsChecked": 27,
+  "violations": []
+}

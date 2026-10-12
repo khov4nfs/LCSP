@@ -1,3 +1,5 @@
+> **Historical pre-freeze documentation.** This preserves the original V1 planning record; current implementation authority is [the Architecture Freeze](/reports/architecture-freeze-migration-manifest.md).
+
 # LCSP Local Assignments
 
 Local-only assignment plan generated from `docs/implementation/tasks/modules` via Jira import artifacts.

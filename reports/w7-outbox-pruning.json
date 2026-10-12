@@ -1,0 +1,11 @@
+{
+  "classification": "V1_ONLY",
+  "removedDefinitions": [
+    "OutboxRepository.reserveTargetedReanalysisDispatch",
+    "OutboxRepository.recordTargetedReanalysisPublishFailure",
+    "OutboxPublisher targeted capacity/failure/retry overrides",
+    "OutboxDlq technical profile/report replay readers"
+  ],
+  "kept": "Generic outbox transaction/locking/publish/retry/audit/idempotency and historical command rejection only. Negative-only helper has no command types/schemas/producers/consumers.",
+  "callers": "Only OutboxPublisher called the two removed methods. Current boundary registry has no targeted consumer. Matching old tests are retired; generic tests retained."
+}

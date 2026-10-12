@@ -2,82 +2,17 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# Mirrors packages/contracts/src/scan/callback.ts at the Python boundary.
-SCAN_CALLBACK_STATUSES = {
-    "success": "SUCCESS",
-    "partial": "PARTIAL",
-    "failed": "FAILED",
-}
-
-
 class CallbackResponse(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
     success: Optional[bool] = None
     accepted: Optional[bool] = None
-    evidence_report_id: Optional[str] = None
-    technical_profile_id: Optional[str] = None
-    verified_profile_id: Optional[str] = Field(default=None, alias="verifiedProfileId")
-    ai_usage_flow_id: Optional[str] = None
-    legal_rule_match_id: Optional[str] = None
-    classification_result_id: Optional[str] = None
-    conflict_count: Optional[int] = None
-    guardrail_status: Optional[str] = None
     status: Optional[str] = None
     correlationId: Optional[str] = Field(default=None, alias="correlationId")
     message: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
 
-    def __init__(self, **data: Any) -> None:
-        result = data.get("result")
-        if isinstance(result, dict):
-            for key, value in result.items():
-                if key not in data or data[key] is None:
-                    data[key] = value
-            if "verifiedProfileId" in result and not data.get("verified_profile_id"):
-                data["verified_profile_id"] = result["verifiedProfileId"]
-        super().__init__(**data)
 
 
-class ScanCallbackPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    status: str
-    scan_job_id: Optional[str] = None
-    tools_version: Dict[str, str] = Field(default_factory=dict)
-    config_hash: Dict[str, str] = Field(default_factory=dict)
-    evidence_payload: Dict[str, Any] = Field(default_factory=dict)
-    privacy_flags: Dict[str, Any] = Field(default_factory=dict)
-    schema_version: str = "1.0.0"
-    error_code: Optional[str] = None
-    findings: List[Dict[str, Any]] = Field(default_factory=list)
-    is_artifact_reference: Optional[bool] = None
-    artifact_manifest: Optional[Dict[str, Any]] = None
-
-
-# Legacy callback contracts remain readable for historical artifacts, but they are
-# not part of the canonical post-scan runtime anymore.
-class TechnicalProfileCallbackPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    evidence_report_id: str
-    assessment_id: str
-    schema_version: str
-    provider_version: str
-    profile_data: Optional[Dict[str, Any]] = None
-    privacy_flags: Dict[str, Any]
-    scan_job_id: Optional[str] = None
-    is_artifact_reference: Optional[bool] = None
-    artifact_manifest: Optional[Dict[str, Any]] = None
-
-
-class AIUsageFlowCallbackPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    technical_profile_id: str
-    assessment_id: str
-    schema_version: str
-    provider_version: str
-    claims: List[Dict[str, Any]]
-    unknown_usages: List[Dict[str, Any]]
-    privacy_flags: Dict[str, Any]
-    flow_data: Dict[str, Any] = Field(default_factory=dict)
 
 
 class SettledUsagePayload(BaseModel):
@@ -111,54 +46,12 @@ class SettledUsagePayload(BaseModel):
     occurredAt: str
 
 
-class ConflictDetectionCallbackPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    ai_usage_flow_id: str
-    assessment_id: str
-    schema_version: str
-    provider_version: str
-    conflicts: List[Dict[str, Any]] = Field(default_factory=list)
-    privacy_flags: Dict[str, Any]
 
 
-class VerifiedProfileCallbackPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    ai_usage_flow_id: str
-    assessment_id: str
-    technical_evidence_report_id: str
-    reconciliation_decision_refs: List[str]
-    idempotency_key: str
 
 
-class LegalRuleMatchCallbackPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    verified_profile_id: str
-    assessment_id: str
-    corpus_version_id: str
-    legal_rule_catalog_version_id: str
-    schema_version: str = "1.0.0"
-    matches: List[Dict[str, Any]]
-    citation_allowlist: List[str] = Field(default_factory=list)
-    overall_coverage_status: str = "NO_CITATION"
-    diagnostics: Dict[str, Any] = Field(default_factory=dict)
 
 
-class ClassificationCallbackPayload(BaseModel):
-    """Persist the direct EngineeringRule assessment artifact.
-
-    New v2 runtime messages always supply ``technical_evidence_report_id``. It is
-    optional only so historical v1 fixtures can still deserialize while old rows
-    and inactive worker modules are being removed safely.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-    technical_evidence_report_id: Optional[str] = None
-    assessment_id: str
-    schema_version: str = "2.0.0"
-    classification_data: Dict[str, Any]
-    guardrail_status: str
-    legal_rule_match_id: Optional[str] = None
-    verified_profile_id: Optional[str] = None
 
 
 class AuditExportCallbackPayload(BaseModel):

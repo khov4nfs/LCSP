@@ -1,0 +1,33 @@
+{
+  "scope": "EXACT_IMAGE_STALE_DECISION_UI_INVALIDATION_AND_ROOT_RECOVERY",
+  "status": "PASS",
+  "runId": "e73734b01eff4005",
+  "assessmentId": "d30b6364-f031-4318-90af-9569b079c612",
+  "mutationReceipt": "advance-case-assessmentA.json",
+  "uiReceipt": "browser-full-flow.json",
+  "caseRevision": 3,
+  "decisions": [
+    {
+      "decisionId": "72bce4af-5594-4ae5-81df-84a35cae9d1e",
+      "decisionRevision": 1,
+      "state": "INVALIDATED",
+      "caseRevision": 2
+    },
+    {
+      "decisionId": "1554892e-8d4c-4b66-bb30-736ddad57f63",
+      "decisionRevision": 2,
+      "state": "ACCEPTED",
+      "caseRevision": 3
+    }
+  ],
+  "runtime": {
+    "lifecycleState": "COMPLETE",
+    "executionState": "SUCCEEDED",
+    "threadId": "de9feef0-c426-4903-b0ef-b09fb8a6e245",
+    "currentExecutionId": "f073229b-d69a-41f0-80d5-50583eadddb0",
+    "questions": 1
+  },
+  "reinvestigation": "SAME_ROOT_RELOADED_INVALIDATED_CASE_AND_REEVALUATED_UNCHANGED_ACCEPTED_EVIDENCE; NOT_A_CLAIM_OF_SECOND_PHYSICAL_FILE_SCAN",
+  "reportDownloadedThroughPlaywright": true,
+  "manuallyInsertedFactsEvidenceDecisionsArtifacts": false
+}

@@ -1,5 +1,7 @@
 # AI Usage Flow Domain Spec
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 This document explains exactly how LCSP transforms technical evidence and Manager declarations into evidence-backed AI usage claims.

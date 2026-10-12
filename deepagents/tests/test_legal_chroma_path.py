@@ -2,8 +2,8 @@ from pathlib import Path
 
 from tools.legal.retrieval.index import chroma_path
 from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
-from tools.legal.corpus.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
-from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
+from tools.legal.legal_source.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
+from tools.legal.legal_source.legal_chunks.legal_chunk_repository import LegalChunkRepository
 from tools.legal.retrieval.index.legal_retrieval_index_builder import (
     ChromaLegalIndexStore,
     LegalRetrievalIndexBuilder,

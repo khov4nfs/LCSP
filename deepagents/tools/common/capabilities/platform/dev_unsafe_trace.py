@@ -148,7 +148,7 @@ def _summarize_trace_fields(event: str, fields: Mapping[str, Any]) -> dict[str, 
     scan_job_id = _find_id_recursive(fields, {"scan_job_id", "scanJobId"})
     snapshot_id = _find_id_recursive(fields, {"snapshot_id", "snapshotId"})
     snapshot_ref = _find_id_recursive(fields, {"snapshot_ref", "snapshotRef"})
-    corpus_version_id = _find_id_recursive(fields, {"corpus_version_id", "corpusVersionId"})
+    legal_source_version_id = _find_id_recursive(fields, {"legal_source_version_id", "legalSourceVersionId"})
     assessment_id = _find_id_recursive(fields, {"assessment_id", "assessmentId"})
     workflow_run_id = _find_id_recursive(fields, {"workflow_run_id", "workflowRunId"})
     
@@ -158,8 +158,8 @@ def _summarize_trace_fields(event: str, fields: Mapping[str, Any]) -> dict[str, 
         summary["snapshot_id"] = snapshot_id
     if snapshot_ref is not None:
         summary["snapshot_ref"] = snapshot_ref
-    if corpus_version_id is not None:
-        summary["corpus_version_id"] = corpus_version_id
+    if legal_source_version_id is not None:
+        summary["legal_source_version_id"] = legal_source_version_id
     if assessment_id is not None:
         summary["assessment_id"] = assessment_id
     if workflow_run_id is not None:

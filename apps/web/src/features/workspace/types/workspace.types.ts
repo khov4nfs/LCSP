@@ -1,7 +1,4 @@
-import type {
-  AssessmentStatusCode,
-  AssessmentLifecycle,
-} from "@lcsp/contracts/assessment";
+import type { AssessmentLifecycle } from "@lcsp/contracts/assessment";
 import type { AuthUserRole } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 
@@ -14,8 +11,6 @@ export type WorkspaceContext = {
     role: AuthUserRole;
   };
 };
-
-export type AssessmentStatus = AssessmentStatusCode;
 
 export type AssessmentSummary = {
   id: string;

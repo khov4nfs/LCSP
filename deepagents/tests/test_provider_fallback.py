@@ -28,7 +28,7 @@ from provider_credentials import credential_init_kwargs
 
 
 ALPHA, GAMMA, FUTURE, DELTA = "model-alpha", "model-gamma", "future-model-v99", "model-delta"
-MODEL_FOR = {"openai": ALPHA, "llm7": GAMMA, "google_genai": FUTURE, "inception": DELTA}
+MODEL_FOR = {"openai": ALPHA, "apx": GAMMA, "google_genai": FUTURE, "inception": DELTA}
 
 
 def _routes(monkeypatch, primary: str, *fallbacks: str) -> None:
@@ -58,6 +58,13 @@ class CapacityError(Exception):
     code = "insufficient_balance"
 
 
+class ProAccessRequiredError(Exception):
+    """apx's key-level answer when one pool key has no Pro access to the requested model."""
+
+    status_code = 402
+    code = "pro_access_required"
+
+
 class AuthError(Exception):
     status_code = 401
 
@@ -82,7 +89,7 @@ class LocalValidationError(Exception):
 @pytest.fixture(autouse=True)
 def clear_provider_fallback_env(monkeypatch):
     _routes(monkeypatch, "openai")
-    for key in ("OPENAI_API_KEY", "LLM7_API_KEY", "GOOGLE_API_KEY", "INCEPTION_API_KEY"):
+    for key in ("OPENAI_API_KEY", "APX_API_KEY", "GOOGLE_API_KEY", "INCEPTION_API_KEY"):
         monkeypatch.setenv(key, "offline-test-key")
     from middleware import token_fallback
 
@@ -114,12 +121,12 @@ def _openai_model():
     )
 
 
-def _llm7_model():
+def _apx_model():
     return ChatOpenAI(
         model=GAMMA,
-        base_url="https://api.llm7.io/v1",
+        base_url="https://api.apmix.ai/v1",
         use_responses_api=False,
-        **credential_init_kwargs("llm7"),
+        **credential_init_kwargs("apx"),
     )
 
 
@@ -177,7 +184,7 @@ def test_usage_delivery_failure_neither_fails_the_call_nor_enters_provider_fallb
     import middleware.provider_fallback as fallback_module
 
     monkeypatch.setenv("USAGE_RECOVERY_STORE_PATH", str(tmp_path / "usage.sqlite3"))
-    _routes(monkeypatch, "openai", "llm7")
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setattr(
         fallback_module, "fallback_model", lambda config: _FakeModel(config.provider, config.model)
     )
@@ -208,10 +215,10 @@ def test_usage_delivery_failure_neither_fails_the_call_nor_enters_provider_fallb
     assert len(provider_calls) == 1
 
 
-def test_llm7_402_fallback_reports_usage_of_the_answering_route_only(monkeypatch):
+def test_apx_402_fallback_reports_usage_of_the_answering_route_only(monkeypatch):
     import middleware.provider_fallback as fallback_module
 
-    _routes(monkeypatch, "llm7", "google_genai")
+    _routes(monkeypatch, "apx", "google_genai")
     monkeypatch.setattr(
         fallback_module,
         "fallback_model",
@@ -233,11 +240,11 @@ def test_llm7_402_fallback_reports_usage_of_the_answering_route_only(monkeypatch
 
     def provider_handler(request):
         provider_calls.append(request.model.provider)
-        if request.model.provider == "llm7":
+        if request.model.provider == "apx":
             raise CapacityError("insufficient balance")
         return _usage_response()
 
-    request = _FakeRequest(_FakeModel("llm7"))
+    request = _FakeRequest(_FakeModel("apx"))
     billing = UsageMeteringMiddleware()
     with activate_agent_run_state(session):
         response = ProviderFallbackMiddleware().wrap_model_call(
@@ -249,14 +256,14 @@ def test_llm7_402_fallback_reports_usage_of_the_answering_route_only(monkeypatch
         )
 
     assert isinstance(response, ModelResponse)
-    assert provider_calls == ["llm7", "google_genai"]
+    assert provider_calls == ["apx", "google_genai"]
     # Only the provider-answered attempt reports usage; the failed attempt has none.
     assert [payload.provider for payload in payloads] == ["GOOGLE_GENAI"]
     assert payloads[0].inputTokens == "3"
     assert payloads[0].outputTokens == "2"
 
 
-def test_llm7_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
+def test_apx_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
     import middleware.provider_fallback as fallback_module
 
     stream_events = []
@@ -267,7 +274,7 @@ def test_llm7_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
         "publish_agent_stream_event",
         lambda event_type, **fields: stream_events.append((event_type, fields)),
     )
-    _routes(monkeypatch, "llm7", "google_genai")
+    _routes(monkeypatch, "apx", "google_genai")
     monkeypatch.setattr(
         fallback_module,
         "fallback_model",
@@ -292,11 +299,11 @@ def test_llm7_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
 
     def provider_handler(request):
         provider_calls.append(request.model.provider)
-        if request.model.provider == "llm7":
+        if request.model.provider == "apx":
             raise CapacityError("insufficient balance")
         return _usage_response()
 
-    request = _FakeRequest(_FakeModel("llm7"))
+    request = _FakeRequest(_FakeModel("apx"))
     fallback = ProviderFallbackMiddleware()
     billing = UsageMeteringMiddleware()
 
@@ -313,8 +320,8 @@ def test_llm7_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
                 ModelResponse,
             )
 
-    assert provider_calls == ["llm7", "google_genai", "google_genai"]
-    assert session.provider_route_disabled(route_key("llm7", MODEL_FOR["llm7"])) is True
+    assert provider_calls == ["apx", "google_genai", "google_genai"]
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is True
     assert [payload.provider for payload in client.payloads] == [
         "GOOGLE_GENAI",
         "GOOGLE_GENAI",
@@ -325,7 +332,7 @@ def test_llm7_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
     }
 
 
-def test_llm7_upstream_unprocessable_fallback_preserves_tool_continuation_and_opens_circuit(monkeypatch):
+def test_apx_upstream_unprocessable_fallback_preserves_tool_continuation_and_opens_circuit(monkeypatch):
     import middleware.provider_fallback as fallback_module
 
     stream_events = []
@@ -336,7 +343,7 @@ def test_llm7_upstream_unprocessable_fallback_preserves_tool_continuation_and_op
         "publish_agent_stream_event",
         lambda event_type, **fields: stream_events.append((event_type, fields)),
     )
-    _routes(monkeypatch, "llm7", "google_genai")
+    _routes(monkeypatch, "apx", "google_genai")
     monkeypatch.setattr(
         fallback_module,
         "fallback_model",
@@ -376,14 +383,14 @@ def test_llm7_upstream_unprocessable_fallback_preserves_tool_continuation_and_op
         ),
     ]
     request = _FakeRequest(
-        _FakeModel("llm7"),
+        _FakeModel("apx"),
         messages=messages,
     )
     provider_calls = []
 
     def provider_handler(next_request):
         provider_calls.append((next_request.model.provider, next_request.messages))
-        if next_request.model.provider == "llm7":
+        if next_request.model.provider == "apx":
             raise UpstreamUnprocessableError("upstream provider could not process the request")
         return ModelResponse(
             result=[],
@@ -417,11 +424,11 @@ def test_llm7_upstream_unprocessable_fallback_preserves_tool_continuation_and_op
         assert isinstance(second_response, ModelResponse)
 
     assert provider_calls == [
-        ("llm7", messages),
+        ("apx", messages),
         ("google_genai", messages),
         ("google_genai", messages),
     ]
-    assert session.provider_route_disabled(route_key("llm7", MODEL_FOR["llm7"])) is True
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is True
     # No provider-reported usage on these responses: nothing is posted, no zeros invented.
     assert client.payloads == []
     # Routing transitions are infrastructure, never assessment events.
@@ -448,18 +455,18 @@ def test_local_validation_422_remains_terminal_without_provider_fallback():
 
 def test_fallback_route_requires_its_own_credentials(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "openai-only")
-    monkeypatch.delenv("LLM7_API_KEY", raising=False)
-    _routes(monkeypatch, "openai", "llm7")
+    monkeypatch.delenv("APX_API_KEY", raising=False)
+    _routes(monkeypatch, "openai", "apx")
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
 
-    with pytest.raises(RuntimeError, match="requires LLM7_API_KEY"):
+    with pytest.raises(RuntimeError, match="requires APX_API_KEY"):
         ProviderFallbackMiddleware().wrap_model_call(request, lambda _r: ModelResponse(result=[]))
 
 
-def test_primary_key_pool_exhausts_before_llm7_pool(monkeypatch):
-    _routes(monkeypatch, "openai", "llm7")
+def test_primary_key_pool_exhausts_before_apx_pool(monkeypatch):
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-a,openai-b")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-a,llm7-b")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
     raw_handler = MagicMock(
@@ -472,25 +479,25 @@ def test_primary_key_pool_exhausts_before_llm7_pool(monkeypatch):
     assert [model_provider(item.model) for item in requests] == [
         "openai",
         "openai",
-        "llm7",
-        "llm7",
-        "llm7",
+        "apx",
+        "apx",
+        "apx",
     ]
-    # The OpenAI pool hands over to llm7 instead of waiting out its cooldown; only
-    # the last route (llm7) waits once and retries its soonest slot.
+    # The OpenAI pool hands over to apx instead of waiting out its cooldown; only
+    # the last route (apx) waits once and retries its soonest slot.
     assert [
         item.model.openai_api_key.get_secret_value()
         for item in requests
-    ] == ["openai-a", "openai-b", "llm7-a", "llm7-b", "llm7-a"]
-    llm7_model = requests[-1].model
-    assert str(llm7_model.openai_api_base).rstrip("/") == "https://api.llm7.io/v1"
-    assert llm7_model.use_responses_api is False
+    ] == ["openai-a", "openai-b", "apx-a", "apx-b", "apx-a"]
+    apx_model = requests[-1].model
+    assert str(apx_model.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
+    assert apx_model.use_responses_api is False
 
 
-def test_single_primary_auth_failure_moves_to_llm7(monkeypatch):
-    _routes(monkeypatch, "openai", "llm7")
+def test_single_primary_auth_failure_moves_to_apx(monkeypatch):
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-only")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-only")
+    monkeypatch.setenv("APX_API_KEY", "apx-only")
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
     raw_handler = MagicMock(side_effect=[AuthError(), response])
@@ -498,15 +505,15 @@ def test_single_primary_auth_failure_moves_to_llm7(monkeypatch):
     assert _sync_chain(request, raw_handler) is response
     assert [model_provider(call.args[0].model) for call in raw_handler.call_args_list] == [
         "openai",
-        "llm7",
+        "apx",
     ]
 
 
-def test_llm7_capacity_failure_rotates_keys_then_moves_to_google(monkeypatch):
-    _routes(monkeypatch, "llm7", "google_genai")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-a,llm7-b")
+def test_apx_capacity_failure_rotates_keys_then_moves_to_google(monkeypatch):
+    _routes(monkeypatch, "apx", "google_genai")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
     monkeypatch.setenv("GOOGLE_API_KEY", "google-only")
-    request = ModelRequest(model=_llm7_model(), messages=[], tools=[])
+    request = ModelRequest(model=_apx_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
     raw_handler = MagicMock(
         side_effect=[
@@ -519,22 +526,49 @@ def test_llm7_capacity_failure_rotates_keys_then_moves_to_google(monkeypatch):
     assert _sync_chain(request, raw_handler) is response
     requests = [call.args[0] for call in raw_handler.call_args_list]
     assert [model_provider(item.model) for item in requests] == [
-        "llm7",
-        "llm7",
+        "apx",
+        "apx",
         "google_genai",
     ]
     assert [
         item.model.openai_api_key.get_secret_value()
         for item in requests[:2]
-    ] == ["llm7-a", "llm7-b"]
+    ] == ["apx-a", "apx-b"]
     assert requests[-1].model.google_api_key.get_secret_value() == "google-only"
 
 
+def test_apx_pro_access_required_on_one_key_rotates_to_the_next_key_without_leaving_apx(monkeypatch):
+    _routes(monkeypatch, "apx", "google_genai")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-only")
+    request = ModelRequest(model=_apx_model(), messages=[], tools=[])
+    response = ModelResponse(result=[])
+    raw_handler = MagicMock(
+        side_effect=[
+            ProAccessRequiredError("Pro models require balance or an active subscription."),
+            response,
+        ]
+    )
+    session = AgentRunState(
+        api_client=object(), assessment_id="assessment-pro", run_id="run-pro", agent_role="investigator"
+    )
+
+    with activate_agent_run_state(session):
+        assert _sync_chain(request, raw_handler) is response
+
+    requests = [call.args[0] for call in raw_handler.call_args_list]
+    # Slot 1 lacks Pro access; slot 2 of the SAME provider answers; no provider fallback.
+    assert [model_provider(item.model) for item in requests] == ["apx", "apx"]
+    assert [item.model.openai_api_key.get_secret_value() for item in requests] == ["apx-a", "apx-b"]
+    # One key's missing capability must not disable the whole apx route for the run.
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is False
+
+
 @pytest.mark.asyncio
-async def test_async_provider_fallback_keeps_llm7_key_rotation(monkeypatch):
-    _routes(monkeypatch, "openai", "llm7")
+async def test_async_provider_fallback_keeps_apx_key_rotation(monkeypatch):
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-only")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-a,llm7-b")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
     raw_handler = AsyncMock(side_effect=[QuotaError(), QuotaError(), response])
@@ -543,17 +577,17 @@ async def test_async_provider_fallback_keeps_llm7_key_rotation(monkeypatch):
     requests = [call.args[0] for call in raw_handler.call_args_list]
     assert [model_provider(item.model) for item in requests] == [
         "openai",
-        "llm7",
-        "llm7",
+        "apx",
+        "apx",
     ]
-    assert requests[-1].model.openai_api_key.get_secret_value() == "llm7-b"
+    assert requests[-1].model.openai_api_key.get_secret_value() == "apx-b"
 
 
-def test_chain_advances_openai_then_google_then_llm7(monkeypatch):
-    _routes(monkeypatch, "openai", "google_genai", "llm7")
+def test_chain_advances_openai_then_google_then_apx(monkeypatch):
+    _routes(monkeypatch, "openai", "google_genai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-a,openai-b")
     monkeypatch.setenv("GOOGLE_API_KEY", "google-a,google-b")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-only")
+    monkeypatch.setenv("APX_API_KEY", "apx-only")
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
     raw_handler = MagicMock(side_effect=[QuotaError()] * 4 + [response])
@@ -565,14 +599,14 @@ def test_chain_advances_openai_then_google_then_llm7(monkeypatch):
         "openai",
         "google_genai",
         "google_genai",
-        "llm7",
+        "apx",
     ]
 
 
 def test_schema_request_failure_does_not_cross_provider(monkeypatch):
-    _routes(monkeypatch, "openai", "llm7")
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-only")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-only")
+    monkeypatch.setenv("APX_API_KEY", "apx-only")
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     raw_handler = MagicMock(side_effect=TypeError("bad structured request"))
 
@@ -582,15 +616,15 @@ def test_schema_request_failure_does_not_cross_provider(monkeypatch):
 
 
 def test_all_provider_pools_exhaust_to_terminal_error(monkeypatch):
-    _routes(monkeypatch, "openai", "llm7")
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-a,openai-b")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-a,llm7-b")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     raw_handler = MagicMock(side_effect=QuotaError())
 
     with pytest.raises(TerminalCredentialError, match="provider routes exhausted"):
         _sync_chain(request, raw_handler)
-    # The OpenAI pool tries both slots and hands over; the last (llm7) pool tries
+    # The OpenAI pool tries both slots and hands over; the last (apx) pool tries
     # both slots, waits once, and retries the soonest slot. Every failure was a
     # plain rate limit, so the primary OpenAI pool then gets one waited retry of
     # its own (bounded) before the task ends.
@@ -598,9 +632,9 @@ def test_all_provider_pools_exhaust_to_terminal_error(monkeypatch):
 
 
 def test_current_provider_is_not_reentered_from_fallback_chain(monkeypatch):
-    _routes(monkeypatch, "openai", "openai", "llm7")
+    _routes(monkeypatch, "openai", "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-only")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-only")
+    monkeypatch.setenv("APX_API_KEY", "apx-only")
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
     raw_handler = MagicMock(side_effect=[QuotaError(), response])
@@ -608,7 +642,7 @@ def test_current_provider_is_not_reentered_from_fallback_chain(monkeypatch):
     assert _sync_chain(request, raw_handler) is response
     assert [model_provider(call.args[0].model) for call in raw_handler.call_args_list] == [
         "openai",
-        "llm7",
+        "apx",
     ]
 
 
@@ -634,7 +668,7 @@ def test_structured_output_rejection_is_provider_scoped_not_retried():
 def _rejection_session(monkeypatch, routes=("google_genai",)):
     import middleware.provider_fallback as fallback_module
 
-    _routes(monkeypatch, "llm7", *routes)
+    _routes(monkeypatch, "apx", *routes)
     monkeypatch.setattr(fallback_module, "fallback_model", lambda config: _FakeModel(config.provider, config.model))
 
     class UsageClient:
@@ -652,8 +686,8 @@ def _rejection_session(monkeypatch, routes=("google_genai",)):
 
 @pytest.mark.parametrize("asynchronous", [False, True])
 @pytest.mark.asyncio
-async def test_llm7_output_rejection_falls_back_and_opens_circuit(monkeypatch, asynchronous):
-    # Regression: scan 581af151 — codestral (LLM7) returned an invalid
+async def test_apx_output_rejection_falls_back_and_opens_circuit(monkeypatch, asynchronous):
+    # Regression: scan 581af151 — codestral (APX) returned an invalid
     # RepositoryAnalysisResult; the rejection killed the scan although Gemini was configured.
     from middleware.failure_policy import StructuredOutputRejected
 
@@ -662,7 +696,7 @@ async def test_llm7_output_rejection_falls_back_and_opens_circuit(monkeypatch, a
 
     def provider_handler(request):
         calls.append(request.model.provider)
-        if request.model.provider == "llm7":
+        if request.model.provider == "apx":
             raise StructuredOutputRejected("Structured output schema validation failed")
         return ModelResponse(result=[])
 
@@ -670,7 +704,7 @@ async def test_llm7_output_rejection_falls_back_and_opens_circuit(monkeypatch, a
         return provider_handler(request)
 
     fallback = ProviderFallbackMiddleware()
-    request = _FakeRequest(_FakeModel("llm7"))
+    request = _FakeRequest(_FakeModel("apx"))
     with activate_agent_run_state(session):
         for _ in range(2):
             if asynchronous:
@@ -679,8 +713,8 @@ async def test_llm7_output_rejection_falls_back_and_opens_circuit(monkeypatch, a
                 result = fallback.wrap_model_call(request, provider_handler)
             assert isinstance(result, ModelResponse)
 
-    assert calls == ["llm7", "google_genai", "google_genai"]
-    assert session.provider_route_disabled(route_key("llm7", MODEL_FOR["llm7"])) is True
+    assert calls == ["apx", "google_genai", "google_genai"]
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is True
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -697,46 +731,46 @@ async def test_output_rejected_by_every_route_reraises_the_schema_error(monkeypa
         return reject(request)
 
     fallback = ProviderFallbackMiddleware()
-    request = _FakeRequest(_FakeModel("llm7"))
+    request = _FakeRequest(_FakeModel("apx"))
     with activate_agent_run_state(session):
-        with pytest.raises(StructuredOutputRejected, match="llm7 rejected"):
+        with pytest.raises(StructuredOutputRejected, match="apx rejected"):
             if asynchronous:
                 await fallback.awrap_model_call(request, async_reject)
             else:
                 fallback.wrap_model_call(request, reject)
 
 
-def test_rate_limited_llm7_pool_moves_to_google_without_cooldown_wait(monkeypatch):
-    _routes(monkeypatch, "llm7", "google_genai")
+def test_rate_limited_apx_pool_moves_to_google_without_cooldown_wait(monkeypatch):
+    _routes(monkeypatch, "apx", "google_genai")
     from middleware import token_fallback
 
     sleeps: list[float] = []
     monkeypatch.setattr(token_fallback, "_sleep", sleeps.append)
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-a,llm7-b")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
     monkeypatch.setenv("GOOGLE_API_KEY", "google-a,google-b")
-    request = ModelRequest(model=_llm7_model(), messages=[], tools=[])
+    request = ModelRequest(model=_apx_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
     raw_handler = MagicMock(side_effect=[QuotaError(), QuotaError(), response])
 
     assert _sync_chain(request, raw_handler) is response
     requests = [call.args[0] for call in raw_handler.call_args_list]
     assert [model_provider(item.model) for item in requests] == [
-        "llm7",
-        "llm7",
+        "apx",
+        "apx",
         "google_genai",
     ]
     assert sleeps == []
 
 
 def test_last_provider_route_still_waits_for_its_cooldown(monkeypatch):
-    _routes(monkeypatch, "llm7", "google_genai")
+    _routes(monkeypatch, "apx", "google_genai")
     from middleware import token_fallback
 
     sleeps: list[float] = []
     monkeypatch.setattr(token_fallback, "_sleep", sleeps.append)
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-a,llm7-b")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
     monkeypatch.setenv("GOOGLE_API_KEY", "google-a,google-b")
-    request = ModelRequest(model=_llm7_model(), messages=[], tools=[])
+    request = ModelRequest(model=_apx_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
     raw_handler = MagicMock(
         side_effect=[QuotaError(), QuotaError(), QuotaError(), QuotaError(), response]
@@ -745,8 +779,8 @@ def test_last_provider_route_still_waits_for_its_cooldown(monkeypatch):
     assert _sync_chain(request, raw_handler) is response
     requests = [call.args[0] for call in raw_handler.call_args_list]
     assert [model_provider(item.model) for item in requests] == [
-        "llm7",
-        "llm7",
+        "apx",
+        "apx",
         "google_genai",
         "google_genai",
         "google_genai",
@@ -754,7 +788,7 @@ def test_last_provider_route_still_waits_for_its_cooldown(monkeypatch):
     assert len(sleeps) == 1
 
 
-def test_llm7_text_only_structured_answer_falls_back_to_google(monkeypatch):
+def test_apx_text_only_structured_answer_falls_back_to_google(monkeypatch):
     _routes(monkeypatch, "openai", "google_genai")
     from langchain.agents.structured_output import ToolStrategy
     from pydantic import BaseModel
@@ -763,10 +797,10 @@ def test_llm7_text_only_structured_answer_falls_back_to_google(monkeypatch):
     class Answer(BaseModel):
         count: int
 
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-a,llm7-b")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
     monkeypatch.setenv("GOOGLE_API_KEY", "google-a")
     request = ModelRequest(
-        model=_llm7_model(), messages=[], tools=[], response_format=ToolStrategy(Answer),
+        model=_apx_model(), messages=[], tools=[], response_format=ToolStrategy(Answer),
     )
     structured = ModelResponse(result=[AIMessage(content="")], structured_response=Answer(count=2))
     raw_handler = MagicMock(side_effect=[
@@ -785,9 +819,9 @@ def test_llm7_text_only_structured_answer_falls_back_to_google(monkeypatch):
     )
 
     assert response is structured
-    # The contract violation is provider-specific: no llm7 key rotation, straight to Google.
+    # The contract violation is provider-specific: no apx key rotation, straight to Google.
     assert [model_provider(call.args[0].model) for call in raw_handler.call_args_list] == [
-        "llm7",
+        "apx",
         "google_genai",
     ]
 
@@ -824,7 +858,7 @@ def _rate_limited_primary(code: str | None = None) -> BaseException:
 def _install_routes(monkeypatch):
     import middleware.provider_fallback as fallback_module
 
-    _routes(monkeypatch, "llm7", "google_genai")
+    _routes(monkeypatch, "apx", "google_genai")
     monkeypatch.setattr(
         fallback_module,
         "fallback_model",
@@ -848,12 +882,12 @@ def test_rate_limited_primary_waits_out_its_cooldown_instead_of_ending_the_task(
             raise _StatusError(503)
         return ModelResponse(result=[])
 
-    result = ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("llm7"), handler)
+    result = ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
 
     assert isinstance(result, ModelResponse)
-    # llm7 deferred (a later route existed), Google failed, then llm7 again with
+    # apx deferred (a later route existed), Google failed, then apx again with
     # no later route: token fallback now waits for the cooldown and retries.
-    assert calls == [("llm7", True), ("google_genai", False), ("llm7", False)]
+    assert calls == [("apx", True), ("google_genai", False), ("apx", False)]
 
 
 def test_an_exhausted_quota_is_not_waited_on(monkeypatch):
@@ -869,8 +903,8 @@ def test_an_exhausted_quota_is_not_waited_on(monkeypatch):
         raise _StatusError(503)
 
     with pytest.raises(TerminalCredentialError):
-        ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("llm7"), handler)
-    assert calls == ["llm7", "google_genai"]
+        ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+    assert calls == ["apx", "google_genai"]
 
 
 def _run_session(run_id: str, **kwargs) -> AgentRunState:
@@ -889,9 +923,9 @@ def _run_session(run_id: str, **kwargs) -> AgentRunState:
 
 
 def _sticky_env(monkeypatch):
-    _routes(monkeypatch, "openai", "llm7")
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-a,openai-b")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-only")
+    monkeypatch.setenv("APX_API_KEY", "apx-only")
 
 
 def _providers(handler):
@@ -915,7 +949,7 @@ def test_fallback_is_sticky_for_later_turns_even_after_cooldown_expires(monkeypa
         assert _sync_chain(request, handler) is response
         assert _sync_chain(request, handler) is response
 
-    assert _providers(handler) == ["openai", "openai", "llm7", "llm7", "llm7"]
+    assert _providers(handler) == ["openai", "openai", "apx", "apx", "apx"]
     assert session.provider_route_disabled(route_key("openai", MODEL_FOR["openai"])) is True
 
 
@@ -940,9 +974,9 @@ def test_new_run_reconsiders_primary(monkeypatch):
 
 
 def test_auth_failure_semantics_unchanged_with_sticky_fallback(monkeypatch):
-    _routes(monkeypatch, "openai", "llm7")
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-a,openai-b")
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-only")
+    monkeypatch.setenv("APX_API_KEY", "apx-only")
     from middleware import token_fallback
 
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
@@ -952,7 +986,7 @@ def test_auth_failure_semantics_unchanged_with_sticky_fallback(monkeypatch):
         assert _sync_chain(request, handler) is response
     # 401 still marks slots dead for the process and opens the run circuit.
     assert token_fallback._DEAD_CREDENTIAL_SLOTS[("openai", "OPENAI_API_KEY")] == {0, 1}
-    assert _providers(handler) == ["openai", "openai", "llm7"]
+    assert _providers(handler) == ["openai", "openai", "apx"]
 
 
 def test_sticky_fallback_failure_stays_bounded(monkeypatch):
@@ -968,14 +1002,14 @@ def test_sticky_fallback_failure_stays_bounded(monkeypatch):
             _sync_chain(request, failing)
     # Fallback pool makes its own bounded attempts, then the sticky-skipped primary
     # gets one last-resort retry (its transient failure is not a permanent circuit).
-    assert set(_providers(failing)) == {"llm7", "openai"}
+    assert set(_providers(failing)) == {"apx", "openai"}
     assert failing.call_count <= 3
 
 
 def test_sticky_fallback_reports_usage_per_answered_attempt_without_extra_logical_turns(monkeypatch):
     import middleware.provider_fallback as fallback_module
 
-    _routes(monkeypatch, "openai", "llm7")
+    _routes(monkeypatch, "openai", "apx")
     monkeypatch.setattr(fallback_module, "fallback_model", lambda config: _FakeModel(config.provider, config.model))
 
     class Client:
@@ -1010,9 +1044,9 @@ def test_sticky_fallback_reports_usage_per_answered_attempt_without_extra_logica
             )
 
     # Turn 1: failed primary attempt + fallback success; turn 2: fallback only.
-    assert calls == ["openai", "llm7", "llm7"]
+    assert calls == ["openai", "apx", "apx"]
     # Only the answering route reports usage; the failed primary attempt reports none.
-    assert [p.provider for p in client.payloads] == ["LLM7", "LLM7"]
+    assert [p.provider for p in client.payloads] == ["APX", "APX"]
     assert len({p.invocationId for p in client.payloads}) == 2
 
 
@@ -1037,7 +1071,7 @@ def test_fallback_model_is_built_from_the_configured_route(monkeypatch):
         monkeypatch,
         {
             "primary": {"provider": "openai", "model": ALPHA},
-            "backup": {"provider": "llm7", "model": "model-omega-7", "options": {"temperature": 0.25}},
+            "backup": {"provider": "apx", "model": "model-omega-7", "options": {"temperature": 0.25}},
         },
         ["backup"],
     )
@@ -1045,7 +1079,7 @@ def test_fallback_model_is_built_from_the_configured_route(monkeypatch):
 
     model = fallback_module.fallback_model(config)
 
-    assert model_provider(model) == "llm7"
+    assert model_provider(model) == "apx"
     assert model.model_name == "model-omega-7"
     assert model.temperature == 0.25
 

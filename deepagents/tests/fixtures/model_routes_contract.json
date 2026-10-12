@@ -1,12 +1,12 @@
 [
   {
     "name": "minimal",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": true
   },
   {
     "name": "case-preserved-model",
-    "yaml": "version: 1\nroutes:\n  primary:\n    provider: llm7\n    model: Future-Model-X9\nroles:\n  default: primary\n",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: apx\n    model: Future-Model-X9\nroles:\n  default: primary\n",
     "valid": true
   },
   {
@@ -25,8 +25,8 @@
     "valid": true
   },
   {
-    "name": "provider-llm7",
-    "yaml": "version: 1\nroutes:\n  primary:\n    provider: llm7\n    model: Any-Model-Name\nroles:\n  default: primary\n",
+    "name": "provider-apx",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: apx\n    model: Any-Model-Name\nroles:\n  default: primary\n",
     "valid": true
   },
   {
@@ -62,22 +62,22 @@
   },
   {
     "name": "fallback-chain",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n  third: {provider: openai, model: m3}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup, third]\n  backup: [third]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n  third: {provider: openai, model: m3}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup, third]\n  backup: [third]\n",
     "valid": true
   },
   {
     "name": "multiple-roles",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  narrator: backup\n  root: primary\n  legal-compiler: backup\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  narrator: backup\n  root: primary\n  legal-compiler: backup\n",
     "valid": true
   },
   {
     "name": "fallbacks-empty-chain",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: []\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: []\n",
     "valid": true
   },
   {
     "name": "fallbacks-absent",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": true
   },
   {
@@ -87,49 +87,49 @@
   },
   {
     "name": "missing-version",
-    "yaml": "routes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "routes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": false,
     "errorContains": "version"
   },
   {
     "name": "bad-version-2",
-    "yaml": "version: 2\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "version: 2\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": false,
     "errorContains": "version"
   },
   {
     "name": "bad-version-0",
-    "yaml": "version: 0\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "version: 0\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": false,
     "errorContains": "version"
   },
   {
     "name": "bad-version-\"1\"",
-    "yaml": "version: \"1\"\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "version: \"1\"\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": false,
     "errorContains": "version"
   },
   {
     "name": "bad-version-1.0",
-    "yaml": "version: 1.0\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "version: 1.0\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": false,
     "errorContains": "version"
   },
   {
     "name": "bad-version-true",
-    "yaml": "version: true\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "version: true\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": false,
     "errorContains": "version"
   },
   {
     "name": "bad-version-null",
-    "yaml": "version: null\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
+    "yaml": "version: null\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n",
     "valid": false,
     "errorContains": "version"
   },
   {
     "name": "unknown-top-level-key",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nextras: {}\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nextras: {}\n",
     "valid": false,
     "errorContains": "unknown top-level key"
   },
@@ -165,85 +165,85 @@
   },
   {
     "name": "roles-missing",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n",
     "valid": false,
     "errorContains": "roles"
   },
   {
     "name": "roles-not-mapping",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles: [primary]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles: [primary]\n",
     "valid": false,
     "errorContains": "roles"
   },
   {
     "name": "roles-default-missing",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  narrator: primary\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  narrator: primary\n",
     "valid": false,
     "errorContains": "roles.default"
   },
   {
     "name": "role-unknown-route",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  narrator: ghost\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  narrator: ghost\n",
     "valid": false,
     "errorContains": "roles.narrator references unknown route"
   },
   {
     "name": "role-default-unknown-route",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: ghost\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: ghost\n",
     "valid": false,
     "errorContains": "roles.default references unknown route"
   },
   {
     "name": "role-route-not-string",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: 5\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: 5\n",
     "valid": false,
     "errorContains": "roles.default references unknown route"
   },
   {
     "name": "fallbacks-not-mapping",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks: [a]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks: [a]\n",
     "valid": false,
     "errorContains": "fallbacks"
   },
   {
     "name": "fallback-unknown-key-route",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  ghost: [primary]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  ghost: [primary]\n",
     "valid": false,
     "errorContains": "fallbacks.ghost references unknown route"
   },
   {
     "name": "fallback-unknown-item",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [ghost]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [ghost]\n",
     "valid": false,
     "errorContains": "fallbacks.primary references unknown route"
   },
   {
     "name": "fallback-item-not-string",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [5]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [5]\n",
     "valid": false,
     "errorContains": "fallbacks.primary must be a list"
   },
   {
     "name": "fallback-not-list",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: backup\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: backup\n",
     "valid": false,
     "errorContains": "fallbacks.primary must be a list"
   },
   {
     "name": "fallback-self-reference",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [primary]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [primary]\n",
     "valid": false,
     "errorContains": "fallback cycle"
   },
   {
     "name": "fallback-cycle-two",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  backup: [primary]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  backup: [primary]\n",
     "valid": false,
     "errorContains": "fallback cycle"
   },
   {
     "name": "fallback-cycle-three",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n  third: {provider: openai, model: m3}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  backup: [third]\n  third: [primary]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\n  third: {provider: openai, model: m3}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  backup: [third]\n  third: [primary]\n",
     "valid": false,
     "errorContains": "fallback cycle"
   },
@@ -302,8 +302,8 @@
     "errorContains": "routes.primary.provider"
   },
   {
-    "name": "provider-rejected-LLM7-4",
-    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"LLM7\"\n    model: m\nroles:\n  default: primary\n",
+    "name": "provider-rejected-APX-4",
+    "yaml": "version: 1\nroutes:\n  primary:\n    provider: \"APX\"\n    model: m\nroles:\n  default: primary\n",
     "valid": false,
     "errorContains": "routes.primary.provider"
   },
@@ -591,7 +591,7 @@
   },
   {
     "name": "duplicate-top-level-key",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nversion: 1\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nversion: 1\n",
     "valid": false,
     "errorContains": "duplicate key"
   },
@@ -603,7 +603,7 @@
   },
   {
     "name": "duplicate-role-key",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  default: backup\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\n  default: backup\n",
     "valid": false,
     "errorContains": "duplicate key"
   },
@@ -621,7 +621,7 @@
   },
   {
     "name": "duplicate-fallback-key",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  primary: [backup]\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nfallbacks:\n  primary: [backup]\n  primary: [backup]\n",
     "valid": false,
     "errorContains": "duplicate key"
   },
@@ -639,7 +639,7 @@
   },
   {
     "name": "yaml-python-name-tag",
-    "yaml": "version: 1\nroutes:\n  primary: {provider: llm7, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nx: !!python/name:os.system\n",
+    "yaml": "version: 1\nroutes:\n  primary: {provider: apx, model: Future-Model-X9}\n  backup: {provider: google_genai, model: model-beta}\nroles:\n  default: primary\nx: !!python/name:os.system\n",
     "valid": false,
     "errorContains": "invalid YAML"
   },
@@ -651,395 +651,395 @@
   },
   {
     "name": "yaml12-model-string-yes",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: yes\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: yes\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-no",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: no\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: no\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-on",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: on\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: on\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-off",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: off\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: off\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-y",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: y\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: y\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-n",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: n\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: n\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-1_000",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1_000\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 1_000\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-1:30",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1:30\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 1:30\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-2026-01-01",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 2026-01-01\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 2026-01-01\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-<<",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: <<\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: <<\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-=",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: =\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: =\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-0o7",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: '0o7'\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: '0o7'\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-string-1e3",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: '1e3'\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: '1e3'\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-model-not-string-1e3",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1e3\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 1e3\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-1E3",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1E3\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 1E3\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-0o7",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 0o7\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 0o7\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-0x1F",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 0x1F\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 0x1F\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-010",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 010\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 010\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-+1",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: +1\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: +1\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-.5",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: .5\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: .5\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-1.",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1.\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 1.\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-1.0",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 1.0\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 1.0\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-.inf",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: .inf\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: .inf\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string--.inf",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: -.inf\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: -.inf\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-.nan",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: .nan\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: .nan\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-true",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: true\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: true\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-True",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: True\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: True\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-~",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: ~\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: ~\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-not-string-Null",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: Null\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: Null\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "yaml12-model-string-0b11",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 0b11\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 0b11\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-version-int-01",
-    "yaml": "version: 01\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: 01\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-version-int-0x1",
-    "yaml": "version: 0x1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: 0x1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-version-int-0o1",
-    "yaml": "version: 0o1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: 0o1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-version-int-+1",
-    "yaml": "version: +1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: +1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "yaml12-version-not-int-1_0",
-    "yaml": "version: 1_0\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: 1_0\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "version must be"
   },
   {
     "name": "yaml12-version-not-int-'1'",
-    "yaml": "version: '1'\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: '1'\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "version must be"
   },
   {
     "name": "yaml12-version-not-int-1e0",
-    "yaml": "version: 1e0\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: 1e0\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "version must be"
   },
   {
     "name": "yaml12-version-not-int-1.0",
-    "yaml": "version: 1.0\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: 1.0\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "version must be"
   },
   {
     "name": "yaml12-version-not-int-0b1",
-    "yaml": "version: 0b1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: 0b1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "version must be"
   },
   {
     "name": "yaml12-version-not-int-1:0",
-    "yaml": "version: 1:0\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: 1:0\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "version must be"
   },
   {
     "name": "yaml12-version-not-int-yes",
-    "yaml": "version: yes\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "version: yes\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "version must be"
   },
   {
     "name": "date-as-option-value",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {note: 2026-01-01, t: 1:30, b: yes}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {note: 2026-01-01, t: 1:30, b: yes}\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "float-inf-option-value",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {x: .inf}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {x: .inf}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "finite"
   },
   {
     "name": "float-overflow-option-value",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {x: 1e999}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {x: 1e999}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "finite"
   },
   {
     "name": "float-nan-option-value-nested",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {x: [.nan]}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {x: [.nan]}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "finite"
   },
   {
     "name": "merge-key-is-plain-option-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {\"<<\": 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {\"<<\": 1}\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "merge-key-is-plain-route-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    <<: {model: z}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    <<: {model: z}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "unknown key"
   },
   {
     "name": "anchor-and-alias-merge",
-    "yaml": "version: 1\nroutes:\n  a: &r\n    provider: llm7\n    model: m\n  b:\n    <<: *r\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a: &r\n    provider: apx\n    model: m\n  b:\n    <<: *r\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "anchors and aliases"
   },
   {
     "name": "anchor-alone",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: &m x\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: &m x\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "anchors and aliases"
   },
   {
     "name": "alias-reuse-options",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: &o {t: 1}\n  b:\n    provider: llm7\n    model: m\n    options: *o\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: &o {t: 1}\n  b:\n    provider: apx\n    model: m\n    options: *o\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "anchors and aliases"
   },
   {
     "name": "explicit-str-tag",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: !!str 5\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: !!str 5\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "invalid YAML"
   },
   {
     "name": "explicit-int-tag",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: !!int '5'\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: !!int '5'\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "invalid YAML"
   },
   {
     "name": "explicit-bang-tag",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: ! x\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: ! x\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "invalid YAML"
   },
   {
     "name": "blank-route-id",
-    "yaml": "version: 1\nroutes:\n  ' ':\n    provider: llm7\n    model: m\nroles:\n  default: ' '\n",
+    "yaml": "version: 1\nroutes:\n  ' ':\n    provider: apx\n    model: m\nroles:\n  default: ' '\n",
     "valid": false,
     "errorContains": "route id"
   },
   {
     "name": "empty-route-id",
-    "yaml": "version: 1\nroutes:\n  '':\n    provider: llm7\n    model: m\nroles:\n  default: ''\n",
+    "yaml": "version: 1\nroutes:\n  '':\n    provider: apx\n    model: m\nroles:\n  default: ''\n",
     "valid": false,
     "errorContains": "route id"
   },
   {
     "name": "bool-route-id",
-    "yaml": "version: 1\nroutes:\n  true:\n    provider: llm7\n    model: m\nroles:\n  default: 'true'\n",
+    "yaml": "version: 1\nroutes:\n  true:\n    provider: apx\n    model: m\nroles:\n  default: 'true'\n",
     "valid": false,
     "errorContains": "string"
   },
   {
     "name": "blank-role-name",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n  ' ': a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n  ' ': a\n",
     "valid": false,
     "errorContains": "role name"
   },
   {
     "name": "empty-role-name",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n  '': a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n  '': a\n",
     "valid": false,
     "errorContains": "role name"
   },
   {
     "name": "numeric-role-name",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n  5: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n  5: a\n",
     "valid": false,
     "errorContains": "string"
   },
   {
     "name": "blank-option-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {' ': 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {' ': 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "option keys"
   },
   {
     "name": "empty-option-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {'': 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {'': 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "option keys"
   },
   {
     "name": "null-option-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {? : 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {? : 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "string"
   },
   {
     "name": "bool-option-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {true: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {true: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "string"
   },
   {
     "name": "complex-sequence-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {? [a]: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {? [a]: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "string"
   },
   {
     "name": "complex-mapping-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {? {a: 1}: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {? {a: 1}: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "string"
   },
   {
     "name": "numeric-fallback-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\nfallbacks:\n  1: []\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\nfallbacks:\n  1: []\n",
     "valid": false,
     "errorContains": "route"
   },
   {
     "name": "fallbacks-null",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\nfallbacks:\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\nfallbacks:\n",
     "valid": false,
     "errorContains": "fallbacks must be a mapping"
   },
   {
     "name": "fallbacks-tilde",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\nfallbacks: ~\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\nfallbacks: ~\n",
     "valid": false,
     "errorContains": "fallbacks must be a mapping"
   },
   {
     "name": "roles-null",
-    "yaml": "version: 1\nroutes:\n  a: {provider: llm7, model: m}\nroles:\n",
+    "yaml": "version: 1\nroutes:\n  a: {provider: apx, model: m}\nroles:\n",
     "valid": false,
     "errorContains": "roles must be a mapping"
   },
@@ -1051,7 +1051,7 @@
   },
   {
     "name": "fallback-chain-null",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\nfallbacks:\n  a:\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\nfallbacks:\n  a:\n",
     "valid": false,
     "errorContains": "fallbacks.a must be a list"
   },
@@ -1063,165 +1063,165 @@
   },
   {
     "name": "non-ascii-letters-are-stripped-not-protected",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {'Σecret': 1, 'ａpi_key': 2}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {'Σecret': 1, 'ａpi_key': 2}\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "non-ascii-in-protected-key",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {'apiékey': 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {'apiékey': 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "non-ascii-cyrillic-stripped-not-protected",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {'api_кey': 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {'api_кey': 1}\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "transport-option-key-openai_api_base",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {openai_api_base: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {openai_api_base: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-api_base",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {api_base: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {api_base: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-azure_endpoint",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {azure_endpoint: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {azure_endpoint: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-http_client",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {http_client: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {http_client: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-default_headers",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {default_headers: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {default_headers: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-extra_headers",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {extra_headers: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {extra_headers: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-anthropic_api_url",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {anthropic_api_url: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {anthropic_api_url: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-openai_proxy",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {openai_proxy: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {openai_proxy: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-apiUrl",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {apiUrl: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {apiUrl: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-BASE-URL",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {BASE-URL: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {BASE-URL: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-x-auth-token-secret",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {x-auth-token-secret: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {x-auth-token-secret: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-auth",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {auth: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {auth: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-client_id",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {client_id: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {client_id: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-transport",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {transport: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {transport: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "transport-option-key-HTTP_PROXY",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {HTTP_PROXY: 1}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {HTTP_PROXY: 1}\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "protected option key"
   },
   {
     "name": "oauth-like-key-is-not-protected",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {oauth_scope: x, author: y}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {oauth_scope: x, author: y}\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "inference-option-keys-incl-max-retries",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\n    options: {max_retries: 3, temperature: 0.2, thinking_level: low, effort: high, reasoning: {effort: low}}\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\n    options: {max_retries: 3, temperature: 0.2, thinking_level: low, effort: high, reasoning: {effort: low}}\nroles:\n  default: a\n",
     "valid": true
   },
   {
     "name": "padded-model-leading",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: ' m'\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: ' m'\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "padded-model-trailing",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: 'm '\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: 'm '\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "padded-model-newline",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: \"m\\n\"\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: \"m\\n\"\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "model must be a non-blank string"
   },
   {
     "name": "tab-trailing",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n\t",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n\t",
     "valid": false,
     "errorContains": "tab characters"
   },
   {
     "name": "tab-after-value",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\t\nroles:\n  default: a\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\t\nroles:\n  default: a\n",
     "valid": false,
     "errorContains": "tab characters"
   },
   {
     "name": "tab-in-flow",
-    "yaml": "version: 1\nroutes: {a: {provider: llm7,\tmodel: m}}\nroles: {default: a}\n",
+    "yaml": "version: 1\nroutes: {a: {provider: apx,\tmodel: m}}\nroles: {default: a}\n",
     "valid": false,
     "errorContains": "tab characters"
   },
   {
     "name": "multi-document",
-    "yaml": "version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n---\nfoo: 1\n",
+    "yaml": "version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n---\nfoo: 1\n",
     "valid": false,
     "errorContains": "invalid YAML"
   },
   {
     "name": "bom-prefix",
-    "yaml": "﻿version: 1\nroutes:\n  a:\n    provider: llm7\n    model: m\nroles:\n  default: a\n",
+    "yaml": "﻿version: 1\nroutes:\n  a:\n    provider: apx\n    model: m\nroles:\n  default: a\n",
     "valid": true
   },
   {

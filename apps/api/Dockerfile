@@ -33,7 +33,8 @@ RUN pnpm install --frozen-lockfile
 # database. Use a non-secret, build-only placeholder; production DATABASE_URL is
 # supplied later through /srv/apps/<repo>/.env by Fogewise.
 RUN DATABASE_URL='postgresql://fogewise_build:fogewise_build@127.0.0.1:5432/fogewise_build?schema=public' \
-    pnpm --filter @lcsp/api build
+    pnpm --filter @lcsp/api build \
+    && rm -rf /app/apps/api/.cache
 
 ENV NODE_ENV=production
 ENV PORT=8080

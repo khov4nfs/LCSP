@@ -55,12 +55,6 @@ export interface OutboxConfig {
   maxAttempts: number;
 }
 
-export interface PipelineReconciliationConfig {
-  pollIntervalMs: number;
-  quietPeriodMs: number;
-  maxAttempts: number;
-}
-
 export interface SePayConfig {
   webhookSecret: string;
   timestampSkewSeconds: number;
@@ -81,10 +75,6 @@ export interface EmailConfig {
 
 export interface OrchestrationConfig {
   debug: boolean;
-}
-
-export interface VerifiedEpisodesConfig {
-  consolidationIntervalMs: number;
 }
 
 export interface BillingConfig {
@@ -113,11 +103,9 @@ export interface AppConfig {
   githubCredentialPersistence: GithubCredentialPersistenceConfig;
   rabbitmq: RabbitMqConfig;
   outbox: OutboxConfig;
-  pipelineReconciliation: PipelineReconciliationConfig;
   sepay: SePayConfig;
   worker: WorkerConfig;
   email: EmailConfig;
   orchestration: OrchestrationConfig;
-  verifiedEpisodes: VerifiedEpisodesConfig;
   billing: BillingConfig;
 }

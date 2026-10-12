@@ -1,0 +1,111 @@
+{
+  "scope": "EXACT_IMAGE_ROOT_SEMANTIC_BOUNDED_NEGATIVE_EVIDENCE_ACCEPTANCE",
+  "status": "PASS",
+  "runId": "e73734b01eff4005",
+  "assessmentId": "29fd06b3-d72d-4a13-b23d-d2dd3d1c6b96",
+  "decisionId": "7760ea87-e167-4695-9571-ff682408e42e",
+  "criterion": {
+    "outcome": "NOT_MET",
+    "rationale": "The delete_expired method calculates retention based on draft_timestamp instead of receipt_timestamp. Line 44 uses 'notice.draft_timestamp + RETENTION_PERIOD <= now' to determine expiration, but the legal rule requires the retention period to begin at the receipt timestamp, not the draft timestamp. The receipt_timestamp is captured and stored (lines 13, 25, 30) but never used in the retention calculation. The 7-day period (RETENTION_PERIOD constant at line 6) is correct, but it is applied to the wrong timestamp. Exhaustive search confirmed no alternative receipt-timestamp-based deletion path exists in the repository.",
+    "references": [
+      {
+        "type": "ASSESSMENT_EVIDENCE",
+        "evidenceId": "a3dc6c83-a634-5205-a4b3-92d55f34c305"
+      },
+      {
+        "type": "ASSESSMENT_EVIDENCE",
+        "evidenceId": "46db6da1-380f-5dda-b44c-3d2cab693648"
+      },
+      {
+        "type": "ASSESSMENT_EVIDENCE",
+        "evidenceId": "5b5ca033-c0b0-5ca3-831d-b2474115f6d2"
+      },
+      {
+        "type": "ASSESSMENT_EVIDENCE",
+        "evidenceId": "9840ce44-c118-5b2e-aec8-6eb216810a57"
+      }
+    ],
+    "criterionId": "C-1"
+  },
+  "coverageEvidenceId": "9840ce44-c118-5b2e-aec8-6eb216810a57",
+  "coveragePayload": {
+    "scopes": [
+      {
+        "kind": "SOURCE_DIRECTORY",
+        "path": "."
+      },
+      {
+        "kind": "GRAPH_INDEX",
+        "path": "."
+      },
+      {
+        "kind": "SOURCE_DIRECTORY",
+        "path": "service.py"
+      }
+    ],
+    "queries": [
+      {
+        "tool": "grep",
+        "query": "delete",
+        "truncated": false,
+        "resultCount": 2
+      },
+      {
+        "tool": "grep",
+        "query": "expir",
+        "truncated": false,
+        "resultCount": 5
+      },
+      {
+        "tool": "grep",
+        "query": "receipt_timestamp",
+        "truncated": false,
+        "resultCount": 6
+      },
+      {
+        "tool": "grep",
+        "query": "retention",
+        "truncated": false,
+        "resultCount": 3
+      },
+      {
+        "tool": "search_code_graph",
+        "query": ".*delete.*|.*expir.*|.*retention.*|.*remove.*",
+        "truncated": false,
+        "resultCount": 7
+      },
+      {
+        "tool": "grep",
+        "query": "strip|trim|replace|remove|sanitize|clean",
+        "truncated": false,
+        "resultCount": 2
+      },
+      {
+        "tool": "grep",
+        "query": "notice_text",
+        "truncated": false,
+        "resultCount": 6
+      },
+      {
+        "tool": "trace_call_path",
+        "query": "{'function_name': 'receive', 'direction': 'both', 'depth': 3}",
+        "truncated": false,
+        "resultCount": 9
+      }
+    ],
+    "knownGaps": [],
+    "inspectedEntryPoints": [],
+    "directSourceFallbacks": []
+  },
+  "semanticOwner": "ACTUAL_APX_ASSESSMENT_ROOT",
+  "reviewer": "CODEX_REASONED_REVIEW_OF_ACTUAL_SOURCE_AND_ROOT_RESULT",
+  "positivePath": "Root concluded absence of alternative receipt-based expiration from complete bounded search and direct source; no model verdict was seeded.",
+  "partialGapRejection": "ACTUAL_ROOT_A_SUBMISSIONS_REJECTED_SEARCH_COVERAGE_INCOMPLETE_BEFORE_CORRECTION",
+  "directAndIndirectMissingTruncatedGapGuard": [
+    "decision-provenance-assessmentA.json",
+    "decision-provenance-assessmentC.json"
+  ],
+  "uiDecisionAndBrowserDownloadedReport": "browser-full-flow.json:owner-complete assessmentD",
+  "manualEvidenceOrDecisionInsertion": false,
+  "deterministicSemanticJudge": false
+}

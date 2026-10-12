@@ -31,11 +31,11 @@ import {
   runPython,
   startStack,
   workerKey,
-} from "./support/legal-portfolio-stack.mjs";
+} from "./support/compliance-rule-set-stack.mjs";
 
 const mode = process.argv[2] ?? "decisions";
-const outputLabel = process.env.LCSP_W4_EVAL_LABEL ?? mode;
-const resumeReceiptPath = process.env.LCSP_W4_EVAL_RESUME_RECEIPT;
+const outputLabel = process.env.LCSP_ASSESSMENT_EVAL_LABEL ?? mode;
+const resumeReceiptPath = process.env.LCSP_ASSESSMENT_EVAL_RESUME_RECEIPT;
 const previousEval = resumeReceiptPath
   ? JSON.parse(readFileSync(path.resolve(root, resumeReceiptPath), "utf8"))
   : null;
@@ -63,16 +63,16 @@ assert.ok(
   ].includes(mode),
 );
 const artifactStoragePath = mkdtempSync(
-  path.join(tmpdir(), "lcsp-w4-live-artifacts-"),
+  path.join(tmpdir(), "lcsp-assessment-live-artifacts-"),
 );
 const previousArtifactStoragePath = process.env.LCSP_ARTIFACT_STORAGE_PATH;
 process.env.LCSP_ARTIFACT_STORAGE_PATH = artifactStoragePath;
 const stack = await startStack({
-  database: "lcsp_w4_live",
-  apiPort: Number(process.env.LCSP_W4_LIVE_API_PORT ?? 3415),
+  database: "lcsp_assessment_live",
+  apiPort: Number(process.env.LCSP_ASSESSMENT_EVAL_API_PORT ?? 3415),
   resetDatabase: previousEval === null,
 });
-const { q, base, post, stop, seedCorpus, databaseUrl } = stack;
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = stack;
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const { ArtifactLifecycleState } = requireApi("@prisma/client");
 const http = async (route, body, token) => {
@@ -97,13 +97,13 @@ const httpGet = async (route, token) => {
   return data.data;
 };
 const tests = path.join(root, "deepagents/tests/vertical"),
-  outputDir = path.join(root, "reports/w4-live-eval");
+  outputDir = path.join(root, "reports/assessment-live-eval");
 mkdirSync(outputDir, { recursive: true });
 try {
   const fixture =
     previousEval?.fixture ??
     (await runPython(path.join(tests, "root_semantic_fixture.py"), [mode]));
-  const dir = mkdtempSync(path.join(tmpdir(), "lcsp-w4-live-")),
+  const dir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-live-")),
     repo = path.join(dir, "repo"),
     seed = path.join(dir, "seed.json");
   mkdirSync(repo);
@@ -118,7 +118,7 @@ try {
   if (previousEval) {
     const existing = (
       await q(
-        `SELECT ar."assessmentId",ar."currentExecutionId",ar."executionState",ar."leaseToken",a."lifecycleState",ac."caseRevision",ac."legalPortfolioVersionId",ac."repositorySnapshotId",ac."repositoryCommit" FROM "AssessmentRuntime" ar JOIN "Assessment" a ON a.id=ar."assessmentId" JOIN "AssessmentCase" ac ON ac."assessmentId"=a.id WHERE ar."threadId"=$1`,
+        `SELECT ar."assessmentId",ar."currentExecutionId",ar."executionState",ar."leaseToken",a."lifecycleState",ac."caseRevision",ac."ruleSetVersionId",ac."repositorySnapshotId",ac."repositoryCommit" FROM "AssessmentRuntime" ar JOIN "Assessment" a ON a.id=ar."assessmentId" JOIN "AssessmentCase" ac ON ac."assessmentId"=a.id WHERE ar."threadId"=$1`,
         [previousEval.result.result.threadId],
       )
     ).rows[0];
@@ -142,20 +142,17 @@ try {
     assert.deepEqual(caseState, previousEval.finalization.assessment);
     id = assessmentId;
   } else {
-    const corpus = await seedCorpus({
-      name: `w4-eval-${mode}`,
-      status: "APPROVED",
+    const legalSource = await seedLegalSource({
+      name: `assessment-eval-${mode}`,
+      status: "ACTIVE",
       documentId: fixture.documentId,
       chunks: fixture.chunks,
     });
-    const prep = await post("preparations", {
-      legalCorpusVersionId: corpus,
-      idempotencyKey: `w4-eval-${randomUUID()}`,
-    });
-    assert.equal(prep.status, 202, JSON.stringify(prep.body));
+    const prep = await activateLegalSource(legalSource);
+    assert.equal(prep.runs.length, 1, "one Legal Source -> one automatic preparation");
     const prepared = await runPython(
       path.join(tests, "scripted_preparation.py"),
-      [base, workerKey, prep.body.data.preparationRunId, seed, "valid"],
+      [base, workerKey, prep.preparationRunId, seed, "valid"],
     );
     assert.equal(prepared.state, "SUCCEEDED", JSON.stringify(prepared));
     const { hashSecret } = await import(
@@ -163,7 +160,7 @@ try {
     );
     const owner = randomUUID(),
       password = "CorrectHorseBatteryStaple!",
-      email = "w4-eval@acme.test";
+      email = "assessment-eval@acme.test";
     await q(
       `INSERT INTO "User"(id,email,"passwordHash","emailVerified","failedLoginCount",role,"updatedAt") VALUES ($1,$2,$3,true,0,'CUSTOMER',now())`,
       [owner, email, hashSecret(password)],
@@ -176,14 +173,14 @@ try {
     token = auth.session_token;
     const created = await http(
       "/assessments",
-      { name: `W4 semantic ${mode}` },
+      { name: `ASSESSMENT semantic ${mode}` },
       token,
     );
     id = created.assessment_id ?? created.id;
     const connection = randomUUID(),
       snapshot = randomUUID();
     await q(
-      `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions) VALUES ($1,$2,$3,'w4-eval',$4,'repo','acme/repo','main','{}')`,
+      `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions) VALUES ($1,$2,$3,'assessment-eval',$4,'repo','acme/repo','main','{}')`,
       [connection, id, owner, `repo-${id}`],
     );
     await q(
@@ -217,7 +214,7 @@ try {
       {
         expectedCaseRevision: humanState.caseRevision,
         expectedRequestRevision: request.requestRevision,
-        idempotencyKey: `w4-eval-human-${id}`,
+        idempotencyKey: `assessment-eval-human-${id}`,
         doesNotKnow: false,
         answer:
           "Customer Operations is assigned as the responsible owner for notice notifications.",
@@ -236,7 +233,7 @@ try {
   }
   const decisions = (
     await q(
-      `SELECT "decisionId","decisionRevision","engineeringRuleId",state,decision FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY "engineeringRuleId","decisionRevision"`,
+      `SELECT "decisionId","decisionRevision","assessmentRuleId",state,decision FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY "assessmentRuleId","decisionRevision"`,
       [id],
     )
   ).rows;
@@ -293,13 +290,13 @@ try {
   if (mode === "bounded-absence") {
     const assessment = (
       await q(
-        `SELECT a."lifecycleState",ac."caseRevision",ac."legalPortfolioVersionId",ac."repositorySnapshotId",ac."repositoryCommit" FROM "Assessment" a JOIN "AssessmentCase" ac ON ac."assessmentId"=a.id WHERE a.id=$1`,
+        `SELECT a."lifecycleState",ac."caseRevision",ac."ruleSetVersionId",ac."repositorySnapshotId",ac."repositoryCommit" FROM "Assessment" a JOIN "AssessmentCase" ac ON ac."assessmentId"=a.id WHERE a.id=$1`,
         [id],
       )
     ).rows[0];
     const artifact = (
       await q(
-        `SELECT "artifactId",kind,"lifecycleState","legalPortfolioVersionId","repositorySnapshotId","repositoryCommit","caseRevision","schemaVersion","reportRequestDigest","contentSha256","sizeBytes","storageRef" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
+        `SELECT "artifactId",kind,"lifecycleState","ruleSetVersionId","repositorySnapshotId","repositoryCommit","caseRevision","schemaVersion","reportRequestDigest","contentSha256","sizeBytes","storageRef" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
         [id, ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT],
       )
     ).rows[0];
@@ -406,8 +403,8 @@ try {
     );
     assert.equal(artifact.lifecycleState, ArtifactLifecycleState.ACTIVE);
     assert.equal(
-      artifact.legalPortfolioVersionId,
-      assessment.legalPortfolioVersionId,
+      artifact.ruleSetVersionId,
+      assessment.ruleSetVersionId,
     );
     assert.equal(
       artifact.repositorySnapshotId,
@@ -488,12 +485,12 @@ try {
     );
     assert.deepEqual(
       [
-        report.pins.legalPortfolioVersionId,
+        report.pins.ruleSetVersionId,
         report.pins.repositorySnapshotId,
         report.pins.repositoryCommit,
       ],
       [
-        artifact.legalPortfolioVersionId,
+        artifact.ruleSetVersionId,
         artifact.repositorySnapshotId,
         artifact.repositoryCommit,
       ],
@@ -565,7 +562,7 @@ try {
       ...result,
       resumed: resumedResult,
       decisions: decisions.map((d) => ({
-        rule: d.engineeringRuleId,
+        rule: d.assessmentRuleId,
         state: d.state,
         applicability: d.decision.applicability,
         compliance: d.decision.compliance,

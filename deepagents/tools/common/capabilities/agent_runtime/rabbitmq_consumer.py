@@ -56,12 +56,10 @@ DEFAULT_API_READY_POLL_SECONDS = 0.5
 DEFAULT_BOUNDARY_WORKERS = 4
 DEFAULT_BROKER_ACK_TIMEOUT_SECONDS = 1800.0
 DEFAULT_SETTLEMENT_MARGIN_SECONDS = 120.0
-SCAN_FAILURE_AGENT_RUNTIME_BOUNDARY_TIMEOUT = "AGENT_RUNTIME_BOUNDARY_TIMEOUT"
-SCAN_FAILURE_PROVIDER_TIMEOUT = "PROVIDER_TIMEOUT"
-SCAN_FAILURE_REPOSITORY_SANDBOX_FAILURE = "REPOSITORY_SANDBOX_FAILURE"
-SCAN_FAILURE_REPOSITORY_ANALYSIS_FAILED = "REPOSITORY_ANALYSIS_FAILED"
-LEGACY_MDA_QUEUE_PREFIX = "lcsp.mda.boundary"
-LEGACY_RETRY_DELAY_SECONDS = (2.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0)
+BOUNDARY_TIMEOUT_REASON = "AGENT_RUNTIME_BOUNDARY_TIMEOUT"
+PROVIDER_TIMEOUT_REASON = "PROVIDER_TIMEOUT"
+SANDBOX_FAILURE_REASON = "REPOSITORY_SANDBOX_FAILURE"
+BOUNDARY_FAILURE_REASON = "AGENT_RUNTIME_BOUNDARY_FAILED"
 
 
 class BoundaryExecutionTimeout(NonRetryableAgentBoundaryError):
@@ -74,25 +72,8 @@ class BoundaryExecutionTimeout(NonRetryableAgentBoundaryError):
         self.timeout_seconds = timeout_seconds
 
 
-class StaleScanDelivery(NonRetryableAgentBoundaryError):
-    """A broker delivery references a scan job that no longer exists.
-
-    This is expected after local resets, assessment deletion, or queue backlog replay.
-    The delivery must be acknowledged and dropped instead of retried or terminalizing
-    a different/current scan.
-    """
-
-    def __init__(self, scan_job_id: str):
-        self.scan_job_id = scan_job_id
-        super().__init__(f"stale scan delivery for missing job {scan_job_id}")
 
 
-class TerminalScanDelivery(NonRetryableAgentBoundaryError):
-    """Redelivery of already-terminal work; acknowledge without failing it again."""
-
-    def __init__(self, scan_job_id: str):
-        self.scan_job_id = scan_job_id
-        super().__init__(f"scan job {scan_job_id} is already terminal")
 
 
 @dataclass(frozen=True)
@@ -256,10 +237,6 @@ def run_consumer() -> None:
                     requeue_on_error=requeue_on_error,
                     requeue_delay_seconds=requeue_delay_seconds,
                     fallback_max_redeliveries=fallback_max_redeliveries,
-                    cleanup_legacy_mda_topology=_read_bool(
-                        "LCSP_AGENT_RUNTIME_CLEANUP_LEGACY_MDA_TOPOLOGY",
-                        True,
-                    ),
                 )
                 LOGGER.info("Starting Agent Runtime RabbitMQ consumer")
                 channel.start_consuming()
@@ -366,7 +343,6 @@ def _configure_channel(
     requeue_on_error: bool,
     requeue_delay_seconds: float,
     fallback_max_redeliveries: int,
-    cleanup_legacy_mda_topology: bool = False,
 ) -> None:
     channel.exchange_declare(
         exchange=exchange,
@@ -375,14 +351,6 @@ def _configure_channel(
     )
     channel.basic_qos(prefetch_count=prefetch_count)
     channel.confirm_delivery()
-
-    if cleanup_legacy_mda_topology:
-        _cleanup_legacy_mda_topology(
-            channel=channel,
-            bindings=bindings,
-            requeue_delay_seconds=requeue_delay_seconds,
-            fallback_max_redeliveries=fallback_max_redeliveries,
-        )
 
     for binding in bindings:
         retry_delays_seconds = _effective_retry_delays(
@@ -511,7 +479,6 @@ def _dispatch_delivery(
         getattr(properties, "headers", None),
         boundary_name,
     )
-    _claim_scan_delivery(boundary_name, message, timeout_seconds)
     if settlement_state is not None and settlement_state.deadline is not None:
         timeout_seconds = settlement_state.deadline - monotonic()
         if timeout_seconds <= 0 or _delivery_already_settled(settlement_state):
@@ -524,92 +491,18 @@ def _dispatch_delivery(
     )
 
 
-def _claim_scan_delivery(
-    boundary_name: str,
-    message: dict[str, Any],
-    timeout_seconds: float | None,
-) -> None:
-    if boundary_name != "scan_requested":
-        return
-    scan_job_id = _message_text(message, "scanJobId", "scan_job_id")
-    if not scan_job_id:
-        return
-    client = _worker_client_or_none()
-    if client is None:
-        return
-    try:
-        response = client.claim_scan_job(
-            scan_job_id,
-            {
-                "boundary_name": boundary_name,
-                "timeout_seconds": timeout_seconds,
-            },
-        )
-    except WorkerCallbackError as error:
-        if (
-            error.status_code == 404
-            and error.error_code == "SCAN_JOB_NOT_FOUND"
-        ):
-            raise StaleScanDelivery(scan_job_id) from error
-        raise
-    if response.get("terminal") is True and response.get("claimed") is not True:
-        raise TerminalScanDelivery(scan_job_id)
 
 
-def _notify_scan_delivery_terminal_failure(
-    *,
-    boundary_name: str,
-    properties: Any | None,
-    body: bytes,
-    reason_code: str,
-    summary: str,
-    timeout_seconds: float | None = None,
-) -> None:
-    if (
-        boundary_name != "scan_requested"
-        and reason_code != SCAN_FAILURE_AGENT_RUNTIME_BOUNDARY_TIMEOUT
-    ):
+def _notify_boundary_timeout(*, boundary_name: str, properties: Any | None,
+    body: bytes, reason_code: str, summary: str, timeout_seconds: float | None = None) -> None:
+    if reason_code != BOUNDARY_TIMEOUT_REASON:
         return
     try:
         message = _decode_message(body)
+        report_external_boundary_timeout(boundary_name, message,
+            _correlation_id(message, getattr(properties, "headers", None), boundary_name), reason_code)
     except Exception:
-        return
-    if boundary_name != "scan_requested":
-        try:
-            report_external_boundary_timeout(
-                boundary_name,
-                message,
-                _correlation_id(
-                    message, getattr(properties, "headers", None), boundary_name
-                ),
-                reason_code,
-            )
-        except Exception:
-            LOGGER.warning(
-                "Agent Runtime deadline stream report failed boundary=%s", boundary_name
-            )
-        return
-    scan_job_id = _message_text(message, "scanJobId", "scan_job_id")
-    if not scan_job_id:
-        return
-    client = _worker_client_or_none()
-    if client is None:
-        return
-    client.post_scan_terminal_failure(
-        scan_job_id,
-        {
-            "boundary_name": boundary_name,
-            "reason_code": reason_code,
-            "status": "FAILED",
-            "summary": summary,
-            "timeout_seconds": timeout_seconds,
-            "correlation_id": _correlation_id(
-                message,
-                getattr(properties, "headers", None),
-                boundary_name,
-            ),
-        },
-    )
+        LOGGER.warning("Agent Runtime deadline stream report failed boundary=%s", boundary_name)
 
 
 def _worker_client_or_none() -> WorkerApiClient | None:
@@ -628,24 +521,24 @@ def _message_text(message: dict[str, Any], *keys: str) -> str | None:
     return None
 
 
-def _scan_failure_reason_code(error: BaseException) -> str:
+def _delivery_failure_reason_code(error: BaseException) -> str:
     if isinstance(error, BoundaryExecutionTimeout):
-        return SCAN_FAILURE_AGENT_RUNTIME_BOUNDARY_TIMEOUT
+        return BOUNDARY_TIMEOUT_REASON
     error_names = {type(error).__name__}
     remote_error_type = getattr(error, "remote_error_type", None)
     if isinstance(remote_error_type, str) and remote_error_type:
         error_names.add(remote_error_type)
     if error_names & {"AgentRuntimeBoundaryTimeout", "AgentServerRunTimeout"}:
-        return SCAN_FAILURE_AGENT_RUNTIME_BOUNDARY_TIMEOUT
+        return BOUNDARY_TIMEOUT_REASON
     cause = getattr(error, "__cause__", None)
     if cause is not None:
         error_names.add(type(cause).__name__)
     joined = " ".join((*error_names, str(error))).upper()
     if "TIMEOUT" in joined:
-        return SCAN_FAILURE_PROVIDER_TIMEOUT
+        return PROVIDER_TIMEOUT_REASON
     if "SANDBOX" in joined or "HYDRATION" in joined:
-        return SCAN_FAILURE_REPOSITORY_SANDBOX_FAILURE
-    return SCAN_FAILURE_REPOSITORY_ANALYSIS_FAILED
+        return SANDBOX_FAILURE_REASON
+    return BOUNDARY_FAILURE_REASON
 
 
 def _schedule_delivery_settlement(
@@ -799,18 +692,6 @@ def _settle_delivery(
             channel.basic_ack(delivery_tag=delivery_tag)
             return
 
-        if isinstance(error, (StaleScanDelivery, TerminalScanDelivery)):
-            LOGGER.info(
-                "Dropped stale Agent Runtime scan delivery boundary=%s routing_key=%s "
-                "scan_job_id=%s correlation_id=%s reason=%s",
-                boundary_name,
-                routing_key,
-                error.scan_job_id,
-                _property_value(properties, "correlation_id"),
-                type(error).__name__,
-            )
-            channel.basic_ack(delivery_tag=delivery_tag)
-            return
 
         LOGGER.error(
             "Agent Runtime boundary dispatch failed boundary=%s routing_key=%s",
@@ -870,11 +751,11 @@ def _settle_delivery(
             if isinstance(error, BoundaryExecutionTimeout)
             else None
         )
-        _notify_scan_delivery_terminal_failure(
+        _notify_boundary_timeout(
             boundary_name=boundary_name,
             properties=properties,
             body=body,
-            reason_code=_scan_failure_reason_code(error),
+            reason_code=_delivery_failure_reason_code(error),
             summary=(
                 "Agent Runtime boundary timed out"
                 if isinstance(error, BoundaryExecutionTimeout)
@@ -962,8 +843,6 @@ def _boundary_timeout_seconds(boundary_name: str) -> float | None:
         "LCSP_AGENT_RUNTIME_BOUNDARY_TIMEOUT_"
         f"{_env_boundary_name(boundary_name)}_SECONDS",
     ]
-    if boundary_name == "scan_requested":
-        env_names.append("LCSP_AGENT_RUNTIME_SCAN_BOUNDARY_TIMEOUT_SECONDS")
     env_names.append("LCSP_AGENT_RUNTIME_BOUNDARY_TIMEOUT_SECONDS")
     env_name = next((name for name in env_names if os.getenv(name) is not None), None)
     if env_name is None:
@@ -1019,44 +898,6 @@ def _executor_worker_count(prefetch_count: int) -> int:
     if configured <= 0:
         raise RuntimeError("LCSP_AGENT_RUNTIME_BOUNDARY_WORKERS must be > 0")
     return max(prefetch_count, configured)
-
-
-def _cleanup_legacy_mda_topology(
-    *,
-    channel: Any,
-    bindings: tuple[BoundaryBinding, ...],
-    requeue_delay_seconds: float,
-    fallback_max_redeliveries: int,
-) -> None:
-    for binding in bindings:
-        legacy_queue = f"{LEGACY_MDA_QUEUE_PREFIX}.{binding.boundary_name}"
-        legacy_retry_delays = set(LEGACY_RETRY_DELAY_SECONDS)
-        legacy_retry_delays.update(
-            _effective_retry_delays(
-                binding.retry_delays_seconds,
-                fallback_delay_seconds=requeue_delay_seconds,
-                fallback_max_redeliveries=fallback_max_redeliveries,
-            )
-        )
-        _delete_queue_if_present(channel, legacy_queue)
-        for delay_seconds in sorted(legacy_retry_delays):
-            _delete_queue_if_present(
-                channel,
-                _retry_queue_name(legacy_queue, delay_seconds),
-            )
-
-
-def _delete_queue_if_present(channel: Any, queue_name: str) -> None:
-    if not queue_name.startswith(f"{LEGACY_MDA_QUEUE_PREFIX}."):
-        raise RuntimeError(f"Refusing to delete non-legacy queue: {queue_name}")
-    queue_delete = getattr(channel, "queue_delete", None)
-    if not callable(queue_delete):
-        return
-    try:
-        queue_delete(queue=queue_name, if_unused=False, if_empty=False)
-        LOGGER.info("Deleted legacy MDA RabbitMQ queue queue=%s", queue_name)
-    except pika.exceptions.AMQPError:
-        LOGGER.warning("Legacy MDA RabbitMQ queue cleanup skipped queue=%s", queue_name)
 
 
 def _delay_milliseconds(delay_seconds: float) -> int:

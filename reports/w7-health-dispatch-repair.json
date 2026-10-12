@@ -1,0 +1,52 @@
+{
+  "scope": "W7_INTERNAL_HEALTH_DISPATCH_ONLY",
+  "status": "PASS_DOCKER_REVALIDATED",
+  "failedReceipt": "reports/w7-images/20261009114514_b28756566ec0/report.json",
+  "rootCause": "Generic dispatch no longer hydrates or activates repository backends after W7 moved snapshot ownership into Assessment Root; the internal health boundary still required a pre-activated backend.",
+  "fix": "The health boundary validates snapshot and scan identity, resolves the sandbox from native LangGraph thread configuration, hydrates its pinned test snapshot, and scopes read/write access through the existing activation context manager.",
+  "changedCanonicalSource": [
+    "deepagents/tools/common/capabilities/agent_runtime/health_boundary.py"
+  ],
+  "canonicalSourceFiles": 1074,
+  "unchangedCanonicalSourceFiles": 1073,
+  "buildAndPolicyInputsUnchanged": 22,
+  "retiredPathsStillAbsent": 461,
+  "nativeSyncAsyncFocusedTests": {
+    "receipt": "reports/w7-health-dispatch-focused.xml",
+    "passed": 25,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 1.617,
+    "scope": "NATIVE_GRAPH_AND_MOCKED_HYDRATION_NO_DOCKER"
+  },
+  "preFixReproduction": "FAIL_REPOSITORY_SANDBOX_BACKEND_NOT_ACTIVE_IN_NATIVE_GRAPH",
+  "sourceRetirementCheck": {
+    "files": 1115,
+    "patterns": 27,
+    "references": 0,
+    "status": "PASS"
+  },
+  "rootfsParserSelfCheck": "PASS",
+  "pythonSyntax": "PASS",
+  "graphUpdate": {
+    "status": "PASS_WITH_COVERAGE_LIMITS",
+    "nodes": 20157,
+    "edges": 45571,
+    "communities": 1190,
+    "sqlFilesNotExtracted": 105,
+    "partialTestFile": "apps/api/test/smoke.e2e-spec.ts",
+    "llmCalls": 0
+  },
+  "currentSourceImageGate": "PASS",
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "revalidationReceipt": "reports/w7-images/20261009121713_976c762ea276/report.json",
+  "dockerIntegrations": {
+    "passed": 7,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 50.286
+  },
+  "currentSourceHashesUnchanged": 1074
+}

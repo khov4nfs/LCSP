@@ -1,6 +1,10 @@
+import { InternalAgentStreamController } from "./presentation/http/internal-agent-stream.controller.js";
+import { PublishAgentStreamEventHandler } from "./application/commands/publish-agent-stream-event/publish-agent-stream-event.handler.js";
 import { WorkspaceRuntimeEventsController } from "./presentation/http/workspace-runtime-events.controller.js";
 import { GetWorkspaceRuntimeHandler } from "./application/queries/get-workspace-runtime/get-workspace-runtime.handler.js";
 import { Module } from "@nestjs/common";
+import { ASSESSMENT_RUNTIME_ERASURE } from "./application/ports/assessment-runtime-erasure.port.js";
+import { AgentServerAssessmentErasure } from "./infrastructure/runtime/agent-server-assessment-erasure.js";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 import { CqrsModule } from "@nestjs/cqrs";
 import { RuntimeWriteFenceInterceptor } from "../../platform/runtime-events/runtime-write-fence.interceptor.js";
@@ -24,8 +28,8 @@ import { AssessmentRuntimeControlService } from "../../platform/runtime-events/a
 import { AssessmentRuntimeEventService } from "../../platform/runtime-events/assessment-runtime-event.service.js";
 import { AuditModule } from "../audit/audit.module.js";
 import { BillingModule } from "../billing/billing.module.js";
-import { LegalPortfolioModule } from "../legal-portfolio/legal-portfolio.module.js";
-import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
+import { ComplianceRuleSetModule } from "../compliance-rule-set/compliance-rule-set.module.js";
+import { WorkerApiKeyGuard } from "../../common/guards/worker-api-key.guard.js";
 import { AcceptAssessmentEvidenceHandler } from "./application/commands/accept-assessment-evidence/accept-assessment-evidence.handler.js";
 import { AcceptAssessmentFactHandler } from "./application/commands/accept-assessment-fact/accept-assessment-fact.handler.js";
 import { ClaimAssessmentRootHandler } from "./application/commands/claim-assessment-root/claim-assessment-root.handler.js";
@@ -34,9 +38,7 @@ import { CreateAssessmentHandler } from "./application/commands/create-assessmen
 import { DeleteAssessmentHandler } from "./application/commands/delete-assessment/delete-assessment.handler.js";
 import { FinishAssessmentRootHandler } from "./application/commands/finish-assessment-root/finish-assessment-root.handler.js";
 import { HeartbeatAssessmentRootHandler } from "./application/commands/heartbeat-assessment-root/heartbeat-assessment-root.handler.js";
-import { MarkAiNotDetectedHandler } from "./application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.js";
 import { OpenHumanRequestHandler } from "./application/commands/open-human-request/open-human-request.handler.js";
-import { PutRuleAssessmentHandler } from "./application/commands/put-rule-assessment/put-rule-assessment.handler.js";
 import { RecordRootActivityHandler } from "./application/commands/record-root-activity/record-root-activity.handler.js";
 import { RenameAssessmentHandler } from "./application/commands/rename-assessment/rename-assessment.handler.js";
 import { ReportUnresolvableHumanFactHandler } from "./application/commands/report-unresolvable-human-fact/report-unresolvable-human-fact.handler.js";
@@ -47,18 +49,15 @@ import { SubmitRuleDecisionHandler } from "./application/commands/submit-rule-de
 import { TransitionAssessmentLifecycleHandler } from "./application/commands/transition-lifecycle/transition-lifecycle.handler.js";
 import { ASSESSMENT_BILLING_RETENTION } from "./application/ports/billing/assessment-billing-retention.port.js";
 import { ASSESSMENT_REPOSITORY } from "./application/ports/persistence/assessment.repository.js";
+import { ListAssessmentEventsHandler } from "./application/queries/list-assessment-events/list-assessment-events.handler.js";
 import { GetAssessmentHandler } from "./application/queries/get-assessment/get-assessment.handler.js";
-import { GetPinnedPortfolioHandler } from "./application/queries/get-pinned-portfolio/get-pinned-portfolio.handler.js";
+import { GetPinnedRuleSetHandler } from "./application/queries/get-pinned-rule-set/get-pinned-rule-set.handler.js";
 import { GetRootContextHandler } from "./application/queries/get-root-context/get-root-context.handler.js";
 import { ListAssessmentsHandler } from "./application/queries/list-assessments/list-assessments.handler.js";
-import { ListRuleAssessmentsHandler } from "./application/queries/list-rule-assessments/list-rule-assessments.handler.js";
 import { AssessmentCompletionGate } from "./application/services/assessment-completion-gate.service.js";
 import { AssessmentEventAppender } from "./application/services/assessment-event-appender.service.js";
 import { AssessmentEvidenceInvalidation } from "./application/services/assessment-evidence-invalidation.service.js";
-import { AssessmentInterviewRuntimeService } from "./application/services/assessment-interview-runtime.service.js";
-import { AssessmentInterviewSnippetService } from "./application/services/assessment-interview-snippet.service.js";
 import { AssessmentLifecycleCoordinator } from "./application/services/assessment-lifecycle-coordinator.service.js";
-import { AssessmentPipelineContinuationService } from "./application/services/assessment-pipeline-continuation.service.js";
 import { AssessmentRuntimeAuthority } from "./application/services/assessment-runtime-authority.service.js";
 import { AssessmentRuntimePreparation } from "./application/services/assessment-runtime-preparation.service.js";
 import { PrismaAssessmentBillingRetention } from "./infrastructure/billing/prisma-assessment-billing-retention.js";
@@ -77,10 +76,11 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     RbacModule,
     AuditModule,
     BillingModule,
-    LegalPortfolioModule,
+    ComplianceRuleSetModule,
     StorageModule,
   ],
   controllers: [
+    InternalAgentStreamController,
     AssessmentRuntimeControlController,
     AssessmentController,
     WorkspaceRuntimeEventsController,
@@ -90,13 +90,11 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: RuntimeWriteFenceInterceptor },
+    PublishAgentStreamEventHandler,
     AssessmentRuntimeControlService,
     GetRuntimeControlHandler,
     GetRootControlHandler,
     ControlAssessmentRuntimeHandler,
-    AssessmentInterviewRuntimeService,
-    AssessmentInterviewSnippetService,
-    AssessmentPipelineContinuationService,
     AssessmentLifecycleCoordinator,
     AssessmentEventAppender,
     AssessmentRuntimeAuthority,
@@ -119,7 +117,7 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     RecordRootActivityHandler,
     StartRuleInvestigationHandler,
     SubmitRuleDecisionHandler,
-    GetPinnedPortfolioHandler,
+    GetPinnedRuleSetHandler,
     GetRootContextHandler,
     AssessmentRuntimeEventService,
     WorkerApiKeyGuard,
@@ -127,11 +125,14 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     TransitionAssessmentLifecycleHandler,
     CompleteRepositorySetupHandler,
     DeleteAssessmentHandler,
+    AgentServerAssessmentErasure,
+    {
+      provide: ASSESSMENT_RUNTIME_ERASURE,
+      useExisting: AgentServerAssessmentErasure,
+    },
     RenameAssessmentHandler,
-    MarkAiNotDetectedHandler,
-    PutRuleAssessmentHandler,
-    ListRuleAssessmentsHandler,
     GetAssessmentHandler,
+    ListAssessmentEventsHandler,
     GetWorkspaceRuntimeHandler,
     AssessmentDetailLoader,
     AssessmentReportLoader,

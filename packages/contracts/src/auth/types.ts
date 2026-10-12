@@ -44,7 +44,7 @@ export type AuthUserRole =
   (typeof AUTH_USER_ROLES)[keyof typeof AUTH_USER_ROLES];
 
 export interface AdminUserSummary {
-  /** Always returned by LCSP-299; optional for legacy UI fixtures. */
+  /** Always returned by ACCOUNT_LIFECYCLE; optional for legacy UI fixtures. */
   version?: number;
   referenceType?: import("./admin-accounts.ts").AdminAccountReferenceType;
   id: string;

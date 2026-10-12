@@ -1,0 +1,22 @@
+{
+  "scope": "CURRENT_IMAGE_CROSS_ASSESSMENT_CANARY_POSITIVE_CONTROL",
+  "status": "PASS_POSITIVE_CONTROL_AND_C_INVESTIGATION_SCAN",
+  "runId": "9ae7757edbaf422b",
+  "canary": "NOTICE_CANARY_9AE7757E_A",
+  "canaryOccurrences": 1,
+  "positiveControl": "ROOT_A_RESOLVED_HUMAN_FACT_TOOL_RESULT",
+  "otherThreadOccurrences": 0,
+  "threads": {
+    "A": {
+      "canaryOccurrences": 1,
+      "toolsWithCanary": [
+        "open_human_request"
+      ]
+    },
+    "C": {
+      "canaryOccurrences": 0,
+      "toolsWithCanary": []
+    }
+  },
+  "sampledWhileC": "INVESTIGATING; FINAL_RESCAN_REQUIRED"
+}
