@@ -79,7 +79,7 @@ def test_fogewise_langgraph_server_image_has_docker_sandbox_control_plane():
         for line in dockerfile.splitlines()
         for token in line.replace("\\", "").split()
     }
-    assert "docker.io" in docker_tokens
+    assert any(token == "docker.io" for token in docker_tokens)
     assert "docker-cli" in dockerfile
     assert "COPY deepagents /app/deepagents" in dockerfile
     assert "HEALTHCHECK" in dockerfile
