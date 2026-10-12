@@ -1,0 +1,68 @@
+[
+  {
+    "file": "deepagents/tools/common/capabilities/platform/repository_sandbox.py",
+    "removed_names": [
+      "ensure_runtime_skills",
+      "_mirror_checked_in_skills",
+      "_write_skill_file"
+    ]
+  },
+  {
+    "file": "deepagents/tests/test_repository_sandbox.py",
+    "removed_names": [
+      "test_runtime_backend_mirrors_native_skills_before_first_read"
+    ]
+  },
+  {
+    "file": "deepagents/tests/integration/test_local_agent_runtime_e2e.py",
+    "removed_names": [
+      "_skill_value"
+    ]
+  },
+  {
+    "file": "deepagents/tests/integration/test_production_agent_server_image_e2e.py",
+    "removed_names": [
+      "_skill_value"
+    ]
+  },
+  {
+    "file": "scripts/delete-assessment.mjs",
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  {
+    "file": "deepagents/tests/test_authored_agent_tools.py",
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  {
+    "file": "deepagents/tests/agentic_evidence/test_authorization.py",
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  {
+    "file": "deepagents/tests/agentic_evidence/test_dispatcher.py",
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  {
+    "file": "deepagents/tests/agentic_evidence/test_registry.py",
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  {
+    "file": "deepagents/tests/agentic_evidence/test_resolver.py",
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  {
+    "file": "deepagents/tests/agentic_evidence/test_runtime_binding.py",
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  {
+    "file": "deepagents/tests/agentic_evidence/test_api_tool_discovery_bindings.py",
+    "classification": "V1_ONLY",
+    "deleted": true
+  }
+]

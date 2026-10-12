@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "candidate": "20261012041902_4058ec2256a0",
+  "runId": "0294c54d42864ef0",
+  "catalogs": [
+    "pg_class",
+    "pg_attribute (all relation kinds, including indexes)",
+    "pg_type",
+    "pg_constraint",
+    "pg_indexes",
+    "information_schema.triggers",
+    "pg_proc",
+    "pg_enum"
+  ],
+  "caseInsensitivePattern": "corpus|portfolio|engineering_?rule|legal_?preparation|legal_?rule",
+  "oldActivePhysicalNameHits": 0,
+  "schemaMaps": 0,
+  "beforeAnyModelInvocation": true,
+  "productionTouched": false
+}

@@ -1,5 +1,7 @@
 # LCSP Version History
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 This document is the canonical product/architecture evolution history for LCSP. Product-version labels (`v1`, `v2`, `v3`) describe major architectural generations and must not be confused with internal schema versions such as `Program Evidence Graph v2/v3`.
 
 ## Summary

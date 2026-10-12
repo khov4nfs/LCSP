@@ -1,0 +1,7 @@
+{
+  "scope": "SYNTHETIC_POST_W6_DISPOSABLE_FIXTURE",
+  "status": "FAIL",
+  "checks": [],
+  "reasonType": "AssertionError",
+  "reason": "Use a Docker host without existing repository sandboxes; this runner never removes unrelated containers."
+}

@@ -5,6 +5,7 @@ import {
   assessmentEventSchema,
   type AssessmentEventActorType,
   type AssessmentEventType,
+  type AssessmentEventTokenUsage,
 } from "@lcsp/contracts/assessment";
 import {
   AUDIT_REDACTION_STATUSES,
@@ -31,6 +32,7 @@ export interface AppendAssessmentEventInput {
   parentExecutionId?: string;
   taskId?: string;
   toolCallId?: string;
+  tokenUsage?: AssessmentEventTokenUsage;
   auditActor: { id: string; type: AuditActorType };
 }
 
@@ -90,23 +92,29 @@ export class AssessmentEventAppender {
         : {}),
       ...(input.taskId ? { taskId: input.taskId } : {}),
       ...(input.toolCallId ? { toolCallId: input.toolCallId } : {}),
+      ...(input.tokenUsage ? { tokenUsage: input.tokenUsage } : {}),
     });
-    const outboxMessageId = await this.outbox.enqueue(
-      buildOutboxMessageInput({
-        aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
-        aggregateId: input.assessmentId,
-        assessmentId: input.assessmentId,
-        eventType: ASSESSMENT_EVENT_TYPES.eventRecordedOutbox,
-        correlationId: input.correlationId,
-        causationId: eventId,
-        actor: input.auditActor,
-        result: input.eventType,
-        redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
-        idempotencyKey: `${input.assessmentId}:${eventId}`,
-        payload: { assessmentEvent: envelope },
-      }),
-      tx,
-    );
+    const outboxInput = buildOutboxMessageInput({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+      aggregateId: input.assessmentId,
+      assessmentId: input.assessmentId,
+      eventType: ASSESSMENT_EVENT_TYPES.eventRecordedOutbox,
+      correlationId: input.correlationId,
+      causationId: eventId,
+      actor: input.auditActor,
+      result: input.eventType,
+      redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
+      idempotencyKey: `${input.assessmentId}:${eventId}`,
+      payload: { assessmentEvent: envelope },
+    });
+    // Generic redaction removes token-named fields; restore only validated server metrics.
+    if (envelope.tokenUsage) {
+      outboxInput.payload.assessmentEvent = {
+        ...(outboxInput.payload.assessmentEvent as Record<string, unknown>),
+        tokenUsage: envelope.tokenUsage,
+      };
+    }
+    const outboxMessageId = await this.outbox.enqueue(outboxInput, tx);
     await tx.assessmentEvent.create({
       data: {
         eventId,
@@ -121,6 +129,7 @@ export class AssessmentEventAppender {
         parentExecutionId: input.parentExecutionId ?? null,
         taskId: input.taskId ?? null,
         toolCallId: input.toolCallId ?? null,
+        ...(input.tokenUsage ? { tokenUsage: input.tokenUsage } : {}),
         outboxMessageId,
       },
     });

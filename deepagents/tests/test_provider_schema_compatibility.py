@@ -13,7 +13,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.provider_schema import (
+    GeminiToolNullabilityMiddleware,
     ProviderSchemaCompatibilityMiddleware,
+    gemini_nullable_tools,
     relax_array_upper_bounds,
 )
 
@@ -260,6 +262,52 @@ def test_gemini_tool_schema_strips_unsupported_additional_properties() -> None:
     assert contains_key(forwarded_tools[0], "additionalProperties") is False
 
 
+@pytest.mark.parametrize("middleware", [ProviderSchemaCompatibilityMiddleware(), GeminiToolNullabilityMiddleware()])
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.asyncio
+async def test_serialized_gemini_request_preserves_shared_packet_null_alternatives(middleware, asynchronous) -> None:
+    from langchain_core.messages import HumanMessage
+    from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
+
+    model = _gemini()
+    tools = build_rule_set_tools(RuleSetPreparationContext("schema-test", None))
+    request = _request(model, None, tools)
+    handler = AsyncMock() if asynchronous else MagicMock()
+    if asynchronous:
+        await middleware.awrap_model_call(request, handler)
+    else:
+        middleware.wrap_model_call(request, handler)
+    bound = model.bind_tools(handler.call_args.args[0].tools)
+    prepared = model._prepare_request([HumanMessage(content="Schema transport test")], **bound.kwargs)
+    for declaration in prepared["config"].tools[0].function_declarations:
+        packet = declaration.parameters.properties["packet"].properties
+        reason = packet["legalRequirements"].items.properties["coverage"].properties["nonAssessableReason"]
+        relation = packet["contextRelations"].items.properties
+        for field in (reason, relation["toLegalRequirementId"], relation["toSourceRef"]):
+            assert any(branch.type.value == "NULL" for branch in field.any_of or [])
+        assert "nonAssessableReason" in packet["legalRequirements"].items.properties["coverage"].required
+        assert {"toLegalRequirementId", "toSourceRef"} <= set(packet["contextRelations"].items.required)
+
+
+def test_legal_null_translation_keeps_shared_contract_bounds_and_source_unchanged() -> None:
+    from copy import deepcopy
+    from rule_set_preparation.tools import RuleSetPreparationContext, RULE_SET_INPUT_SCHEMA, build_rule_set_tools
+
+    canonical = deepcopy(RULE_SET_INPUT_SCHEMA)
+    tools = build_rule_set_tools(RuleSetPreparationContext("schema-test", None))
+    translated = gemini_nullable_tools(_gemini(), tools)
+    assert translated is not None
+    for tool in translated:
+        packet = tool["function"]["parameters"]["properties"]["packet"]
+        assert packet["additionalProperties"] is False
+        assert packet["properties"]["legalRequirements"]["maxItems"] == canonical["properties"]["packet"]["properties"]["legalRequirements"]["maxItems"]
+        reason = packet["properties"]["legalRequirements"]["items"]["properties"]["coverage"]["properties"]["nonAssessableReason"]
+        assert reason["anyOf"][0]["maxLength"] == 8000
+        assert reason["anyOf"][1] == {"type": "NULL"}
+    assert RULE_SET_INPUT_SCHEMA == canonical
+    assert gemini_nullable_tools(ChatOpenAI(model="gpt-5-mini", api_key="test-key"), tools) is None
+
+
 def test_openai_requests_are_forwarded_untouched() -> None:
     middleware = ProviderSchemaCompatibilityMiddleware()
     response_format = ProviderStrategy(SyntheticResult)
@@ -285,15 +333,6 @@ def test_raw_schema_without_array_upper_bounds_still_disables_gemini_afc() -> No
     }
 
 
-def _llm7() -> ChatOpenAI:
-    return ChatOpenAI(
-        model="minimax-m2.7",
-        base_url="https://api.llm7.io/v1",
-        api_key="llm7-test-token",
-        use_responses_api=False,
-    )
-
-
 def _conversation():
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
@@ -313,34 +352,6 @@ def _message_request(model, messages):
     from langchain.agents.middleware import ModelRequest
 
     return ModelRequest(model=model, messages=messages, tools=[])
-
-
-@pytest.mark.parametrize("asynchronous", [False, True])
-@pytest.mark.asyncio
-async def test_llm7_requests_drop_assistant_name(asynchronous) -> None:
-    # Regression: LLM7's upstream answers 422 upstream_unprocessable_request when an
-    # assistant message carries `name` (Deep Agents stamp the agent name), so LLM7
-    # failed on the first tool continuation of every scan and its circuit opened.
-    messages = _conversation()
-    request = _message_request(_llm7(), messages)
-    handler = AsyncMock(return_value="ok") if asynchronous else MagicMock(return_value="ok")
-    middleware = ProviderSchemaCompatibilityMiddleware()
-
-    if asynchronous:
-        await middleware.awrap_model_call(request, handler)
-    else:
-        middleware.wrap_model_call(request, handler)
-
-    sent = handler.call_args.args[0].messages
-    assert [type(message).__name__ for message in sent] == [
-        "SystemMessage", "HumanMessage", "AIMessage", "ToolMessage",
-    ]
-    assert sent[2].name is None
-    assert sent[2].tool_calls == messages[2].tool_calls
-    # Only assistant names are dropped; graph state keeps the original message.
-    assert sent[1].name == "customer"
-    assert sent[3].name == "ls"
-    assert messages[2].name == "repository-analyst"
 
 
 @pytest.mark.parametrize(

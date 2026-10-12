@@ -1,0 +1,19 @@
+{
+  "status": "FAIL",
+  "migration": "20261012090000_canonical_physical_terminology",
+  "database": "lcsp_pr367_physical_rename",
+  "checks": [
+    "all 106 historical migrations deployed before the physical cutover",
+    "28 representative V2 rows seeded, including accepted decision/evidence, pin, context, activation, audit and outbox",
+    "table/index/type OIDs and column attnums/types preserved",
+    "PK/FK/check identities, relationships and index definitions preserve their object bindings",
+    "trigger/function/enum-value OIDs and trigger bindings preserved",
+    "all row counts, IDs, payload bytes, decision/evidence and history preserved; only expected names/enum labels/undelivered routing changed",
+    "pg_class/pg_attribute/pg_type/pg_constraint/pg_indexes/information_schema.triggers have zero retired names",
+    "ACTIVE authority, immutable assessment pin and accepted decision identity preserved",
+    "renamed rule-set/requirement/rule/decision and assessment-pin guards still reject mutation",
+    "renamed coverage CHECK rejects contradictory state",
+    "legal supersession and audited reactivation transitions still fire; old pin stays unchanged"
+  ],
+  "tests": "11/14"
+}

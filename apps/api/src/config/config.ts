@@ -167,18 +167,6 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
     OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().positive().default(1000),
     OUTBOX_BATCH_SIZE: Joi.number().integer().positive().default(50),
     OUTBOX_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
-    PIPELINE_RECONCILIATION_POLL_INTERVAL_MS: Joi.number()
-      .integer()
-      .positive()
-      .default(60000),
-    PIPELINE_RECONCILIATION_QUIET_PERIOD_MS: Joi.number()
-      .integer()
-      .min(900000)
-      .default(900000),
-    PIPELINE_RECONCILIATION_MAX_ATTEMPTS: Joi.number()
-      .integer()
-      .positive()
-      .default(3),
     SEPAY_WEBHOOK_SECRET: Joi.alternatives().conditional("NODE_ENV", {
       is: NODE_ENVS.production,
       then: Joi.string().min(16).required(),
@@ -216,11 +204,16 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
           '"SMTP_FROM" must be a valid email or display-name address like "LCSP <noreply@lcsp.com>"',
       }),
     WORKER_API_KEY: Joi.string().min(32).required(),
+    LCSP_AGENT_SERVER_URL: Joi.alternatives().conditional("NODE_ENV", {
+      is: NODE_ENVS.production,
+      then: Joi.string()
+        .uri({ scheme: ["http", "https"] })
+        .required(),
+      otherwise: Joi.string()
+        .uri({ scheme: ["http", "https"] })
+        .optional(),
+    }),
     ORCHESTRATION_DEBUG: Joi.boolean().default(false),
-    VERIFIED_EPISODE_CONSOLIDATION_INTERVAL_MS: Joi.number()
-      .integer()
-      .min(0)
-      .default(0),
     BILLING_SEPAY_BANK_NAME: Joi.alternatives().conditional("NODE_ENV", {
       is: NODE_ENVS.production,
       then: Joi.string().trim().min(1).required(),
@@ -424,15 +417,6 @@ export function config(): AppConfig {
       batchSize: Number(env.OUTBOX_BATCH_SIZE ?? 50),
       maxAttempts: Number(env.OUTBOX_MAX_ATTEMPTS ?? 5),
     },
-    pipelineReconciliation: {
-      pollIntervalMs: Number(
-        env.PIPELINE_RECONCILIATION_POLL_INTERVAL_MS ?? 60000,
-      ),
-      quietPeriodMs: Number(
-        env.PIPELINE_RECONCILIATION_QUIET_PERIOD_MS ?? 900000,
-      ),
-      maxAttempts: Number(env.PIPELINE_RECONCILIATION_MAX_ATTEMPTS ?? 3),
-    },
     sepay: {
       webhookSecret: env.SEPAY_WEBHOOK_SECRET ?? "",
       timestampSkewSeconds: Number(
@@ -452,11 +436,6 @@ export function config(): AppConfig {
     },
     orchestration: {
       debug: (env.ORCHESTRATION_DEBUG ?? "false").toLowerCase() === "true",
-    },
-    verifiedEpisodes: {
-      consolidationIntervalMs: Number(
-        env.VERIFIED_EPISODE_CONSOLIDATION_INTERVAL_MS ?? 0,
-      ),
     },
     billing: {
       sePayBankName: env.BILLING_SEPAY_BANK_NAME?.trim() ?? "",

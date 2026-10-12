@@ -11,6 +11,7 @@ export class ClaimAssessmentRootHandler implements ICommandHandler<ClaimAssessme
     return this.authority.claimRoot({
       assessmentId: command.assessmentId,
       correlationId: command.correlationId,
+      runtimeRunId: command.runtimeRunId,
     });
   }
 }

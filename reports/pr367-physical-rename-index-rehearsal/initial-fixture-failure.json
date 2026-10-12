@@ -1,0 +1,9 @@
+{
+  "status": "FAIL",
+  "migration": "20261012090000_canonical_physical_terminology",
+  "database": "lcsp_pr367_physical_rename",
+  "checks": [
+    "all 106 historical migrations deployed before the physical cutover"
+  ],
+  "tests": "1/14"
+}

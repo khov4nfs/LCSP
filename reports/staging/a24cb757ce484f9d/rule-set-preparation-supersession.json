@@ -1,0 +1,20 @@
+{
+  "scope": "EXACT_IMAGE_AUTOMATIC_RULE_SET_PREPARATION_CAPTURE",
+  "runId": "a24cb757ce484f9d",
+  "status": "FAILED_PREPARATION",
+  "imageReceipt": "reports/release-images/20261011181622_430ea3ff8aeb/report.json",
+  "run": {
+    "id": "7cf1b1d0-d4f8-404f-95cf-df92162072d9",
+    "executionState": "FAILED",
+    "failureReason": "NO_SUBMISSION",
+    "ruleSetVersionId": null,
+    "lifecycleState": null,
+    "validationOutcome": null,
+    "ruleSetDigest": null,
+    "outboxStatus": "PUBLISHED"
+  },
+  "activations": 0,
+  "initiatedThrough": "DURABLE_LEGAL_SOURCE_ACTIVATION",
+  "packetManuallyEdited": false,
+  "semanticReview": "REQUIRED"
+}

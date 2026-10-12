@@ -1,0 +1,20 @@
+{
+  "scope": "EXACT_IMAGE_SHARED_RULE_SET_NO_ASSESSMENT_PREPARATION",
+  "status": "PASS",
+  "runId": "9ae7757edbaf422b",
+  "kind": "BACKEND_VERIFICATION",
+  "assessmentCreation": "REAL_PRODUCT_UI",
+  "preparationRunsBeforeAssessmentCreation": 2,
+  "assessments": [
+    {
+      "assessmentId": "5612fee6-b90d-4837-9f14-98b10f1aba83",
+      "ruleSetVersionId": "78261f5b-bb2e-4316-a171-bc3315ac2aa3"
+    },
+    {
+      "assessmentId": "d81a9318-b46e-4544-81be-7fe4612391f7",
+      "ruleSetVersionId": "78261f5b-bb2e-4316-a171-bc3315ac2aa3"
+    }
+  ],
+  "preparationRuns": 2,
+  "extraPreparationRuns": 0
+}

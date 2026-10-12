@@ -56,7 +56,7 @@ export const BLOCKER_REASONS = {
   HUMAN_FACT_UNRESOLVABLE: "HUMAN_FACT_UNRESOLVABLE",
   REQUIRED_DOCUMENT_UNAVAILABLE: "REQUIRED_DOCUMENT_UNAVAILABLE",
   REQUIRED_RUNTIME_INPUT_UNAVAILABLE: "REQUIRED_RUNTIME_INPUT_UNAVAILABLE",
-  LEGAL_PORTFOLIO_UNAVAILABLE: "LEGAL_PORTFOLIO_UNAVAILABLE",
+  COMPLIANCE_RULE_SET_UNAVAILABLE: "COMPLIANCE_RULE_SET_UNAVAILABLE",
   REPOSITORY_SNAPSHOT_UNAVAILABLE: "REPOSITORY_SNAPSHOT_UNAVAILABLE",
 } as const;
 export type BlockerReason =
@@ -154,7 +154,7 @@ export const AGENTIC_RUNTIME_TRANSITION_GUARDS = {
     "EXPLICIT_CANCELLATION_BEFORE_PUBLICATION",
   ACCEPTED_COMPLETE_RULE_DECISION: "ACCEPTED_COMPLETE_RULE_DECISION",
   VALIDATED_ARTIFACT: "VALIDATED_ARTIFACT",
-  VALIDATED_AUDITED_PORTFOLIO_ROLLBACK: "VALIDATED_AUDITED_PORTFOLIO_ROLLBACK",
+  VALIDATED_AUDITED_RULE_SET_ROLLBACK: "VALIDATED_AUDITED_RULE_SET_ROLLBACK",
   VALID_SUFFICIENT_FACT_ANSWER: "VALID_SUFFICIENT_FACT_ANSWER",
   QUESTION_NO_LONGER_MATERIAL: "QUESTION_NO_LONGER_MATERIAL",
   ASSESSMENT_CANCELLED: "ASSESSMENT_CANCELLED",
@@ -490,11 +490,11 @@ export const ARTIFACT_LIFECYCLE_TRANSITIONS = {
     [ARTIFACT_LIFECYCLE_STATES.ACTIVE]: [
       AGENTIC_RUNTIME_TRANSITION_GUARDS.ARTIFACT_OWNER_AUTHORITY,
       AGENTIC_RUNTIME_TRANSITION_GUARDS.VALIDATED_ARTIFACT,
-      AGENTIC_RUNTIME_TRANSITION_GUARDS.VALIDATED_AUDITED_PORTFOLIO_ROLLBACK,
+      AGENTIC_RUNTIME_TRANSITION_GUARDS.VALIDATED_AUDITED_RULE_SET_ROLLBACK,
     ],
     [ARTIFACT_LIFECYCLE_STATES.INVALID]: [
       AGENTIC_RUNTIME_TRANSITION_GUARDS.ARTIFACT_OWNER_AUTHORITY,
-      AGENTIC_RUNTIME_TRANSITION_GUARDS.VALIDATED_AUDITED_PORTFOLIO_ROLLBACK,
+      AGENTIC_RUNTIME_TRANSITION_GUARDS.VALIDATED_AUDITED_RULE_SET_ROLLBACK,
     ],
   },
   [ARTIFACT_LIFECYCLE_STATES.INVALID]: {},
@@ -554,11 +554,11 @@ export const assessmentBlockerSchema = z.discriminatedUnion("reason", [
     reference: z.strictObject({ requiredInputId: uuidSchema }),
   }),
   z.strictObject({
-    reason: z.literal(BLOCKER_REASONS.LEGAL_PORTFOLIO_UNAVAILABLE),
+    reason: z.literal(BLOCKER_REASONS.COMPLIANCE_RULE_SET_UNAVAILABLE),
     // A dependency may be unobtainable before a version exists. The API verifies
     // the required input's kind and assessment ownership, never inventing a pin.
     reference: z.union([
-      z.strictObject({ legalPortfolioVersionId: uuidSchema }),
+      z.strictObject({ ruleSetVersionId: uuidSchema }),
       z.strictObject({ requiredInputId: uuidSchema }),
     ]),
   }),
@@ -622,10 +622,10 @@ export type RuleDecisionLegalContextReference = z.infer<
 >;
 
 const decisionScopeShape = {
-  engineeringRuleId: identifierSchema,
-  engineeringRuleVersion: identifierSchema,
+  assessmentRuleId: identifierSchema,
+  assessmentRuleVersion: identifierSchema,
   scopeId: identifierSchema,
-  legalPortfolioVersionId: uuidSchema,
+  ruleSetVersionId: uuidSchema,
   repositorySnapshotId: uuidSchema,
   repositoryCommit: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
   caseRevision: revisionSchema,
@@ -633,7 +633,7 @@ const decisionScopeShape = {
 };
 
 /** Root-authored private domain data. Required criterion IDs and reference authority
- * must be checked against the pinned portfolio/ledger by DecisionValidator, not
+ * must be checked against the pinned rule set/ledger by DecisionValidator, not
  * trusted from this packet. No semantic outcome is derived by this schema.
  */
 export const ruleDecisionSchema = z
@@ -703,7 +703,7 @@ export const ruleDecisionSchema = z
 export type RuleDecision = z.infer<typeof ruleDecisionSchema>;
 
 const humanQuestionShape = {
-  engineeringRuleId: identifierSchema,
+  assessmentRuleId: identifierSchema,
   criterionIds: z.array(identifierSchema),
   question: privateTextSchema,
   unresolvedFact: privateTextSchema,
@@ -1006,7 +1006,7 @@ const assessmentEventBodySchema = z
       eventType: z.literal(AGENTIC_ASSESSMENT_EVENT_TYPES.DECISION_ACCEPTED),
       payload: z.strictObject({
         decisionId: uuidSchema,
-        engineeringRuleId: identifierSchema,
+        assessmentRuleId: identifierSchema,
         decisionRevision: revisionSchema,
       }),
     }),

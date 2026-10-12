@@ -1,0 +1,35 @@
+{
+  "scope": "EXACT_IMAGE_UI_EXPLICIT_DELETE_ERASURE",
+  "status": "PASS",
+  "runId": "e73734b01eff4005",
+  "assessmentId": "8c91d731-eafb-4002-849e-8dd565f23e29",
+  "rootThread": "52260d30-30d3-4c59-a183-adc011d26a6a",
+  "transportThread": "dea33e7e-dce9-5f1c-9c57-31e37abbdd44",
+  "before": {
+    "assessment": 1,
+    "case": 1,
+    "evidence": 7,
+    "facts": 2,
+    "decisions": 1,
+    "artifacts": 1,
+    "otherAssessment": 1,
+    "otherArtifact": 1,
+    "checkpoints": 266,
+    "journal": 3,
+    "learning": 1
+  },
+  "after": {
+    "assessment": 0,
+    "case": 0,
+    "evidence": 0,
+    "facts": 0,
+    "decisions": 0,
+    "artifacts": 0,
+    "otherAssessment": 1,
+    "otherArtifact": 1,
+    "checkpoints": 0,
+    "journal": 0,
+    "learning": 1
+  },
+  "accountingCapturedBeforeDelete": true
+}

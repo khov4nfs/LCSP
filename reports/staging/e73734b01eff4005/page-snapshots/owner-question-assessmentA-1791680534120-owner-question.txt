@@ -1,0 +1,86 @@
+- complementary:
+  - navigation "Workspace":
+    - button "Toggle workspace navigation"
+    - button "Search assessments"
+    - button "Back"
+    - button "Forward"
+    - link "New":
+      - /url: /assessments/new
+    - link "Artifacts":
+      - /url: /artifacts
+    - heading "Recents" [level=2]
+    - button "Filter recent assessments"
+    - link "Notice retention review assessmentA":
+      - /url: /assessments/d30b6364-f031-4318-90af-9569b079c612
+    - 'button "Assessment options: Notice retention review assessmentA"'
+    - link "Notice retention review assessmentB":
+      - /url: /assessments/8c91d731-eafb-4002-849e-8dd565f23e29
+    - 'button "Assessment options: Notice retention review assessmentB"'
+    - button "Account menu": R RELEASE owner
+- banner:
+  - paragraph: Notice retention review assessmentA
+  - button "Runtime activity" [pressed]
+- main:
+  - region "Assessment state":
+    - paragraph: Assessment state
+    - term: Lifecycle
+    - definition: Waiting for human input
+    - term: Execution
+    - definition: Interrupted
+  - heading "A fact is needed to continue" [level=2]
+  - group:
+    - text: Is this notice service deployed and made available to the public, or is it used only for private/internal purposes?
+    - textbox "Is this notice service deployed and made available to the public, or is it used only for private/internal purposes?"
+  - group:
+    - switch "I do not know"
+    - text: I do not know
+  - button "Submit fact"
+  - region "Recent assessment activity":
+    - paragraph: Recent assessment activity
+    - list:
+      - listitem:
+        - text: Assessment reasoning completed
+        - paragraph: 20.2k in · 239 out · 20.5k tokens
+      - listitem: Fact accepted
+      - listitem:
+        - text: Assessment reasoning completed
+        - paragraph: 20k in · 203 out · 20.2k tokens
+      - listitem:
+        - text: Assessment reasoning completed
+        - paragraph: 19.6k in · 180 out · 19.7k tokens
+      - listitem: Repository evidence inspected
+    - heading "Total token usage" [level=3]
+    - paragraph: 176.2k tokens
+    - paragraph: 173.9k in · 2.3k out
+- complementary:
+  - complementary:
+    - heading "Notice retention review assessmentA" [level=2]
+    - text: Connected
+    - region "Assessment state":
+      - paragraph: Assessment state
+      - term: Lifecycle
+      - definition: Waiting for human input
+      - term: Execution
+      - definition: Interrupted
+    - paragraph: khov4nfs/lcsp-synthetic-notice-service
+    - code: c14f518437c1b8cef94b4f9a176c04b1acaff6fe
+    - separator
+    - region "Recent assessment activity":
+      - paragraph: Recent assessment activity
+      - list:
+        - listitem:
+          - text: Assessment reasoning completed
+          - paragraph: 20.2k in · 239 out · 20.5k tokens
+        - listitem: Fact accepted
+        - listitem:
+          - text: Assessment reasoning completed
+          - paragraph: 20k in · 203 out · 20.2k tokens
+        - listitem:
+          - text: Assessment reasoning completed
+          - paragraph: 19.6k in · 180 out · 19.7k tokens
+        - listitem: Repository evidence inspected
+      - heading "Total token usage" [level=3]
+      - paragraph: 176.2k tokens
+      - paragraph: 173.9k in · 2.3k out
+- region "Notifications alt+T"
+- alert

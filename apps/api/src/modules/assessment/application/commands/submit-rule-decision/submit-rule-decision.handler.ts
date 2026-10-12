@@ -95,7 +95,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
       const coverage = await this.support.requireCoverage(
         tx,
         input.assessmentId,
-        decision.engineeringRuleId,
+        decision.assessmentRuleId,
         input.correlationId,
       );
       const context = await this.support.buildValidationContext(tx, {
@@ -124,7 +124,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
       const previous = await tx.assessmentRuleDecision.findFirst({
         where: {
           assessmentId: input.assessmentId,
-          engineeringRuleId: decision.engineeringRuleId,
+          assessmentRuleId: decision.assessmentRuleId,
           scopeId: decision.scopeId,
         },
         orderBy: { decisionRevision: "desc" },
@@ -156,9 +156,9 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         data: {
           decisionId,
           assessmentId: input.assessmentId,
-          portfolioVersionId: pins.legalPortfolioVersionId,
-          engineeringRuleId: decision.engineeringRuleId,
-          engineeringRuleVersion: decision.engineeringRuleVersion,
+          ruleSetVersionId: pins.ruleSetVersionId,
+          assessmentRuleId: decision.assessmentRuleId,
+          assessmentRuleVersion: decision.assessmentRuleVersion,
           scopeId: decision.scopeId,
           decisionRevision,
           applicability: decision.applicability,
@@ -172,7 +172,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
       });
       await this.support.advanceCoverageToResolved(tx, {
         assessmentId: input.assessmentId,
-        engineeringRuleId: decision.engineeringRuleId,
+        assessmentRuleId: decision.assessmentRuleId,
         from: coverage.resolutionState,
         decisionId,
         decisionRevision,
@@ -185,7 +185,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
         executionId: run.executionId,
         payload: {
           decisionId,
-          engineeringRuleId: decision.engineeringRuleId,
+          assessmentRuleId: decision.assessmentRuleId,
           decisionRevision,
         },
         auditActor: ROOT_AUDIT_ACTOR,
@@ -203,7 +203,7 @@ export class SubmitRuleDecisionHandler implements ICommandHandler<SubmitRuleDeci
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
           payload: {
             decisionId,
-            engineeringRuleId: decision.engineeringRuleId,
+            assessmentRuleId: decision.assessmentRuleId,
             decisionRevision,
             applicability: decision.applicability,
           },

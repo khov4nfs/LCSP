@@ -1,5 +1,7 @@
 # ADR-024 - Real LLM Provider as Mandatory A-to-Z MVP Requirement
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Status
 
 Accepted for A-to-Z Runnable MVP (Phase 5.2J)

@@ -1,5 +1,7 @@
 # LangChain and Deep Agents Native Runtime Policy
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 LCSP Agent Runtime must use the LangChain and Deep Agents framework as the
 LLM execution layer. Do not add new provider clients, tool-call protocols,
 structured-output parsers, prompt-safety filters, fallback dispatchers, or retry

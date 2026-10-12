@@ -102,6 +102,13 @@ export function emitDevUnsafeTrace(
       );
       if (fieldAssessmentId) finalAssessmentId = String(fieldAssessmentId);
     }
+    if (
+      finalAssessmentId === "unknown_assessment" ||
+      ![finalUserId, finalAssessmentId].every((value) =>
+        /^[A-Za-z0-9_-]{1,300}$/.test(value),
+      )
+    )
+      return;
     const repoRoot = getRepoRoot();
     const logDir = path.join(
       repoRoot,
@@ -204,9 +211,9 @@ function summarizeTraceFields(
     fields,
     new Set(["snapshot_ref", "snapshotRef"]),
   );
-  const corpusVersionId = findIdRecursive(
+  const legalSourceVersionId = findIdRecursive(
     fields,
-    new Set(["corpus_version_id", "corpusVersionId"]),
+    new Set(["legal_source_version_id", "legalSourceVersionId"]),
   );
   const assessmentId = findIdRecursive(
     fields,
@@ -220,8 +227,8 @@ function summarizeTraceFields(
   if (scanJobId !== undefined) summary["scan_job_id"] = scanJobId;
   if (snapshotId !== undefined) summary["snapshot_id"] = snapshotId;
   if (snapshotRef !== undefined) summary["snapshot_ref"] = snapshotRef;
-  if (corpusVersionId !== undefined)
-    summary["corpus_version_id"] = corpusVersionId;
+  if (legalSourceVersionId !== undefined)
+    summary["legal_source_version_id"] = legalSourceVersionId;
   if (assessmentId !== undefined) summary["assessment_id"] = assessmentId;
   if (workflowRunId !== undefined) summary["workflow_run_id"] = workflowRunId;
 

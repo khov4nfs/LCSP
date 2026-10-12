@@ -13,6 +13,8 @@ import {
   acceptCaseFactRequestSchema,
   acceptEvidenceRequestSchema,
   claimAssessmentRootRequestSchema,
+  claimAssessmentRootExecutionRequestSchema,
+  type ClaimAssessmentRootExecutionRequest,
   finishAssessmentRootRequestSchema,
   rootActivityRequestSchema,
   startRuleInvestigationRequestSchema,
@@ -42,7 +44,7 @@ import type { z } from "zod";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
-import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../../../common/guards/worker-api-key.guard.js";
 import { AcceptAssessmentEvidenceCommand } from "../../application/commands/accept-assessment-evidence/accept-assessment-evidence.command.js";
 import { AcceptAssessmentFactCommand } from "../../application/commands/accept-assessment-fact/accept-assessment-fact.command.js";
 import { ClaimAssessmentRootCommand } from "../../application/commands/claim-assessment-root/claim-assessment-root.command.js";
@@ -55,7 +57,7 @@ import { RequestAssessmentFinalizationCommand } from "../../application/commands
 import { StartRuleInvestigationCommand } from "../../application/commands/start-rule-investigation/start-rule-investigation.command.js";
 import { SubmitRuleDecisionCommand } from "../../application/commands/submit-rule-decision/submit-rule-decision.command.js";
 import { SubmitAssessmentFinalReportCommand } from "../../application/commands/submit-assessment-final-report/submit-assessment-final-report.command.js";
-import { GetPinnedPortfolioQuery } from "../../application/queries/get-pinned-portfolio/get-pinned-portfolio.query.js";
+import { GetPinnedRuleSetQuery } from "../../application/queries/get-pinned-rule-set/get-pinned-rule-set.query.js";
 import { GetRootContextQuery } from "../../application/queries/get-root-context/get-root-context.query.js";
 import { GetRootControlQuery } from "../../application/queries/get-root-control/get-root-control.query.js";
 import {
@@ -113,11 +115,17 @@ export class AssessmentDomainController {
       bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
     )
     assessmentId: string,
+    @Body(bodyPipe(claimAssessmentRootExecutionRequestSchema))
+    request: ClaimAssessmentRootExecutionRequest,
     @Req() req: AuthenticatedRequest,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
-        new ClaimAssessmentRootCommand(assessmentId, this.correlation(req)),
+        new ClaimAssessmentRootCommand(
+          assessmentId,
+          this.correlation(req),
+          request?.runtimeRunId,
+        ),
       ),
     );
   }
@@ -192,9 +200,9 @@ export class AssessmentDomainController {
     );
   }
 
-  @Get("portfolio")
+  @Get("rule-set")
   @UseGuards(AssessmentLeaseGuard)
-  async portfolio(
+  async ruleSet(
     @Param(
       "assessmentId",
       bodyPipe(claimAssessmentRootRequestSchema.shape.assessmentId),
@@ -205,7 +213,7 @@ export class AssessmentDomainController {
   ) {
     return resultEnvelope(
       await this.queryBus.execute(
-        new GetPinnedPortfolioQuery(assessmentId, lease, this.correlation(req)),
+        new GetPinnedRuleSetQuery(assessmentId, lease, this.correlation(req)),
       ),
     );
   }

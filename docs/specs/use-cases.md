@@ -1,5 +1,7 @@
 # LCSP Use Cases
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 Canonical active use-case catalog for the A-to-Z runnable MVP. Detailed user interaction sequences live in `user-task-flows.md`.

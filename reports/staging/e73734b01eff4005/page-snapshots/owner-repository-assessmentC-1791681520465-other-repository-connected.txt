@@ -1,0 +1,43 @@
+- complementary:
+  - navigation "Workspace":
+    - button "Toggle workspace navigation"
+    - button "Search assessments"
+    - button "Back"
+    - button "Forward"
+    - link "New":
+      - /url: /assessments/new
+    - link "Artifacts":
+      - /url: /artifacts
+    - heading "Recents" [level=2]
+    - button "Filter recent assessments"
+    - link "Independent notice service review":
+      - /url: /assessments/34739558-2460-4312-8f17-c78d103e1112
+    - 'button "Assessment options: Independent notice service review"'
+    - button "Account menu": R RELEASE other
+- banner:
+  - paragraph: Independent notice service review
+  - button "Runtime activity" [pressed]
+- main:
+  - region "Assessment state":
+    - paragraph: Assessment state
+    - term: Lifecycle
+    - definition: Active
+    - term: Execution
+    - definition: Queued
+- complementary:
+  - complementary:
+    - heading "Independent notice service review" [level=2]
+    - text: Connected
+    - region "Assessment state":
+      - paragraph: Assessment state
+      - term: Lifecycle
+      - definition: Active
+      - term: Execution
+      - definition: Queued
+    - paragraph: khov4nfs/lcsp-synthetic-notice-service
+    - code: c14f518437c1b8cef94b4f9a176c04b1acaff6fe
+    - separator
+- region "Notifications alt+T":
+  - list:
+    - listitem: Repository connected
+- alert

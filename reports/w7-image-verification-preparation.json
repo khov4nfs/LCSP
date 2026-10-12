@@ -1,0 +1,199 @@
+{
+  "scope": "W7_IMAGE_GATE_ACCEPTED_CURRENT_SOURCE",
+  "runner": "tests/w7-release-images.py",
+  "currentSourceFiles": 1074,
+  "deepAgentsSourceFiles": 170,
+  "deletedPaths": 461,
+  "retiredPatterns": 27,
+  "checks": {
+    "parserMutationSelfCheck": "PASS",
+    "syntheticCurrentSourceTar": "PASS",
+    "eventRoutingContractTests": 5,
+    "requiredCIGateTests": 3,
+    "imageCasesCollected": 7,
+    "syntaxFormattingDiff": "PASS"
+  },
+  "actualCandidateBuilds": "PASS",
+  "actualMergedRootfs": "PASS",
+  "actualDockerIntegrations": "PASS_SEVEN_ZERO_SKIPS",
+  "browser": "NOT_PROVEN",
+  "staging": "NOT_PROVEN",
+  "remoteCurrentHeadCI": "NOT_PROVEN",
+  "productionDeployment": false,
+  "acceptedPythonReceipt": "reports/w7-regression/20261009104044_884405/report.json",
+  "graphUpdate": {
+    "status": "PASS_WITH_COVERAGE_LIMITS",
+    "nodes": 20157,
+    "edges": 45571,
+    "communities": 1190,
+    "sqlFilesNotExtracted": 105,
+    "partialTestFile": "apps/api/test/smoke.e2e-spec.ts",
+    "llmCalls": 0
+  },
+  "latestAttempt": {
+    "receipt": "reports/w7-images/20261009121713_976c762ea276/report.json",
+    "status": "PASS",
+    "exitCode": 0,
+    "images": {
+      "api": {
+        "imageId": "sha256:b435f935008cc14f757d22937d47d5f0add1f91157879b185cfef3e22c39c946",
+        "dockerfile": "apps/api/Dockerfile",
+        "mergedRootfs": "PASS",
+        "files": 3417
+      },
+      "web": {
+        "imageId": "sha256:a53a4bebb21f2c0bb1a64f06d1c4086a5dc8f859fe3a8fad7974bf0afcde7737",
+        "dockerfile": "apps/web/Dockerfile",
+        "mergedRootfs": "PASS",
+        "files": 2966
+      },
+      "worker": {
+        "imageId": "sha256:3beb058cce9946882635d9f28bd9e1b7bac7b2e10f5d41982be2bcd8d329fa01",
+        "dockerfile": "deepagents/Dockerfile.dev",
+        "mergedRootfs": "PASS",
+        "files": 196
+      },
+      "server": {
+        "imageId": "sha256:b5710ac0515de260ba840dc21198f016fec87c3cf58d9313d9722fd1e07e4527",
+        "dockerfile": "deepagents-langgraph/Dockerfile",
+        "mergedRootfs": "PASS",
+        "files": 197
+      }
+    },
+    "dockerIntegrations": {
+      "receipt": "reports/w7-images/20261009121713_976c762ea276/docker-junit.xml",
+      "passed": 7,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 50.286
+    },
+    "sourceDisposition": "CURRENT_SOURCE_AND_ALL_BUILD_INPUT_HASHES_VERIFIED_UNCHANGED",
+    "stagingEligible": true,
+    "releaseEligible": false
+  },
+  "packagingRepair": {
+    "status": "PASS_ACTUAL_CURRENT_SOURCE_FOUR_MERGED_ROOTFS_AUDITS",
+    "recursivePrivateContextExclusions": true,
+    "generatedApiPrismaCacheRemovedInBuild": true,
+    "emptyDirectoryReceipt": "reports/w7-empty-v1-directory-cleanup.json",
+    "emptyDirectoriesRemoved": 125,
+    "filesRemoved": 0,
+    "privateWorkspaceFilesRemoved": 0,
+    "canonicalSourceHashesUnchanged": 1074,
+    "retiredPathsStillAbsent": 461,
+    "parserMutations": "PASS",
+    "eventRoutingContractTests": 5,
+    "eventRoutingContractSeconds": 1.29,
+    "sourcePolicy": "PASS",
+    "syntheticSourceTar": "PASS_SOURCE_ONLY",
+    "originalPrivatePathIdentity": "PARTIAL_ONE_HASH_UNMAPPED",
+    "syntaxFormattingDiff": "PASS",
+    "graphUpdate": {
+      "status": "PASS_WITH_COVERAGE_LIMITS",
+      "nodes": 20144,
+      "edges": 45525,
+      "communities": 1192,
+      "sqlFilesNotExtracted": 105,
+      "partialTestFile": "apps/api/test/smoke.e2e-spec.ts",
+      "llmCalls": 0
+    },
+    "revalidationReceipt": "reports/w7-images/20261009121713_976c762ea276/report.json"
+  },
+  "attemptHistory": [
+    {
+      "receipt": "reports/w7-images/20261009111650_3d1137e87495/report.json",
+      "status": "FAIL",
+      "exitCode": 1,
+      "failedStage": "api merged-rootfs audit",
+      "apiBuild": "PASS",
+      "apiMergedRootfs": "FAIL",
+      "privateFixtureArchiveMembers": 73,
+      "retiredDirectoryMembers": 117,
+      "otherBuilds": "NOT_EXECUTED",
+      "dockerIntegrations": "NOT_EXECUTED",
+      "releaseEligible": false
+    },
+    {
+      "receipt": "reports/w7-images/20261009113812_ab4646d470d5/report.json",
+      "status": "FAIL",
+      "exitCode": 1,
+      "failedStage": "api merged-rootfs audit",
+      "apiBuild": "PASS",
+      "apiMergedRootfs": "FAIL",
+      "privateFixtureArchiveMembers": 0,
+      "retiredDirectoryMembers": 3,
+      "otherBuilds": "NOT_EXECUTED",
+      "dockerIntegrations": "NOT_EXECUTED",
+      "releaseEligible": false
+    },
+    {
+      "receipt": "reports/w7-images/20261009114514_b28756566ec0/report.json",
+      "status": "FAIL",
+      "exitCode": 1,
+      "failedStage": "seven Docker integrations",
+      "images": {
+        "api": {
+          "imageId": "sha256:51c9aefa5ff5670dbeaeeb9b7e0cfb5e58400faddc65666c23be423cd4353f25",
+          "dockerfile": "apps/api/Dockerfile",
+          "mergedRootfs": "PASS",
+          "files": 3417
+        },
+        "web": {
+          "imageId": "sha256:40e9bcc83beaccac1a38d8649274c68da6e3bc5724a09a65522c75760a6fec51",
+          "dockerfile": "apps/web/Dockerfile",
+          "mergedRootfs": "PASS",
+          "files": 2966
+        },
+        "worker": {
+          "imageId": "sha256:4a2930580995beeb465c94f1cd865513968cd3bc7fa85669d0b14c19b48a508d",
+          "dockerfile": "deepagents/Dockerfile.dev",
+          "mergedRootfs": "PASS",
+          "files": 196
+        },
+        "server": {
+          "imageId": "sha256:146cb54be120815720aff6779cb8ebd750e8e7ad0bacf29b94ce7e0f8eee57e4",
+          "dockerfile": "deepagents-langgraph/Dockerfile",
+          "mergedRootfs": "PASS",
+          "files": 197
+        }
+      },
+      "dockerIntegrations": {
+        "receipt": "reports/w7-images/20261009114514_b28756566ec0/docker-junit.xml",
+        "passed": 4,
+        "failed": 3,
+        "errors": 0,
+        "skipped": 0,
+        "seconds": 42.828
+      },
+      "sourceDisposition": "HISTORICAL_VALID_ROOTFS_RECEIPTS_ONE_CANONICAL_FILE_CHANGED_AFTER_BUILD",
+      "releaseEligible": false
+    }
+  ],
+  "emptyContractDirectoryRepair": {
+    "status": "PASS_ACTUAL_CURRENT_SOURCE_FOUR_MERGED_ROOTFS_AUDITS",
+    "receipt": "reports/w7-empty-contract-directory-cleanup.json",
+    "directoriesRemoved": 3,
+    "filesRemoved": 0,
+    "privateWorkspaceFilesRemoved": 0,
+    "applicationPathsChecked": 1727,
+    "forbiddenPathsRemaining": 0,
+    "canonicalSourceHashesUnchanged": 1074,
+    "parserMutations": "PASS",
+    "sourcePolicy": "PASS",
+    "applicationCodeChanged": false,
+    "revalidationReceipt": "reports/w7-images/20261009121713_976c762ea276/report.json"
+  },
+  "currentSourceImageGate": "PASS",
+  "healthDispatchRepair": {
+    "receipt": "reports/w7-health-dispatch-repair.json",
+    "status": "PASS_DOCKER_REVALIDATED",
+    "changedCanonicalSource": [
+      "deepagents/tools/common/capabilities/agent_runtime/health_boundary.py"
+    ],
+    "focusedTestsPassed": 25,
+    "revalidationReceipt": "reports/w7-images/20261009121713_976c762ea276/report.json"
+  },
+  "acceptedImageReceipt": "reports/w7-images/20261009121713_976c762ea276/report.json",
+  "nextGate": "PRODUCTION_SHAPED_CANONICAL_STAGING_AND_BROWSER"
+}

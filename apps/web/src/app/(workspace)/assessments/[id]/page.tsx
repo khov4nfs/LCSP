@@ -1,10 +1,10 @@
-import { AssessmentOverview } from "@/features/workspace/components/organisms/assessment-overview";
+import { AssessmentChatView } from "@/features/assessment-runtime/components/organisms/assessment-chat-view";
 
-export default async function AssessmentOverviewPage({
+export default async function AssessmentPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <AssessmentOverview assessmentId={id} />;
+  return <AssessmentChatView assessmentId={id} />;
 }

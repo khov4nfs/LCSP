@@ -5,6 +5,9 @@ task_id: TASK-AO-6-11-activate-validated-corpus-version
 jira_issue: LCSP-215
 status: DONE
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # TASK-AO-6-11 — `activate_validated_corpus_version`
 
 ## Objective and tool definition

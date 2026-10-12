@@ -1,5 +1,7 @@
 # LikeC4 Architecture-as-Code Guide for LCSP
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 Thư mục `likec4/` chứa các định nghĩa **LikeC4** Architecture-as-Code cho dự án LCSP.
 
 ## Thư mục nguồn LikeC4

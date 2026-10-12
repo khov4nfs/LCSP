@@ -1,0 +1,12 @@
+{
+  "scope": "EXACT_IMAGE_NONPERSISTED_MECHANICAL_NEGATIVE_PROVENANCE_DIAGNOSIS",
+  "status": "FAIL",
+  "imageId": "sha256:403a380562fe009ac0100be8cb66afa9147f3470e59db185ed3a234073dca399",
+  "partialAndTruncatedCoverageReferenced": true,
+  "failures": [],
+  "unexpectedAcceptance": true,
+  "sourceValidatorUnchangedSinceImage": true,
+  "databaseWrites": 0,
+  "rootSemanticJudgment": "NOT_ASSERTED",
+  "finding": "Decision context drops SearchCoverage metadata, allowing incomplete coverage as final decision provenance."
+}

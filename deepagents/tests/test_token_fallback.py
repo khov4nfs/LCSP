@@ -47,13 +47,13 @@ def test_parse_tokens_and_empty_list(monkeypatch):
         provider_tokens("openai")
 
 
-def test_llm7_credentials_are_isolated_from_openai(monkeypatch):
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-one,llm7-two")
+def test_apx_credentials_are_isolated_from_openai(monkeypatch):
+    monkeypatch.setenv("APX_API_KEY", "apx-one,apx-two")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
 
-    assert provider_tokens("llm7") == ("llm7-one", "llm7-two")
-    assert credential_init_kwargs("llm7") == {
-        "api_key": "llm7-one",
+    assert provider_tokens("apx") == ("apx-one", "apx-two")
+    assert credential_init_kwargs("apx") == {
+        "api_key": "apx-one",
         "max_retries": 0,
     }
 
@@ -67,14 +67,6 @@ def test_inception_credentials_are_isolated_from_openai(monkeypatch):
         "api_key": "inception-one",
         "max_retries": 0,
     }
-
-
-def test_apx_credentials_are_isolated_from_openai(monkeypatch):
-    monkeypatch.setenv("APX_API_KEY", "apx-one,apx-two")
-    monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
-
-    assert provider_tokens("apx") == ("apx-one", "apx-two")
-    assert credential_init_kwargs("apx") == {"api_key": "apx-one", "max_retries": 0}
 
 
 def test_apx_chat_openai_is_detected_and_rotates_with_its_gateway(monkeypatch):
@@ -97,16 +89,16 @@ def test_apx_chat_openai_is_detected_and_rotates_with_its_gateway(monkeypatch):
     assert fallback.use_responses_api is False
 
 
-def test_llm7_chat_openai_rotation_preserves_gateway_policy(monkeypatch):
-    monkeypatch.setenv("LLM7_API_KEY", "llm7-first,llm7-second")
+def test_apx_chat_openai_rotation_preserves_gateway_policy(monkeypatch):
+    monkeypatch.setenv("APX_API_KEY", "apx-first,apx-second")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
     model = ChatOpenAI(
         model="minimax-m2.7",
-        base_url="https://api.llm7.io/v1",
+        base_url="https://api.apmix.ai/v1",
         use_responses_api=False,
-        **credential_init_kwargs("llm7"),
+        **credential_init_kwargs("apx"),
     )
-    assert model_provider(model) == "llm7"
+    assert model_provider(model) == "apx"
 
     request = ModelRequest(model=model, messages=[], tools=[])
     response = ModelResponse(result=[])
@@ -116,8 +108,8 @@ def test_llm7_chat_openai_rotation_preserves_gateway_policy(monkeypatch):
     assert result is response
     assert handler.call_count == 2
     fallback = handler.call_args.args[0].model
-    assert fallback.openai_api_key.get_secret_value() == "llm7-second"
-    assert str(fallback.openai_api_base).rstrip("/") == "https://api.llm7.io/v1"
+    assert fallback.openai_api_key.get_secret_value() == "apx-second"
+    assert str(fallback.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
     assert fallback.use_responses_api is False
     assert fallback.max_retries == 0
 
@@ -204,7 +196,7 @@ def _install_fake_cooldown_clock(monkeypatch, *, start: float = 1_000.0):
 
 
 @pytest.mark.parametrize(
-    "provider", ["openai", "google_genai", "llm7", "inception", "apx", "anthropic"]
+    "provider", ["openai", "google_genai", "apx", "inception", "anthropic"]
 )
 @pytest.mark.parametrize("asynchronous", [False, True])
 @pytest.mark.asyncio
@@ -212,7 +204,7 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
     name = {
         "openai": "OPENAI_API_KEY",
         "google_genai": "GOOGLE_API_KEY",
-        "llm7": "LLM7_API_KEY",
+        "apx": "APX_API_KEY",
         "inception": "INCEPTION_API_KEY",
         "apx": "APX_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
@@ -225,10 +217,10 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
             use_responses_api=True,
             **credential_init_kwargs(provider),
         )
-    elif provider == "llm7":
+    elif provider == "apx":
         model = ChatOpenAI(
             model="minimax-m2.7",
-            base_url="https://api.llm7.io/v1",
+            base_url="https://api.apmix.ai/v1",
             use_responses_api=False,
             **credential_init_kwargs(provider),
         )
@@ -269,7 +261,7 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
     fallback = handler.call_args.args[0].model
     key = (
         fallback.openai_api_key
-        if provider in {"openai", "llm7", "inception", "apx"}
+        if provider in {"openai", "apx", "inception", "apx"}
         else fallback.anthropic_api_key
         if provider == "anthropic"
         else fallback.google_api_key
@@ -280,8 +272,8 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
         assert fallback.reasoning == {"effort": "low"}
         assert fallback.use_responses_api is True
         assert fallback.root_client is not model.root_client
-    elif provider == "llm7":
-        assert str(fallback.openai_api_base).rstrip("/") == "https://api.llm7.io/v1"
+    elif provider == "apx":
+        assert str(fallback.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
         assert fallback.use_responses_api is False
         assert fallback.max_retries == 0
         assert fallback.root_client is not model.root_client
@@ -401,12 +393,12 @@ def _gemini_model():
     )
 
 
-def _llm7_model():
+def _apx_model():
     return ChatOpenAI(
         model="minimax-m2.7",
-        base_url="https://api.llm7.io/v1",
+        base_url="https://api.apmix.ai/v1",
         use_responses_api=False,
-        **credential_init_kwargs("llm7"),
+        **credential_init_kwargs("apx"),
     )
 
 
@@ -484,16 +476,16 @@ def test_auth_401_slot_then_429_slot_then_successful_later_slot(monkeypatch):
     assert token_fallback._DEAD_CREDENTIAL_SLOTS[("google_genai", "GEMINI_API_KEY")] == {0}
 
 
-def test_llm7_roll_key_uses_same_dead_and_cooldown_semantics(monkeypatch):
+def test_apx_roll_key_uses_same_dead_and_cooldown_semantics(monkeypatch):
     monkeypatch.setenv(
-        "LLM7_API_KEY",
+        "APX_API_KEY",
         "slot-a-test-token,slot-b-test-token,slot-c-test-token",
     )
     clock = {"now": 1_000.0}
     from middleware import token_fallback
 
     monkeypatch.setattr(token_fallback, "_monotonic", lambda: clock["now"])
-    model = _llm7_model()
+    model = _apx_model()
     response = ModelResponse(result=[])
     middleware = TokenFallbackMiddleware()
 
@@ -516,7 +508,7 @@ def test_llm7_roll_key_uses_same_dead_and_cooldown_semantics(monkeypatch):
     third = MagicMock(side_effect=[response])
     assert middleware.wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), third) is response
     assert third.call_args.args[0].model.openai_api_key.get_secret_value() == "slot-b-test-token"
-    assert token_fallback._DEAD_CREDENTIAL_SLOTS[("llm7", "LLM7_API_KEY")] == {0}
+    assert token_fallback._DEAD_CREDENTIAL_SLOTS[("apx", "APX_API_KEY")] == {0}
 
 
 def test_rate_limited_slots_are_cooled_not_marked_dead_and_still_tried_last(monkeypatch):
@@ -912,8 +904,8 @@ def test_outer_model_retry_does_not_resend_provider_capacity_failure(monkeypatch
     from langchain.agents.middleware import ModelRetryMiddleware
     from middleware.failure_policy import retry_model_error
 
-    monkeypatch.setenv("LLM7_API_KEY", "only-test-token")
-    model = _llm7_model()
+    monkeypatch.setenv("APX_API_KEY", "only-test-token")
+    model = _apx_model()
     handler = MagicMock(side_effect=CapacityError("insufficient balance"))
     retry = ModelRetryMiddleware(max_retries=2, retry_on=retry_model_error, on_failure="error", initial_delay=0)
 
@@ -929,11 +921,11 @@ def test_outer_model_retry_does_not_resend_provider_capacity_failure(monkeypatch
 def test_multi_token_primary_disables_sdk_internal_retries(monkeypatch):
     monkeypatch.setenv("GOOGLE_API_KEY", "primary-test-token,secondary-test-token")
     monkeypatch.setenv("OPENAI_API_KEY", "primary-test-token,secondary-test-token")
-    monkeypatch.setenv("LLM7_API_KEY", "primary-test-token,secondary-test-token")
+    monkeypatch.setenv("APX_API_KEY", "primary-test-token,secondary-test-token")
 
     assert credential_init_kwargs("google_genai")["max_retries"] == 1
     assert credential_init_kwargs("openai")["max_retries"] == 0
-    assert credential_init_kwargs("llm7")["max_retries"] == 0
+    assert credential_init_kwargs("apx")["max_retries"] == 0
 
 
 def test_fallback_auth_failure_marks_dead_and_continues_to_next_token(monkeypatch):

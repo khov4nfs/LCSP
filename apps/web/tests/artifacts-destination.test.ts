@@ -14,8 +14,7 @@ test("Artifacts destination is wired through the redesigned shell", async () => 
   ]);
 
   assert.match(route, /ArtifactsPage/);
-  assert.match(route, /process\.env\.NODE_ENV === "development"/);
-  assert.match(route, /preview === "populated"/);
+  assert.doesNotMatch(route, /ARTIFACT_PREVIEW_GROUPS|preview/);
   assert.match(shell, /pathname === "\/artifacts"/);
   assert.match(sidebar, /href="\/artifacts"/);
   assert.match(sidebar, /artifactsActive/);
@@ -23,21 +22,6 @@ test("Artifacts destination is wired through the redesigned shell", async () => 
   assert.match(page, /\/assessments\/new/);
   assert.match(page, /SearchIcon/);
   assert.match(page, /pages\.artifacts\.search/);
-});
-
-test("development preview supplies normalized Figma groups without production records", async () => {
-  const [route, fixture, page] = await Promise.all([
-    read("app/(workspace)/artifacts/page.tsx"),
-    read("features/artifacts/dev/artifact-preview-fixtures.ts"),
-    read("features/artifacts/components/artifacts-page.tsx"),
-  ]);
-
-  assert.match(route, /ARTIFACT_PREVIEW_GROUPS/);
-  assert.match(fixture, /Payment AI compliance review/);
-  assert.match(fixture, /Data retention policy audit/);
-  assert.match(fixture, /Repository remediation review/);
-  assert.match(fixture, /ArtifactGroup\[\]/);
-  assert.match(page, /filterArtifactGroups/);
 });
 
 test("Artifacts shared contracts expose semantic refs and safe open targets", async () => {

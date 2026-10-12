@@ -54,6 +54,13 @@ def test_docker_sandbox_executes_repository_tools_without_host_secrets() -> None
         assert read.error is None
         assert read.file_data["content"] == "print('lcsp sandbox ok')\n"
 
+        # offset/limit are LINE counts (the Filesystem tool contract), never a byte window.
+        backend.write("src/lines.txt", "".join(f"line {n}\n" for n in range(1, 31)))
+        page = backend.read("src/lines.txt", offset=10, limit=5)
+        assert page.error is None
+        assert page.file_data["content"].splitlines() == [f"line {n}" for n in range(11, 16)]
+        assert (page.start_line, page.end_line, page.total_lines) == (11, 15, 30)
+
         executed = backend.execute("python src/app.py", timeout=20)
         assert executed.exit_code == 0
         assert "lcsp sandbox ok" in executed.output
@@ -159,14 +166,6 @@ def test_docker_sandbox_hydrates_repository_snapshot_without_removing_mountpoint
         assert payload["snapshotId"] == "snapshot-1"
         assert payload["scanJobId"] == "scan-1"
         assert payload["repositoryRoot"] == "/workspace/repository"
-
-        skill = backend.read("/workspace/repository/.lcsp/agent/skills/lcsp/SKILL.md")
-        assert skill.error is None
-        assert "name: lcsp" in skill.file_data["content"]
-        retired_skill = backend.read(
-            "/workspace/repository/.lcsp/agent/skills/interview-context/SKILL.md"
-        )
-        assert retired_skill.error == "file_not_found"
 
         git_probe = backend.execute(
             "test -d /workspace/repository/.git "

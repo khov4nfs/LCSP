@@ -1,6 +1,5 @@
 import type {
   AgenticToolCoverageState,
-  AgenticToolName,
   AgenticToolStatus,
 } from "./agentic-tool.ts";
 
@@ -61,8 +60,7 @@ export type ChunkIntegrityRule =
   (typeof CHUNK_INTEGRITY_RULES)[keyof typeof CHUNK_INTEGRITY_RULES];
 
 const STABLE_CHUNK_SET_REF = "^chunk-set:[A-Za-z0-9:_-]{8,220}$";
-const STABLE_RELATIONSHIP_REF =
-  "^relationship-manifest:[A-Za-z0-9:_-]{8,220}$";
+const STABLE_RELATIONSHIP_REF = "^relationship-manifest:[A-Za-z0-9:_-]{8,220}$";
 const STABLE_INTEGRITY_REF = "^integrity-manifest:[A-Za-z0-9:_-]{8,220}$";
 
 export const VALIDATE_CHUNK_INTEGRITY_INPUT_JSON_SCHEMA = {
@@ -135,7 +133,7 @@ export type ValidateChunkIntegrityLimitation = {
 
 export type ValidateChunkIntegrityResponse = {
   status: AgenticToolStatus;
-  toolName: AgenticToolName;
+  toolName: typeof VALIDATE_CHUNK_INTEGRITY_TOOL.name;
   toolVersion: string;
   configHash: string;
   correlationId: string;

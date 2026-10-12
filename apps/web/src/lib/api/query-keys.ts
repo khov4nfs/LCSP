@@ -22,58 +22,6 @@ export const apiQueryKeys = {
     assessments: () => ["assessments"] as const,
     selection: () => ["mock-workspace-selection"] as const,
   },
-  assessment: {
-    classification: (assessmentId: string) =>
-      ["assessment", assessmentId, "classification"] as const,
-    interview: (assessmentId: string) =>
-      ["assessment", assessmentId, "interview"] as const,
-    interviewSourceSnippet: (assessmentId: string, questionId: string) =>
-      [
-        "assessment",
-        assessmentId,
-        "interview",
-        questionId,
-        "source-snippet",
-      ] as const,
-    artifacts: (assessmentId: string) =>
-      ["assessment", assessmentId, "artifacts"] as const,
-    readiness: (assessmentId: string) =>
-      ["assessment", assessmentId, "readiness"] as const,
-    conflicts: (assessmentId: string) =>
-      ["assessment", assessmentId, "conflicts", "pending"] as const,
-    evidence: (assessmentId: string) =>
-      ["assessment", assessmentId, "evidence"] as const,
-    evidenceGraphOverviewRoot: (assessmentId: string) =>
-      ["assessment", assessmentId, "evidence-graph-overview"] as const,
-    evidenceGraphDetailRoot: (assessmentId: string) =>
-      ["assessment", assessmentId, "evidence-graph-detail"] as const,
-    evidenceGraphOverview: (
-      assessmentId: string,
-      filters?: { snapshotId?: string; scanJobId?: string },
-    ) =>
-      [
-        "assessment",
-        assessmentId,
-        "evidence-graph-overview",
-        filters?.snapshotId ?? null,
-        filters?.scanJobId ?? null,
-      ] as const,
-    evidenceGraphDetail: (
-      assessmentId: string,
-      filters?: { snapshotId?: string; scanJobId?: string },
-    ) =>
-      [
-        "assessment",
-        assessmentId,
-        "evidence-graph-detail",
-        filters?.snapshotId ?? null,
-        filters?.scanJobId ?? null,
-      ] as const,
-    documents: (assessmentId: string) =>
-      ["assessment", assessmentId, "documents"] as const,
-    documentStatus: (assessmentId: string, documentRequestId: string) =>
-      ["assessment", assessmentId, "documents", documentRequestId] as const,
-  },
   admin: {
     overview: (period?: string) =>
       ["admin", "overview", period ?? "30D"] as const,
@@ -88,8 +36,5 @@ export const apiQueryKeys = {
     usersList: (params?: Record<string, unknown>) =>
       ["admin", "users", params ?? {}] as const,
     userDetail: (userId: string) => ["admin", "users", userId] as const,
-    corpusVersions: () => ["admin", "corpus-versions"] as const,
-    corpusVersion: (versionId: string) =>
-      ["admin", "corpus-versions", versionId] as const,
   },
 } as const;

@@ -1,0 +1,10 @@
+{
+  "scope": "SYNTHETIC_CANONICAL_API_POSTGRES_DOCKER_DELETE",
+  "status": "FAIL",
+  "checks": [
+    "fixtures have actual tenant/Root identity, owned domain content and native durable namespaces",
+    "foreign-tenant DELETE is refused before any erasure"
+  ],
+  "reasonType": "AssertionError",
+  "reason": ""
+}

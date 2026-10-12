@@ -72,17 +72,17 @@ model {
     }
 
     // ----------------------------------------------------
-    // 5. LEGAL CORPUS & RAG DOMAIN ENTITIES
+    // 5. LEGAL LEGAL_SOURCE & RAG DOMAIN ENTITIES
     // ----------------------------------------------------
-    legalRuleCatalogVersionEntity = entity 'LegalRuleCatalogVersion' {
+    legalSourceVersionEntity = entity 'LegalSourceVersion' {
       description 'Versioned legal rule catalog approved by Legal Operator.'
     }
 
-    legalRuleEntity = entity 'LegalRule' {
+    legalRequirementEntity = entity 'LegalRequirement' {
       description 'Structured legal rule specification referencing citation locators.'
     }
 
-    legalRuleMatchEntity = entity 'LegalRuleMatch' {
+    legalRequirementMatchEntity = entity 'LegalRequirementMatch' {
       description 'Citation-backed legal rule matches bound to VerifiedProfile claims.'
     }
 
@@ -123,9 +123,9 @@ model {
   lcsp.database.aiUsageFlowEntity -> lcsp.database.conflictRecordEntity '1:N Conflict Records'
   lcsp.database.aiUsageFlowEntity -> lcsp.database.verifiedProfileEntity '1:1 Verified Profile'
 
-  lcsp.database.legalRuleCatalogVersionEntity -> lcsp.database.legalRuleEntity '1:N Legal Rules'
-  lcsp.database.verifiedProfileEntity -> lcsp.database.legalRuleMatchEntity '1:N Legal Rule Matches'
-  lcsp.database.legalRuleMatchEntity -> lcsp.database.classificationResultEntity '1:1 Risk Classification'
+  lcsp.database.legalSourceVersionEntity -> lcsp.database.legalRequirementEntity '1:N Legal Rules'
+  lcsp.database.verifiedProfileEntity -> lcsp.database.legalRequirementMatchEntity '1:N Legal Rule Matches'
+  lcsp.database.legalRequirementMatchEntity -> lcsp.database.classificationResultEntity '1:1 Risk Classification'
   lcsp.database.classificationResultEntity -> lcsp.database.documentRequestEntity '1:N Document Requests'
   lcsp.database.assessmentEntity -> lcsp.database.outboxMessageEntity '1:N Outbox Events'
 }
@@ -164,15 +164,15 @@ views {
 
   view erd_reconciliation_legal_domain of lcsp.database {
     title 'ERD - Reconciliation, Legal RAG & Document Domain'
-    description 'TechnicalProfile, AIUsageFlow, ConflictRecord, VerifiedProfile, LegalRuleMatch, ClassificationResult, and DocumentRequest.'
+    description 'TechnicalProfile, AIUsageFlow, ConflictRecord, VerifiedProfile, LegalRequirementMatch, ClassificationResult, and DocumentRequest.'
     include
       lcsp.database.technicalProfileEntity,
       lcsp.database.aiUsageFlowEntity,
       lcsp.database.conflictRecordEntity,
       lcsp.database.verifiedProfileEntity,
-      lcsp.database.legalRuleCatalogVersionEntity,
-      lcsp.database.legalRuleEntity,
-      lcsp.database.legalRuleMatchEntity,
+      lcsp.database.legalSourceVersionEntity,
+      lcsp.database.legalRequirementEntity,
+      lcsp.database.legalRequirementMatchEntity,
       lcsp.database.classificationResultEntity,
       lcsp.database.documentRequestEntity,
       lcsp.database.outboxMessageEntity

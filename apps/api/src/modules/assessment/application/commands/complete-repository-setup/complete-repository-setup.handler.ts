@@ -127,7 +127,7 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
       }
 
       // V2 assessments (canonical lifecycle) pin the repository snapshot and enter ACTIVE here;
-      // the call is idempotent so a retried completion also covers a late legal portfolio.
+      // the call is idempotent so a retried completion also covers a late compliance rule set.
       if (!wasCompleted) {
         await this.runtimePreparation.prepareInTx(tx, {
           assessmentId: assessment.id,

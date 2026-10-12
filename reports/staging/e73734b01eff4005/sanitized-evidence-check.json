@@ -1,0 +1,42 @@
+{
+  "scope": "CURRENT_PUBLIC_SYNTHETIC_EVIDENCE_CREDENTIAL_ABSENCE",
+  "status": "PASS",
+  "runId": "e73734b01eff4005",
+  "filesChecked": 157,
+  "rawConfiguredProviderGitWorkerSessionAndPasswordValuesFound": 0,
+  "credentialValuesOrPoolHashesRecorded": false,
+  "actualBrowserDownloads": [
+    {
+      "assessmentKey": "assessmentA",
+      "artifactId": "225d9da8-a2a4-508b-9638-06233acc13ae",
+      "originalBrowserDownloadPath": "tmp/staging/e73734b01eff4005/downloads/assessmentA-assessment-225d9da8-a2a4-508b-9638-06233acc13ae.json",
+      "preservedPath": "reports/staging/e73734b01eff4005/downloads/assessmentA-assessment-225d9da8-a2a4-508b-9638-06233acc13ae.json",
+      "bytes": 5590,
+      "sha256": "efcd654c93d3a129126f19d447d10a4ff1122a79a8239e97db338be327930e0a"
+    },
+    {
+      "assessmentKey": "assessmentB",
+      "artifactId": "b1191790-116c-5153-a6f8-e238f1c2574e",
+      "originalBrowserDownloadPath": "tmp/staging/e73734b01eff4005/downloads/assessmentB-assessment-b1191790-116c-5153-a6f8-e238f1c2574e.json",
+      "preservedPath": "reports/staging/e73734b01eff4005/downloads/assessmentB-assessment-b1191790-116c-5153-a6f8-e238f1c2574e.json",
+      "bytes": 3034,
+      "sha256": "427c9dbd2aea175ef3c7a2d6c7b1b0738fc433460065cf5e8df4b2f1d4adbcb4"
+    },
+    {
+      "assessmentKey": "assessmentC",
+      "artifactId": "54547223-60a0-58e8-ad54-502d93f2075c",
+      "originalBrowserDownloadPath": "tmp/staging/e73734b01eff4005/downloads/assessmentC-assessment-54547223-60a0-58e8-ad54-502d93f2075c.json",
+      "preservedPath": "reports/staging/e73734b01eff4005/downloads/assessmentC-assessment-54547223-60a0-58e8-ad54-502d93f2075c.json",
+      "bytes": 5260,
+      "sha256": "fca0f8e051b56f97aa385a33568edaabcc31ac453f6e675fe2121ceeef518e1c"
+    },
+    {
+      "assessmentKey": "assessmentD",
+      "artifactId": "b50e7a82-f198-5607-b1f4-13beeede485e",
+      "originalBrowserDownloadPath": "tmp/staging/e73734b01eff4005/downloads/assessmentD-assessment-b50e7a82-f198-5607-b1f4-13beeede485e.json",
+      "preservedPath": "reports/staging/e73734b01eff4005/downloads/assessmentD-assessment-b50e7a82-f198-5607-b1f4-13beeede485e.json",
+      "bytes": 6505,
+      "sha256": "17099e3d242426170b943a811083ce492fa9199ec42ceb0f3469de5eb0c282b9"
+    }
+  ]
+}

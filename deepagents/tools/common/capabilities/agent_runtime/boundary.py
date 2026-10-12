@@ -1,9 +1,9 @@
 """Deep Agents boundary base classes.
 
-Legacy asynchronous handlers now run as explicit Agent Runtime invocation
+Asynchronous handlers run as explicit Agent Runtime invocation
 boundaries. The boundary base owns no broker connection, health endpoint, retry
 lane, or runtime HTTP bridge; Deep Agents scheduling/invocation owns
-process lifecycle and human approval.
+process lifecycle.
 """
 
 from __future__ import annotations
