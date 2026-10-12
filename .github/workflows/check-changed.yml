@@ -90,11 +90,10 @@ jobs:
 
       - name: Auto-fix import policy
         if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
+        # No IMPORT_POLICY_FILES: a release-sized diff overflows the 128 KiB
+        # single-env-var limit ("Argument list too long"); empty = full scan,
+        # same scope as the "Check import policy" step in the API job.
         run: pnpm run check:imports -- --fix
-        env:
-          IMPORT_POLICY_FILES: |
-            ${{ needs.changes.outputs.api_files }}
-            ${{ needs.changes.outputs.web_files }}
 
       - name: Build runtime packages
         if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
