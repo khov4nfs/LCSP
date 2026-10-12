@@ -1,0 +1,17 @@
+{
+  "scope": "SYNTHETIC_POST_CUTOVER_DISPOSABLE_FIXTURE",
+  "status": "FAIL",
+  "checks": [
+    "clean install replays historical migrations through the RELEASE drop",
+    "missing purge proof refuses the drop transaction without changing canonical state",
+    "preflight is read-only",
+    "unrelated existing sandboxes remain outside fixture erasure",
+    "native Postgres checkpoints/blobs/writes, V1 sandbox/files/cache/logs erased; canonical and mixed V2 state preserved",
+    "external erasure rerun is idempotent",
+    "fixture-scoped purge evidence cannot authorize an ordinary release drop"
+  ],
+  "unrelatedSandboxCount": 66,
+  "reasonType": "AssertionError",
+  "reason": "",
+  "postgresErrors": "postgres-errors.log"
+}

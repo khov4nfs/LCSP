@@ -81,7 +81,7 @@ describe("API route surface after the CUTOVER cutover", () => {
     const allowlist = JSON.parse(
       readFileSync(ALLOWLIST_PATH, "utf8"),
     ) as string[];
-    expect(routes).toEqual(allowlist);
+    expect(routes).toEqual(allowlist.sort());
   });
 
   it("registers no handler for a retired V1 route", () => {

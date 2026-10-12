@@ -199,16 +199,23 @@ def checkpoint(saver, thread: str, namespace: str, text: str, *, canonical: str 
     return config
 
 
-def preserved_database(conn, state: dict) -> str:
+def preserved_database(conn, state: dict, *, renamed: bool = False) -> str:
     value = {}
     for table in ("Assessment", "AssessmentRuntime", "AssessmentCase"):
         column = "id" if table == "Assessment" else "assessmentId"
         rows = list(conn.execute(sql.SQL("SELECT to_jsonb(t)-'status' AS row FROM {} t WHERE {}=ANY(%s) ORDER BY {}").format(
             sql.Identifier(table), sql.Identifier(column), sql.Identifier(column)), ([state["live"], state["other"]],)))
+        if table == "AssessmentCase" and not renamed:
+            for row in rows:
+                row["row"]["ruleSetVersionId"] = row["row"].pop("legalPortfolioVersionId")
         value[table] = rows
-    for table in ("LegalCorpusVersion", "LlmUsageEvent"):
-        value[table] = list(conn.execute(sql.SQL("SELECT to_jsonb(t)-'assessmentId' AS row FROM {} t ORDER BY id").format(
-            sql.Identifier(table))))
+    # Compare identical data across the historical physical-name cutover.
+    source_table = "LegalSourceVersion" if renamed else "LegalCorpusVersion"
+    source_row = (sql.SQL("to_jsonb(t)") if renamed else
+                  sql.SQL("(to_jsonb(t)-'approvedAt') || jsonb_build_object('activatedAt',t.\"approvedAt\")"))
+    value["LegalSourceVersion"] = list(conn.execute(sql.SQL("SELECT {} AS row FROM {} t ORDER BY id").format(
+        source_row, sql.Identifier(source_table))))
+    value["LlmUsageEvent"] = list(conn.execute('SELECT to_jsonb(t)-\'assessmentId\' AS row FROM "LlmUsageEvent" t ORDER BY id'))
     value["rootTurns"] = list(conn.execute('SELECT to_jsonb(t) AS row FROM "AssessmentRuntimeTurn" t '
                                          "WHERE boundary='ASSESSMENT_ROOT' ORDER BY id"))
     return purge.digest(value)
@@ -391,7 +398,7 @@ def main() -> int:
                     assert not db.execute('SELECT 1 FROM "OutboxMessage" WHERE "eventType"=\'command.legal-corpus.recovery.requested.v1\'').fetchone()
                     assert not db.execute('SELECT 1 FROM "AuditEvent" WHERE id=\'old-catalog\'').fetchone()
                     assert db.execute('SELECT "resourceType" FROM "AuditEvent" WHERE id=\'corpus\'').fetchone()["resourceType"] == "LEGAL_SOURCE_VERSION"
-                    assert preserved_database(db, state) == preserved
+                    assert preserved_database(db, state, renamed=True) == preserved, "canonical data changed across final deploy"
                 assert [saver.get_tuple(config) for config in protected] == originals
                 passed("populated synthetic post-CUTOVER upgrade drops 29 V1 tables; canonical owner/Case/Root/accounting/corpus unchanged")
                 passed("second Prisma deploy is a no-op")

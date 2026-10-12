@@ -1,18 +1,18 @@
 {
   "scope": "REPOSITORY_WIDE_CANONICAL_TERMINOLOGY_CLASSIFICATION",
   "status": "PASS",
-  "filesSearched": 3345,
+  "filesSearched": 3303,
   "activeHits": {
     "LegalCorpus": 0,
     "LegalPortfolio": 0,
     "EngineeringRule": 0,
     "LegalPreparation": 0
   },
-  "allowedHistoricalMigrationHits": 11299,
+  "allowedHistoricalMigrationHits": 11301,
   "counts": {
     "HISTORICAL_MIGRATION": 510,
-    "HISTORICAL_REPORT": 10628,
-    "MIGRATION_REHEARSAL_FIXTURE": 89,
+    "HISTORICAL_REPORT": 10629,
+    "MIGRATION_REHEARSAL_FIXTURE": 90,
     "RETIREMENT_CHECK": 72,
     "DEFECT": 0
   },
@@ -62693,6 +62693,15 @@
       "reason": "explicitly historical design, planning artifact or preserved receipt"
     },
     {
+      "file": "reports/retired-authority-migration/20261012051127_345049/report.json",
+      "line": 12,
+      "matches": [
+        "corpus"
+      ],
+      "classification": "HISTORICAL_REPORT",
+      "reason": "explicitly historical design, planning artifact or preserved receipt"
+    },
+    {
       "file": "reports/root-telemetry-focused.xml",
       "line": 1,
       "matches": [
@@ -109017,7 +109026,16 @@
     },
     {
       "file": "tests/retired-authority-migration-check.py",
-      "line": 209,
+      "line": 210,
+      "matches": [
+        "legalPortfolioVersion"
+      ],
+      "classification": "MIGRATION_REHEARSAL_FIXTURE",
+      "reason": "old physical schema is the upgrade input"
+    },
+    {
+      "file": "tests/retired-authority-migration-check.py",
+      "line": 213,
       "matches": [
         "LegalCorpus"
       ],
@@ -109026,7 +109044,7 @@
     },
     {
       "file": "tests/retired-authority-migration-check.py",
-      "line": 288,
+      "line": 295,
       "matches": [
         "corpus"
       ],
@@ -109035,7 +109053,7 @@
     },
     {
       "file": "tests/retired-authority-migration-check.py",
-      "line": 331,
+      "line": 338,
       "matches": [
         "corpus",
         "corpus"
@@ -109045,7 +109063,7 @@
     },
     {
       "file": "tests/retired-authority-migration-check.py",
-      "line": 354,
+      "line": 361,
       "matches": [
         "corpus"
       ],
@@ -109054,7 +109072,7 @@
     },
     {
       "file": "tests/retired-authority-migration-check.py",
-      "line": 391,
+      "line": 398,
       "matches": [
         "legal-corpus"
       ],
@@ -109063,7 +109081,7 @@
     },
     {
       "file": "tests/retired-authority-migration-check.py",
-      "line": 393,
+      "line": 400,
       "matches": [
         "corpus"
       ],
@@ -109072,7 +109090,7 @@
     },
     {
       "file": "tests/retired-authority-migration-check.py",
-      "line": 396,
+      "line": 403,
       "matches": [
         "corpus"
       ],
