@@ -4,6 +4,7 @@ from decision.pr_review_triage import (
     JsonlTelemetrySink,
     _packet_payload,
     _redact_persisted_value,
+    _write_safe_json,
 )
 from decision.shadow import PrReviewTriagePacket
 
@@ -30,3 +31,28 @@ def test_jsonl_sink_redacts_sensitive_telemetry_values(tmp_path):
     assert "SENTINEL_TOKEN_VALUE" not in persisted
     assert sink.events[0]["data"]["apiToken"] == "[REDACTED]"
     assert _redact_persisted_value({"password": "value"})["password"] == "[REDACTED]"
+
+
+def test_report_writer_persists_only_bounded_packet_schema(tmp_path):
+    output = tmp_path / "packet.json"
+    _write_safe_json(
+        output,
+        {
+            "schemaVersion": "LCSP_PR_REVIEW_TRIAGE_PACKET_V1",
+            "recordingStatus": "PACKET_READY_UNTRUSTED_PR_STAGE",
+            "trustedRecorderRequired": True,
+            "packet": {
+                "pr_number": 359,
+                "head_sha": "a" * 40,
+                "changed_filenames": ["deepagents/decision/shadow.py"],
+                "bounded_summary": "token: ghp_123456789012345678901234567890123456",
+                "nested": {"authorization": "secret-sentinel"},
+            },
+        },
+    )
+
+    persisted = output.read_text(encoding="utf-8")
+    assert "ghp_123456789012345678901234567890123456" not in persisted
+    assert "secret-sentinel" not in persisted
+    assert "changed_filenames" in persisted
+    assert "bounded_summary" not in persisted

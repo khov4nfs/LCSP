@@ -15,6 +15,7 @@ from typing import Any
 from .gateway import DecisionGateway
 from .shadow import (
     InMemoryDecisionIdempotencyStore,
+    PR_REVIEW_DOMAIN_CHOICES,
     PrReviewTriagePacket,
     ShadowDecisionObserver,
     shadow_record_payload,
@@ -22,6 +23,9 @@ from .shadow import (
 
 
 JIRA_ID_PATTERN = re.compile(r"\bLCSP-\d+\b")
+_SHA_PATTERN = re.compile(r"[0-9a-f]{40}", re.IGNORECASE)
+_PATH_PATTERN = re.compile(r"[A-Za-z0-9_./-]{1,240}")
+_IDENTIFIER_PATTERN = re.compile(r"[A-Za-z0-9_:/.-]{1,160}")
 _SENSITIVE_KEY_PATTERN = re.compile(
     r"(?:secret|token|password|credential|authorization|api[_-]?key)", re.IGNORECASE
 )
@@ -45,7 +49,7 @@ class JsonlTelemetrySink:
         self.events: list[dict[str, Any]] = []
 
     def __call__(self, event: dict[str, Any]) -> None:
-        safe_event = _redact_persisted_value(event)
+        safe_event = _safe_telemetry_event(event)
         self.events.append(safe_event)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
@@ -492,8 +496,130 @@ def _packet_payload(packet: PrReviewTriagePacket) -> dict[str, Any]:
 def _write_safe_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(_redact_persisted_value(payload), sort_keys=True), encoding="utf-8"
+        json.dumps(_safe_report_document(payload), sort_keys=True), encoding="utf-8"
     )
+
+
+def _safe_report_document(payload: Any) -> dict[str, Any]:
+    """Persist only the bounded report schema, never an arbitrary input mapping."""
+    if not isinstance(payload, dict):
+        return {"recordingStatus": "INVALID_REPORT_PAYLOAD"}
+    schema = payload.get("schemaVersion")
+    if schema == "LCSP_PR_REVIEW_TRIAGE_PACKET_V1":
+        packet = payload.get("packet")
+        return {
+            "schemaVersion": schema,
+            "recordingStatus": "PACKET_READY_UNTRUSTED_PR_STAGE",
+            "typedResultRecorded": False,
+            "trustedRecorderRequired": True,
+            "authoritativeReviewDomain": _safe_domain(payload.get("authoritativeReviewDomain")),
+            "packet": _safe_packet_document(packet),
+        }
+
+    allowed = {
+        "decisionId", "decisionType", "authoritativeAction", "shadowProposedAction",
+        "agreement", "confidence", "fallbackReason", "schemaVersion", "recordingStatus",
+        "typedResultRecorded", "prNumber", "baseSha", "headSha", "authoritativeReviewDomain",
+        "changedFileCount", "changeCategories", "ciStateCodes", "eventCount", "correlationMismatches",
+        "trustedCorrelation", "packet",
+    }
+    result: dict[str, Any] = {}
+    for key in allowed:
+        if key not in payload:
+            continue
+        value = payload[key]
+        if key in {"baseSha", "headSha"}:
+            result[key] = _safe_sha(value)
+        elif key in {"prNumber", "changedFileCount", "eventCount"}:
+            result[key] = _safe_nonnegative_int(value)
+        elif key == "authoritativeReviewDomain":
+            result[key] = _safe_domain(value)
+        elif key in {"authoritativeAction", "shadowProposedAction"}:
+            result[key] = _safe_identifier(value)
+        elif key in {"changeCategories", "ciStateCodes", "correlationMismatches"}:
+            result[key] = _safe_identifiers(value)
+        elif key == "trustedCorrelation":
+            result[key] = _safe_correlation(value)
+        elif key == "packet":
+            result[key] = _safe_packet_document(value)
+        elif key in {"decisionId", "decisionType", "fallbackReason", "schemaVersion", "recordingStatus"}:
+            result[key] = _safe_identifier(value)
+        elif key in {"agreement", "typedResultRecorded"}:
+            result[key] = value if isinstance(value, bool) else None
+        elif key == "confidence":
+            result[key] = value if isinstance(value, (int, float)) else None
+    return result
+
+
+def _safe_packet_document(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, Any] = {}
+    for key in ("pr_number", "addition_count", "deletion_count"):
+        if key in value:
+            result[key] = _safe_nonnegative_int(value[key])
+    for key in ("head_sha", "base_sha"):
+        if key in value:
+            result[key] = _safe_sha(value[key])
+    for key in ("changed_filenames", "change_categories", "jira_issue_ids", "acceptance_criteria_ids", "ci_state_codes", "repository_change_metadata", "diff_stat_keys"):
+        if key in value:
+            result[key] = _safe_identifiers(value[key], path_values=key == "changed_filenames")
+    return result
+
+
+def _safe_correlation(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "prNumber": _safe_nonnegative_int(value.get("prNumber")),
+        "headSha": _safe_sha(value.get("headSha")),
+        "baseSha": _safe_sha(value.get("baseSha")),
+    }
+
+
+def _safe_sha(value: Any) -> str | None:
+    text = _text(value)
+    return text if text and _SHA_PATTERN.fullmatch(text) else None
+
+
+def _safe_nonnegative_int(value: Any) -> int | None:
+    number = _int_or_none(value)
+    return number if number is not None and 0 <= number <= 1_000_000 else None
+
+
+def _safe_identifier(value: Any) -> str | None:
+    text = _text(value)
+    return text if text and _IDENTIFIER_PATTERN.fullmatch(text) else None
+
+
+def _safe_domain(value: Any) -> str:
+    return value if value in PR_REVIEW_DOMAIN_CHOICES else "OTHER"
+
+
+def _safe_identifiers(value: Any, *, path_values: bool = False) -> list[str]:
+    if not isinstance(value, (list, tuple)):
+        return []
+    pattern = _PATH_PATTERN if path_values else _IDENTIFIER_PATTERN
+    return [text for item in value if (text := _text(item)) and pattern.fullmatch(text)]
+
+
+def _safe_telemetry_event(event: dict[str, Any]) -> dict[str, Any]:
+    event_type = _safe_identifier(event.get("eventType"))
+    data = event.get("data")
+    safe_data: dict[str, Any] = {}
+    if isinstance(data, dict):
+        allowed_text_keys = ("integration", "authoritativeAction", "shadowProposedAction", "fallbackReason")
+        for key, value in data.items():
+            if key in allowed_text_keys:
+                safe_data[key] = _safe_identifier(value)
+            elif key not in {"agreement", "confidence"}:
+                safe_data[key] = "[REDACTED]"
+        for key in ("agreement",):
+            if key in data:
+                safe_data[key] = data[key] if isinstance(data[key], bool) else None
+        if "confidence" in data:
+            safe_data["confidence"] = data["confidence"] if isinstance(data["confidence"], (int, float)) else None
+    return {"eventType": event_type, "data": safe_data}
 
 
 def _redact_persisted_value(value: Any, *, key: str | None = None) -> Any:
