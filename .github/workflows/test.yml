@@ -111,6 +111,9 @@ jobs:
       - name: Test dev launcher scripts
         run: pnpm run test:dev-scripts
 
+      - name: Test staging answer selection security
+        run: node --test tests/literal-answer-choice.test.mjs
+
   decision-pr-review-triage:
     name: PR review shadow triage packet
     if: github.event_name == 'pull_request'

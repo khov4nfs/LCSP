@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
+import { findLiteralAnswerChoice } from "./support/literal-answer-choice.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
@@ -17,7 +18,6 @@ const { chromium } = require(path.join(ROOT, "node_modules/.pnpm/playwright@1.63
 
 export const KINDS = { action: "UI_ACTION", observation: "UI_OBSERVATION", backend: "BACKEND_VERIFICATION" };
 const [runId, phaseName, ...phaseArgs] = process.argv.slice(2);
-const escapeRegExpLiteral = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 if (!/^[0-9a-f]{16}$/.test(runId ?? "")) throw new Error("owned staging run ID required");
 const prefix = `lcsp-release-staging-${runId}`;
 const privateDir = path.join(ROOT, "tmp/staging", runId);
@@ -523,8 +523,7 @@ const PHASES = {
     const key = phaseArgs[0] ?? "assessmentA";
     const answer = phaseArgs[1];
     const { assessmentId, question } = state[key];
-    must(Boolean(answer), "answer text or option pattern required");
-    const safeAnswerPattern = escapeRegExpLiteral(answer);
+    must(Boolean(answer), "answer text or literal option substring required");
     const s = await open(state[key].actor ?? "owner");
     await login(s);
     const { page } = s;
@@ -537,14 +536,14 @@ const PHASES = {
     const choiceButtons = question.control === "SINGLE_SELECT" && await form.getByRole("combobox").count() === 0;
     if (choiceButtons) {
       const options = (await form.getByRole("button").allInnerTexts()).filter(text => !/don't know/i.test(text));
-      chosen = options.find(text => new RegExp(safeAnswerPattern, "i").test(text));
-      must(Boolean(chosen), `no choice button matches /${answer}/: ${JSON.stringify(options)}`);
+      chosen = findLiteralAnswerChoice(options, answer);
+      must(Boolean(chosen), `no choice button contains ${JSON.stringify(answer)}: ${JSON.stringify(options)}`);
       record(KINDS.action, "owner selects an inline answer choice", { options, chosen });
     } else if (question.control === "SINGLE_SELECT") {
       await form.getByRole("combobox").click();
       const options = await page.getByRole("option").allInnerTexts();
-      chosen = options.find((text) => new RegExp(safeAnswerPattern, "i").test(text));
-      must(Boolean(chosen), `no option matches /${answer}/: ${JSON.stringify(options)}`);
+      chosen = findLiteralAnswerChoice(options, answer);
+      must(Boolean(chosen), `no option contains ${JSON.stringify(answer)}: ${JSON.stringify(options)}`);
       record(KINDS.action, "owner opens the answer list and selects an option", { options, chosen });
       await page.getByRole("option", { name: chosen }).click();
     } else {
