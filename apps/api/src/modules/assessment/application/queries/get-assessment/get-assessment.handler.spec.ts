@@ -34,7 +34,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     },
     domainCase: {
       caseRevision: 0,
-      legalPortfolioVersionId: null,
+      ruleSetVersionId: null,
       repositorySnapshotId: null,
       repositoryScanJobId: null,
       repositoryCommit: null,
@@ -49,7 +49,15 @@ function fixture(overrides: Record<string, unknown> = {}) {
 }
 function handler(row: unknown) {
   const findUnique = jest.fn<() => Promise<unknown>>().mockResolvedValue(row);
-  const tx = { assessment: { findUnique } };
+  const tx = {
+    assessment: { findUnique },
+    llmUsageEvent: {
+      aggregate: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+        _sum: { inputTokens: null, outputTokens: null, totalTokens: null },
+        _count: { id: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+      }),
+    },
+  };
   const prisma = {
     $transaction: async (read: (tx: unknown) => Promise<unknown>) => read(tx),
   } as unknown as PrismaService;
@@ -73,6 +81,7 @@ describe("canonical customer assessment read", () => {
     });
     expect(result.runtime?.executionState).toBe(AGENT_EXECUTION_STATES.QUEUED);
     expect(result.case?.coverage).toEqual([]);
+    expect(result.usage).toEqual({ invocationCount: 0, partial: false });
     expect(result).not.toHaveProperty("status");
     expect(result).not.toHaveProperty("readiness_state");
     expect(result).not.toHaveProperty("classification_result");

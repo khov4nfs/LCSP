@@ -4,7 +4,6 @@ import { afterEach, test } from "node:test";
 import {
   AGENT_EXECUTION_STATES,
   ASSESSMENT_LIFECYCLE_STATES,
-  ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
 import { JSDOM } from "jsdom";
@@ -65,7 +64,7 @@ function canonicalAssessment(
     },
     runtime: {
       threadId: "00000000-0000-4000-8000-000000000001",
-      rootAgentVersion: "w1-4-test",
+      rootAgentVersion: "canonical-4-test",
       checkpointNamespace: "00000000-0000-4000-8000-000000000002",
       checkpointId: null,
       currentExecutionId: "00000000-0000-4000-8000-000000000003",

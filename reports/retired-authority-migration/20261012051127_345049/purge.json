@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "manifestSha256": "bfc9b03c8e10cf66fb55f3cf6d517f10e5b2cf043aaf49aee19cd966e89ea97d",
+  "archive": {
+    "count": 7,
+    "sha256": "9c43204d4e44f526ae493021b0113798acbb95f977f2ca3310ea0a9acdc25c70"
+  },
+  "disposableFixtureRunId": "86a0a7cc-d602-491a-a472-9ea9e0d08e0f",
+  "checkpointThreads": 3,
+  "sandboxes": 1,
+  "mixedCheckpoints": 1,
+  "mixedPrivateLogs": 1,
+  "artifactIdentities": 3,
+  "workspaceIdentities": 4,
+  "protectedThreads": 4,
+  "remaining": {
+    "checkpoints": 0,
+    "sandboxes": 0,
+    "files": 0,
+    "workspaces": 0
+  }
+}

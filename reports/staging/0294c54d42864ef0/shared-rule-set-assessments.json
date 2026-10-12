@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "candidateId": "20261012041902_4058ec2256a0",
+  "runId": "0294c54d42864ef0",
+  "source": "READ_ONLY_SQL_AFTER_UI_CREATION",
+  "beforeAssessmentCreationPreparationCount": 1,
+  "cases": [
+    {
+      "assessmentId": "cad52e50-0cbf-40f2-9436-048b034b91b3",
+      "caseRevision": 0,
+      "ruleSetVersionId": "533c7e7b-3a93-482e-82d3-0642c9bf5488",
+      "repositorySnapshotId": null,
+      "repositoryScanJobId": null,
+      "repositoryCommit": null,
+      "pinnedAt": "2026-10-12T04:33:31.662+00:00",
+      "createdAt": "2026-10-12T04:33:31.666+00:00",
+      "updatedAt": "2026-10-12T04:33:31.666+00:00"
+    },
+    {
+      "assessmentId": "3f379c1f-c679-4838-9903-7f136bf61d01",
+      "caseRevision": 1,
+      "ruleSetVersionId": "533c7e7b-3a93-482e-82d3-0642c9bf5488",
+      "repositorySnapshotId": "2b1653d6-3390-48c1-a5ad-1d3946fbf9a4",
+      "repositoryScanJobId": "7b8452ba-b2bb-4474-8155-879cf6812e53",
+      "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+      "pinnedAt": "2026-10-12T04:33:10.557+00:00",
+      "createdAt": "2026-10-12T04:33:10.564+00:00",
+      "updatedAt": "2026-10-12T04:34:51.294+00:00"
+    }
+  ],
+  "preparationCount": 1,
+  "preparationInitiators": [
+    "rule-set-preparation-system"
+  ],
+  "assessmentTriggeredPreparationCount": 0
+}

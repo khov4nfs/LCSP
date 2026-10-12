@@ -10,6 +10,7 @@ import {
   HUMAN_RESOLUTION_REQUEST_STATUSES,
   assessmentBlockerSchema,
   type AgentExecutionState,
+  type AssessmentLifecycleState,
   type BlockerReason,
 } from "@lcsp/contracts/assessment";
 import {
@@ -60,6 +61,7 @@ export class AssessmentRuntimeAuthority {
   async claimRoot(input: {
     assessmentId: string;
     correlationId: string;
+    runtimeRunId?: string;
   }): Promise<AssessmentRootClaim> {
     return this.prisma.$transaction(async (tx) => {
       const row = await lockAssessmentAndRuntime(tx, input.assessmentId);
@@ -70,6 +72,24 @@ export class AssessmentRuntimeAuthority {
           { status: HttpStatus.NOT_FOUND },
         );
       }
+      const previousTurn = row.currentExecutionId
+        ? await tx.assessmentRuntimeTurn.findUnique({
+            where: { id: row.currentExecutionId },
+          })
+        : null;
+      const recoveredExecution = Boolean(
+        input.runtimeRunId &&
+        row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
+        previousTurn?.boundary === ASSESSMENT_ROOT_BOUNDARY &&
+        previousTurn.assessmentId === input.assessmentId &&
+        previousTurn.threadId === row.threadId &&
+        (previousTurn.contextJson as Prisma.JsonObject)?.runtimeRunId ===
+          input.runtimeRunId,
+      );
+      // The authenticated transport serializes this persisted run with a PostgreSQL thread lock.
+      const recoveredComplete =
+        recoveredExecution &&
+        row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE;
       const blockedRequestId = humanFactBlockerRequestId(row);
       const blockedHumanWait =
         row.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED &&
@@ -106,7 +126,14 @@ export class AssessmentRuntimeAuthority {
       if (
         row.lifecycleState !== ASSESSMENT_LIFECYCLE_STATES.ACTIVE &&
         !recoveringHumanInterrupt &&
-        !safePauseResume
+        !safePauseResume &&
+        !recoveredComplete &&
+        !(
+          recoveredExecution &&
+          (row.lifecycleState ===
+            ASSESSMENT_LIFECYCLE_STATES.WAITING_FOR_HUMAN ||
+            blockedHumanWait)
+        )
       ) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.NOT_ACTIVE,
@@ -119,7 +146,8 @@ export class AssessmentRuntimeAuthority {
         row.leaseToken &&
         row.leaseExpiresAt &&
         row.leaseExpiresAt > now &&
-        row.executionState === AGENT_EXECUTION_STATES.RUNNING
+        row.executionState === AGENT_EXECUTION_STATES.RUNNING &&
+        !recoveredExecution
       ) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.EXECUTION_LEASE_HELD,
@@ -144,7 +172,8 @@ export class AssessmentRuntimeAuthority {
         row.currentExecutionId !== null &&
         (row.executionState === AGENT_EXECUTION_STATES.INTERRUPTED ||
           row.executionState === AGENT_EXECUTION_STATES.PAUSED ||
-          Boolean(recoveringStop));
+          Boolean(recoveringStop) ||
+          recoveredExecution);
       const executionId = resumesSameExecution
         ? (row.currentExecutionId as string)
         : randomUUID();
@@ -176,10 +205,20 @@ export class AssessmentRuntimeAuthority {
           logicalRunId: executionId,
           correlationId: input.correlationId,
           state: Controls.running,
-          contextJson: {},
+          contextJson: input.runtimeRunId
+            ? { runtimeRunId: input.runtimeRunId }
+            : {},
         },
         update: {
           state: recoveringStop ? Controls.stopRequested : Controls.running,
+          ...(input.runtimeRunId
+            ? {
+                contextJson: {
+                  ...((previousTurn?.contextJson as Prisma.JsonObject) ?? {}),
+                  runtimeRunId: input.runtimeRunId,
+                },
+              }
+            : {}),
         },
       });
       if (safePauseResume) {
@@ -214,18 +253,20 @@ export class AssessmentRuntimeAuthority {
           ROOT_ACTOR,
         );
       }
-      await this.events.appendInTx(tx, {
-        assessmentId: input.assessmentId,
-        correlationId: input.correlationId,
-        eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.EXECUTION_STATE_CHANGED,
-        actorType: ASSESSMENT_EVENT_ACTOR_TYPES.RUNTIME,
-        executionId,
-        payload: {
-          fromState: previousState,
-          toState: AGENT_EXECUTION_STATES.RUNNING,
-        },
-        auditActor: ROOT_ACTOR,
-      });
+      if (previousState !== AGENT_EXECUTION_STATES.RUNNING) {
+        await this.events.appendInTx(tx, {
+          assessmentId: input.assessmentId,
+          correlationId: input.correlationId,
+          eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.EXECUTION_STATE_CHANGED,
+          actorType: ASSESSMENT_EVENT_ACTOR_TYPES.RUNTIME,
+          executionId,
+          payload: {
+            fromState: previousState,
+            toState: AGENT_EXECUTION_STATES.RUNNING,
+          },
+          auditActor: ROOT_ACTOR,
+        });
+      }
       return {
         assessmentId: input.assessmentId,
         threadId: row.threadId,
@@ -235,6 +276,10 @@ export class AssessmentRuntimeAuthority {
         checkpointNamespace: row.checkpointNamespace,
         executionState: AGENT_EXECUTION_STATES.RUNNING,
         resumeCheckpointId: resumesSameExecution ? row.checkpointId : null,
+        lifecycleState: safePauseResume
+          ? ASSESSMENT_LIFECYCLE_STATES.ACTIVE
+          : row.lifecycleState!,
+        recoveredExecution,
       };
     });
   }
@@ -469,7 +514,7 @@ export class AssessmentRuntimeAuthority {
 }
 
 interface LockedRuntimeRow {
-  lifecycleState: string | null;
+  lifecycleState: AssessmentLifecycleState | null;
   lifecycleRevision: number | null;
   blockerReason: BlockerReason | null;
   blockerReference: Prisma.JsonValue | null;

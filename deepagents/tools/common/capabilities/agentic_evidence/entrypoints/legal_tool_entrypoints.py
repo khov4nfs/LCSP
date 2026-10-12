@@ -1,4 +1,4 @@
-"""Canonical same-name execution entrypoints for AO-6 legal corpus tools.
+"""Canonical same-name execution entrypoints for AO-6 legal legal_source tools.
 
 These adapters keep the canonical tool name searchable while preserving the
 existing legal-source builders, validators, protected API authority, and worker
@@ -222,30 +222,30 @@ def evaluate_ocr_quality(
     )
 
 
-def build_reviewed_corpus_input(
+def build_reviewed_legal_source_input(
     request: LegalToolInput,
     context: LegalToolExecutionContext,
 ):
-    """Build one immutable reviewed corpus input from passing quality evidence."""
+    """Build one immutable reviewed legal_source input from passing quality evidence."""
     from tools.legal.sources.extraction.official_text_extraction_repository import (
         OfficialTextExtractionRepository,
     )
     from tools.legal.sources.ocr_fallback.ocr_fallback_repository import OcrFallbackRepository
     from tools.legal.sources.ocr_quality.ocr_quality_repository import OcrQualityRepository
-    from tools.legal.corpus.reviewed_input.reviewed_corpus_input_builder import (
-        BuildReviewedCorpusInputRequest,
-        ReviewedCorpusInputBuilder,
+    from tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_builder import (
+        BuildReviewedLegalSourceInputRequest,
+        ReviewedLegalSourceInputBuilder,
     )
 
     root = _storage_root(context)
-    builder = ReviewedCorpusInputBuilder(
+    builder = ReviewedLegalSourceInputBuilder(
         storage_root=root,
         extraction_repository=OfficialTextExtractionRepository(storage_root=root),
         ocr_repository=OcrFallbackRepository(storage_root=root),
         quality_repository=OcrQualityRepository(storage_root=root),
     )
     return builder.build(
-        BuildReviewedCorpusInputRequest(
+        BuildReviewedLegalSourceInputRequest(
             extraction_ref=_required_str(request, "extraction_ref"),
             quality_manifest_ref=_required_str(request, "quality_manifest_ref"),
             correction_profile=_required_str(request, "correction_profile"),
@@ -258,18 +258,18 @@ def build_legal_chunks(
     context: LegalToolExecutionContext,
 ):
     """Build deterministic legal chunks from one reviewed-input artifact."""
-    from tools.legal.corpus.legal_chunks.legal_chunk_builder import (
+    from tools.legal.legal_source.legal_chunks.legal_chunk_builder import (
         BuildLegalChunksRequest,
         LegalChunkBuilder,
     )
-    from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
-        ReviewedCorpusInputRepository,
+    from tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_repository import (
+        ReviewedLegalSourceInputRepository,
     )
 
     root = _storage_root(context)
     builder = LegalChunkBuilder(
         storage_root=root,
-        reviewed_input_repository=ReviewedCorpusInputRepository(storage_root=root),
+        reviewed_input_repository=ReviewedLegalSourceInputRepository(storage_root=root),
     )
     return builder.build(
         BuildLegalChunksRequest(
@@ -331,12 +331,12 @@ def validate_chunk_integrity(
     context: LegalToolExecutionContext,
 ):
     """Validate chunk-set integrity against the pinned relationship manifest."""
-    from tools.legal.corpus.chunk_integrity.chunk_integrity_validator import (
+    from tools.legal.legal_source.chunk_integrity.chunk_integrity_validator import (
         ChunkIntegrityValidator,
         ValidateChunkIntegrityRequest,
     )
-    from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
-    from tools.legal.corpus.relationships.relationship_manifest_repository import (
+    from tools.legal.legal_source.legal_chunks.legal_chunk_repository import LegalChunkRepository
+    from tools.legal.legal_source.relationships.relationship_manifest_repository import (
         RelationshipManifestRepository,
     )
 
@@ -362,8 +362,8 @@ def build_legal_retrieval_index(
     context: LegalToolExecutionContext,
 ):
     """Build the deterministic structure-first legal retrieval index."""
-    from tools.legal.corpus.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
-    from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
+    from tools.legal.legal_source.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
+    from tools.legal.legal_source.legal_chunks.legal_chunk_repository import LegalChunkRepository
     from tools.legal.retrieval.index.legal_retrieval_index_builder import (
         BuildLegalRetrievalIndexRequest,
         LegalRetrievalIndexBuilder,
@@ -388,13 +388,13 @@ def validate_retrieval_index(
     request: LegalToolInput,
     context: LegalToolExecutionContext,
 ) -> dict[str, str]:
-    """Require every corpus chunk to round-trip as an exact PRIMARY_MATCH."""
+    """Require every legal_source chunk to round-trip as an exact PRIMARY_MATCH."""
     from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
 
     payload = _required(request, "payload")
     if not isinstance(payload, dict):
         raise ValueError("legal tool input payload must be an object")
-    corpus_version_id = _required_str(request, "corpus_version_id")
+    legal_source_version_id = _required_str(request, "legal_source_version_id")
     chunks = [
         chunk
         for document in payload.get("documents") or []
@@ -403,14 +403,14 @@ def validate_retrieval_index(
         if isinstance(chunk, dict)
     ]
     if not chunks:
-        raise RuntimeError("Corpus payload has no chunks to index")
+        raise RuntimeError("LegalSource payload has no chunks to index")
 
     retriever = ChromaDbCitationRetriever(context.chroma_path)
-    retriever.index_corpus(corpus_version_id, chunks)
+    retriever.index_legal_source(legal_source_version_id, chunks)
     expected_ids = {str(chunk.get("id") or "") for chunk in chunks}
     if "" in expected_ids:
-        raise RuntimeError("Corpus payload contains a chunk without stable ID")
-    retrieved = retriever.retrieve_exact(corpus_version_id, list(expected_ids))
+        raise RuntimeError("LegalSource payload contains a chunk without stable ID")
+    retrieved = retriever.retrieve_exact(legal_source_version_id, list(expected_ids))
     primary_ids = {chunk.id for chunk in retrieved if chunk.role == "PRIMARY_MATCH"}
     if primary_ids != expected_ids:
         missing = sorted(expected_ids - primary_ids)
@@ -419,23 +419,23 @@ def validate_retrieval_index(
         )
     return {
         "status": "READY",
-        "corpus_version_id": corpus_version_id,
+        "legal_source_version_id": legal_source_version_id,
     }
 
 
-def activate_validated_corpus_version(
+def activate_validated_legal_source_version(
     request: LegalToolInput,
     context: LegalToolExecutionContext,
 ):
-    """Cross the protected API boundary to activate one fully validated corpus."""
-    corpus_version_id = _required_str(request, "corpus_version_id")
+    """Cross the protected API boundary to activate one fully validated legal_source."""
+    legal_source_version_id = _required_str(request, "legal_source_version_id")
     payload = _required(request, "payload")
     if not isinstance(payload, dict):
         raise ValueError("legal tool input payload must be an object")
     idempotency_key = payload.get("idempotencyKey")
     if not isinstance(idempotency_key, str) or not idempotency_key.strip():
-        raise ValueError("activate_validated_corpus_version requires idempotencyKey")
-    return context.api_client.activate_validated_corpus_version(
-        corpus_version_id,
+        raise ValueError("activate_validated_legal_source_version requires idempotencyKey")
+    return context.api_client.activate_validated_legal_source_version(
+        legal_source_version_id,
         payload,
     )

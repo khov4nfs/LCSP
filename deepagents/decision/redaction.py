@@ -89,7 +89,7 @@ SAFE_KEY_NAMES = frozenset(
         "score_max",
         "score_min",
         "score_rubric",
-        "scanner_change_metadata",
+        "repository_change_metadata",
         "status",
         "state_payload",
         "topic_key",
@@ -115,7 +115,7 @@ FORBIDDEN_EXACT_KEYS = frozenset(
         "password",
         "private_context",
         "private_customer_context",
-        "raw_legal_corpus",
+        "raw_legal_source",
         "raw_prompt",
         "raw_source",
         "repository_source",
@@ -202,42 +202,7 @@ STATE_KEYS_BY_DECISION_TYPE = {
         "review_domain",
         "reviewer_role",
         "sanitized_diff_metadata",
-        "scanner_change_metadata",
-    },
-    DECISION_TYPES["root_non_deterministic_next_stage"]: COMMON_STATE_KEYS
-    | {
-        "assessment_status",
-        "deterministic_transition_available",
-        "pending_stage_candidates",
-        "run_status",
-    },
-    DECISION_TYPES["interview_topic_routing"]: COMMON_STATE_KEYS
-    | {
-        "active_question_id",
-        "active_topic_key",
-        "confirmed_topic_keys",
-        "context_revision",
-        "customer_safe_topic_keys",
-        "owned_topic_candidates",
-        "question_ids",
-        "resolution_criteria_keys",
-        "unresolved_topic_keys",
-    },
-    DECISION_TYPES["planner_candidate_ranking"]: COMMON_STATE_KEYS
-    | {
-        "candidate_count",
-        "engineering_rule_ids",
-        "graph_seed_refs",
-        "rule_ids",
-        "scope_ids",
-    },
-    DECISION_TYPES["investigator_next_action"]: COMMON_STATE_KEYS
-    | {
-        "engineering_rule_ids",
-        "frontier_state",
-        "last_tool_name",
-        "rule_ids",
-        "tool_names",
+        "repository_change_metadata",
     },
 }
 APPROVED_QUESTION_PROMPTS_BY_DECISION_TYPE = {
@@ -254,33 +219,6 @@ APPROVED_QUESTION_PROMPTS_BY_DECISION_TYPE = {
         "change_complexity": "Score bounded change complexity.",
         "operational_risk": "Score bounded operational risk.",
         "review_depth": "Score bounded review depth.",
-    },
-    DECISION_TYPES["root_non_deterministic_next_stage"]: {
-        "route": "Choose the bounded root orchestration route.",
-        "needs_reasoning_escalation": "Return whether bounded routing state needs reasoning escalation.",
-        "ambiguity_score": "Score bounded routing ambiguity.",
-        "next_stage": "Choose a bounded next-stage route.",
-        "transition_confidence": "Score bounded transition confidence.",
-        "topic": "Return a normalized routing topic object.",
-    },
-    DECISION_TYPES["interview_topic_routing"]: {
-        "material_customer_fact_unresolved": "Return whether a material Customer-owned fact remains unresolved.",
-        "missing_topic": "Choose the server-owned Interview topic category.",
-        "current_context_sufficient": "Return whether current confirmed context is sufficient to resume.",
-        "clarification_ambiguity": "Score bounded Interview clarification ambiguity.",
-        "route": "Choose a bounded Interview route.",
-        "confidence": "Score bounded Interview routing confidence.",
-        "topic": "Return a normalized Interview topic object.",
-    },
-    DECISION_TYPES["planner_candidate_ranking"]: {
-        "candidate": "Choose a bounded Planner candidate.",
-        "priority_score": "Score bounded Planner candidate priority.",
-        "rank_metadata": "Return normalized Planner ranking metadata.",
-    },
-    DECISION_TYPES["investigator_next_action"]: {
-        "next_action": "Choose a bounded Investigator action.",
-        "confidence": "Score bounded Investigator action confidence.",
-        "action_metadata": "Return normalized Investigator action metadata.",
     },
 }
 

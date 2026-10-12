@@ -1,0 +1,524 @@
+{
+  "scope": "ACCEPTED_LCSP_SNAPSHOT_MATRIX_AT_2CF1341C",
+  "status": "HISTORICAL_ACCEPTED_SNAPSHOT",
+  "exactHeadAuthority": "https://github.com/khov4nfs/LCSP/pull/367#issuecomment-6109881367",
+  "base": "047922c58147f5be3de093dc88db164daadedea8",
+  "candidateId": "20261012041902_4058ec2256a0",
+  "currentStagingRunId": "0294c54d42864ef0",
+  "currentImageReceipt": "reports/release-images/20261012041902_4058ec2256a0/report.json",
+  "authority": "reports/architecture-freeze-migration-manifest.md#12-production-acceptance-matrix",
+  "rowCount": 25,
+  "rows": [
+    {
+      "row": 1,
+      "acceptance": "Automatic Rule Set Preparation",
+      "passCondition": "Starting with a activated Legal Source Version automatically produces, validates, persists and activates one complete LegalRequirement + AssessmentRule rule set; failed preparation leaves prior ACTIVE intact.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/rule-set-preparation.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/rule-set-preparation-supersession.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/legal-semantic-review.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/legal-semantic-review-supersession.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/pr367-physical-lifecycle-jest.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 2,
+      "acceptance": "Cross-reference, definition, exception and qualifier handling",
+      "passCondition": "Reviewed legal eval fixture proves context is followed and represented in LegalRequirement/context relations and AssessmentRule without dropping limiting language or citing another version.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/legal-semantic-review.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/legal-semantic-review-supersession.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 3,
+      "acceptance": "Zero human legal approval",
+      "passCondition": "Production routes, workers, database writes and UI contain no legal approval/signoff requirement; valid output activates from integrity gate alone.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-mcp-ui.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 4,
+      "acceptance": "Zero mandatory Initial Interview",
+      "passCondition": "A repository-only assessment starts Root investigation without interview state, context-ready gate or synthetic confirmation.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-acceptance.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 5,
+      "acceptance": "Zero technical questions answerable by repository/tools",
+      "passCondition": "In source-answerable evals, Root inspects repository/document/runtime tools first and opens zero HumanResolutionRequests for facts those sources can establish.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-acceptance.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-persisted-assessmentA.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-persisted-assessmentC.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 6,
+      "acceptance": "Applicable vs not applicable",
+      "passCondition": "Root gives every pinned AssessmentRule exactly one evidenced `APPLICABLE` or `NOT_APPLICABLE`; deterministic applicability code cannot decide it.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-acceptance.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ],
+      "qualification": "Fresh live outcomes are APPLICABLE/NON_COMPLIANT with both MET and NOT_MET criteria. No new live NOT_APPLICABLE or overall COMPLIANT scenario is claimed; the unchanged binary outcome boundary remains covered by accepted focused tests."
+    },
+    {
+      "row": 7,
+      "acceptance": "Compliant vs non-compliant",
+      "passCondition": "For each applicable rule, Root resolves every required criterion `MET`/`NOT_MET` and gives one `COMPLIANT`/`NON_COMPLIANT` result with accepted refs; validator rejects missing/stale/fabricated refs without rejudging semantics.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-acceptance.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ],
+      "qualification": "Fresh live outcomes are APPLICABLE/NON_COMPLIANT with both MET and NOT_MET criteria. No new live NOT_APPLICABLE or overall COMPLIANT scenario is claimed; the unchanged binary outcome boundary remains covered by accepted focused tests."
+    },
+    {
+      "row": 8,
+      "acceptance": "HITL same-thread resume",
+      "passCondition": "Material human fact opens one request and interrupts; authorized answer updates Case/Evidence and resumes identical server `threadId`; no duplicate question or decision is created.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-acceptance.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 9,
+      "acceptance": "Crash/restart resume",
+      "passCondition": "Kill/restart worker during investigation and during HITL; the same checkpoint/thread and accepted domain state resume idempotently.",
+      "gap": null,
+      "status": "PASS_REUSED_UNAFFECTED",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/crash-restart-assessmentA-investigation.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/crash-restart-assessmentA-human-wait.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/crash-restart-assessmentA-accepted-answer.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        }
+      ],
+      "qualification": "Native checkpoint/worker crash recovery semantics are unchanged. Historical worker kill/restart evidence is explicitly reused; fresh same-thread Stop/Continue and current 7/7 Docker integrations supplement it. No fresh worker crash is claimed."
+    },
+    {
+      "row": 10,
+      "acceptance": "Stop/continue",
+      "passCondition": "Stop persists `PAUSED` and execution pause; Continue resumes the same Root thread, restores waiting state if blockers remain, and never starts a second root. Cancel is terminal.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 11,
+      "acceptance": "One assessment / one Root thread",
+      "passCondition": "Concurrent create, resume, retry, pause and HITL for an assessment resolve to exactly one unique AssessmentRuntime thread mapping and at most one active Root lease; per-rule or per-request root threads are rejected.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-persisted-assessmentA.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-persisted-assessmentC.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 12,
+      "acceptance": "Cross-assessment memory canary isolation",
+      "passCondition": "Put unique raw canary in A; under same/different users, tenants, repository and compliance rule set, B cannot retrieve, emit, cite or authorize it.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/cross-assessment-canary.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 13,
+      "acceptance": "Shared memory cannot become evidence",
+      "passCondition": "Retrieve a sanitized heuristic and attempt to cite/submit it; DecisionValidator rejects it as an evidence/provenance type.",
+      "gap": null,
+      "status": "PASS_REUSED_UNAFFECTED",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/shared-learning-acceptance.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/memory-provenance-assessmentA.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/memory-provenance-assessmentC.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/memory-provenance-assessmentD.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        }
+      ],
+      "qualification": "Shared-learning provenance types and deterministic rejection of heuristic evidence are unchanged. Historical attempted heuristic citation/rejection is explicitly reused; fresh public decisions cite only accepted repository evidence and human facts."
+    },
+    {
+      "row": 14,
+      "acceptance": "Stale decision invalidation",
+      "passCondition": "Increment Case revision or change the pinned repository/source/rule version; dependent decisions become `INVALIDATED`, cannot finalize, and Root re-investigates.",
+      "gap": null,
+      "status": "PASS_REUSED_UNAFFECTED",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/advance-case-assessmentA.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/stale-decision-acceptance.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        }
+      ],
+      "qualification": "Case-revision invalidation semantics are unchanged. Its raw SQL column was mechanically renamed and actually exercised in the new 32/32 PostgreSQL service/lifecycle tests; physical decision/pin guards pass in the 14/14 upgrade rehearsal. The historical browser reinvestigation is explicitly reused."
+    },
+    {
+      "row": 15,
+      "acceptance": "Compliance Rule Set version pinning",
+      "passCondition": "New activation affects only newly created assessments; existing assessments and reports retain exact immutable rule-set/source version; no cached rule retarget occurs.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/shared-rule-set-assessments.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/shared-rule-set-supersession.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 16,
+      "acceptance": "Multi-tenant isolation",
+      "passCondition": "API/tool authorization rejects foreign assessment, case, evidence, request, event, thread and artifact access across every endpoint and task descendant.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 17,
+      "acceptance": "Concurrent assessments",
+      "passCondition": "Concurrent starts produce distinct unique thread namespaces, execution leases, event sequences and sandbox paths with no cross-run data or write collision.",
+      "gap": null,
+      "status": "PASS_REUSED_UNAFFECTED",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/concurrent-assessment-acceptance.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/cross-assessment-canary.json",
+          "disposition": "ACCEPTED_UNCHANGED_BACKEND_INVARIANT"
+        }
+      ],
+      "qualification": "Root thread/lease/sandbox concurrency ownership is unchanged. Historical concurrent starts are explicitly reused. Fresh A/C runs are sequential, use distinct threads, and pass a current canary isolation proof."
+    },
+    {
+      "row": 18,
+      "acceptance": "Bounded negative evidence",
+      "passCondition": "Root can conclude `NOT_MET` from absence only when its agent judgment uses authenticated bounded coverage; missing/partial/index-gap coverage blocks that inference and is never deterministic non-compliance.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-acceptance.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-persisted-assessmentC.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 19,
+      "acceptance": "No final unresolved blocker",
+      "passCondition": "Any open HumanResolutionRequest, required input, pending/invalidated DRS item, stale evidence/pin, active fatal execution or invalid rule set makes finalization fail with structured blockers.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-root-acceptance.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 20,
+      "acceptance": "No final UNKNOWN/PARTIAL/open-question language",
+      "passCondition": "No V2 decision schema contains final UNKNOWN/PARTIAL; no report is published with unresolved request/input, open-question field, or unresolved-question placeholder. Reviewed report evals reject those phrases/outcomes.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 21,
+      "acceptance": "Token/activity accounting",
+      "passCondition": "Each model attempt has one stable invocation ID; persisted usage reconciles with billing ledger; AssessmentEvent shows activity/token usage without raw provider/customer content; duplicate callbacks do not double count.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/accounting-reconciliation.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-accounting-assessmentA.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-accounting-assessmentC.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 22,
+      "acceptance": "Legacy path absence",
+      "passCondition": "Production image/API/import graph has no Scanner reasoning, mandatory Interview, per-rule dispatcher, Python semantic loop, targeted-reanalysis state machine, deterministic semantic judge, legal approval, regex normative judge, lazy legal recovery/cache/bundle, duplicate lifecycle projection, or V1 fallback/flag. Historical migrations remain only for schema history.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/release-images/20261012041902_4058ec2256a0/report.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/pr367-terminology-audit.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/pr367-final-correction-source-gates.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 23,
+      "acceptance": "Compliance Rule Set supersession",
+      "passCondition": "Activate newer rule set during an assessment; its existing version pin and decisions remain unchanged and traceable. A new assessment pins the new version. Changed assessment-owned inputs invalidate dependent decisions before finalization.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/shared-rule-set-supersession.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/rule-set-preparation-supersession.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    },
+    {
+      "row": 24,
+      "acceptance": "Migration and rollback safety",
+      "passCondition": "Clean DB and populated V1 upgrade pass; migration is restartable/idempotent, old artifacts/history reconcile, no down migration is used after V2 writes, and the pre-cutover restore point is verified before traffic switch.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/pr367-physical-rename/receipt.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/physical-schema-metadata-audit.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ],
+      "qualification": "The new populated V2 in-place physical rename has fresh 14/14 upgrade/no-op/OID/row/guard proof. Previous V1 backup/restore and rollback constraints remain historical accepted supplements; no down migration or production restore was performed.",
+      "historicalEvidence": [
+        {
+          "path": "reports/w6-rehearsal/20261008075952_82952/report.json",
+          "disposition": "HISTORICAL_PRIOR_CANDIDATE; ONLY_NAMED_UNCHANGED_INVARIANTS_REUSED"
+        },
+        {
+          "path": "reports/w6-input-dispositions/20261008095633454_287575/report.json",
+          "disposition": "HISTORICAL_PRIOR_CANDIDATE; ONLY_NAMED_UNCHANGED_INVARIANTS_REUSED"
+        },
+        {
+          "path": "reports/w7-migration/20261009062210_313264/report.json",
+          "disposition": "HISTORICAL_PRIOR_CANDIDATE; ONLY_NAMED_UNCHANGED_INVARIANTS_REUSED"
+        }
+      ]
+    },
+    {
+      "row": 25,
+      "acceptance": "Assessment deletion and retention",
+      "passCondition": "Deletion revokes/deletes eligible checkpoint, sandbox, requests and domain content; retained legal-hold/audit records follow policy; shared memory contains no attributable customer payload and deletion does not affect another assessment.",
+      "gap": null,
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/0294c54d42864ef0/assessment-erasure-assessmentC.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        },
+        {
+          "path": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+          "disposition": "CURRENT_FINAL_CORRECTION_EXECUTED_PROOF"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "PASS": 21,
+    "PASS_REUSED_UNAFFECTED": 4,
+    "total": 25
+  },
+  "fullBrowserGate": {
+    "status": "PASS",
+    "receipt": "reports/staging/0294c54d42864ef0/browser-full-flow.json",
+    "candidateId": "20261012041902_4058ec2256a0",
+    "workers": 1,
+    "phases": 21,
+    "supplementalMcpReceipt": "reports/staging/0294c54d42864ef0/browser-mcp-ui.json",
+    "unexpectedBrowserErrors": 0,
+    "unexpectedNetworkFailures": 0
+  },
+  "semanticAcceptance": {
+    "status": "PASS_FRESH",
+    "preparation": "V1 and V2 fresh final-image APX executions, each reasoned 6/6",
+    "root": "A and C fresh final-image execution; public persisted decisions/evidence/events only",
+    "modelPayloadSemanticEvidenceReused": false
+  },
+  "publicationAuthority": "Exact published HEAD and final remote CI results are in the linked PR evidence comment; this tracked report binds the head ref and immutable source fingerprint, avoiding a self-referential Git commit hash.",
+  "releaseEligible": false,
+  "releaseEligibilityReason": "CURRENT_SOURCE_LIVE_SEMANTIC_ACCEPTANCE_NOT_REPROVEN; ONE_HUMAN_APPROVAL_REQUIRED",
+  "preMergeLocalAcceptance": true,
+  "productionDeployment": false,
+  "reconciledAt": "2026-10-12T04:54:18.343128+00:00",
+  "historicalMatrix": "reports/staging/9ae7757edbaf422b/acceptance-matrix-before-physical-cutover.json",
+  "acceptedHead": "2cf1341c1e4a5e1c8537b82686523a212df07c42",
+  "currentSourceReleaseAcceptance": "NOT_REPROVEN_AFTER_DEPENDENCY_MERGE_AND_ROOT_SCOPE_GUIDANCE",
+  "currentLiveHeadRef": "refs/pull/367/head",
+  "acceptedSnapshotImageReceipt": "reports/release-images/20261012041902_4058ec2256a0/report.json",
+  "acceptedSnapshotStagingRunId": "0294c54d42864ef0"
+}

@@ -1,26 +1,26 @@
 import json
 from pathlib import Path
 
-from tools.legal.corpus.chunk_integrity.chunk_integrity_validator import (
+from tools.legal.legal_source.chunk_integrity.chunk_integrity_validator import (
     ChunkIntegrityValidator,
     ValidateChunkIntegrityRequest,
 )
-from tools.legal.corpus.legal_chunks.legal_chunk_builder import (
+from tools.legal.legal_source.legal_chunks.legal_chunk_builder import (
     BuildLegalChunksRequest,
     LegalChunkBuilder,
 )
-from tools.legal.corpus.legal_chunks.legal_chunk_repository import (
+from tools.legal.legal_source.legal_chunks.legal_chunk_repository import (
     LegalChunkRepository,
     LegalChunkSetRecord,
 )
 from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
-from tools.legal.corpus.relationships.relationship_manifest_repository import (
+from tools.legal.legal_source.relationships.relationship_manifest_repository import (
     RelationshipManifestRecord,
     RelationshipManifestRepository,
 )
-from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
-    ReviewedCorpusInputRecord,
-    ReviewedCorpusInputRepository,
+from tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_repository import (
+    ReviewedLegalSourceInputRecord,
+    ReviewedLegalSourceInputRepository,
 )
 
 
@@ -31,7 +31,7 @@ def _write_reviewed_input(
     text: str,
     document_id: str = "LAW-71-2025-QH15",
 ) -> str:
-    output_dir = storage_root / "reviewed-corpus-inputs" / "reviewed-input-123456"
+    output_dir = storage_root / "reviewed-legal-source-inputs" / "reviewed-input-123456"
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized_text_path = output_dir / f"{document_id}.reviewed.txt"
     manifest_path = output_dir / f"{document_id}.reviewed-input.json"
@@ -39,8 +39,8 @@ def _write_reviewed_input(
     from tools.legal.sources.extraction.official_text_extraction import _sha256_text
 
     content_sha256 = _sha256_text(text)
-    ReviewedCorpusInputRepository(storage_root=storage_root).save(
-        ReviewedCorpusInputRecord(
+    ReviewedLegalSourceInputRepository(storage_root=storage_root).save(
+        ReviewedLegalSourceInputRecord(
             reviewed_input_ref=reviewed_input_ref,
             provenance_ref="prov:reviewed-input:reviewed-input-123456",
             extraction_ref="extraction:canonical-12345678",
@@ -94,7 +94,7 @@ def _build_chunk_set(storage_root: Path) -> str:
     )
     result = LegalChunkBuilder(
         storage_root=storage_root,
-        reviewed_input_repository=ReviewedCorpusInputRepository(storage_root=storage_root),
+        reviewed_input_repository=ReviewedLegalSourceInputRepository(storage_root=storage_root),
     ).build(
         BuildLegalChunksRequest(
             reviewed_input_ref=reviewed_input_ref,

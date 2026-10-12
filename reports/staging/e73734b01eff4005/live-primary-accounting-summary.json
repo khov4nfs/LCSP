@@ -1,0 +1,76 @@
+{
+  "scope": "EXACT_IMAGE_CURRENT_ROOT_PRIMARY_AND_LIVE_ACCOUNTING",
+  "status": "PASS",
+  "runId": "e73734b01eff4005",
+  "assessments": [
+    {
+      "assessmentKey": "assessmentA",
+      "usage": {
+        "usageRows": 31,
+        "distinctInvocations": 31,
+        "inputTokens": "865541",
+        "outputTokens": "9946",
+        "totalTokens": "875487",
+        "chargedCredits": "0",
+        "withReservation": 0
+      },
+      "actualProvider": "apx",
+      "actualModel": "claude-sonnet-4-6-free",
+      "primaryFallbackUsed": false,
+      "accountingCapturedBeforeExplicitDeletion": false
+    },
+    {
+      "assessmentKey": "assessmentB",
+      "usage": {
+        "usageRows": 14,
+        "distinctInvocations": 14,
+        "inputTokens": "231207",
+        "outputTokens": "2790",
+        "totalTokens": "233997",
+        "chargedCredits": "0",
+        "withReservation": 0
+      },
+      "actualProvider": "apx",
+      "actualModel": "claude-sonnet-4-6-free",
+      "primaryFallbackUsed": false,
+      "accountingCapturedBeforeExplicitDeletion": true
+    },
+    {
+      "assessmentKey": "assessmentC",
+      "usage": {
+        "usageRows": 12,
+        "distinctInvocations": 12,
+        "inputTokens": "206886",
+        "outputTokens": "3149",
+        "totalTokens": "210035",
+        "chargedCredits": "0",
+        "withReservation": 0
+      },
+      "actualProvider": "apx",
+      "actualModel": "claude-sonnet-4-6-free",
+      "primaryFallbackUsed": false,
+      "accountingCapturedBeforeExplicitDeletion": false
+    },
+    {
+      "assessmentKey": "assessmentD",
+      "usage": {
+        "usageRows": 16,
+        "distinctInvocations": 16,
+        "inputTokens": "324430",
+        "outputTokens": "5552",
+        "totalTokens": "329982",
+        "chargedCredits": "0",
+        "withReservation": 0
+      },
+      "actualProvider": "apx",
+      "actualModel": "claude-sonnet-4-6-free",
+      "primaryFallbackUsed": false,
+      "accountingCapturedBeforeExplicitDeletion": false
+    }
+  ],
+  "totalInvocations": 73,
+  "totalTokens": 1649501,
+  "chargedCredits": "0",
+  "duplicateCallbackReplays": "FOUR_IDEMPOTENT_REPLAYS",
+  "scopeNote": "B is represented by its immutable receipt captured before explicit UI deletion."
+}

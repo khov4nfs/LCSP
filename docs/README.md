@@ -1,5 +1,7 @@
 # LCSP Documentation Start Here
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 This is the starting point for developers, reviewers, UX, and story planning. Active documents describe the A-to-Z runnable MVP after Phase 5.2L correction, not production deployment, customer onboarding, legal certification, formal legal opinion, regulator submission, or completed implementation readiness.

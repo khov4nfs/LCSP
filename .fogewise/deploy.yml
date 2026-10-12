@@ -4,6 +4,8 @@ services:
     requires:
       - redis
       - rabbitmq
+    environment:
+      LCSP_AGENT_SERVER_URL: http://agent-runtime-server:8000
 
   web:
     path: apps/web

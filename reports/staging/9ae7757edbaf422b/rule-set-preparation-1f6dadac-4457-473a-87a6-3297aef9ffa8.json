@@ -1,0 +1,20 @@
+{
+  "scope": "EXACT_IMAGE_AUTOMATIC_RULE_SET_PREPARATION_CAPTURE",
+  "runId": "9ae7757edbaf422b",
+  "status": "PASS_RUNTIME_MECHANICS",
+  "imageReceipt": "reports/release-images/20261011201401_b17f791a42ea/report.json",
+  "run": {
+    "id": "1f6dadac-4457-473a-87a6-3297aef9ffa8",
+    "executionState": "SUCCEEDED",
+    "failureReason": null,
+    "ruleSetVersionId": "78261f5b-bb2e-4316-a171-bc3315ac2aa3",
+    "lifecycleState": "ACTIVE",
+    "validationOutcome": "PASSED",
+    "ruleSetDigest": "04977fd265a0e30167dbef5e7d58fb205bca03856785a625e9f8af51f13746e1",
+    "outboxStatus": "PUBLISHED"
+  },
+  "activations": 1,
+  "initiatedThrough": "DURABLE_LEGAL_SOURCE_ACTIVATION",
+  "packetManuallyEdited": false,
+  "semanticReview": "REQUIRED"
+}

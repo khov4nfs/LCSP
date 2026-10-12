@@ -35,13 +35,6 @@ class AgentServerRunError(NonRetryableAgentBoundaryError):
         super().__init__(f"{self.remote_error_type}: {self.remote_message}")
 
 
-# Boundaries whose command only signals a cooperative interrupt of another
-# boundary's already-active run. These must never create their own Agent Server
-# run: with multitask_strategy="enqueue" that run would simply queue behind the
-# very run it exists to stop, arriving only after that run already finished.
-_INTERRUPT_TARGET_BOUNDARIES_BY_COMMAND_BOUNDARY: dict[str, tuple[str, ...]] = {
-    # W4 registers the Assessment Root pause command here.
-}
 # Run status LangGraph reports after ``runs.cancel(action="interrupt")``.
 _INTERRUPTED_RUN_STATUS = "interrupted"
 
@@ -67,16 +60,6 @@ def dispatch_agent_runtime_event(
     runs.wait request. This exposes scheduler delay, detects terminal errors
     promptly, and lets the boundary deadline interrupt the actual LangGraph run.
     """
-    interrupt_targets = _INTERRUPT_TARGET_BOUNDARIES_BY_COMMAND_BOUNDARY.get(
-        boundary_name
-    )
-    if interrupt_targets is not None:
-        if _find_text(message, "targetRunId"):
-            return _dispatch_runtime_control(message, correlation_id, timeout_seconds=timeout_seconds)
-        for interrupt_target in interrupt_targets:
-            interrupt_agent_runtime_run(interrupt_target, message, correlation_id)
-        return {"status": "interrupt_requested"}
-
     # No deadline unless the boundary opted into one: agent runs take as long
     # as their reasoning needs.
     budget = _run_budget_seconds(timeout_seconds)
@@ -156,28 +139,12 @@ def dispatch_agent_runtime_event(
             "Agent Server did not return a run id",
         )
 
-    observer = _ScanRunObserver(message)
-    observer.emit(
-        event_type="TOOL_STARTED",
-        run_status="RUNNING",
-        summary=(
-            "Reattached to active LangGraph repository run"
-            if reused_active_run
-            else "LangGraph repository run queued"
-        ),
-        output_summary={
-            "runId": run_id,
-            "schedulerState": _run_status(run, "pending"),
-            "reusedActiveRun": reused_active_run,
-        },
-    )
 
     return _poll_run_until_terminal(
         client,
         thread_id=thread_id,
         run_id=run_id,
         run=run,
-        observer=observer,
         timeout_seconds=(
             max(0.001, budget - (time.monotonic() - started_at))
             if budget is not None
@@ -186,41 +153,6 @@ def dispatch_agent_runtime_event(
     )
 
 
-def _dispatch_runtime_control(message: dict[str, Any], correlation_id: str, *, timeout_seconds: float | None) -> Any:
-    """Control only the bound native run, never whatever happens to be active later."""
-    thread_id = _find_text(message, "threadId")
-    run_id = _find_text(message, "targetRunId")
-    boundary = _find_text(message, "boundary")
-    if not thread_id or not run_id or not boundary:
-        raise AgentServerRunError("RuntimeControlIdentityMissing", "Runtime control requires exact target identity")
-    client = get_sync_client(url=os.getenv("LCSP_AGENT_SERVER_URL", DEFAULT_AGENT_SERVER_URL), timeout=30)
-    target = client.runs.get(thread_id, run_id)
-    status = _run_status(target, "")
-    if message.get("controlAction") == "RESUME":
-        if status != "interrupted":
-            if status == "success":
-                return {"state": "COMPLETED", "targetRunId": run_id}
-            raise AgentServerRunError("RuntimeNotStopped", "The target run has not acknowledged interruption")
-        return resume_agent_runtime_run(boundary, message, correlation_id, timeout_seconds=timeout_seconds)
-    if status in _ACTIVE_RUN_STATUSES:
-        client.runs.cancel(thread_id, run_id, wait=False, action="interrupt")
-    deadline = time.monotonic() + 10.0
-    while status in _ACTIVE_RUN_STATUSES:
-        if time.monotonic() >= deadline:
-            # Retry the SAME target through the broker. Never resolve another run.
-            raise RuntimeError("Runtime stop acknowledgement is still pending")
-        time.sleep(0.05)
-        status = _run_status(client.runs.get(thread_id, run_id), "")
-    state = "STOPPED" if status == "interrupted" else "COMPLETED"
-    cfg = load_config()
-    callback = {
-        "assessmentId": _find_text(message, "assessmentId"),
-        "targetRunId": run_id, "state": state, "correlationId": correlation_id,
-    }
-    if state == "STOPPED":
-        callback["checkpoint"] = client.threads.get_state(thread_id).get("checkpoint")
-    WorkerApiClient(cfg.nestjs_api_base_url, cfg.worker_api_key)._post_with_retry("/internal/assessment-runtime-controls", callback, redact=False)
-    return {"state": state, "targetRunId": run_id}
 
 
 def _poll_run_until_terminal(
@@ -229,7 +161,6 @@ def _poll_run_until_terminal(
     thread_id: str,
     run_id: str,
     run: Mapping[str, Any],
-    observer: "_ScanRunObserver",
     timeout_seconds: float | None,
 ) -> Any:
     """Poll a created/reused run to a terminal state and return its result values."""
@@ -255,33 +186,12 @@ def _poll_run_until_terminal(
                 wait=False,
                 action="interrupt",
             )
-            observer.emit(
-                event_type="TOOL_FAILED",
-                run_status="FAILED",
-                summary="LangGraph repository run exceeded boundary deadline",
-                error_summary="AGENT_RUNTIME_BOUNDARY_TIMEOUT",
-                output_summary={"runId": run_id},
-            )
             raise AgentServerRunError(
                 "AgentServerRunTimeout",
                 f"Agent Server run exceeded {deadline_seconds:.1f}s deadline",
             )
 
         if now >= next_heartbeat_at:
-            observer.emit(
-                event_type="TOOL_COMPLETED",
-                run_status="RUNNING",
-                summary=(
-                    "LangGraph repository run waiting for scheduler"
-                    if last_status == "pending"
-                    else "LangGraph repository run executing"
-                ),
-                output_summary={
-                    "runId": run_id,
-                    "schedulerState": last_status,
-                    "elapsedSeconds": int(now - started_at),
-                },
-            )
             next_heartbeat_at = now + pending_heartbeat_seconds
 
         time.sleep(poll_seconds)
@@ -290,34 +200,9 @@ def _poll_run_until_terminal(
         except httpx.TimeoutException:
             timeout_at = time.monotonic()
             if timeout_at >= next_heartbeat_at:
-                observer.emit(
-                    event_type="TOOL_COMPLETED",
-                    run_status="RUNNING",
-                    summary="LangGraph repository run status poll timed out; keeping existing run binding",
-                    error_summary="AGENT_RUNTIME_RUN_POLL_TIMEOUT",
-                    output_summary={
-                        "runId": run_id,
-                        "schedulerState": last_status,
-                        "elapsedSeconds": int(timeout_at - started_at),
-                    },
-                )
                 next_heartbeat_at = timeout_at + pending_heartbeat_seconds
             continue
         current_status = _run_status(run, last_status)
-        if current_status != last_status and current_status != _INTERRUPTED_RUN_STATUS:
-            observer.emit(
-                event_type="TOOL_COMPLETED",
-                run_status=(
-                    "RUNNING"
-                    if current_status in _ACTIVE_RUN_STATUSES
-                    else ("COMPLETED" if current_status == "success" else "FAILED")
-                ),
-                summary=f"LangGraph repository run state: {current_status}",
-                output_summary={
-                    "runId": run_id,
-                    "schedulerState": current_status,
-                },
-            )
         last_status = current_status
 
     if last_status == _INTERRUPTED_RUN_STATUS:
@@ -447,68 +332,15 @@ def resume_agent_runtime_run(
             "Agent Server did not return a run id",
         )
 
-    observer = _ScanRunObserver(message)
-    observer.emit(
-        event_type="TOOL_STARTED",
-        run_status="RUNNING",
-        summary="LangGraph repository run resumed from checkpoint",
-        output_summary={
-            "runId": run_id,
-            "schedulerState": _run_status(run, "pending"),
-        },
-    )
     return _poll_run_until_terminal(
         client,
         thread_id=thread_id,
         run_id=run_id,
         run=run,
-        observer=observer,
         timeout_seconds=timeout_seconds,
     )
 
 
-class _ScanRunObserver:
-    """Best-effort scan scheduler progress persisted for SSE/history replay."""
-
-    def __init__(self, message: Mapping[str, Any]) -> None:
-        self.scan_job_id = _find_text(message, "scanJobId", "scan_job_id")
-        self.client: WorkerApiClient | None = None
-        if not self.scan_job_id:
-            return
-        try:
-            config = load_config()
-            self.client = WorkerApiClient(
-                config.nestjs_api_base_url,
-                config.worker_api_key,
-            )
-        except Exception:
-            self.client = None
-
-    def emit(
-        self,
-        *,
-        event_type: str,
-        run_status: str,
-        summary: str,
-        error_summary: str | None = None,
-        output_summary: Mapping[str, Any] | None = None,
-    ) -> None:
-        if self.client is None or not self.scan_job_id:
-            return
-        payload: dict[str, Any] = {
-            "event_type": event_type,
-            "run_status": run_status,
-            "stage": "SCAN",
-            "tool_name": "langgraph_run",
-            "summary": summary,
-        }
-        if error_summary:
-            payload["error_summary"] = error_summary
-        if output_summary:
-            payload["output_summary"] = dict(output_summary)
-            if output_summary.get("runId"):
-                payload["output_summary"]["runtimeRunId"] = output_summary["runId"]
-        self.client.post_scan_runtime_event(self.scan_job_id, payload)
 
 
 def _find_active_thread_run(
@@ -659,10 +491,6 @@ def agent_thread_id(
     correlation_id: str,
 ) -> str:
     """Use stable LangGraph thread/sandbox identities for runtime boundaries."""
-    if boundary_name == "scan_requested":
-        scan_job_id = _find_text(message, "scanJobId", "scan_job_id")
-        if scan_job_id:
-            return str(uuid5(_THREAD_NAMESPACE, f"scan:{scan_job_id}"))
     assessment_id = _find_text(message, "assessmentId", "assessment_id")
     if assessment_id:
         seed = f"assessment:{assessment_id}"

@@ -31,6 +31,7 @@ const VALID_ENV = {
   SMTP_PASS: "smtp-pass",
   SMTP_FROM: "lcsp@example.com",
   WORKER_API_KEY: "w".repeat(32),
+  LCSP_AGENT_SERVER_URL: "http://agent-runtime-server:8000",
   BILLING_SEPAY_BANK_NAME: "Test Bank",
   BILLING_SEPAY_BANK_ACCOUNT_NUMBER: "1234567890",
   BILLING_SEPAY_ACCOUNT_HOLDER: "LCSP TEST",
@@ -413,11 +414,6 @@ describe("config()", () => {
         batchSize: 50,
         maxAttempts: 5,
       },
-      pipelineReconciliation: {
-        pollIntervalMs: 60000,
-        quietPeriodMs: 900000,
-        maxAttempts: 3,
-      },
       githubCredentialPersistence: {
         activeKekVersion: VALID_ENV.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION,
         encodedKekKeyring: VALID_ENV.GITHUB_CLI_CREDENTIAL_KEK_KEYRING,
@@ -432,9 +428,6 @@ describe("config()", () => {
       },
       worker: { apiKey: VALID_ENV.WORKER_API_KEY },
       orchestration: { debug: false },
-      verifiedEpisodes: {
-        consolidationIntervalMs: 0,
-      },
       billing: {
         sePayBankName: "Test Bank",
         sePayBankAccountNumber: "1234567890",

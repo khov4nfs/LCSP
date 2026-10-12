@@ -5,6 +5,9 @@ task_id: TASK-AO-5-03-get-legal-rule-match
 jira_issue: LCSP-162
 status: SUPERSEDED_FOR_ACTIVE_MVP
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # TASK-AO-5-03 — `get_legal_rule_match`
 
 > Superseded: `get_legal_rule_match` is no longer a canonical runtime tool for active direct EngineeringRule classification.

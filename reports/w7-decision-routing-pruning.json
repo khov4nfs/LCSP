@@ -1,0 +1,73 @@
+{
+  "deepagents/decision/shadow.py": {
+    "removed_names": [
+      "ROOT_ROUTE_CHOICES",
+      "INTERVIEW_TOPIC_CHOICES",
+      "RootRoutingPacket",
+      "InterviewRoutingPacket",
+      "WorkerApiDecisionIdempotencyStore",
+      "observe_root_routing",
+      "observe_interview_routing",
+      "build_root_routing_request",
+      "build_interview_routing_request",
+      "worker_api_decision_event_sink",
+      "observer_from_api_client"
+    ],
+    "pr_only_dictionaries": [],
+    "removed_lines": 209
+  },
+  "deepagents/decision/contracts.py": {
+    "removed_names": [],
+    "pr_only_dictionaries": [
+      "DECISION_TYPES"
+    ],
+    "removed_lines": 4
+  },
+  "deepagents/decision/policy.py": {
+    "removed_names": [],
+    "pr_only_dictionaries": [
+      "DEFAULT_DECISION_POLICIES"
+    ],
+    "removed_lines": 19
+  },
+  "deepagents/decision/redaction.py": {
+    "removed_names": [],
+    "pr_only_dictionaries": [
+      "STATE_KEYS_BY_DECISION_TYPE",
+      "APPROVED_QUESTION_PROMPTS_BY_DECISION_TYPE"
+    ],
+    "removed_lines": 62
+  },
+  "deepagents/decision/pr_review_triage.py": {
+    "removed_names": [
+      "_api_client_from_environment"
+    ],
+    "pr_only_dictionaries": [],
+    "removed_lines": 8
+  },
+  "deepagents/tests/test_decision_shadow_integrations.py": {
+    "removed_names": [
+      "test_root_deterministic_transition_bypasses_jev",
+      "test_ambiguous_root_routing_observes_jev_without_changing_authority",
+      "test_provider_failure_and_low_confidence_leave_root_route_unchanged",
+      "test_interview_topic_choice_is_restricted_to_server_owned_enum",
+      "test_jev_cannot_set_ai_absence_risk_or_readiness_state",
+      "test_interview_decision_identity_includes_context_revision",
+      "test_shadow_observer_skips_provider_when_durable_claim_is_unavailable"
+    ],
+    "pr_only_dictionaries": [],
+    "removed_lines": 196
+  },
+  "deepagents/FLOW.md": {
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  "deepagents/tests/test_runtime_envelope.py": {
+    "classification": "V1_ONLY",
+    "deleted": true
+  },
+  ".github/workflows/decision-pr-review-triage.yml": {
+    "classification": "V1_ONLY",
+    "deleted": true
+  }
+}

@@ -1,10 +1,12 @@
 # LCSP System Architecture
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 > **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.**
 
 ## Status
 
-AUTHORITATIVE SYSTEM ARCHITECTURE
+HISTORICAL PRE-V2 SYSTEM ARCHITECTURE
 
 ## Purpose
 

@@ -69,7 +69,7 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
         )
         if final is not None and not final.tool_calls:
             # Tool strategy forces tool_choice, so a text-only answer broke the contract
-            # (LLM7 routes do this). Accept it only when the text is exactly one schema-valid
+            # (some OpenAI-compatible gateway routes do this). Accept it only when the text is exactly one schema-valid
             # JSON object; otherwise reject it so provider fallback can try a provider with
             # native structured output instead of ending the agent with no handoff.
             parsed = _parse_text_structured_output(final, strategy)

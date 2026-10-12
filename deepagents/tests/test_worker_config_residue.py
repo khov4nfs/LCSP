@@ -6,15 +6,8 @@ from pathlib import Path
 import pytest
 
 from tools.common.capabilities.agent_runtime import local_server
-from tools.common.capabilities.agentic_evidence.governance.resolver import (
-    DEFAULT_MAX_TOOL_CALLS,
-    AgenticToolResolver,
-)
 from tools.common.capabilities.platform import config as config_module
 from tools.common.capabilities.platform.config import WorkerConfig, load_config
-from tools.common.capabilities.platform.orchestration_logging import (
-    orchestration_debug_enabled,
-)
 
 WORKER_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = WORKER_ROOT.parent
@@ -75,21 +68,8 @@ def test_local_server_checkpointer_uses_database_url_fallback(monkeypatch) -> No
         local_server.LocalAgentRuntime()._open_checkpointer()
 
 
-def test_surviving_tool_call_limit_is_one_fixed_default() -> None:
-    assert DEFAULT_MAX_TOOL_CALLS == 8
-    resolver = AgenticToolResolver(object(), object())
-    assert resolver.max_tool_calls == DEFAULT_MAX_TOOL_CALLS
-    with pytest.raises(ValueError):
-        AgenticToolResolver(object(), object(), max_tool_calls=0)
 
 
-def test_orchestration_debug_is_off_unless_explicitly_true(monkeypatch) -> None:
-    monkeypatch.delenv("ORCHESTRATION_DEBUG", raising=False)
-    assert orchestration_debug_enabled() is False
-    monkeypatch.setenv("ORCHESTRATION_DEBUG", "true")
-    assert orchestration_debug_enabled() is True
-    run_mjs = (REPO_ROOT / "scripts" / "run.mjs").read_text(encoding="utf-8")
-    assert not re.search(r"ORCHESTRATION_DEBUG\s*:", run_mjs)
 
 
 def test_retired_env_names_are_not_consumed_by_worker_code() -> None:

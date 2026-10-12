@@ -4,7 +4,7 @@ model {
   }
 
   legalOperator = actor 'Legal Operator' {
-    description 'Internal operator responsible for legal corpus ingestion review and version approval.'
+    description 'Internal operator responsible for legal legal source ingestion review and version approval.'
   }
 
   developer = actor 'Developer' {
@@ -66,7 +66,7 @@ model {
 
       chromaIndexer = workerService 'ChromaDB Legal Indexer' {
         technology 'Python, ChromaDB Client'
-        description 'Builds structure-first vectorless index for approved legal corpus versions (Clause/Article hierarchy).'
+        description 'Builds structure-first vectorless index for approved legal legal source versions (Clause/Article hierarchy).'
       }
 
       chromaRetriever = workerService 'ChromaDB Legal Retriever' {
@@ -123,7 +123,7 @@ model {
 
   // Relationships
   complianceManager -> web 'Uses workspace, manages assessments, resolves conflicts, downloads reports'
-  legalOperator -> web 'Reviews legal corpus snapshots and approves corpus versions'
+  legalOperator -> web 'Reviews legal legal source snapshots and approves legal source versions'
   developer -> web 'Provides delegated technical evidence clarification (Optional)'
 
   web -> api 'Sends REST requests (BFF proxy), receives standard success/problem envelopes' #sync #pbac
@@ -148,7 +148,7 @@ model {
   legalIngestionWorker -> database 'Persists legal structure metadata'
   legalIngestionWorker -> queue 'Triggers indexing upon operator approval' #async
 
-  chromaIndexer -> chromaDB 'Indexes approved legal corpus chunks with hierarchical IDs' #vectorless
+  chromaIndexer -> chromaDB 'Indexes approved legal legal source chunks with hierarchical IDs' #vectorless
   chromaRetriever -> chromaDB 'Queries vectorless index by direct ID, metadata filter, and context graph' #vectorless
 
   legalMatchingWorker -> chromaRetriever 'Retrieves citation-backed rules for verified claims' #guardrail

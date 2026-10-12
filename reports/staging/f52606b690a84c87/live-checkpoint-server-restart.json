@@ -1,0 +1,19 @@
+{
+  "scope": "FRESH_FINAL_IMAGE_LIVE_ROOT_CHECKPOINT_SERVER_RESTART",
+  "status": "PASS",
+  "candidateId": "20261012054358_c13bae52f1ac",
+  "runId": "f52606b690a84c87",
+  "threadId": "d62bc1be-0cbf-48c5-93c0-d42e6119c1c4",
+  "pausedCheckpointCount": 318,
+  "nativeCheckpointPopulation": {
+    "beforeRestartStillPresent": 318,
+    "afterResume": 362
+  },
+  "imageAfterRestart": "sha256:8d065f5f55b238585d4e2d8ba5f929f4308c12dbb6f81b52795d35675562549a",
+  "restartedAt": "2026-10-12T06:12:01.211882787Z",
+  "stopReloadPausedThroughUi": "PASS",
+  "continueAfterServerRestartSameRootThread": "PASS",
+  "byteIdentityProof": "New candidate Docker restart integration and actual native PostgreSQL recovery test; live supplemental uses persistent checkpoint population and same-thread UI resume, not a missing pre-restart hash snapshot.",
+  "harnessDiagnostic": "Docker reassigned the dynamic loopback host port after restart; health polling initially used the launch port. The server remained healthy and the broker used stable internal DNS. No application defect.",
+  "productionTouched": false
+}

@@ -45,7 +45,6 @@ from provider_credentials import (
     apx_base_url,
     credential_init_kwargs,
     inception_base_url,
-    llm7_base_url,
     llm_provider_timeout_seconds,
 )
 
@@ -71,15 +70,6 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
         "google_genai",
         "google_genai",
         lambda: {"request_timeout": llm_provider_timeout_seconds()},
-    ),
-    "llm7": (
-        "openai",
-        "openai_compatible_chat_completions",
-        lambda: {
-            "base_url": llm7_base_url(),
-            "use_responses_api": False,
-            "timeout": llm_provider_timeout_seconds(),
-        },
     ),
     "inception": (
         "openai",

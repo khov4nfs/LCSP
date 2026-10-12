@@ -14,8 +14,6 @@ export type AssessmentComposerProps = {
   sendLabel?: string;
   resumeLabel?: string;
   disabled?: boolean;
-  /** Allows text entry while preventing this composer from submitting. */
-  submitEnabled?: boolean;
   submitting?: boolean;
   resuming?: boolean;
   submitReady?: boolean;

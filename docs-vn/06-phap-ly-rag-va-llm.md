@@ -1,5 +1,7 @@
 # 06 — Pháp lý, RAG và LLM
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Legal corpus
 
 Nguồn pháp lý phải là URL chính thức đã được xác minh. Mỗi lần ingest lưu snapshot bất biến trong S3-compatible storage cùng URL, thời điểm lấy và SHA-256 hash.

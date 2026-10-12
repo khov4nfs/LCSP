@@ -1,5 +1,7 @@
 # LCSP Business Rules Specification
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 Tài liệu này chuẩn hóa business rules cho LCSP ở mức analysis/design trước implementation. Business rules bao gồm rule truyền thống của web/compliance platform và guardrail đặc thù LCSP. Đây không phải backlog.

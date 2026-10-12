@@ -1,4 +1,7 @@
 import os
+from pathlib import Path
+import re
+import shutil
 
 
 def get_repo_root() -> str:
@@ -21,6 +24,8 @@ def get_partitioned_log_path(
     repo_root = get_repo_root()
     uid = user_id if user_id and user_id.strip() else "unknown_user"
     aid = assessment_id if assessment_id and assessment_id.strip() else "unknown_assessment"
+    if not all(re.fullmatch(r"[A-Za-z0-9_-]{1,300}", value) for value in (uid, aid)):
+        raise ValueError("Invalid assessment log ownership")
     filename = "orchestration.log" if is_orchestration else "run.log"
     return os.path.join(
         repo_root,
@@ -31,28 +36,17 @@ def get_partitioned_log_path(
     )
 
 
-def get_llm_tool_log_path() -> str:
-    """Return the repository-level safe LLM/native-tool telemetry log path."""
-    configured = os.environ.get("LCSP_LLM_TOOL_LOG_PATH", "").strip()
-    if configured:
-        return (
-            configured
-            if os.path.isabs(configured)
-            else os.path.join(get_repo_root(), configured)
-        )
-    return os.path.join(get_repo_root(), "tmp", "llm-tool-calls.log")
-
-
-def get_partitioned_graph_path(user_id: str, assessment_id: str, filename: str) -> str:
-    """Get a graph artifact path partitioned by user and assessment under graphs/."""
-    repo_root = get_repo_root()
-    uid = user_id if user_id and user_id.strip() else "unknown_user"
-    aid = assessment_id if assessment_id and assessment_id.strip() else "unknown_assessment"
-    return os.path.join(
-        repo_root,
-        "tmp",
-        f"user_{uid}",
-        f"assessment_{aid}",
-        "graphs",
-        filename,
-    )
+def erase_assessment_logs(owner_id: str, assessment_id: str) -> None:
+    if not all(re.fullmatch(r"[A-Za-z0-9_-]{1,300}", value) for value in (owner_id, assessment_id)):
+        raise ValueError("Invalid assessment log ownership")
+    # Early worker events can precede owner attribution, but still belong to the same assessment.
+    targets = [Path(get_repo_root()) / "tmp" / f"user_{user}" / f"assessment_{assessment_id}"
+               for user in {owner_id, "unknown_user"}]
+    for target in targets:
+        if any(path.is_symlink() for path in (target, *target.parents)):
+            raise ValueError("Invalid assessment log erasure target")
+        if target.exists() and not target.is_dir():
+            raise ValueError("Invalid assessment log erasure target")
+    for target in targets:
+        if target.exists():
+            shutil.rmtree(target)

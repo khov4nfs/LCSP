@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 
+from tools.common.capabilities.platform import docker_sandbox
 from tools.common.capabilities.platform.docker_sandbox import (
     DockerSandboxBackend,
     DockerSandboxManager,
@@ -235,3 +237,34 @@ def test_manager_cleanup_stale_removes_old_lcsp_sandboxes() -> None:
     ]
     assert any(call[1:4] == ["rm", "-f", "container-old"] for call in calls)
     assert not any(call[1:4] == ["rm", "-f", "container-new"] for call in calls)
+
+
+def test_read_paginates_by_lines_like_the_filesystem_tool_contract(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """`offset`/`limit` are line counts; a byte window cut files mid-word and starved the Root."""
+    (tmp_path / "service.py").write_text("".join(f"line {n}\n" for n in range(1, 31)))
+    monkeypatch.setattr(docker_sandbox, "REPOSITORY_ROOT", str(tmp_path))
+
+    def runner(args, input_bytes, timeout):
+        # Run the exact shell command the backend would send to the sandbox, on the host fixture.
+        return subprocess.run(["bash", "-lc", args[-1]], capture_output=True, timeout=30)
+
+    backend = DockerSandboxBackend(DockerSandboxSpec("thread-read"), runner=runner)
+    backend.ensure_running = lambda: None
+
+    page = backend.read("service.py", offset=10, limit=5)
+    assert page.error is None
+    assert page.file_data["content"] == "".join(f"line {n}\n" for n in range(11, 16))
+    assert (page.start_line, page.end_line, page.total_lines, page.next_offset) == (11, 15, 30, 15)
+
+    whole = backend.read("service.py", offset=0, limit=500)
+    assert whole.error is None
+    assert whole.file_data["content"] == "".join(f"line {n}\n" for n in range(1, 31))
+    assert whole.next_offset is None
+
+    # Old contract kept for existing callers: plain error codes, and an empty file is empty content.
+    assert backend.read("missing.txt").error == "file_not_found"
+    (tmp_path / "empty.txt").write_text("")
+    assert backend.read("empty.txt").file_data["content"] == ""
+    assert "exceeds file length" in backend.read("service.py", offset=99).error

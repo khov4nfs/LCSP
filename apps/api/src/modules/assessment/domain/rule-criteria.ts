@@ -1,4 +1,4 @@
-/** Criterion identifiers declared by an EngineeringRule's stored criteria. */
+/** Criterion identifiers declared by an AssessmentRule's stored criteria. */
 export function criterionIdsOf(criteria: unknown): string[] {
   return Array.isArray(criteria)
     ? criteria.flatMap((item) =>

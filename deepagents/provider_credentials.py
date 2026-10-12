@@ -3,20 +3,17 @@ from __future__ import annotations
 
 import os
 
-LLM7_DEFAULT_BASE_URL = "https://api.llm7.io/v1"
 INCEPTION_DEFAULT_BASE_URL = "https://api.inceptionlabs.ai/v1"
 APX_DEFAULT_BASE_URL = "https://api.apmix.ai/v1"
 
 PROVIDER_KEY_ENV = {
     "openai": ("OPENAI_API_KEY",),
     "google_genai": ("GOOGLE_API_KEY", "GEMINI_API_KEY"),
-    "llm7": ("LLM7_API_KEY",),
     "inception": ("INCEPTION_API_KEY",),
     "apx": ("APX_API_KEY",),
     "anthropic": ("ANTHROPIC_API_KEY",),
 }
-# One request timeout for every provider. Large Interview/Investigator prompts on
-# slower routes (e.g. LLM7) exceeded shorter per-provider limits on every slot.
+# One request timeout for every provider, including slower routes with large prompts.
 DEFAULT_LLM_PROVIDER_TIMEOUT_SECONDS = 300.0
 # SDK value that disables SDK-internal retries when credential rotation owns retries.
 # langchain_google_genai maps max_retries to HttpRetryOptions(attempts=...): 0 means
@@ -24,7 +21,6 @@ DEFAULT_LLM_PROVIDER_TIMEOUT_SECONDS = 300.0
 NO_SDK_RETRY_MAX_RETRIES = {
     "openai": 0,
     "google_genai": 1,
-    "llm7": 0,
     "inception": 0,
     "apx": 0,
     "anthropic": 0,
@@ -47,12 +43,6 @@ def llm_provider_timeout_seconds() -> float:
     if raw is not None and raw.strip():
         return _positive_timeout(raw.strip(), "LLM_PROVIDER_TIMEOUT_SECONDS")
     return DEFAULT_LLM_PROVIDER_TIMEOUT_SECONDS
-
-
-def llm7_base_url() -> str:
-    """Return the configured LLM7 OpenAI-compatible endpoint."""
-    configured = (os.getenv("LLM7_BASE_URL") or "").strip()
-    return (configured or LLM7_DEFAULT_BASE_URL).rstrip("/")
 
 
 def apx_base_url() -> str:

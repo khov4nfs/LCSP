@@ -44,7 +44,7 @@ def _set_routes(monkeypatch, alpha_model="model-alpha", alpha_options=None):
                 "routes": {
                     "a": {"provider": "openai", "model": alpha_model, "options": alpha_options or {}},
                     "b": {"provider": "google_genai", "model": "future-model-v99"},
-                    "c": {"provider": "llm7", "model": "model-gamma"},
+                    "c": {"provider": "apx", "model": "model-gamma"},
                 },
                 "roles": {"default": "a", "narrator": "b"},
                 "fallbacks": {"a": ["c"]},
@@ -291,7 +291,7 @@ def test_arbitrary_future_model_without_pricing_metadata_executes():
 
 
 def test_model_identity_accepts_routed_models_and_rejects_unrouted():
-    assert_model_identity(SimpleNamespace(provider="llm7", model_name="model-gamma"))
+    assert_model_identity(SimpleNamespace(provider="apx", model_name="model-gamma"))
     assert_model_identity(SimpleNamespace(provider="google_genai", model_name="future-model-v99"))
     with pytest.raises(ModelIdentityMismatch):
         assert_model_identity(SimpleNamespace(provider="openai", model_name="unapproved"))
@@ -387,7 +387,7 @@ def test_bounded_model_uses_the_route_output_cap_or_the_code_default():
     bounded_model(default)
     assert default.bind_kwargs == {"max_output_tokens": DEFAULT_MAX_OUTPUT_TOKENS}
 
-    other = _BindModel(provider="llm7", profile={"max_output_tokens": 55})
+    other = _BindModel(provider="apx", profile={"max_output_tokens": 55})
     bounded_model(other)
     assert other.bind_kwargs == {"max_tokens": 55}
 
@@ -479,7 +479,7 @@ def test_request_diagnostic_logs_shape_without_prompt_or_tool_content(monkeypatc
 
     monkeypatch.setattr(usage_metering, "logger", Logger())
     request = SimpleNamespace(
-        model=SimpleNamespace(provider="llm7", model_name="model-gamma"),
+        model=SimpleNamespace(provider="apx", model_name="model-gamma"),
         messages=[
             HumanMessage(content="private prompt must not be logged"),
             AIMessage(
@@ -501,7 +501,7 @@ def test_request_diagnostic_logs_shape_without_prompt_or_tool_content(monkeypatc
     UsageMeteringMiddleware().wrap_model_call(request, lambda _: response())
 
     _, fields = next(item for item in events if item[0] == "MODEL_REQUEST_DIAGNOSTIC")
-    assert fields["provider"] == "llm7"
+    assert fields["provider"] == "apx"
     assert fields["model"] == "model-gamma"
     assert fields["message_roles"] == ["user", "assistant(tool_calls)", "tool"]
     assert fields["tool_count"] == 1
@@ -521,7 +521,7 @@ def test_request_shape_diagnostic_stays_bounded_for_long_runs():
 
     fields = usage_metering._request_shape_diagnostic(
         SimpleNamespace(messages=messages, tools=[]),
-        SimpleNamespace(provider="llm7", model_name="model-gamma"),
+        SimpleNamespace(provider="apx", model_name="model-gamma"),
     )
 
     assert fields["message_count"] == 401
@@ -606,15 +606,15 @@ def test_policy_version_changes_when_model_or_options_change(monkeypatch):
 
 def test_fallback_route_usage_reports_the_route_actually_used_with_the_agent_role():
     primary = _settle("planner", "openai", "model-alpha")
-    fallback = _settle("planner", "llm7", "model-gamma")
+    fallback = _settle("planner", "apx", "model-gamma")
 
-    assert (fallback.provider, fallback.model) == ("LLM7", "model-gamma")
+    assert (fallback.provider, fallback.model) == ("APX", "model-gamma")
     assert (fallback.effectiveRuntimeModel["provider"], fallback.effectiveRuntimeModel["model"]) == (
-        "LLM7",
+        "APX",
         "model-gamma",
     )
     assert fallback.effectiveRuntimeModel["policyVersion"] != primary.effectiveRuntimeModel["policyVersion"]
-    other_role = _settle("narrator", "llm7", "model-gamma")
+    other_role = _settle("narrator", "apx", "model-gamma")
     assert other_role.effectiveRuntimeModel["policyVersion"] != fallback.effectiveRuntimeModel["policyVersion"]
 
 
@@ -623,14 +623,14 @@ def test_fallback_route_usage_reports_the_route_actually_used_with_the_agent_rol
 
 def test_disabled_and_sticky_provider_routes_are_run_scoped():
     state = _state(FakeClient())
-    assert not state.provider_route_disabled("llm7:model-gamma")
-    state.disable_provider_route("LLM7:model-gamma", sticky=True)
+    assert not state.provider_route_disabled("apx:model-gamma")
+    state.disable_provider_route("APX:model-gamma", sticky=True)
     state.disable_provider_route("openai:model-alpha")
-    assert state.provider_route_disabled("llm7:model-gamma")
-    assert state.provider_route_sticky("llm7:model-gamma")
+    assert state.provider_route_disabled("apx:model-gamma")
+    assert state.provider_route_sticky("apx:model-gamma")
     assert state.provider_route_disabled("openai:model-alpha")
     assert not state.provider_route_sticky("openai:model-alpha")
-    assert not _state(FakeClient()).provider_route_disabled("llm7:model-gamma")
+    assert not _state(FakeClient()).provider_route_disabled("apx:model-gamma")
 
 
 def test_active_role_scopes_the_reported_agent_role_and_run_identity():

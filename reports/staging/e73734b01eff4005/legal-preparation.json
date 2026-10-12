@@ -1,0 +1,20 @@
+{
+  "scope": "EXACT_IMAGE_UI_STARTED_LEGAL_PREPARATION_CAPTURE",
+  "runId": "e73734b01eff4005",
+  "status": "PASS_RUNTIME_MECHANICS",
+  "imageReceipt": "reports/release-images/20261011005041_cce648aed2a3/report.json",
+  "run": {
+    "id": "7eead55a-228a-4c32-b256-ede045498825",
+    "executionState": "SUCCEEDED",
+    "failureReason": null,
+    "portfolioVersionId": "9d2bd74b-b47c-42f6-8140-0af8e4ef6c27",
+    "lifecycleState": "ACTIVE",
+    "validationOutcome": "PASSED",
+    "portfolioDigest": "afea68b6cd87becec23a8a5a071273621552515b933ed29848beaace63614c07",
+    "outboxStatus": "PUBLISHED"
+  },
+  "activations": 1,
+  "initiatedThrough": "PLAYWRIGHT_ADMIN_UI",
+  "packetManuallyEdited": false,
+  "semanticReview": "REQUIRED"
+}

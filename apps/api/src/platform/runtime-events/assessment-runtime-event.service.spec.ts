@@ -4,10 +4,7 @@ import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS,
   ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS,
-  ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
-  ASSESSMENT_RUNTIME_CONTROL_STATES,
-  ASSESSMENT_RUNTIME_STAGE_CODES,
 } from "@lcsp/contracts/evidence";
 import {
   AGENT_EXECUTION_STATES,
@@ -16,6 +13,7 @@ import {
   ASSESSMENT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
 import { firstValueFrom } from "rxjs";
+import type { Prisma } from "@prisma/client";
 
 import { AssessmentRuntimeEventService } from "./assessment-runtime-event.service.js";
 
@@ -129,9 +127,7 @@ function durableAgentStreamRow(
     runId,
     correlationId: "corr-a",
     sequence,
-    eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
     runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
-    stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
     toolName: "agent_stream_semantic",
     summary: `Agent stream semantic-${sequence}`,
     inputSummaryJson: null,
@@ -156,7 +152,7 @@ function durableAgentStreamRow(
         status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
         text: null,
         data: {
-          schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1,
+          schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV2,
           kind: ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolCall,
           durability: ASSESSMENT_AGENT_STREAM_DURABILITY.durable,
           toolName: "search_nodes",
@@ -321,6 +317,42 @@ describe("AssessmentRuntimeEventService", () => {
     subscription.unsubscribe();
   });
 
+  it("persists a stream journal in the caller transaction without opening a nested transaction", async () => {
+    const create = jest
+      .fn<(args?: unknown) => Promise<unknown>>()
+      .mockResolvedValue({});
+    const tx = {
+      assessmentRuntimeEvent: {
+        findFirst: jest.fn<() => Promise<null>>().mockResolvedValue(null),
+        create,
+      },
+    } as unknown as Prisma.TransactionClient;
+    const prisma = {
+      assessment: assessmentOwner(),
+      $transaction: jest.fn(),
+    };
+    const service = new AssessmentRuntimeEventService(prisma as never);
+    await service.publishAgentStreamEvent(
+      {
+        assessmentId: "assessment-a",
+        runId: "execution-a",
+        correlationId: "corr-a",
+        eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted,
+      },
+      tx,
+    );
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assessmentId: "assessment-a",
+          runId: "execution-a",
+          sequence: 1,
+        }),
+      }),
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it("persists durable semantic agent stream events for replay after service recreation", async () => {
     const persistedRows: unknown[] = [];
     const prisma = {
@@ -368,13 +400,12 @@ describe("AssessmentRuntimeEventService", () => {
       runId: "run-a",
       correlationId: "corr-a",
       eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.semanticToolCall,
-      engineeringRuleId: "ER-7",
       agentName: "investigator",
       toolName: "search_nodes",
       toolCallId: "call-1",
       status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
       data: {
-        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1,
+        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV2,
         kind: ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolCall,
         durability: ASSESSMENT_AGENT_STREAM_DURABILITY.durable,
         toolName: "search_nodes",
@@ -400,7 +431,6 @@ describe("AssessmentRuntimeEventService", () => {
       eventId: "semantic-event-1",
       assessmentId: "assessment-a",
       eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.semanticToolCall,
-      engineeringRuleId: "ER-7",
       data: {
         kind: ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolCall,
         durability: ASSESSMENT_AGENT_STREAM_DURABILITY.durable,
@@ -481,7 +511,7 @@ describe("AssessmentRuntimeEventService", () => {
       eventId: "reasoning-summary",
       eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.customProgress,
       data: {
-        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1,
+        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV2,
         kind: ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.reasoningSummary,
         durability: ASSESSMENT_AGENT_STREAM_DURABILITY.bestEffort,
         summary: "Provider-approved reasoning summary",
@@ -527,7 +557,7 @@ describe("AssessmentRuntimeEventService", () => {
       toolName: "search_nodes",
       toolCallId: "call-1",
       data: {
-        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1,
+        schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV2,
         kind: ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolCall,
         durability: ASSESSMENT_AGENT_STREAM_DURABILITY.durable,
         toolName: "search_nodes",
@@ -1096,9 +1126,7 @@ describe("AssessmentRuntimeEventService", () => {
       runId: "scan-1",
       correlationId: "corr-1",
       sequence: 1,
-      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
       runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
-      stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
       toolName: "repository_scan",
       summary: "Repository scan completed",
       inputSummaryJson: null,
@@ -1217,16 +1245,12 @@ describe("AssessmentRuntimeEventService", () => {
 
     const snapshot = await service.buildWorkspaceSnapshot("user-1");
 
-    expect(snapshot.runs).toEqual([]);
-    expect(snapshot.recentActivity).toEqual([]);
-    expect(snapshot.engineeringProgress).toEqual([]);
-    expect(snapshot.scanJobs).toEqual([]);
-    expect(snapshot.evidenceReports).toEqual([]);
-    expect(snapshot.postFindingStates).toEqual([]);
+    expect(Object.keys(snapshot).sort()).toEqual(
+      ["canonicalAssessments", "canonicalEvents", "emittedAt"].sort(),
+    );
     expect(prisma.assessmentRuntimeEvent.findMany).not.toHaveBeenCalled();
     expect(prisma.repositoryScanJob.findMany).not.toHaveBeenCalled();
     expect(prisma.technicalEvidenceReport.findMany).not.toHaveBeenCalled();
-    expect(snapshot.stageLifecycles).toEqual([]);
     expect(snapshot.canonicalAssessments).toEqual([
       {
         assessmentId: "11111111-1111-4111-8111-111111111111",
@@ -1420,468 +1444,15 @@ describe("AssessmentRuntimeEventService", () => {
       "canonical snapshot database unavailable",
     );
   });
-
-  it("records waiting-input on a caller transaction without nesting", async () => {
-    const assessmentRuntimeEvent = {
-      findFirst: jest
-        .fn<(args: unknown) => Promise<{ sequence: number } | null>>()
-        .mockResolvedValue({ sequence: 6 }),
-      create: jest
-        .fn<(args: unknown) => Promise<Record<string, never>>>()
-        .mockResolvedValue({}),
-    };
-    const tx = { assessmentRuntimeEvent };
-    const prisma = {
-      $transaction: jest.fn(),
-    };
-    const service = new AssessmentRuntimeEventService(prisma as never);
-
-    await service.recordToolWaitingInput(
-      {
-        assessmentId: "assessment-1",
-        runId: "run-1",
-        correlationId: "corr-1",
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
-        toolName: "interview",
-        summary: "Waiting for Customer input.",
-        waitingReason: "INTERVIEW_STARTED",
-      },
-      tx as never,
-    );
-
-    expect(prisma.$transaction).not.toHaveBeenCalled();
-    expect(assessmentRuntimeEvent.findFirst).toHaveBeenCalledWith({
-      where: { runId: "run-1" },
-      orderBy: [{ sequence: "desc" }],
-      select: { sequence: true },
-    });
-    expect(assessmentRuntimeEvent.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        assessmentId: "assessment-1",
-        runId: "run-1",
-        sequence: 7,
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput,
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-        waitingReason: "INTERVIEW_STARTED",
-      }),
-    });
-  });
-
-  it("records repository-analysis-worker runtime events using scan-job tenant context", async () => {
-    const assessmentRuntimeEvent = {
-      findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
-      create: jest.fn().mockImplementation(() => Promise.resolve({})),
-    };
-    const prisma = {
-      assessment: assessmentOwner(),
-      repositoryScanJob: {
-        findUnique: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "scan-1",
-            assessmentId: "assessment-1",
-            correlationId: "corr-1",
-            status: "RUNNING",
-          }),
-        ),
-      },
-      $transaction: jest.fn(
-        (
-          handler: (tx: {
-            assessmentRuntimeEvent: typeof assessmentRuntimeEvent;
-          }) => unknown,
-        ) => Promise.resolve(handler({ assessmentRuntimeEvent })),
-      ),
-    };
-    const service = new AssessmentRuntimeEventService(prisma as never);
-
-    await expect(
-      service.recordRepositoryAnalysisEvent({
-        scanJobId: "scan-1",
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
-        toolName: "codebase-memory-graph",
-        summary: "Codebase Memory completed with non-blocking failure",
-        outputSummary: { outcome: "tool_failure" },
-        errorSummary: "Codebase Memory unavailable",
-        startedAt: new Date("2026-08-14T08:00:00.000Z"),
-        completedAt: new Date("2026-08-14T08:00:01.000Z"),
-        durationMs: 1000,
-      }),
-    ).resolves.toEqual({ recorded: true });
-
-    expect(assessmentRuntimeEvent.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        assessmentId: "assessment-1",
-        runId: "scan-1",
-        correlationId: "corr-1",
-        sequence: 1,
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
-        toolName: "codebase-memory-graph",
-        outputSummaryJson: { outcome: "tool_failure" },
-        errorSummary: "Codebase Memory unavailable",
-        durationMs: 1000,
-      }),
-    });
-  });
-
-  it("retries repository-analysis-worker runtime event sequence collisions", async () => {
-    const sequenceCollision = Object.assign(
-      new Error(
-        'Unique constraint failed on the fields: ("runId", "sequence")',
-      ),
-      {
-        code: "P2002",
-        meta: { target: ["runId", "sequence"] },
-      },
-    );
-    const assessmentRuntimeEvent = {
-      findFirst: jest
-        .fn<() => Promise<{ sequence: number } | null>>()
-        .mockResolvedValueOnce({ sequence: 4 })
-        .mockResolvedValueOnce({ sequence: 5 })
-        .mockResolvedValueOnce({ sequence: 6 }),
-      create: jest
-        .fn<(args: unknown) => Promise<unknown>>()
-        .mockRejectedValueOnce(sequenceCollision)
-        .mockResolvedValueOnce({})
-        .mockResolvedValueOnce({}),
-    };
-    const prisma = {
-      assessment: assessmentOwner(),
-      repositoryScanJob: {
-        findUnique: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "scan-1",
-            assessmentId: "assessment-1",
-            correlationId: "corr-1",
-            status: "RUNNING",
-          }),
-        ),
-      },
-      $transaction: jest.fn(
-        (
-          handler: (tx: {
-            assessmentRuntimeEvent: typeof assessmentRuntimeEvent;
-          }) => unknown,
-        ) => Promise.resolve(handler({ assessmentRuntimeEvent })),
-      ),
-    };
-    const service = new AssessmentRuntimeEventService(prisma as never);
-
-    await expect(
-      service.recordRepositoryAnalysisEvent({
-        scanJobId: "scan-1",
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
-        toolName: "repository-analysis",
-        summary: "Running repository analysis",
-      }),
-    ).resolves.toEqual({ recorded: true });
-
-    expect(prisma.$transaction).toHaveBeenCalledTimes(3);
-    expect(assessmentRuntimeEvent.create).toHaveBeenNthCalledWith(1, {
-      data: expect.objectContaining({
-        runId: "scan-1",
-        sequence: 5,
-      }),
-    });
-    expect(assessmentRuntimeEvent.create).toHaveBeenNthCalledWith(2, {
-      data: expect.objectContaining({
-        runId: "scan-1",
-        sequence: 6,
-      }),
-    });
-    expect(assessmentRuntimeEvent.create).toHaveBeenNthCalledWith(3, {
-      data: expect.objectContaining({
-        runId: "scan-1",
-        sequence: 7,
-        toolName: "agent_stream_semantic",
-      }),
-    });
-  });
-
-  it("skips late repository-analysis-worker start events after the scan job is terminal", async () => {
-    const assessmentRuntimeEvent = {
-      findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
-      create: jest.fn().mockImplementation(() => Promise.resolve({})),
-    };
-    const prisma = {
-      assessment: assessmentOwner(),
-      repositoryScanJob: {
-        findUnique: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "scan-1",
-            assessmentId: "assessment-1",
-            correlationId: "corr-1",
-            status: "COMPLETED",
-          }),
-        ),
-      },
-      $transaction: jest.fn(
-        (
-          handler: (tx: {
-            assessmentRuntimeEvent: typeof assessmentRuntimeEvent;
-          }) => unknown,
-        ) => Promise.resolve(handler({ assessmentRuntimeEvent })),
-      ),
-    };
-    const service = new AssessmentRuntimeEventService(prisma as never);
-
-    await expect(
-      service.recordRepositoryAnalysisEvent({
-        scanJobId: "scan-1",
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
-        toolName: "late_tool",
-        summary: "Late tool started",
-      }),
-    ).resolves.toEqual({ recorded: false, reason: "terminal" });
-
-    expect(assessmentRuntimeEvent.create).not.toHaveBeenCalled();
-  });
-
-  it("records a rule-analysis start after the scan job completed", async () => {
-    const assessmentRuntimeEvent = {
-      findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
-      create: jest.fn().mockImplementation(() => Promise.resolve({})),
-    };
-    const prisma = {
-      assessment: assessmentOwner(),
-      repositoryScanJob: {
-        findUnique: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "scan-1",
-            assessmentId: "assessment-1",
-            correlationId: "corr-1",
-            status: "COMPLETED",
-          }),
-        ),
-      },
-      $transaction: jest.fn(
-        (
-          handler: (tx: {
-            assessmentRuntimeEvent: typeof assessmentRuntimeEvent;
-          }) => unknown,
-        ) => Promise.resolve(handler({ assessmentRuntimeEvent })),
-      ),
-    };
-    const service = new AssessmentRuntimeEventService(prisma as never);
-
-    // Downstream stages run after the scan, under the same scan job; their
-    // progress keeps the Investigate step live instead of being dropped.
-    await expect(
-      service.recordRepositoryAnalysisEvent({
-        scanJobId: "scan-1",
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-        toolName: "rule_analysis:eng-1",
-        summary: "RULE_ANALYSIS_STARTED",
-      }),
-    ).resolves.toEqual({ recorded: true });
-    expect(assessmentRuntimeEvent.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-      }),
-    });
-  });
-
-  it("records repository-analysis-worker terminal close events after the scan job is terminal", async () => {
-    const assessmentRuntimeEvent = {
-      findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
-      create: jest.fn().mockImplementation(() => Promise.resolve({})),
-    };
-    const prisma = {
-      assessment: assessmentOwner(),
-      repositoryScanJob: {
-        findUnique: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "scan-1",
-            assessmentId: "assessment-1",
-            correlationId: "corr-1",
-            status: "COMPLETED",
-          }),
-        ),
-      },
-      $transaction: jest.fn(
-        (
-          handler: (tx: {
-            assessmentRuntimeEvent: typeof assessmentRuntimeEvent;
-          }) => unknown,
-        ) => Promise.resolve(handler({ assessmentRuntimeEvent })),
-      ),
-    };
-    const service = new AssessmentRuntimeEventService(prisma as never);
-
-    await expect(
-      service.recordRepositoryAnalysisEvent({
-        scanJobId: "scan-1",
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
-        toolName: "repository_scan",
-        summary: "Repository scan completed",
-      }),
-    ).resolves.toEqual({ recorded: true });
-
-    expect(assessmentRuntimeEvent.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        assessmentId: "assessment-1",
-        runId: "scan-1",
-        correlationId: "corr-1",
-        sequence: 1,
-        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
-        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
-        toolName: "repository_scan",
-      }),
-    });
-  });
 });
 
-describe("AssessmentRuntimeEventService.getPipelineLiveness", () => {
-  const WINDOW_MS = 90_000;
-
-  function serviceWithLatest(
-    latest: Record<string, unknown> | null,
-    turn: Record<string, unknown> | null = null,
-  ) {
-    const findMany = jest
-      .fn<(...args: unknown[]) => Promise<unknown[]>>()
-      .mockResolvedValue(latest ? [latest] : []);
-    const service = new AssessmentRuntimeEventService({
-      assessmentRuntimeEvent: { findMany },
-      assessmentRuntimeTurn: {
-        findFirst: jest
-          .fn<() => Promise<typeof turn>>()
-          .mockResolvedValue(turn),
-      },
-    } as never);
-    return { service, findMany };
-  }
-
-  it("treats a recent non-terminal event such as a model heartbeat as live", async () => {
-    const createdAt = new Date(Date.now() - 5_000);
-    const { service, findMany } = serviceWithLatest({
-      runStatus: "RUNNING",
-      createdAt,
-      outputSummaryJson: {
-        agentStreamEvent: { eventType: "MODEL_CALL_HEARTBEAT" },
-      },
-    });
-
-    await expect(
-      service.getPipelineLiveness("assessment-1", WINDOW_MS),
-    ).resolves.toEqual({ live: true, lastActivityAt: createdAt });
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { assessmentId: "assessment-1" },
-        take: 1,
-      }),
-    );
-  });
-
-  it.each([
-    ASSESSMENT_RUNTIME_CONTROL_STATES.stopped,
-    ASSESSMENT_RUNTIME_CONTROL_STATES.resumeRequested,
-    ASSESSMENT_RUNTIME_CONTROL_STATES.completed,
-  ])("ignores old heartbeat liveness after native state %s", async (state) => {
-    const { service, findMany } = serviceWithLatest(
-      {
-        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
-        createdAt: new Date(),
-      },
-      { state, updatedAt: new Date() },
-    );
-    await expect(
-      service.getPipelineLiveness("assessment-1", WINDOW_MS),
-    ).resolves.toMatchObject({ live: false });
-    expect(findMany).not.toHaveBeenCalled();
-  });
-
-  it("keeps Stop requested distinct from Stop acknowledged", async () => {
-    const { service } = serviceWithLatest(null, {
-      state: ASSESSMENT_RUNTIME_CONTROL_STATES.stopRequested,
-      updatedAt: new Date(),
-    });
-    await expect(
-      service.getPipelineLiveness("assessment-1", WINDOW_MS),
-    ).resolves.toMatchObject({ live: true });
-  });
-
-  it("does not treat a request marker as a stop acknowledgement", async () => {
-    const { service } = serviceWithLatest({
-      runStatus: "WAITING",
-      createdAt: new Date(),
-      waitingReason: "CUSTOMER_REQUESTED_STOP",
-      outputSummaryJson: null,
-    });
-
-    // Only the native runtime acknowledgement makes Continue available.
-    await expect(
-      service.getPipelineLiveness("assessment-1", WINDOW_MS),
-    ).resolves.toEqual(expect.objectContaining({ live: true }));
-  });
-
-  it("reports the pipeline stopped only while the latest control is a stop", async () => {
-    const { service, findMany } = serviceWithLatest({
-      waitingReason: "CUSTOMER_REQUESTED_STOP",
-    });
-    await expect(
-      service.isPipelineStoppedByCustomer("assessment-1"),
-    ).resolves.toBe(true);
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          assessmentId: "assessment-1",
-          toolName: "customer_pipeline_control",
-        },
-        take: 1,
-      }),
-    );
-    findMany.mockResolvedValue([
-      { waitingReason: "CUSTOMER_REQUESTED_CONTINUE" },
-    ]);
-    await expect(
-      service.isPipelineStoppedByCustomer("assessment-1"),
-    ).resolves.toBe(false);
-  });
-
-  it("is not live after the boundary failed, however recent", async () => {
-    const { service } = serviceWithLatest({
-      runStatus: "RUNNING",
-      createdAt: new Date(),
-      outputSummaryJson: { agentStreamEvent: { eventType: "BOUNDARY_FAILED" } },
-    });
-
-    await expect(
-      service.getPipelineLiveness("assessment-1", WINDOW_MS),
-    ).resolves.toMatchObject({ live: false });
-  });
-
-  it("is not live once activity is older than the window", async () => {
-    const { service } = serviceWithLatest({
-      runStatus: "RUNNING",
-      createdAt: new Date(Date.now() - WINDOW_MS - 1_000),
-      outputSummaryJson: null,
-    });
-
-    await expect(
-      service.getPipelineLiveness("assessment-1", WINDOW_MS),
-    ).resolves.toMatchObject({ live: false });
-  });
-
-  it("is not live when the assessment has no runtime activity", async () => {
-    const { service } = serviceWithLatest(null);
-
-    await expect(
-      service.getPipelineLiveness("assessment-1", WINDOW_MS),
-    ).resolves.toEqual({ live: false, lastActivityAt: null });
-  });
+it("fails a replay read when canonical runtime-event storage is unavailable", async () => {
+  const prisma = canonicalSnapshotPrisma();
+  prisma.assessmentRuntimeEvent.findMany.mockRejectedValue(
+    new Error('relation "AssessmentRuntimeEvent" does not exist'),
+  );
+  const service = new AssessmentRuntimeEventService(prisma as never);
+  await expect(
+    service.getAgentStreamHistoryPage("user-1", "assessment-1"),
+  ).rejects.toThrow('relation "AssessmentRuntimeEvent" does not exist');
 });

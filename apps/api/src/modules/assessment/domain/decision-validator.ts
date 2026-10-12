@@ -5,8 +5,11 @@ import {
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DECISION_SCOPE,
+  ASSESSMENT_EVIDENCE_TYPES,
+  ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_RECORD_STATES,
   DECISION_VALIDATION_FAILURE_CODES,
+  searchCoverageEvidenceRequestSchema,
   type DecisionValidationFailureCode,
 } from "@lcsp/contracts/assessment-domain";
 
@@ -18,20 +21,31 @@ export interface DecisionValidationFailure {
 export interface DecisionValidationContext {
   caseRevision: number;
   pins: {
-    legalPortfolioVersionId: string;
+    ruleSetVersionId: string;
     repositorySnapshotId: string;
     repositoryCommit: string;
   };
-  /** The pinned portfolio's EngineeringRule, or null when the ID is not in it. */
+  /** The pinned rule set's AssessmentRule, or null when the ID is not in it. */
   rule: {
-    engineeringRuleId: string;
-    engineeringRuleVersion: string;
+    assessmentRuleId: string;
+    assessmentRuleVersion: string;
     criterionIds: ReadonlySet<string>;
-    /** LegalRule IDs linked to the rule (and their directly related context rules). */
+    /** LegalRequirement IDs linked to the rule (and their directly related context rules). */
     legalContextIds: ReadonlySet<string>;
   } | null;
-  evidence: ReadonlyMap<string, { state: string; repositoryCommit: string }>;
-  facts: ReadonlyMap<string, { state: string; caseRevision: number }>;
+  evidence: ReadonlyMap<
+    string,
+    { state: string; repositoryCommit: string; type: string; payload: unknown }
+  >;
+  facts: ReadonlyMap<
+    string,
+    {
+      state: string;
+      caseRevision: number;
+      authority: string;
+      evidenceIds: readonly string[];
+    }
+  >;
 }
 
 /**
@@ -50,16 +64,14 @@ export function validateRuleDecision(
 
   if (!context.rule) {
     fail(
-      DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_ENGINEERING_RULE,
-      decision.engineeringRuleId,
+      DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_ASSESSMENT_RULE,
+      decision.assessmentRuleId,
     );
   } else {
-    if (
-      context.rule.engineeringRuleVersion !== decision.engineeringRuleVersion
-    ) {
+    if (context.rule.assessmentRuleVersion !== decision.assessmentRuleVersion) {
       fail(
-        DECISION_VALIDATION_FAILURE_CODES.ENGINEERING_RULE_VERSION_MISMATCH,
-        decision.engineeringRuleId,
+        DECISION_VALIDATION_FAILURE_CODES.ASSESSMENT_RULE_VERSION_MISMATCH,
+        decision.assessmentRuleId,
       );
     }
     for (const legal of decision.legalContextRefs) {
@@ -88,12 +100,10 @@ export function validateRuleDecision(
     }
   }
 
-  if (
-    decision.legalPortfolioVersionId !== context.pins.legalPortfolioVersionId
-  ) {
+  if (decision.ruleSetVersionId !== context.pins.ruleSetVersionId) {
     fail(
-      DECISION_VALIDATION_FAILURE_CODES.PORTFOLIO_PIN_MISMATCH,
-      decision.legalPortfolioVersionId,
+      DECISION_VALIDATION_FAILURE_CODES.RULE_SET_PIN_MISMATCH,
+      decision.ruleSetVersionId,
     );
   }
   if (
@@ -120,32 +130,43 @@ export function validateRuleDecision(
     ...decision.criteria.flatMap((criterion) => criterion.references),
   ];
   const seen = new Set<string>();
-  for (const reference of references) {
-    const key =
-      reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
-        ? `E:${reference.evidenceId}`
-        : `F:${reference.factId}`;
-    if (seen.has(key)) continue;
+  const validateEvidence = (evidenceId: string) => {
+    const key = `E:${evidenceId}`;
+    if (seen.has(key)) return;
     seen.add(key);
-    if (reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE) {
-      const evidence = context.evidence.get(reference.evidenceId);
-      if (!evidence) {
+    const evidence = context.evidence.get(evidenceId);
+    if (!evidence) {
+      fail(
+        DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_EVIDENCE_REFERENCE,
+        evidenceId,
+      );
+    } else if (evidence.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) {
+      fail(DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_NOT_ACCEPTED, evidenceId);
+    } else if (evidence.repositoryCommit !== context.pins.repositoryCommit) {
+      fail(DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_PIN_MISMATCH, evidenceId);
+    } else if (evidence.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE) {
+      const coverage = searchCoverageEvidenceRequestSchema
+        .omit({ type: true, repositoryCommit: true })
+        .safeParse(evidence.payload);
+      if (
+        !coverage.success ||
+        coverage.data.knownGaps.length > 0 ||
+        coverage.data.queries.some((query) => query.truncated)
+      ) {
         fail(
-          DECISION_VALIDATION_FAILURE_CODES.UNKNOWN_EVIDENCE_REFERENCE,
-          reference.evidenceId,
-        );
-      } else if (evidence.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) {
-        fail(
-          DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_NOT_ACCEPTED,
-          reference.evidenceId,
-        );
-      } else if (evidence.repositoryCommit !== context.pins.repositoryCommit) {
-        fail(
-          DECISION_VALIDATION_FAILURE_CODES.EVIDENCE_PIN_MISMATCH,
-          reference.evidenceId,
+          DECISION_VALIDATION_FAILURE_CODES.SEARCH_COVERAGE_INCOMPLETE,
+          evidenceId,
         );
       }
+    }
+  };
+  for (const reference of references) {
+    if (reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE) {
+      validateEvidence(reference.evidenceId);
     } else {
+      const key = `F:${reference.factId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       const fact = context.facts.get(reference.factId);
       if (!fact) {
         fail(
@@ -162,6 +183,17 @@ export function validateRuleDecision(
           DECISION_VALIDATION_FAILURE_CODES.FACT_REVISION_MISMATCH,
           reference.factId,
         );
+      } else {
+        if (
+          fact.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED &&
+          fact.evidenceIds.length === 0
+        ) {
+          fail(
+            DECISION_VALIDATION_FAILURE_CODES.FACT_EVIDENCE_MISSING,
+            reference.factId,
+          );
+        }
+        for (const evidenceId of fact.evidenceIds) validateEvidence(evidenceId);
       }
     }
   }

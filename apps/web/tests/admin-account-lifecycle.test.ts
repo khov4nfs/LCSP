@@ -22,14 +22,14 @@ async function fixture(): Promise<AdminUserDetail> {
   return JSON.parse(
     await readFile(
       new URL(
-        "../src/public/assets/mocks/lcsp299-account-lifecycle.json",
+        "../src/public/assets/mocks/account-lifecycle.json",
         import.meta.url,
       ),
       "utf8",
     ),
   ) as AdminUserDetail;
 }
-test("LCSP-299 clients preserve expectedVersion and idempotency through all lifecycle requests", async (context) => {
+test("ACCOUNT_LIFECYCLE clients preserve expectedVersion and idempotency through all lifecycle requests", async (context) => {
   const user = await fixture();
   const calls: { url: string; init: RequestInit | undefined }[] = [];
   const original = globalThis.fetch;
@@ -71,7 +71,7 @@ test("LCSP-299 clients preserve expectedVersion and idempotency through all life
   );
   assert.equal(calls[2].url, `/api/admin/users/${user.id}/restore`);
 });
-test("LCSP-299 client never reports success for a stale-state rejection", async (context) => {
+test("ACCOUNT_LIFECYCLE client never reports success for a stale-state rejection", async (context) => {
   const original = globalThis.fetch;
   context.after(() => {
     globalThis.fetch = original;
@@ -85,7 +85,7 @@ test("LCSP-299 client never reports success for a stale-state rejection", async 
     message: ADMIN_ACCOUNT_ERRORS.staleVersion,
   });
 });
-test("LCSP-299 list sends search, role, status and pagination to the server", async (context) => {
+test("ACCOUNT_LIFECYCLE list sends search, role, status and pagination to the server", async (context) => {
   const original = globalThis.fetch;
   context.after(() => {
     globalThis.fetch = original;
@@ -110,7 +110,7 @@ test("LCSP-299 list sends search, role, status and pagination to the server", as
   assert.equal(params.get("status"), AUTH_ACCOUNT_STATUSES.suspended);
   assert.equal(params.get("page"), "2");
 });
-test("LCSP-299 actual action card renders Restore for authoritative Suspended state", async () => {
+test("ACCOUNT_LIFECYCLE actual action card renders Restore for authoritative Suspended state", async () => {
   const user = await fixture();
   const html = renderToStaticMarkup(
     createElement(AdminAdministrativeActionsCard, {
@@ -128,7 +128,7 @@ test("LCSP-299 actual action card renders Restore for authoritative Suspended st
     ),
   );
 });
-test("LCSP-299 active card retains Suspend", async () => {
+test("ACCOUNT_LIFECYCLE active card retains Suspend", async () => {
   const user = await fixture();
   const active = renderToStaticMarkup(
     createElement(AdminAdministrativeActionsCard, {
@@ -146,7 +146,7 @@ test("LCSP-299 active card retains Suspend", async () => {
 });
 
 
-test("LCSP-299 role is read-only account metadata; actions contain no role editor", async () => {
+test("ACCOUNT_LIFECYCLE role is read-only account metadata; actions contain no role editor", async () => {
   const user = await fixture();
   for (const role of Object.values(AUTH_USER_ROLES)) {
     const account = { ...user, role };
@@ -182,7 +182,7 @@ test("LCSP-299 role is read-only account metadata; actions contain no role edito
   }
 });
 
-test("LCSP-299 existing-user role mutation has no exported client, hook or BFF route", async () => {
+test("ACCOUNT_LIFECYCLE existing-user role mutation has no exported client, hook or BFF route", async () => {
   const client = await import("../src/lib/api/admin-users-client.ts");
   const queries = await import("../src/lib/api/admin-users-queries.ts");
   assert.equal("updateAdminUserRole" in client, false);

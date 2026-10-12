@@ -1,0 +1,13 @@
+{
+  "scope": "REVIEWED_SYNTHETIC_LEGAL_SOURCE_PRECONDITION_ONLY",
+  "status": "PASS",
+  "runId": "f52606b690a84c87",
+  "legalSourceVersionId": "7abe1da3-6dc7-415f-8d9f-b328690d14f5",
+  "version": "release-synthetic-f52606b690a84c87-supersession",
+  "mode": "supersession",
+  "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "chunks": 15,
+  "validIndex": true,
+  "preparationStarted": false,
+  "officialAcquisitionAndLiveIndexConstruction": "NOT_SUBSTITUTED"
+}

@@ -1,16 +1,18 @@
 import type { Locale } from "@lcsp/contracts/shared/locale";
 
 import { defaultMessages } from "./schema.ts";
-import { enAuth, enCommon, enPages } from "./locales/en/index.ts";
-import { viAuth, viCommon, viPages } from "./locales/vi/index.ts";
+import { enAuth, enCommon, enPages, enAssessment } from "./locales/en/index.ts";
+import { viAuth, viCommon, viPages, viAssessment } from "./locales/vi/index.ts";
 
 const dictionaries = {
   en: {
+    assessment: enAssessment,
     auth: enAuth,
     common: enCommon,
     pages: enPages,
   },
   vi: {
+    assessment: viAssessment,
     auth: viAuth,
     common: viCommon,
     pages: viPages,

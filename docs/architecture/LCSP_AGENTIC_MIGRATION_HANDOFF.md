@@ -1,5 +1,7 @@
 # LCSP Production Agentic Migration — Single-Agent Handoff
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## 1. Handoff purpose
 
 The previous implementation used Orca multi-worker orchestration. That campaign is now **FROZEN** at the user's instruction. No further migration Tasks, workers, or gate retries were started after the freeze instruction. Continue with **one primary agent sequentially**, directly in the canonical source below, not by restarting the campaign.

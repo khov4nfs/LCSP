@@ -1,5 +1,7 @@
 # Legal Matching Domain Spec
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 > Superseded for active runtime: new assessment execution uses direct EngineeringRule classification. This document remains as historical domain behavior for the retired `VerifiedProfile -> LegalRuleMatch -> ClassificationWorker` chain; do not treat its callback or event handoff as an active MVP contract.
 
 ## Purpose

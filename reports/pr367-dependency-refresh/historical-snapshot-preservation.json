@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "historicalAcceptedHead": "2cf1341c1e4a5e1c8537b82686523a212df07c42",
+  "historicalCandidate": "20261012041902_4058ec2256a0",
+  "historicalStaging": "0294c54d42864ef0",
+  "byteIdenticalCopies": {
+    "reports/pr367-correction-release-proof.md": {
+      "historicalCopy": "reports/staging/0294c54d42864ef0/pr367-correction-release-proof-before-develop-merge.md",
+      "sha256": "00b1c4ae54ac09ced27499da7368676f62e677c161d4e4cb2eb33c4cf54edce5"
+    },
+    "reports/staging-acceptance-matrix.json": {
+      "historicalCopy": "reports/staging/0294c54d42864ef0/staging-acceptance-matrix-before-develop-merge.json",
+      "sha256": "b51a210c5110a61d79edabb9dcb6a37b03365f588fa8bb8531a8e2121a30af33"
+    },
+    "reports/git-publication-browser-evidence.json": {
+      "historicalCopy": "reports/staging/0294c54d42864ef0/git-publication-browser-evidence-before-develop-merge.json",
+      "sha256": "22351d5340025fed346a0205a1cfdc0fe694440ee7a165564e30e7d06ed42191"
+    },
+    "reports/pr367-final-correction-source-gates.json": {
+      "historicalCopy": "reports/staging/0294c54d42864ef0/pr367-final-correction-source-gates-before-develop-merge.json",
+      "sha256": "9c09fd0d7c2d67284b81a505829aa201e49f503b503509b1e43f4b8468d440ae"
+    }
+  }
+}

@@ -1,5 +1,7 @@
 # LCSP Story Index
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Mục tiêu
 
 Mục lục nhanh cho developer để tìm story packet, trạng thái sprint, execution artifact chính thức, runtime ownership và mức độ sẵn sàng của packet trước khi vào implementation.

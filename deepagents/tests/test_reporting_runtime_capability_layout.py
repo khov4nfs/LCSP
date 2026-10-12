@@ -30,26 +30,14 @@ def test_reporting_tools_are_grouped_by_capability() -> None:
 
     assert _dirs(report) == {
         "audit_export",
-        "final_report",
-        "projection",
-        "delivery",
-        "dossiers",
     }
     assert _py(report) == set()
     assert _py(report / "audit_export") == {
         "audit_export_boundary.py",
         "audit_export_generator.py",
     }
-    assert _py(report / "final_report") == {
-        "final_report_boundary.py",
-        "final_report_generator.py",
-        "output_guardrail.py",
-    }
-    assert _py(report / "projection") == {"classification_data_projection.py"}
-    assert _py(report / "delivery") == {
-        "document_runtime_client.py",
-        "storage_uploader.py",
-    }
+    for retired in ("final_report", "projection", "delivery", "dossiers"):
+        assert not (report / retired).exists()
 
 
 def _assert_import_blocked(module_name: str) -> None:
@@ -68,3 +56,13 @@ def test_flat_reporting_imports_are_not_supported() -> None:
         "tools.common.capabilities.reporting.report.storage_uploader",
     ):
         _assert_import_blocked(module_name)
+    for module_name in (
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary",
+        "tools.common.capabilities.reporting.report.projection.classification_data_projection",
+        "tools.common.capabilities.reporting.report.delivery.storage_uploader",
+        "tools.common.capabilities.reporting.report.dossiers.context_builder",
+    ):
+        _assert_import_blocked(module_name)
+    assert importlib.import_module(
+        "tools.common.capabilities.reporting.report.audit_export.audit_export_boundary"
+    ).__file__

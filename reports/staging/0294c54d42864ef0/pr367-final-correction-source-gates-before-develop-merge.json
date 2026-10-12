@@ -1,0 +1,41 @@
+{
+  "scope": "PR367_FINAL_PHYSICAL_TERMINOLOGY_SOURCE_GATES",
+  "status": "PASS_SOURCE_AND_DATABASE",
+  "reviewedStartingHead": "651b7e42c40ff7e31c3209384187c8d08856cfda",
+  "base": "047922c58147f5be3de093dc88db164daadedea8",
+  "productionTouched": false,
+  "commands": {
+    "pnpm run typecheck": "PASS",
+    "pnpm run check:imports": "PASS",
+    "pnpm run check:contracts": "PASS",
+    "pnpm run check:legal-v1-retired": "PASS",
+    "canonical terminology audit": "PASS",
+    "canonical audit mutation self-check": "PASS",
+    "release-images self-check": "PASS",
+    "runtime packages build": "PASS",
+    "prisma generate/format": "PASS",
+    "API ESLint 164 PR files": "PASS",
+    "Web ESLint 99 PR files": "PASS (4 existing unused-symbol warnings, zero errors)",
+    "dev-seed dispatcher": "PASS (echo transport, no DB/model calls)",
+    "final AuditResource mapper Prettier": "PASS (one post-rename line-wrap fixed before final candidate)",
+    "staging-stack self-check": "PASS",
+    "staging-rule-set self-check": "PASS",
+    "all PostgreSQL metadata, including index attributes": "PASS: zero retired names before model invocation",
+    "additional case-insensitive active vocabulary search": "PASS: zero active hits"
+  },
+  "regressions": {
+    "postgresLifecycleAndService": "32/32 PASS; zero skips; isolated clean database",
+    "postgresPhysicalUpgrade": "14/14 PASS; zero skips; final migration including audit enum",
+    "affectedApiUnits": "11/11 PASS",
+    "affectedWeb": "16/16 PASS",
+    "affectedDeepAgentRename": "192/192 PASS; initial fixture failures corrected and all affected failure files rerun",
+    "additionalTerminologyPython": "15/15 PASS"
+  },
+  "migrationReceipt": "reports/pr367-physical-rename/receipt.json",
+  "terminologyAudit": "reports/pr367-terminology-audit.json",
+  "at": "2026-10-12T03:56:01.240872+00:00",
+  "candidate": "20261012041902_4058ec2256a0",
+  "staging": "0294c54d42864ef0",
+  "reconciledAt": "2026-10-12T04:55:24.118628+00:00",
+  "finalBrowserReceipt": "reports/staging/0294c54d42864ef0/browser-full-flow.json"
+}

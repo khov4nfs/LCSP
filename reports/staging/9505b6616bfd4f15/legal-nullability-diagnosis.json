@@ -1,0 +1,1315 @@
+{
+  "scope": "EXACT_IMAGE_NULLABLE_TOOL_BOUNDARY_DIAGNOSIS",
+  "status": "FAIL_NO_SUBMISSION",
+  "runId": "9505b6616bfd4f15",
+  "preparationRunId": "140d506e-d518-4324-91ed-a3c6e6972b1c",
+  "rootCause": "Installed Gemini schema conversion drops required nullable alternatives; shared artifact and OpenAI-bound intermediary retain them.",
+  "modelPacketCalls": 21,
+  "calls": [
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_299633",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON",
+        "ER-EXCEPTION"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_299633",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.engineeringRules.1.unresolvedConditions Requirements: packet.engineeringRules.1.unresolvedConditions requires array",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_255271",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON",
+        "ER-EXCEPTION"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": false,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": false,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": false,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": false,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_255271",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.legalRules.2.coverage.nonAssessableReason,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toLegalRuleId,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId Requirements: packet.legalRules.0.coverage.nonAssessableReason requires string | packet.legalRules.2.coverage.nonAssessableReason requires string | packet.contextRelations.0.toLegalRuleId requires string | packet.contextRelations.1.toLegalRuleId requires string | packet.contextRelations.2.toLegalRuleId requires string | packet.contextRelations.3.toLegalRuleId requires string",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_220450",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": true
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_220450",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.2,packet.contextRelations.3,packet.engineeringRules.1.legalRuleIds.0 Requirements: exactly one of toLegalRuleId or toSourceRef is required | Referenced LegalRule declares NON_ASSESSABLE, remove this EngineeringRule coverage or correct the LegalRule coverage declaration",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_287715",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": true
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_287715",
+      "error": "",
+      "outcome": "PASSED"
+    },
+    {
+      "tool": "submit_legal_portfolio",
+      "callId": "call_261410",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": false,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": false,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": false,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": false,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "submit_legal_portfolio",
+      "callId": "call_261410",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.legalRules.2.coverage.nonAssessableReason,packet.contextRelations.0.toLegalRuleId,packet.contextRelations.1.toSourceRef,packet.contextRelations.2.toLegalRuleId,packet.contextRelations.3.toLegalRuleId Requirements: packet.legalRules.0.coverage.nonAssessableReason requires string | packet.legalRules.2.coverage.nonAssessableReason requires string | packet.contextRelations.0.toLegalRuleId requires string | packet.contextRelations.1.toSourceRef requires object | packet.contextRelations.2.toLegalRuleId requires string | packet.contextRelations.3.toLegalRuleId requires string",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_207697",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_207697",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_249421",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": true
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_249421",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.legalRules.2.coverage.nonAssessableReason Requirements: packet.legalRules.0.coverage.nonAssessableReason requires string | packet.legalRules.2.coverage.nonAssessableReason requires string",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_494697",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_494697",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_523625",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": false,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_523625",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_300791",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_300791",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "submit_legal_portfolio",
+      "callId": "call_48889",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": false,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "submit_legal_portfolio",
+      "callId": "call_48889",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.legalRules.2.coverage.nonAssessableReason,packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: packet.legalRules.0.coverage.nonAssessableReason requires string | packet.legalRules.2.coverage.nonAssessableReason requires string | exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_247786",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_247786",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "submit_legal_portfolio",
+      "callId": "call_228986",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": true
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": true,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "submit_legal_portfolio",
+      "callId": "call_228986",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.legalRules.2.coverage.nonAssessableReason Requirements: packet.legalRules.0.coverage.nonAssessableReason requires string | packet.legalRules.2.coverage.nonAssessableReason requires string",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_211575",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_211575",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_234116",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_234116",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "submit_legal_portfolio",
+      "callId": "call_213599",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "submit_legal_portfolio",
+      "callId": "call_213599",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.legalRules.2.coverage.nonAssessableReason,packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: packet.legalRules.0.coverage.nonAssessableReason requires string | packet.legalRules.2.coverage.nonAssessableReason requires string | exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_244649",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": false,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_244649",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_258472",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": false,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_258472",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_67742",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": false,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_67742",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "validate_legal_portfolio",
+      "callId": "call_177926",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": true,
+          "isNull": true
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "validate_legal_portfolio",
+      "callId": "call_177926",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    },
+    {
+      "tool": "submit_legal_portfolio",
+      "callId": "call_182200",
+      "legalRuleIds": [
+        "LR-RETENTION",
+        "LR-INPERSON",
+        "LR-EXCEPTION"
+      ],
+      "engineeringRuleIds": [
+        "ER-RETENTION",
+        "ER-INPERSON"
+      ],
+      "reasonFields": [
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        },
+        {
+          "state": "NON_ASSESSABLE",
+          "present": true,
+          "isNull": false
+        },
+        {
+          "state": "COVERED_BY_ENGINEERING_RULES",
+          "present": false,
+          "isNull": false
+        }
+      ],
+      "targets": [
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        },
+        {
+          "toLegalRuleIdPresent": true,
+          "toLegalRuleIdNull": false,
+          "toSourceRefPresent": true,
+          "toSourceRefNull": false
+        }
+      ]
+    },
+    {
+      "feedbackTool": "submit_legal_portfolio",
+      "callId": "call_182200",
+      "error": "LEGAL_PORTFOLIO_SUBMIT_REQUEST_INVALID: Callback failed with client error 400. Invalid fields: packet.legalRules.0.coverage.nonAssessableReason,packet.legalRules.2.coverage.nonAssessableReason,packet.contextRelations.0,packet.contextRelations.1.toSourceRef,packet.contextRelations.2,packet.contextRelations.3 Requirements: packet.legalRules.0.coverage.nonAssessableReason requires string | packet.legalRules.2.coverage.nonAssessableReason requires string | exactly one of toLegalRuleId or toSourceRef is required | packet.contextRelations.1.toSourceRef requires object",
+      "outcome": null
+    }
+  ],
+  "activationCount": 0,
+  "customerJourneyStarted": false
+}

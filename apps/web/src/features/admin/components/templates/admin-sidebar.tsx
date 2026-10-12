@@ -66,7 +66,11 @@ export function AdminSidebar({
     getAppLocaleSnapshot,
   );
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
   const isDark = mounted && resolvedTheme === "dark";
   const signOutMutation = useSignOutMutation();
   const fallbackName = resolveAppMessage(
@@ -87,12 +91,13 @@ export function AdminSidebar({
   }
 
   const isUserAccountsActive =
-    pathname === "/admin/users" || Boolean(pathname?.startsWith("/admin/users/"));
+    pathname === "/admin/users" ||
+    Boolean(pathname?.startsWith("/admin/users/"));
   const isOverviewActive =
     pathname === "/admin" ||
     pathname === "/admin/" ||
     pathname === "/admin/overview";
-  const isCorpusActive = Boolean(pathname?.startsWith("/admin/corpus"));
+  const isRuleSetsActive = Boolean(pathname?.startsWith("/admin/compliance-rule-sets"));
   const isBillingActive = Boolean(pathname?.startsWith("/admin/billing"));
 
   const navItems = [
@@ -118,10 +123,10 @@ export function AdminSidebar({
       disabled: false,
     },
     {
-      labelKey: "pages.admin.sidebar.navCorpusVersions" as MessageKey,
-      href: "/admin/corpus-versions",
+      labelKey: "pages.admin.sidebar.navComplianceRuleSets" as MessageKey,
+      href: "/admin/compliance-rule-sets",
       icon: BookOpenIcon,
-      isActive: isCorpusActive,
+      isActive: isRuleSetsActive,
       disabled: false,
     },
   ];
@@ -312,7 +317,10 @@ export function AdminSidebar({
             <DropdownMenuGroup>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors cursor-pointer">
-                  <LanguagesIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                  <LanguagesIcon
+                    aria-hidden="true"
+                    className="size-3.5 text-muted-foreground"
+                  />
                   <span className="min-w-0 flex-1 truncate">
                     {resolveAppMessage(
                       "pages.workspace.settingsHub.general.language" as MessageKey,
@@ -340,7 +348,9 @@ export function AdminSidebar({
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-xs">{loc === "vi" ? "🇻🇳" : "🇬🇧"}</span>
+                          <span className="text-xs">
+                            {loc === "vi" ? "🇻🇳" : "🇬🇧"}
+                          </span>
                           <span>
                             {loc === "vi"
                               ? resolveAppMessage(
@@ -366,9 +376,15 @@ export function AdminSidebar({
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors cursor-pointer">
                   {isDark ? (
-                    <MoonIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                    <MoonIcon
+                      aria-hidden="true"
+                      className="size-3.5 text-muted-foreground"
+                    />
                   ) : (
-                    <SunIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                    <SunIcon
+                      aria-hidden="true"
+                      className="size-3.5 text-muted-foreground"
+                    />
                   )}
                   <span className="min-w-0 flex-1 truncate">
                     {resolveAppMessage(
@@ -393,17 +409,20 @@ export function AdminSidebar({
                   {[
                     {
                       value: THEME_PREFERENCES.system,
-                      labelKey: "pages.workspace.settingsHub.appearance.themeOptions.system" as MessageKey,
+                      labelKey:
+                        "pages.workspace.settingsHub.appearance.themeOptions.system" as MessageKey,
                       icon: MonitorIcon,
                     },
                     {
                       value: THEME_PREFERENCES.light,
-                      labelKey: "pages.workspace.settingsHub.appearance.themeOptions.light" as MessageKey,
+                      labelKey:
+                        "pages.workspace.settingsHub.appearance.themeOptions.light" as MessageKey,
                       icon: SunIcon,
                     },
                     {
                       value: THEME_PREFERENCES.dark,
-                      labelKey: "pages.workspace.settingsHub.appearance.themeOptions.dark" as MessageKey,
+                      labelKey:
+                        "pages.workspace.settingsHub.appearance.themeOptions.dark" as MessageKey,
                       icon: MoonIcon,
                     },
                   ].map((opt) => {

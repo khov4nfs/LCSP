@@ -5,6 +5,9 @@ task_id: TASK-AO-5-04-validate-citation-set
 jira_issue: LCSP-196
 status: DONE
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # TASK-AO-5-04 — `validate_citation_set`
 ## 1. Task Information
 AO-5 P0; `LLM_CALLABLE`; `READ`; deterministic worker validator behind API RBAC/audit.
