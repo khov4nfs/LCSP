@@ -1,0 +1,45 @@
+{
+  "scope": "GEMINI_SHARED_TOOL_NULLABILITY_TRANSPORT_REPAIR",
+  "status": "PASS_FOCUSED",
+  "verifiedAt": "2026-10-11T00:50:39.632536+00:00",
+  "rootCause": "Installed Gemini function-schema conversion repeatedly flattens nullable anyOf into type plus nullable, then drops nullable on the next property traversal. Actual serialized tools require string/object where the canonical packet requires explicit null alternatives.",
+  "fix": "Translate JSON Schema null to the equivalent native Gemini NULL type only on copied Gemini tool definitions before SDK conversion. Existing provider compatibility applies it to governed Root calls; a narrow native middleware installs null translation for Legal Preparation without relaxing bounds or changing packets.",
+  "failedRun": "reports/staging/9505b6616bfd4f15/legal-nullability-diagnosis.json",
+  "beforeRegression": {
+    "failed": 1,
+    "deselected": 17,
+    "command": "rtk proxy deepagents/.venv/bin/python -m pytest deepagents/tests/test_provider_schema_compatibility.py -k serialized_gemini_request --tb=short -q"
+  },
+  "after": {
+    "passed": 166,
+    "failed": 0,
+    "skipped": 0,
+    "receipt": "reports/gemini-tool-nullability-focused.xml",
+    "serializedRequests": "SYNC_AND_ASYNC_SHARED_ARTIFACT_NULL_ALTERNATIVES_AND_REQUIRED_KEYS_PRESERVED",
+    "managedGraph": "ACTUAL_CREATE_LEGAL_PREPARATION_AGENT_WITH_MOCKED_NETWORK_GENERATION_AND_UNCHANGED_PACKET_TOOL_ROUNDTRIPS",
+    "providerFallbackAndCredentialRotation": "PASS",
+    "liveProbe": "reports/staging/9505b6616bfd4f15/gemini-null-transport-probe.json",
+    "pythonCompilation": "PASS",
+    "importPolicy": "PASS",
+    "contractLiteralPolicy": "PASS",
+    "physicalRetirementPolicy": "PASS",
+    "diffCheck": "PASS",
+    "graphUpdate": "PASS_AST_ONLY"
+  },
+  "canonicalSchemaChanged": false,
+  "boundsRelaxedByLegalMiddleware": false,
+  "defaultsAdded": false,
+  "semanticValidatorAdded": false,
+  "generatedPacketRewritten": false,
+  "dbChecksChanged": false,
+  "modelPolicyChanged": false,
+  "currentCandidateInvalidated": "20261010194748_c5c796141d13",
+  "freshExactImageSemanticAndBrowserEvidence": "REQUIRED",
+  "releaseEligible": false,
+  "sourceSha256": {
+    "deepagents/middleware/provider_schema.py": "0d8b2fb2439d96a6bdcf9090b432fd60aa77900669512759ed316364062c9c54",
+    "deepagents/legal_preparation/agent.py": "0ae704f486526e946d840ff8ce57feb66934078f9640c6198e9bcccdd22fb85d",
+    "deepagents/tests/test_provider_schema_compatibility.py": "92ee370a3011150e626863f3fc060cecd2c7e224c133455c4e68df7d61366b04",
+    "deepagents/tests/test_legal_preparation_agent.py": "31414149abe209c4f985c0269b6e24933b678e9443eb3b440e8dc22ba8f5283d"
+  }
+}

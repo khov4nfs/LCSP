@@ -5,7 +5,6 @@ export const REPOSITORY_CONNECTION_REPOSITORY = Symbol(
 );
 
 export interface RepositoryConnectionRepository {
-  save(connection: RepositoryConnection): Promise<void>;
   findById(id: string): Promise<RepositoryConnection | null>;
   linkToAssessment(id: string, assessmentId: string): Promise<boolean>;
 }

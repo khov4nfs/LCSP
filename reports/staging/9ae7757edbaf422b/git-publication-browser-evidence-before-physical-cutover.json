@@ -1,0 +1,346 @@
+{
+  "status": "PASS",
+  "checkedAt": "2026-10-11T14:18:24.870244+00:00",
+  "pr": 367,
+  "commentId": 6109881367,
+  "commentUrl": "https://github.com/khov4nfs/LCSP/pull/367#issuecomment-6109881367",
+  "head": "7e29f3182b6cdb479d802c28b2c480770dec5edf",
+  "candidate": "20261011005041_cce648aed2a3",
+  "stagingRun": "e73734b01eff4005",
+  "acceptedBrowserReceipt": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+  "screenshotsRendered": 12,
+  "acceptedOriginalsOnly": true,
+  "newStagingScreenshotsCreated": false,
+  "imagePrivacyReview": "PASS_VISUAL_SYNTHETIC_DATA_ONLY",
+  "images": [
+    {
+      "title": "Authenticated workspace",
+      "caption": "Synthetic owner signed in through the product UI; the workspace and Create Assessment action are visible.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-create-assessmentA-1791680438725-owner-workspace.png",
+      "phase": "owner-create-assessmentA-1791680438725",
+      "sha256": "bf36b572d2fdb1648b78e06886077ae4e81a8f1aba573e9c9bc06eb7d021ba68",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-create-assessmentA-1791680438725-owner-workspace.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "bf36b572d2fdb1648b78e06886077ae4e81a8f1aba573e9c9bc06eb7d021ba68",
+        "bytes": 71984
+      }
+    },
+    {
+      "title": "Repository connected and pinned",
+      "caption": "The product UI shows khov4nfs/lcsp-synthetic-notice-service connected at c14f518437c1b8cef94b4f9a176c04b1acaff6fe.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-repository-assessmentA-1791680448759-owner-after-continue-setup.png",
+      "phase": "owner-repository-assessmentA-1791680448759",
+      "sha256": "ed346aa7447768b50ec3c474243e3ae93ca8fb54f1e0a8290cb831a9fa3c595c",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-repository-assessmentA-1791680448759-owner-after-continue-setup.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "ed346aa7447768b50ec3c474243e3ae93ca8fb54f1e0a8290cb831a9fa3c595c",
+        "bytes": 41925
+      }
+    },
+    {
+      "title": "Assessment Root activity",
+      "caption": "ACTIVE / RUNNING, repository evidence inspected, model activity and canonical token totals are visible.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-running.png",
+      "phase": "owner-answer-assessmentA-1791680700160",
+      "sha256": "fb4186d7b1fd827005d3c3d01756fe3f82cece2706e785faf119337169e92963",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-running.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "fb4186d7b1fd827005d3c3d01756fe3f82cece2706e785faf119337169e92963",
+        "bytes": 74906
+      }
+    },
+    {
+      "title": "Human Resolution \u2014 material operator-only fact",
+      "caption": "The deployment-exposure question is visible after repository investigation; the Root is waiting for human input.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-question-assessmentA-1791680534120-owner-question.png",
+      "phase": "owner-question-assessmentA-1791680534120",
+      "sha256": "bb0fad23682dde3e49d0b35fdc688f0b228a9b29b204fae3c21cbf54905ff82b",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-question-assessmentA-1791680534120-owner-question.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "bb0fad23682dde3e49d0b35fdc688f0b228a9b29b204fae3c21cbf54905ff82b",
+        "bytes": 92520
+      }
+    },
+    {
+      "title": "Human answer accepted through the UI",
+      "caption": "The question is removed and the lifecycle returns to ACTIVE after the owner submits the material fact; subsequent execution resumes.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-answer-accepted.png",
+      "phase": "owner-answer-assessmentA-1791680700160",
+      "sha256": "061c7cd30874e40e6b1fa1f3f411820f4ed57f2426310bf45448acd8f461dec0",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-answer-accepted.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "061c7cd30874e40e6b1fa1f3f411820f4ed57f2426310bf45448acd8f461dec0",
+        "bytes": 80176
+      }
+    },
+    {
+      "title": "Stop followed by reload",
+      "caption": "Lifecycle and execution remain PAUSED after reload, with the visible Continue control.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-paused-after-reload.png",
+      "phase": "owner-answer-assessmentA-1791680700160",
+      "sha256": "74fa03f6600684498e26e8ebdb8fcddaebbae021b3fba1e6e78122e175de0af4",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-paused-after-reload.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "74fa03f6600684498e26e8ebdb8fcddaebbae021b3fba1e6e78122e175de0af4",
+        "bytes": 103609
+      }
+    },
+    {
+      "title": "Continue resumes the same Root",
+      "caption": "ACTIVE / RUNNING is visible after Continue; the durable receipt reconciles the same AssessmentRuntime thread.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-continue-assessmentA-1791681470526-owner-resumed.png",
+      "phase": "owner-continue-assessmentA-1791681470526",
+      "sha256": "4b9aff31c09fef6580b6e9ab09e809586bee62ae1187039a8b1f76943fdce6df",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-continue-assessmentA-1791681470526-owner-resumed.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "4b9aff31c09fef6580b6e9ab09e809586bee62ae1187039a8b1f76943fdce6df",
+        "bytes": 76889
+      }
+    },
+    {
+      "title": "Canonical completion and accepted decisions",
+      "caption": "COMPLETE / SUCCEEDED persists after reload; an accepted decision and its criteria are displayed.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-complete-assessmentA-1791681668304-owner-complete-after-reload.png",
+      "phase": "owner-complete-assessmentA-1791681668304",
+      "sha256": "478262f9648b871b482aabb2695d9a2122016ed8c0eb884bb64d3f4d5233b5b9",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-complete-assessmentA-1791681668304-owner-complete-after-reload.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "478262f9648b871b482aabb2695d9a2122016ed8c0eb884bb64d3f4d5233b5b9",
+        "bytes": 119387
+      }
+    },
+    {
+      "title": "Final report action and browser download",
+      "caption": "The Download final report action is visible. Playwright clicked it; downloaded bytes matched the immutable artifact SHA-256 in the linked receipt.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/owner-complete-assessmentA-1791681668304-owner-report-action.png",
+      "phase": "owner-complete-assessmentA-1791681668304",
+      "sha256": "2f545073b59995558725bc969ea2a00d4ecf0db54c88d8b5c6ac1b49efad60d2",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-complete-assessmentA-1791681668304-owner-report-action.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "2f545073b59995558725bc969ea2a00d4ecf0db54c88d8b5c6ac1b49efad60d2",
+        "bytes": 139658
+      }
+    },
+    {
+      "title": "Second-user isolation \u2014 foreign route denied",
+      "caption": "The independent synthetic user cannot read the owner assessment: the UI shows unavailable state and no owner content; the receipt records the supporting 404.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/other-isolation-assessmentA-1791682275729-other-foreign-assessment.png",
+      "phase": "other-isolation-assessmentA-1791682275729",
+      "sha256": "a467ad882e7a5917487cb9a2ebd11d893e7546a42ea6b97dd5532cb7d23363a4",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/other-isolation-assessmentA-1791682275729-other-foreign-assessment.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "a467ad882e7a5917487cb9a2ebd11d893e7546a42ea6b97dd5532cb7d23363a4",
+        "bytes": 28871
+      }
+    },
+    {
+      "title": "Admin starts automatic Legal Preparation",
+      "caption": "The admin UI shows preparation starting for the immutable synthetic corpus; no semantic approve, publish or discard control is present.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/admin-legal-default-1791680234344-admin-started.png",
+      "phase": "admin-legal-default-1791680234344",
+      "sha256": "8a0602e81d7ef19c711f9557e5c8574dce8bd8d59f417fa4bb86d28d1ae1e502",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/admin-legal-default-1791680234344-admin-started.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "8a0602e81d7ef19c711f9557e5c8574dce8bd8d59f417fa4bb86d28d1ae1e502",
+        "bytes": 44290
+      }
+    },
+    {
+      "title": "Admin portfolio automatically ACTIVE",
+      "caption": "The admin UI shows the ACTIVE portfolio, its rule counts and SUCCEEDED preparation, with no human semantic approval step.",
+      "file": "reports/staging/e73734b01eff4005/screenshots/admin-legal-default-1791680234344-admin-terminal.png",
+      "phase": "admin-legal-default-1791680234344",
+      "sha256": "42c51926a69e952563583393e630e888b7fa1935b9cbf9c5254f659193d2006a",
+      "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/admin-legal-default-1791680234344-admin-terminal.png",
+      "privacyReview": "PASS_VISUALLY_INSPECTED_SYNTHETIC_DATA_ONLY",
+      "httpVerification": {
+        "status": 200,
+        "contentType": "image/png",
+        "sha256": "42c51926a69e952563583393e630e888b7fa1935b9cbf9c5254f659193d2006a",
+        "bytes": 52411
+      }
+    }
+  ],
+  "githubPlaywrightRendering": {
+    "commentId": "6109881367",
+    "commentUrl": "https://github.com/khov4nfs/LCSP/pull/367#issuecomment-6109881367",
+    "status": "PASS",
+    "renderedImageCount": 12,
+    "images": [
+      {
+        "alt": "Authenticated workspace",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-create-assessmentA-1791680438725-owner-workspace.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Repository connected and pinned",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-repository-assessmentA-1791680448759-owner-after-continue-setup.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Assessment Root activity",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-running.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Human Resolution \u2014 material operator-only fact",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-question-assessmentA-1791680534120-owner-question.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Human answer accepted through the UI",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-answer-accepted.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Stop followed by reload",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-answer-assessmentA-1791680700160-owner-paused-after-reload.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Continue resumes the same Root",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-continue-assessmentA-1791681470526-owner-resumed.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Canonical completion and accepted decisions",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-complete-assessmentA-1791681668304-owner-complete-after-reload.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Final report action and browser download",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/owner-complete-assessmentA-1791681668304-owner-report-action.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Second-user isolation \u2014 foreign route denied",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/other-isolation-assessmentA-1791682275729-other-foreign-assessment.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Admin starts automatic Legal Preparation",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/admin-legal-default-1791680234344-admin-started.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      },
+      {
+        "alt": "Admin portfolio automatically ACTIVE",
+        "url": "https://raw.githubusercontent.com/khov4nfs/LCSP/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/screenshots/admin-legal-default-1791680234344-admin-terminal.png",
+        "complete": true,
+        "naturalWidth": 1366,
+        "naturalHeight": 900,
+        "renderedWidth": 781.984375,
+        "renderedHeight": 515.21875
+      }
+    ],
+    "durableLinks": [
+      "https://github.com/khov4nfs/LCSP/blob/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/release-staging-proof.md",
+      "https://github.com/khov4nfs/LCSP/blob/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/browser-full-flow.json",
+      "https://github.com/khov4nfs/LCSP/blob/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging-acceptance-matrix.json"
+    ],
+    "stopBoundaryPresent": true
+  },
+  "durableLinks": [
+    {
+      "path": "reports/release-staging-proof.md",
+      "url": "https://github.com/khov4nfs/LCSP/blob/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/release-staging-proof.md",
+      "httpStatus": 200,
+      "sha256": "47d7d58862a49c0789a28d291c0e0ad58c253dce728a611e278eb2fd932d76b7"
+    },
+    {
+      "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+      "url": "https://github.com/khov4nfs/LCSP/blob/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging/e73734b01eff4005/browser-full-flow.json",
+      "httpStatus": 200,
+      "sha256": "9f1a51b0e464298d96c22f7e80cdca51346bf91fdf58cccff89ce16a887b4849"
+    },
+    {
+      "path": "reports/staging-acceptance-matrix.json",
+      "url": "https://github.com/khov4nfs/LCSP/blob/7e29f3182b6cdb479d802c28b2c480770dec5edf/reports/staging-acceptance-matrix.json",
+      "httpStatus": 200,
+      "sha256": "ecb9c13badc15c1af12795a1d1f8e09b2114ced5f00d4ed008ff77af8d9432a3"
+    }
+  ],
+  "verificationScreenshot": ".playwright-mcp/github-evidence-comment-render.png (local transient verification of GitHub only; not staging evidence)",
+  "sourceMismatches": 0,
+  "policyMismatches": 0,
+  "productionDeployment": false,
+  "productionCanary": false,
+  "prMerged": false,
+  "disposition": "HISTORICAL_7E29_HEAD; current correction proof is pr367-correction-release-proof.md and PR #367 current HEAD/checks"
+}

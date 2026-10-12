@@ -2,7 +2,10 @@ name: Tests
 
 on:
   pull_request:
-    branches: [main]
+    branches: ["**"]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,6 +19,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       web: ${{ steps.filter.outputs.web }}
       python: ${{ steps.filter.outputs.python }}
+      release_gate: ${{ steps.filter.outputs.release_gate }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,7 +28,7 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
-          token: ''
+          token: ""
           list-files: shell
           filters: |
             api:
@@ -48,12 +52,143 @@ jobs:
             python:
               - '.github/workflows/test.yml'
               - 'deepagents/**'
+              - 'deepagents-langgraph/**'
+              - 'scripts/dev-entry.mjs'
+              - 'scripts/dev-stop.test.mjs'
+              - 'scripts/prepare-cli.mjs'
+              - 'scripts/run*.mjs'
+              - 'package.json'
+            release_gate:
+              - '.dockerignore'
+              - '.github/workflows/test.yml'
+              - 'apps/api/**'
+              - 'apps/web/**'
+              - 'deepagents/**'
+              - 'deepagents-langgraph/**'
+              - 'packages/contracts/**'
+              - 'packages/i18n/**'
+              - 'scripts/**'
+              - 'tests/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig*.json'
+  release-gate-static:
+    name: Workspace static checks
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck workspace
+        run: pnpm run typecheck
+
+      - name: Check import policy
+        run: pnpm run check:imports
+
+      - name: Prove physical legacy authority absence
+        run: pnpm run check:legal-v1-retired
+
+      - name: Check contract literals
+        run: pnpm run check:contracts
+
+      - name: Check billing production data sources
+        run: pnpm run check:billing-release-gate
+
+      - name: Test dev launcher scripts
+        run: pnpm run test:dev-scripts
+
+      - name: Test staging answer selection security
+        run: node --test tests/literal-answer-choice.test.mjs
+
+  decision-pr-review-triage:
+    name: PR review shadow triage packet
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: deepagents/pyproject.toml
+
+      - name: Install Python worker dependencies
+        working-directory: deepagents
+        run: python -m pip install -e ".[dev]"
+
+      - name: Build bounded PR-review shadow triage packet
+        working-directory: deepagents
+        run: >-
+          python -m decision.pr_review_triage
+          --packet-only
+          --pr-number "${{ github.event.pull_request.number }}"
+          --base-sha "${{ github.event.pull_request.base.sha }}"
+          --head-sha "${{ github.event.pull_request.head.sha }}"
+          --output "../artifacts/decision/pr-review-triage-packet.json"
+
+      - name: Upload PR-review shadow triage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcsp336-pr-review-shadow-packet-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: artifacts/decision/
+          if-no-files-found: error
+          retention-days: 14
+
+  web-production-build:
+    name: Web lint and production build
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web
+        run: pnpm --filter @lcsp/web lint
+
+      - name: Build web
+        run: pnpm --filter @lcsp/web build
 
   api-unit:
     name: API unit tests
     needs: changes
-    if: needs.changes.outputs.api == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
+    env:
+      LCSP_TEST_POSTGRES_PORT: 55435
+      LCSP_TEST_POSTGRES_DB: lcsp_api_test
+      LCSP_TEST_POSTGRES_USER: postgres
+      LCSP_TEST_POSTGRES_PASSWORD: postgres
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55435/lcsp_api_test?schema=public
     steps:
       - uses: actions/checkout@v4
 
@@ -69,8 +204,12 @@ jobs:
 
       - name: Generate Prisma client
         run: pnpm --filter @lcsp/api prisma:generate
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public
+
+      - name: Start PostgreSQL test database
+        run: node apps/api/test/scripts/ensure-test-postgres.mjs
+
+      - name: Apply Prisma migrations
+        run: pnpm --filter @lcsp/api exec prisma migrate deploy
 
       - name: Test API
         run: pnpm --filter @lcsp/api test
@@ -78,8 +217,22 @@ jobs:
   api-e2e:
     name: API e2e tests
     needs: changes
-    if: needs.changes.outputs.api == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lcsp_api_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lcsp_api_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -99,7 +252,7 @@ jobs:
   web:
     name: Web tests
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -120,8 +273,24 @@ jobs:
   python:
     name: Python worker tests
     needs: changes
-    if: needs.changes.outputs.python == 'true'
+    if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lcsp_worker_test
+        ports:
+          - 55436:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lcsp_worker_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      LCSP_TEST_CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55436/lcsp_worker_test
     defaults:
       run:
         working-directory: deepagents
@@ -137,5 +306,213 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
 
+      - name: Validate LangGraph Agent Runtime config
+        env:
+          OPENAI_API_KEY: ci-import-only
+          LANGSMITH_TRACING: "false"
+          LANGCHAIN_TRACING_V2: "false"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("langgraph.json").read_text())
+          assert config["graphs"]["lcsp-agent"] == "./agent.py:agent"
+          PY
+          python - <<'PY'
+          import agent
+
+          assert agent.agent is not None
+          PY
+
       - name: Test Python workers
         run: pytest
+
+  docker-sandbox-e2e:
+    name: Docker sandbox E2E
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: deepagents/pyproject.toml
+
+      - name: Install dependencies
+        working-directory: deepagents
+        run: python -m pip install -e ".[dev]"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Candidate builds, merged-rootfs absence and Docker integrations
+        run: python tests/release-images.py
+
+      - name: Upload candidate image evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-images
+          path: reports/release-images/
+          retention-days: 14
+
+  assessment-domain-vertical:
+    name: Assessment Root vertical
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 55437:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      LCSP_TEST_PG_PORT: 55437
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55437/postgres?schema=public
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: deepagents/pyproject.toml
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python dependencies
+        working-directory: deepagents
+        run: |
+          python -m pip install uv==0.10.6
+          uv sync --frozen --extra dev
+
+      - name: Build contracts and API
+        run: |
+          pnpm --filter @lcsp/api prisma:generate
+          pnpm --filter @lcsp/contracts build
+          pnpm --filter @lcsp/api build
+
+      - name: Canonical lifecycle and compliance rule set persistence
+        run: |
+          node tests/compliance-rule-set-persistence.mjs
+          node tests/assessment-lifecycle-migrated-db.mjs
+
+      - name: Disposable migration and V1 physical purge
+        run: PYTHONPATH=deepagents deepagents/.venv/bin/python tests/retired-authority-migration-check.py
+
+      - name: Upload migration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-migration-proof
+          path: reports/retired-authority-migration/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Compliance Rule Set vertical
+        run: node tests/compliance-rule-set-vertical.mjs
+
+      - name: Assessment Root and same-thread Human Resolution verticals
+        run: |
+          node tests/assessment-domain-vertical.mjs
+          node tests/assessment-hitl-vertical.mjs
+          node tests/assessment-hitl-vertical.mjs --unresolvable-only
+
+      - name: Upload assessment deletion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assessment-deletion-proof
+          path: reports/assessment-deletion/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  admin-playwright-e2e:
+    name: Billing and Admin Playwright E2E release gate
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium
+
+      - name: Build runtime packages
+        run: pnpm run build:runtime-packages
+
+      - name: Run Billing and Admin Playwright E2E tests
+        run: pnpm run test:billing:e2e
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  v2-release-gate:
+    name: V2 required release gate
+    if: always()
+    needs:
+      - changes
+      - release-gate-static
+      - web-production-build
+      - api-unit
+      - api-e2e
+      - web
+      - python
+      - docker-sandbox-e2e
+      - assessment-domain-vertical
+      - admin-playwright-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every applicable V2 production suite
+        env:
+          CHANGE_RESULT: ${{ needs.changes.result }}
+          RELEASE_CHANGED: ${{ needs.changes.outputs.release_gate }}
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          assert os.environ["CHANGE_RESULT"] == "success", "change detection must succeed"
+          jobs = json.loads(os.environ["JOB_RESULTS"])
+          if os.environ["RELEASE_CHANGED"] == "true":
+              failed = {name: job["result"] for name, job in jobs.items() if job["result"] != "success"}
+              assert not failed, failed
+          PYTHON

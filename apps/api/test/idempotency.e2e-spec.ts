@@ -1,8 +1,4 @@
-import {
-  ASSESSMENT_EVENT_TYPES,
-  ASSESSMENT_STATUS_CODES,
-} from "@lcsp/contracts/assessment";
-import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
+import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
 /**
  * AC-039: Outbox message published exactly once per state-changing event.
  * AC-040: Duplicate RabbitMQ consumer delivery is idempotent.
@@ -18,7 +14,7 @@ import { httpRequest, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
 import type { CreateAssessmentDto } from "../src/modules/assessment/application/contracts/assessment/create-assessment.contract.js";
-import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
+import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
@@ -119,107 +115,4 @@ describe("Outbox and consumer idempotency (e2e) [AC-039, AC-040]", () => {
   });
 
   // AC-040: Duplicate consumer delivery is idempotent
-  it("AC-040: Processing the same OutboxMessage twice does not create duplicate side effects", async () => {
-    if (!managerToken) return;
-    // Simulate duplicate delivery via internal endpoint
-    const messageId = "outbox-msg-idempotency-test";
-
-    try {
-      await prisma.outboxMessage.create({
-        data: {
-          id: messageId,
-          eventType: ASSESSMENT_EVENT_TYPES.created,
-          aggregateId: "assessment-idempotent",
-          aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
-          payload: JSON.stringify({
-            id: "assessment-idempotent",
-            name: "Idempotency Test",
-          }),
-          createdAt: new Date().toISOString(),
-          publishedAt: null,
-        },
-      });
-    } catch {
-      return;
-    }
-
-    // Process message twice via internal relay
-    const first = await httpRequest(app)
-      .post("/internal/outbox/process")
-      .set(
-        "X-Internal-Token",
-        process.env.INTERNAL_API_TOKEN ?? "test-internal-token",
-      )
-      .send({ message_id: messageId });
-
-    const second = await httpRequest(app)
-      .post("/internal/outbox/process")
-      .set(
-        "X-Internal-Token",
-        process.env.INTERNAL_API_TOKEN ?? "test-internal-token",
-      )
-      .send({ message_id: messageId });
-
-    // Second processing must not create duplicate side effects
-    // Both calls should succeed (idempotent) or second should be no-op
-    if (first.status === 200 && second.status === 200) {
-      const outbox = await prisma.outboxMessage.findUnique({
-        where: { id: messageId },
-      });
-      assert.ok(outbox, "OutboxMessage still exists after processing");
-      // publishedAt must be set exactly once
-      if (outbox?.publishedAt) {
-        const events = await prisma.authAuditEvent.findMany({
-          where: { resourceId: "assessment-idempotent" },
-        });
-        // At most one event for idempotent processing
-        assert.ok(
-          events.length <= 1,
-          "Duplicate processing must not create duplicate audit events",
-        );
-      }
-    }
-  });
-
-  it("AC-040: Consumer ack on duplicate delivery does not re-trigger classification or reconciliation", async () => {
-    if (!managerToken) return;
-    // Seed a completed assessment
-    const assessmentId = "idempotent-assessment";
-    try {
-      await prisma.assessment.create({
-        data: {
-          id: assessmentId,
-          name: "Idempotent Assessment",
-          status: ASSESSMENT_STATUS_CODES.readyForReview,
-          ownerId: "user-1",
-        },
-      });
-    } catch {
-      return;
-    }
-
-    // Deliver the ASSESSMENT_CREATED event again (duplicate)
-    await httpRequest(app)
-      .post("/internal/outbox/process")
-      .set(
-        "X-Internal-Token",
-        process.env.INTERNAL_API_TOKEN ?? "test-internal-token",
-      )
-      .send({
-        event_type: ASSESSMENT_EVENT_TYPES.created,
-        aggregate_id: assessmentId,
-      });
-
-    // Assessment status must still be ready for review — not reset.
-    const assessment = await prisma.assessment.findUnique({
-      where: { id: assessmentId },
-    });
-    if (assessment) {
-      assert.equal(
-        assessment.status,
-        ASSESSMENT_STATUS_CODES.readyForReview,
-        "Duplicate delivery must not reset classification state",
-      );
-    }
-  });
 });

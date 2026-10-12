@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "runId": "f52606b690a84c87",
+  "candidateId": "20261012054358_c13bae52f1ac",
+  "roles": {
+    "worker": {
+      "containerSuffix": "bridge",
+      "installedRuntimeVersions": {
+        "langgraph-sdk": "0.4.4",
+        "langgraph-checkpoint-postgres": "3.1.1",
+        "chromadb": "1.5.9",
+        "urllib3": "2.8.0"
+      },
+      "nativeChromaProbe": {
+        "status": "PASS",
+        "chromadb": "1.5.9",
+        "checks": 8,
+        "surfaces": [
+          "canonical index-store write",
+          "idempotent collection replacement",
+          "exact citation retrieval",
+          "parent/reference context",
+          "content hash provenance",
+          "repealed citation exclusion",
+          "immutable source-version isolation",
+          "persistence across a fresh Python process"
+        ],
+        "embeddingOrModelCalls": 0,
+        "syntheticTemporaryStorageOnly": true
+      }
+    },
+    "server": {
+      "containerSuffix": "server",
+      "installedRuntimeVersions": {
+        "langgraph-sdk": "0.4.4",
+        "langgraph-checkpoint-postgres": "3.1.1",
+        "chromadb": "1.5.9",
+        "urllib3": "2.8.0"
+      },
+      "nativeChromaProbe": {
+        "status": "PASS",
+        "chromadb": "1.5.9",
+        "checks": 8,
+        "surfaces": [
+          "canonical index-store write",
+          "idempotent collection replacement",
+          "exact citation retrieval",
+          "parent/reference context",
+          "content hash provenance",
+          "repealed citation exclusion",
+          "immutable source-version isolation",
+          "persistence across a fresh Python process"
+        ],
+        "embeddingOrModelCalls": 0,
+        "syntheticTemporaryStorageOnly": true
+      }
+    }
+  },
+  "syntheticTemporaryStorageOnly": true,
+  "modelCalls": 0,
+  "productionTouched": false
+}

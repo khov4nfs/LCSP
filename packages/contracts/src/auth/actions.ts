@@ -7,5 +7,5 @@ export const REQUIRED_ACTIONS = {
   reauthenticate: "reauthenticate",
   verifyMfa: "verify_mfa",
   retryRecovery: "retry_recovery_request",
-  none: "none"
+  none: "none",
 } as const;

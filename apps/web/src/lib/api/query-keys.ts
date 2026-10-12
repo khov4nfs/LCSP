@@ -4,27 +4,37 @@ export const apiQueryKeys = {
   auth: {
     settingsProfile: () => ["auth", "settings-profile"] as const,
     sessions: () => ["auth", "sessions"] as const,
-    repositories: () => ["auth", "repositories"] as const,
+  },
+  githubIntegration: {
+    providerCredentials: () => ["provider-credentials"] as const,
+    repositories: () => ["github-integration", "repositories"] as const,
+  },
+  billing: {
+    wallet: () => ["billing", "wallet"] as const,
+    history: (page: number, pageSize: number) =>
+      ["billing", "history", page, pageSize] as const,
+    estimate: (amountVnd: string) =>
+      ["billing", "estimate", amountVnd] as const,
+    order: (orderId: string) => ["billing", "order", orderId] as const,
   },
   workspace: {
     detail: () => ["workspace"] as const,
     assessments: () => ["assessments"] as const,
     selection: () => ["mock-workspace-selection"] as const,
   },
-  assessment: {
-    classification: (assessmentId: string) =>
-      ["assessment", assessmentId, "classification"] as const,
-    readiness: (assessmentId: string) =>
-      ["assessment", assessmentId, "readiness"] as const,
-    wizard: (assessmentId: string) =>
-      ["assessment", assessmentId, "wizard"] as const,
-    conflicts: (assessmentId: string) =>
-      ["assessment", assessmentId, "conflicts", "pending"] as const,
-    evidence: (assessmentId: string) =>
-      ["assessment", assessmentId, "evidence"] as const,
-    documents: (assessmentId: string) =>
-      ["assessment", assessmentId, "documents"] as const,
-    documentStatus: (assessmentId: string, documentRequestId: string) =>
-      ["assessment", assessmentId, "documents", documentRequestId] as const,
+  admin: {
+    overview: (period?: string) =>
+      ["admin", "overview", period ?? "30D"] as const,
+    billing: (
+      period: string,
+      status: string,
+      gateway: string,
+      page: number,
+      pageSize: number,
+    ) => ["admin", "billing", period, status, gateway, page, pageSize] as const,
+    usersRoot: () => ["admin", "users"] as const,
+    usersList: (params?: Record<string, unknown>) =>
+      ["admin", "users", params ?? {}] as const,
+    userDetail: (userId: string) => ["admin", "users", userId] as const,
   },
 } as const;

@@ -1,132 +1,94 @@
 "use client";
-
-import { resolveMessage } from "@lcsp/i18n";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import type { FormEvent } from "react";
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
+import { useCreateAssessmentMutation } from "@/lib/api/workspace-queries";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import {
-  ASSESSMENT_NAME_MAX_LENGTH,
-  ASSESSMENT_DESCRIPTION_MAX_LENGTH,
-} from "@lcsp/contracts/assessment";
-import { useCreateAssessmentMutation } from "@/lib/api/workspace-queries";
-import { appLocale } from "@/lib/locale";
+  Field,
+  FieldLabel,
+  FieldError,
+  FieldGroup,
+} from "@/components/ui/field";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { resolveAppMessage } from "@/lib/i18n";
+import {
+  createAssessmentFormSchema,
+  type CreateAssessmentFormValues,
+} from "../../schemas/create-assessment.schema";
 
 export function CreateAssessmentForm() {
   const router = useRouter();
-  const createAssessmentMutation = useCreateAssessmentMutation();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [hasError, setHasError] = useState(false);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!name.trim()) return;
-    setHasError(false);
-    const outcome = await createAssessmentMutation.mutateAsync({
-      name: name.trim(),
-      description: description.trim() || undefined,
-    });
-    if (outcome.kind === "created") {
-      router.push(`/assessments/${outcome.assessmentId}/wizard`);
-      return;
-    }
-    setHasError(true);
-  }
-
+  const create = useCreateAssessmentMutation();
+  const form = useForm<CreateAssessmentFormValues>({
+    resolver: zodResolver(createAssessmentFormSchema),
+    defaultValues: { name: "", description: "" },
+  });
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6 lg:px-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">
-          {t("pages.assessmentForm.pageTitle")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("pages.assessmentForm.pageDescription")}
-        </p>
-      </header>
-      {hasError ? (
-        <Alert variant="destructive">
-          <AlertTitle>
-            {t("pages.workspace.errors.createAssessmentTitle")}
-          </AlertTitle>
-          <AlertDescription>
-            {t("pages.workspace.errors.createAssessmentDetail")}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("pages.assessmentForm.formTitle")}</CardTitle>
-          <CardDescription>
-            {t("pages.assessmentForm.formDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="assessment-name">
-                  {t("pages.assessmentForm.nameLabel")}
-                </FieldLabel>
-                <Input
-                  id="assessment-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder={t("pages.assessmentForm.namePlaceholder")}
-                  required
-                  maxLength={ASSESSMENT_NAME_MAX_LENGTH}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="assessment-description">
-                  {t("pages.assessmentForm.descriptionLabel")}
-                </FieldLabel>
-                <Textarea
-                  id="assessment-description"
-                  className="min-h-24"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  placeholder={t("pages.assessmentForm.descriptionPlaceholder")}
-                  maxLength={ASSESSMENT_DESCRIPTION_MAX_LENGTH}
-                />
-              </Field>
-            </FieldGroup>
-            <div className="flex flex-wrap justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push("/assessments")}
-              >
-                {t("pages.assessmentForm.cancel")}
-              </Button>
-              <Button
-                type="submit"
-                disabled={createAssessmentMutation.isPending}
-              >
-                {createAssessmentMutation.isPending
-                  ? t("pages.assessmentForm.submitting")
-                  : t("pages.assessmentForm.submit")}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+    <main className="mx-auto flex w-full max-w-180 flex-col gap-6 p-6">
+      <h1 className="text-xl font-semibold">
+        {resolveAppMessage("pages.workspace.createAssessment")}
+      </h1>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={form.handleSubmit(async (values) => {
+          const result = await create.mutateAsync(values);
+          if (result.kind === API_OUTCOME_KINDS.created)
+            router.push(`/assessments/${result.assessmentId}`);
+        })}
+      >
+        <FieldGroup>
+          <Field data-invalid={Boolean(form.formState.errors.name)}>
+            <FieldLabel htmlFor="assessment-name">
+              {resolveAppMessage("pages.assessmentForm.nameLabel")}
+            </FieldLabel>
+            <Input
+              id="assessment-name"
+              {...form.register("name")}
+              disabled={create.isPending}
+              aria-invalid={Boolean(form.formState.errors.name)}
+            />
+            {form.formState.errors.name ? (
+              <FieldError>
+                {resolveAppMessage("pages.agenticAssessment.answerRequired")}
+              </FieldError>
+            ) : null}
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="assessment-description">
+              {resolveAppMessage("pages.assessmentForm.descriptionLabel")}
+            </FieldLabel>
+            <Textarea
+              id="assessment-description"
+              {...form.register("description")}
+              disabled={create.isPending}
+              aria-invalid={Boolean(form.formState.errors.description)}
+            />
+            {form.formState.errors.description ? (
+              <FieldError>
+                {resolveAppMessage("pages.agenticAssessment.answerRequired")}
+              </FieldError>
+            ) : null}
+          </Field>
+        </FieldGroup>
+        {create.isError || create.data?.kind === API_OUTCOME_KINDS.error ? (
+          <Alert variant="destructive">
+            <AlertDescription>
+              {resolveAppMessage("pages.agenticAssessment.requestFailed")}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <Button type="submit" disabled={create.isPending}>
+          {resolveAppMessage(
+            create.isPending
+              ? "pages.agenticAssessment.saving"
+              : "pages.workspace.createAssessment",
+          )}
+        </Button>
+      </form>
     </main>
   );
-}
-
-function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
 }

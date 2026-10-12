@@ -1,0 +1,25 @@
+{
+  "status": "PASS_PUBLISHED_EXACT_PREPARED_FIXTURE",
+  "repository": "khov4nfs/lcsp-synthetic-notice-service",
+  "url": "https://github.com/khov4nfs/lcsp-synthetic-notice-service",
+  "private": true,
+  "branch": "main",
+  "commit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+  "files": {
+    "README.md": "63e81c489daca8413a40e7513e832c59da195c7866ca7fb89844c1811a426a54",
+    "schema.sql": "3e7af771ecb385cc4019f938b5ce8b8d0bde65f7cf23f53f22a06cbe75389ddb",
+    "service.py": "c101115c498dac957890c20fab33b6ed1f2ede6c093250b8864da86b6f3683d5"
+  },
+  "authentication": "EXISTING_GH_CLI_SESSION",
+  "prePushChecks": {
+    "reviewedHashesMatch": true,
+    "localCredentialsAbsent": true,
+    "secretPatternsAbsent": true,
+    "humanDeploymentAnswerAbsent": true,
+    "intentionalDraftBasedExpiryRetained": true,
+    "gitTreeOnlyThreeApprovedFiles": true
+  },
+  "repositoryCreatedByAgent": false,
+  "rawCredentialPersisted": false,
+  "lcspGitPublicationPerformed": false
+}

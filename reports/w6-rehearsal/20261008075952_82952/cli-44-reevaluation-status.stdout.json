@@ -1,0 +1,53 @@
+{
+  "generatedAt": "2026-10-08T08:01:44.320Z",
+  "migrated": 30,
+  "byState": {
+    "COMPLETE": 1,
+    "NOT_READY": 13,
+    "STARTED_QUEUED": 8,
+    "READY_NOT_STARTED": 8
+  },
+  "startedByOperator": 9,
+  "startedOtherwise": 0,
+  "load": {
+    "inFlight": 8,
+    "queued": 8
+  },
+  "runs": [
+    {
+      "runId": "29ac24ba-c900-4115-8541-80c82d797921",
+      "mode": "CANARY",
+      "startedBy": "w6-rehearsal-operator",
+      "started": 1,
+      "firstStartedAt": "2026-10-08T08:01:12.910Z"
+    },
+    {
+      "runId": "8b676202-5418-45e7-b4a1-67384156670b",
+      "mode": "BATCH",
+      "startedBy": "w6-rehearsal-operator",
+      "started": 2,
+      "firstStartedAt": "2026-10-08T08:01:33.046Z"
+    },
+    {
+      "runId": "b9c13521-b03b-4338-b070-b478811e1663",
+      "mode": "BATCH",
+      "startedBy": "w6-rehearsal-operator",
+      "started": 1,
+      "firstStartedAt": "2026-10-08T08:01:38.037Z"
+    },
+    {
+      "runId": "47f4d761-873f-48fd-812f-7c8f70accccc",
+      "mode": "BATCH",
+      "startedBy": "w6-rehearsal-operator",
+      "started": 2,
+      "firstStartedAt": "2026-10-08T08:01:39.848Z"
+    },
+    {
+      "runId": "f0bd1681-2f89-44ef-a614-826bd217de93",
+      "mode": "BATCH",
+      "startedBy": "w6-rehearsal-operator",
+      "started": 3,
+      "firstStartedAt": "2026-10-08T08:01:41.655Z"
+    }
+  ]
+}

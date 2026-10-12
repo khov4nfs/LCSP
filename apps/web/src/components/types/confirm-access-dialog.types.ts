@@ -45,7 +45,7 @@ export type ConfirmAccessSupportLinksProps = {
   items: ConfirmAccessSupportItem[];
 };
 
-export type ConfirmAccessDialogMfaOptions = {
+type ConfirmAccessDialogMfaOptions = {
   isEnabled: boolean;
   isConfigured: boolean;
   onSubmit: (values: ConfirmAccessOtpValues) => Promise<void> | void;

@@ -6,14 +6,13 @@ This delivery plan is synchronized to the active module-scoped task catalog. The
 
 - Module task catalog: `docs/implementation/tasks/modules/README.md`
 - Generated module summary: `docs/implementation/tasks/README.md`
-- Developer task index: `docs/developer/task-index.md`
 - Jira import CSVs: `docs/developer/jira-lcsp-*.csv`
 
 ## Delivery Constraints
 
 - Platform config, audit, outbox, and RBAC gates must precede dependent feature modules.
 - Repository snapshot precedes scan jobs.
-- Scanner evidence assembly precedes TechnicalProfile generation.
+- Repository Deep Agent evidence derivation precedes TechnicalProfile generation.
 - TechnicalProfile and AIUsageFlow precede reconciliation and VerifiedProfile.
 - VerifiedProfile and legal retrieval precede classification.
 - Classification precedes gap analysis and final report generation.
@@ -24,7 +23,7 @@ This delivery plan is synchronized to the active module-scoped task catalog. The
 1. Platform foundation: `platform/config`, `platform/audit-writer`, `platform/outbox`, `platform/rbac`.
 2. Workspace foundation: `auth-workspace`, then web sign-in/workspace surfaces.
 3. Assessment and wizard: `assessment`, `wizard`, then wizard web surface.
-4. Repository and scan: `github-integration`, `scan`, `python-workers/scanner`, `evidence`.
+4. Repository and scan: `github-integration`, `scan`, LCSP Agent Runtime repository analysis, `evidence`.
 5. Intelligence: `python-workers/intelligence`, `ai-usage-flow`, `reconciliation`.
 6. Legal/classification/reporting: `python-workers/legal`, `python-workers/llm`, `classification`, `python-workers/classification`, `document`, `audit`, `python-workers/reporting`.
 7. Acceptance: `qa` module tasks.

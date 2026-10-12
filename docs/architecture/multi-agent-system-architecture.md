@@ -1,5 +1,7 @@
 # LCSP Multi-Agent System Architecture
 
+> **Superseded by the Repository Analyst runtime (2026-09-30), see deepagents/FLOW.md.**
+
 ## Status
 
 AUTHORITATIVE MULTI-AGENT ARCHITECTURE

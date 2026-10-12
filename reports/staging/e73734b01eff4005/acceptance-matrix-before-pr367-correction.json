@@ -1,0 +1,829 @@
+{
+  "scope": "FROZEN_PRODUCTION_STAGING_ACCEPTANCE_MATRIX_RECONCILIATION",
+  "status": "PASS",
+  "authority": "reports/architecture-freeze-migration-manifest.md#12-production-acceptance-matrix",
+  "rowCount": 25,
+  "rows": [
+    {
+      "acceptance": "Automatic legal preparation",
+      "passCondition": "Starting with a pinned corpus automatically produces, validates, persists and activates one complete LegalRule + EngineeringRule portfolio; failed preparation leaves prior ACTIVE intact.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-preparation.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-semantic-review.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-preparation-supersession.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-semantic-review-supersession.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-failed-preserves-active.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "FAIL",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-staging/46903a5b798b40aa/legal-failed-preserves-active.json",
+          "disposition": "VALID_UNAFFECTED_NEGATIVE_INVARIANT"
+        },
+        {
+          "path": "reports/w7-staging/0d077463be814c7f/legal-preparation.json",
+          "disposition": "HISTORICAL_RUNTIME_MECHANICS_PASS_SEMANTIC_FAIL"
+        },
+        {
+          "path": "reports/staging/360f2a8631fb44da/legal-preparation.json",
+          "disposition": "VALID_BOUNDED_PREVIOUS_CANDIDATE_RUNTIME_PASS"
+        },
+        {
+          "path": "reports/staging/360f2a8631fb44da/legal-semantic-review.json",
+          "disposition": "VALID_BOUNDED_PREVIOUS_CANDIDATE_ALL_SIX_SEMANTIC_PASS"
+        },
+        {
+          "path": "reports/staging/360f2a8631fb44da/legal-failed-preserves-active.json",
+          "disposition": "VALID_BOUNDED_PREVIOUS_CANDIDATE_NEGATIVE_INVARIANT_PASS"
+        },
+        {
+          "path": "reports/staging/deb86bea4e94463f/legal-semantic-review.json",
+          "disposition": "HISTORICAL_RUNTIME_PASS_SEMANTIC_FAIL_CONTEXT_REFERENCE"
+        },
+        {
+          "path": "reports/staging/8b6a8e47533445c7/legal-shape-diagnosis.json",
+          "disposition": "HISTORICAL_FAILED_SHAPE_DURING_SUBMISSION"
+        },
+        {
+          "path": "reports/staging/a4d4b629847d48cd/legal-shape-diagnosis.json",
+          "disposition": "HISTORICAL_PROVIDER_PACKET_SHAPE_FAILURE"
+        },
+        {
+          "path": "reports/staging/804a20977d4a448f/legal-semantic-review.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EVIDENCE"
+        }
+      ],
+      "qualification": "Supersession required one normal UI retry after model packet drift; the failed 400/NO_SUBMISSION and unchanged ACTIVE are preserved. No generated packet editing."
+    },
+    {
+      "acceptance": "Cross-reference, definition, exception and qualifier handling",
+      "passCondition": "Reviewed legal eval fixture proves context is followed and represented in LegalRule/context relations and EngineeringRule without dropping limiting language or citing another version.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-semantic-review.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-semantic-review-supersession.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "FAIL",
+      "historicalEvidence": [
+        {
+          "path": "reports/staging/360f2a8631fb44da/legal-semantic-review.json",
+          "disposition": "VALID_BOUNDED_PREVIOUS_CANDIDATE_ALL_SIX_SEMANTIC_PASS"
+        },
+        {
+          "path": "reports/staging/deb86bea4e94463f/legal-semantic-review.json",
+          "disposition": "HISTORICAL_RUNTIME_PASS_SEMANTIC_FAIL_CONTEXT_REFERENCE"
+        },
+        {
+          "path": "reports/staging/804a20977d4a448f/legal-semantic-review.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EVIDENCE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Zero human legal approval",
+      "passCondition": "Production routes, workers, database writes and UI contain no legal approval/signoff requirement; valid output activates from integrity gate alone.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-preparation.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-preparation-supersession.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "PASS",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-staging/46903a5b798b40aa/browser.json",
+          "disposition": "HISTORICAL_BOUNDED_BROWSER"
+        },
+        {
+          "path": "reports/w7-staging/0d077463be814c7f/legal-preparation.json",
+          "disposition": "HISTORICAL_AUTOMATIC_ACTIVATION"
+        },
+        {
+          "path": "reports/staging/804a20977d4a448f/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EVIDENCE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Zero mandatory Initial Interview",
+      "passCondition": "A repository-only assessment starts Root investigation without interview state, context-ready gate or synthetic confirmation.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "PASS",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        },
+        {
+          "path": "reports/staging/804a20977d4a448f/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EVIDENCE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Zero technical questions answerable by repository/tools",
+      "passCondition": "In source-answerable evals, Root inspects repository/document/runtime tools first and opens zero HumanResolutionRequests for facts those sources can establish.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/root-source-read-proof.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Applicable vs not applicable",
+      "passCondition": "Root gives every pinned EngineeringRule exactly one evidenced `APPLICABLE` or `NOT_APPLICABLE`; deterministic applicability code cannot decide it.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Compliant vs non-compliant",
+      "passCondition": "For each applicable rule, Root resolves every required criterion `MET`/`NOT_MET` and gives one `COMPLIANT`/`NON_COMPLIANT` result with accepted refs; validator rejects missing/stale/fabricated refs without rejudging semantics.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/bounded-negative-evidence-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ],
+      "qualification": "Intentional source timing defect gives live NON_COMPLIANT with both MET/NOT_MET criteria. No claim of a separate all-COMPLIANT live repository variant."
+    },
+    {
+      "acceptance": "HITL same-thread resume",
+      "passCondition": "Material human fact opens one request and interrupts; authorized answer updates Case/Evidence and resumes identical server `threadId`; no duplicate question or decision is created.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Crash/restart resume",
+      "passCondition": "Kill/restart worker during investigation and during HITL; the same checkpoint/thread and accepted domain state resume idempotently.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/crash-restart-assessmentA-investigation.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/crash-restart-assessmentA-human-wait.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/crash-restart-assessmentA-accepted-answer.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Stop/continue",
+      "passCondition": "Stop persists `PAUSED` and execution pause; Continue resumes the same Root thread, restores waiting state if blockers remain, and never starts a second root. Cancel is terminal.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/stop-finalization-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/terminal-cancellation-guard.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "latestDiagnosticEvidence": "reports/staging/9c9c33eee5934b76/stop-finalization-acceptance.json:PASS_CURRENT_ROOT_AFTER_MODEL_BOUNDARY; new whole-source candidate rerun required",
+      "priorStatus": "FAIL",
+      "historicalEvidence": [
+        {
+          "path": "reports/assessment-root-filesystem-regression.xml",
+          "disposition": "FOCUSED_NATIVE_STOP_CONTINUE_PASS"
+        },
+        {
+          "path": "reports/staging/360f2a8631fb44da/browser-root-construction.json",
+          "disposition": "EXACT_IMAGE_BROWSER_ROOT_CONSTRUCTION_FAIL_CORRECTED_PENDING_REBUILD"
+        },
+        {
+          "path": "reports/staging/deb86bea4e94463f/browser-acceptance.json",
+          "disposition": "HISTORICAL_PARTIAL_BROWSER_WITH_ROOT_PROVIDER_AND_STREAM_FAILURES"
+        },
+        {
+          "path": "reports/staging/804a20977d4a448f/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EVIDENCE"
+        }
+      ],
+      "qualification": "Stop/Continue are actual UI actions; terminal cancellation is a current-image shared-state and actual Continue-service nonpersisted mechanical guard. No customer Cancel UI/action claimed."
+    },
+    {
+      "acceptance": "One assessment / one Root thread",
+      "passCondition": "Concurrent create, resume, retry, pause and HITL for an assessment resolve to exactly one unique AssessmentRuntime thread mapping and at most one active Root lease; per-rule or per-request root threads are rejected.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/stop-finalization-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/crash-restart-assessmentA-accepted-answer.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "PARTIAL",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        },
+        {
+          "path": "reports/staging/804a20977d4a448f/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EVIDENCE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Cross-assessment memory canary isolation",
+      "passCondition": "Put unique raw canary in A; under same/different users, tenants, repository and legal portfolio, B cannot retrieve, emit, cite or authorize it.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/cross-assessment-canary.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/canary-final-hidden-scan.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/canary-report-content-isolation.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Shared memory cannot become evidence",
+      "passCondition": "Retrieve a sanitized heuristic and attempt to cite/submit it; DecisionValidator rejects it as an evidence/provenance type.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/shared-learning-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/memory-provenance-assessmentA.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/memory-provenance-assessmentC.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/memory-provenance-assessmentD.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Stale decision invalidation",
+      "passCondition": "Increment Case revision or change the pinned repository/source/rule version; dependent decisions become `INVALIDATED`, cannot finalize, and Root re-investigates.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/advance-case-assessmentA.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/stale-decision-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "latestDiagnosticEvidence": "reports/staging/9c9c33eee5934b76/stale-decision-acceptance.json:PASS_CURRENT_ROOT_MECHANICS; new whole-source candidate rerun required",
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ],
+      "qualification": "Real Case revision mutation invalidates old decision; same Root reloads and reevaluates unchanged accepted evidence. No claim of a second physical file scan."
+    },
+    {
+      "acceptance": "Legal portfolio version pinning",
+      "passCondition": "New activation affects only newly created assessments; existing assessments and reports retain exact immutable portfolio/corpus version; no cached rule retarget occurs.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/portfolio-supersession-old-pin.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/portfolio-supersession-new-pin.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Multi-tenant isolation",
+      "passCondition": "API/tool authorization rejects foreign assessment, case, evidence, request, event, thread and artifact access across every endpoint and task descendant.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/memory-provenance-assessmentC.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/canary-final-hidden-scan.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "PARTIAL",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        },
+        {
+          "path": "reports/staging/deb86bea4e94463f/browser-acceptance.json",
+          "disposition": "HISTORICAL_PARTIAL_BROWSER_WITH_ROOT_PROVIDER_AND_STREAM_FAILURES"
+        }
+      ]
+    },
+    {
+      "acceptance": "Concurrent assessments",
+      "passCondition": "Concurrent starts produce distinct unique thread namespaces, execution leases, event sequences and sandbox paths with no cross-run data or write collision.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/concurrent-assessment-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/cross-assessment-canary.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Bounded negative evidence",
+      "passCondition": "Root can conclude `NOT_MET` from absence only when its agent judgment uses authenticated bounded coverage; missing/partial/index-gap coverage blocks that inference and is never deterministic non-compliance.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/bounded-negative-evidence-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/decision-provenance-assessmentA.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/decision-provenance-assessmentC.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "FAIL",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "No final unresolved blocker",
+      "passCondition": "Any open HumanResolutionRequest, required input, pending/invalidated DRS item, stale evidence/pin, active fatal execution or invalid portfolio makes finalization fail with structured blockers.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/completion-blockers-assessmentA.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/advance-case-assessmentA.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ],
+      "qualification": "Actual UI open-HITL and stale decision block reports; all material gate branches are compiled current-image service checks with nonpersisted read perturbations, not HTTP/customer UI actions."
+    },
+    {
+      "acceptance": "No final UNKNOWN/PARTIAL/open-question language",
+      "passCondition": "No V2 decision schema contains final UNKNOWN/PARTIAL; no report is published with unresolved request/input, open-question field, or unresolved-question placeholder. Reviewed report evals reject those phrases/outcomes.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-root-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Token/activity accounting",
+      "passCondition": "Each model attempt has one stable invocation ID; persisted usage reconciles with billing ledger; AssessmentEvent shows activity/token usage without raw provider/customer content; duplicate callbacks do not double count.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/live-primary-accounting-summary.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-accounting-assessmentA.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-accounting-assessmentB.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-accounting-assessmentC.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-accounting-assessmentD.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "PASS",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        },
+        {
+          "path": "reports/staging/deb86bea4e94463f/browser-acceptance.json",
+          "disposition": "HISTORICAL_PARTIAL_BROWSER_WITH_ROOT_PROVIDER_AND_STREAM_FAILURES"
+        },
+        {
+          "path": "reports/staging/804a20977d4a448f/assessment-accounting-providerSetup.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EVIDENCE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Legacy path absence",
+      "passCondition": "Production image/API/import graph has no Scanner reasoning, mandatory Interview, per-rule dispatcher, Python semantic loop, targeted-reanalysis state machine, deterministic semantic judge, legal approval, regex normative judge, lazy legal recovery/cache/bundle, duplicate lifecycle projection, or V1 fallback/flag. Historical migrations remain only for schema history.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/release-images/20261011005041_cce648aed2a3/report.json",
+          "disposition": "CURRENT_FOUR_MERGED_ROOTFS_AND_SEVEN_DOCKER_PASS"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "PASS",
+      "historicalEvidence": [
+        {
+          "path": "reports/release-images/20261010031717_9a317b1c393a/report.json",
+          "disposition": "HISTORICAL_EXACT_IMAGE_ROOTFS_AND_DOCKER_PASS"
+        },
+        {
+          "path": "reports/release-images/20261010064523_52cdb350a666/report.json",
+          "disposition": "HISTORICAL_AFTER_VALIDATED_PACKET_INSTRUCTIONS"
+        },
+        {
+          "path": "reports/release-images/20261010070630_052554a431e0/report.json",
+          "disposition": "HISTORICAL_AFTER_PROVIDER_TOOL_SCHEMA_EXPOSURE"
+        },
+        {
+          "path": "reports/release-images/20261010111038_e7b5ed769ac0/report.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EVIDENCE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Legal portfolio supersession",
+      "passCondition": "Activate newer portfolio during an assessment; its existing version pin and decisions remain unchanged and traceable. A new assessment pins the new version. Changed assessment-owned inputs invalidate dependent decisions before finalization.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/portfolio-supersession-old-pin.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/portfolio-supersession-new-pin.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/stale-decision-acceptance.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/legal-semantic-review-supersession.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "NOT_PROVEN",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-domain/20261009071553_433748/report.json",
+          "disposition": "VALID_BOUNDED_MECHANICAL_FIXTURE_REUSABLE"
+        }
+      ]
+    },
+    {
+      "acceptance": "Migration and rollback safety",
+      "passCondition": "Clean DB and populated V1 upgrade pass; migration is restartable/idempotent, old artifacts/history reconcile, no down migration is used after V2 writes, and the pre-cutover restore point is verified before traffic switch.",
+      "status": "PASS_REUSED_UNAFFECTED",
+      "evidence": [
+        {
+          "path": "reports/w6-rehearsal/20261008075952_82952/report.json",
+          "disposition": "ACCEPTED_PRODUCTION_SHAPED_RESTORE_AND_REPLAY"
+        },
+        {
+          "path": "reports/w6-input-dispositions/20261008095633454_287575/report.json",
+          "disposition": "ACCEPTED_FOCUSED_DISPOSITION_SUPPLEMENT"
+        },
+        {
+          "path": "reports/w7-migration/20261009062210_313264/report.json",
+          "disposition": "ACCEPTED_CLEAN_POPULATED_POST_CUTOVER_RETIREMENT"
+        }
+      ],
+      "gap": null
+    },
+    {
+      "acceptance": "Assessment deletion and retention",
+      "passCondition": "Deletion revokes/deletes eligible checkpoint, sandbox, requests and domain content; retained legal-hold/audit records follow policy; shared memory contains no attributable customer payload and deletion does not affect another assessment.",
+      "status": "PASS",
+      "evidence": [
+        {
+          "path": "reports/staging/e73734b01eff4005/assessment-erasure-assessmentB.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/browser-full-flow.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        },
+        {
+          "path": "reports/staging/e73734b01eff4005/canary-final-hidden-scan.json",
+          "disposition": "CURRENT_EXACT_IMAGE_EXECUTABLE_EVIDENCE"
+        }
+      ],
+      "gap": null,
+      "priorStatus": "PASS_REUSED_UNAFFECTED",
+      "historicalEvidence": [
+        {
+          "path": "reports/w7-deletion/20261009071618_435056/report.json",
+          "disposition": "ACCEPTED_REAL_API_POSTGRES_DOCKER_DELETE_AND_TENANT_ISOLATION"
+        }
+      ]
+    }
+  ],
+  "broadAcceptedSuitesRerun": false,
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "purposeNamingAudit": "reports/purpose-based-naming-audit.json",
+  "currentStagingRunId": "e73734b01eff4005",
+  "currentImageReceipt": "reports/release-images/20261011005041_cce648aed2a3/report.json",
+  "fullBrowserGate": "PASS",
+  "blockingEvidence": [],
+  "currentSourceAcceptance": {
+    "status": "PASS",
+    "updatedAt": "2026-10-11T01:59:38.675873+00:00",
+    "candidateDisposition": "EXACT_CURRENT_SOURCE_HASHES_VERIFIED",
+    "focusedRepairReceipt": "reports/gemini-tool-nullability-repair.json",
+    "nextState": "WAITING_FOR_EXPLICIT_GIT_PUBLICATION_AUTHORIZATION",
+    "fullBrowserGate": "PASS",
+    "semanticAcceptance": "INITIAL_AND_SUPERSESSION_6_OF_6_PASS"
+  },
+  "currentSourceContinuation": {
+    "imageReceipt": "reports/release-images/20261011005041_cce648aed2a3/report.json",
+    "imageGate": "PASS",
+    "sourceMatched": 1078,
+    "buildInputsMatched": 22,
+    "stagingRunId": "e73734b01eff4005",
+    "browserGate": "PASS",
+    "priorCriticalRootProofs": "reports/staging/9c9c33eee5934b76/stop-finalization-acceptance.json and stale-decision-acceptance.json:PASS; fresh complete-source UI required",
+    "priorRunsHistorical": [
+      "99a03f5f8bdb4cd0",
+      "492d9712213d4400",
+      "055d79e253064116",
+      "d06efa3ef9f44a9e",
+      "9c9c33eee5934b76"
+    ]
+  },
+  "boundedNegativeProvenanceCorrection": {
+    "status": "PASS_FOCUSED_PENDING_EXACT_IMAGE",
+    "receipt": "reports/bounded-negative-provenance-repair.json",
+    "interruptedBuild": "reports/release-images/20261010170843_26e45a9dc032/report.json",
+    "rowsPromoted": false
+  },
+  "summary": {
+    "PASS": 24,
+    "PASS_REUSED_UNAFFECTED": 1,
+    "total": 25
+  },
+  "reconciledAt": "2026-10-11T01:59:38.675873+00:00",
+  "remoteCurrentSourceCi": "NOT_PROVEN_PENDING_AUTHORIZED_GIT_PUBLICATION",
+  "ownedTeardown": {
+    "status": "STOPPED",
+    "receipt": "reports/staging/e73734b01eff4005/teardown.json"
+  }
+}

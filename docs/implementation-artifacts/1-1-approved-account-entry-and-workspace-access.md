@@ -72,7 +72,7 @@ so that I can access only the workspace I am authorized to use.
 ### Current State and Scope Guardrails
 
 - Repo hiện là documentation-first; chưa có file mã nguồn để update. Dev agent được phép tạo mã mới, nhưng phải đi theo retained package topology thay vì tạo thư mục ad hoc.
-- Topology được giữ lại cho runtime TypeScript-first là `apps/api` cho NestJS API, `apps/web` cho Next.js web, và `packages/*` cho shared contracts/helpers. Python worker monorepo là workstream khác và không thuộc story này. [Source: docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md]
+- Topology được giữ lại cho runtime TypeScript-first là `apps/api` cho NestJS API, `apps/web` cho Next.js web, và `packages/*` cho shared contracts/helpers. Python worker monorepo là workstream khác và không thuộc story này. [Source: docs/architecture/architecture.md]
 - Nếu `module task catalog` chưa được hiện thực hóa, dev agent chỉ nên tạo bootstrap tối thiểu cần cho auth/workspace slice này và vẫn giữ tương thích với layout bootstrap chung về sau; không mở rộng sang scanner/worker/legal stacks. [Source: docs/implementation/tasks/modules/README.md]
 
 ### Architecture Compliance
@@ -170,7 +170,7 @@ so that I can access only the workspace I am authorized to use.
 - [Source: docs/specs/domain-state-machines.md]
 - [Source: docs/specs/event-catalog.md]
 - [Source: docs/architecture/architecture.md]
-- [Source: docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md]
+- [Source: docs/architecture/architecture.md]
 - [Source: docs/implementation/backend-implementation.md]
 - [Source: docs/implementation/persistence-implementation.md]
 - [Source: docs/implementation/decisions/rbac-runtime-decision.md]

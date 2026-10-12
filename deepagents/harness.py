@@ -6,57 +6,25 @@ defined separately under ``tools/<node>/<tool-name>/code.py``.
 
 from __future__ import annotations
 
-from deepagents import (
-    FilesystemPermission,
-    GeneralPurposeSubagentProfile,
-    HarnessProfile,
-    register_harness_profile,
-)
+from deepagents import HarnessProfile, register_harness_profile
 
-from model_policy import ALL_LCSP_MODEL_SPECS, ROOT_MODEL_SPEC
+from model_policy import load_model_routes
 
-
-# Backward-compatible name used by the managed entrypoint/tests.
-LCSP_MODEL_SPEC = ROOT_MODEL_SPEC
-
-# Deep Agents injects filesystem tools in addition to authored tools. LCSP keeps
-# only read_file visible because Managed Skills use it for progressive disclosure.
-# All other filesystem / execution tools are outside the assessment flow.
-HIDDEN_BUILTIN_TOOLS = frozenset(
-    {
-        "ls",
-        "write_file",
-        "edit_file",
-        "delete",
-        "glob",
-        "grep",
-        "execute",
-    }
-)
-
-LCSP_HARNESS_PROFILE = HarnessProfile(
-    excluded_tools=HIDDEN_BUILTIN_TOOLS,
-    general_purpose_subagent=GeneralPurposeSubagentProfile(enabled=False),
-)
-
-# read_file remains visible only for Managed Skills. No repository/code access is
-# granted through the Deep Agents filesystem; repository evidence must come from
-# LCSP governed application tools.
-LCSP_FILESYSTEM_PERMISSIONS = [
-    FilesystemPermission(
-        operations=["read"],
-        paths=["/skills/**"],
-        mode="allow",
-    ),
-    FilesystemPermission(
-        operations=["read", "write"],
-        paths=["/**"],
-        mode="deny",
-    ),
-]
+# LCSP intentionally uses the complete Deep Agents harness. Repository analysis runs
+# inside an isolated backend per assessment, so filesystem, shell, task/subagent,
+# summarization, skills and human-in-the-loop capabilities remain available instead
+# of being reimplemented as LCSP-authored repository analyzers.
+HIDDEN_BUILTIN_TOOLS = frozenset()
+LCSP_HARNESS_PROFILE = HarnessProfile()
+LCSP_FILESYSTEM_PERMISSIONS: list = []
 
 
 def configure_lcsp_harness() -> None:
-    """Register identical LCSP restrictions for root and role-specific model specs."""
-    for model_spec in ALL_LCSP_MODEL_SPECS:
-        register_harness_profile(model_spec, LCSP_HARNESS_PROFILE)
+    """Register the identical LCSP harness profile for every configured model route.
+
+    Models are built per role from the model routes YAML (see ``model_policy``), so no
+    provider/model facts live here; every route receives the same restrictions.
+    """
+    routes = load_model_routes()
+    for route in routes.routes.values():
+        register_harness_profile(f"{route['provider']}:{route['model']}", LCSP_HARNESS_PROFILE)

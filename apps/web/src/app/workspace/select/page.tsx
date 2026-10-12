@@ -1,14 +1,10 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import {
-  ArrowRightIcon,
-  CheckIcon,
-  Globe2Icon,
-  ShieldCheckIcon,
-} from "lucide-react";
+import { ArrowRightIcon, CheckIcon, Globe2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { LCSPLogo } from "@/components/atoms/lcsp-logo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useWorkspaceUiStore } from "@/features/workspace/stores/workspace-ui-store";
@@ -53,14 +49,12 @@ export default function SelectWorkspacePage() {
   return (
     <main className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="relative flex h-24 shrink-0 items-center justify-center px-6">
-        <div className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <ShieldCheckIcon className="size-4" />
-          </span>
-          <span className="text-2xl font-bold tracking-normal">
-            {t("pages.appShell.productName")}
-          </span>
-        </div>
+        <LCSPLogo
+          variant="lockup"
+          size="md"
+          decorative={false}
+          label={t("pages.appShell.productName")}
+        />
         <div className="absolute top-7 right-6 hidden text-right text-xs sm:block">
           <p className="text-muted-foreground">
             {t("pages.workspaceSelector.missingSomething")}
@@ -145,7 +139,7 @@ export default function SelectWorkspacePage() {
                   disabled={selectWorkspace.isPending}
                   className="flex w-full items-center gap-4 px-8 py-5 text-left transition hover:bg-muted/45 disabled:cursor-wait disabled:opacity-80"
                 >
-                  <span className="flex size-12 shrink-0 items-center justify-center rounded-sm bg-zinc-600 text-xl font-bold text-white">
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-sm bg-primary text-xl font-bold text-primary-foreground">
                     {getWorkspaceInitials(workspace.name)}
                   </span>
                   <span className="min-w-0 flex-1">

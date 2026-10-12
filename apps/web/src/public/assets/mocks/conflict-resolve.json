@@ -1,7 +1,0 @@
-{
-  "conflict_id": "conflict-1",
-  "status": "RESOLVED",
-  "resolved_at": "2026-07-29T10:30:00.000Z",
-  "all_conflicts_resolved": false,
-  "correlationId": "mock-conflict-resolve"
-}

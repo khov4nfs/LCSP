@@ -12,31 +12,31 @@ export type SettingsNavigationItem = {
 
 export const settingsNavigationItems: SettingsNavigationItem[] = [
   {
+    id: SETTINGS_SECTION_IDS.general,
+    labelKey: "pages.workspace.settingsHub.sections.general",
+  },
+  {
     id: SETTINGS_SECTION_IDS.account,
     labelKey: "pages.workspace.settingsHub.sections.account",
   },
   {
-    id: SETTINGS_SECTION_IDS.appearance,
-    labelKey: "pages.workspace.settingsHub.sections.appearance",
+    id: SETTINGS_SECTION_IDS.privacy,
+    labelKey: "pages.workspace.settingsHub.sections.privacy",
   },
   {
-    id: SETTINGS_SECTION_IDS.notifications,
-    labelKey: "pages.workspace.settingsHub.sections.notifications",
+    id: SETTINGS_SECTION_IDS.billing,
+    labelKey: "pages.workspace.settingsHub.sections.billing",
   },
   {
-    id: SETTINGS_SECTION_IDS.emails,
-    labelKey: "pages.workspace.settingsHub.sections.emails",
+    id: SETTINGS_SECTION_IDS.usage,
+    labelKey: "pages.workspace.settingsHub.sections.usage",
   },
   {
-    id: SETTINGS_SECTION_IDS.passwordAndAuthentication,
-    labelKey: "pages.workspace.settingsHub.sections.passwordAndAuthentication",
+    id: SETTINGS_SECTION_IDS.capabilities,
+    labelKey: "pages.workspace.settingsHub.sections.capabilities",
   },
   {
-    id: SETTINGS_SECTION_IDS.sessions,
-    labelKey: "pages.workspace.settingsHub.sections.sessions",
-  },
-  {
-    id: SETTINGS_SECTION_IDS.repositories,
-    labelKey: "pages.workspace.settingsHub.sections.repositories",
+    id: SETTINGS_SECTION_IDS.connectors,
+    labelKey: "pages.workspace.settingsHub.sections.connectors",
   },
 ];

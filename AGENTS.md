@@ -2,6 +2,15 @@
 
 @RTK.md
 
+## Browser verification
+
+For frontend or web application work:
+
+- Use Playwright MCP for user flows and UI interaction.
+- Use Chrome DevTools MCP for console, network, DOM, CSS, and performance debugging.
+- Do not consider a frontend bug fixed until the application has been opened in a real browser and the affected flow has been verified.
+- When possible, reproduce the issue before changing code and verify the same flow after the change.
+
 ## Tailwind CSS v4.3 utility policy
 
 - Before adding or editing a Tailwind class, prefer the canonical Tailwind v4.3 utility over an arbitrary value whenever both produce the same CSS.
@@ -13,8 +22,18 @@
 
 - Keep shadcn primitives in `apps/web/src/components/ui`. Keep reusable Atomic Design components in `apps/web/src/components/{atoms,molecules,organisms}`; they must remain domain-neutral and reusable across features.
 - Keep feature-specific composition in `apps/web/src/features/<feature>/components/{molecules,organisms}`. Do not place feature components directly under `features/<feature>/molecules` or `features/<feature>/organisms`.
+- Split reusable UI behavior into the smallest existing Atomic Design primitive that owns it; do not place an entire interaction surface, visual fixture, or multi-step workflow in one large page/component when existing atoms, molecules, or organisms can compose it.
 - Put schemas, types, and static configuration in sibling `schemas/`, `types/`, and `config/` directories, never inline in a component.
 - All customer-facing copy, including labels, helper text, validation messages, alerts, metadata, and accessible labels, must be represented by keys and resolved from `@lcsp/i18n`; never hardcode display strings in `apps/web`.
+- Do not add HTML `title` attributes for hover hints or truncated text. Use the existing shadcn `Tooltip`, `TooltipTrigger`, and `TooltipContent` primitives while preserving semantic labels with visible text or `aria-label`.
+
+## Brand invariant
+
+- The approved product brand source is the Figma DS Brand system: DS Brand `1104:31791`, Logo Mark `1105:31795`, Logo Lockup `1106:31809`, and usage notes `1107:31803`.
+- Whenever an approved screen contains product branding, reuse the shared production `LCSPLogo` component backed by the exact Figma asset.
+- Use the Logo Lockup for navigation, auth, admin, and footer surfaces where space permits.
+- Use the Logo Mark only for constrained icon contexts such as favicon and app icon.
+- Never recreate, approximate, replace with Lucide, or render plain `LCSP` text when the approved lockup is required.
 
 ## Frontend form architecture
 
@@ -92,3 +111,16 @@ When debugging, fixing a bug, or tracing an error, the response **must** include
 2. **Fix** – Explain _how_ the fix works: what changed, why it resolves the root cause, and any trade-offs or follow-up risks.
 
 Do not skip either section even for seemingly trivial fixes. If both sections can be stated in one sentence each, that is acceptable, but they must appear.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

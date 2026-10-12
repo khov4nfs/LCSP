@@ -2,6 +2,13 @@ import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import type { AuthErrorCode } from "@lcsp/contracts/auth";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
+  RBAC_DECISIONS,
+  RBAC_REASON_CODES,
+  type RbacContextDenialReason,
+  type RbacDecision,
+  type RbacReasonCode,
+} from "@lcsp/contracts/rbac";
+import {
   HttpStatus,
   Inject,
   Injectable,
@@ -13,10 +20,12 @@ import {
 import { Reflector } from "@nestjs/core";
 
 import type { AuthenticatedRequest } from "../../common/interfaces/authenticated-request.interface.js";
-import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
-import { PrismaAuthorizationDecisionRepository } from "../../modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.js";
-import { createCorrelationId } from "../../modules/auth-workspace/infrastructure/security/security.utils.js";
-import { problemException } from "../problems/problem-factory.js";
+import {
+  AUTHORIZATION_DECISION_REPOSITORY,
+  type AuthorizationDecisionRepository,
+} from "./authorization-decision.repository.js";
+import { createCorrelationId } from "../security/crypto.utils.js";
+import { problemException } from "../http/filters/error.factory.js";
 import { RE_AUTH_FOR_SENSITIVE_ROUTE_METADATA_KEY } from "../security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { isSensitiveActionVerificationFresh } from "../security/sensitive-route-policy.js";
 import { ALLOW_PENDING_MFA_METADATA_KEY } from "./decorators/allow-pending-mfa.decorator.js";
@@ -25,17 +34,10 @@ import {
   type RbacMetadata,
 } from "./decorators/rbac-metadata.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
-import {
-  LOCAL_RBAC_REASON_CODES,
-  type RbacContextDenialReason,
-} from "./rbac-reason-codes.js";
 
 const DECISION_LOG_RESOURCE_TYPE = AUDIT_RESOURCE_TYPES.httpRoute;
 
-export const LOCAL_RBAC_DECISIONS = {
-  allow: "ALLOW",
-  deny: "DENY",
-} as const;
+export const LOCAL_RBAC_DECISIONS = RBAC_DECISIONS;
 
 @Injectable()
 export class RbacGuard implements CanActivate {
@@ -44,7 +46,7 @@ export class RbacGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly loader: RbacContextLoader,
-    @Inject(PrismaAuthorizationDecisionRepository)
+    @Inject(AUTHORIZATION_DECISION_REPOSITORY)
     private readonly decisions: AuthorizationDecisionRepository,
   ) {}
 
@@ -68,7 +70,7 @@ export class RbacGuard implements CanActivate {
         sessionId: null,
         resourceId,
         decision: LOCAL_RBAC_DECISIONS.deny,
-        reasonCode: LOCAL_RBAC_REASON_CODES.metadataMissing,
+        reasonCode: RBAC_REASON_CODES.metadataMissing,
         correlationId,
       });
       throw this.rbacDenied(correlationId);
@@ -82,7 +84,7 @@ export class RbacGuard implements CanActivate {
         sessionId: null,
         resourceId,
         decision: LOCAL_RBAC_DECISIONS.deny,
-        reasonCode: LOCAL_RBAC_REASON_CODES.sessionInvalid,
+        reasonCode: RBAC_REASON_CODES.sessionInvalid,
         correlationId,
       });
       throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId, {
@@ -135,7 +137,7 @@ export class RbacGuard implements CanActivate {
         sessionId: session.id,
         resourceId,
         decision: LOCAL_RBAC_DECISIONS.allow,
-        reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
+        reasonCode: RBAC_REASON_CODES.authorized,
         correlationId,
       });
       return true;
@@ -151,7 +153,7 @@ export class RbacGuard implements CanActivate {
         sessionId: session.id,
         resourceId,
         decision: LOCAL_RBAC_DECISIONS.deny,
-        reasonCode: LOCAL_RBAC_REASON_CODES.denied,
+        reasonCode: RBAC_REASON_CODES.denied,
         correlationId,
       });
       throw this.rbacDenied(correlationId);
@@ -174,7 +176,7 @@ export class RbacGuard implements CanActivate {
       sessionId: session.id,
       resourceId,
       decision: LOCAL_RBAC_DECISIONS.allow,
-      reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
+      reasonCode: RBAC_REASON_CODES.authorized,
       correlationId,
     });
     return true;
@@ -231,13 +233,19 @@ export class RbacGuard implements CanActivate {
   ): HttpException {
     const reason = typeof denial === "string" ? denial : denial.reason;
     switch (reason) {
-      case LOCAL_RBAC_REASON_CODES.sessionInvalid:
+      case RBAC_REASON_CODES.accountSuspended:
+        return problemException(
+          AUTH_ERROR_CODES.accountSuspended,
+          correlationId,
+          { status: HttpStatus.FORBIDDEN },
+        );
+      case RBAC_REASON_CODES.sessionInvalid:
         return problemException(
           AUTH_ERROR_CODES.sessionInvalid,
           correlationId,
           { status: HttpStatus.UNAUTHORIZED },
         );
-      case LOCAL_RBAC_REASON_CODES.mfaRequired:
+      case RBAC_REASON_CODES.mfaRequired:
         return problemException(AUTH_ERROR_CODES.mfaRequired, correlationId, {
           meta:
             typeof denial === "string"
@@ -245,7 +253,7 @@ export class RbacGuard implements CanActivate {
               : { mfaEnrolled: denial.mfaEnrolled === true },
           status: HttpStatus.UNAUTHORIZED,
         });
-      case LOCAL_RBAC_REASON_CODES.loadError:
+      case RBAC_REASON_CODES.loadError:
         return this.rbacDenied(correlationId);
     }
   }
@@ -260,10 +268,8 @@ export class RbacGuard implements CanActivate {
     actorId: string | null;
     sessionId: string | null;
     resourceId: string;
-    decision: (typeof LOCAL_RBAC_DECISIONS)[keyof typeof LOCAL_RBAC_DECISIONS];
-    reasonCode:
-      | AuthErrorCode
-      | (typeof LOCAL_RBAC_REASON_CODES)[keyof typeof LOCAL_RBAC_REASON_CODES];
+    decision: RbacDecision;
+    reasonCode: AuthErrorCode | RbacReasonCode;
     correlationId: string;
   }): Promise<void> {
     try {
@@ -278,7 +284,7 @@ export class RbacGuard implements CanActivate {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to write AuthDecisionLog (decision=${input.decision}): ${(error as Error).message}`,
+        `Failed to write authorization AuditEvent (decision=${input.decision}): ${(error as Error).message}`,
       );
     }
   }

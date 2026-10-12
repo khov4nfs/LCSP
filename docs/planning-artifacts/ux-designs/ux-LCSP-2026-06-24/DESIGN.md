@@ -9,7 +9,6 @@ sources:
   - docs/specs/user-task-flows.md
   - docs/specs/requirements-traceability-summary.md
   - docs/specs/legal-matching-domain-spec.md
-  - docs/specs/scanner-spec.md
 updated: 2026-06-25
 colors:
   background: '#F7F8FA'
@@ -101,6 +100,8 @@ components:
     foreground: '{colors.ink}'
     radius: '{rounded.sm}'
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
 
 # LCSP Design Spine
 

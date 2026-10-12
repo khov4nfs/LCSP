@@ -1,5 +1,7 @@
 # Queue Implementation
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Status
 
 AUTHORITATIVE IMPLEMENTATION DOCUMENT
@@ -22,7 +24,7 @@ Queue handles trusted scan trigger resolution, Repository Scan, workflow/orchest
 
 - `docs/implementation/backend-implementation.md`
 - `docs/implementation/persistence-implementation.md`
-- `docs/implementation/scanner-implementation.md`
+- `docs/architecture/repository-deep-agent-analysis.md`
 - `docs/specs/event-catalog.md`
 - `docs/specs/domain-state-machines.md`
 
@@ -43,7 +45,7 @@ Queue handles trusted scan trigger resolution, Repository Scan, workflow/orchest
 | `classification_run`      | Legal RAG + risk classification                       | VerifiedProfile version + corpus version                                                             |
 | `gap_analysis_run`        | Generate compliance gap analysis after classification | classification result + legal-match versions                                                         |
 | `document_generation`     | Generate document artifact                            | assessment + template + result versions                                                              |
-| `cleanup_verification`    | Verify scanner workspace cleanup                      | scan id + workspace id                                                                               |
+| `cleanup_verification`    | Verify managed repository sandbox lifecycle                      | scan id + workspace id                                                                               |
 | `recovery_replay`         | Reconcile stuck job/state                             | workflow run + checkpoint                                                                            |
 
 ## Job Envelope

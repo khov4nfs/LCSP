@@ -1,7 +1,4 @@
-import type {
-  AssessmentStatusCode,
-  WizardStatusCode,
-} from "@lcsp/contracts/assessment";
+import type { AssessmentLifecycle } from "@lcsp/contracts/assessment";
 import type { AuthUserRole } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 
@@ -15,22 +12,20 @@ export type WorkspaceContext = {
   };
 };
 
-export type AssessmentStatus = AssessmentStatusCode;
-
 export type AssessmentSummary = {
   id: string;
   name: string;
-  status: AssessmentStatus;
-  wizard_status: WizardStatusCode;
+  lifecycle: AssessmentLifecycle | null;
+  runtime: import("@lcsp/contracts/evidence").AssessmentRuntime | null;
   created_at: string;
 };
 
-export type WorkspaceRedirectOutcome = {
+type WorkspaceRedirectOutcome = {
   kind: typeof API_OUTCOME_KINDS.redirect;
   location: string;
 };
 
-export type WorkspaceLoadedOutcome = {
+type WorkspaceLoadedOutcome = {
   kind: typeof API_OUTCOME_KINDS.loaded;
   workspace: WorkspaceContext;
 };

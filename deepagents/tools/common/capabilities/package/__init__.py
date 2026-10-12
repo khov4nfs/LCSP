@@ -1,1 +1,1 @@
-"""Shared package-level contracts for LCSP Managed Deep Agent tooling."""
+"""Shared package-level contracts for LCSP Deep Agent tooling."""

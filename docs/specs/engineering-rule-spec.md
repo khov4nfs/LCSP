@@ -1,5 +1,7 @@
 # Engineering Rule Specification
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Status
 AUTHORITATIVE — LCSP-999
 
@@ -37,4 +39,4 @@ Compilation fails closed for unknown graph node/edge vocabulary, duplicate/inval
 
 ## Investigation
 
-Cached graph queries run before investigation LLM tokens are spent. LLM output is an `EvidenceClaim`, not a legal verdict. Claims require resolvable immutable evidence refs and are revalidated deterministically.
+One Repository Analyst Deep Agent task analyzes each eligible EngineeringRule directly in the pinned repository; no graph query is pre-executed on its behalf. The agent's output is a governed per-criterion assessment (`submit_rule_assessment`), not a legal verdict; LCSP converts accepted criteria into `EvidenceClaim`s. Evidence refs are runtime-minted and revalidated deterministically. See `deepagents/FLOW.md`.

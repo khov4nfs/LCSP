@@ -1,0 +1,23 @@
+{
+  "scope": "SOURCE_VERIFIED_V1_LAYOUT_EXPECTATIONS_AND_ORPHAN_NAMESPACES",
+  "affectedTests": [
+    "deepagents/tests/test_legal_runtime_layout.py",
+    "deepagents/tests/test_llm_runtime_capability_layout.py",
+    "deepagents/tests/test_provenance_capability_layout.py",
+    "deepagents/tests/test_reporting_runtime_capability_layout.py"
+  ],
+  "retainedCanonical": [
+    "official corpus acquisition/extraction/index/integrity",
+    "structure-only Chroma source citation",
+    "mechanical legal dispatcher and entrypoints",
+    "generic authorization/infrastructure",
+    "audit export",
+    "managed Assessment Root/Legal Preparation and human-resolution procedure"
+  ],
+  "deletedSource": "deepagents/tools/legal/sources/recovery/__init__.py (empty, no current caller)",
+  "physicalCleanup": "reports/w7-v1-namespace-bytecode-cleanup.json",
+  "negativeImportPolicy": "Retired governance/catalog/registry/runtime_binding/report/projection/delivery/dossier imports fail; canonical dispatcher/source/audit imports resolve.",
+  "focusedResults": "11 PASS in 1.77 seconds; retirement audit 1115 files / 27 patterns / zero refs; diff/style check PASS",
+  "fullPythonRevalidation": "MISSING",
+  "imageFilesystem": "NOT_PROVEN"
+}

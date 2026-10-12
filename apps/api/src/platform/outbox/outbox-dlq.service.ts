@@ -1,4 +1,5 @@
 import { Injectable, HttpStatus } from "@nestjs/common";
+import { isRetiredOutboxEventType } from "./retired-event-policy.js";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import {
@@ -7,16 +8,12 @@ import {
   OUTBOX_ERROR_CODES,
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
-import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { OutboxRepository } from "./outbox.repository.js";
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
-import { problemException } from "../problems/problem-factory.js";
+import { problemException } from "../http/filters/error.factory.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
-import {
-  fromPrismaEvidenceAcceptanceStatus,
-  fromPrismaRepositoryScanJobStatus,
-} from "../../infrastructure/prisma/prisma-enum-mappers.js";
+import { fromPrismaRepositoryScanJobStatus } from "../../infrastructure/prisma/prisma-enum-mappers.js";
 
 /**
  * Implements operator workflows for inspecting, replaying, and discarding outbox DLQ messages.
@@ -158,6 +155,10 @@ export class OutboxDlqService {
     message: OutboxMessageEntity,
     correlationId: string,
   ): Promise<void> {
+    // CUTOVER fence: retired V1 traffic is never replayable, regardless of its aggregate's state.
+    if (isRetiredOutboxEventType(message.eventType)) {
+      this.unsafeReplay(correlationId);
+    }
     if (message.aggregateType === OUTBOX_AGGREGATE_TYPES.repositoryScanJob) {
       const job = await this.prisma.repositoryScanJob.findUnique({
         where: { id: message.aggregateId },
@@ -171,35 +172,6 @@ export class OutboxDlqService {
         this.unsafeReplay(correlationId);
       }
       return;
-    }
-
-    if (
-      message.aggregateType === OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport
-    ) {
-      const report = await this.prisma.technicalEvidenceReport.findUnique({
-        where: { id: message.aggregateId },
-        select: { status: true },
-      });
-      const status = report
-        ? fromPrismaEvidenceAcceptanceStatus(report.status)
-        : null;
-      if (status === TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted) {
-        this.unsafeReplay(correlationId);
-      }
-      return;
-    }
-
-    if (message.aggregateType === OUTBOX_AGGREGATE_TYPES.technicalProfile) {
-      const profile = await this.prisma.technicalProfile.findUnique({
-        where: { id: message.aggregateId },
-        select: { status: true },
-      });
-      const status = profile
-        ? fromPrismaEvidenceAcceptanceStatus(profile.status)
-        : null;
-      if (status === TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted) {
-        this.unsafeReplay(correlationId);
-      }
     }
   }
 

@@ -1,0 +1,973 @@
+{
+  "generatedAt": "2026-10-07T08:13:34.648Z",
+  "fixture": {
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "hashes": {
+      "art-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-1::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-b": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+    },
+    "chunks": [
+      {
+        "locator": "art-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-1::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-2",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-2::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-3",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-3::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1::pt-b",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-6",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-6::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      }
+    ],
+    "packet": {
+      "legalRules": [
+        {
+          "legalRuleId": "LR-DEF",
+          "title": "Payment record encryption",
+          "proposition": "Payment processing services must encrypt payment records at rest.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-1::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the human-fact semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-RET",
+          "title": "Notice record retention",
+          "proposition": "Notice services must delete notice records no later than seven days after receipt.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-b",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the human-fact semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-EXC",
+          "title": "Rule LR-EXC",
+          "proposition": "Proposition LR-EXC.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-3::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-XREF",
+          "title": "Deletion notification",
+          "proposition": "Notice services must notify the recipient when their notice record is deleted.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-4::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-2::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the human-fact semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-PERSON",
+          "title": "Notification ownership",
+          "proposition": "Organizations operating a notice service must designate a responsible notification owner.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": true,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-6::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."
+          }
+        }
+      ],
+      "engineeringRules": [
+        {
+          "engineeringRuleId": "ER-RET",
+          "legalRuleIds": [
+            "LR-PERSON"
+          ],
+          "concept": "Notification ownership",
+          "legalIntent": "Organizations operating a notice service must designate a responsible notification owner.",
+          "applicabilityGuidance": "Applies to the organization operating this notice service.",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "statement": "The organization has designated a responsible notification owner."
+            }
+          ],
+          "investigationGoals": [
+            "Find an authoritative operations register or ask the customer who is designated."
+          ],
+          "startingNodeTypes": [],
+          "targetNodeTypes": [],
+          "edgeStrategies": [],
+          "graphQueries": [],
+          "keywords": [],
+          "commonApis": [],
+          "commonLibraries": [],
+          "patterns": [],
+          "requiredEvidence": [
+            "Operations register or confirmed human fact"
+          ],
+          "supportingEvidence": [],
+          "negativeEvidence": [],
+          "unresolvedConditions": [
+            "Designation is an organizational fact; source code alone cannot establish it."
+          ],
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-3::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ]
+        }
+      ],
+      "contextRelations": []
+    },
+    "files": {
+      "README.md": "The organization operates a notice service. Application code is in src/notices.py.\n",
+      "src/notices.py": "RETENTION_DAYS = 7\n\ndef delete_expired_notices(records, now):\n    return [r for r in records if (now - r['received_at']).days < RETENTION_DAYS]\n",
+      "docs/operations-register.md": "This repository does not contain the organization's designation register. Notification ownership is recorded only in the customer's operations office.\n"
+    },
+    "fixture": "human"
+  },
+  "result": {
+    "result": {
+      "state": "INTERRUPTED",
+      "executionId": "d5c758db-bb43-4f4e-86ba-f4237c490c81",
+      "threadId": "0bc2ace5-30f0-486f-b1ad-f1d6cfb33a83",
+      "errorType": null,
+      "checkpointId": "1f1c226e-2f67-600f-8010-dfba9764967a"
+    },
+    "model": "apx:claude-sonnet-4-6-free",
+    "calls": 8,
+    "inputTokens": 75632,
+    "outputTokens": 1719,
+    "seconds": 56.45
+  },
+  "trace": {
+    "result": {
+      "state": "INTERRUPTED",
+      "executionId": "d5c758db-bb43-4f4e-86ba-f4237c490c81",
+      "threadId": "0bc2ace5-30f0-486f-b1ad-f1d6cfb33a83",
+      "errorType": null,
+      "checkpointId": "1f1c226e-2f67-600f-8010-dfba9764967a"
+    },
+    "model": "apx:claude-sonnet-4-6-free",
+    "calls": 8,
+    "inputTokens": 75632,
+    "outputTokens": 1719,
+    "seconds": 56.45,
+    "tools": [
+      {
+        "tool": "get_assessment_context",
+        "input": "{}"
+      },
+      {
+        "tool": "get_pinned_portfolio",
+        "input": "{}"
+      },
+      {
+        "tool": "get_engineering_rule",
+        "input": "{'engineering_rule_id': 'ER-RET'}"
+      },
+      {
+        "tool": "start_rule_investigation",
+        "input": "{'engineering_rule_id': 'ER-RET'}"
+      },
+      {
+        "tool": "ls",
+        "input": "{'path': '/'}"
+      },
+      {
+        "tool": "get_repository_architecture",
+        "input": "{'aspects': ['all']}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/README.md'}"
+      },
+      {
+        "tool": "ls",
+        "input": "{'path': '/docs'}"
+      },
+      {
+        "tool": "ls",
+        "input": "{'path': '/src'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/docs/operations-register.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/src/notices.py'}"
+      },
+      {
+        "tool": "cite_repository_source",
+        "input": "{'path': 'README.md', 'start_line': 1, 'end_line': 1}"
+      },
+      {
+        "tool": "cite_repository_source",
+        "input": "{'path': 'docs/operations-register.md', 'start_line': 1, 'end_line': 1}"
+      },
+      {
+        "tool": "cite_repository_source",
+        "input": "{'path': 'src/notices.py', 'start_line': 1, 'end_line': 4}"
+      },
+      {
+        "tool": "accept_case_fact",
+        "input": "{'kind': 'USE_CASE', 'statement': 'The organization operates a notice service that deletes expired notices after a 7-day retention period.', 'evidence_ids': ['4676b9e5-1d89-5abc-a619-cafcaffb48c9', '3f794d21-86c6-575d-ae30-50f74e29aba7']}"
+      },
+      {
+        "tool": "record_search_coverage",
+        "input": "{'inspected_entry_points': ['README.md', 'docs/operations-register.md', 'src/notices.py'], 'known_gaps': [], 'direct_source_fallbacks': [{'path': 'docs/operations-register.md', 'reason': 'Explicitly checked for operations register as suggested by investigation goals'}]}"
+      },
+      {
+        "tool": "open_human_request",
+        "input": "{'engineering_rule_id': 'ER-RET', 'criterion_ids': ['C-1'], 'question': 'Who has your organization designated as the responsible notification owner for this notice service?', 'unresolved_fact': 'The identity of the designated notification owner', 'decision_impact': ['Whether criterion C-1 (designation of a responsible notification owner) is met', 'Overall compliance with the notification ownership requirement'], 'resolution_attempts': ['Searched the repository for operations documentation', \"Found operations-register.md which explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository\", 'Reviewed all documentation and source code in the repository']}"
+      },
+      {
+        "tool": "get_assessment_context",
+        "input": "{}"
+      },
+      {
+        "tool": "open_human_request",
+        "input": "{'engineering_rule_id': 'ER-RET', 'criterion_ids': ['C-1'], 'question': 'Who has your organization designated as the responsible notification owner for this notice service?', 'unresolved_fact': 'The identity of the designated notification owner', 'decision_impact': ['Whether criterion C-1 (designation of a responsible notification owner) is met', 'Overall compliance with the notification ownership requirement'], 'resolution_attempts': ['Searched the repository for operations documentation', \"Found operations-register.md which explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository\", 'Reviewed all documentation and source code in the repository']}"
+      }
+    ],
+    "messages": [
+      {
+        "content": "I'll start by loading the assessment context to understand the current state, then proceed with the portfolio.",
+        "tool_calls": [
+          {
+            "name": "get_assessment_context",
+            "args": {},
+            "id": "call_4721a57a6c244edfd92a3ae2",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Good, this is a fresh assessment with one rule (ER-RET) pending. Let me get the pinned portfolio and the rule details.",
+        "tool_calls": [
+          {
+            "name": "get_pinned_portfolio",
+            "args": {},
+            "id": "call_af663b1cdca6f1a9580e750c",
+            "type": "tool_call"
+          },
+          {
+            "name": "get_engineering_rule",
+            "args": {
+              "engineering_rule_id": "ER-RET"
+            },
+            "id": "call_91f1650521771076004e2653",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Good. I have one engineering rule (ER-RET) about notification ownership. The rule clearly states that this is an organizational fact that cannot be established from source code alone. The investigation goals suggest looking for an operations register or asking the customer.\n\nLet me start by exploring the repository to understand the system and look for any operations documentation.",
+        "tool_calls": [
+          {
+            "name": "start_rule_investigation",
+            "args": {
+              "engineering_rule_id": "ER-RET"
+            },
+            "id": "call_8b9a2e1d3f4c5a6b7c8d9e0f",
+            "type": "tool_call"
+          },
+          {
+            "name": "ls",
+            "args": {
+              "path": "/"
+            },
+            "id": "call_1a2b3c4d5e6f7a8b9c0d1e2f",
+            "type": "tool_call"
+          },
+          {
+            "name": "get_repository_architecture",
+            "args": {
+              "aspects": [
+                "all"
+              ]
+            },
+            "id": "call_2b3c4d5e6f7a8b9c0d1e2f3a",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "The code graph is unavailable, so I'll explore the repository directly. Let me read the README and check the docs folder for any operations documentation.",
+        "tool_calls": [
+          {
+            "name": "read_file",
+            "args": {
+              "file_path": "/README.md"
+            },
+            "id": "call_3c4d5e6f7a8b9c0d1e2f3a4b",
+            "type": "tool_call"
+          },
+          {
+            "name": "ls",
+            "args": {
+              "path": "/docs"
+            },
+            "id": "call_4d5e6f7a8b9c0d1e2f3a4b5c",
+            "type": "tool_call"
+          },
+          {
+            "name": "ls",
+            "args": {
+              "path": "/src"
+            },
+            "id": "call_5e6f7a8b9c0d1e2f3a4b5c6d",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Excellent! There's an operations register document. Let me read it along with the application code to understand the system.",
+        "tool_calls": [
+          {
+            "name": "read_file",
+            "args": {
+              "file_path": "/docs/operations-register.md"
+            },
+            "id": "call_6f7a8b9c0d1e2f3a4b5c6d7e",
+            "type": "tool_call"
+          },
+          {
+            "name": "read_file",
+            "args": {
+              "file_path": "/src/notices.py"
+            },
+            "id": "call_7a8b9c0d1e2f3a4b5c6d7e8f",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Perfect. I've found the key information:\n\n1. The system is a notice service (confirmed in README)\n2. The operations register explicitly states that notification ownership designation is NOT in the repository - it's recorded only in the customer's operations office\n\nLet me cite this evidence and record the use case, then ask the customer for the required organizational fact.",
+        "tool_calls": [
+          {
+            "name": "cite_repository_source",
+            "args": {
+              "path": "README.md",
+              "start_line": 1,
+              "end_line": 1
+            },
+            "id": "call_8b9c0d1e2f3a4b5c6d7e8f9a",
+            "type": "tool_call"
+          },
+          {
+            "name": "cite_repository_source",
+            "args": {
+              "path": "docs/operations-register.md",
+              "start_line": 1,
+              "end_line": 1
+            },
+            "id": "call_9c0d1e2f3a4b5c6d7e8f9a0b",
+            "type": "tool_call"
+          },
+          {
+            "name": "cite_repository_source",
+            "args": {
+              "path": "src/notices.py",
+              "start_line": 1,
+              "end_line": 4
+            },
+            "id": "call_0d1e2f3a4b5c6d7e8f9a0b1c",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Good. Now let me record the use case and search coverage, then open a human request for the organizational fact.",
+        "tool_calls": [
+          {
+            "name": "accept_case_fact",
+            "args": {
+              "kind": "USE_CASE",
+              "statement": "The organization operates a notice service that deletes expired notices after a 7-day retention period.",
+              "evidence_ids": [
+                "4676b9e5-1d89-5abc-a619-cafcaffb48c9",
+                "3f794d21-86c6-575d-ae30-50f74e29aba7"
+              ]
+            },
+            "id": "call_1e2f3a4b5c6d7e8f9a0b1c2d",
+            "type": "tool_call"
+          },
+          {
+            "name": "record_search_coverage",
+            "args": {
+              "inspected_entry_points": [
+                "README.md",
+                "docs/operations-register.md",
+                "src/notices.py"
+              ],
+              "known_gaps": [],
+              "direct_source_fallbacks": [
+                {
+                  "path": "docs/operations-register.md",
+                  "reason": "Explicitly checked for operations register as suggested by investigation goals"
+                }
+              ]
+            },
+            "id": "call_2f3a4b5c6d7e8f9a0b1c2d3e",
+            "type": "tool_call"
+          },
+          {
+            "name": "open_human_request",
+            "args": {
+              "engineering_rule_id": "ER-RET",
+              "criterion_ids": [
+                "C-1"
+              ],
+              "question": "Who has your organization designated as the responsible notification owner for this notice service?",
+              "unresolved_fact": "The identity of the designated notification owner",
+              "decision_impact": [
+                "Whether criterion C-1 (designation of a responsible notification owner) is met",
+                "Overall compliance with the notification ownership requirement"
+              ],
+              "resolution_attempts": [
+                "Searched the repository for operations documentation",
+                "Found operations-register.md which explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository",
+                "Reviewed all documentation and source code in the repository"
+              ]
+            },
+            "id": "call_3a4b5c6d7e8f9a0b1c2d3e4f",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "The case revision has advanced. Let me reload the context and resubmit the human request.",
+        "tool_calls": [
+          {
+            "name": "get_assessment_context",
+            "args": {},
+            "id": "call_4b5c6d7e8f9a0b1c2d3e4f5a",
+            "type": "tool_call"
+          },
+          {
+            "name": "open_human_request",
+            "args": {
+              "engineering_rule_id": "ER-RET",
+              "criterion_ids": [
+                "C-1"
+              ],
+              "question": "Who has your organization designated as the responsible notification owner for this notice service?",
+              "unresolved_fact": "The identity of the designated notification owner",
+              "decision_impact": [
+                "Whether criterion C-1 (designation of a responsible notification owner) is met",
+                "Overall compliance with the notification ownership requirement"
+              ],
+              "resolution_attempts": [
+                "Searched the repository for operations documentation",
+                "Found operations-register.md which explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository",
+                "Reviewed all documentation and source code in the repository"
+              ]
+            },
+            "id": "call_5c6d7e8f9a0b1c2d3e4f5a6b",
+            "type": "tool_call"
+          }
+        ]
+      }
+    ],
+    "limitations": "Synthetic fixtures; governance billing middleware excluded; actual provider usage observed by callback."
+  },
+  "resumedResult": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "d5c758db-bb43-4f4e-86ba-f4237c490c81",
+      "threadId": "0bc2ace5-30f0-486f-b1ad-f1d6cfb33a83",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "apx:claude-sonnet-4-6-free",
+    "calls": 4,
+    "inputTokens": 62877,
+    "outputTokens": 1169,
+    "seconds": 42.1
+  },
+  "resumedTrace": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "d5c758db-bb43-4f4e-86ba-f4237c490c81",
+      "threadId": "0bc2ace5-30f0-486f-b1ad-f1d6cfb33a83",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "apx:claude-sonnet-4-6-free",
+    "calls": 4,
+    "inputTokens": 62877,
+    "outputTokens": 1169,
+    "seconds": 42.1,
+    "tools": [
+      {
+        "tool": "open_human_request",
+        "input": "{'engineering_rule_id': 'ER-RET', 'criterion_ids': ['C-1'], 'question': 'Who has your organization designated as the responsible notification owner for this notice service?', 'unresolved_fact': 'The identity of the designated notification owner', 'decision_impact': ['Whether criterion C-1 (designation of a responsible notification owner) is met', 'Overall compliance with the notification ownership requirement'], 'resolution_attempts': ['Searched the repository for operations documentation', \"Found operations-register.md which explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository\", 'Reviewed all documentation and source code in the repository']}"
+      },
+      {
+        "tool": "submit_rule_decision",
+        "input": "{'engineering_rule_id': 'ER-RET', 'applicability': 'APPLICABLE', 'rationale': 'The organization operates a notice service, as confirmed by repository documentation and code. The applicability guidance states this rule applies to organizations operating a notice service, which this organization clearly does.', 'legal_context_ids': ['LR-PERSON'], 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': '4676b9e5-1d89-5abc-a619-cafcaffb48c9'}, {'type': 'ASSESSMENT_EVIDENCE', 'id': '3f794d21-86c6-575d-ae30-50f74e29aba7'}, {'type': 'CONFIRMED_FACT', 'id': '455ab8c6-4812-5d3a-a7fa-38b322969f52'}], 'criteria': [{'criterion_id': 'C-1', 'outcome': 'MET', 'rationale': \"The organization has designated Customer Operations as the responsible notification owner. This designation was confirmed by the customer, as the operations register explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository.\", 'references': [{'type': 'CONFIRMED_FACT', 'id': 'f1508b66-b885-486d-b07c-3ecb840cf720'}, {'type': 'ASSESSMENT_EVIDENCE', 'id': '4b75e22b-6c22-58cf-a5be-80a69a8e259f'}]}], 'compliance': 'COMPLIANT'}"
+      },
+      {
+        "tool": "request_finalization",
+        "input": "{}"
+      },
+      {
+        "tool": "submit_final_report",
+        "input": "{'summary': \"Assessment of notification ownership requirements for the organization's notice service. The organization operates a notice service that manages notices with a 7-day retention period. The assessment confirms that the organization has designated a responsible notification owner as required by the legal framework. Customer Operations has been formally assigned as the responsible owner for notice notifications, satisfying the regulatory requirement for clear ownership designation.\", 'findings': [{'engineering_rule_id': 'ER-RET', 'summary': \"The organization has met the notification ownership requirement. Customer Operations is designated as the responsible notification owner for the notice service. This designation was confirmed through the customer's operations office, as the operations register explicitly indicates that such organizational designations are maintained outside the code repository. The organization operates a notice service with functionality to delete expired notices after a 7-day retention period, and proper ownership accountability has been established.\", 'recommendations': ['Ensure the designation of Customer Operations as notification owner remains documented in the operations office records', 'Consider periodic review of the notification owner designation to ensure it remains current and appropriate as the organization evolves', 'Maintain clear communication channels between the designated owner (Customer Operations) and the technical teams managing the notice service code']}]}"
+      }
+    ],
+    "messages": [
+      {
+        "content": "Excellent! The human request was answered immediately (this appears to be a test scenario). The customer has confirmed that \"Customer Operations is assigned as the responsible owner for notice notifications.\"\n\nI now have:\n- Evidence that this is a notice service (USE_CASE fact)\n- Evidence that the operations register explicitly states designation info is not in the repository\n- A human-provided fact that Customer Operations is designated as the notification owner\n\nThis satisfies the criterion. Let me submit the rule decision.",
+        "tool_calls": [
+          {
+            "name": "submit_rule_decision",
+            "args": {
+              "engineering_rule_id": "ER-RET",
+              "applicability": "APPLICABLE",
+              "rationale": "The organization operates a notice service, as confirmed by repository documentation and code. The applicability guidance states this rule applies to organizations operating a notice service, which this organization clearly does.",
+              "legal_context_ids": [
+                "LR-PERSON"
+              ],
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "id": "4676b9e5-1d89-5abc-a619-cafcaffb48c9"
+                },
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "id": "3f794d21-86c6-575d-ae30-50f74e29aba7"
+                },
+                {
+                  "type": "CONFIRMED_FACT",
+                  "id": "455ab8c6-4812-5d3a-a7fa-38b322969f52"
+                }
+              ],
+              "criteria": [
+                {
+                  "criterion_id": "C-1",
+                  "outcome": "MET",
+                  "rationale": "The organization has designated Customer Operations as the responsible notification owner. This designation was confirmed by the customer, as the operations register explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository.",
+                  "references": [
+                    {
+                      "type": "CONFIRMED_FACT",
+                      "id": "f1508b66-b885-486d-b07c-3ecb840cf720"
+                    },
+                    {
+                      "type": "ASSESSMENT_EVIDENCE",
+                      "id": "4b75e22b-6c22-58cf-a5be-80a69a8e259f"
+                    }
+                  ]
+                }
+              ],
+              "compliance": "COMPLIANT"
+            },
+            "id": "call_6d7e8f9a0b1c2d3e4f5a6b7c",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Perfect! The decision has been accepted. Now let me request finalization to check if the assessment is complete.",
+        "tool_calls": [
+          {
+            "name": "request_finalization",
+            "args": {},
+            "id": "call_7e8f9a0b1c2d3e4f5a6b7c8d",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Excellent! The assessment is ready for finalization with no blockers. Now I'll submit the final report.",
+        "tool_calls": [
+          {
+            "name": "submit_final_report",
+            "args": {
+              "summary": "Assessment of notification ownership requirements for the organization's notice service. The organization operates a notice service that manages notices with a 7-day retention period. The assessment confirms that the organization has designated a responsible notification owner as required by the legal framework. Customer Operations has been formally assigned as the responsible owner for notice notifications, satisfying the regulatory requirement for clear ownership designation.",
+              "findings": [
+                {
+                  "engineering_rule_id": "ER-RET",
+                  "summary": "The organization has met the notification ownership requirement. Customer Operations is designated as the responsible notification owner for the notice service. This designation was confirmed through the customer's operations office, as the operations register explicitly indicates that such organizational designations are maintained outside the code repository. The organization operates a notice service with functionality to delete expired notices after a 7-day retention period, and proper ownership accountability has been established.",
+                  "recommendations": [
+                    "Ensure the designation of Customer Operations as notification owner remains documented in the operations office records",
+                    "Consider periodic review of the notification owner designation to ensure it remains current and appropriate as the organization evolves",
+                    "Maintain clear communication channels between the designated owner (Customer Operations) and the technical teams managing the notice service code"
+                  ]
+                }
+              ]
+            },
+            "id": "call_8f9a0b1c2d3e4f5a6b7c8d9e",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": "Assessment complete! \n\nThe assessment has been successfully finalized with a COMPLETE status. Here's what was accomplished:\n\n**Summary:**\n- Assessed one engineering rule (ER-RET) regarding notification ownership\n- Identified the system as a notice service with 7-day retention functionality\n- Determined that organizational designation information is maintained in the customer's operations office, not in the code repository\n- Obtained confirmation from the customer that Customer Operations is designated as the responsible notification owner\n- Concluded the organization is COMPLIANT with the notification ownership requirement\n\n**Key Evidence:**\n- Repository documentation confirming this is a notice service\n- Operations register explicitly stating designation records are maintained externally\n- Human-confirmed fact that Customer Operations holds the notification owner designation\n\nThe final report has been persisted with artifact ID `7f1ba8e4-0221-5487-8d0b-2415e15f6660` and includes recommendations for maintaining and reviewing the ownership designation going forward.",
+        "tool_calls": []
+      }
+    ],
+    "limitations": "Synthetic fixtures; governance billing middleware excluded; actual provider usage observed by callback."
+  },
+  "decisions": [
+    {
+      "engineeringRuleId": "ER-RET",
+      "state": "ACCEPTED",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "MET",
+            "rationale": "The organization has designated Customer Operations as the responsible notification owner. This designation was confirmed by the customer, as the operations register explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository.",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "f1508b66-b885-486d-b07c-3ecb840cf720",
+                "caseRevision": 2
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "4b75e22b-6c22-58cf-a5be-80a69a8e259f"
+              }
+            ],
+            "criterionId": "C-1"
+          }
+        ],
+        "rationale": "The organization operates a notice service, as confirmed by repository documentation and code. The applicability guidance states this rule applies to organizations operating a notice service, which this organization clearly does.",
+        "compliance": "COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "4676b9e5-1d89-5abc-a619-cafcaffb48c9"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "3f794d21-86c6-575d-ae30-50f74e29aba7"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "455ab8c6-4812-5d3a-a7fa-38b322969f52",
+            "caseRevision": 2
+          }
+        ],
+        "caseRevision": 2,
+        "applicability": "APPLICABLE",
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-PERSON"
+          }
+        ],
+        "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+        "engineeringRuleId": "ER-RET",
+        "repositorySnapshotId": "8d6f283d-b2dc-4843-bc13-31664a955141",
+        "engineeringRuleVersion": "w4-eval-human",
+        "legalPortfolioVersionId": "d0f852db-8352-4434-83e0-9978d5f8a80b"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "requestId": "998f6876-66cf-417a-a9c3-9ed1ac5a73fa",
+      "status": "RESOLVED",
+      "question": "Who has your organization designated as the responsible notification owner for this notice service?",
+      "unresolvedFact": "The identity of the designated notification owner",
+      "resolutionAttempts": [
+        "Searched the repository for operations documentation",
+        "Found operations-register.md which explicitly states that notification ownership is recorded only in the customer's operations office, not in the repository",
+        "Reviewed all documentation and source code in the repository"
+      ],
+      "decisionImpact": [
+        "Whether criterion C-1 (designation of a responsible notification owner) is met",
+        "Overall compliance with the notification ownership requirement"
+      ],
+      "resolvedFactId": "f1508b66-b885-486d-b07c-3ecb840cf720",
+      "answers": [
+        {
+          "answer": "Customer Operations is assigned as the responsible owner for notice notifications.",
+          "actorId": "192d1540-c700-42f0-b2f5-24ac237b23c1",
+          "answeredAt": "2026-10-07T08:12:50.380Z",
+          "doesNotKnow": false,
+          "caseRevision": 2,
+          "requestDigest": "07e952f0542c62cb580bc87a6e7a5788579a5c46b9ab88486dc13ef086246e44",
+          "idempotencyKey": "w4-eval-human-8bc11efc-7888-4e9e-a891-7356d5acdd99",
+          "requestRevision": 1
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "evidenceId": "4b75e22b-6c22-58cf-a5be-80a69a8e259f",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "payload": {
+        "path": "docs/operations-register.md",
+        "endLine": 1,
+        "startLine": 1
+      }
+    },
+    {
+      "evidenceId": "3f794d21-86c6-575d-ae30-50f74e29aba7",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "payload": {
+        "path": "src/notices.py",
+        "endLine": 4,
+        "startLine": 1
+      }
+    },
+    {
+      "evidenceId": "4676b9e5-1d89-5abc-a619-cafcaffb48c9",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "payload": {
+        "path": "README.md",
+        "endLine": 1,
+        "startLine": 1
+      }
+    },
+    {
+      "evidenceId": "ae032467-8b80-58fc-90a3-4853d6550f21",
+      "type": "SEARCH_COVERAGE",
+      "state": "ACCEPTED",
+      "payload": {
+        "scopes": [
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "."
+          },
+          {
+            "kind": "GRAPH_INDEX",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "README.md"
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "docs"
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "src"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "docs/operations-register.md"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "src/notices.py"
+          }
+        ],
+        "queries": [
+          {
+            "tool": "ls",
+            "query": "{'path': '/'}",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "get_repository_architecture",
+            "query": "{'aspects': ['all']}",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "ls",
+            "query": "{'path': '/docs'}",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "ls",
+            "query": "{'path': '/src'}",
+            "truncated": false,
+            "resultCount": 1
+          }
+        ],
+        "knownGaps": [],
+        "inspectedEntryPoints": [
+          "README.md",
+          "docs/operations-register.md",
+          "src/notices.py"
+        ],
+        "directSourceFallbacks": [
+          {
+            "path": "docs/operations-register.md",
+            "reason": "Explicitly checked for operations register as suggested by investigation goals"
+          }
+        ]
+      }
+    },
+    {
+      "evidenceId": "894985fb-6d39-4a7d-9be0-277384866b24",
+      "type": "HUMAN_ANSWER",
+      "state": "ACCEPTED",
+      "payload": {
+        "answer": "Customer Operations is assigned as the responsible owner for notice notifications.",
+        "actorId": "192d1540-c700-42f0-b2f5-24ac237b23c1",
+        "requestId": "998f6876-66cf-417a-a9c3-9ed1ac5a73fa",
+        "caseRevision": 2,
+        "requestRevision": 1
+      }
+    }
+  ],
+  "facts": [
+    {
+      "kind": "USE_CASE",
+      "authority": "EVIDENCE_CITED",
+      "state": "ACCEPTED",
+      "statement": "The organization operates a notice service that deletes expired notices after a 7-day retention period."
+    },
+    {
+      "kind": "FACT",
+      "authority": "HUMAN_PROVIDED",
+      "state": "ACCEPTED",
+      "statement": "The identity of the designated notification owner: Customer Operations is assigned as the responsible owner for notice notifications."
+    }
+  ]
+}

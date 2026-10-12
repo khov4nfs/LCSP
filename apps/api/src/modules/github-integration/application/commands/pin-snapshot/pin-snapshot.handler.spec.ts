@@ -1,15 +1,16 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+  GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
   REPOSITORY_SNAPSHOT_STATUSES,
+  REPOSITORY_AUTHENTICATION_MODES,
 } from "@lcsp/contracts/github-integration";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   BadRequestException,
   ForbiddenException,
-  HttpStatus,
   NotFoundException,
 } from "@nestjs/common";
 
@@ -19,12 +20,12 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { RepositoryConnection } from "../../../domain/entities/repository-connection.entity.js";
-import {
-  GitHubAppClientError,
-  type GitHubAppClient,
-} from "../../../infrastructure/github/github-app.client.js";
+import { GitHubCliProviderError } from "../../../infrastructure/github/github-cli-repository.provider.js";
 import type { RepositoryConnectionRepository } from "../../ports/persistence/repository-connection.repository.js";
 import type { RepositorySnapshotRepository } from "../../ports/persistence/repository-snapshot.repository.js";
+import type { CredentialAuthorizationResolverPort } from "../../ports/security/credential-authorization-resolver.port.js";
+import type { GitHubRepositoryProviderPort } from "../../ports/github-repository-provider.port.js";
+import { CredentialLease } from "../../security/credential-lease.js";
 import { PinSnapshotCommand } from "./pin-snapshot.command.js";
 import { PinSnapshotHandler } from "./pin-snapshot.handler.js";
 
@@ -38,7 +39,11 @@ function connection(overrides?: {
     id: "connection-1",
     assessmentId: overrides?.assessmentId ?? "assessment-1",
     userId: "manager-1",
-    installationId: "installation-1",
+    installationId: null,
+    authenticationMode: REPOSITORY_AUTHENTICATION_MODES.githubCliCredential,
+    providerCredentialId: "credential-1",
+    credentialVersion: 1,
+    credentialAuthorizationStatus: "ACTIVE",
     repositoryId: "repo-1",
     repositoryName: "example-repo",
     repositoryFullName: "acme/example-repo",
@@ -80,9 +85,6 @@ function buildHandler(options?: {
     linkToAssessment: jest
       .fn<RepositoryConnectionRepository["linkToAssessment"]>()
       .mockResolvedValue(true),
-    save: jest
-      .fn<RepositoryConnectionRepository["save"]>()
-      .mockResolvedValue(undefined),
   } as RepositoryConnectionRepository;
 
   const saveWithCreatedEvent = jest
@@ -92,8 +94,14 @@ function buildHandler(options?: {
     saveWithCreatedEvent,
   } as RepositorySnapshotRepository;
 
+  const lease = new CredentialLease("github_pat_test_lease_secret", {
+    internalCredentialId: "credential-1",
+    credentialVersion: 1,
+    repositoryFullName: "acme/example-repo",
+    expiresAt: new Date(Date.now() + 60_000),
+  });
   const resolveCommit = jest
-    .fn<GitHubAppClient["resolveCommit"]>()
+    .fn<GitHubRepositoryProviderPort["resolveCommit"]>()
     .mockImplementation(() => {
       if (options?.resolveError) return Promise.reject(options.resolveError);
       return Promise.resolve({
@@ -105,7 +113,13 @@ function buildHandler(options?: {
         committerDate: "2026-07-18T00:00:01.000Z",
       });
     });
-  const githubAppClient = { resolveCommit } as unknown as GitHubAppClient;
+  const credentialResolver = {
+    resolveForConnection: jest.fn(() => Promise.resolve(lease)),
+    markInvalid: jest.fn(() => Promise.resolve()),
+  } as unknown as CredentialAuthorizationResolverPort;
+  const githubRepositoryProvider = {
+    resolveCommit,
+  } as unknown as GitHubRepositoryProviderPort;
 
   const findUnique = jest
     .fn<
@@ -130,7 +144,8 @@ function buildHandler(options?: {
     handler: new PinSnapshotHandler(
       connectionRepository,
       snapshotRepository,
-      githubAppClient,
+      credentialResolver,
+      githubRepositoryProvider,
       prisma,
       auditWriter,
     ),
@@ -138,21 +153,22 @@ function buildHandler(options?: {
     saveWithCreatedEvent,
     resolveCommit,
     write,
+    lease,
   };
 }
 
 describe("PinSnapshotHandler", () => {
   it("pins a branch to an immutable SHA and emits safe snapshot metadata", async () => {
-    const { handler, resolveCommit, saveWithCreatedEvent, write } =
+    const { handler, resolveCommit, saveWithCreatedEvent, write, lease } =
       buildHandler();
 
     const result = await handler.execute(command({ branch: "main" }));
 
-    expect(resolveCommit).toHaveBeenCalledWith({
-      installationId: "installation-1",
-      repositoryFullName: "acme/example-repo",
-      revision: "main",
-    });
+    expect(resolveCommit).toHaveBeenCalledWith(
+      lease,
+      "acme/example-repo",
+      "main",
+    );
     expect(result).toMatchObject({
       repository_full_name: "acme/example-repo",
       commit_sha: "a".repeat(40),
@@ -193,7 +209,9 @@ describe("PinSnapshotHandler", () => {
     await handler.execute(command({ branch: "main", commitSha: sha }));
 
     expect(resolveCommit).toHaveBeenCalledWith(
-      expect.objectContaining({ revision: sha }),
+      expect.anything(),
+      "acme/example-repo",
+      sha,
     );
   });
 
@@ -258,7 +276,9 @@ describe("PinSnapshotHandler", () => {
 
   it("audits an unresolvable ref without creating a snapshot event", async () => {
     const { handler, saveWithCreatedEvent, write } = buildHandler({
-      resolveError: new Error("provider unavailable"),
+      resolveError: new GitHubCliProviderError(
+        GITHUB_CREDENTIAL_ERROR_CODES.repositoryUnavailable,
+      ),
     });
 
     try {
@@ -268,7 +288,7 @@ describe("PinSnapshotHandler", () => {
       expect((error as BadRequestException).getResponse()).toMatchObject({
         ok: false,
         problem: {
-          code: GITHUB_INTEGRATION_ERROR_CODES.refNotResolvable,
+          code: GITHUB_CREDENTIAL_ERROR_CODES.repositoryUnavailable,
           correlationId: "corr-1",
         },
       });
@@ -283,11 +303,10 @@ describe("PinSnapshotHandler", () => {
     );
   });
 
-  it("reports an inaccessible default branch as an installation permission failure", async () => {
+  it("reports an inaccessible repository as a credential access failure", async () => {
     const { handler, saveWithCreatedEvent, write } = buildHandler({
-      resolveError: new GitHubAppClientError(
-        "github_app_metadata_fetch_failed",
-        HttpStatus.NOT_FOUND,
+      resolveError: new GitHubCliProviderError(
+        GITHUB_CREDENTIAL_ERROR_CODES.repositoryAccessDenied,
       ),
     });
 
@@ -298,7 +317,7 @@ describe("PinSnapshotHandler", () => {
       expect((error as BadRequestException).getResponse()).toMatchObject({
         ok: false,
         problem: {
-          code: GITHUB_INTEGRATION_ERROR_CODES.permissionsInsufficient,
+          code: GITHUB_CREDENTIAL_ERROR_CODES.repositoryAccessDenied,
           correlationId: "corr-1",
         },
       });
@@ -308,7 +327,7 @@ describe("PinSnapshotHandler", () => {
     expect(write).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({
-          reasonCode: GITHUB_INTEGRATION_ERROR_CODES.permissionsInsufficient,
+          reasonCode: GITHUB_CREDENTIAL_ERROR_CODES.repositoryAccessDenied,
         }),
       }),
     );

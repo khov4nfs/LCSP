@@ -4,7 +4,7 @@ import { UnauthorizedException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 
 import { RbacPreflightController } from "./rbac-preflight.controller.js";
-import { LOCAL_RBAC_REASON_CODES } from "./rbac-reason-codes.js";
+import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import type { RbacPreflightService } from "./rbac-preflight.service.js";
 
 const VALID_KEY = "correct-worker-api-key-value-1234";
@@ -85,12 +85,9 @@ describe("RbacPreflightController", () => {
       correlationId: "camel-corr-1",
     });
     expect(response).toEqual({
-      ok: true,
-      data: {
-        decision: "ALLOW",
-        reason_code: null,
-        correlationId: "corr-1",
-      },
+      decision: "ALLOW",
+      reason_code: null,
+      correlationId: "corr-1",
     });
   });
 
@@ -99,7 +96,7 @@ describe("RbacPreflightController", () => {
       evaluateImpl: () =>
         Promise.resolve({
           decision: "DENY",
-          reasonCode: LOCAL_RBAC_REASON_CODES.denied,
+          reasonCode: RBAC_REASON_CODES.denied,
           correlationId: "corr-1",
         }),
     });
@@ -114,12 +111,9 @@ describe("RbacPreflightController", () => {
         VALID_KEY,
       ),
     ).resolves.toEqual({
-      ok: true,
-      data: {
-        decision: "DENY",
-        reason_code: LOCAL_RBAC_REASON_CODES.denied,
-        correlationId: "corr-1",
-      },
+      decision: "DENY",
+      reason_code: RBAC_REASON_CODES.denied,
+      correlationId: "corr-1",
     });
   });
 

@@ -1,0 +1,11 @@
+{
+  "python_version": "3.11",
+  "dependencies": ["."],
+  "dockerfile_lines": [
+    "USER root",
+    "RUN apt-get update && apt-get install -y --no-install-recommends docker.io ca-certificates && rm -rf /var/lib/apt/lists/*"
+  ],
+  "graphs": {
+    "lcsp-agent": "./agent.py:agent"
+  }
+}

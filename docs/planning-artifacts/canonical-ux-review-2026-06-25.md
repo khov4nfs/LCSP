@@ -10,12 +10,13 @@ authority_sources:
   - docs/architecture/multi-agent-system-architecture.md
   - docs/specs/functional-requirements.md
   - docs/specs/non-functional-requirements.md
-  - docs/specs/scanner-spec.md
   - docs/specs/legal-matching-domain-spec.md
   - docs/specs/user-task-flows.md
 excluded_sources:
   - git history for deprecated UX specification artifacts
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
 
 # Canonical UX Review
 

@@ -41,9 +41,32 @@ _bmad/
 **/.codex/
 .venv
 *.env.*
+!.env.example
 # fogewise-dev-launchers/
 **/__pycache__/
 tmp/
+# Historical generated source artifacts remain excluded.
 .corpus/
+.legal-source/
 .chroma/
 .chorma/
+
+/lcsp-python-workers/output/*
+test-results/
+playwright-report/
+.pnpm-store/
+.billing/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+graft/
+
+# graphify's local graph output — regenerable, not committed.
+graphify-out/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+# Local Playwright MCP runtime snapshots are not durable release evidence.
+/.playwright-mcp/
+
+# Private local agent session/handoff transcripts: never staged, committed or imaged.
+/codex-session-*.md
+/claude-session-*.md

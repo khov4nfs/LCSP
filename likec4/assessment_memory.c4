@@ -77,23 +77,23 @@ model {
     }
 
     legalSourceCatalogEntity = entity 'LegalSourceCatalog' {
-      description 'Admin-managed registry of authoritative legal sources allowed for automated corpus recovery.'
+      description 'Admin-managed registry of authoritative legal sources allowed for automated legal source recovery.'
     }
 
     officialSourceSnapshotEntity = entity 'OfficialSourceSnapshot' {
-      description 'Immutable fetched official-source snapshot used for OCR, extraction, chunking, and corpus version builds.'
+      description 'Immutable fetched official-source snapshot used for OCR, extraction, chunking, and legal source version builds.'
     }
 
-    corpusVersionEntity = entity 'CorpusVersion' {
-      description 'Versioned legal corpus build gated by validation and later activated for retrieval.'
+    legalSourceVersionEntity = entity 'LegalSourceVersion' {
+      description 'Versioned legal legal source build gated by validation and later activated for retrieval.'
     }
 
-    corpusChunkEntity = entity 'CorpusChunk' {
-      description 'Chunked legal text units derived from validated corpus versions and retrieval structure.'
+    legalSourceChunkEntity = entity 'LegalSourceChunk' {
+      description 'Chunked legal text units derived from validated legal source versions and retrieval structure.'
     }
 
     retrievalIndexVersionEntity = entity 'RetrievalIndexVersion' {
-      description 'Retrieval index build metadata bound to one validated corpus version.'
+      description 'Retrieval index build metadata bound to one validated legal source version.'
     }
 
     assessmentPromptViewEntity = entity 'AssessmentPromptView' {
@@ -155,12 +155,12 @@ model {
   lcsp.database.technicalProfileEntity -> lcsp.database.aiUsageFlowEntity '1:1 AI usage flow'
   lcsp.database.aiUsageFlowEntity -> lcsp.database.conflictRecordEntity '1:N Conflict records'
   lcsp.database.aiUsageFlowEntity -> lcsp.database.verifiedProfileEntity '1:1 Verified profile'
-  lcsp.database.verifiedProfileEntity -> lcsp.database.legalRuleMatchEntity '1:N Legal rule matches'
+  lcsp.database.verifiedProfileEntity -> lcsp.database.legalRequirementMatchEntity '1:N Legal rule matches'
 
   lcsp.database.legalSourceCatalogEntity -> lcsp.database.officialSourceSnapshotEntity '1:N Source snapshots'
-  lcsp.database.officialSourceSnapshotEntity -> lcsp.database.corpusVersionEntity '1:N Corpus versions'
-  lcsp.database.corpusVersionEntity -> lcsp.database.corpusChunkEntity '1:N Corpus chunks'
-  lcsp.database.corpusVersionEntity -> lcsp.database.retrievalIndexVersionEntity '1:N Retrieval indexes'
+  lcsp.database.officialSourceSnapshotEntity -> lcsp.database.legalSourceVersionEntity '1:N LegalSource versions'
+  lcsp.database.legalSourceVersionEntity -> lcsp.database.legal-sourceChunkEntity '1:N LegalSource chunks'
+  lcsp.database.legalSourceVersionEntity -> lcsp.database.retrievalIndexVersionEntity '1:N Retrieval indexes'
 }
 
 views {
@@ -190,7 +190,7 @@ views {
 
   view assessment_memory_storage of lcsp.database {
     title 'Assessment Memory Storage Map'
-    description 'Maps the minimum durable memory stores for orchestration state, tool state, artifact chains, legal corpus recovery, and prompt-safe projections.'
+    description 'Maps the minimum durable memory stores for orchestration state, tool state, artifact chains, legal legal source recovery, and prompt-safe projections.'
     include
       lcsp.database.assessmentEntity,
       lcsp.database.wizardProfileEntity,
@@ -204,15 +204,15 @@ views {
       lcsp.database.aiUsageFlowEntity,
       lcsp.database.conflictRecordEntity,
       lcsp.database.verifiedProfileEntity,
-      lcsp.database.legalRuleMatchEntity,
+      lcsp.database.legalRequirementMatchEntity,
       lcsp.database.toolExecutionLogEntity,
       lcsp.database.runtimeCommandRequestEntity,
       lcsp.database.targetedReanalysisRequestEntity,
       lcsp.database.decisionLedgerEntity,
       lcsp.database.legalSourceCatalogEntity,
       lcsp.database.officialSourceSnapshotEntity,
-      lcsp.database.corpusVersionEntity,
-      lcsp.database.corpusChunkEntity,
+      lcsp.database.legalSourceVersionEntity,
+      lcsp.database.legal-sourceChunkEntity,
       lcsp.database.retrievalIndexVersionEntity,
       lcsp.database.assessmentPromptViewEntity,
       lcsp.database.evidenceProjectionEntity,

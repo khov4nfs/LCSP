@@ -7,63 +7,70 @@ datasource db {
   // Safe schema comment to force PR webhook build trigger
 }
 
-model AuthUser {
+model User {
   id                        String                        @id
   email                     String                        @unique
   passwordHash              String
   emailVerified             Boolean
   failedLoginCount          Int
   lockUntil                 DateTime?
+  accessStatus              UserAccessStatus              @default(ACTIVE)
+  accessVersion             Int                           @default(0)
   displayName               String?
   recoveryEmail             String?
   primaryEmailAddressPolicy AuthPrimaryEmailAddressPolicy @default(ACCOUNT_EMAIL)
   backupEmailPolicy         AuthBackupEmailPolicy         @default(RECOVERY_EMAIL)
   role                      AuthUserRole                  @default(CUSTOMER)
   mfaRequired               Boolean                       @default(false)
+  mfaEncryptedSecret        String?
+  mfaEnrolledAt             DateTime?
+  mfaVerifiedAt             DateTime?
+  mfaFailedCount            Int                           @default(0)
+  mfaLockedUntil            DateTime?
   createdAt                 DateTime                      @default(now())
   updatedAt                 DateTime                      @updatedAt
-  approvedVerifiedProfiles  VerifiedProfile[]             @relation("VerifiedProfileApprover")
   assessmentOwners          Assessment[]                  @relation("AssessmentOwner")
   auditExportRequests       AuditExportRequest[]          @relation("AuditExportRequester")
-  classificationReviews     ClassificationReviewRequest[] @relation("ClassificationReviewRequester")
-  documentRequests          DocumentRequest[]             @relation("DocumentRequestRequester")
+  authRecords               AuthRecord[]
   gitHubAppInstallStates    GitHubAppInstallState[]       @relation("GitHubAppInstallStateUser")
-  mfaEnrollment             AuthUserMfa?
-  mfaOtpUses                AuthMfaOtpUsed[]
-  mfaRateLimit              AuthMfaRateLimit?
-  mfaRecoveryCodes          AuthMfaRecoveryCode[]
-  oauthIdentities           AuthOAuthIdentity[]
-  oauthStates               AuthOAuthState[]              @relation("AuthOAuthStateUser")
-  readinessExports          ReadinessExport[]             @relation("ReadinessExportOwner")
-  recoveryRequests          AuthRecoveryRequest[]
   repositoryConnections     RepositoryConnection[]        @relation("RepositoryConnectionUser")
   repositorySnapshots       RepositorySnapshot[]          @relation("RepositorySnapshotActor")
-  resolvedConflicts         ConflictRecord[]              @relation("ConflictRecordResolver")
-  sessions                  AuthSession[]
-  wizardProfiles            WizardProfile[]               @relation("WizardProfileOwner")
+  billingWallet             BillingWallet?
+  billingOrders             BillingOrder[]
+  creditLedgerEntries       CreditLedgerEntry[]
+  billingReservations       BillingReservation[]
+  llmUsageEvents            LlmUsageEvent[]
+  paymentTransactions       PaymentTransaction[]
+
+  @@index([accessStatus, role, createdAt, id])
 }
 
-model AuthSession {
-  id                        String           @id
-  userId                    String
-  tokenHash                 String
-  tokenFingerprint          String           @unique
-  expiresAt                 DateTime
-  revokedAt                 DateTime?
-  mfaVerifiedAt             DateTime?
-  sensitiveActionVerifiedAt DateTime?
-  createdAt                 DateTime         @default(now())
-  updatedAt                 DateTime         @updatedAt
-  oauthStates               AuthOAuthState[]
-  user                      AuthUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
+model AuthRecord {
+  id         String         @id
+  userId     String?
+  type       AuthRecordType
+  lookupKey  String         @unique
+  secretHash String?
+  expiresAt  DateTime?
+  usedAt     DateTime?
+  revokedAt  DateTime?
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([type, expiresAt])
+  @@index([userId, type, revokedAt, usedAt])
 }
 
-model AuthUserMfa {
-  userId          String    @id
-  encryptedSecret String
-  enrolledAt      DateTime  @default(now())
-  verifiedAt      DateTime?
-  user            AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum AuthRecordType {
+  SESSION
+  MFA_OTP_USE
+  MFA_RECOVERY_CODE
+  RECOVERY_REQUEST
+  OAUTH_IDENTITY
+  OAUTH_STATE
 }
 
 enum AuthBackupEmailPolicy {
@@ -76,81 +83,7 @@ enum AuthPrimaryEmailAddressPolicy {
   RECOVERY_EMAIL
 }
 
-model AuthMfaOtpUsed {
-  userId  String
-  otpCode String
-  usedAt  DateTime @default(now())
-  user    AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, otpCode])
-  @@index([userId, usedAt])
-}
-
-model AuthMfaRateLimit {
-  userId      String    @id
-  failedCount Int       @default(0)
-  lockedUntil DateTime?
-  updatedAt   DateTime  @updatedAt
-  user        AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model AuthMfaRecoveryCode {
-  id          String    @id
-  userId      String
-  codeHash    String
-  batchId     String
-  generatedAt DateTime  @default(now())
-  usedAt      DateTime?
-  revokedAt   DateTime?
-  user        AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, codeHash])
-  @@index([userId, batchId])
-  @@index([userId, revokedAt, usedAt])
-}
-
-model AuthRecoveryRequest {
-  id               String    @id
-  userId           String
-  tokenHash        String
-  tokenFingerprint String    @unique
-  expiresAt        DateTime
-  consumedAt       DateTime?
-  createdAt        DateTime  @default(now())
-  user             AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model AuthOAuthState {
-  id          String       @id
-  state       String       @unique
-  nonce       String
-  provider    String
-  redirectUri String
-  expiresAt   DateTime
-  userId      String?
-  sessionId   String?
-  createdAt   DateTime     @default(now())
-  session     AuthSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user        AuthUser?    @relation("AuthOAuthStateUser", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, sessionId])
-}
-
-model AuthOAuthIdentity {
-  id                String   @id
-  userId            String
-  provider          String
-  providerAccountId String
-  createdAt         DateTime @default(now())
-  user              AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-}
-
-model AuthAuditEvent {
+model AuditEvent {
   id            String             @id
   eventType     String
   actorId       String?
@@ -166,103 +99,190 @@ model AuthAuditEvent {
   @@index([correlationId])
   @@index([actorId, createdAt])
   @@index([eventType, createdAt])
-}
-
-model AuthDecisionLog {
-  id            String                  @id
-  actorId       String?
-  sessionId     String?
-  resourceType  AuditResourceType
-  resourceId    String
-  decision      AuthDecision
-  reasonCode    AuthorizationReasonCode
-  correlationId String
-  payload       Json
-  createdAt     DateTime                @default(now())
-
-  @@index([actorId])
-  @@index([correlationId])
+  @@index([resourceId, eventType, createdAt])
 }
 
 model OutboxMessage {
-  id            String              @id
-  aggregateType OutboxAggregateType
-  aggregateId   String
-  eventType     String
-  payload       Json
-  status        OutboxStatus        @default(PENDING)
-  attempts      Int                 @default(0)
-  lastAttemptAt DateTime?
-  nextAttemptAt DateTime?
-  publishedAt   DateTime?
-  errorMessage  String?
-  createdAt     DateTime            @default(now())
+  id              String              @id
+  aggregateType   OutboxAggregateType
+  aggregateId     String
+  eventType       String
+  payload         Json
+  status          OutboxStatus        @default(PENDING)
+  attempts        Int                 @default(0)
+  lastAttemptAt   DateTime?
+  nextAttemptAt   DateTime?
+  publishedAt     DateTime?
+  errorMessage    String?
+  createdAt       DateTime            @default(now())
+  assessmentEvent AssessmentEvent?
 
+  // Composite event FK binds delivery to the same assessment aggregate.
+  @@unique([id, aggregateId])
   @@index([status, nextAttemptAt, createdAt])
   @@index([aggregateType, aggregateId])
 }
 
 model Assessment {
-  id                         String                        @id
-  ownerId                    String
-  name                       String
-  description                String?
-  status                     AssessmentStatus              @default(WIZARD_IN_PROGRESS)
-  createdAt                  DateTime                      @default(now())
-  updatedAt                  DateTime                      @updatedAt
-  aiUsageFlows               AIUsageFlow[]
-  classificationResults      ClassificationResult[]
-  classificationReviews      ClassificationReviewRequest[]
-  conflictRecords            ConflictRecord[]
-  documentRequests           DocumentRequest[]
-  gitHubAppInstallStates     GitHubAppInstallState[]
-  legalRuleMatches           LegalRuleMatch[]
-  owner                      AuthUser                      @relation("AssessmentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  readinessExports           ReadinessExport[]
-  repositoryConnections      RepositoryConnection[]
-  repositoryScanJobs         RepositoryScanJob[]
-  repositorySnapshots        RepositorySnapshot[]
-  runtimeEvents              AssessmentRuntimeEvent[]
-  targetedReanalysisRequests TargetedReanalysisRequest[]
-  technicalEvidenceReports   TechnicalEvidenceReport[]
-  technicalProfiles          TechnicalProfile[]
-  verifiedProfiles           VerifiedProfile[]
-  wizardProfile              WizardProfile?
+  id                     String                    @id
+  ownerId                String
+  name                   String
+  description            String?
+  // Canonical lifecycle; initialization and transitions belong to the lifecycle coordinator.
+  lifecycleState         AssessmentLifecycleState?
+  lifecycleRevision      Int?
+  blockerReason          BlockerReason?
+  blockerReference       Json?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  gitHubAppInstallStates GitHubAppInstallState[]
+  owner                  User                      @relation("AssessmentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  repositoryConnections  RepositoryConnection[]
+  repositoryScanJobs     RepositoryScanJob[]
+  repositorySnapshots    RepositorySnapshot[]
+  runtimeEvents          AssessmentRuntimeEvent[]
+  runtimeTurns           AssessmentRuntimeTurn[]
+  billingReservations    BillingReservation[]
+  llmUsageEvents         LlmUsageEvent[]
+  runtime                AssessmentRuntime?
+  events                 AssessmentEvent[]
+  domainCase             AssessmentCase?
 
   @@index([ownerId])
 }
 
-model WizardProfile {
-  id               String              @id
-  assessmentId     String              @unique
-  ownerId          String
-  version          Int                 @default(1)
-  status           WizardProfileStatus @default(IN_PROGRESS)
-  answers          Json
-  submittedAt      DateTime?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  assessment       Assessment          @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  owner            AuthUser            @relation("WizardProfileOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  verifiedProfiles VerifiedProfile[]
-
-  @@index([assessmentId])
+enum AssessmentLifecycleState {
+  CREATED
+  PREPARING
+  ACTIVE
+  WAITING_FOR_HUMAN
+  WAITING_FOR_REQUIRED_INPUT
+  PAUSED
+  FINALIZING
+  COMPLETE
+  BLOCKED
+  FAILED
+  CANCELLED
 }
 
-model ReadinessExport {
-  id            String                @id
-  assessmentId  String
-  ownerId       String
-  version       Int                   @default(1)
-  status        ReadinessExportStatus
-  contentJson   Json?
-  blockedReason String?
-  generatedAt   DateTime              @default(now())
-  assessment    Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  owner         AuthUser              @relation("ReadinessExportOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+enum BlockerReason {
+  HUMAN_FACT_UNRESOLVABLE
+  REQUIRED_DOCUMENT_UNAVAILABLE
+  REQUIRED_RUNTIME_INPUT_UNAVAILABLE
+  COMPLIANCE_RULE_SET_UNAVAILABLE
+  REPOSITORY_SNAPSHOT_UNAVAILABLE
+}
 
-  @@index([assessmentId])
-  @@index([assessmentId, version])
+enum ArtifactLifecycleState {
+  BUILDING
+  ACTIVE
+  SUPERSEDED
+  INVALID
+}
+
+enum LegalRequirementCoverageState {
+  COVERED_BY_ASSESSMENT_RULES
+  NON_ASSESSABLE
+}
+
+enum LegalContextRelationKind {
+  DEFINITION
+  SCOPE
+  QUALIFIER
+  EXCEPTION
+  CROSS_REFERENCE
+}
+
+enum RuleSetPreparationFailureReason {
+  MODEL_ERROR
+  NO_SUBMISSION
+  RULE_SET_VALIDATION_FAILED
+  SOURCE_VERSION_UNAVAILABLE
+  RUNTIME_ERROR
+}
+
+enum ComplianceRuleSetValidationOutcome {
+  PASSED
+  FAILED
+}
+
+enum AgentExecutionState {
+  QUEUED
+  RUNNING
+  INTERRUPTED
+  PAUSED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum AssessmentEventType {
+  ACTIVITY_RECORDED
+  ASSESSMENT_LIFECYCLE_CHANGED
+  EXECUTION_STATE_CHANGED
+  EVIDENCE_ACCEPTED
+  DECISION_ACCEPTED
+  HUMAN_RESOLUTION_CHANGED
+  ARTIFACT_CHANGED
+}
+
+enum AssessmentEventActorType {
+  RUNTIME
+  ASSESSMENT_ROOT
+  SUBAGENT
+  TOOL
+  API
+}
+
+/// Server-owned lifetime Root mapping; resume/retry updates execution, never identity.
+model AssessmentRuntime {
+  assessmentId        String                   @id
+  threadId            String                   @unique @db.Uuid
+  rootAgentVersion    String
+  checkpointNamespace String
+  checkpointId        String?
+  currentExecutionId  String?                  @db.Uuid
+  executionState      AgentExecutionState      @default(QUEUED)
+  leaseToken          String?                  @db.Uuid
+  leaseExpiresAt      DateTime?                @db.Timestamptz(3)
+  // Increment with UPDATE ... RETURNING in the domain/event/outbox transaction.
+  eventSequence       Int                      @default(0)
+  startedAt           DateTime?                @db.Timestamptz(3)
+  lastResumedAt       DateTime?                @db.Timestamptz(3)
+  createdAt           DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime                 @updatedAt @db.Timestamptz(3)
+  assessment          Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  events              AssessmentEvent[]
+  humanRequests       AssessmentHumanRequest[]
+
+  // Required by the event FK: a valid thread from another assessment is invalid.
+  @@unique([assessmentId, threadId])
+}
+
+/// Canonical redacted envelope. API validates typed payload/usage before persistence.
+model AssessmentEvent {
+  eventId             String                   @id @db.Uuid
+  assessmentId        String
+  threadId            String                   @db.Uuid
+  sequence            Int
+  timestamp           DateTime                 @default(now()) @db.Timestamptz(3)
+  eventType           AssessmentEventType
+  actorType           AssessmentEventActorType
+  executionId         String?                  @db.Uuid
+  parentExecutionId   String?                  @db.Uuid
+  taskId              String?
+  toolCallId          String?
+  payload             Json
+  tokenUsage          Json?
+  technicalDetailsRef String?                  @db.Uuid
+  outboxMessageId     String                   @unique
+  assessment          Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  runtime             AssessmentRuntime        @relation(fields: [assessmentId, threadId], references: [assessmentId, threadId], onDelete: Cascade, onUpdate: Restrict)
+  outboxMessage       OutboxMessage            @relation(fields: [outboxMessageId, assessmentId], references: [id, aggregateId], onDelete: Restrict, onUpdate: Restrict)
+
+  // Ordered history/SSE cursor and publisher predecessor lookup; eventId is replay identity.
+  @@unique([assessmentId, sequence])
+  @@unique([outboxMessageId, assessmentId])
 }
 
 model AuditExportRequest {
@@ -277,7 +297,7 @@ model AuditExportRequest {
   correlationId  String
   createdAt      DateTime          @default(now())
   completedAt    DateTime?
-  requestedBy    AuthUser          @relation("AuditExportRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  requestedBy    User              @relation("AuditExportRequester", fields: [requestedById], references: [id], onDelete: Restrict)
 }
 
 enum AuthDecision {
@@ -291,100 +311,34 @@ enum AuthUserRole {
 }
 
 enum AuditResourceType {
-  AI_USAGE_FLOW
+  AUTH_ACCOUNT
   ASSESSMENT
   ASSESSMENT_RECORD
   AUDIT_EXPORT_REQUEST
   AUTH_INVITATION
   AUTH_MFA_RECOVERY_CODE
   AUTH_SESSION
-  CLASSIFICATION_REVIEW_REQUEST
-  CLASSIFICATION_RESULT
-  CONFLICT_RECORD
-  DOCUMENT_REQUEST
   GITHUB_APP_INSTALL_STATE
   HTTP_ROUTE
-  LEGAL_RULE
-  LEGAL_RULE_CATALOG_VERSION
-  LEGAL_RULE_MATCH
+  LEGAL_REQUIREMENT
+  COMPLIANCE_RULE_SET_VERSION
+  LEGAL_SOURCE_VERSION
   OUTBOX
-  READINESS_EXPORT
   REPOSITORY_CONNECTION
   REPOSITORY_SCAN_JOB
   REPOSITORY_SNAPSHOT
-  TECHNICAL_EVIDENCE_REPORT
-  TECHNICAL_PROFILE
-  VERIFIED_PROFILE
   WORKER_TASK
   WORKSPACE
-  WIZARD_PROFILE
-}
-
-enum AuthorizationReasonCode {
-  ACTION_NOT_GRANTED
-  ACCOUNT_NOT_FOUND
-  AUTHORIZED
-  AUTHZ_EVALUATOR_FAILURE
-  AUTHZ_STATE_GATE_BLOCKED
-  AUTH_REQUIRED
-  EMAIL_VERIFICATION_REQUIRED
-  EVALUATOR_ERROR
-  INVALID_CREDENTIALS
-  INVALID_INVITE_STATE
-  INVALID_REDIRECT_URI
-  LOAD_ERROR
-  MFA_REQUIRED
-  MFA_INVALID
-  MFA_RATE_LIMITED
-  OAUTH_CALLBACK_INVALID
-  OAUTH_STATE_INVALID
-  RBAC_DENIED
-  RBAC_METADATA_MISSING
-  REAUTH_REQUIRED
-  RECOVERY_INVALID
-  SESSION_INVALID
-  STATE_GATE_FAILED
-  SUBJECT_ROLE_MISMATCH
-  TEMPORARY_LOCKED
-  UNSUPPORTED_PROVIDER
-  VALIDATION_FAILED
 }
 
 enum OutboxAggregateType {
-  AI_USAGE_FLOW
+  BILLING_PAYMENT
   ASSESSMENT
   AUTH_USER
-  CLASSIFICATION_REVIEW_REQUEST
-  CLASSIFICATION_RESULT
-  DOCUMENT_REQUEST
-  LEGAL_CORPUS_VERSION
-  LEGAL_RULE_MATCH
+  LEGAL_SOURCE_VERSION
+  COMPLIANCE_RULE_SET_VERSION
   REPOSITORY_SCAN_JOB
   REPOSITORY_SNAPSHOT
-  TECHNICAL_EVIDENCE_REPORT
-  TECHNICAL_PROFILE
-  TARGETED_REANALYSIS_REQUEST
-  VERIFIED_PROFILE
-  WIZARD_PROFILE
-}
-
-enum TargetedReanalysisRequestState {
-  QUEUED
-  DISPATCHED
-  RUNNING
-  COMPLETED
-  FAILED
-  DLQ
-}
-
-enum TargetedReanalysisCheckpointState {
-  PENDING_DISPATCH
-  DISPATCHED
-  RUNNING
-  RETRY_SCHEDULED
-  COMPLETED
-  FAILED
-  DLQ
 }
 
 enum OutboxStatus {
@@ -392,26 +346,7 @@ enum OutboxStatus {
   PUBLISHED
   FAILED
   DLQ
-}
-
-enum AssessmentStatus {
-  WIZARD_IN_PROGRESS
-  WIZARD_SUBMITTED
-  EVIDENCE_REQUIRED
-  SCAN_IN_PROGRESS
-  CLASSIFICATION_LOCKED
-  READY_FOR_REVIEW
-}
-
-enum WizardProfileStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  SUBMITTED
-}
-
-enum ReadinessExportStatus {
-  GENERATED
-  BLOCKED
+  CANCELLED
 }
 
 enum AuditExportStatus {
@@ -422,45 +357,87 @@ enum AuditExportStatus {
 }
 
 model RepositoryConnection {
-  id                 String                     @id
-  assessmentId       String?
-  userId             String
-  installationId     String
-  repositoryId       String
-  repositoryName     String
-  repositoryFullName String
-  defaultBranch      String
-  permissions        Json
-  status             RepositoryConnectionStatus @default(ACTIVE)
-  connectedAt        DateTime                   @default(now())
-  revokedAt          DateTime?
-  assessment         Assessment?                @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
-  snapshots          RepositorySnapshot[]
-  user               AuthUser                   @relation("RepositoryConnectionUser", fields: [userId], references: [id], onDelete: Restrict)
+  id                            String                         @id
+  assessmentId                  String?
+  userId                        String
+  provider                      CredentialProvider             @default(GITHUB)
+  installationId                String?
+  authenticationMode            RepositoryAuthenticationMode   @default(GITHUB_APP)
+  providerCredentialId          String?
+  credentialVersion             Int?
+  credentialAuthorizedByUserId  String?
+  credentialAuthorizationStatus CredentialAuthorizationStatus?
+  credentialValidatedAt         DateTime?
+  credentialRevokedAt           DateTime?
+  repositoryId                  String
+  repositoryName                String
+  repositoryFullName            String
+  defaultBranch                 String
+  permissions                   Json
+  status                        RepositoryConnectionStatus     @default(ACTIVE)
+  connectedAt                   DateTime                       @default(now())
+  revokedAt                     DateTime?
+  assessment                    Assessment?                    @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  providerCredential            ProviderCredential?            @relation(fields: [providerCredentialId], references: [id], onDelete: Restrict)
+  snapshots                     RepositorySnapshot[]
+  user                          User                           @relation("RepositoryConnectionUser", fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([installationId, repositoryId])
   @@index([assessmentId])
+  @@index([userId, provider, status])
+  @@index([providerCredentialId])
+}
+
+model ProviderCredential {
+  id                          String                   @id
+  provider                    CredentialProvider
+  ownerUserId                 String
+  providerAccountId           BigInt
+  providerLogin               String
+  status                      ProviderCredentialStatus
+  currentVersion              Int
+  isActive                    Boolean                  @default(true)
+  declaredExpiresAt           DateTime?
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
+  validatedAt                 DateTime?
+  lastUsedAt                  DateTime?
+  invalidatedAt               DateTime?
+  revocationRequestedAt       DateTime?
+  revokedAt                   DateTime?
+  lastFailureCode             String?
+  envelopeVersion             Int?
+  encryptionAlgorithm         String?
+  ciphertext                  Bytes?
+  credentialNonce             Bytes?
+  credentialAuthenticationTag Bytes?
+  wrappedDekCiphertext        Bytes?
+  wrappingNonce               Bytes?
+  wrappingAuthenticationTag   Bytes?
+  kekVersion                  String?
+  repositoryConnections       RepositoryConnection[]
+
+  @@index([ownerUserId, provider, isActive])
+  @@index([ownerUserId, provider, providerAccountId])
 }
 
 model RepositorySnapshot {
-  id                         String                      @id
-  assessmentId               String
-  connectionId               String
-  repositoryId               String
-  repositoryFullName         String
-  branch                     String?
-  ref                        String?
-  commitSha                  String
-  providerMetadata           Json
-  actorId                    String
-  status                     RepositorySnapshotStatus    @default(READY)
-  createdAt                  DateTime                    @default(now())
-  actor                      AuthUser                    @relation("RepositorySnapshotActor", fields: [actorId], references: [id], onDelete: Restrict)
-  assessment                 Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  connection                 RepositoryConnection        @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-  scanJobs                   RepositoryScanJob[]
-  targetedReanalysisRequests TargetedReanalysisRequest[]
-  technicalEvidenceReports   TechnicalEvidenceReport[]
+  id                 String                   @id
+  assessmentId       String
+  connectionId       String
+  repositoryId       String
+  repositoryFullName String
+  branch             String?
+  ref                String?
+  commitSha          String
+  providerMetadata   Json
+  actorId            String
+  status             RepositorySnapshotStatus @default(READY)
+  createdAt          DateTime                 @default(now())
+  actor              User                     @relation("RepositorySnapshotActor", fields: [actorId], references: [id], onDelete: Restrict)
+  assessment         Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  connection         RepositoryConnection     @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  scanJobs           RepositoryScanJob[]
 
   @@index([assessmentId])
   @@index([connectionId])
@@ -468,167 +445,59 @@ model RepositorySnapshot {
 }
 
 model RepositoryScanJob {
-  id                        String                      @id
-  assessmentId              String
-  snapshotId                String
-  idempotencyKey            String                      @unique
-  triggerSource             RepositoryScanTriggerSource
-  status                    RepositoryScanJobStatus     @default(QUEUED)
-  attemptCount              Int                         @default(0)
-  correlationId             String
-  blockedReason             String?
-  createdAt                 DateTime                    @default(now())
-  updatedAt                 DateTime                    @updatedAt
-  assessment                Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  snapshot                  RepositorySnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  targetedReanalysisRequest TargetedReanalysisRequest?
-  technicalEvidenceReport   TechnicalEvidenceReport?
+  id             String                      @id
+  assessmentId   String
+  snapshotId     String
+  idempotencyKey String                      @unique
+  triggerSource  RepositoryScanTriggerSource
+  status         RepositoryScanJobStatus     @default(QUEUED)
+  attemptCount   Int                         @default(0)
+  correlationId  String
+  blockedReason  String?
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  assessment     Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  snapshot       RepositorySnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
 
   @@index([assessmentId])
   @@index([snapshotId])
 }
 
-model TargetedReanalysisRequest {
-  id                     String                         @id
-  scanJobId              String                         @unique
-  assessmentId           String
-  inputEvidenceReportId  String
-  snapshotId             String
-  commitSha              String
-  analyzerId             String
-  normalizedScope        Json
-  reasonRequirementId    String
-  idempotencyKey         String                         @unique
-  state                  TargetedReanalysisRequestState @default(QUEUED)
-  apiPublishAttempts     Int                            @default(0)
-  workerDeliveryAttempts Int                            @default(0)
-  checkpointRef          String
-  outputEvidenceReportId String?
-  safeFailureCode        String?
-  correlationId          String
-  checkpoint             TargetedReanalysisCheckpoint?
-  createdAt              DateTime                       @default(now())
-  updatedAt              DateTime                       @updatedAt
-  assessment             Assessment                     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  inputEvidenceReport    TechnicalEvidenceReport        @relation("TargetedReanalysisInputEvidence", fields: [inputEvidenceReportId], references: [id], onDelete: Cascade)
-  outputEvidenceReport   TechnicalEvidenceReport?       @relation("TargetedReanalysisOutputEvidence", fields: [outputEvidenceReportId], references: [id], onDelete: SetNull)
-  scanJob                RepositoryScanJob              @relation(fields: [scanJobId], references: [id], onDelete: Cascade)
-  snapshot               RepositorySnapshot             @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+/// Accepted per-AssessmentRule assessment: the RuleEvidenceIndex ledger (accepted evidence only).
+
+enum AssessmentRuntimeControlState {
+  RUNNING
+  STOP_REQUESTED
+  STOPPED
+  RESUME_REQUESTED
+  COMPLETED
+}
+
+model AssessmentRuntimeTurn {
+  id             String                        @id
+  assessmentId   String
+  threadId       String
+  boundary       String
+  logicalRunId   String
+  workflowRunId  String?
+  correlationId  String
+  state          AssessmentRuntimeControlState @default(RUNNING)
+  requestId      String?
+  contextJson    Json
+  checkpointJson Json?
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  assessment     Assessment                    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@index([assessmentId, createdAt])
-  @@index([inputEvidenceReportId])
-  @@index([snapshotId])
-}
-
-model TargetedReanalysisCheckpoint {
-  id                     String                            @id
-  requestId              String                            @unique
-  state                  TargetedReanalysisCheckpointState @default(PENDING_DISPATCH)
-  apiPublishAttempts     Int                               @default(0)
-  workerDeliveryAttempts Int                               @default(0)
-  outputEvidenceReportId String?
-  safeFailureCode        String?
-  correlationId          String
-  createdAt              DateTime                          @default(now())
-  updatedAt              DateTime                          @updatedAt
-  request                TargetedReanalysisRequest         @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  @@index([state, updatedAt])
-}
-
-model TechnicalEvidenceReport {
-  id                        String                      @id
-  scanJobId                 String                      @unique
-  assessmentId              String
-  snapshotId                String
-  toolsVersion              Json
-  configHash                Json
-  evidencePayload           Json
-  privacyFlags              Json
-  schemaVersion             String
-  status                    EvidenceAcceptanceStatus    @default(ACCEPTED)
-  rejectionReason           String?
-  createdAt                 DateTime                    @default(now())
-  assessment                Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  scanJob                   RepositoryScanJob           @relation(fields: [scanJobId], references: [id], onDelete: Cascade)
-  snapshot                  RepositorySnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  targetedReanalysisInputs  TargetedReanalysisRequest[] @relation("TargetedReanalysisInputEvidence")
-  targetedReanalysisOutputs TargetedReanalysisRequest[] @relation("TargetedReanalysisOutputEvidence")
-  technicalProfile          TechnicalProfile?
-  verifiedProfiles          VerifiedProfile[]
-
-  @@index([assessmentId])
-  @@index([scanJobId])
-}
-
-model TechnicalProfile {
-  id               String                   @id @default(uuid())
-  evidenceReportId String                   @unique
-  assessmentId     String
-  schemaVersion    String
-  providerVersion  String
-  profileData      Json
-  privacyFlags     Json
-  status           EvidenceAcceptanceStatus @default(ACCEPTED)
-  rejectionReason  String?
-  createdAt        DateTime                 @default(now())
-  aiUsageFlow      AIUsageFlow?
-  assessment       Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  evidenceReport   TechnicalEvidenceReport  @relation(fields: [evidenceReportId], references: [id], onDelete: Cascade)
-
-  @@index([assessmentId])
-}
-
-model AIUsageFlow {
-  id                 String                   @id @default(uuid())
-  technicalProfileId String                   @unique
-  assessmentId       String
-  schemaVersion      String
-  providerVersion    String
-  claims             Json
-  unknownUsages      Json
-  privacyFlags       Json
-  status             EvidenceAcceptanceStatus @default(ACCEPTED)
-  rejectionReason    String?
-  createdAt          DateTime                 @default(now())
-  assessment         Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  conflictRecords    ConflictRecord[]
-  technicalProfile   TechnicalProfile         @relation(fields: [technicalProfileId], references: [id], onDelete: Cascade)
-  verifiedProfiles   VerifiedProfile[]
-
-  @@index([assessmentId])
-}
-
-model ConflictRecord {
-  id               String               @id @default(uuid())
-  aiUsageFlowId    String
-  assessmentId     String
-  conflictType     String
-  conflictScore    Float
-  scoreExplanation String
-  evidenceRefs     Json
-  explanationBasis Json?
-  status           ConflictRecordStatus @default(PENDING)
-  resolvedAt       DateTime?
-  resolvedById     String?
-  resolutionNote   String?
-  createdAt        DateTime             @default(now())
-  aiUsageFlow      AIUsageFlow          @relation(fields: [aiUsageFlowId], references: [id], onDelete: Cascade)
-  assessment       Assessment           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  resolvedBy       AuthUser?            @relation("ConflictRecordResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
-
-  @@index([assessmentId, status])
 }
 
 model AssessmentRuntimeEvent {
-  id                String                     @id @default(uuid())
+  id                String     @id @default(uuid())
   assessmentId      String
   runId             String
   correlationId     String
   sequence          Int
-  eventType         AssessmentRuntimeEventType
-  runStatus         AssessmentRuntimeRunStatus
-  stage             AssessmentRuntimeStage
   toolName          String?
   summary           String
   inputSummaryJson  Json?
@@ -639,100 +508,12 @@ model AssessmentRuntimeEvent {
   durationMs        Int?
   attempt           Int?
   waitingReason     String?
-  createdAt         DateTime                   @default(now())
-  assessment        Assessment                 @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  createdAt         DateTime   @default(now())
+  assessment        Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@unique([runId, sequence])
   @@index([assessmentId, createdAt])
   @@index([runId, sequence])
-}
-
-model VerifiedProfile {
-  id                         String                   @id @default(uuid())
-  aiUsageFlowId              String
-  version                    Int                      @default(1)
-  wizardProfileId            String?
-  technicalEvidenceReportId  String?
-  reconciliationDecisionRefs Json?
-  idempotencyKey             String?
-  assessmentId               String
-  schemaVersion              String
-  providerVersion            String
-  profileData                Json
-  gatesPassedAt              Json
-  status                     VerifiedProfileStatus    @default(PENDING_APPROVAL)
-  approvedAt                 DateTime?
-  approvedById               String?
-  createdAt                  DateTime                 @default(now())
-  aiUsageFlow                AIUsageFlow              @relation(fields: [aiUsageFlowId], references: [id], onDelete: Cascade)
-  approvedBy                 AuthUser?                @relation("VerifiedProfileApprover", fields: [approvedById], references: [id], onDelete: SetNull)
-  assessment                 Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  classificationResults      ClassificationResult[]
-  legalRuleMatches           LegalRuleMatch[]
-  technicalEvidenceReport    TechnicalEvidenceReport? @relation(fields: [technicalEvidenceReportId], references: [id], onDelete: SetNull)
-  wizardProfile              WizardProfile?           @relation(fields: [wizardProfileId], references: [id], onDelete: SetNull)
-
-  @@unique([assessmentId, version])
-  @@index([aiUsageFlowId])
-  @@index([assessmentId])
-  @@index([assessmentId, version])
-}
-
-model ClassificationResult {
-  id                 String                        @id @default(uuid())
-  legalRuleMatchId   String?                       @unique
-  verifiedProfileId  String?
-  assessmentId       String
-  schemaVersion      String?
-  classificationData Json?
-  guardrailStatus    ClassificationGuardrailStatus @default(PASSED)
-  blockedReason      String?
-  status             EvidenceAcceptanceStatus      @default(ACCEPTED)
-  createdAt          DateTime                      @default(now())
-  assessment         Assessment                    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  documentRequests   DocumentRequest[]
-  legalRuleMatch     LegalRuleMatch?               @relation(fields: [legalRuleMatchId], references: [id], onDelete: SetNull)
-  verifiedProfile    VerifiedProfile?              @relation(fields: [verifiedProfileId], references: [id], onDelete: SetNull)
-
-  @@index([assessmentId])
-}
-
-model ClassificationReviewRequest {
-  id               String                            @id @default(uuid())
-  legalRuleMatchId String
-  assessmentId     String
-  proposalGateRef  String
-  baselineRef      String
-  candidateLabel   String
-  citationRefs     Json
-  requestedById    String
-  idempotencyKey   String
-  status           ClassificationReviewRequestStatus @default(PENDING_INDEPENDENT_REVIEW)
-  expiresAt        DateTime
-  createdAt        DateTime                          @default(now())
-  assessment       Assessment                        @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  legalRuleMatch   LegalRuleMatch                    @relation(fields: [legalRuleMatchId], references: [id], onDelete: Cascade)
-  requestedBy      AuthUser                          @relation("ClassificationReviewRequester", fields: [requestedById], references: [id], onDelete: Restrict)
-
-  @@index([assessmentId, status])
-  @@index([legalRuleMatchId])
-}
-
-model DocumentRequest {
-  id                     String                @id
-  assessmentId           String
-  requestedById          String
-  classificationResultId String
-  documentType           DocumentType
-  status                 DocumentRequestStatus @default(QUEUED)
-  documentUrl            String?
-  blockedReason          String?
-  correlationId          String
-  createdAt              DateTime              @default(now())
-  updatedAt              DateTime              @updatedAt
-  assessment             Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  classificationResult   ClassificationResult  @relation(fields: [classificationResultId], references: [id], onDelete: Cascade)
-  requestedBy            AuthUser              @relation("DocumentRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
 }
 
 model GitHubAppInstallState {
@@ -744,43 +525,30 @@ model GitHubAppInstallState {
   expiresAt    DateTime
   createdAt    DateTime    @default(now())
   assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
-  user         AuthUser    @relation("GitHubAppInstallStateUser", fields: [userId], references: [id], onDelete: Restrict)
+  user         User        @relation("GitHubAppInstallStateUser", fields: [userId], references: [id], onDelete: Restrict)
 }
 
-model LegalRuleCatalogVersion {
-  id               String                   @id @default(uuid())
-  version          String
-  status           LegalRuleLifecycleStatus @default(DRAFT)
-  ruleRefs         Json
-  createdAt        DateTime                 @default(now())
-  approvedAt       DateTime?
-  legalRuleMatches LegalRuleMatch[]
-  rules            LegalRule[]
-  approvals        RuleApprovalRecord[]
-
-  @@index([status])
-}
-
-model LegalCorpusVersion {
-  id                   String                   @id @default(uuid())
-  version              String                   @unique
-  status               LegalRuleLifecycleStatus @default(DRAFT)
-  sourceManifest       Json
-  integrityManifestRef String?
-  createdAt            DateTime                 @default(now())
-  approvedAt           DateTime?
-  documents            LegalSourceDocument[]
-  chunks               LegalDocumentChunk[]
-  approvals            CorpusApprovalRecord[]
-  legalRuleMatches     LegalRuleMatch[]
-  retrievalIndexes     LegalRetrievalIndex[]
+model LegalSourceVersion {
+  id                     String                        @id @default(uuid())
+  version                String                        @unique
+  status                 LegalSourceLifecycleStatus    @default(DRAFT)
+  sourceManifest         Json
+  integrityManifestRef   String?
+  createdAt              DateTime                      @default(now())
+  activatedAt            DateTime?
+  documents              LegalSourceDocument[]
+  chunks                 LegalDocumentChunk[]
+  activations            LegalSourceActivationRecord[]
+  retrievalIndexes       LegalRetrievalIndex[]
+  ruleSetPreparationRuns RuleSetPreparationRun[]
+  ruleSetVersions        ComplianceRuleSetVersion[]
 
   @@index([status, createdAt])
 }
 
 model LegalRetrievalIndex {
   id                    String                    @id @default(uuid())
-  legalCorpusVersionId  String
+  legalSourceVersionId  String
   version               String                    @unique
   status                LegalRetrievalIndexStatus @default(BUILDING)
   configHash            String
@@ -788,14 +556,14 @@ model LegalRetrievalIndex {
   validationManifestRef String?
   validatedAt           DateTime?
   createdAt             DateTime                  @default(now())
-  corpusVersion         LegalCorpusVersion        @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+  legalSourceVersion    LegalSourceVersion        @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
 
-  @@index([legalCorpusVersionId, status, validatedAt])
+  @@index([legalSourceVersionId, status, validatedAt])
 }
 
 model LegalSourceDocument {
   id                   String               @id @default(uuid())
-  legalCorpusVersionId String
+  legalSourceVersionId String
   documentId           String
   title                String
   sourceUrl            String
@@ -804,10 +572,10 @@ model LegalSourceDocument {
   sourceEffectStatus   String
   snapshotPath         String?
   createdAt            DateTime             @default(now())
-  corpusVersion        LegalCorpusVersion   @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+  legalSourceVersion   LegalSourceVersion   @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
   chunks               LegalDocumentChunk[]
 
-  @@unique([legalCorpusVersionId, documentId])
+  @@unique([legalSourceVersionId, documentId])
   @@index([documentId])
 }
 
@@ -839,101 +607,81 @@ model LegalSourceSnapshot {
 }
 
 model LegalDocumentChunk {
-  id                    String              @id
-  legalCorpusVersionId  String
-  legalSourceDocumentId String
-  documentId            String
-  locator               String
-  content               String
-  contentSha256         String
-  hierarchy             Json
-  legalStatus           String
-  pageStart             Int?
-  pageEnd               Int?
-  createdAt             DateTime            @default(now())
-  corpusVersion         LegalCorpusVersion  @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
-  sourceDocument        LegalSourceDocument @relation(fields: [legalSourceDocumentId], references: [id], onDelete: Cascade)
+  id                      String                            @id
+  legalSourceVersionId    String
+  legalSourceDocumentId   String
+  documentId              String
+  locator                 String
+  content                 String
+  contentSha256           String
+  hierarchy               Json
+  legalStatus             String
+  pageStart               Int?
+  pageEnd                 Int?
+  createdAt               DateTime                          @default(now())
+  legalSourceVersion      LegalSourceVersion                @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
+  sourceDocument          LegalSourceDocument               @relation(fields: [legalSourceDocumentId], references: [id], onDelete: Cascade)
+  ruleSetProvenance       LegalRequirementProvenance[]
+  ruleSetContextRelations LegalRequirementContextRelation[]
 
-  @@unique([legalCorpusVersionId, documentId, locator])
-  @@index([legalCorpusVersionId, documentId])
-  @@index([legalCorpusVersionId, legalStatus])
+  @@unique([id, legalSourceVersionId])
+  @@unique([legalSourceVersionId, documentId, locator])
+  @@index([legalSourceVersionId, documentId])
+  @@index([legalSourceVersionId, legalStatus])
 }
 
-model CorpusApprovalRecord {
-  id                     String                   @id @default(uuid())
-  legalCorpusVersionId   String
-  approvedBy             String
-  status                 LegalRuleLifecycleStatus
+model LegalSourceActivationRecord {
+  id                     String                     @id @default(uuid())
+  legalSourceVersionId   String
+  activatedBy            String
+  status                 LegalSourceLifecycleStatus
   idempotencyKey         String?
   integrityManifestRef   String?
   retrievalValidationRef String?
   outboxEventId          String?
   scopeDescription       String
   comments               String?
-  approvalDate           DateTime                 @default(now())
-  corpusVersion          LegalCorpusVersion       @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+  activatedAt            DateTime                   @default(now())
+  legalSourceVersion     LegalSourceVersion         @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
 
   @@unique([idempotencyKey])
-  @@index([legalCorpusVersionId])
-}
-
-model LegalRule {
-  id                        String                   @id @default(uuid())
-  legalRuleId               String                   @unique
-  legalRuleCatalogVersionId String
-  ruleFamily                String
-  requiredFacts             Json
-  optionalFacts             Json?
-  blockingFacts             Json?
-  unknownFactPolicy         String
-  citationLocatorRefs       Json
-  status                    LegalRuleLifecycleStatus @default(DRAFT)
-  authoredBy                String
-  catalogVersion            LegalRuleCatalogVersion  @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Cascade)
-
-  @@index([legalRuleCatalogVersionId])
-}
-
-model RuleApprovalRecord {
-  id                        String                   @id @default(uuid())
-  legalRuleCatalogVersionId String
-  approvedBy                String
-  status                    LegalRuleLifecycleStatus
-  scopeDescription          String
-  comments                  String?
-  approvalDate              DateTime                 @default(now())
-  catalogVersion            LegalRuleCatalogVersion  @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Cascade)
-
-  @@index([legalRuleCatalogVersionId])
-}
-
-model LegalRuleMatch {
-  id                        String                        @id @default(uuid())
-  verifiedProfileId         String
-  assessmentId              String
-  corpusVersionId           String
-  legalRuleCatalogVersionId String
-  schemaVersion             String
-  matches                   Json
-  citationAllowlist         Json
-  overallCoverageStatus     OverallCoverageStatus         @default(NO_CITATION)
-  guardrailStatus           LegalRuleMatchGuardrailStatus @default(PASSED)
-  blockedReason             String?
-  status                    EvidenceAcceptanceStatus      @default(ACCEPTED)
-  createdAt                 DateTime                      @default(now())
-  assessment                Assessment                    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  catalogVersion            LegalRuleCatalogVersion       @relation(fields: [legalRuleCatalogVersionId], references: [id], onDelete: Restrict)
-  classificationResult      ClassificationResult?
-  classificationReviews     ClassificationReviewRequest[]
-  corpusVersion             LegalCorpusVersion            @relation(fields: [corpusVersionId], references: [id], onDelete: Restrict)
-  verifiedProfile           VerifiedProfile               @relation(fields: [verifiedProfileId], references: [id], onDelete: Cascade)
-
-  @@index([assessmentId])
+  @@index([legalSourceVersionId])
 }
 
 enum RepositoryConnectionStatus {
   ACTIVE
   REVOKED
+}
+
+enum CredentialProvider {
+  GITHUB
+  GITLAB
+  BITBUCKET
+  AZURE_DEVOPS
+}
+
+enum ProviderCredentialStatus {
+  PENDING
+  ACTIVE
+  INVALID
+  EXPIRED
+  REVOKING
+  REVOKED
+  STORAGE_ERROR
+}
+
+enum CredentialAuthorizationStatus {
+  ACTIVE
+  REVOKING
+  REVOKED
+}
+
+enum RepositoryAuthenticationMode {
+  GITHUB_APP
+  GITHUB_CLI_CREDENTIAL
+  GITLAB_CLI_CREDENTIAL
+  BITBUCKET_CLI_CREDENTIAL
+  AZURE_DEVOPS_CLI_CREDENTIAL
 }
 
 enum RepositorySnapshotStatus {
@@ -949,6 +697,7 @@ enum RepositoryScanJobStatus {
   PENDING_MAPPING
   BLOCKED_MAPPING
   WAITING_FOR_CONTEXT
+  WAITING_FOR_CREDITS
   READY_TO_SNAPSHOT
 }
 
@@ -957,98 +706,10 @@ enum RepositoryScanTriggerSource {
   TRUSTED
 }
 
-enum AssessmentRuntimeEventType {
-  RUN_STARTED
-  RUN_STAGE_CHANGED
-  TOOL_STARTED
-  TOOL_COMPLETED
-  TOOL_FAILED
-  TOOL_WAITING_INPUT
-  TOOL_SKIPPED
-  RUN_COMPLETED
-  RUN_FAILED
-}
-
-enum AssessmentRuntimeRunStatus {
-  RUNNING
-  WAITING
-  COMPLETED
-  FAILED
-}
-
-enum AssessmentRuntimeStage {
-  SNAPSHOT
-  SCAN
-  TECHNICAL_EVIDENCE
-  TECHNICAL_PROFILE
-  AI_USAGE_FLOW
-  RECONCILIATION
-  CLASSIFICATION
-  CONFLICTS
-  DOCUMENTS
-  LEGAL_RETRIEVAL
-}
-
-enum EvidenceAcceptanceStatus {
-  ACCEPTED
-  REJECTED
-}
-
-enum ConflictRecordStatus {
-  PENDING
-  RESOLVED
-  DISMISSED
-}
-
-enum VerifiedProfileStatus {
-  PENDING_APPROVAL
-  APPROVED
-  AUTO_APPROVED
-  STALE
-}
-
-enum ClassificationGuardrailStatus {
-  PASSED
-  DEGRADED
-  BLOCKED
-}
-
-enum ClassificationReviewRequestStatus {
-  PENDING_INDEPENDENT_REVIEW
-  APPROVED
-  REJECTED
-  EXPIRED
-}
-
-enum LegalRuleMatchGuardrailStatus {
-  PASSED
-  BLOCKED
-}
-
-enum OverallCoverageStatus {
-  NO_CITATION
-  PARTIAL_CITATION
-  COMPLETE_CITATION
-}
-
-enum DocumentRequestStatus {
-  QUEUED
-  GENERATING
-  READY
-  FAILED
-  BLOCKED
-}
-
-enum DocumentType {
-  FINAL_REPORT
-  GAP_ANALYSIS
-  READINESS_EXPORT
-}
-
-enum LegalRuleLifecycleStatus {
+enum LegalSourceLifecycleStatus {
   DRAFT
-  APPROVED
-  REJECTED
+  ACTIVE
+  INVALID
   SUPERSEDED
 }
 
@@ -1056,4 +717,758 @@ enum LegalRetrievalIndexStatus {
   BUILDING
   VALID
   INVALID
+}
+
+// Account access and pending provisioning are separate lifecycles.
+enum UserAccessStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AdminAccountOperation {
+  SUSPEND
+  RESTORE
+}
+
+model AdminAccountCommandReceipt {
+  id                 String                @id
+  actorId            String
+  idempotencyKey     String
+  operation          AdminAccountOperation
+  requestHash        String
+  resourceId         String
+  resourceGeneration Int?
+  createdAt          DateTime              @default(now())
+
+  @@unique([actorId, idempotencyKey])
+}
+
+enum BillingOrderStatus {
+  PENDING_PAYMENT
+  CREDITED
+  EXPIRED
+  CANCELLED
+  PENDING_RECONCILIATION
+}
+
+enum PaymentReconciliationStatus {
+  MATCHED
+  UNMATCHED
+  AMOUNT_MISMATCH
+  DUPLICATE
+  REJECTED
+  NEEDS_REVIEW
+}
+
+enum PaymentReconciliationReason {
+  INBOUND_REQUIRED
+  UNMATCHED_PAYMENT_CODE
+  AMBIGUOUS_ORDER_MATCH
+  UNDERPAYMENT
+  OVERPAYMENT
+  EXPIRED_ORDER
+  OWNERSHIP_CONFLICT
+  RECOVERABLE_EXCEPTION
+  DUPLICATE_PROVIDER_TRANSACTION
+}
+
+enum BillingReservationStatus {
+  RESERVED
+  SETTLED
+  RELEASED
+}
+
+enum LlmUsageStatus {
+  SETTLED
+  UNAVAILABLE
+  RETRYABLE
+}
+
+model BillingWallet {
+  id                           String               @id @default(uuid())
+  userId                       String               @unique
+  availableCredits             BigInt               @default(0)
+  reservedCredits              BigInt               @default(0)
+  version                      Int                  @default(0)
+  reservationAutoRefillEnabled Boolean              @default(false)
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+  user                         User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ledgerEntries                CreditLedgerEntry[]
+  reservations                 BillingReservation[]
+}
+
+model BillingOrder {
+  id                  String               @id @default(uuid())
+  userId              String
+  paymentCode         String               @unique
+  idempotencyKey      String
+  requestFingerprint  String?
+  status              BillingOrderStatus   @default(PENDING_PAYMENT)
+  amountMinorUnits    BigInt
+  creditUnits         BigInt
+  expiresAt           DateTime?
+  creditedAt          DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  paymentTransactions PaymentTransaction[]
+  ledgerEntries       CreditLedgerEntry[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, status, createdAt])
+}
+
+model SePayWebhookEvent {
+  id                    String    @id @default(uuid())
+  provider              String
+  providerTransactionId String
+  sanitizedPayload      Json?
+  integrityHash         String?
+  securityAcceptedAt    DateTime?
+  receivedAt            DateTime  @default(now())
+  processedAt           DateTime?
+  createdAt             DateTime  @default(now())
+
+  paymentTransaction PaymentTransaction?
+
+  @@unique([provider, providerTransactionId])
+  @@index([receivedAt])
+}
+
+model PaymentTransaction {
+  id                    String                       @id @default(uuid())
+  provider              String
+  providerTransactionId String
+  amountMinorUnits      BigInt
+  reconciliationStatus  PaymentReconciliationStatus  @default(UNMATCHED)
+  reconciliationReason  PaymentReconciliationReason?
+  reconciliationVersion Int                          @default(0)
+  userId                String?
+  billingOrderId        String?
+  webhookEventId        String?                      @unique
+  receivedAt            DateTime                     @default(now())
+  reconciledAt          DateTime?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  user                  User?                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  billingOrder          BillingOrder?                @relation(fields: [billingOrderId], references: [id], onDelete: Restrict)
+  webhookEvent          SePayWebhookEvent?           @relation(fields: [webhookEventId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerTransactionId])
+  @@index([userId, createdAt])
+  @@index([reconciliationStatus, createdAt])
+  @@index([reconciliationStatus, reconciledAt])
+  @@index([provider, receivedAt])
+  @@index([receivedAt, id])
+}
+
+model CreditLedgerEntry {
+  id             String        @id @default(uuid())
+  userId         String
+  walletId       String
+  billingOrderId String?
+  idempotencyKey String        @unique
+  source         String
+  referenceId    String?
+  deltaCredits   BigInt
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet         BillingWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  billingOrder   BillingOrder? @relation(fields: [billingOrderId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([walletId, createdAt])
+  @@index([source, referenceId])
+  @@index([source, createdAt])
+}
+
+model BillingReservation {
+  id                   String                              @id @default(uuid())
+  userId               String
+  walletId             String
+  workspaceId          String?
+  assessmentId         String?
+  scanJobId            String?
+  threadId             String?
+  runId                String?
+  provider             String?
+  model                String?
+  invocationId         String?
+  modelInvocationId    String?
+  amountCredits        BigInt
+  initialAmountCredits BigInt?
+  remainingCredits     BigInt                              @default(0)
+  maxInvocations       BigInt                              @default(1)
+  invocationsStarted   BigInt                              @default(0)
+  status               BillingReservationStatus            @default(RESERVED)
+  idempotencyKey       String?
+  settledAt            DateTime?
+  releasedAt           DateTime?
+  createdAt            DateTime                            @default(now())
+  updatedAt            DateTime                            @updatedAt
+  user                 User                                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet               BillingWallet                       @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  assessment           Assessment?                         @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  usageEvents          LlmUsageEvent[]
+  invocationClaims     BillingReservationInvocationClaim[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([assessmentId, runId])
+  @@index([scanJobId])
+  @@index([threadId])
+  @@index([invocationId])
+  @@index([modelInvocationId])
+  @@index([userId, status, createdAt])
+  @@index([walletId, status])
+}
+
+model BillingReservationInvocationClaim {
+  id                       String             @id @default(uuid())
+  reservationId            String
+  invocationId             String
+  authorizedChargeCredits  BigInt             @default(0)
+  authorizationFingerprint String?
+  settledAt                DateTime?
+  createdAt                DateTime           @default(now())
+  reservation              BillingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@unique([reservationId, invocationId])
+  @@index([invocationId])
+  @@index([reservationId, settledAt])
+}
+
+model ModelPricingSnapshot {
+  id                         String          @id @default(uuid())
+  provider                   String
+  model                      String
+  inputPricePerMillion       Decimal         @db.Decimal(20, 8)
+  cachedInputPricePerMillion Decimal?        @db.Decimal(20, 8)
+  cacheWritePricePerMillion  Decimal?        @db.Decimal(20, 8)
+  outputPricePerMillion      Decimal         @db.Decimal(20, 8)
+  reasoningPricePerMillion   Decimal?        @db.Decimal(20, 8)
+  // Immutable composite authority for provider cost, customer markup, and FX.
+  // Legacy snapshots may omit composite fields; settlement rejects them.
+  providerCurrency           String?
+  customerCurrency           String?
+  markupBps                  BigInt?
+  fxRateVndNumerator         BigInt?
+  fxRateVndDenominator       BigInt?
+  version                    Int
+  effectiveAt                DateTime
+  createdAt                  DateTime        @default(now())
+  usageEvents                LlmUsageEvent[]
+
+  @@unique([provider, model, version])
+  @@index([provider, model, effectiveAt])
+}
+
+model RuntimeModelPolicySnapshot {
+  id            String          @id @default(uuid())
+  role          String
+  provider      String
+  model         String
+  policyVersion String
+  effectiveAt   DateTime
+  createdAt     DateTime        @default(now())
+  usageEvents   LlmUsageEvent[]
+
+  @@unique([role, policyVersion])
+  @@index([role, effectiveAt])
+}
+
+model LlmUsageEvent {
+  id                      String                      @id @default(uuid())
+  userId                  String
+  assessmentId            String?
+  runId                   String?
+  agentRole               String                      @default("LEGACY")
+  provider                String
+  model                   String
+  invocationId            String
+  status                  LlmUsageStatus              @default(SETTLED)
+  availabilityReason      String?
+  providerResponseId      String?
+  inputTokens             BigInt?
+  cachedInputTokens       BigInt?
+  cacheWriteTokens        BigInt?
+  outputTokens            BigInt?
+  reasoningTokens         BigInt?
+  totalTokens             BigInt?
+  pricingSnapshotId       String?
+  runtimePolicySnapshotId String?
+  providerCostCredits     BigInt?
+  customerChargeVnd       BigInt?
+  reservationId           String?
+  chargedCredits          BigInt?
+  occurredAt              DateTime                    @default(now())
+  createdAt               DateTime                    @default(now())
+  user                    User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assessment              Assessment?                 @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  pricingSnapshot         ModelPricingSnapshot?       @relation(fields: [pricingSnapshotId], references: [id], onDelete: Restrict)
+  runtimePolicySnapshot   RuntimeModelPolicySnapshot? @relation(fields: [runtimePolicySnapshotId], references: [id], onDelete: Restrict)
+  reservation             BillingReservation?         @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, invocationId])
+  @@unique([provider, providerResponseId])
+  @@index([assessmentId, runId, createdAt])
+  @@index([reservationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([provider, model, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Compliance rule set (expand-only). One Rule Set Preparation run authors one
+// complete LegalRequirement + AssessmentRule set against one pinned immutable
+// legal source version. The activation transaction is the only writer of the ACTIVE pointer.
+// V1 LegalSourceVersion / LegalRequirement / approval rows are untouched. Physical table and column
+// names match the canonical physical PostgreSQL schema.
+// ---------------------------------------------------------------------------
+
+model RuleSetPreparationRun {
+  id                   String                             @id @default(uuid())
+  idempotencyKey       String                             @unique
+  legalSourceVersionId String
+  requestedBy          String
+  correlationId        String
+  executionState       AgentExecutionState                @default(QUEUED)
+  failureReason        RuleSetPreparationFailureReason?
+  outboxEventId        String?
+  createdAt            DateTime                           @default(now())
+  startedAt            DateTime?
+  completedAt          DateTime?
+  legalSourceVersion   LegalSourceVersion                 @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
+  ruleSet              ComplianceRuleSetVersion?
+  activationRecord     ComplianceRuleSetActivationRecord?
+
+  @@index([legalSourceVersionId])
+  @@index([executionState, createdAt])
+}
+
+model ComplianceRuleSetVersion {
+  id                      String                              @id @default(uuid())
+  version                 String                              @unique
+  legalSourceVersionId    String
+  preparationRunId        String                              @unique
+  lifecycleState          ArtifactLifecycleState              @default(BUILDING)
+  ruleSetDigest           String
+  validationOutcome       ComplianceRuleSetValidationOutcome?
+  validationFailures      Json                                @default("[]")
+  createdAt               DateTime                            @default(now())
+  validatedAt             DateTime?
+  activatedAt             DateTime?
+  supersededAt            DateTime?
+  legalSourceVersion      LegalSourceVersion                  @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
+  preparationRun          RuleSetPreparationRun               @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+  rules                   LegalRequirement[]
+  assessmentRules         AssessmentRule[]
+  provenance              LegalRequirementProvenance[]
+  contextRelations        LegalRequirementContextRelation[]
+  activation              ComplianceRuleSetActivationRecord?  @relation("ActivationTarget")
+  supersededByActivations ComplianceRuleSetActivationRecord[] @relation("ActivationPrevious")
+  assessmentCases         AssessmentCase[]
+
+  // Lets child rows prove they share the rule set's legal source version (composite FK).
+  @@unique([id, legalSourceVersionId])
+  @@index([lifecycleState])
+  @@index([legalSourceVersionId])
+}
+
+model LegalRequirement {
+  id                      String                            @id @default(uuid())
+  ruleSetVersionId        String
+  legalRequirementId      String
+  title                   String
+  proposition             String
+  applicabilityConditions Json
+  qualifiers              Json
+  exceptions              Json
+  nonRepositoryDuty       Boolean
+  coverageState           LegalRequirementCoverageState
+  nonAssessableReason     String?
+  contentDigest           String
+  ordinal                 Int
+  ruleSet                 ComplianceRuleSetVersion          @relation(fields: [ruleSetVersionId], references: [id], onDelete: Restrict)
+  assessmentRuleLinks     AssessmentRuleLegalRequirement[]
+  provenance              LegalRequirementProvenance[]
+  outgoingRelations       LegalRequirementContextRelation[] @relation("RelationFrom")
+
+  @@unique([ruleSetVersionId, legalRequirementId])
+  @@unique([id, ruleSetVersionId])
+}
+
+model AssessmentRule {
+  id                    String                           @id @default(uuid())
+  ruleSetVersionId      String
+  assessmentRuleId      String
+  assessmentRuleVersion String
+  concept               String
+  legalIntent           String
+  applicabilityGuidance String
+  criteria              Json
+  contract              Json
+  sourceFingerprint     String
+  contentDigest         String
+  ordinal               Int
+  createdAt             DateTime                         @default(now())
+  ruleSet               ComplianceRuleSetVersion         @relation(fields: [ruleSetVersionId], references: [id], onDelete: Restrict)
+  legalRequirementLinks AssessmentRuleLegalRequirement[]
+  assessmentDecisions   AssessmentRuleDecision[]
+  assessmentCoverage    AssessmentDecisionCoverage[]
+
+  @@unique([ruleSetVersionId, assessmentRuleId])
+  @@unique([id, ruleSetVersionId])
+}
+
+// same-rule-set ownership is enforced by the composite foreign keys.
+model AssessmentRuleLegalRequirement {
+  ruleSetVersionId      String
+  assessmentRuleRowId   String
+  legalRequirementRowId String
+  assessmentRule        AssessmentRule   @relation(fields: [assessmentRuleRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
+  legalRequirement      LegalRequirement @relation(fields: [legalRequirementRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
+
+  @@id([assessmentRuleRowId, legalRequirementRowId])
+  @@index([legalRequirementRowId])
+}
+
+// Server-resolved proof: the chunk must belong to the rule set's own legal source version.
+model LegalRequirementProvenance {
+  id                    String                   @id @default(uuid())
+  ruleSetVersionId      String
+  legalRequirementRowId String
+  legalSourceVersionId  String
+  chunkId               String
+  documentId            String
+  locator               String
+  contentSha256         String
+  sourceEffectStatus    String
+  ordinal               Int
+  ruleSet               ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
+  rule                  LegalRequirement         @relation(fields: [legalRequirementRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
+  chunk                 LegalDocumentChunk       @relation(fields: [chunkId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
+
+  @@unique([legalRequirementRowId, chunkId])
+  @@index([ruleSetVersionId])
+}
+
+// Exactly one of toRuleId / toChunkId (CHECK in the migration). toRuleId also
+// carries a raw composite FK (toRuleId, ruleSetVersionId) in the migration.
+model LegalRequirementContextRelation {
+  id                   String                   @id @default(uuid())
+  ruleSetVersionId     String
+  relationId           String
+  kind                 LegalContextRelationKind
+  fromRuleId           String
+  toRuleId             String?
+  toChunkId            String?
+  legalSourceVersionId String
+  relationDigest       String
+  ordinal              Int
+  ruleSet              ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
+  fromRule             LegalRequirement         @relation("RelationFrom", fields: [fromRuleId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)
+  toChunk              LegalDocumentChunk?      @relation(fields: [toChunkId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
+
+  @@unique([ruleSetVersionId, relationId])
+  @@index([fromRuleId])
+}
+
+// Mechanical activation audit. Not an approval: no human approver, no
+// approve/reject lifecycle. Failure records the INVALID candidate's result.
+model ComplianceRuleSetActivationRecord {
+  id                             String                             @id @default(uuid())
+  ruleSetVersionId               String                             @unique
+  preparationRunId               String                             @unique
+  idempotencyKey                 String                             @unique
+  requestDigest                  String
+  validationOutcome              ComplianceRuleSetValidationOutcome
+  validationFailures             Json                               @default("[]")
+  previousActiveRuleSetVersionId String?
+  outboxEventId                  String?
+  correlationId                  String
+  createdAt                      DateTime                           @default(now())
+  ruleSet                        ComplianceRuleSetVersion           @relation("ActivationTarget", fields: [ruleSetVersionId], references: [id], onDelete: Restrict)
+  previousActive                 ComplianceRuleSetVersion?          @relation("ActivationPrevious", fields: [previousActiveRuleSetVersionId], references: [id], onDelete: Restrict)
+  preparationRun                 RuleSetPreparationRun              @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+
+  @@index([previousActiveRuleSetVersionId])
+}
+
+// ---------------------------------------------------------------------------------------------
+// Assessment domain. Authoritative, revisioned, provenance-validated state of one assessment's
+// Root run. Rows are written only by the API assessment-domain boundary; nothing here is a legal
+// judgment by deterministic code. Raw-SQL guards in the migration enforce pins, immutability and
+// the decision-resolution transition table.
+// ---------------------------------------------------------------------------------------------
+
+enum AssessmentEvidenceType {
+  REPOSITORY_SOURCE
+  SEARCH_COVERAGE
+  HUMAN_ANSWER
+}
+
+enum AssessmentRecordState {
+  ACCEPTED
+  INVALIDATED
+}
+
+enum AssessmentFactKind {
+  FACT
+  USE_CASE
+}
+
+enum AssessmentFactAuthority {
+  EVIDENCE_CITED
+  HUMAN_PROVIDED
+}
+
+enum AssessmentDecisionRecordState {
+  ACCEPTED
+  SUPERSEDED
+  INVALIDATED
+}
+
+enum DecisionResolutionState {
+  PENDING
+  INVESTIGATING
+  WAITING_FOR_INPUT
+  RESOLVED
+  INVALIDATED
+}
+
+enum HumanResolutionRequestStatus {
+  OPEN
+  RESOLVED
+  SUPERSEDED
+  CANCELLED
+}
+
+enum RuleDecisionApplicability {
+  APPLICABLE
+  NOT_APPLICABLE
+}
+
+enum RuleDecisionComplianceOutcome {
+  COMPLIANT
+  NON_COMPLIANT
+}
+
+enum AssessmentArtifactKind {
+  FINAL_REPORT
+}
+
+/// One per assessment. Pins are set once and never rewritten (DB trigger): a superseding legal
+/// basis or a new repository requires a new assessment.
+model AssessmentCase {
+  assessmentId         String                       @id
+  caseRevision         Int                          @default(0)
+  ruleSetVersionId     String?
+  repositorySnapshotId String?
+  repositoryScanJobId  String?
+  repositoryCommit     String?
+  pinnedAt             DateTime?                    @db.Timestamptz(3)
+  createdAt            DateTime                     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                     @updatedAt @db.Timestamptz(3)
+  assessment           Assessment                   @relation(fields: [assessmentId], references: [id], onDelete: Cascade, onUpdate: Restrict)
+  ruleSet              ComplianceRuleSetVersion?    @relation(fields: [ruleSetVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  facts                AssessmentCaseFact[]
+  evidence             AssessmentEvidence[]
+  decisions            AssessmentRuleDecision[]
+  coverage             AssessmentDecisionCoverage[]
+  humanRequests        AssessmentHumanRequest[]
+  artifacts            AssessmentArtifact[]
+
+  // Lets children prove they use the case's own pinned rule set (composite FK).
+  @@unique([assessmentId, ruleSetVersionId])
+}
+
+model AssessmentEvidence {
+  evidenceId       String                       @id @db.Uuid
+  assessmentId     String
+  type             AssessmentEvidenceType
+  state            AssessmentRecordState        @default(ACCEPTED)
+  repositoryCommit String
+  contentSha256    String
+  payload          Json
+  createdAt        DateTime                     @default(now()) @db.Timestamptz(3)
+  invalidatedAt    DateTime?                    @db.Timestamptz(3)
+  assessmentCase   AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  factLinks        AssessmentCaseFactEvidence[]
+
+  @@unique([evidenceId, assessmentId])
+  @@index([assessmentId, state])
+}
+
+model AssessmentCaseFact {
+  factId         String                       @id @db.Uuid
+  assessmentId   String
+  caseRevision   Int
+  kind           AssessmentFactKind
+  authority      AssessmentFactAuthority
+  state          AssessmentRecordState        @default(ACCEPTED)
+  statement      String
+  createdAt      DateTime                     @default(now()) @db.Timestamptz(3)
+  invalidatedAt  DateTime?                    @db.Timestamptz(3)
+  assessmentCase AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  evidenceLinks  AssessmentCaseFactEvidence[]
+
+  // Every accepted fact is exactly one case revision.
+  @@unique([assessmentId, caseRevision])
+  @@unique([factId, assessmentId])
+}
+
+model AssessmentCaseFactEvidence {
+  assessmentId String
+  factId       String             @db.Uuid
+  evidenceId   String             @db.Uuid
+  fact         AssessmentCaseFact @relation(fields: [factId, assessmentId], references: [factId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  evidence     AssessmentEvidence @relation(fields: [evidenceId, assessmentId], references: [evidenceId, assessmentId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([factId, evidenceId])
+  @@index([evidenceId])
+}
+
+/// Latest ACCEPTED decision per (assessment, rule, scope) plus immutable history.
+model AssessmentRuleDecision {
+  decisionId            String                         @id @db.Uuid
+  assessmentId          String
+  ruleSetVersionId      String
+  assessmentRuleId      String
+  assessmentRuleVersion String
+  scopeId               String
+  decisionRevision      Int
+  state                 AssessmentDecisionRecordState  @default(ACCEPTED)
+  applicability         RuleDecisionApplicability
+  compliance            RuleDecisionComplianceOutcome?
+  repositoryCommit      String
+  caseRevision          Int
+  idempotencyKey        String
+  requestDigest         String
+  decision              Json
+  createdAt             DateTime                       @default(now()) @db.Timestamptz(3)
+  supersededAt          DateTime?                      @db.Timestamptz(3)
+  invalidatedAt         DateTime?                      @db.Timestamptz(3)
+  assessmentCase        AssessmentCase                 @relation(fields: [assessmentId, ruleSetVersionId], references: [assessmentId, ruleSetVersionId], onDelete: Cascade, onUpdate: Restrict)
+  assessmentRule        AssessmentRule                 @relation(fields: [ruleSetVersionId, assessmentRuleId], references: [ruleSetVersionId, assessmentRuleId], onDelete: Restrict, onUpdate: Restrict)
+  currentFor            AssessmentDecisionCoverage[]
+
+  @@unique([assessmentId, assessmentRuleId, scopeId, decisionRevision])
+  @@unique([assessmentId, idempotencyKey])
+  @@unique([decisionId, assessmentId])
+  @@index([assessmentId, state])
+}
+
+/// Decision-resolution coverage: one row per AssessmentRule of the pinned rule set, created in
+/// the preparation transaction so the Root provably covers the whole rule set.
+model AssessmentDecisionCoverage {
+  assessmentId          String
+  assessmentRuleId      String
+  ruleSetVersionId      String
+  assessmentRuleVersion String
+  resolutionState       DecisionResolutionState @default(PENDING)
+  currentDecisionId     String?                 @db.Uuid
+  decisionRevision      Int                     @default(0)
+  updatedAt             DateTime                @updatedAt @db.Timestamptz(3)
+  assessmentCase        AssessmentCase          @relation(fields: [assessmentId, ruleSetVersionId], references: [assessmentId, ruleSetVersionId], onDelete: Cascade, onUpdate: Restrict)
+  assessmentRule        AssessmentRule          @relation(fields: [ruleSetVersionId, assessmentRuleId], references: [ruleSetVersionId, assessmentRuleId], onDelete: Restrict, onUpdate: Restrict)
+  currentDecision       AssessmentRuleDecision? @relation(fields: [currentDecisionId, assessmentId], references: [decisionId, assessmentId], onDelete: NoAction, onUpdate: Restrict)
+
+  @@id([assessmentId, assessmentRuleId])
+  @@index([assessmentId, resolutionState])
+}
+
+model AssessmentHumanRequest {
+  requestId          String                       @id @db.Uuid
+  assessmentId       String
+  threadId           String                       @db.Uuid
+  status             HumanResolutionRequestStatus @default(OPEN)
+  caseRevision       Int
+  assessmentRuleId   String
+  criterionIds       Json
+  question           String
+  unresolvedFact     String
+  decisionImpact     Json
+  resolutionAttempts Json
+  controlType        String
+  choices            Json
+  answers            Json                         @default("[]")
+  resolvedFactId     String?                      @db.Uuid
+  requestRevision    Int                          @default(0)
+  idempotencyKey     String?
+  requestDigest      String?
+  checkpointId       String?                      @db.Uuid
+  createdAt          DateTime                     @default(now()) @db.Timestamptz(3)
+  resolvedAt         DateTime?                    @db.Timestamptz(3)
+  assessmentCase     AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)
+  runtime            AssessmentRuntime            @relation(fields: [assessmentId, threadId], references: [assessmentId, threadId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([assessmentId, idempotencyKey])
+  @@index([assessmentId, status])
+}
+
+/// Artifact metadata only; bytes live in the one protected blob store. Assessment Root owns generation.
+model AssessmentArtifact {
+  artifactId           String                 @id @db.Uuid
+  assessmentId         String
+  kind                 AssessmentArtifactKind
+  lifecycleState       ArtifactLifecycleState @default(BUILDING)
+  ruleSetVersionId     String
+  repositorySnapshotId String
+  repositoryCommit     String
+  caseRevision         Int
+  schemaVersion        String
+  reportRequestDigest  String?
+  contentSha256        String?
+  sizeBytes            Int?
+  storageRef           String?
+  createdAt            DateTime               @default(now()) @db.Timestamptz(3)
+  activatedAt          DateTime?              @db.Timestamptz(3)
+  assessmentCase       AssessmentCase         @relation(fields: [assessmentId, ruleSetVersionId], references: [assessmentId, ruleSetVersionId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@unique([assessmentId, kind])
+  @@index([assessmentId, lifecycleState])
+}
+
+/// One execution of the forward-migration tooling (rehearsal on a copy, or the real cutover).
+
+/// One row per V1 assessment after migration: terminal ones are archived read-only; non-terminal ones
+/// continue in V2 (fresh thread/state) while their V1 history stays here.
+
+/// Byte-exact `to_jsonb` copy of one V1 row (or, for report-related rows, its reconciliation outcome).
+
+/// Bytes that actually existed in V1 storage and were copied with verified identity. Never fabricated.
+
+/// Coordination ledger of the SEPARATE, explicit re-evaluation phase: which migrated assessment an operator
+/// deliberately started, when, by whom and in which batch. It never stores execution, completion or failure:
+/// those stay canonical (ALS/AES) and are only derived from. The Root is the sole semantic authority.
+
+enum AuthorizationReasonCode {
+  ACCOUNT_SUSPENDED
+  ACTION_NOT_GRANTED
+  ACCOUNT_NOT_FOUND
+  AUTHORIZED
+  AUTHZ_EVALUATOR_FAILURE
+  AUTHZ_STATE_GATE_BLOCKED
+  AUTH_REQUIRED
+  EMAIL_VERIFICATION_REQUIRED
+  EVALUATOR_ERROR
+  INVALID_CREDENTIALS
+  INVALID_INVITE_STATE
+  INVALID_REDIRECT_URI
+  LOAD_ERROR
+  MFA_REQUIRED
+  MFA_INVALID
+  MFA_RATE_LIMITED
+  OAUTH_CALLBACK_INVALID
+  OAUTH_STATE_INVALID
+  RBAC_DENIED
+  RBAC_METADATA_MISSING
+  REAUTH_REQUIRED
+  RECOVERY_INVALID
+  SESSION_INVALID
+  STATE_GATE_FAILED
+  SUBJECT_ROLE_MISMATCH
+  TEMPORARY_LOCKED
+  UNSUPPORTED_PROVIDER
+  VALIDATION_FAILED
 }

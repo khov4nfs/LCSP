@@ -10,6 +10,8 @@ import {
   getProblemRequiredAction,
 } from "./problem-envelope.ts";
 import { API_REDIRECT_LOCATIONS } from "./outcome-kinds.ts";
+import type { z } from "zod";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 
 export type ApiRequestResult = {
   payload: unknown;
@@ -17,6 +19,7 @@ export type ApiRequestResult = {
   ok: boolean;
   status: number;
   problemCode?: string;
+  requiredAction?: RequiredAction;
 };
 
 export async function apiRequest(
@@ -32,6 +35,14 @@ export async function apiRequest(
   const problemCode = getProblemCode(result);
   const requiredAction = getProblemRequiredAction(result);
 
+  traceAuthRequest({
+    input,
+    status: response.status,
+    problemCode,
+    requiredAction,
+    correlationId: getProblemCorrelationId(result),
+  });
+
   redirectToSignInOnExpiredSession(input, problemCode, requiredAction);
 
   return {
@@ -40,6 +51,7 @@ export async function apiRequest(
     ok: response.ok && result?.ok === true,
     status: response.status,
     problemCode,
+    requiredAction,
   };
 }
 
@@ -49,6 +61,22 @@ export async function apiJson<T>(
 ): Promise<T | null> {
   const { payload, ok } = await apiRequest(input, init);
   return ok ? (payload as T) : null;
+}
+
+export async function apiValidated<T>(
+  input: RequestInfo | URL,
+  schema: z.ZodType<T>,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await apiRequest(input, init);
+  if (!response.ok)
+    throw new Error(
+      response.problemCode ?? SHARED_ERROR_CODES.upstreamUnavailable,
+    );
+  const parsed = schema.safeParse(response.payload);
+  if (!parsed.success)
+    throw new Error(SHARED_ERROR_CODES.upstreamResponseInvalid);
+  return parsed.data;
 }
 
 function toApiResult(payload: unknown): AppResult | null {
@@ -69,7 +97,8 @@ export function isExpiredSessionProblem(
   return (
     requiredAction === REQUIRED_ACTIONS.signIn ||
     problemCode === AUTH_ERROR_CODES.authRequired ||
-    problemCode === AUTH_ERROR_CODES.sessionInvalid
+    problemCode === AUTH_ERROR_CODES.sessionInvalid ||
+    problemCode === AUTH_ERROR_CODES.accountSuspended
   );
 }
 
@@ -117,9 +146,65 @@ function redirectToSignInOnExpiredSession(
   }
 
   const destination = signInRedirectForCurrentLocation(window.location);
+  traceAuthRedirect({
+    input,
+    problemCode,
+    requiredAction,
+    destination,
+  });
   if (window.location.pathname !== API_REDIRECT_LOCATIONS.signIn) {
     window.location.assign(destination);
   }
+}
+
+function traceAuthRequest(input: {
+  input: RequestInfo | URL;
+  status: number;
+  problemCode: string | undefined;
+  requiredAction: RequiredAction | undefined;
+  correlationId: string | undefined;
+}) {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") {
+    return;
+  }
+  if (
+    input.status < 400 &&
+    input.problemCode !== AUTH_ERROR_CODES.sessionInvalid &&
+    input.problemCode !== AUTH_ERROR_CODES.authRequired
+  ) {
+    return;
+  }
+  console.debug("[auth-trace] request", {
+    route: requestPath(input.input),
+    status: input.status,
+    problemCode: input.problemCode,
+    requiredAction: input.requiredAction,
+    correlationId: input.correlationId,
+  });
+}
+
+function traceAuthRedirect(input: {
+  input: RequestInfo | URL;
+  problemCode: string | undefined;
+  requiredAction: RequiredAction | undefined;
+  destination: string;
+}) {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") {
+    return;
+  }
+  console.debug("[auth-trace] redirect", {
+    route: requestPath(input.input),
+    problemCode: input.problemCode,
+    requiredAction: input.requiredAction,
+    destination: input.destination,
+  });
+}
+
+function getProblemCorrelationId(
+  payload: AppResult | null,
+): string | undefined {
+  if (!payload || payload.ok || !payload.problem) return undefined;
+  return payload.problem.correlationId;
 }
 
 function requestPath(input: RequestInfo | URL): string {

@@ -6,25 +6,16 @@ model {
     authOrganizationEntity = entity 'AuthOrganization' {
       description 'Tenant organization unit owning assessments, memberships, and PBAC policies.'
     }
-
-    authUserEntity = entity 'AuthUser' {
-      description 'Authenticated user account (Manager or Developer).'
+    userEntity = entity 'User' {
+      description 'Account, role, profile and singleton MFA state.'
     }
 
-    authPolicyEntity = entity 'AuthPolicy' {
-      description 'Versioned PBAC policy rules specifying actions, roles, and state gates.'
+    authRecordEntity = entity 'AuthRecord' {
+      description 'Session, OAuth, recovery and MFA multi-row records.'
     }
 
-    authMembershipEntity = entity 'AuthMembership' {
-      description 'User membership binding AuthUser to AuthOrganization with PBAC policy.'
-    }
-
-    authSessionEntity = entity 'AuthSession' {
-      description 'Active user session bound to user, tenant organization, and MFA state.'
-    }
-
-    authAuditEventEntity = entity 'AuthAuditEvent' {
-      description 'Immutable audit log recording state-changing & auth events.'
+    auditEventEntity = entity 'AuditEvent' {
+      description 'Platform audit trail, including authorization decisions.'
     }
 
     // ----------------------------------------------------
@@ -43,7 +34,7 @@ model {
     }
 
     // ----------------------------------------------------
-    // 3. REPOSITORY SCANNER DOMAIN ENTITIES
+    // 3. REPOSITORY ANALYSIS DOMAIN ENTITIES
     // ----------------------------------------------------
     repositoryConnectionEntity = entity 'RepositoryConnection' {
       description 'Authorized read-only GitHub repository link via GitHub App installation.'
@@ -58,14 +49,14 @@ model {
     }
 
     technicalEvidenceReportEntity = entity 'TechnicalEvidenceReport' {
-      description 'Metadata-only static analysis technical evidence (Syft, Knip, Semgrep).'
+      description 'Metadata-only source-grounded technical evidence emitted by the Repository Analysis Agent.'
     }
 
     // ----------------------------------------------------
     // 4. RECONCILIATION & CLAIMS DOMAIN ENTITIES
     // ----------------------------------------------------
     technicalProfileEntity = entity 'TechnicalProfile' {
-      description 'Aggregated technical dimensions derived from static evidence report.'
+      description 'Aggregated technical dimensions derived from repository-analysis evidence.'
     }
 
     aiUsageFlowEntity = entity 'AIUsageFlow' {
@@ -73,7 +64,7 @@ model {
     }
 
     conflictRecordEntity = entity 'ConflictRecord' {
-      description 'Material mismatches between Wizard declarations and scanner evidence.'
+      description 'Material mismatches between Wizard declarations and repository-analysis evidence.'
     }
 
     verifiedProfileEntity = entity 'VerifiedProfile' {
@@ -81,17 +72,17 @@ model {
     }
 
     // ----------------------------------------------------
-    // 5. LEGAL CORPUS & RAG DOMAIN ENTITIES
+    // 5. LEGAL LEGAL_SOURCE & RAG DOMAIN ENTITIES
     // ----------------------------------------------------
-    legalRuleCatalogVersionEntity = entity 'LegalRuleCatalogVersion' {
+    legalSourceVersionEntity = entity 'LegalSourceVersion' {
       description 'Versioned legal rule catalog approved by Legal Operator.'
     }
 
-    legalRuleEntity = entity 'LegalRule' {
+    legalRequirementEntity = entity 'LegalRequirement' {
       description 'Structured legal rule specification referencing citation locators.'
     }
 
-    legalRuleMatchEntity = entity 'LegalRuleMatch' {
+    legalRequirementMatchEntity = entity 'LegalRequirementMatch' {
       description 'Citation-backed legal rule matches bound to VerifiedProfile claims.'
     }
 
@@ -114,12 +105,9 @@ model {
   // ----------------------------------------------------
   // ERD RELATIONSHIPS
   // ----------------------------------------------------
-  lcsp.database.authOrganizationEntity -> lcsp.database.authMembershipEntity '1:N Memberships'
-  lcsp.database.authUserEntity -> lcsp.database.authMembershipEntity '1:N Memberships'
-  lcsp.database.authPolicyEntity -> lcsp.database.authMembershipEntity '1:N Applied Policies'
-  lcsp.database.authOrganizationEntity -> lcsp.database.authSessionEntity '1:N Active Sessions'
-  lcsp.database.authUserEntity -> lcsp.database.authSessionEntity '1:N Active Sessions'
-  lcsp.database.authOrganizationEntity -> lcsp.database.authAuditEventEntity '1:N Audit Events'
+  lcsp.database.authOrganizationEntity -> lcsp.database.authRecordEntity '1:N Active Sessions'
+  lcsp.database.userEntity -> lcsp.database.authRecordEntity '1:N Active Sessions'
+  lcsp.database.authOrganizationEntity -> lcsp.database.auditEventEntity '1:N Audit Events'
 
   lcsp.database.authOrganizationEntity -> lcsp.database.assessmentEntity '1:N Assessments'
   lcsp.database.assessmentEntity -> lcsp.database.wizardProfileEntity '1:1 Wizard Profile'
@@ -135,9 +123,9 @@ model {
   lcsp.database.aiUsageFlowEntity -> lcsp.database.conflictRecordEntity '1:N Conflict Records'
   lcsp.database.aiUsageFlowEntity -> lcsp.database.verifiedProfileEntity '1:1 Verified Profile'
 
-  lcsp.database.legalRuleCatalogVersionEntity -> lcsp.database.legalRuleEntity '1:N Legal Rules'
-  lcsp.database.verifiedProfileEntity -> lcsp.database.legalRuleMatchEntity '1:N Legal Rule Matches'
-  lcsp.database.legalRuleMatchEntity -> lcsp.database.classificationResultEntity '1:1 Risk Classification'
+  lcsp.database.legalSourceVersionEntity -> lcsp.database.legalRequirementEntity '1:N Legal Rules'
+  lcsp.database.verifiedProfileEntity -> lcsp.database.legalRequirementMatchEntity '1:N Legal Rule Matches'
+  lcsp.database.legalRequirementMatchEntity -> lcsp.database.classificationResultEntity '1:1 Risk Classification'
   lcsp.database.classificationResultEntity -> lcsp.database.documentRequestEntity '1:N Document Requests'
   lcsp.database.assessmentEntity -> lcsp.database.outboxMessageEntity '1:N Outbox Events'
 }
@@ -154,14 +142,12 @@ views {
 
   view erd_auth_domain of lcsp.database {
     title 'ERD - Auth & PBAC Authorization Domain'
-    description 'AuthOrganization, AuthUser, AuthPolicy, AuthMembership, AuthSession, and AuthAuditEvent entities.'
+    description 'Optimized User, AuthRecord, and platform AuditEvent entities.'
     include
       lcsp.database.authOrganizationEntity,
-      lcsp.database.authUserEntity,
-      lcsp.database.authPolicyEntity,
-      lcsp.database.authMembershipEntity,
-      lcsp.database.authSessionEntity,
-      lcsp.database.authAuditEventEntity
+      lcsp.database.userEntity,
+      lcsp.database.authRecordEntity,
+      lcsp.database.auditEventEntity
   }
 
   view erd_assessment_evidence_domain of lcsp.database {
@@ -178,15 +164,15 @@ views {
 
   view erd_reconciliation_legal_domain of lcsp.database {
     title 'ERD - Reconciliation, Legal RAG & Document Domain'
-    description 'TechnicalProfile, AIUsageFlow, ConflictRecord, VerifiedProfile, LegalRuleMatch, ClassificationResult, and DocumentRequest.'
+    description 'TechnicalProfile, AIUsageFlow, ConflictRecord, VerifiedProfile, LegalRequirementMatch, ClassificationResult, and DocumentRequest.'
     include
       lcsp.database.technicalProfileEntity,
       lcsp.database.aiUsageFlowEntity,
       lcsp.database.conflictRecordEntity,
       lcsp.database.verifiedProfileEntity,
-      lcsp.database.legalRuleCatalogVersionEntity,
-      lcsp.database.legalRuleEntity,
-      lcsp.database.legalRuleMatchEntity,
+      lcsp.database.legalSourceVersionEntity,
+      lcsp.database.legalRequirementEntity,
+      lcsp.database.legalRequirementMatchEntity,
       lcsp.database.classificationResultEntity,
       lcsp.database.documentRequestEntity,
       lcsp.database.outboxMessageEntity

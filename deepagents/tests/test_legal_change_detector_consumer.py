@@ -7,13 +7,13 @@ from tools.legal.sources.change_detection.legal_change_detector_boundary import 
     CheckUpdatesEnvelope,
     LegalChangeDetectorBoundary,
 )
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
-def test_change_detector_uses_corpus_store_for_cron_crawl_artifacts(
+def test_change_detector_uses_legal_source_store_for_cron_crawl_artifacts(
     tmp_path: Path,
 ) -> None:
-    storage_root = tmp_path / ".corpus"
+    storage_root = tmp_path / ".legal-source"
     boundary = LegalChangeDetectorBoundary(
         _config(storage_root),
         api_client=MagicMock(),
@@ -27,8 +27,8 @@ def test_change_detector_uses_corpus_store_for_cron_crawl_artifacts(
     assert output_dir == storage_root / "source-crawl" / "cron" / "LAW-71-2025-QH15"
 
 
-def test_change_detector_reads_base_snapshot_from_corpus_store(tmp_path: Path) -> None:
-    storage_root = tmp_path / ".corpus"
+def test_change_detector_reads_base_snapshot_from_legal_source_store(tmp_path: Path) -> None:
+    storage_root = tmp_path / ".legal-source"
     object_key = (
         "legal-source-snapshots/catalog_vbpl_vn/LAW-71-2025-QH15/"
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/"
@@ -57,10 +57,10 @@ def test_change_detector_reads_base_snapshot_from_corpus_store(tmp_path: Path) -
     )
 
 
-def test_change_detector_rejects_base_snapshot_outside_corpus_store(
+def test_change_detector_rejects_base_snapshot_outside_legal_source_store(
     tmp_path: Path,
 ) -> None:
-    storage_root = tmp_path / ".corpus"
+    storage_root = tmp_path / ".legal-source"
     api_client = MagicMock()
     api_client.get_official_source_snapshot.return_value = {
         "snapshotObjectKey": "../outside.html",
@@ -99,3 +99,46 @@ def _envelope(*, document_id: str) -> CheckUpdatesEnvelope:
         gateway_document_id="123",
         max_bytes=1024,
     )
+
+
+@pytest.mark.parametrize("changed,configured", [(True, True), (False, True), (True, False)])
+def test_source_change_uses_complete_acquisition_then_the_canonical_preparation(
+    tmp_path: Path, monkeypatch, changed: bool, configured: bool,
+) -> None:
+    from types import SimpleNamespace
+    from tools.legal.sources.change_detection import legal_change_detector_boundary as module
+
+    monkeypatch.delenv("LEGAL_SOURCE_CRAWL_REQUESTS", raising=False)
+    envelope = _envelope(document_id="LAW-TEST")
+    boundary = LegalChangeDetectorBoundary(_config(tmp_path), api_client=MagicMock())
+    monkeypatch.setattr(boundary, "_read_envelope", lambda _: envelope)
+    monkeypatch.setattr(boundary, "_read_base_snapshot_html", lambda **_: "old")
+    directory = boundary._source_output_dir(storage_root=tmp_path, envelope=envelope)
+    directory.mkdir(parents=True)
+    (directory / "source.html").write_text("new", encoding="utf-8")
+    snapshot = SimpleNamespace(
+        register_with_api=lambda **_: {"snapshotRef": "snapshot:LAW-TEST:hash"},
+    )
+    monkeypatch.setattr(module.LegalToolDispatcher, "dispatch", lambda *_a, **_kw: snapshot)
+    context = SimpleNamespace(to_dict=lambda: {"documentId": "LAW-TEST"})
+    monkeypatch.setattr(module, "build_partial_update_context", lambda **_: context if changed else None)
+    calls = []
+    monkeypatch.setattr(module.OfficialLegalSourceAcquisition, "run", lambda _self, message, corr: calls.append((message, corr)))
+    requests = [{
+        "documentId": envelope.document_id,
+        "sourceUrl": envelope.source_url,
+        "catalogSourceRef": envelope.catalog_source_ref,
+    }] if configured else []
+    message = {"sourceCrawlRequests": requests}
+    if changed and not configured:
+        with pytest.raises(NonRetryableAgentBoundaryError, match="must include the changed"):
+            boundary.handle(message, "corr-source-change")
+        assert calls == []
+    else:
+        result = boundary.handle(message, "corr-source-change")
+        assert result["changed"] is changed
+        assert calls == ([({
+            "idempotencyKey": envelope.idempotency_key,
+            "storageRoot": str(tmp_path),
+            "sourceCrawlRequests": requests,
+        }, "corr-source-change")] if changed else [])

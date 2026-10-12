@@ -1,0 +1,86 @@
+{
+  "verifiedAt": "2026-10-07T14:26:00.920Z",
+  "receipt": "reports/w4-live-eval/final-bounded-absence-20261007-141901.json",
+  "runtime": {
+    "threadId": "9fc75fe5-9096-4cbe-9256-4f22b4ed4617",
+    "currentExecutionId": "ed034e79-7b77-418a-ab3d-b6d0d6624a3e",
+    "executionState": "SUCCEEDED",
+    "leaseToken": null
+  },
+  "artifact": {
+    "artifactId": "a63197e1-6671-578a-8de1-1b59c316029a",
+    "assessmentId": "90d735de-f131-4580-aa00-211b149a1ef7",
+    "kind": "FINAL_REPORT",
+    "lifecycleState": "ACTIVE",
+    "contentSha256": "sha256:f3a029c74f44d384fc42f62c73869efc301549ba876d280634ff11cc8fe75a3d",
+    "sizeBytes": 4604,
+    "caseRevision": 1,
+    "schemaVersion": "ASSESSMENT_FINAL_REPORT_V1",
+    "reportRequestDigest": "6d1712285db3c09f28045fe7ca6610475888bc3a59bf38679d8231480c9eab5f",
+    "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669",
+    "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc",
+    "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "case": {
+    "lifecycleState": "COMPLETE",
+    "caseRevision": 1,
+    "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669",
+    "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc",
+    "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "drs": [
+    {
+      "resolutionState": "RESOLVED",
+      "currentDecisionId": "b9606da6-c1fb-4c46-b8ee-ab4327139c4a",
+      "decisionRevision": 1
+    }
+  ],
+  "reportHashVerified": true,
+  "decisionFingerprintVerified": true,
+  "provenanceVerified": true,
+  "unchangedAcceptedInputs": true,
+  "noUnresolvedReportOutcome": true,
+  "finalizationEventSequence": [
+    {
+      "sequence": 12,
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "payload": {
+        "toState": "FINALIZING",
+        "fromState": "ACTIVE",
+        "assessmentRevision": 3
+      },
+      "executionId": null
+    },
+    {
+      "sequence": 13,
+      "eventType": "ARTIFACT_CHANGED",
+      "payload": {
+        "toState": "BUILDING",
+        "fromState": null,
+        "artifactId": "a63197e1-6671-578a-8de1-1b59c316029a"
+      },
+      "executionId": "ed034e79-7b77-418a-ab3d-b6d0d6624a3e"
+    },
+    {
+      "sequence": 14,
+      "eventType": "ARTIFACT_CHANGED",
+      "payload": {
+        "toState": "ACTIVE",
+        "fromState": "BUILDING",
+        "artifactId": "a63197e1-6671-578a-8de1-1b59c316029a"
+      },
+      "executionId": "ed034e79-7b77-418a-ab3d-b6d0d6624a3e"
+    },
+    {
+      "sequence": 15,
+      "eventType": "ASSESSMENT_LIFECYCLE_CHANGED",
+      "payload": {
+        "toState": "COMPLETE",
+        "fromState": "FINALIZING",
+        "assessmentRevision": 4
+      },
+      "executionId": null
+    }
+  ],
+  "providerCallsDuringReview": 0
+}

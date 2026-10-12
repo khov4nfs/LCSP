@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 class AuditExportGenerator:
-    """Fetch, redact, serialize, and upload an organization's audit events."""
+    """Fetch, redact, serialize, and upload audit events."""
 
     def __init__(self, api_client: WorkerApiClient, s3_client: Any, bucket_name: str):
         """Create an audit export generator.
@@ -30,7 +30,6 @@ class AuditExportGenerator:
     def generate_export(
         self,
         export_request_id: str,
-        org_id: str,
         from_date: str,
         to_date: str,
     ) -> str:
@@ -42,7 +41,6 @@ class AuditExportGenerator:
 
         Args:
             export_request_id: Stable request identifier used in the file name.
-            org_id: Organization whose audit trail is exported.
             from_date: Inclusive export range start expected by the API.
             to_date: Inclusive export range end expected by the API.
 
@@ -56,14 +54,12 @@ class AuditExportGenerator:
         logger.info(
             "Generating audit export",
             export_request_id=export_request_id,
-            org_id=org_id,
             from_date=from_date,
             to_date=to_date
         )
 
         # 1. Fetch events
         events = self.api_client.get_audit_events(
-            organization_id=org_id,
             from_date=from_date,
             to_date=to_date
         )
@@ -88,7 +84,7 @@ class AuditExportGenerator:
                     f.write(json.dumps(event) + "\n")
 
             # 3. Upload to S3
-            s3_key = f"exports/{org_id}/{temp_file_name}"
+            s3_key = f"exports/{export_request_id}/{temp_file_name}"
             self.s3_client.upload_file(temp_file_path, self.bucket_name, s3_key)
 
             # Return s3 URI. NestJS can generate presigned URLs using this.

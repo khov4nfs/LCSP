@@ -55,8 +55,8 @@ if (COMMIT_MESSAGE_PATTERN.test(subject)) {
 console.error(`Invalid commit message: ${subject}`);
 console.error("");
 console.error("Expected commit message format:");
-console.error("  feat: LCSP-123 short description");
-console.error("  fix(api): LCSP-123 short description");
+console.error("  feat: LCSP-<issue-number> short description");
+console.error("  fix(api): LCSP-<issue-number> short description");
 console.error("");
 console.error("Rules:");
 console.error(

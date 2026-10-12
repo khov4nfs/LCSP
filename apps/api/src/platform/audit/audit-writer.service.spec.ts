@@ -10,7 +10,7 @@ import type { Prisma } from "@prisma/client";
 import type { AuditEventInput } from "@lcsp/contracts/audit";
 
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
-import { LOCAL_RBAC_REASON_CODES } from "../rbac/rbac-reason-codes.js";
+import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import { AuditWriterService } from "./audit-writer.service.ts";
 
 type CreateFn = (args: { data: Record<string, unknown> }) => Promise<unknown>;
@@ -20,7 +20,7 @@ function makePrisma(
 ) {
   const create = overrides.create ?? jest.fn<CreateFn>().mockResolvedValue({});
   const client = {
-    authAuditEvent: { create },
+    auditEvent: { create },
   };
   return { client: client as unknown as PrismaService, create };
 }
@@ -30,7 +30,7 @@ function makeTx(
 ) {
   const create = overrides.create ?? jest.fn<CreateFn>().mockResolvedValue({});
   const tx = {
-    authAuditEvent: { create },
+    auditEvent: { create },
   };
   return { tx: tx as unknown as Prisma.TransactionClient, create };
 }
@@ -122,6 +122,31 @@ describe("AuditWriterService", () => {
     });
   });
 
+  it("marks free-text value redaction before persisting audit payloads", async () => {
+    const { client, create } = makePrisma();
+    const service = new AuditWriterService(client);
+
+    await service.write(
+      makeEvent({
+        redactionStatus: AUDIT_REDACTION_STATUSES.none,
+        payload: {
+          statementValue: "Customer pasted api_key=super-secret-value",
+        },
+      }),
+    );
+
+    const [{ data }] = create.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect(data.payload).toMatchObject({
+      schemaVersion: AUDIT_EVENT_SCHEMA_VERSION,
+      actor: { id: "user-1", type: AUDIT_ACTOR_TYPES.user },
+      redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
+      result: AUDIT_DECISIONS.allow,
+      statementValue: "Customer pasted api_key=[REDACTED]",
+    });
+  });
+
   it("T04: write() rejects when the DB write fails, and logs the error", async () => {
     const { client, create } = makePrisma({
       create: jest
@@ -173,7 +198,7 @@ describe("AuditWriterService", () => {
 
     await service.write(
       makeEvent({
-        reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
+        reasonCode: RBAC_REASON_CODES.authorized,
         sessionId: "session-1",
       }),
     );
@@ -182,7 +207,7 @@ describe("AuditWriterService", () => {
       { data: Record<string, unknown> },
     ];
     expect(data).toMatchObject({
-      reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
+      reasonCode: RBAC_REASON_CODES.authorized,
       sessionId: "session-1",
     });
   });

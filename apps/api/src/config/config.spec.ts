@@ -1,29 +1,29 @@
-import { config, configValidationSchema } from "./config.js";
+import { resolve } from "node:path";
+import { config, createConfigValidationSchema } from "./config.js";
+
+const VALIDATION_WORKSPACE_ROOT = resolve("test-workspace");
+const configValidationSchema = createConfigValidationSchema(
+  VALIDATION_WORKSPACE_ROOT,
+);
 
 const VALID_ENV = {
   NODE_ENV: "test",
   DATABASE_URL: "postgresql://user:pass@localhost:5432/lcsp",
-  AUTH_BCRYPT_COST: "12",
-  AUTH_SESSION_TTL_SECONDS: "86400",
-  JWT_SECRET: "a".repeat(32),
   OAUTH_GOOGLE_CLIENT_ID: "google-client-id",
   OAUTH_GOOGLE_CLIENT_SECRET: "google-client-secret",
   OAUTH_ALLOWED_REDIRECT_ORIGINS: "http://localhost:3000",
-  OAUTH_ALLOWED_REDIRECT_URIS: "http://localhost:3000/callback",
-  GITHUB_APP_SLUG: "lcsp-app",
-  GITHUB_APP_ID: "123456",
-  GITHUB_APP_PRIVATE_KEY: "test-private-key",
-  GITHUB_APP_ALLOWED_REDIRECT_URIS:
-    "http://localhost:3000/api/github/app/callback",
-  GITHUB_APP_CLIENT_ID: "gh-app-client-id",
-  GITHUB_APP_CLIENT_SECRET: "gh-app-client-secret",
+  GITHUB_CLI_EXECUTABLE_PATH: resolve("tools", "gh"),
   RABBITMQ_URL: "amqp://guest:guest@localhost:5672",
   RABBITMQ_EXCHANGE: "lcsp.events",
-  OUTBOX_ENABLED: "true",
+  SEPAY_WEBHOOK_SECRET: "s".repeat(32),
   OUTBOX_POLL_INTERVAL_MS: "1000",
   OUTBOX_BATCH_SIZE: "50",
   OUTBOX_MAX_ATTEMPTS: "5",
   MFA_SECRET_ENCRYPTION_KEY: "0123456789abcdef".repeat(4),
+  GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v1",
+  GITHUB_CLI_CREDENTIAL_KEK_KEYRING: JSON.stringify({
+    "kek-v1": Buffer.alloc(32, 1).toString("base64"),
+  }),
   SMTP_HOST: "smtp.example.test",
   SMTP_PORT: "587",
   SMTP_SECURE: "false",
@@ -31,7 +31,20 @@ const VALID_ENV = {
   SMTP_PASS: "smtp-pass",
   SMTP_FROM: "lcsp@example.com",
   WORKER_API_KEY: "w".repeat(32),
+  LCSP_AGENT_SERVER_URL: "http://agent-runtime-server:8000",
+  BILLING_SEPAY_BANK_NAME: "Test Bank",
+  BILLING_SEPAY_BANK_ACCOUNT_NUMBER: "1234567890",
+  BILLING_SEPAY_ACCOUNT_HOLDER: "LCSP TEST",
+  BILLING_SEPAY_QR_URL_TEMPLATE:
+    "https://payments.test/qr?amount={amountVnd}&content={paymentCode}",
 };
+
+const PUBLIC_BILLING_KEYS = [
+  "BILLING_SEPAY_BANK_NAME",
+  "BILLING_SEPAY_BANK_ACCOUNT_NUMBER",
+  "BILLING_SEPAY_ACCOUNT_HOLDER",
+  "BILLING_SEPAY_QR_URL_TEMPLATE",
+] as const;
 
 function validate(env: Record<string, string | undefined>) {
   return configValidationSchema.validate(env, {
@@ -64,19 +77,37 @@ describe("configValidationSchema", () => {
     expect(error?.message).toContain("DATABASE_URL");
   });
 
-  it("T03: fails when JWT_SECRET is missing", () => {
-    const { error } = validate(withoutKeys(VALID_ENV, ["JWT_SECRET"]));
+  it("T03: validates without the removed dead/flag keys", () => {
+    const { error } = validate({
+      ...withoutKeys(VALID_ENV, [
+        "OUTBOX_ENABLED",
+        "GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED",
+        "GITHUB_CLI_SNAPSHOT_PINNING_ENABLED",
+        "GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED",
+        "GITLAB_PROVIDER_ENABLED",
+        "BITBUCKET_PROVIDER_ENABLED",
+        "AZURE_DEVOPS_PROVIDER_ENABLED",
+        "BILLING_METERING_ENABLED",
+        "JWT_SECRET",
+        "AUTH_BCRYPT_COST",
+        "AUTH_SESSION_TTL_SECONDS",
+        "OAUTH_ALLOWED_REDIRECT_URIS",
+        "INTERVIEW_GUIDANCE_VERSION",
+        "REPOSITORY_SCAN_STALE_AFTER_MS",
+        "MFA_ENCRYPTION_KEY",
+      ]),
+    });
 
-    expect(error?.message).toContain("JWT_SECRET");
+    expect(error).toBeUndefined();
   });
 
   it("lists every missing required key in a single error (not just the first)", () => {
     const { error } = validate(
-      withoutKeys(VALID_ENV, ["DATABASE_URL", "JWT_SECRET"]),
+      withoutKeys(VALID_ENV, ["DATABASE_URL", "WORKER_API_KEY"]),
     );
 
     expect(error?.message).toContain("DATABASE_URL");
-    expect(error?.message).toContain("JWT_SECRET");
+    expect(error?.message).toContain("WORKER_API_KEY");
   });
 
   it("T04: fails when MFA_SECRET_ENCRYPTION_KEY is the wrong length", () => {
@@ -88,10 +119,152 @@ describe("configValidationSchema", () => {
     expect(error?.message).toContain("MFA_SECRET_ENCRYPTION_KEY");
   });
 
-  it("T05: fails when AUTH_BCRYPT_COST is below 10", () => {
-    const { error } = validate({ ...VALID_ENV, AUTH_BCRYPT_COST: "9" });
+  it("T05: ORCHESTRATION_DEBUG is off by default and opt-in", () => {
+    const previous = process.env.ORCHESTRATION_DEBUG;
+    try {
+      delete process.env.ORCHESTRATION_DEBUG;
+      expect(config().orchestration.debug).toBe(false);
+      process.env.ORCHESTRATION_DEBUG = "true";
+      expect(config().orchestration.debug).toBe(true);
+    } finally {
+      if (previous === undefined) delete process.env.ORCHESTRATION_DEBUG;
+      else process.env.ORCHESTRATION_DEBUG = previous;
+    }
+  });
 
-    expect(error?.message).toContain("AUTH_BCRYPT_COST");
+  it("preserves relative CLI executable paths from env config", () => {
+    const result = validate({
+      ...VALID_ENV,
+      GITHUB_CLI_EXECUTABLE_PATH: "./tools/gh",
+      GITLAB_CLI_EXECUTABLE_PATH: "./.cache/lcsp-cli/gitlab-cli/bin/glab",
+      BITBUCKET_CLI_EXECUTABLE_PATH: "./.cache/lcsp-cli/bitbucket-cli/bin/bb",
+    });
+
+    expect(result.error).toBeUndefined();
+    const validated = result.value as Record<string, unknown>;
+    expect(validated["GITHUB_CLI_EXECUTABLE_PATH"]).toBe("./tools/gh");
+    expect(validated["GITLAB_CLI_EXECUTABLE_PATH"]).toBe(
+      "./.cache/lcsp-cli/gitlab-cli/bin/glab",
+    );
+    expect(validated["BITBUCKET_CLI_EXECUTABLE_PATH"]).toBe(
+      "./.cache/lcsp-cli/bitbucket-cli/bin/bb",
+    );
+  });
+
+  it.each(PUBLIC_BILLING_KEYS)(
+    "rejects a missing %s value in production",
+    (key) => {
+      const result = validate(
+        withoutKeys({ ...VALID_ENV, NODE_ENV: "production" }, [key]),
+      );
+      expect(result.error?.message).toContain(key);
+    },
+  );
+
+  it("allows payment configuration to be absent outside production", () => {
+    const result = validate(
+      withoutKeys({ ...VALID_ENV, NODE_ENV: "test" }, [...PUBLIC_BILLING_KEYS]),
+    );
+    expect(result.error).toBeUndefined();
+  });
+
+  it.each(PUBLIC_BILLING_KEYS)(
+    "rejects a blank %s value in production",
+    (key) => {
+      const result = validate({
+        ...VALID_ENV,
+        NODE_ENV: "production",
+        [key]: "",
+      });
+      expect(result.error?.message).toContain(key);
+    },
+  );
+
+  it("fails closed when credential persistence lacks a valid KEK keyring", () => {
+    const recognizableKey = "recognizable-invalid-kek";
+    const result = validate({
+      ...VALID_ENV,
+      NODE_ENV: "production",
+      GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v1",
+      GITHUB_CLI_CREDENTIAL_KEK_KEYRING: recognizableKey,
+    });
+    expect(result.error?.message).toContain("valid 32-byte base64 KEK keyring");
+    expect(result.error?.message).not.toContain(recognizableKey);
+  });
+
+  it("allows credential persistence without an explicit CLI executable path", () => {
+    const result = validate({
+      ...VALID_ENV,
+      GITHUB_CLI_EXECUTABLE_PATH: "",
+      GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v1",
+      GITHUB_CLI_CREDENTIAL_KEK_KEYRING: JSON.stringify({
+        "kek-v1": Buffer.alloc(32, 1).toString("base64"),
+      }),
+    });
+
+    expect(result.error).toBeUndefined();
+  });
+
+  it("accepts a versioned 32-byte keyring when persistence is enabled", () => {
+    const result = validate({
+      ...VALID_ENV,
+      GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v2",
+      GITHUB_CLI_CREDENTIAL_KEK_KEYRING: JSON.stringify({
+        "kek-v1": Buffer.alloc(32, 1).toString("base64"),
+        "kek-v2": Buffer.alloc(32, 2).toString("base64"),
+      }),
+    });
+    expect(result.error).toBeUndefined();
+  });
+
+  it("requires the credential KEK (credential storage is always on)", () => {
+    const result = validate(
+      withoutKeys(VALID_ENV, [
+        "GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION",
+        "GITHUB_CLI_CREDENTIAL_KEK_KEYRING",
+      ]),
+    );
+    expect(result.error?.message).toContain(
+      "GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION",
+    );
+  });
+
+  it("boots in production without any model-billing envs", () => {
+    const result = validate({ ...VALID_ENV, NODE_ENV: "production" });
+    expect(result.error?.message ?? "").not.toMatch(
+      /BILLING_(METERING|RESERVATION|MAX_)/,
+    );
+  });
+
+  it("does not require, default or expose removed model-billing envs", () => {
+    const result = validate(VALID_ENV);
+    expect(result.error).toBeUndefined();
+    for (const removed of [
+      "BILLING_METERING_ENABLED",
+      "BILLING_RESERVATION_CREDITS",
+      "BILLING_MAX_INVOCATION_CHARGE_CREDITS",
+      "BILLING_MAX_INPUT_TOKENS",
+      "BILLING_MAX_INPUT_BYTES",
+      "BILLING_MAX_OUTPUT_TOKENS",
+      "BILLING_MAX_REASONING_TOKENS",
+      "BILLING_MAX_INVOCATIONS_PER_GROUP",
+    ])
+      expect(result.value).not.toHaveProperty(removed);
+  });
+
+  it("keeps only customer-payment keys in the billing config", () => {
+    const previous = process.env;
+    process.env = { ...VALID_ENV };
+    try {
+      expect(Object.keys(config().billing).sort()).toEqual([
+        "sePayAccountHolder",
+        "sePayBankAccountNumber",
+        "sePayBankName",
+        "sePayQrUrlTemplate",
+      ]);
+    } finally {
+      process.env = previous;
+    }
   });
 
   it("allows SMTP_FROM to be blank or whitespace when SMTP is disabled", () => {
@@ -143,16 +316,35 @@ describe("config()", () => {
     process.env = originalEnv;
   });
 
-  it("T06: parses OAUTH_ALLOWED_REDIRECT_URIS into a string array", () => {
-    process.env.OAUTH_ALLOWED_REDIRECT_URIS = "a,b,c";
+  it("preserves relative CLI paths in the typed runtime config", () => {
+    process.env.GITHUB_CLI_EXECUTABLE_PATH =
+      "./.cache/lcsp-cli/github-cli/2.98.0/bin/gh";
+    process.env.GITLAB_CLI_EXECUTABLE_PATH =
+      "./.cache/lcsp-cli/gitlab-cli/1.113.0/bin/glab";
+    process.env.BITBUCKET_CLI_EXECUTABLE_PATH =
+      "./.cache/lcsp-cli/bitbucket-cli/0.1.0/bin/bb";
 
-    expect(config().oauth.allowedRedirectUris).toEqual(["a", "b", "c"]);
+    const result = config();
+
+    expect(result.githubCli.executablePath).toBe(
+      "./.cache/lcsp-cli/github-cli/2.98.0/bin/gh",
+    );
+    expect(result.gitlabCli.executablePath).toBe(
+      "./.cache/lcsp-cli/gitlab-cli/1.113.0/bin/glab",
+    );
+    expect(result.bitbucketCli.executablePath).toBe(
+      "./.cache/lcsp-cli/bitbucket-cli/0.1.0/bin/bb",
+    );
   });
 
-  it("trims whitespace and drops empty entries from redirect URIs", () => {
-    process.env.OAUTH_ALLOWED_REDIRECT_URIS = " a , b ,,c ";
+  it("T06: parses OAUTH_ALLOWED_REDIRECT_ORIGINS into origins", () => {
+    process.env.OAUTH_ALLOWED_REDIRECT_ORIGINS =
+      " http://a.test/cb , http://b.test ,,";
 
-    expect(config().oauth.allowedRedirectUris).toEqual(["a", "b", "c"]);
+    expect(config().oauth.allowedRedirectOrigins).toEqual([
+      "http://a.test",
+      "http://b.test",
+    ]);
   });
 
   it("trims SMTP string values in config output", () => {
@@ -177,36 +369,55 @@ describe("config()", () => {
     expect(result).toEqual({
       nodeEnv: "test",
       database: { url: VALID_ENV.DATABASE_URL },
-      auth: {
-        bcryptCost: 12,
-        sessionTtlSeconds: 86400,
-        jwtSecret: VALID_ENV.JWT_SECRET,
-      },
       oauth: {
         googleClientId: VALID_ENV.OAUTH_GOOGLE_CLIENT_ID,
         googleClientSecret: VALID_ENV.OAUTH_GOOGLE_CLIENT_SECRET,
         allowedRedirectOrigins: [VALID_ENV.OAUTH_ALLOWED_REDIRECT_ORIGINS],
-        allowedRedirectUris: [VALID_ENV.OAUTH_ALLOWED_REDIRECT_URIS],
       },
-      github: {
-        appId: VALID_ENV.GITHUB_APP_ID,
-        appSlug: VALID_ENV.GITHUB_APP_SLUG,
-        allowedRedirectUris: [VALID_ENV.GITHUB_APP_ALLOWED_REDIRECT_URIS],
-        clientId: VALID_ENV.GITHUB_APP_CLIENT_ID,
-        clientSecret: VALID_ENV.GITHUB_APP_CLIENT_SECRET,
-        privateKey: VALID_ENV.GITHUB_APP_PRIVATE_KEY,
+      githubCli: {
+        executablePath: VALID_ENV.GITHUB_CLI_EXECUTABLE_PATH,
+        metadataTimeoutMs: 15000,
+        discoveryTimeoutMs: 30000,
+        archiveTimeoutMs: 120000,
+        maxJsonOutputBytes: 1048576,
+        maxDiscoveryOutputBytes: 10485760,
+        maxStderrBytes: 8192,
+        maxArchiveBytes: 104857600,
+        maxConcurrentMetadataProcesses: 8,
+        maxConcurrentArchiveProcesses: 2,
+      },
+      gitlabCli: {
+        executablePath: "",
+        timeoutMs: 30000,
+        maxJsonOutputBytes: 1048576,
+      },
+      bitbucketCli: {
+        executablePath: "",
+        timeoutMs: 30000,
+        maxJsonOutputBytes: 1048576,
+      },
+      azureDevOpsCli: {
+        executablePath: "",
+        timeoutMs: 30000,
+        maxJsonOutputBytes: 1048576,
       },
       rabbitmq: {
         url: VALID_ENV.RABBITMQ_URL,
         exchange: VALID_ENV.RABBITMQ_EXCHANGE,
       },
+      sepay: {
+        webhookSecret: VALID_ENV.SEPAY_WEBHOOK_SECRET,
+        timestampSkewSeconds: 300,
+      },
       outbox: {
-        enabled: true,
         pollIntervalMs: 1000,
         batchSize: 50,
         maxAttempts: 5,
       },
-      crypto: { mfaSecretEncryptionKey: VALID_ENV.MFA_SECRET_ENCRYPTION_KEY },
+      githubCredentialPersistence: {
+        activeKekVersion: VALID_ENV.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION,
+        encodedKekKeyring: VALID_ENV.GITHUB_CLI_CREDENTIAL_KEK_KEYRING,
+      },
       email: {
         smtpHost: VALID_ENV.SMTP_HOST,
         smtpPort: 587,
@@ -216,8 +427,14 @@ describe("config()", () => {
         smtpFrom: VALID_ENV.SMTP_FROM,
       },
       worker: { apiKey: VALID_ENV.WORKER_API_KEY },
-      internal: { apiToken: "test-internal-token" },
       orchestration: { debug: false },
+      billing: {
+        sePayBankName: "Test Bank",
+        sePayBankAccountNumber: "1234567890",
+        sePayAccountHolder: "LCSP TEST",
+        sePayQrUrlTemplate:
+          "https://payments.test/qr?amount={amountVnd}&content={paymentCode}",
+      },
     });
   });
 

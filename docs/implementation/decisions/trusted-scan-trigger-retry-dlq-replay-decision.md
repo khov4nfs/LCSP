@@ -32,7 +32,7 @@ The API may return an existing job when the idempotency key, assessment ID, snap
 | mapping resolution | 5 attempts | temporary DB/provider lookup failure | ambiguous mapping, tenant mismatch |
 | snapshot creation | 3 attempts | provider timeout, transient clone/archive failure | revoked repository, invalid commit |
 | scan command publish | 5 attempts | outbox publish failure, broker unavailable | schema-invalid command |
-| scanner worker execution | domain policy | timeout/tool failure according to scanner severity policy | privacy cleanup failure, redaction failure |
+| repository analysis execution | domain policy | timeout/tool failure according to scanner severity policy | privacy cleanup failure, redaction failure |
 
 Retries use exponential backoff with jitter. Retry metadata must include `attempt`, `max_attempts`, `last_error_code`, and `next_retry_at`.
 

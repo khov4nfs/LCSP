@@ -140,10 +140,6 @@ function DialogDescription({
 
 export {
   Dialog,
-  DialogTrigger,
-  DialogClose,
-  DialogPortal,
-  DialogOverlay,
   DialogContent,
   DialogHeader,
   DialogBody,

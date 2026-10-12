@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { toPrismaAuthUserRole } from "../src/infrastructure/prisma/prisma-enum-mappers.ts";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.ts";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.ts";
 
 const ADMIN_EMAILS = [
   "minhpnq1807@gmail.com",
@@ -29,7 +29,7 @@ async function main() {
     const adminPassword = process.env.ADMIN_SEED_PASSWORD ?? "Admin@123";
 
     for (const email of ADMIN_EMAILS) {
-      await prisma.authUser.upsert({
+      await prisma.user.upsert({
         where: { email },
         create: {
           id: randomUUID(),

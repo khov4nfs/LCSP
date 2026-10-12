@@ -1,5 +1,7 @@
 # LCSP Requirements Traceability Summary
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 Summarize canonical requirement and planning traceability after Phase 5.2L active-document correction and readiness remediation. This document supports sprint planning review but does not authorize implementation by itself.
@@ -27,7 +29,7 @@ Summarize canonical requirement and planning traceability after Phase 5.2L activ
 - GitHub App read-only Repository Scan is the golden technical-evidence path.
 - `FR-050` automatically creates or resumes scan workflows from trusted integration context.
 - Python Worker Platform owns all asynchronous domain workloads.
-- Scanner analysis uses Syft, Knip, deptry, Python `ast`/`libcst`, Semgrep custom rules, tree-sitter/custom parser, and bounded `ts-morph`.
+- Repository analysis uses native Deep Agents with LCSP Docker sandbox tools and optional Codebase Memory MCP; direct repository source is the evidence authority.
 - Real LLM provider configuration is required for A-to-Z acceptance; dense embedding providers are not required for legal retrieval MVP.
 - Legal corpus uses validated official-source snapshots, internal approval, immutable versioning, and ChromaDB structure-first vectorless retrieval with legal hierarchy, xref expansion and citation allowlist validation.
 - Manager can complete the golden path without external collaborator participation.

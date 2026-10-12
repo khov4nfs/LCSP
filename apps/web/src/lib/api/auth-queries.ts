@@ -8,7 +8,6 @@ import {
   confirmPasswordRecovery,
   disableMfa,
   enrollMfa,
-  getAuthRepositories,
   getAuthSessions,
   getAuthSettingsProfile,
   recordMfaRecoveryCodeAccess,
@@ -47,12 +46,6 @@ export function useAuthSessionsQuery() {
   });
 }
 
-export function useAuthRepositoriesQuery() {
-  return useQuery({
-    queryKey: apiQueryKeys.auth.repositories(),
-    queryFn: getAuthRepositories,
-  });
-}
 
 export function useMfaVerifyMutation() {
   return useMutation({ mutationFn: verifyMfaOtp });
@@ -74,7 +67,7 @@ export function useMfaRecoveryCodeAccessMutation() {
   return useMutation({ mutationFn: recordMfaRecoveryCodeAccess });
 }
 
-export function useDisableMfaMutation() {
+function useDisableMfaMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -134,7 +127,7 @@ export function useConfirmRecoveryMutation() {
   return useMutation({ mutationFn: confirmPasswordRecovery });
 }
 
-export function useUpdateProfileMutation() {
+function useUpdateProfileMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({

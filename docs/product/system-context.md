@@ -1,5 +1,7 @@
 # LCSP System Context
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 This document defines what LCSP is, who uses it, and how an assessment moves from Manager intent to evidence-backed classification, reporting, and audit. It is a domain-level source of truth, not backlog, story, implementation, or validation material.
@@ -44,7 +46,7 @@ Manager intent
 - Self-signup and Manager-owned workspace entry.
 - Read-only GitHub repository connection and commit-pinned Repository Scan.
 - Python Worker Platform-owned asynchronous domain work.
-- Python Scanner Worker static analysis with Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules.
+- Repository Deep Agent analysis over the commit-pinned repository in an LCSP Docker sandbox, with optional Codebase Memory MCP structural indexing and source-grounded evidence/coverage decisions.
 - Evidence gates, TechnicalProfile, AIUsageFlow context, and Manager-only conflict resolution.
 - Provenance-preserving legal corpus ingestion from approved official-source URLs.
 - Internal corpus review/approval and immutable LegalCorpusVersion management.

@@ -4,7 +4,7 @@ import os
 import boto3
 from structlog import get_logger
 
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
 from tools.common.capabilities.platform.callback_schemas import AuditExportCallbackPayload
@@ -44,7 +44,7 @@ class AuditExportBoundary(AgentBoundaryBase):
         """Generate the requested export and callback its terminal status.
 
         Args:
-            message: Audit export request containing organization/date range IDs.
+            message: Audit export request containing request/date range IDs.
             correlationId: End-to-end trace identifier for the delivery.
 
         Missing request fields are logged and ignored. Generation/upload failures
@@ -52,18 +52,16 @@ class AuditExportBoundary(AgentBoundaryBase):
         the original exception is not hidden by a second reporting error.
         """
         export_request_id = message.get("exportRequestId")
-        org_id = message.get("organizationId")
         from_date = message.get("fromDate")
         to_date = message.get("toDate")
 
-        if not all([export_request_id, org_id, from_date, to_date]):
+        if not all([export_request_id, from_date, to_date]):
             logger.error("Missing required fields in audit.export-requested message", message=message)
             return
 
         try:
             export_url = self.generator.generate_export(
                 export_request_id=export_request_id,
-                org_id=org_id,
                 from_date=from_date,
                 to_date=to_date
             )

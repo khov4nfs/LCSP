@@ -1,0 +1,18 @@
+{
+  "scope": "IDENTITY_CONFIRMED_V1_ONLY_I18N_GENERATED_FILES",
+  "removed": [
+    {
+      "file": "packages/i18n/dist/classification-runtime.js",
+      "sha256": "c23b4012aeb1ae2108f0a4762221b9be7eb2cae4679017c12ea2429a53654b23"
+    },
+    {
+      "file": "packages/i18n/dist/classification-runtime.d.ts",
+      "sha256": "7e494f8a2f75130723bd5cc539e80256f1d43874e2caf132adb64853e807efda"
+    },
+    {
+      "file": "packages/i18n/dist/classification-runtime.d.ts.map",
+      "sha256": "abb5bb6c8a5d547fcaa283a3655fa4e59478ed9711e4163c5524605added2008"
+    }
+  ],
+  "otherGeneratedFiles": "PRESERVED"
+}

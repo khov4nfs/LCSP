@@ -1,34 +1,38 @@
-import { HttpStatus, Inject } from "@nestjs/common";
-import { CommandHandler } from "@nestjs/cqrs";
-import type { ICommandHandler } from "@nestjs/cqrs";
 import {
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { HttpStatus, Inject } from "@nestjs/common";
+import type { ICommandHandler } from "@nestjs/cqrs";
+import { CommandHandler } from "@nestjs/cqrs";
 
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import {
+  ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
+  ASSESSMENT_LIFECYCLE_STATES,
   ASSESSMENT_NAME_MAX_LENGTH,
-  ASSESSMENT_DESCRIPTION_MAX_LENGTH,
 } from "@lcsp/contracts/assessment";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
-import { AssessmentMapper } from "../../mappers/assessment.mapper.js";
+import type { CreateAssessmentDto } from "../../contracts/assessment/create-assessment.contract.js";
+import { AssessmentRuntimePreparation } from "../../services/assessment-runtime-preparation.service.js";
+import { AssessmentDetailLoader } from "../../../infrastructure/persistence/assessment-detail.loader.js";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_REPOSITORY,
   type AssessmentRepository,
 } from "../../ports/persistence/assessment.repository.js";
-import type { CreateAssessmentDto } from "../../contracts/assessment/create-assessment.contract.js";
+import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecycle-coordinator.service.js";
 import { CreateAssessmentCommand } from "./create-assessment.command.js";
 
 /**
@@ -50,6 +54,9 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
     private readonly auditWriter: AuditWriterService,
     private readonly outboxRepository: OutboxRepository,
     private readonly prisma: PrismaService,
+    private readonly lifecycle: AssessmentLifecycleCoordinator,
+    private readonly runtimePreparation: AssessmentRuntimePreparation,
+    private readonly detail: AssessmentDetailLoader,
   ) {}
 
   /**
@@ -101,18 +108,44 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
       payload: {
         assessmentId: assessment.id,
         ownerId: assessment.ownerId,
-        status: assessment.status,
         correlationId: command.correlationId,
       },
     });
 
     await this.prisma.$transaction(async (tx) => {
       await this.assessmentRepository.saveInTx(assessment, tx);
+      await this.lifecycle.initializeInTx(
+        {
+          assessmentId: assessment.id,
+          ownerId: assessment.ownerId,
+          rootAgentVersion: "assessment-root-v2",
+          checkpointNamespace: assessment.id,
+          correlationId: command.correlationId,
+        },
+        tx,
+      );
+      // Pins the then-ACTIVE compliance rule set; the repository snapshot pins at setup completion.
+      await this.runtimePreparation.createCaseInTx(tx, assessment.id);
+      await this.lifecycle.transitionInTx(
+        {
+          assessmentId: assessment.id,
+          expectedRevision: 0,
+          toState: ASSESSMENT_LIFECYCLE_STATES.PREPARING,
+          correlationId: command.correlationId,
+          actorId: assessment.ownerId,
+        },
+        tx,
+      );
       await this.auditWriter.writeInTx(auditEvent, tx);
       await this.outboxRepository.enqueue(outboxEvent, tx);
     });
 
-    return AssessmentMapper.toCreateDto(assessment, command.correlationId);
+    return this.detail.load({
+      assessmentId: assessment.id,
+      sessionUserId: assessment.ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: command.correlationId,
+    });
   }
 
   /**

@@ -2,9 +2,9 @@ name: autofix.ci
 
 on:
   pull_request:
-    branches: [main]
+    branches: ["**"]
   push:
-    branches: [main]
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:
@@ -38,7 +38,7 @@ jobs:
           # Pull-request mode normally calls the changed-files REST API. Use
           # the checked-out git history instead so transient GitHub API 5xx
           # responses cannot fail change detection.
-          token: ''
+          token: ""
           list-files: shell
           filters: |
             api:
@@ -65,6 +65,7 @@ jobs:
             python:
               - '.github/workflows/check-changed.yml'
               - 'deepagents/**'
+              - 'deepagents-langgraph/**'
 
   autofix:
     name: Auto-fix imports and lint
@@ -89,11 +90,14 @@ jobs:
 
       - name: Auto-fix import policy
         if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
+        # No IMPORT_POLICY_FILES: a release-sized diff overflows the 128 KiB
+        # single-env-var limit ("Argument list too long"); empty = full scan,
+        # same scope as the "Check import policy" step in the API job.
         run: pnpm run check:imports -- --fix
-        env:
-          IMPORT_POLICY_FILES: |
-            ${{ needs.changes.outputs.api_files }}
-            ${{ needs.changes.outputs.web_files }}
+
+      - name: Build runtime packages
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
+        run: pnpm run build:runtime-packages
 
       - name: Generate Prisma client
         if: needs.changes.outputs.api == 'true'
@@ -104,8 +108,10 @@ jobs:
       - name: Auto-fix API lint
         if: needs.changes.outputs.api == 'true'
         continue-on-error: true
+        env:
+          CHANGED_API_FILES: ${{ needs.changes.outputs.api_files }}
         run: |
-          files="$(printf '%s\n' ${{ needs.changes.outputs.api_files }} | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do [ -f "apps/api/$file" ] && printf '%s\n' "$file"; done)"
+          files="$(printf '%s\n' "$CHANGED_API_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do if [ -f "apps/api/$file" ]; then printf '%s\n' "$file"; fi; done)"
           if [ -n "$files" ]; then
             pnpm --dir apps/api exec eslint $files --fix
           fi
@@ -113,8 +119,10 @@ jobs:
       - name: Auto-fix web lint
         if: needs.changes.outputs.web == 'true'
         continue-on-error: true
+        env:
+          CHANGED_WEB_FILES: ${{ needs.changes.outputs.web_files }}
         run: |
-          files="$(printf '%s\n' ${{ needs.changes.outputs.web_files }} | awk '/^apps\/web\/.*\.(ts|tsx)$/ { sub("^apps/web/", ""); print }' | while IFS= read -r file; do [ -f "apps/web/$file" ] && printf '%s\n' "$file"; done)"
+          files="$(printf '%s\n' "$CHANGED_WEB_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/web\/.*\.(ts|tsx)$/ { sub("^apps/web/", ""); print }' | while IFS= read -r file; do if [ -f "apps/web/$file" ]; then printf '%s\n' "$file"; fi; done)"
           if [ -n "$files" ]; then
             pnpm --dir apps/web exec eslint $files --fix
           fi
@@ -168,14 +176,19 @@ jobs:
       - name: Check import policy
         run: pnpm run check:imports
 
+      - name: Build runtime packages
+        run: pnpm run build:runtime-packages
+
       - name: Generate Prisma client
         run: pnpm --filter @lcsp/api prisma:generate
         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public
 
       - name: Lint API
+        env:
+          CHANGED_API_FILES: ${{ needs.changes.outputs.api_files }}
         run: |
-          files="$(printf '%s\n' ${{ needs.changes.outputs.api_files }} | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do [ -f "apps/api/$file" ] && printf '%s\n' "$file"; done)"
+          files="$(printf '%s\n' "$CHANGED_API_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do if [ -f "apps/api/$file" ]; then printf '%s\n' "$file"; fi; done)"
           if [ -n "$files" ]; then
             pnpm --dir apps/api exec eslint $files
           else
@@ -213,9 +226,14 @@ jobs:
       - name: Check import policy
         run: pnpm run check:imports
 
+      - name: Build runtime packages
+        run: pnpm run build:runtime-packages
+
       - name: Lint web
+        env:
+          CHANGED_WEB_FILES: ${{ needs.changes.outputs.web_files }}
         run: |
-          files="$(printf '%s\n' ${{ needs.changes.outputs.web_files }} | awk '/^apps\/web\/.*\.(ts|tsx)$/ { sub("^apps/web/", ""); print }' | while IFS= read -r file; do [ -f "apps/web/$file" ] && printf '%s\n' "$file"; done)"
+          files="$(printf '%s\n' "$CHANGED_WEB_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/web\/.*\.(ts|tsx)$/ { sub("^apps/web/", ""); print }' | while IFS= read -r file; do if [ -f "apps/web/$file" ]; then printf '%s\n' "$file"; fi; done)"
           if [ -n "$files" ]; then
             pnpm --dir apps/web exec eslint $files
           else
@@ -244,3 +262,26 @@ jobs:
 
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"
+
+
+      - name: Validate LangGraph Agent Runtime config
+        env:
+          OPENAI_API_KEY: ci-import-only
+          LANGSMITH_TRACING: "false"
+          LANGCHAIN_TRACING_V2: "false"
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          config = json.loads(Path("langgraph.json").read_text())
+          assert config["graphs"]["lcsp-agent"] == "./agent.py:agent"
+          PY
+          python - <<'PY'
+          import agent
+
+          assert agent.agent is not None
+          PY
+
+      - name: Test Python workers
+        run: pytest

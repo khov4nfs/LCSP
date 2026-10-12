@@ -1,0 +1,150 @@
+{
+  "result": {
+    "state": "SUCCEEDED",
+    "executionId": "d8d72dcc-7d00-4f26-ae1b-d37d24103a32",
+    "threadId": "eb0d9919-7640-48e4-ac13-ab1c6c8f4566",
+    "errorType": null,
+    "checkpointId": null
+  },
+  "captured": {
+    "context": {
+      "ok": true,
+      "caseRevision": 0,
+      "pins": {
+        "legalPortfolioVersionId": "163aa7ca-57f3-4562-8054-44dcd8d9ca87",
+        "repositorySnapshotId": "90d276d1-37d4-4fd3-8e8f-cc9719738b60",
+        "repositoryCommit": "6b8596ea33105f8cc26092d76e124720dfc8826a"
+      },
+      "decisionScopeId": "ASSESSMENT",
+      "coverage": [
+        {
+          "engineeringRuleId": "ER-1",
+          "engineeringRuleVersion": "v1",
+          "resolutionState": "PENDING",
+          "decisionRevision": 0
+        },
+        {
+          "engineeringRuleId": "ER-2",
+          "engineeringRuleVersion": "v1",
+          "resolutionState": "PENDING",
+          "decisionRevision": 0
+        },
+        {
+          "engineeringRuleId": "ER-3",
+          "engineeringRuleVersion": "v1",
+          "resolutionState": "PENDING",
+          "decisionRevision": 0
+        }
+      ],
+      "facts": [],
+      "evidence": [],
+      "openHumanRequestIds": []
+    },
+    "evidence": {
+      "ok": true,
+      "path": "src/retention.py",
+      "startLine": 3,
+      "endLine": 3,
+      "evidenceId": "1ffc5191-7efb-5e35-84aa-43471b62e6d2",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "contentSha256": "sha256:dba4645bee632e15e3389a734d80d2c38eecb024c1667ab7bdf64feea6151084",
+      "caseRevision": 0,
+      "replayed": false
+    },
+    "fact": {
+      "ok": true,
+      "factId": "067386b6-3d76-5d51-98b7-6689ea017acd",
+      "caseRevision": 1
+    }
+  },
+  "remainingSteps": 0,
+  "trace": [
+    {
+      "turn": 1,
+      "lastToolResult": {},
+      "call": [
+        "get_assessment_context"
+      ]
+    },
+    {
+      "turn": 2,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": [
+        "cite_repository_source"
+      ]
+    },
+    {
+      "turn": 3,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": [
+        "accept_case_fact"
+      ]
+    },
+    {
+      "turn": 4,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": [
+        "start_rule_investigation"
+      ]
+    },
+    {
+      "turn": 5,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": [
+        "submit_rule_decision"
+      ]
+    },
+    {
+      "turn": 6,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": [
+        "start_rule_investigation"
+      ]
+    },
+    {
+      "turn": 7,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": [
+        "submit_rule_decision"
+      ]
+    },
+    {
+      "turn": 8,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": [
+        "start_rule_investigation"
+      ]
+    },
+    {
+      "turn": 9,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": [
+        "submit_rule_decision"
+      ]
+    },
+    {
+      "turn": 10,
+      "lastToolResult": {
+        "ok": true
+      },
+      "call": "final-text"
+    }
+  ]
+}

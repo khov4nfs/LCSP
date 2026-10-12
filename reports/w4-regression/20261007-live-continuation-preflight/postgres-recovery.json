@@ -1,0 +1,82 @@
+{
+  "verifiedAt": "2026-10-07T13:52:50.105Z",
+  "container": "lcsp-api-test-postgres-55441-lcsp_w2_base",
+  "database": "lcsp_w4_live",
+  "runtime": {
+    "assessmentId": "90d735de-f131-4580-aa00-211b149a1ef7",
+    "threadId": "9fc75fe5-9096-4cbe-9256-4f22b4ed4617",
+    "currentExecutionId": "91d4ec7f-7ac4-4a67-83bd-1efd864ae0a1",
+    "executionState": "FAILED",
+    "leaseToken": null
+  },
+  "case": {
+    "lifecycleState": "ACTIVE",
+    "caseRevision": 1,
+    "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669",
+    "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc",
+    "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "checkpointId": "1f1c24a2-a8f3-6ed7-801d-030517ecb1b8",
+  "decisions": [
+    {
+      "decisionId": "b9606da6-c1fb-4c46-b8ee-ab4327139c4a",
+      "decisionRevision": 1,
+      "engineeringRuleId": "ER-XREF",
+      "state": "ACCEPTED",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "NOT_MET",
+            "rationale": "The delete_notice function performs only store.delete(record['id']) with no notification to the recipient. Comprehensive searches for notification-related terms (notify, send, email, alert, message, webhook, recipient) found zero matches. The README explicitly states there are no external notification hooks or services. The repository contains only two files (README.md and src/notices.py), both fully inspected. No notification mechanism exists in the deletion path.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "37960309-4958-5929-9508-9ac089056da2"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "c54b2c65-8f53-541e-b880-c4208c9b1364"
+              }
+            ],
+            "criterionId": "C-1"
+          }
+        ],
+        "rationale": "The system is a notice service that stores and deletes notice records, as evidenced by the README description and the delete_notice function in src/notices.py. The applicability guidance states this rule applies to systems that store and delete notice records, which this system does.",
+        "compliance": "NON_COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "37960309-4958-5929-9508-9ac089056da2"
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "0f65f1b9-70ce-5e09-a94a-f6b1efa44c7f"
+          },
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "51b881d9-cedd-54a0-bbec-3d949e921e53",
+            "caseRevision": 1
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-XREF"
+          }
+        ],
+        "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+        "engineeringRuleId": "ER-XREF",
+        "repositorySnapshotId": "8c653e08-44bd-48de-90b7-03d0ce6748fc",
+        "engineeringRuleVersion": "w4-eval-bounded-absence",
+        "legalPortfolioVersionId": "4b03d202-c87a-4936-bb59-e09d35baf669"
+      }
+    }
+  ],
+  "providerCalls": 0
+}

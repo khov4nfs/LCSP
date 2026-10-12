@@ -1,0 +1,162 @@
+[
+  {
+    "assessmentId": "fff0a01f-e8db-4c36-8998-857aeb597e35",
+    "ownerId": "f5f1b8e8-a885-48ad-81a7-17783f381411",
+    "lifecycleState": "PREPARING",
+    "threadId": "d7ce3b33-6314-4ff6-b624-a9f507b75df1",
+    "repositorySnapshotId": null,
+    "snapshotIds": [],
+    "commitHashes": [],
+    "connectionStates": []
+  },
+  {
+    "assessmentId": "6832e048-5dac-4671-87bf-56bbda0c79a2",
+    "ownerId": "fbb798c2-5241-4201-8e7b-d22eef00e52d",
+    "lifecycleState": "PREPARING",
+    "threadId": "f32e4070-0cd7-410c-aab5-f570bd2c2723",
+    "repositorySnapshotId": null,
+    "snapshotIds": [
+      "1ec3236e-3f45-44c7-805f-6c846af8fdcc"
+    ],
+    "commitHashes": [
+      "4e3a788554f6c18e8de6835e18267a409c07fb64"
+    ],
+    "connectionStates": [
+      "REVOKED"
+    ]
+  },
+  {
+    "assessmentId": "aa3b2d9f-f66e-42f6-8231-bf48d90bdeae",
+    "ownerId": "bdb1dd10-5679-479c-882b-28edd1c8ccd2",
+    "lifecycleState": "PREPARING",
+    "threadId": "9491b2a3-eba4-4b0f-8c3a-3118f9c12463",
+    "repositorySnapshotId": null,
+    "snapshotIds": [
+      "d3a361a5-628f-4c08-83af-2d25ebb0be11"
+    ],
+    "commitHashes": [
+      "abc123"
+    ],
+    "connectionStates": [
+      "ACTIVE"
+    ]
+  },
+  {
+    "assessmentId": "6538c458-2a68-48fa-8505-4a48df3ee48a",
+    "ownerId": "bdb1dd10-5679-479c-882b-28edd1c8ccd2",
+    "lifecycleState": "PREPARING",
+    "threadId": "a1bfbbac-1a89-41ad-9e77-012e13918c6c",
+    "repositorySnapshotId": null,
+    "snapshotIds": [],
+    "commitHashes": [],
+    "connectionStates": []
+  },
+  {
+    "assessmentId": "5b82712f-72a5-48b4-875f-898036153965",
+    "ownerId": "fbb798c2-5241-4201-8e7b-d22eef00e52d",
+    "lifecycleState": "PREPARING",
+    "threadId": "8bc8ca3f-9a4d-4998-8ddb-82e17743723e",
+    "repositorySnapshotId": null,
+    "snapshotIds": [
+      "0ffeda9b-8883-4bac-8f70-f9ff0c1534d3"
+    ],
+    "commitHashes": [
+      "abc123"
+    ],
+    "connectionStates": [
+      "ACTIVE"
+    ]
+  },
+  {
+    "assessmentId": "209ada8e-7114-4e7a-8b8a-febc4314d9c5",
+    "ownerId": "fbb798c2-5241-4201-8e7b-d22eef00e52d",
+    "lifecycleState": "PREPARING",
+    "threadId": "b8b203d3-4f9e-471b-801c-e3f52353b149",
+    "repositorySnapshotId": null,
+    "snapshotIds": [],
+    "commitHashes": [],
+    "connectionStates": []
+  },
+  {
+    "assessmentId": "ec40d46e-3192-43d3-807a-fe07dfbf1036",
+    "ownerId": "bdb1dd10-5679-479c-882b-28edd1c8ccd2",
+    "lifecycleState": "PREPARING",
+    "threadId": "3bfafe06-17ce-45bd-829f-c6f1455737bc",
+    "repositorySnapshotId": null,
+    "snapshotIds": [],
+    "commitHashes": [],
+    "connectionStates": []
+  },
+  {
+    "assessmentId": "c554cb28-4f16-4cfa-86f8-898af962b7b1",
+    "ownerId": "f5f1b8e8-a885-48ad-81a7-17783f381411",
+    "lifecycleState": "PREPARING",
+    "threadId": "072e7486-a358-4a8e-a3b0-9c6b76ba4c9b",
+    "repositorySnapshotId": null,
+    "snapshotIds": [],
+    "commitHashes": [],
+    "connectionStates": []
+  },
+  {
+    "assessmentId": "1a36dc89-4ef2-4393-8209-28d859a0d2a5",
+    "ownerId": "f5f1b8e8-a885-48ad-81a7-17783f381411",
+    "lifecycleState": "PREPARING",
+    "threadId": "9cf3c845-534b-48e3-bd73-824bde18fee2",
+    "repositorySnapshotId": null,
+    "snapshotIds": [
+      "5c5635e1-641c-496c-88d4-abe24cfcef6d"
+    ],
+    "commitHashes": [
+      "5f51f128f3602f2c04d640245bfa30f9c5fcf6aa"
+    ],
+    "connectionStates": [
+      "REVOKED"
+    ]
+  },
+  {
+    "assessmentId": "43f5521c-aa3e-4d64-8631-1f9df3e84df6",
+    "ownerId": "bdb1dd10-5679-479c-882b-28edd1c8ccd2",
+    "lifecycleState": "PREPARING",
+    "threadId": "d599e586-1e5a-4d7a-9288-d6242a669bce",
+    "repositorySnapshotId": null,
+    "snapshotIds": [],
+    "commitHashes": [],
+    "connectionStates": []
+  },
+  {
+    "assessmentId": "65d9ff7b-ef0d-4f02-8578-f66ff5d929d7",
+    "ownerId": "f5f1b8e8-a885-48ad-81a7-17783f381411",
+    "lifecycleState": "PREPARING",
+    "threadId": "0b0c9e2d-b031-4cff-a464-28be39f8bef1",
+    "repositorySnapshotId": null,
+    "snapshotIds": [
+      "f5b94731-5d23-43f8-8d1e-b43d4d70f6b2"
+    ],
+    "commitHashes": [
+      "abc123"
+    ],
+    "connectionStates": [
+      "ACTIVE"
+    ]
+  },
+  {
+    "assessmentId": "7b8690b7-c151-4631-88e2-3f3e674803e2",
+    "ownerId": "fbb798c2-5241-4201-8e7b-d22eef00e52d",
+    "lifecycleState": "PREPARING",
+    "threadId": "594ce467-49ed-4cd1-8a5a-622c700cfe31",
+    "repositorySnapshotId": null,
+    "snapshotIds": [],
+    "commitHashes": [],
+    "connectionStates": []
+  },
+  {
+    "assessmentId": "dfc93736-4ec4-4ce4-83cc-6ffbaf4811b2",
+    "ownerId": "fbb798c2-5241-4201-8e7b-d22eef00e52d",
+    "lifecycleState": "PREPARING",
+    "threadId": "54668bb7-dcc1-4561-9fbc-74c4a720a61e",
+    "repositorySnapshotId": null,
+    "snapshotIds": [],
+    "commitHashes": [],
+    "connectionStates": []
+  }
+]

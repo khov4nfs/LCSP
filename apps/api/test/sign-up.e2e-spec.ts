@@ -1,5 +1,8 @@
-import { SIGN_UP_ERROR_CODES } from "@lcsp/contracts/auth";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  AUTH_ERROR_CODES,
+  AUTH_USER_ROLES,
+  SIGN_UP_ERROR_CODES,
+} from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
 
 import type { INestApplication } from "@nestjs/common";
@@ -8,23 +11,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import type { SignUpResponse } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-up.contract.js";
+import type { AuthProfileSuccess } from "../src/modules/auth/application/contracts/auth/settings.contract.js";
+import type { SignUpResponse } from "../src/modules/auth/application/contracts/auth/sign-up.contract.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
 } from "./support/auth-workspace-test-helpers.js";
-
-type WorkspaceBody = {
-  ok: true;
-  user_id: string;
-  display_name: string;
-  role: string;
-  session_expires_at: string;
-  mfa_verified: boolean;
-  correlationId: string;
-};
 
 describe("Self sign-up endpoint (e2e)", () => {
   let app: INestApplication;
@@ -74,7 +68,7 @@ describe("Self sign-up endpoint (e2e)", () => {
     assert.ok(body.session_token);
     assert.equal(Number.isNaN(Date.parse(body.expires_at)), false);
 
-    const user = await prisma.authUser.findUniqueOrThrow({
+    const user = await prisma.user.findUniqueOrThrow({
       where: { id: body.user_id },
     });
     assert.equal(user.email, "new.manager@example.test");
@@ -82,27 +76,28 @@ describe("Self sign-up endpoint (e2e)", () => {
     assert.equal(user.emailVerified, true);
     assert.equal(user.role, AUTH_USER_ROLES.customer);
 
-    const session = await prisma.authSession.findFirstOrThrow({
+    const session = await prisma.authRecord.findFirstOrThrow({
       where: {
         userId: body.user_id,
         revokedAt: null,
       },
     });
+    assert.ok(session.expiresAt);
     assert.equal(Number.isNaN(session.expiresAt.getTime()), false);
 
-    const workspace = await httpRequest(app)
-      .get("/workspace")
+    const profile = await httpRequest(app)
+      .get("/auth/profile")
       .set("Authorization", `Bearer ${body.session_token}`)
       .expect(200);
-    const workspaceBody = successBody<WorkspaceBody>(workspace);
-    assert.equal(workspaceBody.user_id, body.user_id);
-    assert.equal(workspaceBody.display_name, "New Manager");
-    assert.equal(workspaceBody.role, AUTH_USER_ROLES.customer);
+    const profileBody = successBody<AuthProfileSuccess>(profile);
+    assert.equal(profileBody.user_id, body.user_id);
+    assert.equal(profileBody.display_name, "New Manager");
+    assert.equal(profileBody.role, AUTH_USER_ROLES.customer);
     assert.equal(
-      Number.isNaN(Date.parse(workspaceBody.session_expires_at)),
+      Number.isNaN(Date.parse(profileBody.current_session_expires_at)),
       false,
     );
-    assert.equal(workspaceBody.mfa_verified, false);
+    assert.equal(profileBody.mfa_verified, false);
   });
 
   it("rejects duplicate email registration", async () => {
@@ -132,7 +127,7 @@ describe("Self sign-up endpoint (e2e)", () => {
       password: "short",
     });
 
-    assert.equal(result.status, 422);
-    assert.equal(problemCode(result), SIGN_UP_ERROR_CODES.passwordTooShort);
+    assert.equal(result.status, 400);
+    assert.equal(problemCode(result), AUTH_ERROR_CODES.validationFailed);
   });
 });

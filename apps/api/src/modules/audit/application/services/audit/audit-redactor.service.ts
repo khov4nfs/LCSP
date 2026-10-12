@@ -1,3 +1,4 @@
+import { isRecord } from "@lcsp/contracts/shared";
 import { Injectable } from "@nestjs/common";
 
 import { AuditSanitizer } from "../../../../../platform/audit/audit-sanitizer.js";
@@ -20,14 +21,4 @@ export class AuditRedactorService {
 
     return AuditSanitizer.sanitize(payload).payload ?? null;
   }
-}
-
-/**
- * Checks whether an unknown payload is a non-array object record suitable for sanitization.
- *
- * @param value - Unknown value to inspect.
- * @returns True when the value is a record-like object.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

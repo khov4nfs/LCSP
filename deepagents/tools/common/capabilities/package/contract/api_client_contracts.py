@@ -6,28 +6,19 @@ correlationId_HEADER = "X-Correlation-Id"
 
 
 class CallbackPath(StrEnum):
-    SCAN = "/internal/scan-jobs/{scan_job_id}/callback"
-    SCAN_RUNTIME_EVENT = "/internal/scan-jobs/{scan_job_id}/runtime-events"
-    TECHNICAL_PROFILE = "/internal/evidence/technical-profile-callback"
-    AI_USAGE_FLOW = "/internal/ai-usage-flow/callback"
-    RECONCILIATION_CONFLICT = "/internal/reconciliation/conflict-callback"
-    CLASSIFICATION = "/internal/classification/result-callback"
+    AGENT_STREAM_EVENT = "/internal/assessment-runtime/agent-stream-events"
+    BILLING_USAGE = "/internal/billing/usage"
     AUDIT_EXPORT = "/internal/callbacks/audit-export/{export_request_id}"
-    TARGETED_REANALYSIS_CLAIM = "/internal/targeted-reanalysis/{request_id}/claim"
-    TARGETED_REANALYSIS_REQUEUE = "/internal/targeted-reanalysis/{request_id}/requeue"
-    TARGETED_REANALYSIS_TERMINAL = "/internal/targeted-reanalysis/{request_id}/terminal"
 
 
 class InternalPath(StrEnum):
-    AUDIT_EVENTS = "/internal/organizations/{organization_id}/audit-events"
-    TECHNICAL_EVIDENCE_REPORT = "/internal/evidence/reports/{evidence_report_id}"
-    TECHNICAL_PROFILE = "/internal/evidence/technical-profiles/{technical_profile_id}"
-    AGENTIC_TOOL_DISPATCH = "/internal/evidence/agentic-tools/dispatch"
-    TARGETED_REANALYSIS_CREATE = "/internal/scan-jobs/targeted-reanalysis"
-    AI_USAGE_FLOW = "/internal/ai-usage-flow/{ai_usage_flow_id}"
-    WIZARD_PROFILE = "/internal/assessments/{assessment_id}/wizard-profile"
-    TARGETED_REANALYSIS_REQUEST = "/internal/targeted-reanalysis/{request_id}"
-    LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-rule-catalog/source-snapshots"
+    AUDIT_EVENTS = "/internal/audit-events"
+    LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-sources/source-snapshots"
+    COMPLIANCE_RULE_SET_CLAIMS = "/internal/compliance-rule-set/claims"
+    COMPLIANCE_RULE_SET_VALIDATIONS = "/internal/compliance-rule-set/validations"
+    COMPLIANCE_RULE_SET_SUBMISSIONS = "/internal/compliance-rule-set/submissions"
+    COMPLIANCE_RULE_SET_FAILURES = "/internal/compliance-rule-set/failures"
+    COMPLIANCE_RULE_SET_ACTIVE = "/internal/compliance-rule-set/active"
 
 
 class CallbackLogEvent(StrEnum):

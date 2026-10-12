@@ -95,4 +95,68 @@ describe("ArtifactStorageService", () => {
       BadRequestException,
     );
   });
+
+  it("erases verified immutable bytes idempotently and preserves another artifact", async () => {
+    const owned = await service.writeImmutableArtifact(
+      crypto.randomUUID(),
+      "owned synthetic report",
+    );
+    const other = await service.writeImmutableArtifact(
+      crypto.randomUUID(),
+      "another synthetic report",
+    );
+    await service.eraseImmutableArtifact(
+      owned.manifest,
+      new Set(other.manifest.chunks),
+    );
+    await service.eraseImmutableArtifact(
+      owned.manifest,
+      new Set(other.manifest.chunks),
+    );
+    expect(
+      fs.existsSync(
+        path.join(testStoragePath, "chunks", owned.manifest.chunks[0]),
+      ),
+    ).toBe(false);
+    await expect(service.readAndReconstruct(other.manifest)).resolves.toBe(
+      "another synthetic report",
+    );
+  });
+
+  it("preserves a content-addressed chunk still owned by another assessment", async () => {
+    const stored = await service.writeImmutableArtifact(
+      crypto.randomUUID(),
+      "shared synthetic chunk",
+    );
+    await service.eraseImmutableArtifact(
+      stored.manifest,
+      new Set(stored.manifest.chunks),
+    );
+    await expect(service.readAndReconstruct(stored.manifest)).resolves.toBe(
+      "shared synthetic chunk",
+    );
+  });
+
+  it("refuses hash-tampered and symlinked erasure targets", async () => {
+    const stored = await service.writeImmutableArtifact(
+      crypto.randomUUID(),
+      "verify before erase",
+    );
+    const target = path.join(
+      testStoragePath,
+      "chunks",
+      stored.manifest.chunks[0],
+    );
+    fs.writeFileSync(target, "tampered");
+    await expect(
+      service.eraseImmutableArtifact(stored.manifest, new Set()),
+    ).rejects.toThrow();
+    expect(fs.existsSync(target)).toBe(true);
+    fs.unlinkSync(target);
+    fs.symlinkSync(path.join(testStoragePath, "chunks", "chunk1.json"), target);
+    await expect(
+      service.eraseImmutableArtifact(stored.manifest, new Set()),
+    ).rejects.toThrow();
+    expect(fs.lstatSync(target).isSymbolicLink()).toBe(true);
+  });
 });

@@ -1,12 +1,20 @@
+import { readFileSync } from "node:fs";
+const eventPolicy = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../../../tests/fixtures/outbox-event-policy.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as { retired: string[]; retained: string[] };
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
 import {
   OUTBOX_STATUSES,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { TARGETED_REANALYSIS_REQUEST_STATES } from "@lcsp/contracts/scan";
-import { TARGETED_REANALYSIS_CAPACITY_POLICY } from "@lcsp/contracts/scan";
 import { jest } from "@jest/globals";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { OutboxRepository } from "./outbox.repository.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
@@ -40,10 +48,10 @@ function makeTx() {
 }
 
 function makePrismaWithCreate() {
-  const create = jest.fn<CreateFn>().mockResolvedValue(undefined);
+  const upsert = jest.fn<CreateFn>().mockResolvedValue(undefined);
   return {
-    prisma: { outboxMessage: { create } } as unknown as PrismaService,
-    create,
+    prisma: { outboxMessage: { upsert } } as unknown as PrismaService,
+    upsert,
   };
 }
 
@@ -129,97 +137,9 @@ describe("OutboxRepository", () => {
     expect(call.data.errorMessage).toHaveLength(500);
   });
 
-  it("records targeted reanalysis publish attempts and makes an exhausted command visible as DLQ", async () => {
-    const repository = new OutboxRepository({} as PrismaService);
-    const { tx, updateMany, checkpointUpdateMany } = makeTx();
-
-    await repository.recordTargetedReanalysisPublishFailure(
-      tx,
-      "request-1",
-      4,
-      "TARGETED_REANALYSIS_OUTBOX_DELIVERY_EXHAUSTED",
-    );
-
-    expect(updateMany).toHaveBeenCalledWith({
-      where: {
-        id: "request-1",
-        state: {
-          in: [
-            TARGETED_REANALYSIS_REQUEST_STATES.queued,
-            TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
-          ],
-        },
-      },
-      data: {
-        apiPublishAttempts: 4,
-        state: TARGETED_REANALYSIS_REQUEST_STATES.dlq,
-        safeFailureCode: "TARGETED_REANALYSIS_OUTBOX_DELIVERY_EXHAUSTED",
-      },
-    });
-    expect(checkpointUpdateMany).toHaveBeenCalledWith({
-      where: { requestId: "request-1" },
-      data: {
-        apiPublishAttempts: 4,
-        state: TARGETED_REANALYSIS_REQUEST_STATES.dlq,
-        safeFailureCode: "TARGETED_REANALYSIS_OUTBOX_DELIVERY_EXHAUSTED",
-      },
-    });
-  });
-
-  it("reserves a per-organization targeted-reanalysis dispatch slot atomically", async () => {
-    const repository = new OutboxRepository({} as PrismaService);
-    const { tx, findUnique, count, updateMany, $executeRaw } = makeTx();
-    findUnique.mockResolvedValue({
-      state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
-    });
-    count.mockResolvedValue(
-      TARGETED_REANALYSIS_CAPACITY_POLICY.maxRunningPerOrganization - 1,
-    );
-
-    await expect(
-      repository.reserveTargetedReanalysisDispatch(tx, "request-1"),
-    ).resolves.toBe(true);
-
-    expect($executeRaw).toHaveBeenCalledTimes(1);
-    expect(count).toHaveBeenCalledWith({
-      where: {
-        state: {
-          in: [
-            TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
-            TARGETED_REANALYSIS_REQUEST_STATES.running,
-          ],
-        },
-      },
-    });
-    expect(updateMany).toHaveBeenCalledWith({
-      where: {
-        id: "request-1",
-        state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
-      },
-      data: { state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched },
-    });
-  });
-
-  it("leaves a request queued when all targeted-reanalysis slots are reserved", async () => {
-    const repository = new OutboxRepository({} as PrismaService);
-    const { tx, findUnique, count, updateMany } = makeTx();
-    findUnique.mockResolvedValue({
-      state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
-    });
-    count.mockResolvedValue(
-      TARGETED_REANALYSIS_CAPACITY_POLICY.maxRunningPerOrganization,
-    );
-
-    await expect(
-      repository.reserveTargetedReanalysisDispatch(tx, "request-1"),
-    ).resolves.toBe(false);
-
-    expect(updateMany).not.toHaveBeenCalled();
-  });
-
   describe("enqueue", () => {
     it("creates a pending OutboxMessage row with the given aggregate/event/payload", async () => {
-      const { prisma, create } = makePrismaWithCreate();
+      const { prisma, upsert } = makePrismaWithCreate();
       const repository = new OutboxRepository(prisma);
 
       await repository.enqueue({
@@ -229,9 +149,9 @@ describe("OutboxRepository", () => {
         payload: { assessmentId: "assessment-1" },
       });
 
-      expect(create).toHaveBeenCalledTimes(1);
-      const call = create.mock.calls[0][0] as {
-        data: {
+      expect(upsert).toHaveBeenCalledTimes(1);
+      const call = upsert.mock.calls[0][0] as {
+        create: {
           id: string;
           aggregateType: string;
           aggregateId: string;
@@ -241,19 +161,53 @@ describe("OutboxRepository", () => {
           attempts: number;
         };
       };
-      expect(call.data.aggregateType).toBe(OUTBOX_AGGREGATE_TYPES.assessment);
-      expect(call.data.aggregateId).toBe("assessment-1");
-      expect(call.data.eventType).toBe(ASSESSMENT_EVENT_TYPES.createdOutbox);
-      expect(call.data.payload).toEqual({ assessmentId: "assessment-1" });
-      expect(call.data.status).toBe(OUTBOX_STATUSES.pending);
-      expect(call.data.attempts).toBe(0);
-      expect(call.data.id).toBeTruthy();
+      expect(call.create.aggregateType).toBe(OUTBOX_AGGREGATE_TYPES.assessment);
+      expect(call.create.aggregateId).toBe("assessment-1");
+      expect(call.create.eventType).toBe(ASSESSMENT_EVENT_TYPES.createdOutbox);
+      expect(call.create.payload).toEqual({ assessmentId: "assessment-1" });
+      expect(call.create.status).toBe(OUTBOX_STATUSES.pending);
+      expect(call.create.attempts).toBe(0);
+      expect(call.create.id).toBeTruthy();
     });
 
+    it.each(eventPolicy.retired)(
+      "refuses to enqueue the retired V1 event %s",
+      async (eventType) => {
+        const { prisma, upsert } = makePrismaWithCreate();
+        const repository = new OutboxRepository(prisma);
+
+        await expect(
+          repository.enqueue({
+            aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+            aggregateId: "assessment-1",
+            eventType,
+            payload: {},
+          }),
+        ).rejects.toThrow("OUTBOX_EVENT_TYPE_RETIRED");
+        expect(upsert).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([...eventPolicy.retained])(
+      "still enqueues the live event %s",
+      async (eventType) => {
+        const { prisma, upsert } = makePrismaWithCreate();
+        const repository = new OutboxRepository(prisma);
+
+        await repository.enqueue({
+          aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+          aggregateId: "assessment-1",
+          eventType,
+          payload: {},
+        });
+        expect(upsert).toHaveBeenCalledTimes(1);
+      },
+    );
+
     it("writes within the given transaction client when provided", async () => {
-      const create = jest.fn<CreateFn>().mockResolvedValue(undefined);
+      const upsert = jest.fn<CreateFn>().mockResolvedValue(undefined);
       const tx = {
-        outboxMessage: { create },
+        outboxMessage: { upsert },
       } as unknown as Prisma.TransactionClient;
       const repository = new OutboxRepository({} as PrismaService);
 
@@ -267,7 +221,38 @@ describe("OutboxRepository", () => {
         tx,
       );
 
-      expect(create).toHaveBeenCalledTimes(1);
+      expect(upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it("treats duplicate idempotent outbox inserts as successful replays", async () => {
+      // Upsert-on-id means a duplicate never raises: catching a P2002 after the
+      // fact would leave the surrounding interactive transaction aborted.
+      const upsert = jest.fn<CreateFn>().mockResolvedValue(undefined);
+      const tx = {
+        outboxMessage: { upsert },
+      } as unknown as Prisma.TransactionClient;
+      const repository = new OutboxRepository({} as PrismaService);
+
+      await expect(
+        repository.enqueue(
+          {
+            aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
+            aggregateId: "assessment-1",
+            eventType: ASSESSMENT_EVENT_TYPES.createdOutbox,
+            idempotencyKey: "assessment-1:created",
+            payload: { assessmentId: "assessment-1" },
+          },
+          tx,
+        ),
+      ).resolves.toMatch(/^outbox:/);
+
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          where: { id: expect.stringMatching(/^outbox:/u) },
+          update: {},
+        }),
+      );
     });
   });
 });

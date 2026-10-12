@@ -1,0 +1,757 @@
+{
+  "generatedAt": "2026-10-07T07:07:11.204Z",
+  "fixture": {
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "hashes": {
+      "art-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-1::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-b": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+    },
+    "chunks": [
+      {
+        "locator": "art-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-1::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-2",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-2::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-3",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-3::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1::pt-b",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-6",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-6::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      }
+    ],
+    "packet": {
+      "legalRules": [
+        {
+          "legalRuleId": "LR-DEF",
+          "title": "Payment record encryption",
+          "proposition": "Payment processing services must encrypt payment records at rest.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-1::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the one-duty semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-RET",
+          "title": "Notice record retention",
+          "proposition": "Notice services must delete notice records no later than seven days after receipt.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-b",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "COVERED_BY_ENGINEERING_RULES",
+            "nonAssessableReason": null
+          }
+        },
+        {
+          "legalRuleId": "LR-EXC",
+          "title": "Rule LR-EXC",
+          "proposition": "Proposition LR-EXC.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-3::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-XREF",
+          "title": "Deletion notification",
+          "proposition": "Notice services must notify the recipient when their notice record is deleted.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-4::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-2::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the one-duty semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-PERSON",
+          "title": "Rule LR-PERSON",
+          "proposition": "Proposition LR-PERSON.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": true,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-6::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."
+          }
+        }
+      ],
+      "engineeringRules": [
+        {
+          "engineeringRuleId": "ER-RET",
+          "legalRuleIds": [
+            "LR-RET"
+          ],
+          "concept": "Notice record retention",
+          "legalIntent": "Notice services must delete notice records no later than seven days after receipt.",
+          "applicabilityGuidance": "Applies to a system that stores notice records.",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "statement": "Notice records are deleted after at most seven days."
+            }
+          ],
+          "investigationGoals": [
+            "Notice records are deleted after at most seven days."
+          ],
+          "startingNodeTypes": [],
+          "targetNodeTypes": [],
+          "edgeStrategies": [],
+          "graphQueries": [],
+          "keywords": [],
+          "commonApis": [],
+          "commonLibraries": [],
+          "patterns": [],
+          "requiredEvidence": [
+            "Accepted repository source or authenticated bounded search coverage"
+          ],
+          "supportingEvidence": [],
+          "negativeEvidence": [],
+          "unresolvedConditions": [],
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-3::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ]
+        }
+      ],
+      "contextRelations": []
+    },
+    "files": {
+      "README.md": "This is a notice-only service that stores notice records.\n",
+      "src/notices.py": "RETENTION_DAYS = 7\n\ndef delete_expired_notices(records, now):\n    return [r for r in records if (now - r['received_at']).days < RETENTION_DAYS]\n"
+    },
+    "fixture": "single"
+  },
+  "result": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "9e14d512-7365-47b1-b419-17349200c03b",
+      "threadId": "361f5d9f-3339-4238-8feb-e6ceb6c941f6",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "google_genai:gemini-3.5-flash-lite",
+    "calls": 16,
+    "inputTokens": 102871,
+    "outputTokens": 1156,
+    "seconds": 20.08
+  },
+  "trace": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "9e14d512-7365-47b1-b419-17349200c03b",
+      "threadId": "361f5d9f-3339-4238-8feb-e6ceb6c941f6",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "google_genai:gemini-3.5-flash-lite",
+    "calls": 16,
+    "inputTokens": 102871,
+    "outputTokens": 1156,
+    "seconds": 20.08,
+    "tools": [
+      {
+        "tool": "get_assessment_context",
+        "input": "{}"
+      },
+      {
+        "tool": "get_pinned_portfolio",
+        "input": "{}"
+      },
+      {
+        "tool": "get_repository_architecture",
+        "input": "{'aspects': ['all']}"
+      },
+      {
+        "tool": "ls",
+        "input": "{'path': '/'}"
+      },
+      {
+        "tool": "ls",
+        "input": "{'path': '/src'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'limit': 100, 'file_path': '/README.md', 'offset': 0}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'limit': 100, 'file_path': '/src/notices.py', 'offset': 0}"
+      },
+      {
+        "tool": "cite_repository_source",
+        "input": "{'path': '/src/notices.py', 'end_line': 4, 'start_line': 1}"
+      },
+      {
+        "tool": "accept_case_fact",
+        "input": "{'evidence_ids': ['dc5fb681-279b-58ad-969a-c8017d6d0481'], 'kind': 'USE_CASE', 'statement': 'The assessed system is a notice-only service that stores notice records and deletes expired notices after a retention period of 7 days (RETENTION_DAYS = 7).'}"
+      },
+      {
+        "tool": "start_rule_investigation",
+        "input": "{'engineering_rule_id': 'ER-RET'}"
+      },
+      {
+        "tool": "get_engineering_rule",
+        "input": "{'engineering_rule_id': 'ER-RET'}"
+      },
+      {
+        "tool": "record_search_coverage",
+        "input": "{'known_gaps': ['None'], 'direct_source_fallbacks': [{'path': 'src/notices.py', 'reason': 'Inspected core implementation of notice deletion logic and retention threshold.'}], 'inspected_entry_points': ['src/notices.py']}"
+      },
+      {
+        "tool": "submit_rule_decision",
+        "input": "{'compliance': 'COMPLIANT', 'criteria': [{'criterion_id': 'C-1', 'rationale': 'The system implements notice deletion via delete_expired_notices using RETENTION_DAYS = 7, ensuring that notice records are deleted after at most seven days.', 'outcome': 'MET', 'references': [{'id': 'dc5fb681-279b-58ad-969a-c8017d6d0481', 'type': 'ASSESSMENT_EVIDENCE'}]}], 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'dc5fb681-279b-58ad-969a-c8017d6d0481'}], 'legal_context_ids': ['LR-RET'], 'rationale': 'The system is a notice service that stores notice records and enforces a retention period of 7 days via RETENTION_DAYS in src/notices.py, meeting the requirement to delete notice records no later than seven days after receipt.', '\"engineering_rule_id': 'ER-RET', 'applicability': 'APPLICABLE'}"
+      },
+      {
+        "tool": "submit_rule_decision",
+        "input": "{'criteria': [{'criterion_id': 'C-1', 'rationale': 'The system implements notice deletion via delete_expired_notices using RETENTION_DAYS = 7, ensuring that notice records are deleted after at most seven days.', 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'dc5fb681-279b-58ad-969a-c8017d6d0481'}], 'outcome': 'MET'}], 'applicability': 'APPLICABLE', 'legal_context_ids': ['LR-RET'], 'rationale': 'The system is a notice service that stores notice records and enforces a retention period of 7 days via RETENTION_DAYS in src/notices.py, meeting the requirement to delete notice records no later than seven days after receipt.', 'references': [{'id': 'dc5fb681-279b-58ad-969a-c8017d6d0481', 'type': 'ASSESSMENT_EVIDENCE'}], 'engineering_rule_id': 'ER-RET', 'compliance': 'COMPLIANT'}"
+      },
+      {
+        "tool": "get_assessment_context",
+        "input": "{}"
+      }
+    ],
+    "messages": [
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_assessment_context",
+            "args": {},
+            "id": "call_468963",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_pinned_portfolio",
+            "args": {},
+            "id": "call_375981",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_repository_architecture",
+            "args": {
+              "aspects": [
+                "all"
+              ]
+            },
+            "id": "call_279740",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "ls",
+            "args": {
+              "path": "/"
+            },
+            "id": "call_48420",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "ls",
+            "args": {
+              "path": "/src"
+            },
+            "id": "call_270130",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "read_file",
+            "args": {
+              "limit": 100,
+              "file_path": "/README.md",
+              "offset": 0
+            },
+            "id": "call_54635",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "read_file",
+            "args": {
+              "limit": 100,
+              "file_path": "/src/notices.py",
+              "offset": 0
+            },
+            "id": "call_410418",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "cite_repository_source",
+            "args": {
+              "path": "/src/notices.py",
+              "end_line": 4,
+              "start_line": 1
+            },
+            "id": "call_56691",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "accept_case_fact",
+            "args": {
+              "evidence_ids": [
+                "dc5fb681-279b-58ad-969a-c8017d6d0481"
+              ],
+              "kind": "USE_CASE",
+              "statement": "The assessed system is a notice-only service that stores notice records and deletes expired notices after a retention period of 7 days (RETENTION_DAYS = 7)."
+            },
+            "id": "call_48493",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "start_rule_investigation",
+            "args": {
+              "engineering_rule_id": "ER-RET"
+            },
+            "id": "call_56735",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_engineering_rule",
+            "args": {
+              "engineering_rule_id": "ER-RET"
+            },
+            "id": "call_299605",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "record_search_coverage",
+            "args": {
+              "known_gaps": [
+                "None"
+              ],
+              "direct_source_fallbacks": [
+                {
+                  "path": "src/notices.py",
+                  "reason": "Inspected core implementation of notice deletion logic and retention threshold."
+                }
+              ],
+              "inspected_entry_points": [
+                "src/notices.py"
+              ]
+            },
+            "id": "call_52597",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "submit_rule_decision",
+            "args": {
+              "compliance": "COMPLIANT",
+              "criteria": [
+                {
+                  "criterion_id": "C-1",
+                  "rationale": "The system implements notice deletion via delete_expired_notices using RETENTION_DAYS = 7, ensuring that notice records are deleted after at most seven days.",
+                  "outcome": "MET",
+                  "references": [
+                    {
+                      "id": "dc5fb681-279b-58ad-969a-c8017d6d0481",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    }
+                  ]
+                }
+              ],
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "id": "dc5fb681-279b-58ad-969a-c8017d6d0481"
+                }
+              ],
+              "legal_context_ids": [
+                "LR-RET"
+              ],
+              "rationale": "The system is a notice service that stores notice records and enforces a retention period of 7 days via RETENTION_DAYS in src/notices.py, meeting the requirement to delete notice records no later than seven days after receipt.",
+              "\"engineering_rule_id": "ER-RET",
+              "applicability": "APPLICABLE"
+            },
+            "id": "call_331065",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "submit_rule_decision",
+            "args": {
+              "criteria": [
+                {
+                  "criterion_id": "C-1",
+                  "rationale": "The system implements notice deletion via delete_expired_notices using RETENTION_DAYS = 7, ensuring that notice records are deleted after at most seven days.",
+                  "references": [
+                    {
+                      "type": "ASSESSMENT_EVIDENCE",
+                      "id": "dc5fb681-279b-58ad-969a-c8017d6d0481"
+                    }
+                  ],
+                  "outcome": "MET"
+                }
+              ],
+              "applicability": "APPLICABLE",
+              "legal_context_ids": [
+                "LR-RET"
+              ],
+              "rationale": "The system is a notice service that stores notice records and enforces a retention period of 7 days via RETENTION_DAYS in src/notices.py, meeting the requirement to delete notice records no later than seven days after receipt.",
+              "references": [
+                {
+                  "id": "dc5fb681-279b-58ad-969a-c8017d6d0481",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ],
+              "engineering_rule_id": "ER-RET",
+              "compliance": "COMPLIANT"
+            },
+            "id": "call_60089",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_assessment_context",
+            "args": {},
+            "id": "call_439798",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "I have completed the assessment of the pinned portfolio containing the Engineering Rule `ER-RET` (Notice record retention).\n\n### Summary of Investigation and Findings\n1. **System Discovery**: Discovered the repository structure and implementation (`src/notices.py` and `README.md`), establishing that the system is a notice-only service storing notice records. Recorded this as an accepted use case fact.\n2. **Rule Investigation (`ER-RET`)**:\n   - Inspected the retention logic in `src/notices.py`, which defines `RETENTION_DAYS = 7` and filters out notices older than 7 days via `delete_expired_notices`.\n   - Recorded search coverage for the inspected source files.\n   - Evaluated criterion `C-1` (\"Notice records are deleted after at most seven days\") as `MET`.\n3. **Decision Submission**:\n   - Submitted a compliant decision (`COMPLIANT`) for `ER-RET` under legal context `LR-RET`, citing verified repository source evidence.",
+            "extras": {
+              "signature": "EmAKXgFpFH0TLRRP3UT18z6ZrkjimtgqUZMumw2kXaexPmYIxlTErMokcjpUXqFamzyy8Ig+1Z4c4w0ftJNVQrdCFU3Y7cuClOqP5KnwnYMsGyp4tuw78+eNAjCP8z1Vi+c="
+            }
+          }
+        ],
+        "tool_calls": []
+      }
+    ],
+    "limitations": "Synthetic fixtures; governance billing middleware excluded; actual provider usage observed by callback."
+  },
+  "decisions": [
+    {
+      "engineeringRuleId": "ER-RET",
+      "state": "ACCEPTED",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "MET",
+            "rationale": "The system implements notice deletion via delete_expired_notices using RETENTION_DAYS = 7, ensuring that notice records are deleted after at most seven days.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "dc5fb681-279b-58ad-969a-c8017d6d0481"
+              }
+            ],
+            "criterionId": "C-1"
+          }
+        ],
+        "rationale": "The system is a notice service that stores notice records and enforces a retention period of 7 days via RETENTION_DAYS in src/notices.py, meeting the requirement to delete notice records no later than seven days after receipt.",
+        "compliance": "COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "dc5fb681-279b-58ad-969a-c8017d6d0481"
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-RET"
+          }
+        ],
+        "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+        "engineeringRuleId": "ER-RET",
+        "repositorySnapshotId": "743dfd46-ac3e-4f91-97f9-871e2c05575b",
+        "engineeringRuleVersion": "w4-eval-single",
+        "legalPortfolioVersionId": "70f9cbda-7446-4165-98ee-9583df57445e"
+      }
+    }
+  ],
+  "requests": [],
+  "evidence": [
+    {
+      "evidenceId": "dc5fb681-279b-58ad-969a-c8017d6d0481",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "payload": {
+        "path": "src/notices.py",
+        "endLine": 4,
+        "startLine": 1
+      }
+    },
+    {
+      "evidenceId": "bbd94df2-89d1-5f92-87de-0de76d9108af",
+      "type": "SEARCH_COVERAGE",
+      "state": "ACCEPTED",
+      "payload": {
+        "scopes": [
+          {
+            "kind": "GRAPH_INDEX",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "src"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "README.md"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "src/notices.py"
+          }
+        ],
+        "queries": [
+          {
+            "tool": "get_repository_architecture",
+            "query": "{'aspects': ['all']}",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "ls",
+            "query": "{'path': '/'}",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "ls",
+            "query": "{'path': '/src'}",
+            "truncated": false,
+            "resultCount": 1
+          }
+        ],
+        "knownGaps": [
+          "None"
+        ],
+        "inspectedEntryPoints": [
+          "src/notices.py"
+        ],
+        "directSourceFallbacks": [
+          {
+            "path": "src/notices.py",
+            "reason": "Inspected core implementation of notice deletion logic and retention threshold."
+          }
+        ]
+      }
+    }
+  ],
+  "facts": [
+    {
+      "kind": "USE_CASE",
+      "authority": "EVIDENCE_CITED",
+      "state": "ACCEPTED",
+      "statement": "The assessed system is a notice-only service that stores notice records and deletes expired notices after a retention period of 7 days (RETENTION_DAYS = 7)."
+    }
+  ]
+}

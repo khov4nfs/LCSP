@@ -13,7 +13,6 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "esModuleInterop": false,
     "ignoreDeprecations": "5.0",
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true

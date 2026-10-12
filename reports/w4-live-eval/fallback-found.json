@@ -1,0 +1,705 @@
+{
+  "generatedAt": "2026-10-07T07:11:31.023Z",
+  "fixture": {
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "hashes": {
+      "art-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-1::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-b": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+    },
+    "chunks": [
+      {
+        "locator": "art-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-1::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-2",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-2::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-3",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-3::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1::pt-b",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-6",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-6::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      }
+    ],
+    "packet": {
+      "legalRules": [
+        {
+          "legalRuleId": "LR-DEF",
+          "title": "Payment record encryption",
+          "proposition": "Payment processing services must encrypt payment records at rest.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-1::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the direct-source fallback semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-RET",
+          "title": "Notice record retention",
+          "proposition": "Notice services must delete notice records no later than seven days after receipt.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-b",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the direct-source fallback semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-EXC",
+          "title": "Rule LR-EXC",
+          "proposition": "Proposition LR-EXC.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-3::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-XREF",
+          "title": "Deletion notification",
+          "proposition": "Notice services must notify the recipient when their notice record is deleted.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-4::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-2::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "COVERED_BY_ENGINEERING_RULES",
+            "nonAssessableReason": null
+          }
+        },
+        {
+          "legalRuleId": "LR-PERSON",
+          "title": "Rule LR-PERSON",
+          "proposition": "Proposition LR-PERSON.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": true,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-6::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."
+          }
+        }
+      ],
+      "engineeringRules": [
+        {
+          "engineeringRuleId": "ER-XREF",
+          "legalRuleIds": [
+            "LR-XREF"
+          ],
+          "concept": "Deletion notification",
+          "legalIntent": "Notice services must notify the recipient when their notice record is deleted.",
+          "applicabilityGuidance": "Applies to a system that stores and deletes notice records.",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "statement": "The deletion path sends a notification to the notice recipient."
+            }
+          ],
+          "investigationGoals": [
+            "The deletion path sends a notification to the notice recipient."
+          ],
+          "startingNodeTypes": [],
+          "targetNodeTypes": [],
+          "edgeStrategies": [],
+          "graphQueries": [],
+          "keywords": [],
+          "commonApis": [],
+          "commonLibraries": [],
+          "patterns": [],
+          "requiredEvidence": [
+            "Accepted repository source or authenticated bounded search coverage"
+          ],
+          "supportingEvidence": [],
+          "negativeEvidence": [],
+          "unresolvedConditions": [],
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-4::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ]
+        }
+      ],
+      "contextRelations": []
+    },
+    "files": {
+      "README.md": "This notice service stores and deletes notice records. All application logic is in src/notices.py. Search indexes may lag; inspect direct source before concluding absence.\n",
+      "src/notices.py": "def delete_notice(record, store, notifier):\n    store.delete(record['id'])\n    notifier.send(record['recipient'], 'Your notice record was deleted')\n"
+    },
+    "fixture": "fallback-found"
+  },
+  "result": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "45a27518-ea80-40e7-b784-f56058ecc67e",
+      "threadId": "5f87e796-7ec1-42af-8193-ea04e4e8a1e3",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "google_genai:gemini-3.5-flash-lite",
+    "calls": 14,
+    "inputTokens": 99309,
+    "outputTokens": 1379,
+    "seconds": 18.06
+  },
+  "trace": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "45a27518-ea80-40e7-b784-f56058ecc67e",
+      "threadId": "5f87e796-7ec1-42af-8193-ea04e4e8a1e3",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "google_genai:gemini-3.5-flash-lite",
+    "calls": 14,
+    "inputTokens": 99309,
+    "outputTokens": 1379,
+    "seconds": 18.06,
+    "tools": [
+      {
+        "tool": "get_assessment_context",
+        "input": "{}"
+      },
+      {
+        "tool": "get_pinned_portfolio",
+        "input": "{}"
+      },
+      {
+        "tool": "get_repository_architecture",
+        "input": "{'aspects': ['all']}"
+      },
+      {
+        "tool": "glob",
+        "input": "{'pattern': '*'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/README.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/src/notices.py'}"
+      },
+      {
+        "tool": "cite_repository_source",
+        "input": "{'end_line': 3, 'path': 'src/notices.py', 'start_line': 1}"
+      },
+      {
+        "tool": "accept_case_fact",
+        "input": "{'kind': 'USE_CASE', 'statement': \"The notice service stores and deletes notice records. When a notice is deleted via delete_notice(record, store, notifier), store.delete(record['id']) is called followed by notifier.send(record['recipient'], 'Your notice record was deleted').\", 'evidence_ids': ['e5325120-da09-5722-9fc1-85f7650ace45']}"
+      },
+      {
+        "tool": "get_engineering_rule",
+        "input": "{'engineering_rule_id': 'ER-XREF'}"
+      },
+      {
+        "tool": "start_rule_investigation",
+        "input": "{'engineering_rule_id': 'ER-XREF'}"
+      },
+      {
+        "tool": "submit_rule_decision",
+        "input": "{'legal_context_ids': ['LR-XREF'], 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'e5325120-da09-5722-9fc1-85f7650ace45'}], 'criteria': [{'rationale': \"The delete_notice function in src/notices.py invokes notifier.send(record['recipient'], 'Your notice record was deleted') immediately after deleting the record from the store, thereby sending a notification to the notice recipient upon deletion.\", 'references': [{'id': 'e5325120-da09-5722-9fc1-85f7650ace45', 'type': 'ASSESSMENT_EVIDENCE'}], 'outcome': 'MET', 'criterion_id': 'C-1'}], 'applicability': 'APPLICABLE', 'compliance': 'COMPLIANT', '\"engineering_rule_id': 'ER-XREF', 'rationale': 'The system stores and deletes notice records. Examination of src/notices.py demonstrates that the deletion path correctly invokes the notifier to send a deletion message to the recipient, fully satisfying criterion C-1 and the requirements of LR-XREF.'}"
+      },
+      {
+        "tool": "submit_rule_decision",
+        "input": "{'criteria': [{'criterion_id': 'C-1', 'references': [{'id': 'e5325120-da09-5722-9fc1-85f7650ace45', 'type': 'ASSESSMENT_EVIDENCE'}], 'outcome': 'MET', 'rationale': \"The delete_notice function in src/notices.py invokes notifier.send(record['recipient'], 'Your notice record was deleted') immediately after deleting the record from the store, thereby sending a notification to the notice recipient upon deletion.\"}], 'applicability': 'APPLICABLE', 'legal_context_ids': ['LR-XREF'], 'engineering_rule_id': 'ER-XREF', 'rationale': 'The system stores and deletes notice records. Examination of src/notices.py demonstrates that the deletion path correctly invokes the notifier to send a deletion message to the recipient, fully satisfying criterion C-1 and the requirements of LR-XREF.', 'compliance': 'COMPLIANT', 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'e5325120-da09-5722-9fc1-85F7650ace45'}]}"
+      },
+      {
+        "tool": "get_assessment_context",
+        "input": "{}"
+      },
+      {
+        "tool": "cite_repository_source",
+        "input": "{'end_line': 3, 'path': 'src/notices.py', 'start_line': 1}"
+      },
+      {
+        "tool": "submit_rule_decision",
+        "input": "{'compliance': 'COMPLIANT', 'rationale': 'The system stores and deletes notice records. Examination of src/notices.py demonstrates that the deletion path correctly invokes the notifier to send a deletion message to the recipient, fully satisfying criterion C-1 and the requirements of LR-XREF.', 'references': [{'id': 'e5325120-da09-5722-9fc1-85f7650ace45', 'type': 'ASSESSMENT_EVIDENCE'}], 'criteria': [{'criterion_id': 'C-1', 'outcome': 'MET', 'references': [{'type': 'ASSESSMENT_EVIDENCE', 'id': 'e5325120-da09-5722-9fc1-85f7650ace45'}], 'rationale': \"The delete_notice function in src/notices.py invokes notifier.send(record['recipient'], 'Your notice record was deleted') immediately after deleting the record from the store, thereby sending a notification to the notice recipient upon deletion.\"}], 'engineering_rule_id': 'ER-XREF', 'applicability': 'APPLICABLE', 'legal_context_ids': ['LR-XREF']}"
+      },
+      {
+        "tool": "get_assessment_context",
+        "input": "{}"
+      }
+    ],
+    "messages": [
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_assessment_context",
+            "args": {},
+            "id": "call_52518",
+            "type": "tool_call"
+          },
+          {
+            "name": "get_pinned_portfolio",
+            "args": {},
+            "id": "call_52519",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_repository_architecture",
+            "args": {
+              "aspects": [
+                "all"
+              ]
+            },
+            "id": "call_259722",
+            "type": "tool_call"
+          },
+          {
+            "name": "glob",
+            "args": {
+              "pattern": "*"
+            },
+            "id": "call_259723",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "read_file",
+            "args": {
+              "file_path": "/README.md"
+            },
+            "id": "call_48476",
+            "type": "tool_call"
+          },
+          {
+            "name": "read_file",
+            "args": {
+              "file_path": "/src/notices.py"
+            },
+            "id": "call_48477",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "cite_repository_source",
+            "args": {
+              "end_line": 3,
+              "path": "src/notices.py",
+              "start_line": 1
+            },
+            "id": "call_287287",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "accept_case_fact",
+            "args": {
+              "kind": "USE_CASE",
+              "statement": "The notice service stores and deletes notice records. When a notice is deleted via delete_notice(record, store, notifier), store.delete(record['id']) is called followed by notifier.send(record['recipient'], 'Your notice record was deleted').",
+              "evidence_ids": [
+                "e5325120-da09-5722-9fc1-85f7650ace45"
+              ]
+            },
+            "id": "call_242398",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_engineering_rule",
+            "args": {
+              "engineering_rule_id": "ER-XREF"
+            },
+            "id": "call_311092",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "start_rule_investigation",
+            "args": {
+              "engineering_rule_id": "ER-XREF"
+            },
+            "id": "call_350011",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "submit_rule_decision",
+            "args": {
+              "legal_context_ids": [
+                "LR-XREF"
+              ],
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "id": "e5325120-da09-5722-9fc1-85f7650ace45"
+                }
+              ],
+              "criteria": [
+                {
+                  "rationale": "The delete_notice function in src/notices.py invokes notifier.send(record['recipient'], 'Your notice record was deleted') immediately after deleting the record from the store, thereby sending a notification to the notice recipient upon deletion.",
+                  "references": [
+                    {
+                      "id": "e5325120-da09-5722-9fc1-85f7650ace45",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    }
+                  ],
+                  "outcome": "MET",
+                  "criterion_id": "C-1"
+                }
+              ],
+              "applicability": "APPLICABLE",
+              "compliance": "COMPLIANT",
+              "\"engineering_rule_id": "ER-XREF",
+              "rationale": "The system stores and deletes notice records. Examination of src/notices.py demonstrates that the deletion path correctly invokes the notifier to send a deletion message to the recipient, fully satisfying criterion C-1 and the requirements of LR-XREF."
+            },
+            "id": "call_358812",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "submit_rule_decision",
+            "args": {
+              "criteria": [
+                {
+                  "criterion_id": "C-1",
+                  "references": [
+                    {
+                      "id": "e5325120-da09-5722-9fc1-85f7650ace45",
+                      "type": "ASSESSMENT_EVIDENCE"
+                    }
+                  ],
+                  "outcome": "MET",
+                  "rationale": "The delete_notice function in src/notices.py invokes notifier.send(record['recipient'], 'Your notice record was deleted') immediately after deleting the record from the store, thereby sending a notification to the notice recipient upon deletion."
+                }
+              ],
+              "applicability": "APPLICABLE",
+              "legal_context_ids": [
+                "LR-XREF"
+              ],
+              "engineering_rule_id": "ER-XREF",
+              "rationale": "The system stores and deletes notice records. Examination of src/notices.py demonstrates that the deletion path correctly invokes the notifier to send a deletion message to the recipient, fully satisfying criterion C-1 and the requirements of LR-XREF.",
+              "compliance": "COMPLIANT",
+              "references": [
+                {
+                  "type": "ASSESSMENT_EVIDENCE",
+                  "id": "e5325120-da09-5722-9fc1-85F7650ace45"
+                }
+              ]
+            },
+            "id": "call_281724",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_assessment_context",
+            "args": {},
+            "id": "call_300767",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "cite_repository_source",
+            "args": {
+              "end_line": 3,
+              "path": "src/notices.py",
+              "start_line": 1
+            },
+            "id": "call_55769",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "submit_rule_decision",
+            "args": {
+              "compliance": "COMPLIANT",
+              "rationale": "The system stores and deletes notice records. Examination of src/notices.py demonstrates that the deletion path correctly invokes the notifier to send a deletion message to the recipient, fully satisfying criterion C-1 and the requirements of LR-XREF.",
+              "references": [
+                {
+                  "id": "e5325120-da09-5722-9fc1-85f7650ace45",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ],
+              "criteria": [
+                {
+                  "criterion_id": "C-1",
+                  "outcome": "MET",
+                  "references": [
+                    {
+                      "type": "ASSESSMENT_EVIDENCE",
+                      "id": "e5325120-da09-5722-9fc1-85f7650ace45"
+                    }
+                  ],
+                  "rationale": "The delete_notice function in src/notices.py invokes notifier.send(record['recipient'], 'Your notice record was deleted') immediately after deleting the record from the store, thereby sending a notification to the notice recipient upon deletion."
+                }
+              ],
+              "engineering_rule_id": "ER-XREF",
+              "applicability": "APPLICABLE",
+              "legal_context_ids": [
+                "LR-XREF"
+              ]
+            },
+            "id": "call_383733",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_assessment_context",
+            "args": {},
+            "id": "call_259916",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "The assessment has been successfully completed for all rules in the pinned portfolio.\n\n### Summary of Coverage and Decisions\n- **Engineering Rule**: `ER-XREF` (Deletion notification)\n- **Applicability**: `APPLICABLE`\n- **Compliance**: `COMPLIANT`\n- **Criteria**:\n  - `C-1` (`MET`): The deletion path in `src/notices.py` (`delete_notice`) invokes `notifier.send(record['recipient'], 'Your notice record was deleted')` immediately after deleting the record from the store, ensuring the recipient receives notification upon deletion.\n- **Evidence & Facts**: Verified repository source (`src/notices.py`, lines 1–3) and established accepted use-case facts confirming the notice service behavior.",
+            "extras": {
+              "signature": "EmAKXgFpFH0TByzyojx7+PSVeTyZnziZB0tS0vUenPXLaOvR3l4mJEclpEmzceVklywm38j+aJOo92gayPPzCofpsVul6wOc27cTD9eDEA+40fSdbjG9QYZKJuSQMEMkgLo="
+            }
+          }
+        ],
+        "tool_calls": []
+      }
+    ],
+    "limitations": "Synthetic fixtures; governance billing middleware excluded; actual provider usage observed by callback."
+  },
+  "resumedResult": null,
+  "resumedTrace": null,
+  "decisions": [
+    {
+      "engineeringRuleId": "ER-XREF",
+      "state": "ACCEPTED",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [
+          {
+            "outcome": "MET",
+            "rationale": "The delete_notice function in src/notices.py invokes notifier.send(record['recipient'], 'Your notice record was deleted') immediately after deleting the record from the store, thereby sending a notification to the notice recipient upon deletion.",
+            "references": [
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "e5325120-da09-5722-9fc1-85f7650ace45"
+              }
+            ],
+            "criterionId": "C-1"
+          }
+        ],
+        "rationale": "The system stores and deletes notice records. Examination of src/notices.py demonstrates that the deletion path correctly invokes the notifier to send a deletion message to the recipient, fully satisfying criterion C-1 and the requirements of LR-XREF.",
+        "compliance": "COMPLIANT",
+        "references": [
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "e5325120-da09-5722-9fc1-85f7650ace45"
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "APPLICABLE",
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-XREF"
+          }
+        ],
+        "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+        "engineeringRuleId": "ER-XREF",
+        "repositorySnapshotId": "acfa5906-722f-424c-bad2-01223311fce9",
+        "engineeringRuleVersion": "w4-eval-fallback-found",
+        "legalPortfolioVersionId": "e21ceee8-bd2d-4512-9d0e-c76b2d57f859"
+      }
+    }
+  ],
+  "requests": [],
+  "evidence": [
+    {
+      "evidenceId": "e5325120-da09-5722-9fc1-85f7650ace45",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "payload": {
+        "path": "src/notices.py",
+        "endLine": 3,
+        "startLine": 1
+      }
+    }
+  ],
+  "facts": [
+    {
+      "kind": "USE_CASE",
+      "authority": "EVIDENCE_CITED",
+      "state": "ACCEPTED",
+      "statement": "The notice service stores and deletes notice records. When a notice is deleted via delete_notice(record, store, notifier), store.delete(record['id']) is called followed by notifier.send(record['recipient'], 'Your notice record was deleted')."
+    }
+  ]
+}

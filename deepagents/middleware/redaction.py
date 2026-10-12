@@ -1,18 +1,87 @@
 """Deterministic redaction guardrails for model and non-model data boundaries."""
 
+import logging
 import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-SENSITIVE_KEY_PATTERN = re.compile(
-    r"password|token|secret|key|nonce|code|credential|auth|api_key",
-    re.IGNORECASE,
+LOGGER = logging.getLogger(__name__)
+
+SENSITIVE_KEY_SEGMENTS = frozenset(
+    {
+        "apikey",
+        "auth",
+        "authorization",
+        "credential",
+        "credentials",
+        "key",
+        "keys",
+        "nonce",
+        "passwd",
+        "password",
+        "pwd",
+        "secret",
+        "secrets",
+        "token",
+        "tokens",
+    }
+)
+
+# Governed callback field names whose segments look secret-denoting but carry
+# no credential: provider token counters and the server-minted replay key the
+# API requires. Blanking them does not protect anything, it only corrupts the
+# callback contract.
+SAFE_METADATA_KEY_NAMES = frozenset(
+    {
+        "author",
+        "authorName",
+        "authorized",
+        "cacheWriteTokens",
+        "cachedInputTokens",
+        "countryCode",
+        "credential_fingerprint",
+        "credential_slot",
+        "credential_source",
+        "decoded",
+        "encoded",
+        "errorCode",
+        "estimated_input_bytes",
+        "estimatedInputTokens",
+        "estimated_input_tokens",
+        "finish_reason",
+        "idempotencyKey",
+        "idempotency_key",
+        "inputTokens",
+        "keyword",
+        "maxInputTokens",
+        "maxOutputTokens",
+        "maxReasoningTokens",
+        "messageKey",
+        "provider_context_limit",
+        "input_tokens",
+        "outputTokens",
+        "output_tokens",
+        "reasonCode",
+        "reasoningTokens",
+        "sourceCode",
+        "statusCode",
+        "tokenCount",
+        "totalTokens",
+        "total_tokens",
+        "usage_metadata",
+    }
+)
+
+FIELD_NAME_SEGMENT_PATTERN = re.compile(
+    r"[A-Z]+(?=[A-Z][a-z]|[0-9]|$)|[A-Z]?[a-z]+|[0-9]+"
 )
 
 GITHUB_TOKEN_PATTERN = re.compile(r"ghp_[A-Za-z0-9]{36}")
 BEARER_TOKEN_PATTERN = re.compile(r"\bBearer\s+[A-Za-z0-9._-]+")
 GENERIC_ASSIGNMENT_PATTERN = re.compile(
-    r"\b(?P<key>api_key|key|token|secret|password|credential|auth)"
+    r"(?P<key_quote>['\"]?)"
+    r"(?P<key>\b(?:api_key|key|token|secret|password|credential|auth)\b)"
+    r"(?P=key_quote)"
     r"(?P<sep>\s*[:=]\s*)"
     r"(?P<quote>['\"]?)"
     r"(?P<value>[A-Za-z0-9._~+/=-]{12,})"
@@ -33,7 +102,25 @@ def redact_dict(obj: dict, depth: int = 10) -> dict:
     Returns:
         A bounded copy that preserves values while guarding against recursion.
     """
-    return _redact_mapping(obj, max(depth, 0), set())
+    redacted_keys: set[str] = set()
+    copied = _redact_mapping(obj, max(depth, 0), set(), redacted_keys)
+    if redacted_keys:
+        redacted_key_names = sorted(redacted_keys)
+        LOGGER.info(
+            "REDACTION_KEYS_STRIPPED redacted_keys=%s",
+            ",".join(redacted_key_names),
+            extra={"redacted_keys": redacted_key_names},
+        )
+    return copied
+
+
+def is_sensitive_key_name(key_text: str) -> bool:
+    """Return whether a structured field name has a secret-denoting segment.
+
+    The check is segment-based: authToken, auth_token, and x-api-key are
+    sensitive, while author and statusCode are not substring-matched.
+    """
+    return _is_sensitive_key(key_text, None)
 
 
 def redact_string(text: str) -> str:
@@ -73,7 +160,12 @@ def redact_source_code(findings: list[dict]) -> list[dict]:
     return redacted_findings
 
 
-def _redact_mapping(obj: Mapping[Any, Any], depth: int, seen: set[int]) -> Any:
+def _redact_mapping(
+    obj: Mapping[Any, Any],
+    depth: int,
+    seen: set[int],
+    redacted_keys: set[str],
+) -> Any:
     """Copy a mapping while guarding against cycles and excessive depth."""
     if depth <= 0:
         return {"truncated": "max_depth"}
@@ -89,8 +181,8 @@ def _redact_mapping(obj: Mapping[Any, Any], depth: int, seen: set[int]) -> Any:
             key_text = str(key)
             copied[key] = (
                 ""
-                if SENSITIVE_KEY_PATTERN.search(key_text)
-                else _redact_value(value, depth - 1, seen)
+                if _is_sensitive_key(key_text, redacted_keys)
+                else _redact_value(value, depth - 1, seen, redacted_keys)
             )
     finally:
         seen.remove(obj_id)
@@ -98,33 +190,65 @@ def _redact_mapping(obj: Mapping[Any, Any], depth: int, seen: set[int]) -> Any:
     return copied
 
 
-def _redact_value(value: Any, depth: int, seen: set[int]) -> Any:
+def _is_sensitive_key(key_text: str, redacted_keys: set[str] | None) -> bool:
+    """Return whether a structured field name has a secret-denoting segment."""
+    if key_text in SAFE_METADATA_KEY_NAMES:
+        return False
+    segments = _field_name_segments(key_text)
+    if not any(segment in SENSITIVE_KEY_SEGMENTS for segment in segments):
+        return False
+    if redacted_keys is not None:
+        redacted_keys.add(key_text)
+    return True
+
+
+def _field_name_segments(key_text: str) -> tuple[str, ...]:
+    """Split snake/kebab/camel field names without substring-matching words."""
+    normalized = re.sub(r"[^0-9A-Za-z]+", " ", key_text)
+    return tuple(
+        segment.group(0).lower()
+        for word in normalized.split()
+        for segment in FIELD_NAME_SEGMENT_PATTERN.finditer(word)
+    )
+
+
+def _redact_value(
+    value: Any,
+    depth: int,
+    seen: set[int],
+    redacted_keys: set[str],
+) -> Any:
     """Redact one nested value according to its runtime container type."""
     if isinstance(value, str):
         return redact_string(value)
 
     if isinstance(value, Mapping):
-        return _redact_mapping(value, depth, seen)
+        return _redact_mapping(value, depth, seen, redacted_keys)
 
     if isinstance(value, tuple):
-        return tuple(_redact_value(item, depth, seen) for item in value)
+        return tuple(_redact_value(item, depth, seen, redacted_keys) for item in value)
 
     if isinstance(value, list):
         if depth <= 0:
             return {"truncated": "max_depth"}
-        return [_redact_value(item, depth - 1, seen) for item in value]
+        return [_redact_value(item, depth - 1, seen, redacted_keys) for item in value]
 
     if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
         if depth <= 0:
             return {"truncated": "max_depth"}
-        return [_redact_value(item, depth - 1, seen) for item in value]
+        return [_redact_value(item, depth - 1, seen, redacted_keys) for item in value]
 
     return value
 
 
 def _redact_assignment(match: re.Match[str]) -> str:
     """Render a matched secret assignment while removing its value."""
-    return f"{match.group('key')}{match.group('sep')}"
+    key_quote = match.group("key_quote")
+    value_quote = match.group("quote")
+    return (
+        f"{key_quote}{match.group('key')}{key_quote}{match.group('sep')}"
+        f"{value_quote}{value_quote}"
+    )
 
 
 def _contains_source_code(value: Any) -> bool:

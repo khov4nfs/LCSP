@@ -1,9 +1,11 @@
 export const API_OUTCOME_KINDS = {
   accessRevoked: "access_revoked",
+  alreadyRunning: "already_running",
   alreadyResolved: "already_resolved",
   alreadySubmitted: "already_submitted",
   authenticated: "authenticated",
   blocked: "blocked",
+  completed: "completed",
   created: "created",
   disabled: "disabled",
   emailAlreadyExists: "email_already_exists",
@@ -24,6 +26,7 @@ export const API_OUTCOME_KINDS = {
   submitted: "submitted",
   validationError: "validation_error",
   verified: "verified",
+  waitingForCustomer: "waiting_for_customer",
   workspaceSelectionRequired: "workspace_selection_required",
 } as const;
 
@@ -33,6 +36,7 @@ export const API_VALIDATION_REASONS = {
 
 export const API_REDIRECT_LOCATIONS = {
   mfaVerify: "/mfa/verify",
+  mfaRecoveryCode: "/mfa/verify?method=recovery-code",
   mfaEnroll: "/mfa/enroll",
   recoveryRequest: "/recovery/request",
   signIn: "/sign-in",

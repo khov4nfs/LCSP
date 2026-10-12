@@ -24,7 +24,7 @@ Bảng này đối chiếu các nhóm nội dung trong `docs/` với phần tóm
 | baseline, matrix và summary | `02`, `08`, `12` | không chứng nhận readiness/story coverage |
 | domain model và state machines | `03`, `07` | target đã có; historical boundary cần clean |
 | event catalog | `03`, `07` | Python consumers và trigger events đã có |
-| scanner specs | `05` | `scanner-spec.md` là authority duy nhất |
+| repository analysis | `04`, kiến trúc Repository Deep Agent | LangGraph + native Deep Agents + LCSP Docker sandbox + Codebase Memory MCP; không còn scanner spec riêng |
 | legal/classification/document specs | `03`, `06` | ChromaDB vectorless và citation allowlist đã là contract |
 
 ## Architecture và implementation
@@ -34,7 +34,7 @@ Bảng này đối chiếu các nhóm nội dung trong `docs/` với phần tóm
 | architecture | `04` | target PBAC/Python Worker Platform đã có |
 | ADR index và ADR files | `04`, `09` | active decision source |
 | backend, persistence, queue | `04`, `07` | implementation contract |
-| scanner implementation | `05` | cross-runtime boundary và worker runtime đã tách |
+| repository-analysis implementation | `04` | LCSP Agent Runtime sở hữu repository sandbox, analysis và evidence projection |
 | Python Worker Platform | `04`, `07` | package topology và worker ownership đã khóa |
 
 ## Bộ định danh mục tiêu hiện tại

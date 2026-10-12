@@ -6,32 +6,18 @@ import json
 import logging
 import os
 import sys
+import warnings
 from typing import TextIO
 
 import structlog
 from tools.common.capabilities.platform.correlation import get_correlationId
 from tools.common.capabilities.platform.dev_unsafe_trace import (
     unsafe_dev_trace_enabled,
-    unsafe_dev_unfiltered_enabled,
 )
 from middleware.redaction import redact_dict
 
 
 _original_open = open
-_SAFE_LLM_TOOL_FILE_EVENTS = frozenset(
-    {
-        "LLM_REQUEST",
-        "LLM_RESPONSE",
-        "LLM_REQUEST_FAILED",
-        "ENGINEERING_INVESTIGATION_TOOL_CALL",
-        "ENGINEERING_INVESTIGATION_TOOL_RESULT",
-        "ENGINEERING_INVESTIGATION_FINISHED",
-        "ENGINEERING_INVESTIGATION_CLAIM_REJECTED",
-        "ENGINEERING_INVESTIGATION_FAILED",
-        "ENGINEERING_INVESTIGATION_NO_NATIVE_TOOL_CALL",
-        "ENGINEERING_INVESTIGATION_FINISH_MISSING",
-    }
-)
 _NOISY_LANGGRAPH_INFO_LOGGERS = (
     "langgraph_api.metrics_collector",
     "langgraph_runtime_inmem.queue",
@@ -43,7 +29,7 @@ class _FailOpenTraceWriter:
 
     ``pnpm dev:trace 2>&1 | tee ...`` can expose worker stdout/stderr through a
     non-blocking pipe. Normal structlog events are observability-only and must
-    not become scanner failures when that pipe temporarily returns EAGAIN.
+    not become runtime failures when that pipe temporarily returns EAGAIN.
     """
 
     def __init__(self, stream: TextIO) -> None:
@@ -81,13 +67,8 @@ def _is_orchestration_event(data: dict) -> bool:
     event_name = str(data.get("event") or "")
     logger_name = str(data.get("logger") or "")
     return bool(
-        "intelligence" in logger_name
-        or "classification" in logger_name
-        or "reporting" in logger_name
-        or "agentic_evidence" in logger_name
-        or "resolver" in logger_name
+        "reporting" in logger_name
         or "tool_entrypoints" in logger_name
-        or "remediation" in logger_name
         or "orchestration" in event_name.lower()
         or "llm" in event_name.lower()
         or "prompt" in event_name.lower()
@@ -96,45 +77,8 @@ def _is_orchestration_event(data: dict) -> bool:
     )
 
 
-def _is_safe_llm_tool_file_event(data: dict) -> bool:
-    """Select structured telemetry allowed in the repository-level LLM debug log.
-
-    Development raw-trace events are intentionally excluded. Native tool-result
-    events are allowed because the investigator already bounds the result to the
-    same observation supplied to the next LLM turn. The repository-level file is
-    always redacted again before persistence, even if unsafe dev tracing is enabled.
-    """
-    event_name = str(data.get("event") or "")
-    return event_name in _SAFE_LLM_TOOL_FILE_EVENTS
-
-
-def _render_safe_root_event(data: dict) -> str:
-    """Render a JSON line for ``tmp/llm-tool-calls.log``."""
-    safe_data = data if unsafe_dev_unfiltered_enabled() else redact_dict(data)
-    return json.dumps(safe_data, ensure_ascii=False, separators=(",", ":")) + "\n"
-
-
-def _ensure_llm_tool_log_file() -> None:
-    """Create the safe repository-level LLM/tool debug log eagerly.
-
-    The file used to be created lazily on the first matching telemetry event,
-    which made ``tail -f tmp/llm-tool-calls.log`` fail immediately after
-    ``pnpm dev`` startup. Logging is observability-only, so creation remains
-    fail-open and must never prevent a worker from starting.
-    """
-    try:
-        from tools.common.capabilities.platform.logging_path import get_llm_tool_log_path
-
-        log_path = get_llm_tool_log_path()
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        with _original_open(log_path, "a", encoding="utf-8"):
-            pass
-    except Exception:
-        return
-
-
 class PartitionedLogWriter:
-    """Write stdout plus partitioned logs and safe root-level LLM tool telemetry."""
+    """Write canonical structured activity to stdout and assessment-private logs."""
 
     def __init__(self, fallback_stream: TextIO) -> None:
         self._fallback = fallback_stream
@@ -167,12 +111,23 @@ class PartitionedLogWriter:
     def _persist_structured_event(data: dict, rendered_value: str) -> None:
         from tools.common.capabilities.platform.correlation import get_assessment_id, get_user_id
         from tools.common.capabilities.platform.logging_path import (
-            get_llm_tool_log_path,
             get_partitioned_log_path,
         )
 
         user_id = get_user_id()
         assessment_id = get_assessment_id()
+
+        try:
+            from orchestration.agent_stream import publish_agent_stream_event
+
+            publish_agent_stream_event(
+                "LOG",
+                text=str(data.get("event") or data.get("message") or "log"),
+                data=data,
+                status=str(data.get("level") or "INFO").upper(),
+            )
+        except Exception:
+            pass
 
         if "user_id" in data:
             user_id = str(data["user_id"])
@@ -190,6 +145,15 @@ class PartitionedLogWriter:
         elif "assessmentId" in data:
             assessment_id = str(data["assessmentId"])
 
+        from orchestration.agent_stream import active_agent_stream
+
+        session = active_agent_stream.get()
+        if session is not None:
+            assessment_id = session.assessment_id
+        # Shared, unattributed private files cannot be erased by assessment DELETE.
+        if not assessment_id or assessment_id == "unknown_assessment":
+            return
+
         partitioned_path = get_partitioned_log_path(
             user_id,
             assessment_id,
@@ -199,30 +163,12 @@ class PartitionedLogWriter:
         with _original_open(partitioned_path, "a", encoding="utf-8") as file_handle:
             file_handle.write(rendered_value)
 
-        if _is_safe_llm_tool_file_event(data):
-            llm_tool_path = get_llm_tool_log_path()
-            os.makedirs(os.path.dirname(llm_tool_path), exist_ok=True)
-            with _original_open(llm_tool_path, "a", encoding="utf-8") as file_handle:
-                file_handle.write(_render_safe_root_event(data))
-
     def flush(self) -> None:
         self._fallback.flush()
 
 
 def configure_logging(level: str = "INFO") -> None:
-    """Configure JSON logging for Managed Agent processes.
-
-    Normal worker events continue to stdout and partitioned run/orchestration
-    files. Safe LLM request/response plus EngineeringRule native tool input/result
-    telemetry is additionally mirrored to ``<repo>/tmp/llm-tool-calls.log`` (or
-    ``LCSP_LLM_TOOL_LOG_PATH`` when configured). The file is created eagerly at
-    worker startup so developers can attach ``tail -f`` before the first LLM call.
-    Tool results are bounded by the investigator to the exact observation forwarded
-    into the next LLM turn and are secret-redacted again before root-level persistence
-    unless explicitly running with ``LCSP_DEV_UNSAFE_UNFILTERED=true``. Raw development
-    trace events are never mirrored into that file.
-    """
-    _ensure_llm_tool_log_file()
+    """Configure structured activity with redaction and assessment-private logging."""
     suppress_langgraph_heartbeat_logs()
     unsafe_trace = unsafe_dev_trace_enabled()
     raw_output: TextIO = _FailOpenTraceWriter(sys.stdout) if unsafe_trace else sys.stdout
@@ -258,6 +204,16 @@ def suppress_langgraph_heartbeat_logs() -> None:
     Warnings and errors from these components still surface. The suppressed INFO
     records only report idle queue/worker counters such as ``Worker stats`` and
     ``Queue stats``.
+
+    LangGraph's own console formatter also chains ``format_exc_info`` before
+    structlog's ConsoleRenderer, so every logged run error is preceded by a
+    structlog UserWarning about pretty exceptions. The traceback is still
+    rendered; only that advisory is ignored.
     """
     for logger_name in _NOISY_LANGGRAPH_INFO_LOGGERS:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
+    warnings.filterwarnings(
+        "ignore",
+        message=r"Remove `format_exc_info` from your processor chain",
+        category=UserWarning,
+    )

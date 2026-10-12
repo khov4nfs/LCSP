@@ -10,7 +10,9 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
 import type { AssessmentSummary } from "../../types/workspace.types";
+import type { WorkspaceRuntimeConnectionState } from "../../types/workspace-runtime.types";
 import { AssessmentSummaryCard } from "../molecules/assessment-summary-card";
 
 type AssessmentListProps = {
@@ -22,10 +24,11 @@ type AssessmentListProps = {
   emptyDescription: string;
   loadingLabel: string;
   statusLabel: string;
-  wizardStatusLabel: string;
   createdAtLabel: string;
   getAssessmentHref?: (assessment: AssessmentSummary) => string;
   openAssessmentLabel?: string;
+  canonicalAssessments: Record<string, CanonicalAssessmentRuntimeSnapshot>;
+  connectionState: WorkspaceRuntimeConnectionState;
 };
 
 export function AssessmentList({
@@ -37,10 +40,11 @@ export function AssessmentList({
   emptyDescription,
   loadingLabel,
   statusLabel,
-  wizardStatusLabel,
   createdAtLabel,
   getAssessmentHref,
   openAssessmentLabel,
+  canonicalAssessments,
+  connectionState,
 }: AssessmentListProps) {
   return (
     <section
@@ -87,10 +91,11 @@ export function AssessmentList({
               key={assessment.id}
               assessment={assessment}
               statusLabel={statusLabel}
-              wizardStatusLabel={wizardStatusLabel}
               createdAtLabel={createdAtLabel}
               href={getAssessmentHref?.(assessment)}
               openAssessmentLabel={openAssessmentLabel}
+              canonicalAssessment={canonicalAssessments[assessment.id] ?? null}
+              connectionState={connectionState}
             />
           ))}
         </div>
@@ -98,4 +103,3 @@ export function AssessmentList({
     </section>
   );
 }
-

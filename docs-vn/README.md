@@ -12,7 +12,7 @@
 2. [02-yeu-cau-va-nghiem-thu.md](./02-yeu-cau-va-nghiem-thu.md)
 3. [03-luong-nghiep-vu-a-z.md](./03-luong-nghiep-vu-a-z.md)
 4. [04-kien-truc-he-thong.md](./04-kien-truc-he-thong.md)
-5. [05-python-scanner.md](./05-python-scanner.md)
+5. [../docs/architecture/repository-deep-agent-analysis.md](./../docs/architecture/repository-deep-agent-analysis.md)
 6. [06-phap-ly-rag-va-llm.md](./06-phap-ly-rag-va-llm.md)
 7. [07-du-lieu-su-kien-va-bao-mat.md](./07-du-lieu-su-kien-va-bao-mat.md)
 8. [08-ke-hoach-trien-khai.md](./08-ke-hoach-trien-khai.md)
@@ -36,7 +36,7 @@ IMPLEMENTATION_NOT_AUTHORIZED
 SPRINT_EXECUTION_NOT_AUTHORIZED
 ```
 
-PR #2 đã đồng bộ target Phase 5.2L: PBAC, Automatic Trusted Scan Initiation, Python Worker Platform, scanner toolchain mở rộng và ChromaDB vectorless legal RAG. Pass hiện tại rút gọn inventory active: chỉ giữ product context/brief, UC/FR/NFR/BR, specs, architecture/ADR, implementation và `docs-vn/`; nội dung lịch sử/planning không còn là tài liệu active.
+PR #2 đã đồng bộ target Phase 5.2L: PBAC, Automatic Trusted Scan Initiation, Python Worker Platform, LCSP Agent Runtime repository analysis và ChromaDB vectorless legal RAG. Pass hiện tại rút gọn inventory active: chỉ giữ product context/brief, UC/FR/NFR/BR, specs, architecture/ADR, implementation và `docs-vn/`; nội dung lịch sử/planning không còn là tài liệu active.
 
 Báo cáo và checklist closure nằm tại `12-review-truoc-ux-phase-5-2l.md`.
 

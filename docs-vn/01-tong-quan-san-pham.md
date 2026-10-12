@@ -1,5 +1,7 @@
 # 01 — Tổng quan sản phẩm
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## LCSP là gì
 
 LCSP là nền tảng hỗ trợ doanh nghiệp sử dụng AI tại Việt Nam đánh giá mức độ sẵn sàng tuân thủ dựa trên bằng chứng. Hệ thống kết hợp thông tin do Manager khai báo, bằng chứng kỹ thuật từ kho mã, đối chiếu xung đột, tra cứu pháp lý có trích dẫn, phân loại rủi ro, phân tích khoảng trống, tạo tài liệu và nhật ký kiểm toán.
@@ -13,7 +15,7 @@ LCSP không được tạo kết luận pháp lý khi thiếu bằng chứng ho�
 - `FR-050` là Automatic Trusted Scan Initiation, không phải upload Local/CI scanner report.
 - `FR-051` manual evidence JSON là `REMOVED_FROM_PRODUCT`.
 - Python Worker Platform sở hữu toàn bộ asynchronous domain workloads.
-- Scanner toolchain gồm Syft, Knip, deptry, Semgrep custom rules, tree-sitter/custom parser, `ast`/`libcst` và bounded `ts-morph`.
+- Phân tích repository dùng LCSP Agent Runtime tự host trên LangGraph + native Deep Agents + Docker sandbox; Codebase Memory MCP 0.11.0 hỗ trợ structural graph, còn source trực tiếp là authority.
 
 ## Người dùng và trách nhiệm
 
@@ -35,7 +37,7 @@ Là vai trò vận hành nội bộ, dùng API/CLI để xác minh nguồn văn 
 - assessment và WizardProfile;
 - GitHub App chỉ đọc, trusted scan trigger và repository snapshot theo commit;
 - Python Worker Platform cho toàn bộ asynchronous domain workloads;
-- scanner toolchain đa công cụ và TechnicalEvidenceReport;
+- LCSP Agent Runtime repository analysis và TechnicalEvidenceReport;
 - TechnicalProfile, AIUsageFlow, reconciliation và VerifiedProfile;
 - legal corpus có provenance, immutable version và internal approval;
 - ChromaDB structure-first vectorless legal retrieval;

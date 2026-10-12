@@ -1,9 +1,4 @@
 import {
-  ASSESSMENT_STATUS_CODES,
-  WIZARD_STATUS_CODES,
-  type WizardStatusCode,
-} from "@lcsp/contracts/assessment";
-import {
   AUTH_ERROR_CODES,
   AUTH_USER_ROLES,
   type AuthUserRole,
@@ -11,12 +6,8 @@ import {
 import type { MessageKey } from "@lcsp/i18n";
 
 import { PUBLIC_ENTRY_ROUTES } from "../../auth-entry.ts";
-import {
-  assessmentStatusLabelKeys,
-  wizardStatusLabelKeys,
-} from "../../features/workspace/config/status-labels.ts";
+import { assessmentListSchema, assessmentDetailSchema } from "@lcsp/contracts/assessment-domain";
 import type {
-  AssessmentStatus,
   AssessmentSummary,
   AssessmentsOutcome,
   WorkspaceContext,
@@ -38,7 +29,8 @@ const workspaceApiPaths = Object.freeze({
 
 type WorkspaceApiPayload = {
   user_id: string;
-  display_name: string;
+  display_name?: string | null;
+  email?: string;
   role: AuthUserRole;
 };
 
@@ -59,48 +51,8 @@ export function canCreateAssessment(role: AuthUserRole) {
   return role === AUTH_USER_ROLES.customer;
 }
 
-export function getAssessmentStatusLabelKey(
-  status: AssessmentStatus,
-): MessageKey {
-  return assessmentStatusLabelKeys[status];
-}
-
-export function getWizardStatusLabelKey(
-  status: keyof typeof wizardStatusLabelKeys,
-): MessageKey {
-  return wizardStatusLabelKeys[status];
-}
-
-export function getAssessmentActiveHref(assessment: {
-  id: string;
-  status: string;
-  wizard_status: string;
-}): string {
+export function getAssessmentActiveHref(assessment: { id: string }): string {
   const encodedId = encodeURIComponent(assessment.id);
-
-  if (
-    assessment.wizard_status === WIZARD_STATUS_CODES.notStarted ||
-    assessment.wizard_status === WIZARD_STATUS_CODES.inProgress ||
-    assessment.status === ASSESSMENT_STATUS_CODES.wizardInProgress
-  ) {
-    return `/assessments/${encodedId}/wizard`;
-  }
-
-  if (
-    assessment.status === ASSESSMENT_STATUS_CODES.wizardSubmitted ||
-    assessment.status === ASSESSMENT_STATUS_CODES.evidenceRequired ||
-    assessment.status === ASSESSMENT_STATUS_CODES.scanInProgress
-  ) {
-    return `/assessments/${encodedId}/readiness`;
-  }
-
-  if (
-    assessment.status === ASSESSMENT_STATUS_CODES.classificationLocked ||
-    assessment.status === ASSESSMENT_STATUS_CODES.readyForReview
-  ) {
-    return `/assessments/${encodedId}/classification`;
-  }
-
   return `/assessments/${encodedId}`;
 }
 
@@ -131,10 +83,11 @@ export async function createAssessment(
     body: JSON.stringify({ name, description }),
   });
 
-  if (ok && isCreatedAssessmentPayload(payload)) {
+  const created = assessmentDetailSchema.safeParse(payload);
+  if (ok && created.success) {
     return {
       kind: API_OUTCOME_KINDS.created,
-      assessmentId: payload.assessment_id,
+      assessmentId: created.data.assessment_id,
     };
   }
 
@@ -143,6 +96,33 @@ export async function createAssessment(
     titleKey: "pages.workspace.errors.createAssessmentTitle",
     detailKey: "pages.workspace.errors.createAssessmentDetail",
   };
+}
+
+export async function renameAssessment(
+  assessmentId: string,
+  name: string,
+): Promise<void> {
+  const { ok } = await apiRequest(
+    `${workspaceApiPaths.assessments}/${encodeURIComponent(assessmentId)}`,
+    {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    },
+  );
+  if (!ok) {
+    throw new Error("assessment-rename-failed");
+  }
+}
+
+export async function deleteAssessment(assessmentId: string): Promise<void> {
+  const { ok } = await apiRequest(
+    `${workspaceApiPaths.assessments}/${encodeURIComponent(assessmentId)}`,
+    { method: "DELETE" },
+  );
+  if (!ok) {
+    throw new Error("assessment-delete-failed");
+  }
 }
 
 export async function getWorkspaceSelection(): Promise<WorkspaceSelectionPayload> {
@@ -205,7 +185,8 @@ export function toWorkspaceOutcome(
   if (
     status === 401 ||
     problemCode === AUTH_ERROR_CODES.authRequired ||
-    problemCode === AUTH_ERROR_CODES.sessionInvalid
+    problemCode === AUTH_ERROR_CODES.sessionInvalid ||
+    problemCode === AUTH_ERROR_CODES.accountSuspended
   ) {
     return {
       kind: API_OUTCOME_KINDS.redirect,
@@ -231,24 +212,17 @@ export function toAssessmentsOutcome(
   payload: unknown,
   ok: boolean,
 ): AssessmentsOutcome {
-  if (ok && isAssessmentsPayload(payload)) {
-    const rawAssessments = (payload as { assessments: unknown[] }).assessments;
-    const normalizedAssessments: AssessmentSummary[] = rawAssessments.map(
-      (item) => {
-        const candidate = item as Record<string, unknown>;
-        return {
-          id: (candidate.id ?? candidate.assessment_id) as string,
-          name: candidate.name as string,
-          status: candidate.status as AssessmentStatus,
-          wizard_status: candidate.wizard_status as WizardStatusCode,
-          created_at: candidate.created_at as string,
-        };
-      },
-    );
-
+  const parsed = assessmentListSchema.safeParse(payload);
+  if (ok && parsed.success) {
     return {
       kind: API_OUTCOME_KINDS.loaded,
-      assessments: normalizedAssessments,
+      assessments: parsed.data.assessments.map((item) => ({
+        id: item.assessment_id,
+        name: item.name,
+        lifecycle: item.lifecycle,
+        runtime: item.runtime,
+        created_at: item.created_at,
+      })),
     };
   }
 
@@ -277,7 +251,7 @@ function normalizeWorkspaceApiPayload(
   return {
     user: {
       id: payload.user_id,
-      display_name: payload.display_name,
+      display_name: payload.display_name ?? payload.email ?? "",
       role: payload.role,
     },
   };
@@ -308,7 +282,9 @@ function isWorkspaceApiPayload(
   const candidate = payload as Record<string, unknown>;
   return (
     typeof candidate.user_id === "string" &&
-    typeof candidate.display_name === "string" &&
+    (typeof candidate.display_name === "string" ||
+      candidate.display_name === null ||
+      typeof candidate.email === "string") &&
     isAuthUserRole(candidate.role)
   );
 }
@@ -317,62 +293,5 @@ function isAuthUserRole(role: unknown): role is AuthUserRole {
   return (
     typeof role === "string" &&
     Object.values(AUTH_USER_ROLES).some((knownRole) => knownRole === role)
-  );
-}
-
-function isAssessmentsPayload(
-  payload: unknown,
-): payload is { assessments: AssessmentSummary[] } {
-  if (typeof payload !== "object" || payload === null) {
-    return false;
-  }
-
-  const assessments = (payload as { assessments?: unknown }).assessments;
-  return (
-    Array.isArray(assessments) &&
-    assessments.every((assessment) => isAssessmentSummary(assessment))
-  );
-}
-
-function isAssessmentSummary(payload: unknown): boolean {
-  if (typeof payload !== "object" || payload === null) {
-    return false;
-  }
-
-  const candidate = payload as Record<string, unknown>;
-  const id =
-    typeof candidate.id === "string" ? candidate.id : candidate.assessment_id;
-  return (
-    typeof id === "string" &&
-    typeof candidate.name === "string" &&
-    isAssessmentStatus(candidate.status) &&
-    isWizardStatus(candidate.wizard_status) &&
-    typeof candidate.created_at === "string"
-  );
-}
-
-function isCreatedAssessmentPayload(
-  payload: unknown,
-): payload is { assessment_id: string } {
-  return (
-    typeof payload === "object" &&
-    payload !== null &&
-    typeof (payload as { assessment_id?: unknown }).assessment_id === "string"
-  );
-}
-
-function isWizardStatus(status: unknown): boolean {
-  return (
-    typeof status === "string" &&
-    Object.values(WIZARD_STATUS_CODES).some(
-      (knownStatus) => knownStatus === status,
-    )
-  );
-}
-
-function isAssessmentStatus(status: unknown): status is AssessmentStatus {
-  return (
-    typeof status === "string" &&
-    Object.hasOwn(assessmentStatusLabelKeys, status)
   );
 }

@@ -79,4 +79,40 @@ describe("AuditSanitizer", () => {
     });
     expect(result.removedKeys).toEqual(["verificationCode"]);
   });
+
+  it("redacts secrets embedded in free-text values", () => {
+    const result = AuditSanitizer.sanitize({
+      statementValue:
+        "Customer pasted api_key=super-secret-value and Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature",
+    });
+
+    expect(result.payload?.statementValue).toBe(
+      "Customer pasted api_key=[REDACTED] and [REDACTED]",
+    );
+    expect(result.removedKeys).toEqual(["statementValue"]);
+  });
+
+  it("redacts secrets inside primitive array values", () => {
+    const result = AuditSanitizer.sanitize({
+      notes: ["safe note", "password=hunter2", "Bearer abc.def.ghi"],
+    });
+
+    expect(result.payload?.notes).toEqual([
+      "safe note",
+      "password=[REDACTED]",
+      "[REDACTED]",
+    ]);
+    expect(result.removedKeys).toEqual(["notes[1]", "notes[2]"]);
+  });
+
+  it("bounds oversized free-text values to avoid raw source dumps in audit payloads", () => {
+    const value = "x".repeat(5000);
+    const result = AuditSanitizer.sanitize({ interpretation: value });
+
+    const sanitized = result.payload?.interpretation;
+    expect(typeof sanitized).toBe("string");
+    expect((sanitized as string).length).toBeLessThan(value.length);
+    expect(sanitized).toContain("...[TRUNCATED]");
+    expect(result.removedKeys).toEqual(["interpretation"]);
+  });
 });

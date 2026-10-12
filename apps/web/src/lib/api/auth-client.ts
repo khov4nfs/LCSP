@@ -197,21 +197,8 @@ export type AuthSessionSummary = {
   is_current: boolean;
 };
 
-export type AuthRepositorySummary = {
-  id: string;
-  installation_id: string;
-  repository_name: string;
-  repository_full_name: string;
-  default_branch: string;
-  status: string;
-  connected_at: string;
-  revoked_at: string | null;
-  assessment_id: string | null;
-  assessment_name: string | null;
-};
-
 export type SignInOutcome =
-  | { kind: typeof API_OUTCOME_KINDS.authenticated }
+  | { kind: typeof API_OUTCOME_KINDS.authenticated; role?: AuthUserRole }
   | {
       kind: typeof API_OUTCOME_KINDS.workspaceSelectionRequired;
       workspaces: SignInWorkspaceOption[];
@@ -250,7 +237,10 @@ export function toSignInOutcome(
         ? { kind: API_OUTCOME_KINDS.mfaEnrollmentRequired }
         : { kind: API_OUTCOME_KINDS.mfaRequired };
     }
-    return { kind: API_OUTCOME_KINDS.authenticated };
+    return {
+      kind: API_OUTCOME_KINDS.authenticated,
+      ...(payload.role ? { role: payload.role } : {}),
+    };
   }
 
   if (problemCode === AUTH_ERROR_CODES.temporaryLock) {
@@ -758,15 +748,6 @@ export async function revokeAuthSession(sessionId: string): Promise<void> {
   }
 }
 
-export async function getAuthRepositories(): Promise<AuthRepositorySummary[]> {
-  const { payload, ok } = await apiRequest("/api/auth/repositories");
-  if (!ok || !isAuthRepositoriesPayload(payload)) {
-    throw new Error("auth-repositories-load-failed");
-  }
-
-  return payload.repositories;
-}
-
 export async function signOut(): Promise<void> {
   await apiRequest("/api/auth/sign-out", {
     method: "POST",
@@ -779,6 +760,7 @@ function isSignInSuccess(payload: unknown): payload is {
   mfa_enrolled?: boolean;
   workspace_selection_required?: boolean;
   workspaces?: SignInWorkspaceOption[];
+  role?: AuthUserRole;
 } {
   if (typeof payload !== "object" || payload === null) {
     return false;
@@ -851,41 +833,6 @@ function isAuthSessionsPayload(
         (typeof candidate.mfa_verified_at === "string" ||
           candidate.mfa_verified_at === null) &&
         typeof candidate.is_current === "boolean"
-      );
-    })
-  );
-}
-
-function isAuthRepositoriesPayload(
-  payload: unknown,
-): payload is { repositories: AuthRepositorySummary[] } {
-  if (typeof payload !== "object" || payload === null) {
-    return false;
-  }
-
-  const repositories = (payload as { repositories?: unknown }).repositories;
-  return (
-    Array.isArray(repositories) &&
-    repositories.every((repository) => {
-      if (typeof repository !== "object" || repository === null) {
-        return false;
-      }
-
-      const candidate = repository as Record<string, unknown>;
-      return (
-        typeof candidate.id === "string" &&
-        typeof candidate.installation_id === "string" &&
-        typeof candidate.repository_name === "string" &&
-        typeof candidate.repository_full_name === "string" &&
-        typeof candidate.default_branch === "string" &&
-        typeof candidate.status === "string" &&
-        typeof candidate.connected_at === "string" &&
-        (typeof candidate.revoked_at === "string" ||
-          candidate.revoked_at === null) &&
-        (typeof candidate.assessment_id === "string" ||
-          candidate.assessment_id === null) &&
-        (typeof candidate.assessment_name === "string" ||
-          candidate.assessment_name === null)
       );
     })
   );

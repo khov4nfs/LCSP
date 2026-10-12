@@ -7,18 +7,26 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Readable } from "node:stream";
+import {
+  RepositoryScanJobStatus,
+  RepositoryAuthenticationMode,
+} from "@prisma/client";
 
 import {
+  CREDENTIAL_PROVIDERS,
+  GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES,
+  GITHUB_CREDENTIAL_ERROR_CODES,
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SNAPSHOT_STATUSES,
+  type GitHubArchiveRedirectValidationStatus,
 } from "@lcsp/contracts/github-integration";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import {
-  GitHubAppClientError,
-  type GitHubAppClient,
-} from "../../../infrastructure/github/github-app.client.js";
+import { CredentialLease } from "../../../application/security/credential-lease.js";
+import type { CredentialAuthorizationResolverPort } from "../../../application/ports/security/credential-authorization-resolver.port.js";
+import type { GitHubArchiveTransportPort } from "../../../application/ports/github-archive-transport.port.js";
+import { GitHubArchiveTransportError } from "../../../infrastructure/github/github-secure-archive-http.transport.js";
 import type {
   SnapshotArchiveCache,
   SnapshotArchiveCacheCaptureInput,
@@ -27,9 +35,6 @@ import type {
 } from "../../../infrastructure/github/snapshot-archive-cache.js";
 import { StreamSnapshotArchiveHandler } from "./stream-snapshot-archive.handler.js";
 import { StreamSnapshotArchiveQuery } from "./stream-snapshot-archive.query.js";
-
-type RepositoryScanJobStatus =
-  (typeof REPOSITORY_SCAN_JOB_STATUSES)[keyof typeof REPOSITORY_SCAN_JOB_STATUSES];
 
 type ScanJobFixture = {
   id: string;
@@ -41,6 +46,8 @@ describe("StreamSnapshotArchiveHandler", () => {
   const snapshot = {
     id: "snapshot-1",
     connectionId: "connection-1",
+    assessmentId: "assessment-1",
+    repositoryId: "repository-1",
     repositoryFullName: "acme/example-repo",
     commitSha: "a".repeat(40),
     status: REPOSITORY_SNAPSHOT_STATUSES.ready,
@@ -54,9 +61,22 @@ describe("StreamSnapshotArchiveHandler", () => {
 
   const connection = {
     id: "connection-1",
-    installationId: "installation-1",
+    userId: "user-1",
+    provider: CREDENTIAL_PROVIDERS.github,
+    installationId: null,
     status: REPOSITORY_CONNECTION_STATUSES.active,
+    authenticationMode: RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL,
+    providerCredentialId: "credential-1",
+    repositoryId: "repository-1",
+    repositoryFullName: "acme/example-repo",
   };
+
+  const lease = new CredentialLease("github_pat_test_lease_secret", {
+    internalCredentialId: "credential-1",
+    credentialVersion: 1,
+    repositoryFullName: "acme/example-repo",
+    expiresAt: new Date(Date.now() + 60_000),
+  });
 
   function buildHandler(options?: {
     scanJob?: ScanJobFixture | null;
@@ -64,8 +84,9 @@ describe("StreamSnapshotArchiveHandler", () => {
     connection?: typeof connection | null;
     archive?: {
       contentType: string;
-      resolvedUrl: string;
-      stream: NodeJS.ReadableStream;
+      redirectValidation: GitHubArchiveRedirectValidationStatus;
+      validatedHost: string;
+      stream: Readable;
     };
     archiveError?: Error;
     cacheHit?: SnapshotArchiveCacheHit | null;
@@ -102,19 +123,31 @@ describe("StreamSnapshotArchiveHandler", () => {
       },
     } as unknown as PrismaService;
 
-    const downloadRepositoryArchiveMock = jest.fn().mockImplementation(() => {
-      if (options?.archiveError) throw options.archiveError;
-      return (
-        options?.archive ?? {
-          contentType: "application/gzip",
-          resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
-          stream: Readable.from([Buffer.from("archive")]),
-        }
-      );
-    });
-    const githubAppClient = {
-      downloadRepositoryArchive: downloadRepositoryArchiveMock,
-    } as unknown as GitHubAppClient;
+    const resolveForConnection = jest
+      .fn<CredentialAuthorizationResolverPort["resolveForConnection"]>()
+      .mockResolvedValue(lease);
+    const markInvalid = jest
+      .fn<CredentialAuthorizationResolverPort["markInvalid"]>()
+      .mockResolvedValue();
+    const credentialResolver = {
+      resolveForConnection,
+      markInvalid,
+    } as unknown as CredentialAuthorizationResolverPort;
+
+    const downloadRepositoryArchiveMock = jest
+      .fn<GitHubArchiveTransportPort["downloadArchive"]>()
+      .mockImplementation(() => {
+        if (options?.archiveError) return Promise.reject(options.archiveError);
+        return Promise.resolve(
+          options?.archive ?? {
+            contentType: "application/gzip",
+            redirectValidation:
+              GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES.verified,
+            validatedHost: "codeload.github.com",
+            stream: Readable.from([Buffer.from("archive")]),
+          },
+        );
+      });
 
     const cacheGetMock = jest
       .fn<
@@ -144,16 +177,17 @@ describe("StreamSnapshotArchiveHandler", () => {
     return {
       handler: new StreamSnapshotArchiveHandler(
         prisma,
-        githubAppClient,
         snapshotArchiveCache,
+        credentialResolver,
+        { downloadArchive: downloadRepositoryArchiveMock },
       ),
       downloadRepositoryArchiveMock,
+      resolveForConnection,
       cacheGetMock,
       cacheCaptureMock,
       claimScanJobMock,
     };
   }
-
   it("streams the pinned repository archive when scope is valid", async () => {
     const { handler, cacheCaptureMock } = buildHandler();
 
@@ -179,9 +213,7 @@ describe("StreamSnapshotArchiveHandler", () => {
       stream: Readable.from([Buffer.from("cached-archive")]),
     };
     const { handler, downloadRepositoryArchiveMock, cacheGetMock } =
-      buildHandler({
-        cacheHit,
-      });
+      buildHandler({ cacheHit });
 
     const result = await handler.execute(
       new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-cache"),
@@ -222,7 +254,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     const { handler, claimScanJobMock } = buildHandler({
       scanJob: {
         ...scanJob,
-        status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+        status: RepositoryScanJobStatus.COMPLETED,
       },
     });
 
@@ -261,13 +293,35 @@ describe("StreamSnapshotArchiveHandler", () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it.each([undefined, "UNKNOWN_MODE"])(
+    "fails closed for an unsupported archive authentication mode %s",
+    async (mode) => {
+      const fixture = buildHandler({
+        connection: {
+          ...connection,
+          authenticationMode: mode,
+        } as typeof connection,
+      });
+      await expect(
+        fixture.handler.execute(
+          new StreamSnapshotArchiveQuery(
+            "snapshot-1",
+            "scan-job-1",
+            "corr-mode",
+          ),
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(fixture.downloadRepositoryArchiveMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("maps archive retrieval failure to bad gateway", async () => {
     const loggerError = jest
       .spyOn(Logger.prototype, "error")
       .mockImplementation(() => undefined);
     const { handler } = buildHandler({
-      archiveError: new GitHubAppClientError(
-        "github_repository_archive_failed",
+      archiveError: new GitHubArchiveTransportError(
+        GITHUB_CREDENTIAL_ERROR_CODES.providerResponseInvalid,
         404,
       ),
     });
@@ -279,7 +333,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     ).rejects.toBeInstanceOf(BadGatewayException);
 
     expect(loggerError).toHaveBeenCalledWith(
-      "GitHub snapshot archive retrieval failed: github_repository_archive_failed",
+      "GitHub snapshot archive retrieval failed: PROVIDER_RESPONSE_INVALID",
       undefined,
       expect.objectContaining({
         correlationId: "corr-1",
@@ -297,8 +351,8 @@ describe("StreamSnapshotArchiveHandler", () => {
       .spyOn(Logger.prototype, "error")
       .mockImplementation(() => undefined);
     const { handler } = buildHandler({
-      archiveError: new GitHubAppClientError(
-        "github_repository_archive_failed",
+      archiveError: new GitHubArchiveTransportError(
+        GITHUB_CREDENTIAL_ERROR_CODES.providerRateLimited,
         429,
       ),
     });

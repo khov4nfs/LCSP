@@ -1,5 +1,7 @@
 # LCSP Product Brief
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Status
 
 AUTHORITATIVE PRODUCT BRIEF — PHASE 5.2L ACTIVE MVP
@@ -30,7 +32,7 @@ Manager creates assessment
 -> Manager completes WizardProfile
 -> Manager connects repository
 -> Automatic Trusted Scan Initiation creates or resumes Repository Scan
--> Python Scanner Worker produces TechnicalEvidenceReport
+-> Managed Repository Analysis Agent produces TechnicalEvidenceReport
 -> Python Worker Platform builds TechnicalProfile and AIUsageFlow
 -> Manager resolves material conflicts when required
 -> Direct EngineeringRule assessment compiles/investigates citation-backed legal rules

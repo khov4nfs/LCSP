@@ -1,18 +1,13 @@
 import {
   AUDIT_ACTOR_TYPES,
+  type AuditActorType,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
+import { OUTBOX_AUDIT_EVENT_TYPES } from "@lcsp/contracts/outbox";
 import {
-  OUTBOX_AGGREGATE_TYPES,
-  OUTBOX_AUDIT_EVENT_TYPES,
-} from "@lcsp/contracts/outbox";
-import {
-  SCAN_ERROR_CODES,
-  TARGETED_REANALYSIS_CAPACITY_POLICY,
-} from "@lcsp/contracts/scan";
-import {
+  HttpException,
   Injectable,
   Logger,
   type OnModuleDestroy,
@@ -25,7 +20,6 @@ import { OutboxMessageEntity } from "./outbox-message.entity.js";
 import { OutboxRepository } from "./outbox.repository.js";
 import type { RabbitMqMessageHeaders } from "./rabbitmq.client.js";
 import { RabbitMqClient } from "./rabbitmq.client.js";
-import { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 
 /**
  * Polls transactional outbox messages, publishes them to RabbitMQ, and records retry or DLQ outcomes.
@@ -43,26 +37,18 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
    * @param rabbitMqClient - RabbitMQ client used to publish event payloads.
    * @param configService - Runtime configuration source for polling and messaging settings.
    * @param auditWriter - Audit writer used to record retry and DLQ transitions.
-   * @param snapshotCreatedAutoScanService - Local handler that triggers trusted scans for snapshot-created events.
    */
   constructor(
     private readonly outboxRepository: OutboxRepository,
     private readonly rabbitMqClient: RabbitMqClient,
     private readonly configService: ConfigService,
     private readonly auditWriter: AuditWriterService,
-    private readonly snapshotCreatedAutoScanService: SnapshotCreatedAutoScanService,
   ) {}
 
   /**
-   * Starts the periodic outbox poller when publishing is enabled by configuration.
+   * Starts the periodic outbox poller (always on).
    */
   onModuleInit(): void {
-    const enabled = this.configService.get<boolean>("outbox.enabled", true);
-    if (!enabled) {
-      this.logger.log("Outbox publisher disabled by configuration.");
-      return;
-    }
-
     const pollIntervalMs = this.configService.get<number>(
       "outbox.pollIntervalMs",
       1000,
@@ -117,39 +103,29 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
           for (const message of messages) {
             const now = new Date();
 
-            if (
-              message.aggregateType ===
-                OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest &&
-              !(await this.outboxRepository.reserveTargetedReanalysisDispatch(
-                tx,
-                message.aggregateId,
-              ))
-            ) {
-              continue;
-            }
-
             try {
-              await this.snapshotCreatedAutoScanService.handle(message);
-              const headers = contextHeaders(message.payload);
+              const payload = message.payload;
+              const headers = contextHeaders(payload);
               if (headers) {
                 await this.rabbitMqClient.publish(
                   exchange,
                   message.eventType,
-                  message.payload,
+                  payload,
                   headers,
                 );
               } else {
                 await this.rabbitMqClient.publish(
                   exchange,
                   message.eventType,
-                  message.payload,
+                  payload,
                 );
               }
               await this.outboxRepository.markPublished(tx, message.id, now);
             } catch (error) {
               const nextAttempts = message.attempts + 1;
-              const reason = (error as Error).message;
-              const messageMaxAttempts = maxAttemptsFor(message, maxAttempts);
+              const failureDetails = describeOutboxError(error);
+              const reason = failureDetails.message;
+              const messageMaxAttempts = maxAttempts;
               const nextAttemptAt =
                 nextAttempts >= messageMaxAttempts
                   ? null
@@ -164,19 +140,6 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
                 now,
                 nextAttemptAt,
               );
-              if (
-                message.aggregateType ===
-                OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest
-              ) {
-                await this.outboxRepository.recordTargetedReanalysisPublishFailure(
-                  tx,
-                  message.aggregateId,
-                  nextAttempts,
-                  nextAttempts >= messageMaxAttempts
-                    ? SCAN_ERROR_CODES.targetedReanalysisOutboxDeliveryExhausted
-                    : null,
-                );
-              }
               failures.push({
                 message,
                 attempts: nextAttempts,
@@ -185,7 +148,7 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
                 nextAttemptAt,
               });
               this.logger.error(
-                `Outbox message ${message.id} publish failed (attempt ${nextAttempts}/${maxAttempts}): ${reason}`,
+                `Outbox message ${message.id} publish failed (attempt ${nextAttempts}/${maxAttempts}): ${reason} error_type=${failureDetails.type} error_code=${failureDetails.code ?? "UNKNOWN"}`,
               );
             }
           }
@@ -257,22 +220,48 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
 }
 
 /**
- * Resolves the maximum delivery attempts for an outbox message, including targeted-reanalysis policy overrides.
+ * Extracts non-sensitive exception metadata for outbox failure logs. Payloads are
+ * intentionally excluded so operators can diagnose exception class and problem
+ * code without leaking event data.
  *
- * @param message - Outbox message whose aggregate type determines retry policy.
- * @param defaultMaxAttempts - General configured retry limit.
- * @returns Maximum attempts allowed for the message.
+ * @param error - Unknown caught publication/local-handler error.
+ * @returns Bounded error message, exception type, and optional problem code.
  */
-function maxAttemptsFor(
-  message: OutboxMessageEntity,
-  defaultMaxAttempts: number,
-): number {
-  if (
-    message.aggregateType === OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest
-  ) {
-    return TARGETED_REANALYSIS_CAPACITY_POLICY.apiOutboxMaxAttempts;
+function describeOutboxError(error: unknown): {
+  message: string;
+  type: string;
+  code?: string;
+} {
+  const message = error instanceof Error ? error.message : String(error);
+  const type =
+    error instanceof Error && error.constructor.name
+      ? error.constructor.name
+      : typeof error;
+
+  if (error instanceof HttpException) {
+    const response = error.getResponse();
+    const code = readProblemCode(response);
+    return code ? { message, type, code } : { message, type };
   }
-  return defaultMaxAttempts;
+
+  return { message, type };
+}
+
+/**
+ * Reads a standard API problem code from an unknown Nest exception response.
+ *
+ * @param response - Value returned by HttpException.getResponse().
+ * @returns Stable problem code when present.
+ */
+function readProblemCode(response: unknown): string | undefined {
+  if (!response || typeof response !== "object") {
+    return undefined;
+  }
+  const problem = (response as Record<string, unknown>).problem;
+  if (!problem || typeof problem !== "object") {
+    return undefined;
+  }
+  return readString((problem as Record<string, unknown>).code);
 }
 
 /**
@@ -332,7 +321,7 @@ function readString(value: unknown): string | undefined {
  */
 function readActor(
   value: unknown,
-): { id: string; type: "USER" | "SERVICE" } | undefined {
+): { id: string; type: AuditActorType } | undefined {
   if (!value || typeof value !== "object") return undefined;
   const actor = value as Record<string, unknown>;
   const id = readString(actor.id);

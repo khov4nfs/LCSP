@@ -7,7 +7,7 @@ from tools.legal.sources.ingest.legal_source_ingest_boundary import (
     LEGAL_SOURCE_INGEST_BOUNDARY_SOURCE,
     LegalSourceIngestBoundary,
 )
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def config(tmp_path):
         nestjs_api_base_url="http://api.test",
         worker_api_key="worker-key",
         max_retries=3,
-        legal_source_storage_root=str(tmp_path / ".corpus"),
+        legal_source_storage_root=str(tmp_path / ".legal-source"),
     )
 
 
@@ -39,7 +39,7 @@ def test_consumer_fetches_and_registers_official_snapshot(config):
             "documentId": "LAW-71-2025-QH15",
             "catalogSourceRef": "catalog-source:vbpl.vn:law:71-2025-qh15",
             "adminCatalogVersion": "catalog_v2026_08",
-            "corpusVersionId": "corpus_draft_01",
+            "legalSourceVersionId": "legal_source_draft_01",
             "idempotencyKey": "legal-source-ingest:LAW-71-2025-QH15:01",
             "actorRef": "actor:internal-legal-operator:demo",
             "sourceUrl": "https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=179989",
@@ -58,7 +58,7 @@ def test_consumer_fetches_and_registers_official_snapshot(config):
     assert fetch_request.catalog_source_ref == "catalog-source:vbpl.vn:law:71-2025-qh15"
     assert fetch_request.expected_document_number == "71/2025/QH15"
     assert str(fetch_request.output_dir).endswith(
-        ".corpus/source-crawl/corpus_draft_01/LAW-71-2025-QH15"
+        ".legal-source/source-crawl/legal_source_draft_01/LAW-71-2025-QH15"
     )
     result.register_with_api.assert_called_once_with(
         api_client=api_client,
@@ -83,7 +83,7 @@ def test_consumer_rejects_invalid_expected_identity(config):
                 "documentId": "LAW-71-2025-QH15",
                 "catalogSourceRef": "catalog-source:vbpl.vn:law:71-2025-qh15",
                 "adminCatalogVersion": "catalog_v2026_08",
-                "corpusVersionId": "corpus_draft_01",
+                "legalSourceVersionId": "legal_source_draft_01",
                 "idempotencyKey": "legal-source-ingest:LAW-71-2025-QH15:01",
                 "actorRef": "actor:internal-legal-operator:demo",
                 "sourceUrl": "https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=179989",

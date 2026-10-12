@@ -27,7 +27,7 @@ export type UpstreamRequestResult = {
   problemCode?: string;
 };
 
-export type UpstreamBinaryResult = {
+type UpstreamBinaryResult = {
   body: ArrayBuffer | null;
   result: WebAppResult | null;
   ok: boolean;

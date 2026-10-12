@@ -13,7 +13,7 @@ from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoin
     LegalToolExecutionContext,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.managed.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
 
 from tools.legal.sources.extraction.official_text_extraction import OfficialTextExtractor
 from tools.legal.sources.extraction.official_text_extraction_repository import OfficialTextExtractionRepository

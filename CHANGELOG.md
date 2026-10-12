@@ -5,6 +5,53 @@ do not rewrite older entries unless correcting a factual error.
 
 ## Unreleased
 
+### 2026-10-02 - Runtime configuration simplification
+
+#### Changed
+
+- Model routing (provider, model, inference options, role bindings, fallback chains) now lives only in `deepagents/config/model_routes.yaml` (optional path override `LCSP_MODEL_ROUTES_FILE`). Model ids are opaque and case-preserved; provider ids are exact transport adapters (`openai`, `anthropic`, `google_genai`, `llm7`, `inception`) with no aliases.
+- Model invocations no longer touch the customer wallet. Provider-reported token usage is posted to `POST /internal/billing/usage` (no reservation id, price or charge) and recovered durably by a usage-only retry store (`USAGE_RECOVERY_STORE_PATH` optional override). The runtime model audit identity is derived automatically (`cfg-<hash>`) with no bootstrap or migration.
+- `.env.example` is now secrets and deployment addresses only. `MFA_SECRET_ENCRYPTION_KEY` is the single MFA key. `INTERVIEW_GUIDANCE_VERSION` is a code constant. The scan inactivity threshold is a 5-minute code default.
+
+#### Removed
+
+- GitHub App authentication, `GITHUB_APP_*` configuration, and the `GITHUB_CLI_*_ENABLED`, `*_PROVIDER_ENABLED`, `OUTBOX_ENABLED` and `PIPELINE_RECONCILIATION_ENABLED` flags. Per-user encrypted repository credentials and the KEK keyring remain.
+- The model-price billing chain: pricing preflight, wallet reservation/claim/settlement, the insufficient-credit (HTTP 402) assessment preflight, billing pause/resume, model-cost estimate and `bootstrap:model-pricing`. Wallet, top-up, payment history and SePay are unchanged.
+- Dead configuration: `AGENTIC_RUNTIME_*` (except a fixed tool-call default in code), `JWT_SECRET`, `AUTH_BCRYPT_COST`, `AUTH_SESSION_TTL_SECONDS`, `MFA_ENCRYPTION_KEY`, `REPOSITORY_SCAN_STALE_AFTER_MS`, legacy `LLM_*`/`BILLING_*` model, limit and metering variables, and the MDA, Redis and worker-version variables.
+
+#### Notes
+
+- No database migration was added. Unused schema left in place for a separate decision: `ModelPricingSnapshot`, `BillingReservation*`, `WorkflowBillingPause`, `GitHubAppInstallState`, `RepositoryScanJobStatus.WAITING_FOR_CREDITS`, `GITHUB_APP` authentication mode, and the unused money columns on `LlmUsageEvent`. Legacy `RESERVED` reservations still reduce available balance until released.
+
+### 2026-08-28 - Optimized Authentication ERD
+
+#### Changed
+
+- Renamed the active Prisma account model from `AuthUser` to `User` and updated account ownership relations to use the canonical user model.
+- Collapsed authentication persistence into `User` plus a generic `AuthRecord` store while preserving session, MFA OTP/recovery, password recovery, and OAuth state/identity behavior.
+- Moved MFA enrollment and rate-limit state onto `User`, while repeatable authentication records are represented by `AuthRecordType` and indexed `AuthRecord` rows.
+- Generalized `AuthAuditEvent` to the platform-level `AuditEvent` store and aligned audit readers/writers, fixtures, and JSDoc with the canonical audit model.
+
+#### Removed
+
+- Removed the legacy auth persistence models `AuthSession`, `AuthUserMfa`, `AuthMfaOtpUsed`, `AuthMfaRateLimit`, `AuthMfaRecoveryCode`, `AuthRecoveryRequest`, `AuthOAuthIdentity`, and `AuthOAuthState` after migrating their data into `User` / `AuthRecord`.
+- Removed `AuthDecisionLog`; authorization decision records are now stored in `AuditEvent` with `eventType = AUTHORIZATION_DECISION`.
+
+#### Migration
+
+- Added `20260828170000_optimize_auth_erd` to rename `AuthUser` to `User`, backfill MFA state, migrate session/MFA/recovery/OAuth records into `AuthRecord`, merge authorization decisions into `AuditEvent`, and drop the retired auth tables.
+
+#### Verification
+
+- `pnpm --filter @lcsp/api lint`
+- `pnpm --filter @lcsp/api test`
+- `pnpm --filter @lcsp/api test:e2e`
+- `pnpm exec tsc -b packages/contracts packages/i18n apps/api`
+- GitHub Actions `Jira PR Link` ✅
+- GitHub Actions `EngineeringRule managed runtime` ✅
+- GitHub Actions `autofix.ci` ✅
+- GitHub Actions `Tests` ✅
+
 ### 2026-08-27 - Legal Corpus Recovery and Artifact Management
 
 #### Added

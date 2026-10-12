@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "installedDependencies": "UPDATED_UV_FROZEN_LOCK",
+  "passed": 1109,
+  "skipped": 1,
+  "failures": 0,
+  "groups": {
+    "ruleSetGovernance": {
+      "tests": 185,
+      "passed": 185,
+      "skipped": 0
+    },
+    "assessmentRoot": {
+      "tests": 43,
+      "passed": 43,
+      "skipped": 0
+    },
+    "checkpointPersistence": {
+      "tests": 16,
+      "passed": 15,
+      "skipped": 1
+    },
+    "ChromaLegalRetrieval": {
+      "tests": 13,
+      "passed": 13,
+      "skipped": 0
+    },
+    "agentServerDispatch": {
+      "tests": 125,
+      "passed": 124,
+      "skipped": 1
+    }
+  },
+  "skips": [
+    {
+      "class": "tests.test_agent_runtime_recovery",
+      "name": "test_postgres_reconnection_preserves_run_and_checkpoint_and_erases_only_owned_records",
+      "reason": "explicit owned disposable PostgreSQL target required"
+    }
+  ],
+  "actualPostgreSqlAndDockerRuntimeProof": "FOLLOWING_BOUNDED_PG_TEST_AND_NEW_CANDIDATE_SEVEN_DOCKER_INTEGRATIONS",
+  "databaseGatedCaseExecutedSeparately": "reports/pr367-dependency-refresh/postgres-runtime-recovery.json",
+  "uniquePassedAcrossUnitAndNativeRecovery": 1110,
+  "unexecutedDatabaseGatedCases": 0
+}

@@ -1,0 +1,32 @@
+- complementary:
+  - navigation "Workspace":
+    - button "Toggle workspace navigation"
+    - button "Search assessments"
+    - button "Back"
+    - button "Forward"
+    - link "New":
+      - /url: /assessments/new
+    - link "Artifacts":
+      - /url: /artifacts
+    - heading "Recents" [level=2]
+    - button "Filter recent assessments"
+    - link "Independent notice service review":
+      - /url: /assessments/34739558-2460-4312-8f17-c78d103e1112
+    - 'button "Assessment options: Independent notice service review"'
+    - button "Account menu": R RELEASE other
+- banner:
+  - paragraph: Workspace
+  - button "Runtime activity" [pressed]
+- alert:
+  - text: The request could not be completed. Refresh the assessment before retrying.
+  - button "Retry"
+- complementary:
+  - complementary:
+    - heading "Assessment workflow" [level=2]
+    - text: Connected
+    - region "Assessment state":
+      - paragraph: Assessment state
+      - paragraph: Assessment state is unavailable.
+    - separator
+- region "Notifications alt+T"
+- alert

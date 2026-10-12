@@ -1,0 +1,38 @@
+- complementary:
+  - navigation "Workspace":
+    - button "Toggle workspace navigation"
+    - button "Search assessments"
+    - button "Back"
+    - button "Forward"
+    - link "New":
+      - /url: /assessments/new
+    - link "Artifacts":
+      - /url: /artifacts
+    - heading "Recents" [level=2]
+    - button "Filter recent assessments"
+    - link "Notice retention review assessmentB":
+      - /url: /assessments/8c91d731-eafb-4002-849e-8dd565f23e29
+    - 'button "Assessment options: Notice retention review assessmentB"'
+    - link "Notice retention review assessmentA":
+      - /url: /assessments/d30b6364-f031-4318-90af-9569b079c612
+    - 'button "Assessment options: Notice retention review assessmentA"'
+    - button "Account menu": R RELEASE owner
+- banner:
+  - paragraph: Workspace
+  - paragraph: Overview
+- main:
+  - text: RELEASE owner Workspace dashboard Review organization context, granted workspace actions, and active assessments.
+  - button "Create Assessment"
+  - term: Organization
+  - definition: RELEASE owner
+  - term: Membership role
+  - definition: CUSTOMER
+  - region "Assessment overview": Total assessments 2 Needs follow-up 0 Completed assessments 2
+  - text: Recent assessments Quickly open recently created assessments or view the full list.
+  - button "Open assessment list"
+  - link "Notice retention review assessmentB Complete":
+    - /url: /assessments/8c91d731-eafb-4002-849e-8dd565f23e29
+  - link "Notice retention review assessmentA Complete":
+    - /url: /assessments/d30b6364-f031-4318-90af-9569b079c612
+- region "Notifications alt+T"
+- alert: Workspace | LCSP

@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readlinkSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,61 +10,51 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const workerRoot = path.join(repoRoot, "deepagents");
+const dockerGraphStorageRoot = path.join(repoRoot, "tmp", "agent-runtime");
 const isWindows = process.platform === "win32";
 const workerPython =
   process.platform === "win32"
     ? path.join(workerRoot, ".venv", "Scripts", "python.exe")
     : path.join(workerRoot, ".venv", "bin", "python");
-const workerMda =
+const workerLangGraph =
   process.platform === "win32"
-    ? path.join(workerRoot, ".venv", "Scripts", "mda.exe")
-    : path.join(workerRoot, ".venv", "bin", "mda");
-const tsJsAnalyzerRoot = path.join(
-  workerRoot,
-  "tools",
-  "common",
-  "capabilities",
-  "evidence",
-  "scanner",
-  "ts_js_bridge",
-  "ts-js-analyzer",
-);
-const tsJsAnalyzerCli = path.join(
-  tsJsAnalyzerRoot,
-  "dist",
-  "tools",
-  "ts-js-analyzer",
-  "cli.js",
-);
-const openWikiRuntimeScript = path.join(
-  repoRoot,
-  "scripts",
-  "openwiki_runtime.py",
-);
+    ? path.join(workerRoot, ".venv", "Scripts", "langgraph.exe")
+    : path.join(workerRoot, ".venv", "bin", "langgraph");
 const rootEnv = loadDotEnv(path.join(repoRoot, ".env"));
-const defaultOrchestrationDebug =
-  process.env.ORCHESTRATION_DEBUG ?? rootEnv.ORCHESTRATION_DEBUG ?? "false";
 const defaultPhoenixTracing =
   process.env.PHOENIX_TRACING ?? rootEnv.PHOENIX_TRACING ?? "true";
+const defaultDockerPhoenixTracing =
+  process.env.LCSP_DOCKER_PHOENIX_TRACING ??
+  rootEnv.LCSP_DOCKER_PHOENIX_TRACING ??
+  "false";
 const defaultPhoenixCollectorEndpoint =
   process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006/v1/traces";
+const defaultPhoenixHost =
+  process.env.PHOENIX_HOST ?? rootEnv.PHOENIX_HOST ?? "127.0.0.1";
 const defaultPhoenixProject =
   process.env.PHOENIX_PROJECT ?? rootEnv.PHOENIX_PROJECT ?? "deepagents";
 const defaultDockerWorkerImage =
   process.env.LCSP_WORKER_DOCKER_IMAGE ??
   rootEnv.LCSP_WORKER_DOCKER_IMAGE ??
-  "deepagents:scanner-tools";
-const defaultOpenWikiRuntimeCommand =
-  process.env.OPENWIKI_RUNTIME_COMMAND ??
-  rootEnv.OPENWIKI_RUNTIME_COMMAND ??
-  `${shellQuote(workerPython)} ${shellQuote(openWikiRuntimeScript)}`;
-const defaultOpenWikiRuntimeTimeoutSeconds =
-  process.env.OPENWIKI_RUNTIME_TIMEOUT_SECONDS ??
-  rootEnv.OPENWIKI_RUNTIME_TIMEOUT_SECONDS ??
-  "180";
-const managedAgentPythonPath = ".";
-const dockerManagedAgentPythonPath = "/app/deepagents";
-const managedAgentEventsModule = "tools.common.capabilities.managed.rabbitmq_consumer";
+  "lcsp-agent-runtime:dev";
+const agentRuntimePythonPath = ".";
+const dockerAgentRuntimePythonPath = "/app/deepagents";
+const agentRuntimeEventsModule =
+  "tools.common.capabilities.agent_runtime.rabbitmq_consumer";
+const agentRuntimeJobsPerWorker = resolvePositiveInteger(
+  process.env.LCSP_AGENT_RUNTIME_JOBS_PER_WORKER ??
+    rootEnv.LCSP_AGENT_RUNTIME_JOBS_PER_WORKER ??
+    "1",
+  "LCSP_AGENT_RUNTIME_JOBS_PER_WORKER",
+);
+const isDarwin = process.platform === "darwin";
+const devMemoryLimits = {
+  dev: "2400M",
+  dev_app: "2800M",
+  dev_docker: "1500M",
+  agent_runtime: "2400M",
+};
+const devSandboxMemory = "512m";
 
 const targets = {
   proxy: {
@@ -78,9 +68,11 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-dev-windows.ps1",
         ]
-      : ["./fogewise-dev-launchers/fedora/fogewise-dev-fedora.sh"],
+      : isDarwin
+        ? ["./fogewise-dev-launchers/macos/fogewise-dev-macos.command"]
+        : ["./fogewise-dev-launchers/fedora/fogewise-dev-fedora.sh"],
     env: { FOGEWISE_SUBDOMAIN: "lcsp" },
-    description: "Start Fogewise Fedora local proxy (hosts override + Caddy)",
+    description: "Start Fogewise local proxy (hosts override + Caddy)",
   },
   proxy_reset: {
     cwd: repoRoot,
@@ -93,14 +85,16 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-local-reset-windows.ps1",
         ]
-      : ["./fogewise-dev-launchers/fedora/fogewise-local-reset-fedora.sh"],
+      : isDarwin
+        ? ["./fogewise-dev-launchers/macos/fogewise-local-reset-macos.command"]
+        : ["./fogewise-dev-launchers/fedora/fogewise-local-reset-fedora.sh"],
     description:
-      "Reset Fogewise Fedora local proxy (remove hosts override + stop Caddy)",
+      "Reset Fogewise local proxy (remove hosts override + stop Caddy)",
     oneshot: true,
   },
   infra: {
     cwd: repoRoot,
-    cmd: isWindows ? "powershell.exe" : "bash",
+    cmd: isWindows ? "powershell.exe" : isDarwin ? "docker" : "bash",
     args: isWindows
       ? [
           "-NoProfile",
@@ -109,13 +103,21 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-local-infra-windows.ps1",
         ]
-      : ["./fogewise-dev-launchers/fedora/fogewise-local-infra-fedora.sh"],
+      : isDarwin
+        ? [
+            "compose",
+            "-f",
+            "fogewise-dev-launchers/common/docker-compose.local-infra.yml",
+            "up",
+            "-d",
+          ]
+        : ["./fogewise-dev-launchers/fedora/fogewise-local-infra-fedora.sh"],
     description: "Start local PostgreSQL + RabbitMQ + Redis",
     oneshot: true,
   },
   infra_reset: {
     cwd: repoRoot,
-    cmd: isWindows ? "powershell.exe" : "bash",
+    cmd: isWindows ? "powershell.exe" : isDarwin ? "docker" : "bash",
     args: isWindows
       ? [
           "-NoProfile",
@@ -124,9 +126,17 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-local-infra-reset-windows.ps1",
         ]
-      : [
-          "./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh",
-        ],
+      : isDarwin
+        ? [
+            "compose",
+            "-f",
+            "fogewise-dev-launchers/common/docker-compose.local-infra.yml",
+            "down",
+            "-v",
+          ]
+        : [
+            "./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh",
+          ],
     description: "Reset local PostgreSQL + RabbitMQ + Redis",
     oneshot: true,
   },
@@ -157,52 +167,83 @@ const targets = {
   phoenix: {
     cwd: repoRoot,
     cmd: "uvx",
-    args: ["--python", "3.13", "arize-phoenix", "serve", "--port", "6006"],
+    args: [
+      "--python",
+      "3.13",
+      "--with",
+      "sqlalchemy<2.1",
+      "arize-phoenix",
+      "serve",
+      "--host",
+      defaultPhoenixHost,
+      "--port",
+      "6006",
+    ],
     env: rootEnv,
     description: "Start Arize Phoenix trace UI",
     healthPort: 6006,
+    optional: true,
   },
-  managed_agent: {
+  agent_runtime: {
     cwd: workerRoot,
-    cmd: existsSync(workerMda) ? workerMda : "uv",
-    args: existsSync(workerMda)
-      ? ["dev", "--no-reload", "."]
-      : ["run", "mda", "dev", "--no-reload", "."],
+    cmd: existsSync(workerLangGraph) && !isWindows ? workerLangGraph : "uv",
+    args:
+      existsSync(workerLangGraph) && !isWindows
+        ? [
+            "dev",
+            "--no-browser",
+            "--no-reload",
+            "--allow-blocking",
+            "--n-jobs-per-worker",
+            String(agentRuntimeJobsPerWorker),
+          ]
+        : [
+            "run",
+            "--extra",
+            "dev",
+            "langgraph",
+            "dev",
+            "--no-browser",
+            "--no-reload",
+            "--allow-blocking",
+            "--n-jobs-per-worker",
+            String(agentRuntimeJobsPerWorker),
+          ],
     env: {
       ...rootEnv,
-      PYTHONPATH: managedAgentPythonPath,
+      PYTHONPATH: agentRuntimePythonPath,
       UV_CACHE_DIR: rootEnv.UV_CACHE_DIR ?? "/tmp/uv-cache",
       UV_LINK_MODE: rootEnv.UV_LINK_MODE ?? "copy",
-      ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
+      LCSP_LOCAL_GRAPH_DEV: "1",
+      LCSP_AGENT_RUNTIME_JOBS_PER_WORKER: String(agentRuntimeJobsPerWorker),
+      LCSP_REPOSITORY_SANDBOX_MEMORY:
+        process.env.LCSP_REPOSITORY_SANDBOX_MEMORY ??
+        rootEnv.LCSP_REPOSITORY_SANDBOX_MEMORY ??
+        devSandboxMemory,
       PHOENIX_TRACING: defaultPhoenixTracing,
       PHOENIX_COLLECTOR_ENDPOINT: defaultPhoenixCollectorEndpoint,
       PHOENIX_PROJECT: defaultPhoenixProject,
-      OPENWIKI_RUNTIME_COMMAND: defaultOpenWikiRuntimeCommand,
-      OPENWIKI_RUNTIME_TIMEOUT_SECONDS: defaultOpenWikiRuntimeTimeoutSeconds,
     },
     scrubVirtualEnv: true,
-    description: "Start LCSP Managed Deep Agent in local dev mode",
+    description: "Start LCSP LangGraph Deep Agent runtime",
   },
-  managed_agent_events: {
+  agent_runtime_events: {
     cwd: workerRoot,
     cmd: existsSync(workerPython) ? workerPython : "uv",
     args: existsSync(workerPython)
-      ? ["-m", managedAgentEventsModule]
-      : ["run", "python", "-m", managedAgentEventsModule],
+      ? ["-m", agentRuntimeEventsModule]
+      : ["run", "python", "-m", agentRuntimeEventsModule],
     env: {
       ...rootEnv,
-      PYTHONPATH: managedAgentPythonPath,
+      PYTHONPATH: agentRuntimePythonPath,
       UV_CACHE_DIR: rootEnv.UV_CACHE_DIR ?? "/tmp/uv-cache",
       UV_LINK_MODE: rootEnv.UV_LINK_MODE ?? "copy",
-      ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
       PHOENIX_TRACING: defaultPhoenixTracing,
       PHOENIX_COLLECTOR_ENDPOINT: defaultPhoenixCollectorEndpoint,
       PHOENIX_PROJECT: defaultPhoenixProject,
-      OPENWIKI_RUNTIME_COMMAND: defaultOpenWikiRuntimeCommand,
-      OPENWIKI_RUNTIME_TIMEOUT_SECONDS: defaultOpenWikiRuntimeTimeoutSeconds,
     },
     scrubVirtualEnv: true,
-    description: "Start LCSP Managed Deep Agent RabbitMQ event bridge",
+    description: "Start LCSP Agent Runtime RabbitMQ event bridge",
   },
   docker_worker_build: {
     cwd: repoRoot,
@@ -210,27 +251,46 @@ const targets = {
     args: [
       "build",
       "-f",
-      "deepagents/Dockerfile",
+      "deepagents/Dockerfile.dev",
       "-t",
       defaultDockerWorkerImage,
       ".",
     ],
-    description: `Build Managed Deep Agent Docker image (${defaultDockerWorkerImage})`,
+    description: `Build LCSP Agent Runtime development Docker image (${defaultDockerWorkerImage})`,
     oneshot: true,
     shell: false,
   },
-  managed_agent_docker: dockerManagedAgentTarget(),
+  agent_runtime_docker: dockerAgentRuntimeTarget(),
 };
 
 const groups = {
   fogewise: ["proxy", "infra"],
   fogewise_reset: ["proxy_reset", "infra_reset"],
   dev_app: ["api", "web"],
-  dev_docker: ["api_docker_workers", "web", "managed_agent_docker"],
-  dev: ["api", "web", "managed_agent", "managed_agent_events", "phoenix"],
+  dev_docker: ["api_docker_workers", "web", "agent_runtime_docker"],
+  dev: ["api", "web", "agent_runtime", "agent_runtime_events", "phoenix"],
 };
 
 const selection = process.argv[2] ?? "help";
+if (process.platform === "linux" && devMemoryLimits[selection] && !process.env.LCSP_DEV_MEMORY_SCOPE) {
+  const result = spawnSync(
+    "systemd-run",
+    [
+      "--user",
+      "--scope",
+      "--collect",
+      "-p",
+      `MemoryMax=${devMemoryLimits[selection]}`,
+      "--setenv=LCSP_DEV_MEMORY_SCOPE=1",
+      process.execPath,
+      __filename,
+      selection,
+    ],
+    { cwd: repoRoot, env: process.env, stdio: "inherit", shell: false },
+  );
+  if (result.error) console.error(`[run] Cannot enforce development memory limit: ${result.error.message}`);
+  process.exit(result.status ?? 1);
+}
 await main();
 
 async function main() {
@@ -249,14 +309,6 @@ async function main() {
     process.exit(0);
   }
 
-  if (
-    selection === "dev" ||
-    selection === "managed_agent" ||
-    selection === "managed_agent_events"
-  ) {
-    prepareTsJsAnalyzer();
-  }
-
   if (selection in groups) {
     await runGroup(selection);
     return;
@@ -272,76 +324,99 @@ async function main() {
   process.exit(1);
 }
 
-function prepareTsJsAnalyzer() {
-  const inputs = [
-    "analyzer.ts",
-    "cli.ts",
-    "package-lock.json",
-    "package.json",
-    "tsconfig.json",
-  ].map((file) => path.join(tsJsAnalyzerRoot, file));
-  const outputMtime = existsSync(tsJsAnalyzerCli)
-    ? statSync(tsJsAnalyzerCli).mtimeMs
-    : 0;
-  if (
-    outputMtime > 0 &&
-    inputs.every((input) => statSync(input).mtimeMs <= outputMtime)
-  ) {
-    return;
+function prepareAgentRuntime() {
+  stopStaleAgentRuntimeProcesses();
+}
+
+function stopStaleAgentRuntimeProcesses() {
+  if (process.platform !== "linux") return;
+  const result = spawnSync("ps", ["-eo", "pid=,args="], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0) return;
+
+  const candidates = [];
+  for (const line of result.stdout.split("\n")) {
+    const match = /^\s*(\d+)\s+(.+)$/u.exec(line);
+    if (!match) continue;
+    const pid = Number.parseInt(match[1], 10);
+    const command = match[2];
+    if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue;
+    if (!/langgraph(?:\.exe)?\s+dev\b|langgraph-cli\[inmem\]/u.test(command)) {
+      continue;
+    }
+
+    let cwd;
+    try {
+      cwd = readlinkSync(`/proc/${pid}/cwd`);
+    } catch {
+      continue;
+    }
+    const relative = path.relative(workerRoot, cwd);
+    const belongsToWorkspace =
+      relative === "" ||
+      (relative !== ".." &&
+        !relative.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relative));
+    if (belongsToWorkspace) candidates.push(pid);
   }
 
-  console.log("[run] Building TypeScript/JavaScript analyzer...");
-  const npm = isWindows ? "npm.cmd" : "npm";
-  for (const args of [
-    ["ci", "--include=dev"],
-    ["run", "build"],
-  ]) {
-    const result = spawnSync(npm, args, {
-      cwd: tsJsAnalyzerRoot,
-      env: process.env,
-      stdio: "inherit",
-      shell: false,
-    });
-    if (result.status !== 0) {
-      process.exit(result.status ?? 1);
+  if (candidates.length === 0) return;
+  console.log(
+    `[run] Stopping stale LCSP Agent Runtime processes: ${candidates.join(", ")}`,
+  );
+  for (const signal of ["SIGTERM", "SIGKILL"]) {
+    for (const pid of candidates) {
+      try {
+        process.kill(pid, signal);
+      } catch {
+        // Process already exited.
+      }
     }
-  }
-  if (!existsSync(tsJsAnalyzerCli)) {
-    console.error(`[run] Analyzer build did not create ${tsJsAnalyzerCli}`);
-    process.exit(1);
+    if (signal === "SIGTERM") sleepMs(250);
   }
 }
 
 function stopDevProcesses() {
   const patterns = [
-    "pnpm dev:fogewise",
-    "node scripts/run.mjs fogewise",
     "node scripts/run.mjs dev",
     "node scripts/run.mjs dev_app",
-    ".venv/bin/mda dev --no-reload .",
-    ".venv/Scripts/mda.exe dev --no-reload .",
-    "uv run mda dev --no-reload .",
-    "uv run mda dev .",
-    `python -m ${managedAgentEventsModule}`,
-    `uv run python -m ${managedAgentEventsModule}`,
-    "mda dev --no-reload .",
-    "mda dev .",
+    ".venv/bin/langgraph dev --no-browser --no-reload --allow-blocking",
+    ".venv/Scripts/langgraph.exe dev --no-browser --no-reload --allow-blocking",
+    "uv run --extra dev langgraph dev --no-browser --no-reload --allow-blocking",
+    "uv run --extra dev langgraph dev",
+    "uv run langgraph dev --no-browser --no-reload --allow-blocking",
+    "uv run langgraph dev",
+    `python -m ${agentRuntimeEventsModule}`,
+    `uv run python -m ${agentRuntimeEventsModule}`,
+    "langgraph dev --no-browser --no-reload --allow-blocking",
+    "langgraph dev",
     "python entrypoint.py",
     "uv run --with langgraph-cli[inmem]",
-    ".mda/build/.venv/bin/langgraph dev",
     "pnpm --dir apps/api start:dev",
     "nest start --watch",
     "apps/api/dist/src/main",
     "pnpm --dir apps/web dev",
     "next dev",
-    "uvx --python 3.13 arize-phoenix serve --port 6006",
-    "arize-phoenix serve --port 6006",
+    "arize-phoenix serve",
   ];
   const protectedPids = new Set([
     process.pid,
     process.ppid,
     ...listParentPids(process.pid),
   ]);
+  // Fogewise owns proxy/infra independently of the application dev processes.
+  // Protect its group too when both launchers share the same terminal/session.
+  for (const pattern of [
+    "scripts/run.mjs fogewise",
+    "fogewise-dev-launchers/",
+  ]) {
+    for (const entry of findMatchingProcesses(pattern, protectedPids)) {
+      protectedPids.add(entry.pid);
+    }
+  }
   const protectedProcessGroups = new Set(
     [...protectedPids]
       .map((pid) => readProcessGroupId(pid))
@@ -480,6 +555,22 @@ function sleepMs(durationMs) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, durationMs);
 }
 
+function resolvePositiveInteger(value, name) {
+  const normalized = String(value ?? "").trim();
+  if (!/^[1-9]\d*$/u.test(normalized)) {
+    throw new Error(
+      `[run] ${name} must be a positive integer; received "${normalized}".`,
+    );
+  }
+  const parsed = Number.parseInt(normalized, 10);
+  if (!Number.isSafeInteger(parsed) || parsed > 64) {
+    throw new Error(
+      `[run] ${name} must be between 1 and 64; received "${normalized}".`,
+    );
+  }
+  return parsed;
+}
+
 function loadDotEnv(filePath) {
   if (!existsSync(filePath)) return {};
   const parsed = parse(readFileSync(filePath));
@@ -488,6 +579,7 @@ function loadDotEnv(filePath) {
 
 function runTarget(name) {
   const target = targets[name];
+  if (name === "agent_runtime") prepareAgentRuntime();
   cleanupDockerWorkerContainer(target);
   console.log(`[run] Starting ${name}: ${target.description}`);
   const child = spawnTarget(target);
@@ -523,27 +615,48 @@ async function runGroup(name) {
     }
   }
 
+  if (longRunningMembers.includes("agent_runtime")) {
+    prepareAgentRuntime();
+  }
+
   assertPortsAvailable(longRunningMembers);
 
   for (const member of longRunningMembers) {
     const target = targets[member];
     cleanupDockerWorkerContainer(target);
     console.log(`[run] Starting ${member}: ${target.description}`);
-    children.push(spawnTarget(target));
+    children.push({
+      name: member,
+      child: spawnTarget(target),
+      optional: target.optional === true,
+    });
   }
 
-  forwardSignals(children);
+  forwardSignals(children.map(({ child }) => child));
   let exiting = false;
-  for (const child of children) {
+  for (const { name: member, child, optional } of children) {
     child.on("exit", (code, signal) => {
       if (exiting) return;
+      if (optional) {
+        const detail = signal ? `signal ${signal}` : `code ${code ?? 0}`;
+        console.warn(
+          `[run] Optional ${member} exited with ${detail}; core dev services remain running.`,
+        );
+        return;
+      }
       exiting = true;
       if ((code ?? 0) !== 0) {
         console.error(
-          `[run] A process exited with code ${code}. Stopping remaining processes.`,
+          `[run] ${member} exited with code ${code}. Stopping remaining processes.`,
         );
+        if (member === "agent_runtime") {
+          console.error(
+            "[run] Agent Runtime failed. Check the labelled process output above. " +
+              "For API + web only, run `pnpm dev:app`.",
+          );
+        }
       }
-      shutdown(children);
+      shutdown(children.map(({ child: runningChild }) => runningChild));
       if (signal) process.kill(process.pid, signal);
       else process.exit(code ?? 0);
     });
@@ -566,6 +679,7 @@ function buildSpawnEnv(target) {
       ([, value]) => value !== undefined && value !== null,
     ),
   );
+  hardenLangSmithEnv(env);
 
   if (target.scrubVirtualEnv) {
     const virtualEnv = env.VIRTUAL_ENV;
@@ -583,6 +697,29 @@ function buildSpawnEnv(target) {
   }
 
   return env;
+}
+
+function hardenLangSmithEnv(env) {
+  const tracingEnabled = String(env.LCSP_LANGSMITH_TRACING ?? "")
+    .trim()
+    .toLowerCase();
+  if (["1", "true", "yes", "on"].includes(tracingEnabled)) return;
+
+  for (const key of Object.keys(env)) {
+    if (
+      key.startsWith("LANGSMITH_") ||
+      key === "LANGSMITH_API_KEY" ||
+      key === "LANGGRAPH_CLOUD_LICENSE_KEY" ||
+      key === "LANGGRAPH_ENTERPRISE_LICENSE_KEY" ||
+      key === "LANGCHAIN_API_KEY" ||
+      key === "LANGCHAIN_ENDPOINT" ||
+      key === "LANGCHAIN_PROJECT"
+    ) {
+      delete env[key];
+    }
+  }
+  env.LANGSMITH_TRACING = "false";
+  env.LANGCHAIN_TRACING_V2 = "false";
 }
 
 function cleanupDockerWorkerContainer(target) {
@@ -613,8 +750,19 @@ function cleanupDockerWorkerContainer(target) {
   }
 }
 
-function dockerManagedAgentTarget() {
-  const containerName = "lcsp-managed-agent";
+// Model routes ship in the worker image (deepagents/config/model_routes.yaml). Only an
+// operator override file (LCSP_MODEL_ROUTES_FILE) is bind-mounted, read-only; the worker
+// validates it fail-closed.
+const dockerModelRoutesTarget = "/app/deepagents/config/model_routes.override.yaml";
+
+function dockerModelRoutesFile() {
+  const file = process.env.LCSP_MODEL_ROUTES_FILE ?? rootEnv.LCSP_MODEL_ROUTES_FILE;
+  return file ? path.resolve(repoRoot, file) : "";
+}
+
+function dockerAgentRuntimeTarget() {
+  const containerName = "lcsp-agent-runtime";
+  mkdirSync(dockerGraphStorageRoot, { recursive: true });
   return {
     cwd: repoRoot,
     cmd: "docker",
@@ -623,14 +771,24 @@ function dockerManagedAgentTarget() {
       "--rm",
       "--name",
       containerName,
+      "--memory",
+      "768m",
       "--add-host",
       "host.docker.internal:host-gateway",
+      "--mount",
+      `type=bind,source=${dockerGraphStorageRoot},target=/app/deepagents/tmp`,
+      ...(dockerModelRoutesFile()
+        ? [
+            "--mount",
+            `type=bind,source=${dockerModelRoutesFile()},target=${dockerModelRoutesTarget},readonly`,
+          ]
+        : []),
       ...dockerEnvArgs(dockerWorkerEnv()),
       defaultDockerWorkerImage,
     ],
     kind: "docker_worker",
     containerName,
-    description: "Start LCSP Managed Deep Agent in Docker",
+    description: "Start LCSP Agent Runtime in Docker",
     shell: false,
   };
 }
@@ -642,37 +800,39 @@ function dockerWorkerEnv() {
       rootEnv.LCSP_API_BASE_URL ??
       "http://127.0.0.1:4000",
   );
+  // One request timeout (LLM_PROVIDER_TIMEOUT_SECONDS) is shared by every
+  // provider; forward it only when the operator configured it.
+  const providerTimeoutKeys = [
+    ...Object.keys(rootEnv),
+    ...Object.keys(process.env),
+  ].includes("LLM_PROVIDER_TIMEOUT_SECONDS")
+    ? ["LLM_PROVIDER_TIMEOUT_SECONDS"]
+    : [];
   const selectedKeys = [
     "LOG_LEVEL",
     "NODE_ENV",
     "ORCHESTRATION_DEBUG",
     "LCSP_DEV_UNSAFE_TRACE",
-    "AGENTIC_RUNTIME_ENABLED",
-    "AGENTIC_RUNTIME_MAX_TOOL_CALLS",
-    "AGENTIC_RUNTIME_DEFAULT_MAX_ITEMS",
-    "AGENTIC_RUNTIME_DEFAULT_MAX_DEPTH",
-    "AGENTIC_RUNTIME_DEFAULT_MAX_BYTES",
-    "AGENTIC_RUNTIME_DEFAULT_TIMEOUT_MS",
-    "AGENTIC_RUNTIME_DISPATCH_PATH",
-    "PBAC_PREFLIGHT_TIMEOUT_SECONDS",
+    "RBAC_PREFLIGHT_TIMEOUT_SECONDS",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "GEMINI_API_KEY",
     "GOOGLE_API_KEY",
-    "LCSP_ROOT_AGENT_MODEL",
-    "LCSP_TRIAGE_MODEL",
-    "LCSP_CONTEXT_WIZARD_MODEL",
-    "LCSP_PLANNER_MODEL",
-    "LCSP_INVESTIGATOR_MODEL",
-    "LCSP_RESOLVER_MODEL",
-    "WORKER_RUNTIME_VERSION",
-    "WORKER_RUNTIME_BUILD_REF",
+    // Every provider key list is forwarded whole: the worker rotates across the
+    // comma-separated slots, so each configured provider needs its own variable.
+    "INCEPTION_API_KEY",
+    "INCEPTION_BASE_URL",
+    "APX_API_KEY",
+    "APX_BASE_URL",
+    ...providerTimeoutKeys,
+    "LCSP_LANGSMITH_TRACING",
+    "LCSP_AGENT_RUNTIME_JOBS_PER_WORKER",
+    "LCSP_REPOSITORY_SANDBOX_MEMORY",
     "PHOENIX_TRACING",
     "PHOENIX_COLLECTOR_ENDPOINT",
     "PHOENIX_PROJECT",
-    "OPENWIKI_RUNTIME_COMMAND",
-    "OPENWIKI_RUNTIME_TIMEOUT_SECONDS",
     "LEGAL_CHROMA_PATH",
+    "LEGAL_SOURCE_STORAGE_ROOT",
   ];
   const env = Object.fromEntries(
     selectedKeys
@@ -692,14 +852,31 @@ function dockerWorkerEnv() {
     NESTJS_API_BASE_URL: apiBaseUrl,
     LCSP_API_BASE_URL: apiBaseUrl,
     WORKER_API_KEY: process.env.WORKER_API_KEY ?? rootEnv.WORKER_API_KEY ?? "",
-    PHOENIX_TRACING: defaultPhoenixTracing,
+    // Docker dev does not start a Phoenix collector.  Keep tracing opt-in here
+    // so the worker does not repeatedly send spans to an unavailable host port.
+    PHOENIX_TRACING: defaultDockerPhoenixTracing,
     PHOENIX_COLLECTOR_ENDPOINT: dockerizeLocalhost(
       defaultPhoenixCollectorEndpoint,
     ),
     PHOENIX_PROJECT: defaultPhoenixProject,
     HEALTH_PORT: "8080",
-    PYTHONPATH: dockerManagedAgentPythonPath,
-    KNIP_BINARY: "/usr/local/bin/knip",
+    PYTHONPATH: dockerAgentRuntimePythonPath,
+    LANGSMITH_TRACING:
+      process.env.LCSP_LANGSMITH_TRACING ??
+      rootEnv.LCSP_LANGSMITH_TRACING ??
+      "false",
+    LANGCHAIN_TRACING_V2:
+      process.env.LCSP_LANGSMITH_TRACING ??
+      rootEnv.LCSP_LANGSMITH_TRACING ??
+      "false",
+    LCSP_GRAPH_STORAGE_PATH: "/app/deepagents/tmp",
+    ...(dockerModelRoutesFile()
+      ? { LCSP_MODEL_ROUTES_FILE: dockerModelRoutesTarget }
+      : {}),
+    LCSP_REPOSITORY_SANDBOX_MEMORY:
+      process.env.LCSP_REPOSITORY_SANDBOX_MEMORY ??
+      rootEnv.LCSP_REPOSITORY_SANDBOX_MEMORY ??
+      devSandboxMemory,
   };
 }
 
@@ -756,7 +933,7 @@ function describeListeningPort(port) {
 function spawnSyncCompatible(target) {
   const result = spawnSync(target.cmd, target.args, {
     cwd: target.cwd,
-    env: { ...process.env, ...target.env },
+    env: buildSpawnEnv(target),
     stdio: "inherit",
     shell:
       target.shell ?? (process.platform === "win32" && target.cmd === "pnpm"),
@@ -826,6 +1003,6 @@ function printList() {
 
 function printHelp() {
   console.log(
-    `Usage:\n\n  node scripts/run.mjs <target>\n\nTargets:\n  fogewise\n  fogewise_reset\n  dev_stop\n  dev_app\n  dev_docker\n  dev\n  docker_worker_build\n  managed_agent\n  managed_agent_docker\n\nExamples:\n  pnpm run dev:fogewise\n  pnpm run dev:fogewise:reset\n  pnpm run dev:stop\n  pnpm run dev:app\n  pnpm run dev:docker\n  pnpm run dev:agent:docker:build\n  pnpm run dev:agent:docker\n  pnpm run dev\n`,
+    `Usage:\n\n  node scripts/run.mjs <target>\n\nTargets:\n  fogewise\n  fogewise_reset\n  dev_stop\n  dev_app\n  dev_docker\n  dev\n  docker_worker_build\n  agent_runtime\n  agent_runtime_docker\n\nExamples:\n  pnpm run dev:fogewise\n  pnpm run dev:fogewise:reset\n  pnpm run dev:stop\n  pnpm run dev:app\n  pnpm run dev:docker\n  pnpm run dev:agent:docker:build\n  pnpm run dev:agent:docker\n  pnpm run dev\n`,
   );
 }

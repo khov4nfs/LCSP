@@ -12,27 +12,30 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-  EvidenceAcceptanceStatus,
-  LegalRuleLifecycleStatus,
-  PrismaClient,
-  VerifiedProfileStatus,
-} from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 import {
   encryptMfaSecret,
-  fingerprintToken,
   generateTotpSecret,
   hashSecret,
   totpForTime,
-} from "../../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+} from "../../src/modules/auth/infrastructure/security/security.utils.js";
+
+import { createAuthSessionRecord } from "./auth-record-test-helpers.js";
 
 const testSupportDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(testSupportDir, "../..");
 
-export const TEST_DATABASE_URL =
-  process.env.DATABASE_URL ??
-  "postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public";
+const configuredTestDatabaseUrl =
+  process.env.DATABASE_URL ?? process.env.PHASE25_DATABASE_URL;
+
+if (!configuredTestDatabaseUrl) {
+  throw new Error(
+    "E2E/integration tests require an explicit disposable DATABASE_URL (or PHASE25_DATABASE_URL)",
+  );
+}
+
+export const TEST_DATABASE_URL = configuredTestDatabaseUrl;
 
 export type AuthFixture = {
   organizationId: string;
@@ -40,11 +43,6 @@ export type AuthFixture = {
   unverifiedUser: { id: string; email: string };
   noMembershipUser: { id: string; email: string };
 };
-
-export function ensureTestMfaEncryptionKey(): void {
-  process.env.MFA_ENCRYPTION_KEY ??=
-    "test-only-mfa-encryption-key-do-not-use-in-prod";
-}
 
 export type MfaFixture = {
   userId: string;
@@ -69,19 +67,6 @@ export type RepositoryScanGraphFixtureInput =
     scanJobStatus?: RepositoryScanJobStatus;
   };
 
-export type VerifiedProfileGraphFixtureInput =
-  RepositoryScanGraphFixtureInput & {
-    evidenceReportId?: string;
-    technicalProfileId?: string;
-    aiUsageFlowId?: string;
-    verifiedProfileId?: string;
-  };
-
-export type LegalClassificationParentsInput = {
-  corpusVersionId?: string;
-  catalogVersionId?: string;
-};
-
 async function ensureAuthUser(
   prisma: PrismaClient,
   input: {
@@ -91,7 +76,7 @@ async function ensureAuthUser(
     displayName?: string;
   },
 ): Promise<void> {
-  await prisma.authUser.upsert({
+  await prisma.user.upsert({
     where: { id: input.userId },
     update: {
       emailVerified: true,
@@ -237,151 +222,6 @@ export async function seedRepositoryScanGraph(
   });
 }
 
-export async function seedVerifiedProfileGraph(
-  prisma: PrismaClient,
-  input: VerifiedProfileGraphFixtureInput = {},
-): Promise<void> {
-  const evidenceReportId = input.evidenceReportId ?? "evidence-report-1";
-  const technicalProfileId = input.technicalProfileId ?? "technical-profile-1";
-  const aiUsageFlowId = input.aiUsageFlowId ?? "ai-usage-flow-1";
-  const verifiedProfileId = input.verifiedProfileId ?? "vp-1";
-  const assessmentId = input.assessmentId ?? "assessment-1";
-  const scanJobId = input.scanJobId ?? "scan-job-1";
-  const snapshotId = input.snapshotId ?? "snapshot-1";
-
-  await seedRepositoryScanGraph(prisma, {
-    ...input,
-    scanJobId,
-    snapshotId,
-  });
-  await ensureAuthUser(prisma, {
-    userId: input.userId ?? "user-1",
-    email: `${input.userId ?? "user-1"}@fixture.test`,
-    displayName: "Fixture User",
-    role: AUTH_USER_ROLES.customer,
-  });
-  await ensureAssessment(prisma, {
-    assessmentId,
-    ownerId: input.userId ?? "user-1",
-  });
-
-  await prisma.technicalEvidenceReport.upsert({
-    where: { id: evidenceReportId },
-    update: {
-      scanJobId,
-      assessmentId,
-      snapshotId,
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-    create: {
-      id: evidenceReportId,
-      scanJobId,
-      assessmentId,
-      snapshotId,
-      toolsVersion: { semgrep: "1.0.0" },
-      configHash: { semgrep: "sha256:test" },
-      evidencePayload: { findings: [{ finding_id: "finding-1" }] },
-      privacyFlags: { containsSourceCode: false, secretsRedacted: true },
-      schemaVersion: "1.0.0",
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-  });
-
-  await prisma.technicalProfile.upsert({
-    where: { id: technicalProfileId },
-    update: {
-      evidenceReportId,
-      assessmentId,
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-    create: {
-      id: technicalProfileId,
-      evidenceReportId,
-      assessmentId,
-      schemaVersion: "1.0.0",
-      providerVersion: "technical-profile-worker@fixture",
-      profileData: { aiDetected: "confirmed" },
-      privacyFlags: { containsSourceCode: false, secretsRedacted: true },
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-  });
-
-  await prisma.aIUsageFlow.upsert({
-    where: { id: aiUsageFlowId },
-    update: {
-      technicalProfileId,
-      assessmentId,
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-    create: {
-      id: aiUsageFlowId,
-      technicalProfileId,
-      assessmentId,
-      schemaVersion: "1.0.0",
-      providerVersion: "ai-usage-flow-worker@fixture",
-      claims: [],
-      unknownUsages: [],
-      privacyFlags: { containsSourceCode: false, secretsRedacted: true },
-      status: EvidenceAcceptanceStatus.ACCEPTED,
-    },
-  });
-
-  await prisma.verifiedProfile.upsert({
-    where: { id: verifiedProfileId },
-    update: {
-      aiUsageFlowId,
-      technicalEvidenceReportId: evidenceReportId,
-      assessmentId,
-      status: VerifiedProfileStatus.APPROVED,
-    },
-    create: {
-      id: verifiedProfileId,
-      aiUsageFlowId,
-      technicalEvidenceReportId: evidenceReportId,
-      assessmentId,
-      schemaVersion: "1.0.0",
-      providerVersion: "reconciliation@fixture",
-      profileData: { source: "e2e-fixture" },
-      gatesPassedAt: { fixture: true },
-      status: VerifiedProfileStatus.APPROVED,
-      approvedAt: new Date("2026-08-25T00:00:00.000Z"),
-      approvedById: input.userId ?? "user-1",
-    },
-  });
-}
-
-export async function seedLegalClassificationParents(
-  prisma: PrismaClient,
-  input: LegalClassificationParentsInput = {},
-): Promise<void> {
-  const corpusVersionId = input.corpusVersionId ?? "LCSP-LEGAL-CORPUS-v0.1.0";
-  const catalogVersionId = input.catalogVersionId ?? "LCSP-RULE-CATALOG-v0.1.0";
-
-  await prisma.legalCorpusVersion.upsert({
-    where: { id: corpusVersionId },
-    update: { status: LegalRuleLifecycleStatus.APPROVED },
-    create: {
-      id: corpusVersionId,
-      version: corpusVersionId,
-      status: LegalRuleLifecycleStatus.APPROVED,
-      sourceManifest: { source: "e2e-fixture" },
-      approvedAt: new Date("2026-08-25T00:00:00.000Z"),
-    },
-  });
-
-  await prisma.legalRuleCatalogVersion.upsert({
-    where: { id: catalogVersionId },
-    update: { status: LegalRuleLifecycleStatus.APPROVED },
-    create: {
-      id: catalogVersionId,
-      version: catalogVersionId,
-      status: LegalRuleLifecycleStatus.APPROVED,
-      ruleRefs: [],
-      approvedAt: new Date("2026-08-25T00:00:00.000Z"),
-    },
-  });
-}
-
 export class CapturingRecoveryNotifier {
   public lastToken: string | null = null;
   public lastEmail: string | null = null;
@@ -412,49 +252,44 @@ export function pushPrismaSchema(): void {
       ? resolve(apiRoot, "node_modules/.bin/prisma.cmd")
       : resolve(apiRoot, "node_modules/.bin/prisma");
 
-  execFileSync(
-    prismaBinary,
-    ["db", "push", "--accept-data-loss", "--force-reset"],
-    {
-      cwd: apiRoot,
-      env: {
-        ...process.env,
-        DATABASE_URL: TEST_DATABASE_URL,
-        XDG_CACHE_HOME: cacheHome,
-      },
-      stdio: "pipe",
-      shell: process.platform === "win32",
-    },
-  );
+  const env = {
+    ...process.env,
+    DATABASE_URL: TEST_DATABASE_URL,
+    XDG_CACHE_HOME: cacheHome,
+    PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION:
+      process.env.PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION ?? "yes",
+  };
+  const shell = process.platform === "win32";
+
+  execFileSync(prismaBinary, ["db", "execute", "--stdin"], {
+    cwd: apiRoot,
+    env,
+    input: "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;\n",
+    stdio: ["pipe", "pipe", "pipe"],
+    shell,
+  });
+
+  execFileSync(prismaBinary, ["db", "push", "--accept-data-loss"], {
+    cwd: apiRoot,
+    env,
+    stdio: "pipe",
+    shell,
+  });
 }
 
 export async function resetAuthWorkspaceDatabase(
   prisma: PrismaClient,
 ): Promise<void> {
-  await prisma.conflictRecord.deleteMany();
-  await prisma.verifiedProfile.deleteMany();
-  await prisma.aIUsageFlow.deleteMany();
-  await prisma.wizardProfile.deleteMany();
-  await prisma.technicalProfile.deleteMany();
-  await prisma.technicalEvidenceReport.deleteMany();
+  await prisma.adminAccountCommandReceipt.deleteMany();
   await prisma.repositoryScanJob.deleteMany();
   await prisma.repositorySnapshot.deleteMany();
   await prisma.repositoryConnection.deleteMany();
-  await prisma.documentRequest.deleteMany();
-  await prisma.classificationResult.deleteMany();
-  await prisma.legalRuleMatch.deleteMany();
   await prisma.assessment.deleteMany();
-  await prisma.authDecisionLog.deleteMany();
-  await prisma.authAuditEvent.deleteMany();
-  await prisma.authRecoveryRequest.deleteMany();
-  await prisma.authMfaOtpUsed.deleteMany();
-  await prisma.authMfaRateLimit.deleteMany();
-  await prisma.authUserMfa.deleteMany();
-  await prisma.authMfaRecoveryCode.deleteMany();
-  await prisma.authOAuthState.deleteMany();
-  await prisma.authOAuthIdentity.deleteMany();
-  await prisma.authSession.deleteMany();
-  await prisma.authUser.deleteMany();
+  await prisma.outboxMessage.deleteMany();
+  await prisma.auditEvent.deleteMany();
+  await prisma.auditExportRequest.deleteMany();
+  await prisma.authRecord.deleteMany();
+  await prisma.user.deleteMany();
 }
 
 export async function seedMfaEnrollment(
@@ -462,11 +297,12 @@ export async function seedMfaEnrollment(
   userId: string,
 ): Promise<MfaFixture> {
   const totpSecret = generateTotpSecret();
-  await prisma.authUserMfa.create({
+  await prisma.user.update({
+    where: { id: userId },
     data: {
-      userId,
-      encryptedSecret: encryptMfaSecret(totpSecret),
-      enrolledAt: new Date(),
+      mfaEncryptedSecret: encryptMfaSecret(totpSecret),
+      mfaEnrolledAt: new Date(),
+      mfaVerifiedAt: null,
     },
   });
   return { userId, totpSecret };
@@ -481,7 +317,7 @@ export async function seedAuthWorkspaceFixture(
   const noMembershipUserId = "user-3";
   const revokedMembershipUserId = "user-4";
 
-  await prisma.authUser.createMany({
+  await prisma.user.createMany({
     data: [
       {
         id: approvedUserId,
@@ -520,15 +356,12 @@ export async function seedAuthWorkspaceFixture(
   });
 
   const revokedSessionToken = "revoked-session-token";
-  await prisma.authSession.create({
-    data: {
-      id: "session-0",
-      userId: approvedUserId,
-      tokenHash: hashSecret(revokedSessionToken),
-      tokenFingerprint: fingerprintToken(revokedSessionToken),
-      expiresAt: new Date(Date.now() + 30 * 60_000),
-      revokedAt: new Date(),
-    },
+  await createAuthSessionRecord(prisma, {
+    id: "session-0",
+    userId: approvedUserId,
+    token: revokedSessionToken,
+    expiresAt: new Date(Date.now() + 30 * 60_000),
+    revokedAt: new Date(),
   });
 
   return {

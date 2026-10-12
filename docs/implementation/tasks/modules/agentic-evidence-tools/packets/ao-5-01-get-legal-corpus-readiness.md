@@ -5,6 +5,9 @@ task_id: TASK-AO-5-01-get-legal-corpus-readiness
 jira_issue: LCSP-194
 status: DONE
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # TASK-AO-5-01 — `get_legal_corpus_readiness`
 ## 1. Task Information
 | Item | Value |

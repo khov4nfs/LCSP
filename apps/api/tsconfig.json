@@ -4,6 +4,7 @@
     "composite": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "rewriteRelativeImportExtensions": true,
     "types": ["node", "jest"],
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
@@ -18,9 +19,6 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "paths": {
-      "@lcsp/contracts/rbac": ["../../packages/contracts/src/rbac/index.ts"]
-    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
@@ -28,6 +26,10 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "noEmit": false,
     "emitDeclarationOnly": true
   },
@@ -38,11 +40,7 @@
     "scripts/**/*.ts",
     "src/**/**/**/*.html"
   ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "scripts/demo-readiness-export-pdf.ts"
-  ],
+  "exclude": ["node_modules", "dist"],
   "references": [
     { "path": "../../packages/contracts" },
     { "path": "../../packages/i18n" }

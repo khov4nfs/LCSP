@@ -1,5 +1,7 @@
 # Shared Agentic Tool Contract
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 Status: DELIVERED
 Applies to: every capability in `docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md`
 Primary runtime owner: `deepagents`
@@ -140,6 +142,6 @@ The orchestrator may provide an LLM only this object: `{toolName, status, result
 - `docs/specs/spec-agentic-evidence-orchestration/SPEC.md`
 - `docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md`
 - `docs/specs/spec-agentic-evidence-orchestration/orchestration-state-machine.md`
-- `docs/specs/scanner-spec.md`
+- `docs/architecture/repository-deep-agent-analysis.md`
 - `docs/specs/legal-corpus-source-spec.md`
 - `docs/project-context.md`

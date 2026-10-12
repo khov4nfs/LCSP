@@ -1,15 +1,15 @@
 import { jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
-import type { MfaEnrollmentRepository } from "../../modules/auth-workspace/application/ports/persistence/mfa.repository.js";
-import type { SessionRepository } from "../../modules/auth-workspace/application/ports/persistence/session.repository.js";
-import type { UserRepository } from "../../modules/auth-workspace/application/ports/persistence/user.repository.js";
-import { MfaEnrollment } from "../../modules/auth-workspace/domain/entities/mfa-enrollment.entity.js";
-import { Session } from "../../modules/auth-workspace/domain/entities/session.entity.js";
-import { User } from "../../modules/auth-workspace/domain/entities/user.entity.js";
-import { hashSecret } from "../../modules/auth-workspace/infrastructure/security/security.utils.js";
+import type { MfaEnrollmentRepository } from "../../modules/auth/application/ports/persistence/mfa.repository.js";
+import type { SessionRepository } from "../../modules/auth/application/ports/persistence/session.repository.js";
+import type { UserRepository } from "../../modules/auth/application/ports/persistence/user.repository.js";
+import { MfaEnrollment } from "../../modules/auth/domain/entities/mfa-enrollment.entity.js";
+import { Session } from "../../modules/auth/domain/entities/session.entity.js";
+import { User } from "../../modules/auth/domain/entities/user.entity.js";
+import { hashSecret } from "../security/crypto.utils.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
-import { LOCAL_RBAC_REASON_CODES } from "./rbac-reason-codes.js";
+import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 
 const NOW = 1_700_000_000_000;
 
@@ -51,6 +51,9 @@ function makeLoader(
   const sessions: SessionRepository = {
     nextId: overrides.sessions?.nextId ?? (() => "session-1"),
     save: overrides.sessions?.save ?? (() => Promise.resolve()),
+    findById:
+      overrides.sessions?.findById ??
+      jest.fn<SessionRepository["findById"]>().mockResolvedValue(makeSession()),
     findByFingerprint:
       overrides.sessions?.findByFingerprint ??
       jest
@@ -59,6 +62,7 @@ function makeLoader(
     revokeAllForUser:
       overrides.sessions?.revokeAllForUser ?? (() => Promise.resolve()),
   };
+
   const users: UserRepository = {
     nextId: overrides.users?.nextId ?? (() => "user-1"),
     save: overrides.users?.save ?? (() => Promise.resolve()),
@@ -112,7 +116,7 @@ describe("RbacContextLoader", () => {
 
     await expect(loader.load("raw-token", NOW)).resolves.toEqual({
       ok: false,
-      reason: LOCAL_RBAC_REASON_CODES.sessionInvalid,
+      reason: RBAC_REASON_CODES.sessionInvalid,
     });
   });
 
@@ -132,7 +136,7 @@ describe("RbacContextLoader", () => {
 
       await expect(loader.load("raw-token", NOW)).resolves.toEqual({
         ok: false,
-        reason: LOCAL_RBAC_REASON_CODES.sessionInvalid,
+        reason: RBAC_REASON_CODES.sessionInvalid,
       });
     }
   });
@@ -175,7 +179,7 @@ describe("RbacContextLoader", () => {
 
     await expect(loader.load("raw-token", NOW)).resolves.toEqual({
       ok: false,
-      reason: LOCAL_RBAC_REASON_CODES.mfaRequired,
+      reason: RBAC_REASON_CODES.mfaRequired,
       mfaEnrolled: true,
     });
   });
@@ -215,7 +219,7 @@ describe("RbacContextLoader", () => {
 
     await expect(loader.load("raw-token", NOW)).resolves.toEqual({
       ok: false,
-      reason: LOCAL_RBAC_REASON_CODES.loadError,
+      reason: RBAC_REASON_CODES.loadError,
     });
   });
 
@@ -230,7 +234,7 @@ describe("RbacContextLoader", () => {
 
     await expect(loader.load("raw-token", NOW)).resolves.toEqual({
       ok: false,
-      reason: LOCAL_RBAC_REASON_CODES.loadError,
+      reason: RBAC_REASON_CODES.loadError,
     });
   });
 });

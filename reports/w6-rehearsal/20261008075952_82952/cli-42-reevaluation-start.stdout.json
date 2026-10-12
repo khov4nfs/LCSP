@@ -1,0 +1,30 @@
+{
+  "runId": "f0bd1681-2f89-44ef-a614-826bd217de93",
+  "mode": "BATCH",
+  "requested": 3,
+  "started": [
+    "61c44d7b-7419-403a-8117-2574b41ac18c",
+    "a03842c6-abbc-43c7-8254-28fd04dac68c",
+    "a11e9115-30b6-4788-84c8-336a0daea7ff"
+  ],
+  "alreadyStarted": [],
+  "deferred": [
+    {
+      "assessmentId": "85c93226-014f-495e-8b68-5bf99d082428",
+      "reason": "MAX_TOTAL_REACHED"
+    }
+  ],
+  "failed": [
+    {
+      "assessmentId": "7da8f4fc-3a25-4224-812e-fa74fde00d15",
+      "code": "START_FAILED"
+    }
+  ],
+  "notReady": [],
+  "stopReason": "MAX_TOTAL_REACHED",
+  "remainingEligible": 8,
+  "load": {
+    "inFlight": 8,
+    "queued": 8
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "scope": "CURRENT_IMAGE_INTERNAL_ASSESSMENT_MECHANICAL_GATE",
+  "kind": "BACKEND_VERIFICATION",
+  "runId": "9ae7757edbaf422b",
+  "key": "assessmentA",
+  "mode": "decision-provenance",
+  "apiImageId": "sha256:619b626197f0ad20f695f6af035d4aa6ef2f3b476bc6694caafec86c38650269",
+  "imageReceipt": "reports/release-images/20261011201401_b17f791a42ea/report.json",
+  "assessmentId": "d81a9318-b46e-4544-81be-7fe4612391f7",
+  "threadId": "ca52b86a-6514-4c92-91e8-708678673f51",
+  "actualRootDecisionId": "80754091-aa00-4030-a740-00293ff20daf",
+  "status": "PASS_MECHANICAL_GUARD",
+  "direct": [
+    {
+      "scenario": "complete",
+      "failures": []
+    },
+    {
+      "scenario": "truncated",
+      "failures": [
+        {
+          "code": "SEARCH_COVERAGE_INCOMPLETE",
+          "ref": "32b54a49-3c5b-5cc0-a635-515f2d32f702"
+        }
+      ]
+    },
+    {
+      "scenario": "known-gap",
+      "failures": [
+        {
+          "code": "SEARCH_COVERAGE_INCOMPLETE",
+          "ref": "32b54a49-3c5b-5cc0-a635-515f2d32f702"
+        }
+      ]
+    },
+    {
+      "scenario": "missing",
+      "failures": [
+        {
+          "code": "SEARCH_COVERAGE_INCOMPLETE",
+          "ref": "32b54a49-3c5b-5cc0-a635-515f2d32f702"
+        }
+      ]
+    },
+    {
+      "scenario": "unknown",
+      "failures": [
+        {
+          "code": "UNKNOWN_EVIDENCE_REFERENCE",
+          "ref": "32b54a49-3c5b-5cc0-a635-515f2d32f702"
+        }
+      ]
+    }
+  ],
+  "indirect": [
+    {
+      "scenario": "complete",
+      "failures": []
+    },
+    {
+      "scenario": "truncated",
+      "failures": [
+        {
+          "code": "SEARCH_COVERAGE_INCOMPLETE",
+          "ref": "991ecdd0-9689-55df-b3d0-021f2b4d20ef"
+        }
+      ]
+    },
+    {
+      "scenario": "known-gap",
+      "failures": [
+        {
+          "code": "SEARCH_COVERAGE_INCOMPLETE",
+          "ref": "991ecdd0-9689-55df-b3d0-021f2b4d20ef"
+        }
+      ]
+    },
+    {
+      "scenario": "missing",
+      "failures": [
+        {
+          "code": "SEARCH_COVERAGE_INCOMPLETE",
+          "ref": "991ecdd0-9689-55df-b3d0-021f2b4d20ef"
+        }
+      ]
+    },
+    {
+      "scenario": "unknown",
+      "failures": [
+        {
+          "code": "UNKNOWN_EVIDENCE_REFERENCE",
+          "ref": "991ecdd0-9689-55df-b3d0-021f2b4d20ef"
+        }
+      ]
+    }
+  ],
+  "databaseWrites": 0,
+  "semanticInterpretation": "NOT_ASSERTED_BY_THIS_PROBE"
+}

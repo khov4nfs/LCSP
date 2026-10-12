@@ -7,13 +7,14 @@ sources:
   - docs/specs/functional-requirements.md
   - docs/specs/non-functional-requirements.md
   - docs/specs/requirements-traceability-summary.md
-  - docs/specs/scanner-spec.md
   - docs/specs/legal-matching-domain-spec.md
   - docs/architecture/architecture.md
   - docs/architecture/multi-agent-system-architecture.md
   - docs/architecture/adr/adr-026-chromadb-vectorless-legal-retriever.md
 updated: 2026-06-25
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
 
 # LCSP Experience Spine
 
@@ -41,7 +42,7 @@ LCSP must not feel like a chatbot, legal opinion generator, or certification por
 | Assessment overview | Assessment row | Show workflow stage, blockers, readiness, next action, and audit refs |
 | WizardProfile | Overview / stepper | Capture business/legal context in non-technical language |
 | Repository connection | Overview / stepper | Connect read-only GitHub repository and separate OAuth identity from repository authorization |
-| Snapshot and scan | Repository step | Select commit, create snapshot, trigger/monitor Python scanner |
+| Snapshot and scan | Repository step | Select commit, create snapshot, trigger/monitor managed repository analysis |
 | Evidence review | Scan completed | Review redacted findings, AIUsageFlow, confidence, limitations, and evidence refs |
 | Conflict resolution | Overview / blocker / task list | Compare declared and detected facts; Manager resolves with rationale |
 | VerifiedProfile review | Conflict-free state | Review merged facts, evidence provenance, and version |

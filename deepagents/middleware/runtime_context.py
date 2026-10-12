@@ -2,24 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
-from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
+from langchain.agents.middleware import AgentMiddleware, ModelRequest, ModelResponse
 from langchain.messages import SystemMessage
 
 from orchestration.context import LCSPRunContext, bounded_context_lines
 
 
-@wrap_model_call
-def inject_lcsp_runtime_context(
-    request: ModelRequest,
-    handler: Callable[[ModelRequest], ModelResponse],
-) -> ModelResponse:
+def _project_lcsp_runtime_context(request: ModelRequest) -> ModelRequest:
     """Append immutable pipeline identifiers without copying governed evidence into prompts."""
     context = request.runtime.context
     if context is not None and not isinstance(context, LCSPRunContext):
-        # Managed runtimes may deserialize dataclass-shaped context as a mapping.
         if isinstance(context, dict):
             context = LCSPRunContext(**context)
         else:
@@ -27,8 +22,11 @@ def inject_lcsp_runtime_context(
 
     lines = bounded_context_lines(context)
     if not lines:
-        return handler(request)
+        return request
 
+    # Idempotency is shared by initial investigations, exact resumes and legal
+    # preparation. It is not a routing discriminator. Boundaries/root dispatch own
+    # the task instruction; this shared middleware only appends immutable metadata.
     context_block = (
         "LCSP runtime context (immutable identifiers; not evidence):\n"
         + "\n".join(f"- {line}" for line in lines)
@@ -37,6 +35,23 @@ def inject_lcsp_runtime_context(
     )
     new_content: list[Any] = list(request.system_message.content_blocks)
     new_content.append({"type": "text", "text": context_block})
-    return handler(
-        request.override(system_message=SystemMessage(content=new_content))
-    )
+    return request.override(system_message=SystemMessage(content=new_content))
+
+
+class _RuntimeContextMiddleware(AgentMiddleware):
+    name = "inject_lcsp_runtime_context"
+
+    def wrap_model_call(
+        self, request: ModelRequest, handler: Callable[[ModelRequest], ModelResponse],
+    ) -> ModelResponse:
+        return handler(_project_lcsp_runtime_context(request))
+
+    async def awrap_model_call(
+        self,
+        request: ModelRequest,
+        handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
+    ) -> ModelResponse:
+        return await handler(_project_lcsp_runtime_context(request))
+
+
+inject_lcsp_runtime_context = _RuntimeContextMiddleware()

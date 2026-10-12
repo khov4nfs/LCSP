@@ -1,5 +1,7 @@
 # LCSP Version History
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 This document is the canonical product/architecture evolution history for LCSP. Product-version labels (`v1`, `v2`, `v3`) describe major architectural generations and must not be confused with internal schema versions such as `Program Evidence Graph v2/v3`.
 
 ## Summary
@@ -19,7 +21,7 @@ This document is the canonical product/architecture evolution history for LCSP. 
 
 ### Evidence finding
 
-LCSP scans repository source using deterministic/static analysis tools and produces provenance-backed technical evidence. The scanner toolchain includes Semgrep rules, Syft SBOM, dependency analysis, Python AST/CST, bounded TS/JS analysis and static-flow/signal processing.
+Earlier LCSP revisions used a deterministic multi-tool static scanner. The active architecture replaces that implementation with a repository-backed native Deep Agent, LangGraph runtime, LCSP Docker sandbox, and optional Codebase Memory MCP, while preserving provenance-backed TechnicalEvidenceReport compatibility.
 
 The scanner is not an LLM reading the whole repository. Its role is to create bounded, traceable technical evidence about AI usage, dependencies, invocations, data/decision flows, human review/oversight controls and coverage limitations.
 

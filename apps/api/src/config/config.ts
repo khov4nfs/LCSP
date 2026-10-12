@@ -1,9 +1,58 @@
 import Joi from "joi";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { NODE_ENVS, type AppConfig, type NodeEnv } from "./config.types.js";
 
+export const CONFIG_WORKSPACE_ROOT = findWorkspaceRoot(
+  dirname(fileURLToPath(import.meta.url)),
+);
+
+function findWorkspaceRoot(startDir: string): string {
+  let currentDir = resolve(startDir);
+
+  while (true) {
+    const packageJsonPath = resolve(currentDir, "package.json");
+    if (existsSync(packageJsonPath)) {
+      try {
+        const packageJson = JSON.parse(
+          readFileSync(packageJsonPath, "utf8"),
+        ) as {
+          name?: unknown;
+        };
+        if (packageJson.name === "lcsp") return currentDir;
+      } catch {
+        // Keep walking up; malformed intermediate package files are not roots.
+      }
+    }
+
+    const parentDir = resolve(currentDir, "..");
+    if (parentDir === currentDir) return startDir;
+    currentDir = parentDir;
+  }
+}
+
 const SMTP_MAILBOX_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const SMTP_DISPLAY_NAME_PATTERN = /^([^<>]+)<\s*([^<>]+)\s*>$/;
+
+function paymentQrTemplateSchema() {
+  return Joi.string()
+    .trim()
+    .custom((value: string, helpers): string => {
+      if (!value.includes("{amountVnd}") || !value.includes("{paymentCode}"))
+        return helpers.error("string.paymentQrTemplate") as unknown as string;
+      try {
+        const rendered = value
+          .replaceAll("{amountVnd}", "10000")
+          .replaceAll("{paymentCode}", "LCSPTEST");
+        if (new URL(rendered).protocol === "https:") return value;
+      } catch {
+        // Report the stable payment-template validation error below.
+      }
+      return helpers.error("string.paymentQrTemplate") as unknown as string;
+    });
+}
 
 /**
  * Validates the supported SMTP sender formats: an empty value, a mailbox, or a display-name mailbox.
@@ -32,60 +81,233 @@ function isValidSmtpFrom(value: string): boolean {
   );
 }
 
-export const configValidationSchema = Joi.object({
-  NODE_ENV: Joi.string()
-    .valid(...Object.values(NODE_ENVS))
-    .default(NODE_ENVS.development),
-  DATABASE_URL: Joi.string().required(),
-  AUTH_BCRYPT_COST: Joi.number().integer().min(10).default(12),
-  AUTH_SESSION_TTL_SECONDS: Joi.number().integer().positive().default(86400),
-  JWT_SECRET: Joi.string().min(32).required(),
-  OAUTH_GOOGLE_CLIENT_ID: Joi.string().allow("").default(""),
-  OAUTH_GOOGLE_CLIENT_SECRET: Joi.string().allow("").default(""),
-  OAUTH_ALLOWED_REDIRECT_ORIGINS: Joi.string().allow("").default(""),
-  OAUTH_ALLOWED_REDIRECT_URIS: Joi.string().required(),
-  GITHUB_APP_SLUG: Joi.string().required(),
-  GITHUB_APP_ID: Joi.string().required(),
-  GITHUB_APP_PRIVATE_KEY: Joi.string().required(),
-  GITHUB_APP_ALLOWED_REDIRECT_URIS: Joi.string().required(),
-  GITHUB_APP_CLIENT_ID: Joi.string().required(),
-  GITHUB_APP_CLIENT_SECRET: Joi.string().required(),
-  RABBITMQ_URL: Joi.string().required(),
-  RABBITMQ_EXCHANGE: Joi.string().default("lcsp.events"),
-  OUTBOX_ENABLED: Joi.boolean().default(true),
-  OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().positive().default(1000),
-  OUTBOX_BATCH_SIZE: Joi.number().integer().positive().default(50),
-  OUTBOX_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
-  MFA_SECRET_ENCRYPTION_KEY: Joi.string()
-    .pattern(/^[0-9a-fA-F]{64}$/)
-    .required()
-    .messages({
-      "string.pattern.base":
-        '"MFA_SECRET_ENCRYPTION_KEY" must be exactly 64 hex characters (32 bytes)',
+export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
+  return Joi.object({
+    NODE_ENV: Joi.string()
+      .valid(...Object.values(NODE_ENVS))
+      .default(NODE_ENVS.development),
+    DATABASE_URL: Joi.string().required(),
+    OAUTH_GOOGLE_CLIENT_ID: Joi.string().allow("").default(""),
+    OAUTH_GOOGLE_CLIENT_SECRET: Joi.string().allow("").default(""),
+    OAUTH_ALLOWED_REDIRECT_ORIGINS: Joi.string().allow("").default(""),
+    GITHUB_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
+      "GITHUB_CLI_EXECUTABLE_PATH",
+      workspaceRoot,
+    ),
+    GITHUB_CLI_METADATA_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(15000),
+    GITHUB_CLI_DISCOVERY_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(30000),
+    GITHUB_CLI_ARCHIVE_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(120000),
+    GITHUB_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(1048576),
+    GITHUB_CLI_MAX_DISCOVERY_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(10485760),
+    GITHUB_CLI_MAX_STDERR_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(8192),
+    GITHUB_CLI_MAX_ARCHIVE_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(104857600),
+    GITHUB_CLI_MAX_CONCURRENT_METADATA_PROCESSES: Joi.number()
+      .integer()
+      .positive()
+      .default(8),
+    GITHUB_CLI_MAX_CONCURRENT_ARCHIVE_PROCESSES: Joi.number()
+      .integer()
+      .positive()
+      .default(2),
+    GITLAB_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
+      "GITLAB_CLI_EXECUTABLE_PATH",
+      workspaceRoot,
+    ),
+    GITLAB_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
+    GITLAB_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(1048576),
+    BITBUCKET_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
+      "BITBUCKET_CLI_EXECUTABLE_PATH",
+      workspaceRoot,
+    ),
+    BITBUCKET_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
+    BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(1048576),
+    AZURE_DEVOPS_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
+      "AZURE_DEVOPS_CLI_EXECUTABLE_PATH",
+      workspaceRoot,
+    ),
+    AZURE_DEVOPS_CLI_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(30000),
+    AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(1048576),
+    GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: Joi.string().trim().required(),
+    GITHUB_CLI_CREDENTIAL_KEK_KEYRING: Joi.string().trim().required(),
+    RABBITMQ_URL: Joi.string().required(),
+    RABBITMQ_EXCHANGE: Joi.string().default("lcsp.events"),
+    OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().positive().default(1000),
+    OUTBOX_BATCH_SIZE: Joi.number().integer().positive().default(50),
+    OUTBOX_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
+    SEPAY_WEBHOOK_SECRET: Joi.alternatives().conditional("NODE_ENV", {
+      is: NODE_ENVS.production,
+      then: Joi.string().min(16).required(),
+      otherwise: Joi.string().min(16).allow("").default(""),
     }),
-  SMTP_HOST: Joi.string().trim().allow("").default(""),
-  SMTP_PORT: Joi.number().integer().positive().default(587),
-  SMTP_SECURE: Joi.boolean().default(false),
-  SMTP_USER: Joi.string().trim().allow("").default(""),
-  SMTP_PASS: Joi.string().trim().allow("").default(""),
-  SMTP_FROM: Joi.string()
+    SEPAY_WEBHOOK_TIMESTAMP_SKEW_SECONDS: Joi.number()
+      .integer()
+      .positive()
+      .default(300),
+    MFA_SECRET_ENCRYPTION_KEY: Joi.string()
+      .pattern(/^[0-9a-fA-F]{64}$/)
+      .required()
+      .messages({
+        "string.pattern.base":
+          '"MFA_SECRET_ENCRYPTION_KEY" must be exactly 64 hex characters (32 bytes)',
+      }),
+    SMTP_HOST: Joi.string().trim().allow("").default(""),
+    SMTP_PORT: Joi.number().integer().positive().default(587),
+    SMTP_SECURE: Joi.boolean().default(false),
+    SMTP_USER: Joi.string().trim().allow("").default(""),
+    SMTP_PASS: Joi.string().trim().allow("").default(""),
+    SMTP_FROM: Joi.string()
+      .trim()
+      .allow("")
+      .default("")
+      .custom((value: string, helpers): string => {
+        if (isValidSmtpFrom(value)) {
+          return value;
+        }
+
+        return helpers.error("string.smtpFrom") as unknown as string;
+      })
+      .messages({
+        "string.smtpFrom":
+          '"SMTP_FROM" must be a valid email or display-name address like "LCSP <noreply@lcsp.com>"',
+      }),
+    WORKER_API_KEY: Joi.string().min(32).required(),
+    LCSP_AGENT_SERVER_URL: Joi.alternatives().conditional("NODE_ENV", {
+      is: NODE_ENVS.production,
+      then: Joi.string()
+        .uri({ scheme: ["http", "https"] })
+        .required(),
+      otherwise: Joi.string()
+        .uri({ scheme: ["http", "https"] })
+        .optional(),
+    }),
+    ORCHESTRATION_DEBUG: Joi.boolean().default(false),
+    BILLING_SEPAY_BANK_NAME: Joi.alternatives().conditional("NODE_ENV", {
+      is: NODE_ENVS.production,
+      then: Joi.string().trim().min(1).required(),
+      otherwise: Joi.string().trim().allow("").default(""),
+    }),
+    BILLING_SEPAY_BANK_ACCOUNT_NUMBER: Joi.alternatives().conditional(
+      "NODE_ENV",
+      {
+        is: NODE_ENVS.production,
+        then: Joi.string()
+          .trim()
+          .pattern(/^[A-Za-z0-9-]+$/)
+          .min(4)
+          .max(34)
+          .required(),
+        otherwise: Joi.string()
+          .trim()
+          .allow("")
+          .pattern(/^[A-Za-z0-9-]*$/)
+          .max(34)
+          .default(""),
+      },
+    ),
+    BILLING_SEPAY_ACCOUNT_HOLDER: Joi.alternatives().conditional("NODE_ENV", {
+      is: NODE_ENVS.production,
+      then: Joi.string().trim().min(1).required(),
+      otherwise: Joi.string().trim().allow("").default(""),
+    }),
+    BILLING_SEPAY_QR_URL_TEMPLATE: Joi.alternatives().conditional("NODE_ENV", {
+      is: NODE_ENVS.production,
+      then: paymentQrTemplateSchema().min(1).required(),
+      otherwise: Joi.string().trim().allow("").default(""),
+    }),
+  })
+    .unknown(true)
+    .custom((env: Record<string, unknown>, helpers) => {
+      const activeVersion = env.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION;
+      const encodedKeyring = env.GITHUB_CLI_CREDENTIAL_KEK_KEYRING;
+      if (typeof activeVersion !== "string" || activeVersion.length === 0) {
+        return helpers.error("credentialKek.activeVersion");
+      }
+      try {
+        const parsed: unknown = JSON.parse(String(encodedKeyring));
+        if (!isValidKekKeyring(parsed, activeVersion)) {
+          return helpers.error("credentialKek.keyring");
+        }
+      } catch {
+        return helpers.error("credentialKek.keyring");
+      }
+      return env;
+    })
+    .messages({
+      "credentialKek.activeVersion":
+        "Repository credential storage requires an active KEK version",
+      "credentialKek.keyring":
+        "Repository credential storage requires a valid 32-byte base64 KEK keyring containing the active version",
+      "string.paymentQrTemplate":
+        '"BILLING_SEPAY_QR_URL_TEMPLATE" must include {amountVnd} and {paymentCode} placeholders',
+    });
+}
+
+export const configValidationSchema = createConfigValidationSchema();
+
+function cliExecutablePathSchema(variableName: string, workspaceRoot: string) {
+  void workspaceRoot;
+  return Joi.string()
     .trim()
     .allow("")
     .default("")
-    .custom((value: string, helpers): string => {
-      if (isValidSmtpFrom(value)) {
-        return value;
-      }
+    .description(
+      `${variableName} accepts an absolute path or a path relative to the LCSP workspace root`,
+    );
+}
 
-      return helpers.error("string.smtpFrom") as unknown as string;
-    })
-    .messages({
-      "string.smtpFrom":
-        '"SMTP_FROM" must be a valid email or display-name address like "LCSP <noreply@lcsp.com>"',
-    }),
-  WORKER_API_KEY: Joi.string().min(32).required(),
-  ORCHESTRATION_DEBUG: Joi.boolean().default(false),
-}).unknown(true);
+function resolveCliExecutablePath(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function isValidKekKeyring(value: unknown, activeVersion: string): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0 || !Object.hasOwn(value, activeVersion))
+    return false;
+  return entries.every(([version, encoded]) => {
+    if (!version || /[\r\n]/u.test(version) || typeof encoded !== "string") {
+      return false;
+    }
+    const decoded = Buffer.from(encoded, "base64");
+    const valid =
+      decoded.length === 32 && decoded.toString("base64") === encoded;
+    decoded.fill(0);
+    return valid;
+  });
+}
 
 /**
  * Parses a comma-separated redirect URI environment value into trimmed non-empty entries.
@@ -129,51 +351,80 @@ export function config(): AppConfig {
     database: {
       url: env.DATABASE_URL ?? "",
     },
-    auth: {
-      bcryptCost: Number(env.AUTH_BCRYPT_COST ?? 12),
-      sessionTtlSeconds: Number(env.AUTH_SESSION_TTL_SECONDS ?? 86400),
-      jwtSecret: env.JWT_SECRET ?? "",
-    },
     oauth: {
       googleClientId: env.OAUTH_GOOGLE_CLIENT_ID ?? "",
       googleClientSecret: env.OAUTH_GOOGLE_CLIENT_SECRET ?? "",
       allowedRedirectOrigins: parseRedirectOrigins(
-        env.OAUTH_ALLOWED_REDIRECT_ORIGINS ||
-          env.OAUTH_ALLOWED_REDIRECT_URIS ||
-          "",
-      ),
-      allowedRedirectUris: parseRedirectUris(
-        env.OAUTH_ALLOWED_REDIRECT_URIS ?? "",
+        env.OAUTH_ALLOWED_REDIRECT_ORIGINS ?? "",
       ),
     },
-    github: {
-      appId: env.GITHUB_APP_ID ?? "",
-      appSlug: env.GITHUB_APP_SLUG ?? "",
-      allowedRedirectUris: parseRedirectUris(
-        env.GITHUB_APP_ALLOWED_REDIRECT_URIS ?? "",
+    githubCli: {
+      executablePath: resolveCliExecutablePath(env.GITHUB_CLI_EXECUTABLE_PATH),
+      metadataTimeoutMs: Number(env.GITHUB_CLI_METADATA_TIMEOUT_MS ?? 15000),
+      discoveryTimeoutMs: Number(env.GITHUB_CLI_DISCOVERY_TIMEOUT_MS ?? 30000),
+      archiveTimeoutMs: Number(env.GITHUB_CLI_ARCHIVE_TIMEOUT_MS ?? 120000),
+      maxJsonOutputBytes: Number(
+        env.GITHUB_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
       ),
-      clientId: env.GITHUB_APP_CLIENT_ID ?? "",
-      clientSecret: env.GITHUB_APP_CLIENT_SECRET ?? "",
-      privateKey: env.GITHUB_APP_PRIVATE_KEY ?? "",
+      maxDiscoveryOutputBytes: Number(
+        env.GITHUB_CLI_MAX_DISCOVERY_OUTPUT_BYTES ?? 10485760,
+      ),
+      maxStderrBytes: Number(env.GITHUB_CLI_MAX_STDERR_BYTES ?? 8192),
+      maxArchiveBytes: Number(env.GITHUB_CLI_MAX_ARCHIVE_BYTES ?? 104857600),
+      maxConcurrentMetadataProcesses: Number(
+        env.GITHUB_CLI_MAX_CONCURRENT_METADATA_PROCESSES ?? 8,
+      ),
+      maxConcurrentArchiveProcesses: Number(
+        env.GITHUB_CLI_MAX_CONCURRENT_ARCHIVE_PROCESSES ?? 2,
+      ),
+    },
+    gitlabCli: {
+      executablePath: resolveCliExecutablePath(env.GITLAB_CLI_EXECUTABLE_PATH),
+      timeoutMs: Number(env.GITLAB_CLI_TIMEOUT_MS ?? 30000),
+      maxJsonOutputBytes: Number(
+        env.GITLAB_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      ),
+    },
+    bitbucketCli: {
+      executablePath: resolveCliExecutablePath(
+        env.BITBUCKET_CLI_EXECUTABLE_PATH,
+      ),
+      timeoutMs: Number(env.BITBUCKET_CLI_TIMEOUT_MS ?? 30000),
+      maxJsonOutputBytes: Number(
+        env.BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      ),
+    },
+    azureDevOpsCli: {
+      executablePath: resolveCliExecutablePath(
+        env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH,
+      ),
+      timeoutMs: Number(env.AZURE_DEVOPS_CLI_TIMEOUT_MS ?? 30000),
+      maxJsonOutputBytes: Number(
+        env.AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      ),
+    },
+    githubCredentialPersistence: {
+      activeKekVersion:
+        env.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION?.trim() ?? "",
+      encodedKekKeyring: env.GITHUB_CLI_CREDENTIAL_KEK_KEYRING ?? "{}",
     },
     rabbitmq: {
       url: env.RABBITMQ_URL ?? "",
       exchange: env.RABBITMQ_EXCHANGE ?? "lcsp.events",
     },
     outbox: {
-      enabled: env.OUTBOX_ENABLED !== "false",
       pollIntervalMs: Number(env.OUTBOX_POLL_INTERVAL_MS ?? 1000),
       batchSize: Number(env.OUTBOX_BATCH_SIZE ?? 50),
       maxAttempts: Number(env.OUTBOX_MAX_ATTEMPTS ?? 5),
     },
-    crypto: {
-      mfaSecretEncryptionKey: env.MFA_SECRET_ENCRYPTION_KEY ?? "",
+    sepay: {
+      webhookSecret: env.SEPAY_WEBHOOK_SECRET ?? "",
+      timestampSkewSeconds: Number(
+        env.SEPAY_WEBHOOK_TIMESTAMP_SKEW_SECONDS ?? 300,
+      ),
     },
     worker: {
       apiKey: env.WORKER_API_KEY ?? "",
-    },
-    internal: {
-      apiToken: env.INTERNAL_API_TOKEN ?? "test-internal-token",
     },
     email: {
       smtpHost: env.SMTP_HOST?.trim() ?? "",
@@ -185,6 +436,13 @@ export function config(): AppConfig {
     },
     orchestration: {
       debug: (env.ORCHESTRATION_DEBUG ?? "false").toLowerCase() === "true",
+    },
+    billing: {
+      sePayBankName: env.BILLING_SEPAY_BANK_NAME?.trim() ?? "",
+      sePayBankAccountNumber:
+        env.BILLING_SEPAY_BANK_ACCOUNT_NUMBER?.trim() ?? "",
+      sePayAccountHolder: env.BILLING_SEPAY_ACCOUNT_HOLDER?.trim() ?? "",
+      sePayQrUrlTemplate: env.BILLING_SEPAY_QR_URL_TEMPLATE?.trim() ?? "",
     },
   };
 }

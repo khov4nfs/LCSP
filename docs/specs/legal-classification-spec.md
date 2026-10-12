@@ -1,5 +1,7 @@
 # Legal Classification Spec
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Status
 
 AUTHORITATIVE
@@ -12,14 +14,14 @@ Single source of truth for direct EngineeringRule-based legal classification.
 
 - Accepted TechnicalEvidenceReport exists.
 - WizardProfile, when present, is supplemental context and does not replace repository evidence.
-- OpenWiki context, when present, is an unverified retrieval hint only.
+- Repository source is authoritative for technical facts; Codebase Memory MCP may accelerate structural retrieval but does not replace direct source verification.
 - Legal corpus is versioned and citation traceability is available.
 - Approved LegalRules compile to validated EngineeringRules or fail closed with diagnostics.
 
 ## EngineeringRule Investigation
 
-- Plan and investigate EngineeringRules by evidence-backed technical scope, not provider/model presence alone.
-- Every structured claim emitted by the investigator must carry provenance/evidence refs or it is ignored/fails closed.
+- Analyze EngineeringRules by evidence-backed technical scope, not provider/model presence alone.
+- Every criterion result submitted by the Repository Analyst must carry runtime-minted, LCSP-validated evidence refs or it is not accepted as evidence.
 - Every material legal conclusion requires citation coverage.
 - Missing citation or missing evidence refs blocks or degrades classification/output.
 - Policy-only documents cannot be treated as standalone mandatory legal obligations unless the spec identifies them as binding.

@@ -1,5 +1,8 @@
 export const EVIDENCE_ERROR_CODES = {
   notFound: "EVIDENCE_NOT_FOUND",
+  notReady: "EVIDENCE_NOT_READY",
+  buildFailed: "EVIDENCE_BUILD_FAILED",
+  validationFailed: "EVIDENCE_VALIDATION_FAILED",
 } as const;
 
 export const EVIDENCE_SEVERITIES = {

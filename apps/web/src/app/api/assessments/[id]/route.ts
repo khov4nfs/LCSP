@@ -1,27 +1,24 @@
-import { NextRequest } from "next/server";
-
-import { sanitizeAssessmentDetailPayload } from "@/lib/api/classification-client";
-import { mockJsonResponse } from "@/lib/server/fixtures/response";
-import { requireSessionToken } from "@/lib/server/session-token";
+import type { NextRequest } from "next/server";
 import {
-  upstreamRequest,
-  validatedUpstreamJson,
-} from "@/lib/server/upstream-request";
+  assessmentDetailSchema,
+  renameAssessmentSchema,
+} from "@lcsp/contracts/assessment-domain";
+import { proxyAssessmentJson } from "@/lib/server/assessment-domain-proxy";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const mock = await mockJsonResponse("assessment-detail.json");
-  if (mock) return mock;
-  const session = requireSessionToken(request);
-  if (!session.ok) return session.response;
-
-  const { id } = await params;
-  const upstream = await upstreamRequest(
-    `/assessments/${encodeURIComponent(id)}`,
-    { bearerToken: session.token },
-  );
-
-  return validatedUpstreamJson(upstream, sanitizeAssessmentDetailPayload);
+type Context = { params: Promise<{ id: string }> };
+export async function GET(request: NextRequest, { params }: Context) {
+  return proxyAssessmentJson(request, (await params).id, "", {
+    responseSchema: assessmentDetailSchema,
+  });
+}
+export async function PATCH(request: NextRequest, { params }: Context) {
+  return proxyAssessmentJson(request, (await params).id, "", {
+    method: "PATCH",
+    bodySchema: renameAssessmentSchema,
+  });
+}
+export async function DELETE(request: NextRequest, { params }: Context) {
+  return proxyAssessmentJson(request, (await params).id, "", {
+    method: "DELETE",
+  });
 }

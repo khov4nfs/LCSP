@@ -11,7 +11,7 @@ import { AuditExportStorageService } from "./infrastructure/storage/audit-export
 import { AuditController } from "./presentation/http/audit.controller.js";
 
 /**
- * Wires RBAC-protected audit browsing and export flows to redaction, signed-download, and persistence services.
+ * Wires RBAC-protected audit browsing and export flows.
  */
 @Module({
   imports: [CqrsModule, RbacModule],
@@ -24,5 +24,6 @@ import { AuditController } from "./presentation/http/audit.controller.js";
     AuditExportStorageService,
     AuditRedactorService,
   ],
+  exports: [AuditRedactorService],
 })
 export class AuditModule {}

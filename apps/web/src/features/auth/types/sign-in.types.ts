@@ -11,10 +11,10 @@ export const CREDENTIAL_FIELD_AUTOCOMPLETE = {
   currentPassword: "current-password",
 } as const;
 
-export type CredentialFieldName = keyof SignInFormValues;
-export type CredentialFieldType =
+type CredentialFieldName = keyof SignInFormValues;
+type CredentialFieldType =
   (typeof CREDENTIAL_FIELD_TYPES)[keyof typeof CREDENTIAL_FIELD_TYPES];
-export type CredentialFieldAutocomplete =
+type CredentialFieldAutocomplete =
   (typeof CREDENTIAL_FIELD_AUTOCOMPLETE)[keyof typeof CREDENTIAL_FIELD_AUTOCOMPLETE];
 
 export type CredentialFieldDefinition = {

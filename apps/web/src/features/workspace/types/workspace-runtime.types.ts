@@ -1,108 +1,28 @@
+import type { CanonicalAssessmentRuntimeSnapshot } from "@lcsp/contracts/evidence";
+import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 export const WORKSPACE_RUNTIME_CONNECTION_STATES = {
   connecting: "CONNECTING",
   connected: "CONNECTED",
   disconnected: "DISCONNECTED",
 } as const;
-
 export type WorkspaceRuntimeConnectionState =
   (typeof WORKSPACE_RUNTIME_CONNECTION_STATES)[keyof typeof WORKSPACE_RUNTIME_CONNECTION_STATES];
-
-export type WorkspaceRuntimeScanJob = {
-  id: string;
-  assessmentId: string;
-  snapshotId: string;
-  status: string;
-  attemptCount: number;
-  blockedReason: string | null;
-  updatedAt: string;
-};
-
-export type WorkspaceRuntimeEvidenceReport = {
-  id: string;
-  assessmentId: string;
-  scanJobId: string;
-  snapshotId: string;
-  status: string;
-  rejectionReason: string | null;
-  createdAt: string;
-};
-
-export type WorkspaceRuntimeRepositorySnapshot = {
-  id: string;
-  assessmentId: string;
-  commitSha: string;
-  createdAt: string;
-};
-
-export type WorkspaceRuntimeSummaryValue =
-  | string
-  | number
-  | boolean
-  | null
-  | WorkspaceRuntimeSummaryValue[]
-  | { [key: string]: WorkspaceRuntimeSummaryValue };
-
-export type WorkspaceRuntimeActiveTool = {
-  toolName: string;
-  status: string;
-  summary: string;
-  startedAt: string | null;
-  attempt: number | null;
-};
-
-export type WorkspaceRuntimeRun = {
-  assessmentId: string;
-  runId: string;
-  stage: string;
-  status: string;
-  activeTools: WorkspaceRuntimeActiveTool[];
-  updatedAt: string;
-};
-
-export type WorkspaceRuntimeActivityItem = {
-  eventId: string;
-  sequence: number;
-  emittedAt: string;
-  assessmentId: string;
-  runId: string;
-  correlationId: string;
-  eventType: string;
-  runStatus: string;
-  stage: string;
-  toolName: string | null;
-  summary: string;
-  inputSummary: WorkspaceRuntimeSummaryValue | null;
-  outputSummary: WorkspaceRuntimeSummaryValue | null;
-  errorSummary: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  durationMs: number | null;
-  attempt: number | null;
-  waitingReason: string | null;
-};
-
 export type WorkspaceRuntimeAssessmentTimeline = {
-  currentRun: WorkspaceRuntimeRun | null;
-  recentActivity: WorkspaceRuntimeActivityItem[];
-  latestRunId: string | null;
+  canonicalAssessment: CanonicalAssessmentRuntimeSnapshot | null;
+  canonicalEvents: AssessmentEvent[];
   connectionState: WorkspaceRuntimeConnectionState;
   lastEmittedAt: string | null;
 };
-
-export type WorkspaceRuntimeSnapshot = {
-  emittedAt: string | null;
-  runs: WorkspaceRuntimeRun[];
-  recentActivity: WorkspaceRuntimeActivityItem[];
-  repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
-  scanJobs: WorkspaceRuntimeScanJob[];
-  evidenceReports: WorkspaceRuntimeEvidenceReport[];
-};
-
-export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
+export type WorkspaceRuntimeContextValue = {
   connectionState: WorkspaceRuntimeConnectionState;
-  runsByAssessmentId: Record<string, WorkspaceRuntimeRun[]>;
-  recentActivityByAssessmentId: Record<string, WorkspaceRuntimeActivityItem[]>;
-  latestRunIdByAssessmentId: Record<string, string>;
+  emittedAt: string | null;
+  canonicalAssessments: CanonicalAssessmentRuntimeSnapshot[];
+  canonicalEvents: AssessmentEvent[];
+  canonicalAssessmentByAssessmentId: Record<
+    string,
+    CanonicalAssessmentRuntimeSnapshot
+  >;
+  canonicalEventsByAssessmentId: Record<string, AssessmentEvent[]>;
   getAssessmentRuntime: (
     assessmentId: string,
   ) => WorkspaceRuntimeAssessmentTimeline;

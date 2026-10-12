@@ -1,17 +1,15 @@
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { describe, it, expect } from "@jest/globals";
 
 import { Assessment } from "./assessment.entity.js";
 
 describe("Assessment", () => {
   describe("create", () => {
-    it("starts in WIZARD_IN_PROGRESS status with a generated id", () => {
+    it("creates owner and descriptive state with a generated id", () => {
       const assessment = Assessment.create({
         ownerId: "user-1",
         name: "My AI System Assessment",
       });
 
-      expect(assessment.status).toBe(ASSESSMENT_STATUS_CODES.wizardInProgress);
       expect(assessment.id).toBeTruthy();
       expect(assessment.ownerId).toBe("user-1");
       expect(assessment.name).toBe("My AI System Assessment");
@@ -53,7 +51,6 @@ describe("Assessment", () => {
         ownerId: "user-1",
         name: "Rehydrated",
         description: null,
-        status: ASSESSMENT_STATUS_CODES.wizardInProgress,
         createdAt,
         updatedAt,
       });

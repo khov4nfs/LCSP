@@ -13,7 +13,7 @@ from tools.legal.retrieval.index.legal_retrieval_index_repository import (
     LegalRetrievalIndexRecord,
     LegalRetrievalIndexRepository,
 )
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def test_consumer_persists_legal_retrieval_index(tmp_path: Path):

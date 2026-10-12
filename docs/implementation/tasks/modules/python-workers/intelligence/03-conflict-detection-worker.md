@@ -100,5 +100,5 @@ conflict_score = (evidence_confidence_weight * contradiction_severity) / normali
 ## Validation
 
 - `python3 -m compileall -q deepagents/tools/engineer_rule/intelligence deepagents/tools/common/platform deepagents/tools/common/package/contract deepagents/tests/test_conflict_detection_worker.py`
-- `/tmp/lcsp-managed-deepagents-venv/bin/python -m pytest deepagents/tests/test_conflict_detection_worker.py deepagents/tests/test_api_client.py -q`
+- `.venv/bin/python -m pytest deepagents/tests/test_conflict_detection_worker.py deepagents/tests/test_api_client.py -q`
   - Result: 22 passed, 1 warning (`asyncio_mode` config warning)

@@ -1,4 +1,4 @@
-"""Runtime environment loading for LCSP Managed Deep Agents."""
+"""Runtime environment loading for LCSP Agent Runtime."""
 
 from __future__ import annotations
 

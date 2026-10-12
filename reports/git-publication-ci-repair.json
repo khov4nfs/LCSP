@@ -1,0 +1,185 @@
+{
+  "status": "PASS_FOCUSED_REPAIR_REMOTE_RECHECK_PENDING",
+  "checkedAt": "2026-10-11T11:00:49.390530+00:00",
+  "failedRemoteHead": "37627b5e1fe53d80a1129b0112d6303c388bd854",
+  "failedRemoteRun": 38133624131,
+  "acceptedCandidate": "20261011005041_cce648aed2a3",
+  "acceptedStaging": "e73734b01eff4005",
+  "productionAndPolicyInputChanges": 0,
+  "sourceMismatchCount": 0,
+  "buildPolicyMismatchCount": 0,
+  "changes": [
+    {
+      "paths": [
+        "deepagents/tests/test_retired_assessment_state_purge.py"
+      ],
+      "rootCause": "The test obtained a retired enum from Git HEAD, which still contained it before publication but correctly no longer contains it after the deletion commit.",
+      "fix": "Read the enum declaration from the prior historical migration, independent of current HEAD and clone depth."
+    },
+    {
+      "paths": [
+        "deepagents/tests/test_runtime_control.py"
+      ],
+      "rootCause": "Two mocked callbacks accepted two arguments; production usage recording now passes response, model and invocation ID.",
+      "fix": "Mocks accept the canonical third argument; late usage also asserts a nonempty invocation ID."
+    },
+    {
+      "paths": [
+        "apps/api/src/modules/assessment/application/queries/get-assessment/get-assessment.handler.spec.ts"
+      ],
+      "rootCause": "The transaction fixture omitted the canonical persisted usage aggregate read.",
+      "fix": "Add an explicit empty usage aggregate and assert the resulting zero-invocation projection."
+    },
+    {
+      "paths": [
+        "tests/assessment-lifecycle-migrated-db.mjs",
+        "tests/assessment-canonical-persistence.mjs"
+      ],
+      "rootCause": "Standalone test helpers spawned the developer RTK wrapper, unavailable on GitHub runners.",
+      "fix": "Spawn the command and arguments directly, retaining environment, error handling and disposable database safeguards."
+    }
+  ],
+  "focusedVerification": {
+    "pythonTests": {
+      "command": "deepagents/.venv/bin/python -m pytest -q deepagents/tests/test_retired_assessment_state_purge.py deepagents/tests/test_runtime_control.py",
+      "passed": 27
+    },
+    "apiTests": {
+      "command": "pnpm --dir apps/api exec cross-env NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./jest.config.ts --runInBand --runTestsByPath src/modules/assessment/application/queries/get-assessment/get-assessment.handler.spec.ts src/modules/assessment/infrastructure/persistence/assessment-detail.loader.spec.ts",
+      "passed": 10
+    },
+    "migratedLifecycle": {
+      "command": "LCSP_TEST_PG_PORT=<owned disposable port> node tests/assessment-lifecycle-migrated-db.mjs",
+      "migrationConstraintAssertions": 16,
+      "lifecycleProtocol": "PASS",
+      "ownedContainer": "lcsp-publication-check-963c69052716",
+      "teardown": "PASS"
+    }
+  },
+  "botFormatting": {
+    "commit": "37627b5e1fe53d80a1129b0112d6303c388bd854",
+    "testFiles": 5,
+    "candidateInputMismatches": 0
+  },
+  "conventions": "PASS: test fixtures and command execution only; no runtime CQRS, schema, BFF, UI, provider, memory or semantic authority changes.",
+  "naming": "PASS: new durable receipt uses purpose naming; no new active task-oriented executable names.",
+  "stagingReuse": "Accepted exact-image staging remains valid because all 1,078 source and 22 policy input hashes are unchanged.",
+  "additionalRepairs": {
+    "checkedAt": "2026-10-11T13:29:30.786131+00:00",
+    "failedRemoteHead": "99c9a3512d4c0676e52ca565dbed74b39fecbd78",
+    "failedRemoteRun": 38134023147,
+    "changes": [
+      {
+        "paths": [
+          "apps/api/src/modules/assessment/application/services/assessment-event-appender.service.spec.ts",
+          "apps/api/src/modules/assessment/infrastructure/persistence/assessment-detail.loader.spec.ts"
+        ],
+        "rootCause": "Six test mock methods used async without awaiting, violating require-await.",
+        "fix": "Return explicit promises from mocks; retain usage and replay assertions."
+      },
+      {
+        "paths": [
+          "tests/retired-authority-migration-check.py"
+        ],
+        "rootCause": "After testing rejection of ordinary release scope, the fixture reset its toolVersion to the current purge fixture identity instead of the historical identity required by the immutable SQL guard.",
+        "fix": "Restore the exact historical SQL fixture identity only for final migration replay. The initial current purge fixture identity and the negative ordinary-release check are preserved."
+      }
+    ],
+    "verification": {
+      "eslint": "PASS on both changed test fixtures",
+      "apiTestsPassed": 4,
+      "migrationReceipt": "reports/retired-authority-migration/20261011132754_19856/report.json",
+      "migrationChecksPassed": 9,
+      "migrationStatus": "PASS",
+      "ownedTeardown": "Owned containers removed by fixture finally block without cleanup error."
+    },
+    "acceptedCandidateInputMembership": {
+      "apps/api/src/modules/assessment/application/services/assessment-event-appender.service.spec.ts": {
+        "source": false,
+        "buildAndPolicy": false
+      },
+      "apps/api/src/modules/assessment/infrastructure/persistence/assessment-detail.loader.spec.ts": {
+        "source": false,
+        "buildAndPolicy": false
+      },
+      "tests/retired-authority-migration-check.py": {
+        "source": false,
+        "buildAndPolicy": false
+      }
+    },
+    "candidateSourceMismatches": 0,
+    "candidatePolicyMismatches": 0,
+    "sqlMigrationAndProductionPurgeScriptChanged": false,
+    "acceptanceReuse": "The fixed test harness is outside accepted runtime and build/policy inputs. Existing exact-image semantic and browser receipts remain valid. Current-head remote CI must rerun."
+  },
+  "legalPortfolioVerticalRepair": {
+    "checkedAt": "2026-10-11T13:46:03.905235+00:00",
+    "failedRemoteHead": "b0ca8ec484a8ef67bffc39538bbe5e3a8bd305d3",
+    "failedRemoteRun": 38143433167,
+    "rootCause": "The orphan packet now violates the shared declared-coverage graph invariant and is rejected before persistence; the old test dereferenced a submission that correctly did not exist.",
+    "fix": "Assert structured field-level 400 feedback, no submission or portfolio persistence, and unchanged ACTIVE portfolio. Expect only the stale-source attempt to persist as INVALID. Existing zero approval-record assertion is preserved. New API/status assertions use shared contract constants.",
+    "focusedLane": {
+      "results": [
+        {
+          "command": "node tests/legal-portfolio-vertical.mjs",
+          "exit": 0,
+          "summary": [
+            "PASS: 59 LEGAL_PORTFOLIO vertical checks (real API + PostgreSQL + Python agent; model scripted) on lcsp_legal_portfolio_vertical"
+          ],
+          "proof": [
+            "PASS: 59 LEGAL_PORTFOLIO vertical checks (real API + PostgreSQL + Python agent; model scripted) on lcsp_legal_portfolio_vertical"
+          ]
+        },
+        {
+          "command": "node tests/assessment-domain-vertical.mjs",
+          "exit": 0,
+          "summary": [
+            "PASS: 138 ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on lcsp_assessment_vertical"
+          ],
+          "proof": [
+            "PASS: 138 ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on lcsp_assessment_vertical"
+          ]
+        },
+        {
+          "command": "node tests/assessment-hitl-vertical.mjs",
+          "exit": 0,
+          "summary": [],
+          "proof": [
+            {
+              "gate": "ASSESSMENT HITL mechanics",
+              "checks": 79,
+              "result": "PASS",
+              "sameThread": "b472ee38-f831-408a-b652-e043bd142f15",
+              "checkpoint": "1f1c579b-5d18-67b4-800c-0ed193d34d5d",
+              "crashThread": "04c7a4de-acfc-4756-91d7-71b7d801db0b",
+              "proof": "real migrated DB/API/PostgresSaver; scripted model; separate processes"
+            }
+          ]
+        },
+        {
+          "command": "node tests/assessment-hitl-vertical.mjs --unresolvable-only",
+          "exit": 0,
+          "summary": [],
+          "proof": [
+            {
+              "gate": "ASSESSMENT unresolvable human fact mechanics",
+              "checks": 72,
+              "result": "PASS",
+              "sameThread": "a26d9253-b222-49ae-bf36-65010a1ade9d",
+              "checkpoint": "1f1c579d-d4c4-665c-800c-66fc5ef90a6c",
+              "crashThread": "8a521dcc-45fa-4b4d-a86a-dada4c133f2f",
+              "proof": "real migrated DB/API/PostgresSaver; scripted model; separate processes"
+            }
+          ]
+        }
+      ],
+      "ownedContainer": "lcsp-publication-vertical-2df8513c6197",
+      "teardown": "PASS"
+    },
+    "scope": "REAL_API_DB_AND_NATIVE_GRAPH_WITH_SCRIPTED_MODELS_NOT_BROWSER_OR_LEGAL_SEMANTIC_ACCEPTANCE",
+    "productionSourceMismatches": 0,
+    "buildPolicyMismatches": 0,
+    "conventions": "PASS: test assertion updates only; no production or form changes; shared value constants reused.",
+    "naming": "PASS: purpose-named durable receipt."
+  }
+}

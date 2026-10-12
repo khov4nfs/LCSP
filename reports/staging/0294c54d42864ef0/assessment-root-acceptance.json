@@ -1,0 +1,153 @@
+{
+  "scope": "EXACT_FINAL_CANDIDATE_REASONED_ASSESSMENT_ROOT_SEMANTICS",
+  "status": "PASS",
+  "candidateId": "20261012041902_4058ec2256a0",
+  "runId": "0294c54d42864ef0",
+  "modelExecution": "FRESH_ON_FINAL_CANDIDATE",
+  "persistedPublicEvidenceOnly": true,
+  "hiddenChainOfThoughtUsed": false,
+  "assessments": {
+    "assessmentA": {
+      "assessmentId": "3f379c1f-c679-4838-9903-7f136bf61d01",
+      "threadId": "bd19ac62-d59c-41e8-97eb-64aaf2d7ea65",
+      "decisionId": "ccba5b20-f0c8-4fe0-aaf8-db34401daa4b",
+      "ruleSetVersionId": "533c7e7b-3a93-482e-82d3-0642c9bf5488",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "criteria": [
+        {
+          "criterionId": "C-1",
+          "outcome": "NOT_MET",
+          "rationale": "The retention period is set to 7 days (RETENTION_PERIOD = timedelta(days=7)), but the delete_expired method incorrectly uses draft_timestamp instead of receipt_timestamp to calculate when records expire. Line 44 calculates 'notice.draft_timestamp + RETENTION_PERIOD <= now', meaning the retention period begins at draft time rather than receipt time. The legal requirement explicitly states the retention period must begin at the receipt timestamp, and the qualifier confirms 'A receipt timestamp is recorded when the notice is received, not when it is drafted.'",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "eacdde4d-7542-5881-b017-480a68526e7d"
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "804d6ce0-2213-54b1-94c2-131ce6c53e7d"
+            }
+          ]
+        },
+        {
+          "criterionId": "C-2",
+          "outcome": "MET",
+          "rationale": "The Notice dataclass stores notice_text and receipt_timestamp as fields of the same object (lines 12-13), and the database schema defines both columns in the same table (schema.sql lines 3-4). The receive method captures both values together when creating a Notice instance (line 30), and they are stored together in the notices dictionary. The records maintain the linkage between text and timestamp throughout their lifecycle.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "4f1d0b53-6815-5bdb-9007-a80d1007ea72"
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "bc8c1db3-2f5e-504e-b7be-5ede8be74591"
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "b37d99e6-236b-556f-8372-df56c52ad466"
+            }
+          ]
+        },
+        {
+          "criterionId": "C-3",
+          "outcome": "MET",
+          "rationale": "The Notice dataclass is declared with frozen=True (line 9), making all instances immutable after creation. Once notice_text is stored in a Notice instance, it cannot be modified - Python's frozen dataclass mechanism prevents any field assignment. This immutability ensures that notice text, including any limiting language, is preserved without modification throughout the retention period.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "4f1d0b53-6815-5bdb-9007-a80d1007ea72"
+            }
+          ]
+        }
+      ],
+      "humanRequest": "0f3604f9-3e85-4784-93b3-475370ae896e",
+      "materialFact": "Is this notice service offered to the public by the operator, or is it used only for private household purposes?",
+      "repositoryEvidenceCount": 6,
+      "boundedSearchEvidence": [
+        "f051a0c6-534b-5113-b244-da47cdaa6943",
+        "ee6f11ff-5418-5622-be90-397f4a8ac1bb"
+      ],
+      "humanFactCount": 1
+    },
+    "assessmentC": {
+      "assessmentId": "663ec102-0c82-4b7e-ab7c-825cfa8bec25",
+      "threadId": "bf045921-6bdd-4024-a73f-bfdc3193b032",
+      "decisionId": "68768c01-664b-4714-b368-43692a561f33",
+      "ruleSetVersionId": "0f0ef8c8-6cbb-491c-9b7d-14c281bd5983",
+      "applicability": "APPLICABLE",
+      "compliance": "NON_COMPLIANT",
+      "criteria": [
+        {
+          "criterionId": "C-1",
+          "outcome": "NOT_MET",
+          "rationale": "The delete_expired method incorrectly calculates the retention period from draft_timestamp instead of receipt_timestamp. Line 43 uses 'notice.draft_timestamp + RETENTION_PERIOD <= now' to determine expiration. The legal requirement specifies that the 7-day retention period must begin at receipt (when the receipt timestamp is recorded), not when the notice is drafted. This means records could be deleted before 7 days from their receipt timestamp if the draft timestamp is earlier than the receipt timestamp.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "b2b66b20-7735-59d6-bb9e-6fc3188c7c5b"
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "beb079cd-7a17-571b-a098-76a9d3d9db1a"
+            }
+          ]
+        },
+        {
+          "criterionId": "C-2",
+          "outcome": "MET",
+          "rationale": "The notice text and receipt timestamp are stored together in a single Notice dataclass (frozen=True) and in a single database table row. The Notice dataclass (lines 9-15) defines both notice_text and receipt_timestamp as fields of the same immutable object. The database schema stores both columns in the same notices table row with a shared primary key. The receive method creates them together, and there is no code that separates or independently deletes these fields. The association is maintained throughout the retention period.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "9e0c50a8-de30-57d3-8a85-76174716c425"
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "30aeeece-b04d-5888-8a92-fe18975cd088"
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "0652f23c-1e0e-5b3a-9e1f-3c737b25d2d5"
+            }
+          ]
+        },
+        {
+          "criterionId": "C-3",
+          "outcome": "MET",
+          "rationale": "The notice text is preserved without modification. The receive method accepts notice_text as a parameter and stores it directly in the immutable Notice dataclass without any transformation, sanitization, or removal of content. The database schema defines notice_text as TEXT NOT NULL with no constraints that would strip content. A comprehensive search found no code that modifies, sanitizes, strips, replaces, or removes any part of the notice text, including limiting language. The text flows from input to storage unchanged.",
+          "references": [
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "0652f23c-1e0e-5b3a-9e1f-3c737b25d2d5"
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "30aeeece-b04d-5888-8a92-fe18975cd088"
+            },
+            {
+              "type": "ASSESSMENT_EVIDENCE",
+              "evidenceId": "6a9ac5c2-8ce6-50d4-9840-cb1c0e4f9ce9"
+            }
+          ]
+        }
+      ],
+      "humanRequest": "c4025b3f-aa20-4a9b-82f1-0b07d9ac0a7e",
+      "materialFact": "Is this notice service offered to the public, or is it used only for private household purposes?",
+      "repositoryEvidenceCount": 6,
+      "boundedSearchEvidence": [
+        "6a9ac5c2-8ce6-50d4-9840-cb1c0e4f9ce9"
+      ],
+      "humanFactCount": 1
+    }
+  },
+  "review": {
+    "repositoryInvestigation": "Each Root used direct repository and graph tools before asking one human question; cited service.py, schema.sql and README.md on the pinned commit.",
+    "applicability": "Root interpreted the public-service/household scope and requested the human-owned deployment fact; the accepted answer resolves APPLICABLE.",
+    "criteriaAndCompliance": "Both Roots authored C-1 NOT_MET for positive draft_timestamp expiry code conflicting with receipt-time retention; C-2/C-3 MET from co-storage and unchanged immutable text. Both produce NON_COMPLIANT from the concrete timing defect.",
+    "boundedAbsence": "C cites bounded SEARCH_COVERAGE in MET C-3 alongside direct immutable input/storage evidence. A also records bounded searches and preserves text as MET. Missing public/household evidence caused Human Resolution, not NOT_MET or NON_COMPLIANT.",
+    "humanResolution": "One material off-repository business fact per assessment, accepted inline answer persisted as HUMAN_PROVIDED, same Root thread resumed.",
+    "deterministicBoundary": "The unchanged decision-validator enforces required criteria, shapes, enum values, known accepted references and exact pins. Completion/persistence guards enforce lifecycle and completeness. These guards do not determine semantic outcomes."
+  },
+  "limitations": "Fresh journeys exercise APPLICABLE/NON_COMPLIANT and both MET/NOT_MET criteria. No fresh live NOT_APPLICABLE or overall COMPLIANT scenario is claimed."
+}

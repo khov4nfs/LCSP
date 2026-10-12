@@ -30,24 +30,14 @@ def _py(path: Path) -> set[str]:
 def test_agentic_evidence_tools_are_grouped_by_owner_capability() -> None:
     provenance = PROJECT_ROOT / "tools" / "common" / "capabilities" / "agentic_evidence"
 
-    assert _dirs(provenance) == {"governance", "dispatch", "entrypoints"}
+    assert _dirs(provenance) == {"dispatch", "entrypoints"}
     assert _py(provenance) == set()
-    assert _py(provenance / "governance") == {
-        "authorization.py",
-        "catalog.py",
-        "registry.py",
-        "resolver.py",
-    }
+    assert not (provenance / "governance").exists()
     assert _py(provenance / "dispatch") == {
         "dispatcher.py",
-        "runtime_binding.py",
     }
     assert _py(provenance / "entrypoints") == {
-        "tool_entrypoints.py",
-        "program_graph_tool_entrypoints.py",
-        "scanner_tool_entrypoints.py",
         "legal_tool_entrypoints.py",
-        "remediation_tool_entrypoints.py",
     }
 
 
@@ -65,7 +55,7 @@ def test_flat_provenance_imports_are_removed() -> None:
     _assert_removed("tools.common.capabilities.evidence.provenance.dispatcher")
     _assert_removed("tools.common.capabilities.evidence.provenance.legal_tool_entrypoints")
 
-    _assert_importable("tools.common.capabilities.agentic_evidence.governance.catalog")
+    _assert_removed("tools.common.capabilities.agentic_evidence.governance.catalog")
     _assert_importable("tools.common.capabilities.agentic_evidence.dispatch.dispatcher")
     _assert_importable("tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoints")
 
@@ -74,11 +64,13 @@ def test_moved_relative_provenance_import_aliases_are_removed() -> None:
     _assert_removed("tools.common.capabilities.evidence.provenance.dispatch.catalog")
     _assert_removed("tools.common.capabilities.evidence.provenance.entrypoints.registry")
 
-    _assert_importable("tools.common.capabilities.agentic_evidence.governance.catalog")
-    _assert_importable("tools.common.capabilities.agentic_evidence.governance.registry")
+    _assert_removed("tools.common.capabilities.agentic_evidence.governance.catalog")
+    _assert_removed("tools.common.capabilities.agentic_evidence.governance.registry")
+    _assert_removed("tools.common.capabilities.agentic_evidence.dispatch.runtime_binding")
 
 
 def test_agentic_evidence_imports_use_tools_namespace() -> None:
-    _assert_importable("tools.common.capabilities.agentic_evidence.governance.catalog")
+    _assert_removed("tools.common.capabilities.agentic_evidence.governance.catalog")
     _assert_importable("tools.common.capabilities.agentic_evidence.dispatch.dispatcher")
+    _assert_importable("tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoints")
     _assert_removed("tools.common.capabilities.evidence.provenance.governance.catalog")

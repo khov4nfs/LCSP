@@ -1,0 +1,8 @@
+- region "Notifications alt+T"
+- dialog "Delete assessment?":
+  - heading "Delete assessment?" [level=2]
+  - paragraph: This permanently deletes the assessment and its collected data.
+  - text: Notice retention review assessmentB
+  - button "Cancel"
+  - button "Delete assessment"
+  - button "Close"

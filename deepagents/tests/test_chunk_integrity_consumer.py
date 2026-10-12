@@ -3,30 +3,30 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools.legal.corpus.chunk_integrity.chunk_integrity_boundary import (
+from tools.legal.legal_source.chunk_integrity.chunk_integrity_boundary import (
     CHUNK_INTEGRITY_COMMAND,
     CHUNK_INTEGRITY_BOUNDARY_SOURCE,
     ChunkIntegrityBoundary,
 )
-from tools.legal.corpus.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
-from tools.legal.corpus.legal_chunks.legal_chunk_builder import (
+from tools.legal.legal_source.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
+from tools.legal.legal_source.legal_chunks.legal_chunk_builder import (
     BuildLegalChunksRequest,
     LegalChunkBuilder,
 )
-from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
-from tools.legal.corpus.relationships.relationship_manifest_repository import (
+from tools.legal.legal_source.legal_chunks.legal_chunk_repository import LegalChunkRepository
+from tools.legal.legal_source.relationships.relationship_manifest_repository import (
     RelationshipManifestRecord,
     RelationshipManifestRepository,
 )
-from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
-    ReviewedCorpusInputRecord,
-    ReviewedCorpusInputRepository,
+from tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_repository import (
+    ReviewedLegalSourceInputRecord,
+    ReviewedLegalSourceInputRepository,
 )
-from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def _seed(storage_root: Path) -> tuple[str, str]:
-    output_dir = storage_root / "reviewed-corpus-inputs" / "reviewed-input-123456"
+    output_dir = storage_root / "reviewed-legal-source-inputs" / "reviewed-input-123456"
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized_text_path = output_dir / "LAW-TEST.reviewed.txt"
     manifest_path = output_dir / "LAW-TEST.reviewed-input.json"
@@ -35,8 +35,8 @@ def _seed(storage_root: Path) -> tuple[str, str]:
     from tools.legal.sources.extraction.official_text_extraction import _sha256_text
 
     content_sha256 = _sha256_text(text)
-    ReviewedCorpusInputRepository(storage_root=storage_root).save(
-        ReviewedCorpusInputRecord(
+    ReviewedLegalSourceInputRepository(storage_root=storage_root).save(
+        ReviewedLegalSourceInputRecord(
             reviewed_input_ref="reviewed-input:reviewed-input-123456",
             provenance_ref="prov:reviewed-input:reviewed-input-123456",
             extraction_ref="extraction:canonical-12345678",
@@ -58,7 +58,7 @@ def _seed(storage_root: Path) -> tuple[str, str]:
     )
     chunk_result = LegalChunkBuilder(
         storage_root=storage_root,
-        reviewed_input_repository=ReviewedCorpusInputRepository(storage_root=storage_root),
+        reviewed_input_repository=ReviewedLegalSourceInputRepository(storage_root=storage_root),
     ).build(
         BuildLegalChunksRequest(
             reviewed_input_ref="reviewed-input:reviewed-input-123456",

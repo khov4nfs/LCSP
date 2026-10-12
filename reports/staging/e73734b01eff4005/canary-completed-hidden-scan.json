@@ -1,0 +1,26 @@
+{
+  "scope": "EXACT_IMAGE_COMPLETED_SAME_AND_DIFFERENT_OWNER_CANARY_SCAN",
+  "status": "PASS_NATIVE_CHECKPOINT_AND_GENERIC_STORE_ABSENCE",
+  "runId": "e73734b01eff4005",
+  "scan": {
+    "threads": [
+      {
+        "threadId": "de9feef0-c426-4903-b0ef-b09fb8a6e245",
+        "checkpointWrites": 705,
+        "canaryOccurrences": 5
+      },
+      {
+        "threadId": "52260d30-30d3-4c59-a183-adc011d26a6a",
+        "checkpointWrites": 344,
+        "canaryOccurrences": 0
+      },
+      {
+        "threadId": "47dd5f82-68ff-4a3e-8f26-29a7867c6576",
+        "checkpointWrites": 282,
+        "canaryOccurrences": 0
+      }
+    ],
+    "sharedLearningRecords": 1,
+    "sharedLearningCanaryOccurrences": 0
+  }
+}

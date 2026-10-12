@@ -1,1 +1,1 @@
-"""Shared package namespace for authored LCSP Managed Deep Agent tools."""
+"""Shared package namespace for authored LCSP Deep Agent tools."""

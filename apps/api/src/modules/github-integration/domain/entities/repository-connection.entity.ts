@@ -1,14 +1,25 @@
-import { randomUUID } from "node:crypto";
 import {
-  REPOSITORY_CONNECTION_STATUSES,
+  REPOSITORY_AUTHENTICATION_MODES,
+  CREDENTIAL_PROVIDERS,
+  type CredentialProvider,
+  type RepositoryAuthenticationMode,
   type RepositoryConnectionStatus,
 } from "@lcsp/contracts/github-integration";
+import type { CredentialAuthorizationStatus } from "@lcsp/contracts/github-integration";
 
 type RepositoryConnectionProps = {
   id: string;
   assessmentId: string | null;
   userId: string;
-  installationId: string;
+  provider?: CredentialProvider;
+  installationId: string | null;
+  authenticationMode?: RepositoryAuthenticationMode;
+  providerCredentialId?: string | null;
+  credentialVersion?: number | null;
+  credentialAuthorizedByUserId?: string | null;
+  credentialAuthorizationStatus?: CredentialAuthorizationStatus | null;
+  credentialValidatedAt?: Date | null;
+  credentialRevokedAt?: Date | null;
   repositoryId: string;
   repositoryName: string;
   repositoryFullName: string;
@@ -19,52 +30,19 @@ type RepositoryConnectionProps = {
   revokedAt: Date | null;
 };
 
-type NewRepositoryConnectionProps = Omit<RepositoryConnectionProps, "id">;
-
 /**
- * Represents one organization-owned GitHub repository connection created through an App installation.
+ * Represents one assessment repository connection created through a per-user provider credential (legacy GitHub App rows are rehydrate-only).
  */
 export class RepositoryConnection {
   private props: RepositoryConnectionProps;
 
   /**
-   * Creates a connection aggregate with a generated identifier from already validated properties.
+   * Wraps already validated persisted properties.
    *
-   * @param props - Repository connection properties excluding the generated identifier.
+   * @param props - Repository connection properties.
    */
-  private constructor(props: NewRepositoryConnectionProps) {
-    this.props = { ...props, id: randomUUID() };
-  }
-
-  /**
-   * Creates an active repository connection from GitHub installation and repository metadata.
-   *
-   * @param input - Assessment/tenant/user binding, GitHub installation/repository identity, branch, and granted permissions.
-   * @returns Newly connected repository aggregate in the active lifecycle state.
-   */
-  static create(input: {
-    assessmentId: string | null;
-    userId: string;
-    installationId: string;
-    repositoryId: string;
-    repositoryName: string;
-    repositoryFullName: string;
-    defaultBranch: string;
-    permissions: Record<string, string>;
-  }): RepositoryConnection {
-    return new RepositoryConnection({
-      assessmentId: input.assessmentId,
-      userId: input.userId,
-      installationId: input.installationId,
-      repositoryId: input.repositoryId,
-      repositoryName: input.repositoryName,
-      repositoryFullName: input.repositoryFullName,
-      defaultBranch: input.defaultBranch,
-      permissions: input.permissions,
-      status: REPOSITORY_CONNECTION_STATUSES.active,
-      connectedAt: new Date(),
-      revokedAt: null,
-    });
+  private constructor(props: RepositoryConnectionProps) {
+    this.props = props;
   }
 
   /**
@@ -74,9 +52,7 @@ export class RepositoryConnection {
    * @returns Rehydrated repository connection aggregate.
    */
   static rehydrate(props: RepositoryConnectionProps): RepositoryConnection {
-    const entity = new RepositoryConnection(props);
-    entity.props = props;
-    return entity;
+    return new RepositoryConnection(props);
   }
 
   /** @returns The repository connection identifier. */
@@ -96,9 +72,39 @@ export class RepositoryConnection {
     return this.props.userId;
   }
 
-  /** @returns The GitHub App installation identifier used for authenticated API access. */
-  get installationId(): string {
+  get provider(): CredentialProvider {
+    return this.props.provider ?? CREDENTIAL_PROVIDERS.github;
+  }
+
+  /** Nullable persistence value used when representing a CLI-authenticated connection. */
+  get installationIdOrNull(): string | null {
     return this.props.installationId;
+  }
+
+  get authenticationMode(): RepositoryAuthenticationMode {
+    return (
+      this.props.authenticationMode ?? REPOSITORY_AUTHENTICATION_MODES.githubApp
+    );
+  }
+
+  get providerCredentialId(): string | null {
+    return this.props.providerCredentialId ?? null;
+  }
+
+  get credentialVersion(): number | null {
+    return this.props.credentialVersion ?? null;
+  }
+  get credentialAuthorizedByUserId(): string | null {
+    return this.props.credentialAuthorizedByUserId ?? null;
+  }
+  get credentialAuthorizationStatus(): CredentialAuthorizationStatus | null {
+    return this.props.credentialAuthorizationStatus ?? null;
+  }
+  get credentialValidatedAt(): Date | null {
+    return this.props.credentialValidatedAt ?? null;
+  }
+  get credentialRevokedAt(): Date | null {
+    return this.props.credentialRevokedAt ?? null;
   }
 
   /** @returns The GitHub repository identifier. */

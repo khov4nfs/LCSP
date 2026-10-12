@@ -28,13 +28,9 @@ const ACTIVE_SCAN_STATUSES = [
 ];
 
 /**
- * Returns the scan heartbeat expiry window, keeping local development recoverable when a worker is interrupted.
+ * Returns the scan heartbeat expiry window (fixed code default, no env knob).
  */
 export function repositoryScanStaleAfterMs(): number {
-  const configured = Number(process.env.REPOSITORY_SCAN_STALE_AFTER_MS);
-  if (Number.isFinite(configured) && configured > 0) {
-    return configured;
-  }
   return DEFAULT_REPOSITORY_SCAN_STALE_AFTER_MS;
 }
 

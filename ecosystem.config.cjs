@@ -79,7 +79,7 @@ module.exports = {
     },
 
     {
-      name: "lcsp-managed-deep-agent",
+      name: "lcsp-agent-runtime",
       cwd: `${APP}/deepagents`,
 
       script: "dotenv",
@@ -94,7 +94,11 @@ module.exports = {
 
       env: {
         ...commonEnv,
-        PYTHONPATH: "."
+        PYTHONPATH: ".",
+        PORT: "2024",
+        LCSP_AGENT_RUNTIME_MODE: "production",
+        LCSP_AGENT_SERVER_URL: "http://127.0.0.1:2024",
+        LCSP_REPOSITORY_SANDBOX_IMAGE: "lcsp-agent-runtime:production-sandbox"
       },
 
       instances: 1,

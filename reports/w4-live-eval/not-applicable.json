@@ -1,0 +1,683 @@
+{
+  "generatedAt": "2026-10-07T07:10:03.716Z",
+  "fixture": {
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "hashes": {
+      "art-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-1::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-2::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-3::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-4::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-a": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-5::cl-1::pt-b": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058",
+      "art-6::cl-1": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+    },
+    "chunks": [
+      {
+        "locator": "art-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-1::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-2",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-2::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-3",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-3::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-4::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1::pt-a",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-5::cl-1::pt-b",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-6",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      },
+      {
+        "locator": "art-6::cl-1",
+        "content": "Synthetic evaluation instrument: notice services retain records at most seven days; notify recipients at deletion; payment services encrypt payment records. Operations must designate a notification owner.",
+        "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+      }
+    ],
+    "packet": {
+      "legalRules": [
+        {
+          "legalRuleId": "LR-DEF",
+          "title": "Payment record encryption",
+          "proposition": "Payment processing services must encrypt payment records at rest.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-1::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "COVERED_BY_ENGINEERING_RULES",
+            "nonAssessableReason": null
+          }
+        },
+        {
+          "legalRuleId": "LR-RET",
+          "title": "Notice record retention",
+          "proposition": "Notice services must delete notice records no later than seven days after receipt.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-5::cl-1::pt-b",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the applicability semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-EXC",
+          "title": "Rule LR-EXC",
+          "proposition": "Proposition LR-EXC.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-3::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-XREF",
+          "title": "Deletion notification",
+          "proposition": "Notice services must notify the recipient when their notice record is deleted.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": false,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-4::cl-1::pt-a",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            },
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-2::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Outside the applicability semantic fixture."
+          }
+        },
+        {
+          "legalRuleId": "LR-PERSON",
+          "title": "Rule LR-PERSON",
+          "proposition": "Proposition LR-PERSON.",
+          "applicabilityConditions": [],
+          "qualifiers": [],
+          "exceptions": [],
+          "nonRepositoryDuty": true,
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-6::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ],
+          "coverage": {
+            "state": "NON_ASSESSABLE",
+            "nonAssessableReason": "Context only; not an independent duty in this synthetic fixture."
+          }
+        }
+      ],
+      "engineeringRules": [
+        {
+          "engineeringRuleId": "ER-DEF",
+          "legalRuleIds": [
+            "LR-DEF"
+          ],
+          "concept": "Payment record encryption",
+          "legalIntent": "Payment processing services must encrypt payment records at rest.",
+          "applicabilityGuidance": "Applies only to systems that process or store payment records. A notice-only service is outside this duty.",
+          "criteria": [
+            {
+              "criterionId": "C-1",
+              "statement": "Payment records are encrypted at rest."
+            }
+          ],
+          "investigationGoals": [
+            "Payment records are encrypted at rest."
+          ],
+          "startingNodeTypes": [],
+          "targetNodeTypes": [],
+          "edgeStrategies": [],
+          "graphQueries": [],
+          "keywords": [],
+          "commonApis": [],
+          "commonLibraries": [],
+          "patterns": [],
+          "requiredEvidence": [
+            "Accepted repository source or authenticated bounded search coverage"
+          ],
+          "supportingEvidence": [],
+          "negativeEvidence": [],
+          "unresolvedConditions": [],
+          "sourceRefs": [
+            {
+              "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+              "locator": "art-1::cl-1",
+              "contentSha256": "sha256:a67b3da12467212025e987f8e001c3aa47e3d70cd6b1229448cb6d818feff058"
+            }
+          ]
+        }
+      ],
+      "contextRelations": []
+    },
+    "files": {
+      "README.md": "This repository contains a notice-only service. It does not process or store payment records.\n",
+      "src/notices.py": "RETENTION_DAYS = 7\n\ndef delete_expired_notices(records, now):\n    return [r for r in records if (now - r['received_at']).days < RETENTION_DAYS]\n"
+    },
+    "fixture": "not-applicable"
+  },
+  "result": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "69dfe551-f1a7-4361-a2ff-aa2f1f553a74",
+      "threadId": "9b47dfb5-c6f9-4a41-9c02-a5dd3def417c",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "google_genai:gemini-3.5-flash-lite",
+    "calls": 14,
+    "inputTokens": 84254,
+    "outputTokens": 718,
+    "seconds": 16.55
+  },
+  "trace": {
+    "result": {
+      "state": "SUCCEEDED",
+      "executionId": "69dfe551-f1a7-4361-a2ff-aa2f1f553a74",
+      "threadId": "9b47dfb5-c6f9-4a41-9c02-a5dd3def417c",
+      "errorType": null,
+      "checkpointId": null
+    },
+    "model": "google_genai:gemini-3.5-flash-lite",
+    "calls": 14,
+    "inputTokens": 84254,
+    "outputTokens": 718,
+    "seconds": 16.55,
+    "tools": [
+      {
+        "tool": "get_assessment_context",
+        "input": "{}"
+      },
+      {
+        "tool": "get_pinned_portfolio",
+        "input": "{}"
+      },
+      {
+        "tool": "get_repository_architecture",
+        "input": "{'aspects': ['all']}"
+      },
+      {
+        "tool": "ls",
+        "input": "{'path': '/'}"
+      },
+      {
+        "tool": "ls",
+        "input": "{'path': '/src'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/README.md'}"
+      },
+      {
+        "tool": "read_file",
+        "input": "{'file_path': '/src/notices.py'}"
+      },
+      {
+        "tool": "cite_repository_source",
+        "input": "{'path': 'README.md', 'end_line': 1, 'start_line': 1}"
+      },
+      {
+        "tool": "accept_case_fact",
+        "input": "{'statement': 'The repository contains a notice-only service and does not process or store payment records.', 'evidence_ids': ['ba5662e6-1268-5ba1-be9c-593e31f6b8f2'], 'kind': 'USE_CASE'}"
+      },
+      {
+        "tool": "start_rule_investigation",
+        "input": "{'engineering_rule_id': 'ER-DEF'}"
+      },
+      {
+        "tool": "get_engineering_rule",
+        "input": "{'engineering_rule_id': 'ER-DEF'}"
+      },
+      {
+        "tool": "record_search_coverage",
+        "input": "{'inspected_entry_points': ['README.md', 'src/notices.py'], 'known_gaps': [], 'direct_source_fallbacks': [{'reason': 'Verify system purpose and use case', 'path': 'README.md'}, {'reason': 'Inspect service code for payment record handling', 'path': 'src/notices.py'}]}"
+      },
+      {
+        "tool": "submit_rule_decision",
+        "input": "{'engineering_rule_id': 'ER-DEF', 'legal_context_ids': ['LR-DEF'], 'criteria': [], 'applicability': 'NOT_APPLICABLE', 'rationale': 'The assessed system is a notice-only service that does not process or store payment records, as established by the repository documentation and source code analysis. Therefore, EngineeringRule ER-DEF is not applicable.', 'references': [{'type': 'CONFIRMED_FACT', 'id': '1ce84000-b62c-5aef-975b-ad7f7d4287a2'}, {'id': 'ba5662e6-1268-5ba1-be9c-593e31f6b8f2', 'type': 'ASSESSMENT_EVIDENCE'}]}"
+      }
+    ],
+    "messages": [
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_assessment_context",
+            "args": {},
+            "id": "call_326593",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_pinned_portfolio",
+            "args": {},
+            "id": "call_313841",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_repository_architecture",
+            "args": {
+              "aspects": [
+                "all"
+              ]
+            },
+            "id": "call_77299",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "ls",
+            "args": {
+              "path": "/"
+            },
+            "id": "call_55123",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "ls",
+            "args": {
+              "path": "/src"
+            },
+            "id": "call_364600",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "read_file",
+            "args": {
+              "file_path": "/README.md"
+            },
+            "id": "call_41015",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "read_file",
+            "args": {
+              "file_path": "/src/notices.py"
+            },
+            "id": "call_286209",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "cite_repository_source",
+            "args": {
+              "path": "README.md",
+              "end_line": 1,
+              "start_line": 1
+            },
+            "id": "call_57074",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "accept_case_fact",
+            "args": {
+              "statement": "The repository contains a notice-only service and does not process or store payment records.",
+              "evidence_ids": [
+                "ba5662e6-1268-5ba1-be9c-593e31f6b8f2"
+              ],
+              "kind": "USE_CASE"
+            },
+            "id": "call_340677",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "start_rule_investigation",
+            "args": {
+              "engineering_rule_id": "ER-DEF"
+            },
+            "id": "call_43230",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "get_engineering_rule",
+            "args": {
+              "engineering_rule_id": "ER-DEF"
+            },
+            "id": "call_252845",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "record_search_coverage",
+            "args": {
+              "inspected_entry_points": [
+                "README.md",
+                "src/notices.py"
+              ],
+              "known_gaps": [],
+              "direct_source_fallbacks": [
+                {
+                  "reason": "Verify system purpose and use case",
+                  "path": "README.md"
+                },
+                {
+                  "reason": "Inspect service code for payment record handling",
+                  "path": "src/notices.py"
+                }
+              ]
+            },
+            "id": "call_299286",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [],
+        "tool_calls": [
+          {
+            "name": "submit_rule_decision",
+            "args": {
+              "engineering_rule_id": "ER-DEF",
+              "legal_context_ids": [
+                "LR-DEF"
+              ],
+              "criteria": [],
+              "applicability": "NOT_APPLICABLE",
+              "rationale": "The assessed system is a notice-only service that does not process or store payment records, as established by the repository documentation and source code analysis. Therefore, EngineeringRule ER-DEF is not applicable.",
+              "references": [
+                {
+                  "type": "CONFIRMED_FACT",
+                  "id": "1ce84000-b62c-5aef-975b-ad7f7d4287a2"
+                },
+                {
+                  "id": "ba5662e6-1268-5ba1-be9c-593e31f6b8f2",
+                  "type": "ASSESSMENT_EVIDENCE"
+                }
+              ]
+            },
+            "id": "call_387928",
+            "type": "tool_call"
+          }
+        ]
+      },
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "I have completed the assessment of the pinned portfolio.\n\n### Summary of Coverage and Decisions\n\n1. **System Discovery**: Inspected the repository (`README.md`, `src/notices.py`) and confirmed that the service is a notice-only service that does not process or store payment records. This use case was accepted as a confirmed fact.\n2. **EngineeringRule `ER-DEF` (Payment record encryption)**:\n   - **Applicability**: `NOT_APPLICABLE` (per applicability guidance, the rule applies only to systems that process or store payment records, whereas this is a notice-only service).\n   - **Decision**: Submitted as `NOT_APPLICABLE` with supporting evidence and confirmed fact references.",
+            "extras": {
+              "signature": "EmAKXgFpFH0TbW2uN8L05k/5lWifBTMo/MPe/RZnmnXakOubn2AF7TO8bpz824N6ZioQKjVuYmg6uHUwkCD9bNmvdouwa17V8SlDa/mkIqSSQIle+t5QzRxV/ibMvnzkVAg="
+            }
+          }
+        ],
+        "tool_calls": []
+      }
+    ],
+    "limitations": "Synthetic fixtures; governance billing middleware excluded; actual provider usage observed by callback."
+  },
+  "resumedResult": null,
+  "resumedTrace": null,
+  "decisions": [
+    {
+      "engineeringRuleId": "ER-DEF",
+      "state": "ACCEPTED",
+      "decision": {
+        "scopeId": "ASSESSMENT",
+        "criteria": [],
+        "rationale": "The assessed system is a notice-only service that does not process or store payment records, as established by the repository documentation and source code analysis. Therefore, EngineeringRule ER-DEF is not applicable.",
+        "compliance": null,
+        "references": [
+          {
+            "type": "CONFIRMED_FACT",
+            "factId": "1ce84000-b62c-5aef-975b-ad7f7d4287a2",
+            "caseRevision": 1
+          },
+          {
+            "type": "ASSESSMENT_EVIDENCE",
+            "evidenceId": "ba5662e6-1268-5ba1-be9c-593e31f6b8f2"
+          }
+        ],
+        "caseRevision": 1,
+        "applicability": "NOT_APPLICABLE",
+        "legalContextRefs": [
+          {
+            "legalContextId": "LR-DEF"
+          }
+        ],
+        "repositoryCommit": "cccccccccccccccccccccccccccccccccccccccc",
+        "engineeringRuleId": "ER-DEF",
+        "repositorySnapshotId": "2878940e-da04-4cdc-ae95-6507a976af9b",
+        "engineeringRuleVersion": "w4-eval-not-applicable",
+        "legalPortfolioVersionId": "5371f8b5-6cca-45bf-902a-903b93ce2c19"
+      }
+    }
+  ],
+  "requests": [],
+  "evidence": [
+    {
+      "evidenceId": "ba5662e6-1268-5ba1-be9c-593e31f6b8f2",
+      "type": "REPOSITORY_SOURCE",
+      "state": "ACCEPTED",
+      "payload": {
+        "path": "README.md",
+        "endLine": 1,
+        "startLine": 1
+      }
+    },
+    {
+      "evidenceId": "b52d1f9b-bba5-5be4-8deb-3060d9cb0a11",
+      "type": "SEARCH_COVERAGE",
+      "state": "ACCEPTED",
+      "payload": {
+        "scopes": [
+          {
+            "kind": "GRAPH_INDEX",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "."
+          },
+          {
+            "kind": "SOURCE_DIRECTORY",
+            "path": "src"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "README.md"
+          },
+          {
+            "kind": "SOURCE_FILE",
+            "path": "src/notices.py"
+          }
+        ],
+        "queries": [
+          {
+            "tool": "get_repository_architecture",
+            "query": "{'aspects': ['all']}",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "ls",
+            "query": "{'path': '/'}",
+            "truncated": false,
+            "resultCount": 1
+          },
+          {
+            "tool": "ls",
+            "query": "{'path': '/src'}",
+            "truncated": false,
+            "resultCount": 1
+          }
+        ],
+        "knownGaps": [],
+        "inspectedEntryPoints": [
+          "README.md",
+          "src/notices.py"
+        ],
+        "directSourceFallbacks": [
+          {
+            "path": "README.md",
+            "reason": "Verify system purpose and use case"
+          },
+          {
+            "path": "src/notices.py",
+            "reason": "Inspect service code for payment record handling"
+          }
+        ]
+      }
+    }
+  ],
+  "facts": [
+    {
+      "kind": "USE_CASE",
+      "authority": "EVIDENCE_CITED",
+      "state": "ACCEPTED",
+      "statement": "The repository contains a notice-only service and does not process or store payment records."
+    }
+  ]
+}

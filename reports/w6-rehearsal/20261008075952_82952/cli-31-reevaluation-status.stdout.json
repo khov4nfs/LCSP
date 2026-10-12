@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-10-08T08:01:13.901Z",
+  "migrated": 30,
+  "byState": {
+    "STARTED_QUEUED": 1,
+    "NOT_READY": 13,
+    "READY_NOT_STARTED": 16
+  },
+  "startedByOperator": 1,
+  "startedOtherwise": 0,
+  "load": {
+    "inFlight": 1,
+    "queued": 1
+  },
+  "runs": [
+    {
+      "runId": "29ac24ba-c900-4115-8541-80c82d797921",
+      "mode": "CANARY",
+      "startedBy": "w6-rehearsal-operator",
+      "started": 1,
+      "firstStartedAt": "2026-10-08T08:01:12.910Z"
+    }
+  ],
+  "assessments": [
+    {
+      "assessmentId": "0b0edd13-6704-474b-81d9-09467ebde566",
+      "state": "STARTED_QUEUED",
+      "lifecycleState": "ACTIVE",
+      "startedVia": "OPERATOR_REEVALUATION"
+    }
+  ]
+}

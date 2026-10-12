@@ -1,0 +1,2427 @@
+{
+  "head": "836607eb2b5e2ad89a966d06212134941ecc2cc1",
+  "files": [
+    {
+      "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/ai-absence-evidence.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "asRecord",
+        "isEmptyList",
+        "provesAiAbsence"
+      ],
+      "deps": [
+        "packages/contracts/src/evidence/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/ai-absence-evidence.ts",
+          "spec": "./ai-absence-evidence.js",
+          "names": [
+            "provesAiAbsence"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/ai-absence-evidence.ts",
+          "spec": "./ai-absence-evidence.js",
+          "names": [
+            "provesAiAbsence"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.command.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "MarkAiNotDetectedDto",
+        "MarkAiNotDetectedCommand"
+      ],
+      "deps": [
+        "@nestjs/cqrs",
+        "packages/contracts/src/assessment/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.command.ts",
+          "spec": "./mark-ai-not-detected.command.js",
+          "names": [
+            "MarkAiNotDetectedCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.command.ts",
+          "spec": "./mark-ai-not-detected.command.js",
+          "names": [
+            "MarkAiNotDetectedCommand",
+            "MarkAiNotDetectedDto"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/presentation/http/assessment.controller.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.command.ts",
+          "spec": "../../application/commands/mark-ai-not-detected/mark-ai-not-detected.command.js",
+          "names": [
+            "MarkAiNotDetectedCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "AbsencePayload",
+        "absencePayload",
+        "buildHandler",
+        "problemCode"
+      ],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "@nestjs/common",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/assessment/domain/entities/assessment.entity.ts",
+        "apps/api/src/modules/assessment/application/ports/persistence/assessment.repository.ts",
+        "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/ai-absence-evidence.ts",
+        "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.command.ts",
+        "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "MarkAiNotDetectedHandler"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/assessment/application/ports/persistence/assessment.repository.ts",
+        "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/ai-absence-evidence.ts",
+        "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.command.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.ts",
+          "spec": "./mark-ai-not-detected.handler.js",
+          "names": [
+            "MarkAiNotDetectedHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/assessment.module.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.ts",
+          "spec": "./application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.js",
+          "names": [
+            "MarkAiNotDetectedHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.command.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "PutRuleAssessmentCommand"
+      ],
+      "deps": [
+        "@nestjs/cqrs",
+        "packages/contracts/src/evidence/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.command.ts",
+          "spec": "./put-rule-assessment.command.js",
+          "names": [
+            "PutRuleAssessmentCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.command.ts",
+          "spec": "./put-rule-assessment.command.js",
+          "names": [
+            "PutRuleAssessmentCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/presentation/http/assessment.controller.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.command.ts",
+          "spec": "../../application/commands/put-rule-assessment/put-rule-assessment.command.js",
+          "names": [
+            "PutRuleAssessmentCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "body",
+        "harness",
+        "savedRow",
+        "rejection"
+      ],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "@nestjs/common",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.command.ts",
+        "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "PutRuleAssessmentHandler"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "@prisma/client",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/assessment/application/mappers/rule-assessment.mapper.ts",
+        "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.command.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.ts",
+          "spec": "./put-rule-assessment.handler.js",
+          "names": [
+            "PutRuleAssessmentHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/assessment.module.ts",
+          "target": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.ts",
+          "spec": "./application/commands/put-rule-assessment/put-rule-assessment.handler.js",
+          "names": [
+            "PutRuleAssessmentHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/contracts/assessment/assessment-detail.contract.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "ReadinessState",
+        "TechnicalEvidenceDisplayDto",
+        "LegalProvisionDisplayDto",
+        "EngineeringRuleEvaluationDto",
+        "ClassificationResultSummaryDto",
+        "AssessmentDetailDto",
+        "AssessmentRuntimeDto"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "packages/contracts/src/evidence/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/legal-provision-display.ts",
+          "target": "apps/api/src/modules/assessment/application/contracts/assessment/assessment-detail.contract.ts",
+          "spec": "../contracts/assessment/assessment-detail.contract.js",
+          "names": [
+            "LegalProvisionDisplayDto"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/technical-evidence-display.ts",
+          "target": "apps/api/src/modules/assessment/application/contracts/assessment/assessment-detail.contract.ts",
+          "spec": "../contracts/assessment/assessment-detail.contract.js",
+          "names": [
+            "TechnicalEvidenceDisplayDto"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/contracts/assessment/assessment-list.contract.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "AssessmentSummary",
+        "AssessmentListDto"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/contracts/assessment/readiness-status.contract.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "AssessmentReadinessStatusDto"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.handler.ts",
+          "target": "apps/api/src/modules/assessment/application/contracts/assessment/readiness-status.contract.ts",
+          "spec": "../../contracts/assessment/readiness-status.contract.js",
+          "names": [
+            "AssessmentReadinessStatusDto"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.query.ts",
+          "target": "apps/api/src/modules/assessment/application/contracts/assessment/readiness-status.contract.ts",
+          "spec": "../../contracts/assessment/readiness-status.contract.js",
+          "names": [
+            "AssessmentReadinessStatusDto"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/mappers/rule-assessment.mapper.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "rowToAcceptedRuleAssessment"
+      ],
+      "deps": [
+        "@prisma/client",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.ts",
+          "target": "apps/api/src/modules/assessment/application/mappers/rule-assessment.mapper.ts",
+          "spec": "../../mappers/rule-assessment.mapper.js",
+          "names": [
+            "rowToAcceptedRuleAssessment"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.ts",
+          "target": "apps/api/src/modules/assessment/application/mappers/rule-assessment.mapper.ts",
+          "spec": "../../mappers/rule-assessment.mapper.js",
+          "names": [
+            "rowToAcceptedRuleAssessment"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "harness"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/assessment/domain/entities/assessment.entity.ts",
+        "apps/api/src/modules/assessment/application/ports/persistence/assessment.repository.ts",
+        "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.handler.ts",
+        "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.query.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "GetAssessmentReadinessHandler"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/assessment/application/ports/persistence/assessment.repository.ts",
+        "apps/api/src/modules/assessment/application/contracts/assessment/readiness-status.contract.ts",
+        "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.query.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.handler.ts",
+          "spec": "./get-assessment-readiness.handler.js",
+          "names": [
+            "GetAssessmentReadinessHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.query.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "GetAssessmentReadinessQuery"
+      ],
+      "deps": [
+        "@nestjs/cqrs",
+        "packages/contracts/src/auth/index.ts",
+        "apps/api/src/modules/assessment/application/contracts/assessment/readiness-status.contract.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.query.ts",
+          "spec": "./get-assessment-readiness.query.js",
+          "names": [
+            "GetAssessmentReadinessQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.handler.ts",
+          "target": "apps/api/src/modules/assessment/application/queries/get-assessment-readiness/get-assessment-readiness.query.ts",
+          "spec": "./get-assessment-readiness.query.js",
+          "names": [
+            "GetAssessmentReadinessQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "handlerWith"
+      ],
+      "deps": [
+        "@jest/globals",
+        "@nestjs/common",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.ts",
+        "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.query.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "ListRuleAssessmentsHandler"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/assessment/application/mappers/rule-assessment.mapper.ts",
+        "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.query.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.ts",
+          "spec": "./list-rule-assessments.handler.js",
+          "names": [
+            "ListRuleAssessmentsHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/assessment.module.ts",
+          "target": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.ts",
+          "spec": "./application/queries/list-rule-assessments/list-rule-assessments.handler.js",
+          "names": [
+            "ListRuleAssessmentsHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.query.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "ListRuleAssessmentsQuery"
+      ],
+      "deps": [
+        "@nestjs/cqrs",
+        "packages/contracts/src/evidence/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.query.ts",
+          "spec": "./list-rule-assessments.query.js",
+          "names": [
+            "ListRuleAssessmentsQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.ts",
+          "target": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.query.ts",
+          "spec": "./list-rule-assessments.query.js",
+          "names": [
+            "ListRuleAssessmentsQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/presentation/http/assessment.controller.ts",
+          "target": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.query.ts",
+          "spec": "../../application/queries/list-rule-assessments/list-rule-assessments.query.js",
+          "names": [
+            "ListRuleAssessmentsQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "initialPlanningReadyStatements",
+        "confirmedStructuredContext",
+        "submitAnswerCommand",
+        "initialInterviewThreadFixture",
+        "targetedResolutionThreadFixture",
+        "partialCoveragePolicyDecision",
+        "readyTechnicalEvidenceReport",
+        "targetedNeedRegistrationPayload",
+        "MockPrismaDelegates",
+        "MockOutboxRepository",
+        "MockInterviewAudit",
+        "MockRuntimeEvents",
+        "blockedThread",
+        "failedTurnThread",
+        "existingContextThread",
+        "complete",
+        "revisionFixture"
+      ],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/outbox/outbox.repository.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-event.service.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-control.service.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/modules/audit/application/services/interview-audit.service.ts",
+        "node:fs",
+        "node:path",
+        "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+        "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "PrivateInterviewAnswerRevision",
+        "WorkerPriorAnswerHistoryItem",
+        "InterviewAnswerIdempotencyRecord",
+        "TargetedInterviewNeed",
+        "TargetedInterviewContinuation",
+        "PrivateInterviewStore",
+        "InterviewResumeAttempts",
+        "TargetedNeedRegistrationInput",
+        "WorkerPrivateContext",
+        "InterviewThreadSnapshot",
+        "AssessmentProvenanceSnapshot",
+        "AgentDecisionInput",
+        "OrchestratorInterviewTransition",
+        "AssessmentInterviewRuntimeService",
+        "isTransientInterviewTransactionError",
+        "parseSubmitAnswerCommand",
+        "parseCustomerAnswer",
+        "parsePostFindingDecision",
+        "activeBusinessContextNeed",
+        "orchestratorInterviewTransition",
+        "interviewWorkflowEventsForTransition",
+        "postFindingPhaseAfterDecision",
+        "parseTargetedNeedRegistration",
+        "parsePersistableInterviewQuestion",
+        "parseAgentDecision",
+        "parseStoredInterviewState",
+        "parseResumeInput",
+        "parsePrivateStore",
+        "positiveSafeInteger",
+        "parseResumeAttempts",
+        "canonicalizeLegacyInterviewValue",
+        "readOriginatingRuleAnalysisReference",
+        "stringList",
+        "parseStoredTargetedNeed",
+        "parseStoredTargetedContinuation",
+        "parsePartialCoveragePolicyDecision",
+        "isPrivateRevision",
+        "isAnswerIdempotencyRecord",
+        "assertInitialPlanningContextReady",
+        "assertGuardedDecision",
+        "confirmedContextResolvesCriterion",
+        "confirmedContextSatisfiesCriterion",
+        "confirmedStructuredContextTopics",
+        "assertTargetedQuestionBounded",
+        "nonEmptyString",
+        "assertNeutralTargetedText",
+        "assertAuthorityProvenance",
+        "revisionRequiresAnswerInterpretation",
+        "requiresAnswerInterpretation",
+        "assertAnswerMatchesQuestion",
+        "decisionState",
+        "isAuthoritative",
+        "truncateWorkerHistoryText",
+        "buildWorkerPriorAnswerHistory",
+        "summarizeAnswer",
+        "sanitizePublicText",
+        "needIdentityFor",
+        "assertAnswerBoundToNeed",
+        "materializeConfirmedStructuredBusinessContext",
+        "publicActiveQuestion",
+        "publicState",
+        "runtimeEventState",
+        "parseAiDiscoverySnippetRef",
+        "toJson",
+        "stableJson",
+        "readTechnicalCoverageState"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/outbox/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "packages/contracts/src/shared/index.ts",
+        "@nestjs/common",
+        "@prisma/client",
+        "node:crypto",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/platform/outbox/outbox.repository.ts",
+        "apps/api/src/platform/rbac/interfaces/rbac-request.interface.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-control.service.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-event.service.ts",
+        "apps/api/src/modules/audit/application/services/interview-audit.service.ts",
+        "apps/api/src/modules/assessment/application/services/interview-guidance.resolver.ts",
+        "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts",
+        "apps/api/src/modules/assessment/application/services/interview-working-strategy.ts",
+        "apps/api/src/modules/assessment/application/services/interview-mutation-guards.ts",
+        "apps/api/src/modules/assessment/application/services/initial-interview-context.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "spec": "./assessment-interview-runtime.service.js",
+          "names": [
+            "AssessmentInterviewRuntimeService",
+            "materializeConfirmedStructuredBusinessContext"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "spec": "./assessment-interview-runtime.service.js",
+          "names": [
+            "AssessmentInterviewRuntimeService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "spec": "./assessment-interview-runtime.service.js",
+          "names": [
+            "AssessmentInterviewRuntimeService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/assessment.module.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "spec": "./application/services/assessment-interview-runtime.service.js",
+          "names": [
+            "AssessmentInterviewRuntimeService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/presentation/http/assessment.controller.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "spec": "../../application/services/assessment-interview-runtime.service.js",
+          "names": [
+            "AssessmentInterviewRuntimeService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/evidence/application/services/evidence/assessment-artifact-projection.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "spec": "../../../../assessment/application/services/assessment-interview-runtime.service.js",
+          "names": [
+            "sanitizePublicText"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/assessment-interview-snippet.service.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "tarGzip",
+        "tarEntry",
+        "oversizedTarGzip",
+        "snippetRef",
+        "harness"
+      ],
+      "deps": [
+        "node:crypto",
+        "node:stream",
+        "node:zlib",
+        "@jest/globals",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-interview-snippet.service.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/assessment-interview-snippet.service.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "AssessmentInterviewSnippetService",
+        "isGovernedSnippetRef",
+        "assertSnippetRef",
+        "readFileFromGzipTar",
+        "tarMember",
+        "readTarString",
+        "archivePathMatches",
+        "normalizeArchivePath",
+        "paddingFor",
+        "redactSecrets",
+        "boundUtf8",
+        "AsyncByteReader"
+      ],
+      "deps": [
+        "packages/contracts/src/shared/index.ts",
+        "node:crypto",
+        "node:stream",
+        "node:zlib",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/runtime-events/agent-stream-sanitizer.ts",
+        "apps/api/src/modules/github-integration/application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.ts",
+        "apps/api/src/modules/github-integration/application/queries/stream-snapshot-archive/stream-snapshot-archive.query.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-snippet.service.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-interview-snippet.service.ts",
+          "spec": "./assessment-interview-snippet.service.js",
+          "names": [
+            "AssessmentInterviewSnippetService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/assessment.module.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-interview-snippet.service.ts",
+          "spec": "./application/services/assessment-interview-snippet.service.js",
+          "names": [
+            "AssessmentInterviewSnippetService"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "@nestjs/cqrs",
+        "apps/api/src/platform/runtime-events/assessment-runtime-event.service.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-control.service.ts",
+        "apps/api/src/modules/classification/application/commands/rerun-classification/rerun-classification.command.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-lifecycle-coordinator.service.ts",
+        "packages/contracts/src/assessment/index.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "AssessmentPipelineContinuationService"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/platform/rbac/interfaces/rbac-request.interface.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-control.service.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-event.service.ts",
+        "apps/api/src/modules/classification/application/commands/rerun-classification/rerun-classification.command.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-lifecycle-coordinator.service.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts",
+          "spec": "./assessment-pipeline-continuation.service.js",
+          "names": [
+            "AssessmentPipelineContinuationService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-reconciliation.service.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts",
+          "spec": "./assessment-pipeline-continuation.service.js",
+          "names": [
+            "AssessmentPipelineContinuationService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-reconciliation.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts",
+          "spec": "./assessment-pipeline-continuation.service.js",
+          "names": [
+            "AssessmentPipelineContinuationService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/assessment.module.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts",
+          "spec": "./application/services/assessment-pipeline-continuation.service.js",
+          "names": [
+            "AssessmentPipelineContinuationService"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-reconciliation.service.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "@nestjs/common",
+        "@nestjs/config",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-pipeline-reconciliation.service.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-reconciliation.service.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "AssessmentPipelineReconciliationService"
+      ],
+      "deps": [
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "@nestjs/common",
+        "@nestjs/config",
+        "@prisma/client",
+        "node:crypto",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-pipeline-reconciliation.service.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/assessment-pipeline-reconciliation.service.ts",
+          "spec": "./assessment-pipeline-reconciliation.service.js",
+          "names": [
+            "AssessmentPipelineReconciliationService"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/initial-interview-context.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "requireExistingInitialContext",
+        "assertExistingInitialContextSufficient"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/shared/index.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/initial-interview-context.ts",
+          "spec": "./initial-interview-context.js",
+          "names": [
+            "requireExistingInitialContext",
+            "assertExistingInitialContextSufficient"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/interview-guidance.resolver.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/assessment/index.ts",
+        "apps/api/src/modules/assessment/application/services/interview-guidance.resolver.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/interview-guidance.resolver.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "InterviewGuidanceResolver"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-guidance.resolver.ts",
+          "spec": "./interview-guidance.resolver.js",
+          "names": [
+            "InterviewGuidanceResolver"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/interview-guidance.resolver.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-guidance.resolver.ts",
+          "spec": "./interview-guidance.resolver.js",
+          "names": [
+            "InterviewGuidanceResolver"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "context"
+      ],
+      "deps": [
+        "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "InitialPlanningContextDimension",
+        "missingInitialPlanningContextDimensions",
+        "planningStatementTokens",
+        "planningTokens",
+        "matchesAnyTerm",
+        "matchesTerm"
+      ],
+      "deps": [
+        "packages/contracts/src/shared/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts",
+          "spec": "./interview-minimum-planning-context.js",
+          "names": [
+            "missingInitialPlanningContextDimensions"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts",
+          "spec": "./interview-minimum-planning-context.js",
+          "names": [
+            "missingInitialPlanningContextDimensions"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/initial-interview-context.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts",
+          "spec": "./interview-minimum-planning-context.js",
+          "names": [
+            "missingInitialPlanningContextDimensions"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts",
+          "spec": "./interview-minimum-planning-context.js",
+          "names": [
+            "missingInitialPlanningContextDimensions"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/evidence/application/services/evidence/assessment-artifact-projection.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts",
+          "spec": "../../../../assessment/application/services/interview-minimum-planning-context.js",
+          "names": [
+            "missingInitialPlanningContextDimensions"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/interview-mutation-guards.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "thread",
+        "expectProblem"
+      ],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/modules/assessment/application/services/interview-mutation-guards.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/interview-mutation-guards.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "InterviewBlockedActionReceipt",
+        "InterviewMutationThread",
+        "assertInterviewMutationProvenance",
+        "assertInterviewBlockedActionAvailable",
+        "parseInterviewBlockedAction",
+        "isInterviewBlockedActionReceipt"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/shared/index.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-mutation-guards.ts",
+          "spec": "./interview-mutation-guards.js",
+          "names": [
+            "assertInterviewBlockedActionAvailable",
+            "assertInterviewMutationProvenance",
+            "isInterviewBlockedActionReceipt",
+            "parseInterviewBlockedAction",
+            "InterviewBlockedActionReceipt"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/interview-mutation-guards.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-mutation-guards.ts",
+          "spec": "./interview-mutation-guards.js",
+          "names": [
+            "assertInterviewBlockedActionAvailable",
+            "assertInterviewMutationProvenance",
+            "parseInterviewBlockedAction",
+            "isInterviewBlockedActionReceipt"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/interview-working-strategy.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/modules/assessment/application/services/interview-working-strategy.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/interview-working-strategy.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "updateInterviewWorkingStrategy",
+        "normalizeStrategy",
+        "boundedList",
+        "addBounded",
+        "extractTerminology"
+      ],
+      "deps": [
+        "packages/contracts/src/evidence/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-working-strategy.ts",
+          "spec": "./interview-working-strategy.js",
+          "names": [
+            "normalizeStrategy",
+            "updateInterviewWorkingStrategy"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/interview-working-strategy.spec.ts",
+          "target": "apps/api/src/modules/assessment/application/services/interview-working-strategy.ts",
+          "spec": "./interview-working-strategy.js",
+          "names": [
+            "updateInterviewWorkingStrategy"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/legal-provision-display.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "LegalChunkDisplaySource",
+        "resolveLegalProvisionDisplays",
+        "isDescendantLocator",
+        "toDisplay",
+        "locatorPart",
+        "normalizeContent",
+        "text"
+      ],
+      "deps": [
+        "packages/contracts/src/shared/index.ts",
+        "apps/api/src/modules/assessment/application/contracts/assessment/assessment-detail.contract.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/assessment/application/services/technical-evidence-display.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "JsonRecord",
+        "resolveTechnicalEvidenceDisplays",
+        "sourceRefDisplay",
+        "dedupe",
+        "projectedDisplays",
+        "fromNode",
+        "fromAnchor",
+        "fromEdge",
+        "sourcePath",
+        "fileName",
+        "asRecords",
+        "text",
+        "strings",
+        "integer"
+      ],
+      "deps": [
+        "packages/contracts/src/shared/index.ts",
+        "apps/api/src/modules/assessment/application/contracts/assessment/assessment-detail.contract.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "captureError"
+      ],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "@nestjs/common",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/audit/application/services/audit/audit-redactor.service.ts",
+        "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.ts",
+        "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.query.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "auditActorType",
+        "stringArray",
+        "readTurnId",
+        "readSourceSnapshot",
+        "readQuestionIntent",
+        "readOutcome",
+        "readResponseMode",
+        "readResponseAction",
+        "readActorRef",
+        "readConflictDetail",
+        "GetInterviewAuditTrailHandler"
+      ],
+      "deps": [
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/shared/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/audit/application/services/audit/audit-redactor.service.ts",
+        "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.query.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.spec.ts",
+          "target": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.ts",
+          "spec": "./get-interview-audit-trail.handler.js",
+          "names": [
+            "GetInterviewAuditTrailHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/audit/audit.module.ts",
+          "target": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.ts",
+          "spec": "./application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.js",
+          "names": [
+            "GetInterviewAuditTrailHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.query.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "GetInterviewAuditTrailQuery"
+      ],
+      "deps": [],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.spec.ts",
+          "target": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.query.ts",
+          "spec": "./get-interview-audit-trail.query.js",
+          "names": [
+            "GetInterviewAuditTrailQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.ts",
+          "target": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.query.ts",
+          "spec": "./get-interview-audit-trail.query.js",
+          "names": [
+            "GetInterviewAuditTrailQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/audit/application/services/interview-audit.service.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/modules/audit/application/services/interview-audit.service.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/audit/application/services/interview-audit.service.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "RecordStatementAuditInput",
+        "RecordConfirmationAuditInput",
+        "RecordQuestionPersistedAuditInput",
+        "RecordCustomerAnswerAuditInput",
+        "RecordContextRevisionCreatedAuditInput",
+        "RecordInterviewOutcomeAuditInput",
+        "RecordSupersessionAuditInput",
+        "RecordCrossRespondentConflictAuditInput",
+        "RecordTargetedClarificationAuditInput",
+        "RecordDownstreamImpactAuditInput",
+        "RecordOrchestrationRerunAuditInput",
+        "InterviewAuditService",
+        "InterviewAuditEventActor"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "@prisma/client",
+        "apps/api/src/platform/audit/audit-writer.service.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.spec.ts",
+          "target": "apps/api/src/modules/audit/application/services/interview-audit.service.ts",
+          "spec": "../../../audit/application/services/interview-audit.service.js",
+          "names": [
+            "InterviewAuditService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+          "target": "apps/api/src/modules/audit/application/services/interview-audit.service.ts",
+          "spec": "../../../audit/application/services/interview-audit.service.js",
+          "names": [
+            "InterviewAuditService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/audit/application/services/interview-audit.service.spec.ts",
+          "target": "apps/api/src/modules/audit/application/services/interview-audit.service.ts",
+          "spec": "./interview-audit.service.js",
+          "names": [
+            "InterviewAuditService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/audit/audit.module.ts",
+          "target": "apps/api/src/modules/audit/application/services/interview-audit.service.ts",
+          "spec": "./application/services/interview-audit.service.js",
+          "names": [
+            "InterviewAuditService"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "ProcessScanCallbackCommand"
+      ],
+      "deps": [
+        "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts",
+          "spec": "./process-scan-callback.command.js",
+          "names": [
+            "ProcessScanCallbackCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts",
+          "target": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts",
+          "spec": "./process-scan-callback.command.js",
+          "names": [
+            "ProcessScanCallbackCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
+          "target": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts",
+          "spec": "../../application/commands/process-scan-callback/process-scan-callback.command.js",
+          "names": [
+            "ProcessScanCallbackCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "buildHandler",
+        "RepositoryScanJobRecord",
+        "TechnicalEvidenceReportRecord",
+        "callbackPayload"
+      ],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts",
+        "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "ProcessScanCallbackHandler",
+        "errorCode"
+      ],
+      "deps": [
+        "node:crypto",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/outbox/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-event.service.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+        "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts",
+        "apps/api/src/platform/storage/artifact-storage.service.ts",
+        "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts",
+          "spec": "./process-scan-callback.handler.js",
+          "names": [
+            "ProcessScanCallbackHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/scan.module.ts",
+          "target": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts",
+          "spec": "./application/commands/process-scan-callback/process-scan-callback.handler.js",
+          "names": [
+            "ProcessScanCallbackHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "RequestTargetedReanalysisCommand"
+      ],
+      "deps": [
+        "apps/api/src/platform/rbac/interfaces/rbac-request.interface.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/targeted-reanalysis.contract.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts",
+          "spec": "./request-targeted-reanalysis.command.js",
+          "names": [
+            "RequestTargetedReanalysisCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.ts",
+          "target": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts",
+          "spec": "./request-targeted-reanalysis.command.js",
+          "names": [
+            "RequestTargetedReanalysisCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts",
+          "spec": "../../application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.js",
+          "names": [
+            "RequestTargetedReanalysisCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
+          "target": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts",
+          "spec": "../../application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.js",
+          "names": [
+            "RequestTargetedReanalysisCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.ts",
+        "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "RequestTargetedReanalysisHandler"
+      ],
+      "deps": [
+        "node:crypto",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/outbox/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/platform/outbox/outbox.repository.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/targeted-reanalysis.contract.ts",
+        "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.ts",
+          "spec": "./request-targeted-reanalysis.handler.js",
+          "names": [
+            "RequestTargetedReanalysisHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/scan.module.ts",
+          "target": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.ts",
+          "spec": "./application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.js",
+          "names": [
+            "RequestTargetedReanalysisHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "RerunScanCommand"
+      ],
+      "deps": [
+        "apps/api/src/platform/rbac/interfaces/rbac-request.interface.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+          "spec": "./rerun-scan.command.js",
+          "names": [
+            "RerunScanCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts",
+          "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+          "spec": "./rerun-scan.command.js",
+          "names": [
+            "RerunScanCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.postgres.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+          "spec": "./rerun-scan.command.js",
+          "names": [
+            "RerunScanCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+          "spec": "../../application/commands/rerun-scan/rerun-scan.command.js",
+          "names": [
+            "RerunScanCommand"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
+          "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+          "spec": "../../application/commands/rerun-scan/rerun-scan.command.js",
+          "names": [
+            "RerunScanCommand"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "@nestjs/common",
+        "@nestjs/testing",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/platform/outbox/outbox.repository.ts",
+        "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+        "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "RerunScanHandler"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "node:crypto",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/outbox/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "@prisma/client",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/platform/outbox/outbox.repository.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/platform/scan/repository-scan-staleness.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/rerun-scan.contract.ts",
+        "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts",
+          "spec": "./rerun-scan.handler.js",
+          "names": [
+            "RerunScanHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.postgres.spec.ts",
+          "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts",
+          "spec": "./rerun-scan.handler.js",
+          "names": [
+            "RerunScanHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/scan.module.ts",
+          "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts",
+          "spec": "./application/commands/rerun-scan/rerun-scan.handler.js",
+          "names": [
+            "RerunScanHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.postgres.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "connection",
+        "deferred"
+      ],
+      "deps": [
+        "node:crypto",
+        "node:timers/promises",
+        "@prisma/adapter-pg",
+        "@prisma/client",
+        "packages/contracts/src/assessment/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+        "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/contracts/scan/rerun-scan.contract.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "RerunScanRequestDto",
+        "RerunScanResponseDto"
+      ],
+      "deps": [],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/rerun-scan.contract.ts",
+          "spec": "../../contracts/scan/rerun-scan.contract.js",
+          "names": [
+            "RerunScanResponseDto"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/rerun-scan.contract.ts",
+          "spec": "../../application/contracts/scan/rerun-scan.contract.js",
+          "names": [
+            "RerunScanRequestDto"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "ScanCallbackRequest",
+        "ScanCallbackDto"
+      ],
+      "deps": [
+        "packages/contracts/src/scan/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+          "spec": "../../contracts/scan/scan-callback.contract.js",
+          "names": [
+            "ScanCallbackRequest"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+          "spec": "../../contracts/scan/scan-callback.contract.js",
+          "names": [
+            "ScanCallbackDto"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.spec.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+          "spec": "../../contracts/scan/scan-callback.contract.js",
+          "names": [
+            "ScanCallbackRequest"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+          "spec": "../../contracts/scan/scan-callback.contract.js",
+          "names": [
+            "ScanCallbackRequest"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+          "spec": "../../application/contracts/scan/scan-callback.contract.js",
+          "names": [
+            "ScanCallbackRequest"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/contracts/scan/scan-job-status.contract.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "ScanJobStatusDto"
+      ],
+      "deps": [
+        "packages/contracts/src/github-integration/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/scan-job-status.contract.ts",
+          "spec": "../../contracts/scan/scan-job-status.contract.js",
+          "names": [
+            "ScanJobStatusDto"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/scan-job-status.contract.ts",
+          "spec": "../../contracts/scan/scan-job-status.contract.js",
+          "names": [
+            "ScanJobStatusDto"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/contracts/scan/targeted-reanalysis.contract.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "RequestTargetedReanalysisInput"
+      ],
+      "deps": [
+        "packages/contracts/src/scan/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/targeted-reanalysis.contract.ts",
+          "spec": "../../contracts/scan/targeted-reanalysis.contract.js",
+          "names": [
+            "RequestTargetedReanalysisInput"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.ts",
+          "target": "apps/api/src/modules/scan/application/contracts/scan/targeted-reanalysis.contract.ts",
+          "spec": "../../contracts/scan/targeted-reanalysis.contract.js",
+          "names": [
+            "RequestTargetedReanalysisResponse"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "job",
+        "query",
+        "buildHandler"
+      ],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.ts",
+        "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "GetScanJobHandler",
+        "nextActionFor",
+        "blockedReasonFor"
+      ],
+      "deps": [
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "@nestjs/common",
+        "@nestjs/cqrs",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/scan-job-status.contract.ts",
+        "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.spec.ts",
+          "target": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.ts",
+          "spec": "./get-scan-job.handler.js",
+          "names": [
+            "GetScanJobHandler"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/scan.module.ts",
+          "target": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.ts",
+          "spec": "./application/queries/get-scan-job/get-scan-job.handler.js",
+          "names": [
+            "GetScanJobHandler"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "GetScanJobQuery"
+      ],
+      "deps": [
+        "@nestjs/cqrs",
+        "packages/contracts/src/auth/index.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/scan-job-status.contract.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.spec.ts",
+          "target": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts",
+          "spec": "./get-scan-job.query.js",
+          "names": [
+            "GetScanJobQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.ts",
+          "target": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts",
+          "spec": "./get-scan-job.query.js",
+          "names": [
+            "GetScanJobQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.spec.ts",
+          "target": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts",
+          "spec": "../../application/queries/get-scan-job/get-scan-job.query.js",
+          "names": [
+            "GetScanJobQuery"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
+          "target": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts",
+          "spec": "../../application/queries/get-scan-job/get-scan-job.query.js",
+          "names": [
+            "GetScanJobQuery"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "payload",
+        "expectError"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "@jest/globals",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+        "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "EvidenceSchemaValidatorService",
+        "isStringRecord",
+        "containsUnsafeEvidence"
+      ],
+      "deps": [
+        "@nestjs/common",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+        "packages/contracts/src/shared/index.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts",
+          "target": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts",
+          "spec": "../../services/scan/evidence-schema-validator.service.js",
+          "names": [
+            "EvidenceSchemaValidatorService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.spec.ts",
+          "target": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts",
+          "spec": "./evidence-schema-validator.service.js",
+          "names": [
+            "EvidenceSchemaValidatorService"
+          ],
+          "kind": "import"
+        },
+        {
+          "file": "apps/api/src/modules/scan/scan.module.ts",
+          "target": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts",
+          "spec": "./application/services/scan/evidence-schema-validator.service.js",
+          "names": [
+            "EvidenceSchemaValidatorService"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/modules/scan/presentation/http/scan.controller.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [],
+      "deps": [
+        "@jest/globals",
+        "@nestjs/cqrs",
+        "@prisma/client",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/platform/rbac/decorators/rbac-metadata.ts",
+        "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts",
+        "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+        "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts",
+        "apps/api/src/modules/scan/presentation/http/scan.controller.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "ScanStatusRequest",
+        "TargetedReanalysisRequestBody",
+        "InternalTargetedReanalysisCreateBody",
+        "WorkerAgentStreamEventRequest",
+        "WorkerRuntimeEventRequest",
+        "WorkerScanClaimRequest",
+        "WorkerScanTerminalFailureRequest",
+        "WorkerDecisionModelClaimRequest",
+        "WorkerDecisionModelCompleteRequest",
+        "WorkerDecisionModelEventRequest",
+        "ScanController",
+        "InternalScanController",
+        "parseTargetedReanalysisInput",
+        "parseTargetedReanalysisRuleScope",
+        "readStringArray",
+        "invalidTargetedReanalysisRequest",
+        "optionalText",
+        "optionalStreamText",
+        "isPrismaUniqueConstraintError",
+        "normalizeDecisionId",
+        "optionalDecisionText",
+        "optionalPrNumber",
+        "isDecisionModelEventType",
+        "boundedDecisionCompletionPayload",
+        "boundedDecisionEventPayload",
+        "boundedDecisionEventData",
+        "parseDecisionEventDataValue",
+        "boundedDecisionQuestionResults",
+        "boundedDecisionQuestionResult",
+        "boundedSelectedTypedResult",
+        "boundedSelectedTypedResultValue",
+        "boundedNoulProjection",
+        "boundedScalarRecord",
+        "boundedNumberRecord",
+        "boundedTextArray",
+        "boundedText",
+        "isPrivateDecisionNestedKey",
+        "boundedFiniteNumber",
+        "decisionEventSemanticPayload",
+        "decisionEventStatus",
+        "decisionEventText",
+        "compactJsonObject",
+        "textFromJson",
+        "numberFromJson",
+        "booleanFromJson",
+        "jsonValue",
+        "jsonRecord",
+        "parseWorkerRuntimeEventPayload",
+        "scanTerminalFailureReasonCode",
+        "scanTerminalFailureStatus",
+        "isTerminalRepositoryScanStatus",
+        "readRuntimeValue",
+        "optionalRuntimeString",
+        "parseRuntimeSummaryValue",
+        "optionalDate",
+        "optionalNonNegativeInteger",
+        "invalidWorkerRuntimeEvent",
+        "TargetedReanalysisTerminalPayload",
+        "InternalTargetedReanalysisController"
+      ],
+      "deps": [
+        "node:crypto",
+        "@nestjs/common",
+        "@nestjs/config",
+        "@nestjs/cqrs",
+        "@prisma/client",
+        "packages/contracts/src/auth/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/shared/index.ts",
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/audit/index.ts",
+        "packages/contracts/src/scan/index.ts",
+        "apps/api/src/platform/rbac/decorators/require-roles.decorator.ts",
+        "apps/api/src/platform/rbac/interfaces/rbac-request.interface.ts",
+        "apps/api/src/platform/rbac/rbac.guard.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/scan-callback.contract.ts",
+        "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts",
+        "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.query.ts",
+        "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts",
+        "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.ts",
+        "apps/api/src/modules/scan/application/contracts/scan/rerun-scan.contract.ts",
+        "apps/api/src/modules/scan/presentation/http/worker-api-key.guard.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/config/config.types.ts",
+        "apps/api/src/infrastructure/prisma/prisma.service.ts",
+        "apps/api/src/platform/audit/audit-writer.service.ts",
+        "apps/api/src/platform/http/filters/error.factory.ts",
+        "apps/api/src/platform/runtime-events/assessment-runtime-event.service.ts",
+        "apps/api/src/platform/logging/orchestration-runtime-log.ts",
+        "apps/api/src/platform/logging/orchestration-runtime-log.ts",
+        "apps/api/src/infrastructure/prisma/prisma-enum-mappers.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/modules/scan/presentation/http/scan.controller.spec.ts",
+          "target": "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
+          "spec": "./scan.controller.js",
+          "names": [
+            "InternalScanController",
+            "ScanController"
+          ],
+          "kind": "import"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/platform/runtime-events/stage-lifecycle.spec.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "progress",
+        "derive"
+      ],
+      "deps": [
+        "@jest/globals",
+        "packages/contracts/src/evidence/index.ts",
+        "apps/api/src/platform/runtime-events/stage-lifecycle.ts"
+      ],
+      "inbound": []
+    },
+    {
+      "file": "apps/api/src/platform/runtime-events/stage-lifecycle.ts",
+      "classification": "DELETE_NOW",
+      "declarations": [
+        "StageLifecycleScanJob",
+        "StageLifecycleEvidenceReport",
+        "StageLifecycleInterviewThread",
+        "StageLifecycleInput",
+        "entry",
+        "deriveStageLifecycles",
+        "deriveScanner",
+        "deriveInterview",
+        "pendingRules",
+        "deriveRuleAnalysis",
+        "deriveGate",
+        "groupBy"
+      ],
+      "deps": [
+        "packages/contracts/src/evidence/index.ts",
+        "packages/contracts/src/github-integration/index.ts",
+        "packages/contracts/src/scan/index.ts"
+      ],
+      "inbound": [
+        {
+          "file": "apps/api/src/platform/runtime-events/stage-lifecycle.spec.ts",
+          "target": "apps/api/src/platform/runtime-events/stage-lifecycle.ts",
+          "spec": "./stage-lifecycle.js",
+          "names": [
+            "deriveStageLifecycles",
+            "StageLifecycleInput"
+          ],
+          "kind": "import"
+        }
+      ]
+    }
+  ],
+  "external": [
+    {
+      "file": "apps/api/src/modules/assessment/assessment.module.ts",
+      "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.ts",
+      "spec": "./application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.js",
+      "names": [
+        "MarkAiNotDetectedHandler"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/assessment.module.ts",
+      "target": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.handler.ts",
+      "spec": "./application/commands/put-rule-assessment/put-rule-assessment.handler.js",
+      "names": [
+        "PutRuleAssessmentHandler"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/assessment.module.ts",
+      "target": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.handler.ts",
+      "spec": "./application/queries/list-rule-assessments/list-rule-assessments.handler.js",
+      "names": [
+        "ListRuleAssessmentsHandler"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/assessment.module.ts",
+      "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+      "spec": "./application/services/assessment-interview-runtime.service.js",
+      "names": [
+        "AssessmentInterviewRuntimeService"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/assessment.module.ts",
+      "target": "apps/api/src/modules/assessment/application/services/assessment-interview-snippet.service.ts",
+      "spec": "./application/services/assessment-interview-snippet.service.js",
+      "names": [
+        "AssessmentInterviewSnippetService"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/assessment.module.ts",
+      "target": "apps/api/src/modules/assessment/application/services/assessment-pipeline-continuation.service.ts",
+      "spec": "./application/services/assessment-pipeline-continuation.service.js",
+      "names": [
+        "AssessmentPipelineContinuationService"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/presentation/http/assessment.controller.ts",
+      "target": "apps/api/src/modules/assessment/application/commands/mark-ai-not-detected/mark-ai-not-detected.command.ts",
+      "spec": "../../application/commands/mark-ai-not-detected/mark-ai-not-detected.command.js",
+      "names": [
+        "MarkAiNotDetectedCommand"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/presentation/http/assessment.controller.ts",
+      "target": "apps/api/src/modules/assessment/application/commands/put-rule-assessment/put-rule-assessment.command.ts",
+      "spec": "../../application/commands/put-rule-assessment/put-rule-assessment.command.js",
+      "names": [
+        "PutRuleAssessmentCommand"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/presentation/http/assessment.controller.ts",
+      "target": "apps/api/src/modules/assessment/application/queries/list-rule-assessments/list-rule-assessments.query.ts",
+      "spec": "../../application/queries/list-rule-assessments/list-rule-assessments.query.js",
+      "names": [
+        "ListRuleAssessmentsQuery"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/assessment/presentation/http/assessment.controller.ts",
+      "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+      "spec": "../../application/services/assessment-interview-runtime.service.js",
+      "names": [
+        "AssessmentInterviewRuntimeService"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/audit/audit.module.ts",
+      "target": "apps/api/src/modules/audit/application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.ts",
+      "spec": "./application/queries/get-interview-audit-trail/get-interview-audit-trail.handler.js",
+      "names": [
+        "GetInterviewAuditTrailHandler"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/audit/audit.module.ts",
+      "target": "apps/api/src/modules/audit/application/services/interview-audit.service.ts",
+      "spec": "./application/services/interview-audit.service.js",
+      "names": [
+        "InterviewAuditService"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/evidence/application/services/evidence/assessment-artifact-projection.service.ts",
+      "target": "apps/api/src/modules/assessment/application/services/assessment-interview-runtime.service.ts",
+      "spec": "../../../../assessment/application/services/assessment-interview-runtime.service.js",
+      "names": [
+        "sanitizePublicText"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/evidence/application/services/evidence/assessment-artifact-projection.service.ts",
+      "target": "apps/api/src/modules/assessment/application/services/interview-minimum-planning-context.ts",
+      "spec": "../../../../assessment/application/services/interview-minimum-planning-context.js",
+      "names": [
+        "missingInitialPlanningContextDimensions"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/scan/scan.module.ts",
+      "target": "apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts",
+      "spec": "./application/commands/process-scan-callback/process-scan-callback.handler.js",
+      "names": [
+        "ProcessScanCallbackHandler"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/scan/scan.module.ts",
+      "target": "apps/api/src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.ts",
+      "spec": "./application/queries/get-scan-job/get-scan-job.handler.js",
+      "names": [
+        "GetScanJobHandler"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/scan/scan.module.ts",
+      "target": "apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts",
+      "spec": "./application/services/scan/evidence-schema-validator.service.js",
+      "names": [
+        "EvidenceSchemaValidatorService"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/scan/scan.module.ts",
+      "target": "apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts",
+      "spec": "./application/commands/rerun-scan/rerun-scan.handler.js",
+      "names": [
+        "RerunScanHandler"
+      ],
+      "kind": "import"
+    },
+    {
+      "file": "apps/api/src/modules/scan/scan.module.ts",
+      "target": "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.ts",
+      "spec": "./application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.js",
+      "names": [
+        "RequestTargetedReanalysisHandler"
+      ],
+      "kind": "import"
+    }
+  ]
+}

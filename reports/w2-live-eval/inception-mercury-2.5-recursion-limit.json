@@ -1,0 +1,90 @@
+{
+  "generatedAt": "2026-10-06T17:36:35.064Z",
+  "model": "inception:mercury-2.5",
+  "usage": {
+    "modelCalls": 60,
+    "toolCalls": [],
+    "inputTokens": 1288805,
+    "outputTokens": 30347,
+    "seconds": 887.8,
+    "profileKey": "inception:mercury-2.5"
+  },
+  "runId": "04b828df-752c-4512-a36c-3ab31791dcf2",
+  "run": {
+    "executionState": "FAILED",
+    "failureReason": "MODEL_ERROR"
+  },
+  "result": {
+    "state": "FAILED",
+    "submission": null,
+    "failureReason": "MODEL_ERROR",
+    "error": {
+      "type": "GraphRecursionError",
+      "message": "Recursion limit of 120 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT"
+    }
+  },
+  "activePortfolio": null,
+  "validationFailures": null,
+  "fixtureChunks": [
+    {
+      "locator": "art-1",
+      "content": "Điều 1. Defined term"
+    },
+    {
+      "locator": "art-1::cl-1",
+      "content": "1. In this synthetic instrument, “record” means a stored notice and its receipt timestamp."
+    },
+    {
+      "locator": "art-2",
+      "content": "Điều 2. Scope"
+    },
+    {
+      "locator": "art-2::cl-1",
+      "content": "1. This instrument applies only to operators offering the notice service to the public.\nPrivate household use is outside this scope."
+    },
+    {
+      "locator": "art-3",
+      "content": "Điều 3. Exception"
+    },
+    {
+      "locator": "art-3::cl-1",
+      "content": "1. The retention duty in Article 5 does not apply to a temporary test record.\nThis exception does not remove the in-person duty in Article 6."
+    },
+    {
+      "locator": "art-4",
+      "content": "Điều 4. Cross-reference"
+    },
+    {
+      "locator": "art-4::cl-1",
+      "content": "1. For the duty in Article 5, read “record” as defined in Article 1, within Article 2 and subject to Article 3.\na) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted."
+    },
+    {
+      "locator": "art-4::cl-1::pt-a",
+      "content": "a) The receipt timestamp begins the retention period.\nA receipt timestamp is recorded when the notice is received, not when it is drafted."
+    },
+    {
+      "locator": "art-5",
+      "content": "Điều 5. Retention duty"
+    },
+    {
+      "locator": "art-5::cl-1",
+      "content": "1. An operator within Article 2 must retain each record for 7 days, subject to Article 3.\na) Keep the notice text with its receipt timestamp.\nb) Preserve the notice text without removing its limiting language."
+    },
+    {
+      "locator": "art-5::cl-1::pt-a",
+      "content": "a) Keep the notice text with its receipt timestamp."
+    },
+    {
+      "locator": "art-5::cl-1::pt-b",
+      "content": "b) Preserve the notice text without removing its limiting language."
+    },
+    {
+      "locator": "art-6",
+      "content": "Điều 6. In-person duty"
+    },
+    {
+      "locator": "art-6::cl-1",
+      "content": "1. The operator must appoint a person to attend the annual public information session in person.\nAttendance is recorded in the session register maintained by the organizer."
+    }
+  ]
+}

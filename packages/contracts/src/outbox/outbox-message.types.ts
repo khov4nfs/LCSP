@@ -10,6 +10,8 @@ export const OUTBOX_STATUSES = {
   published: "PUBLISHED",
   failed: "FAILED",
   dlq: "DLQ",
+  /** Terminal and non-replayable: a retired V1 command archived and cancelled at cutover. */
+  cancelled: "CANCELLED",
 } as const;
 
 export const OUTBOX_AUDIT_EVENT_TYPES = {
@@ -33,21 +35,13 @@ export const OUTBOX_EVENT_EXCHANGES = {
 } as const;
 
 export const OUTBOX_AGGREGATE_TYPES = {
-  aiUsageFlow: "AI_USAGE_FLOW",
+  billingPayment: "BILLING_PAYMENT",
   assessment: "ASSESSMENT",
   authUser: "AUTH_USER",
-  classificationReviewRequest: "CLASSIFICATION_REVIEW_REQUEST",
-  classificationResult: "CLASSIFICATION_RESULT",
-  documentRequest: "DOCUMENT_REQUEST",
-  legalCorpusVersion: "LEGAL_CORPUS_VERSION",
-  legalRuleMatch: "LEGAL_RULE_MATCH",
+  legalSourceVersion: "LEGAL_SOURCE_VERSION",
+  complianceRuleSetVersion: "COMPLIANCE_RULE_SET_VERSION",
   repositoryScanJob: "REPOSITORY_SCAN_JOB",
   repositorySnapshot: "REPOSITORY_SNAPSHOT",
-  technicalEvidenceReport: "TECHNICAL_EVIDENCE_REPORT",
-  technicalProfile: "TECHNICAL_PROFILE",
-  targetedReanalysisRequest: "TARGETED_REANALYSIS_REQUEST",
-  verifiedProfile: "VERIFIED_PROFILE",
-  wizardProfile: "WIZARD_PROFILE",
 } as const;
 
 export type OutboxStatus =

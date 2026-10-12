@@ -1,0 +1,14 @@
+{
+  "status": "FAIL",
+  "migration": "20261012090000_canonical_physical_terminology",
+  "database": "lcsp_pr367_physical_rename",
+  "checks": [
+    "all 106 historical migrations deployed before the physical cutover",
+    "28 representative V2 rows seeded, including accepted decision/evidence, pin, context, activation, audit and outbox",
+    "table/index/type OIDs and column attnums/types preserved",
+    "PK/FK/check identities, relationships and index definitions preserve their object bindings",
+    "trigger/function/enum-value OIDs and trigger bindings preserved",
+    "all row counts, IDs, payload bytes, decision/evidence and history preserved; only expected names/enum labels/undelivered routing changed"
+  ],
+  "tests": "6/14"
+}

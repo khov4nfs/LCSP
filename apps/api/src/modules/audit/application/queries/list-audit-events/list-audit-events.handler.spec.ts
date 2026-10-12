@@ -61,7 +61,7 @@ function buildHandler() {
       Promise.all(operations),
     );
   const prisma = {
-    authAuditEvent: { count, findMany },
+    auditEvent: { count, findMany },
     $transaction: transaction,
   } as unknown as PrismaService;
 

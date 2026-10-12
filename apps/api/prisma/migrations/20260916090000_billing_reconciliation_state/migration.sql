@@ -1,0 +1,15 @@
+CREATE TYPE "PaymentReconciliationReason" AS ENUM (
+  'INBOUND_REQUIRED',
+  'UNMATCHED_PAYMENT_CODE',
+  'AMBIGUOUS_ORDER_MATCH',
+  'UNDERPAYMENT',
+  'OVERPAYMENT',
+  'EXPIRED_ORDER',
+  'OWNERSHIP_CONFLICT',
+  'RECOVERABLE_EXCEPTION',
+  'DUPLICATE_PROVIDER_TRANSACTION'
+);
+
+ALTER TABLE "PaymentTransaction"
+  ADD COLUMN "reconciliationReason" "PaymentReconciliationReason",
+  ADD COLUMN "reconciliationVersion" INTEGER NOT NULL DEFAULT 0;

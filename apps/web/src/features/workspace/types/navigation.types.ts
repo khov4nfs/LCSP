@@ -1,4 +1,4 @@
-export type WorkspaceNavigationItem = {
+type WorkspaceNavigationItem = {
   href: string;
   label: string;
   icon: React.ComponentType;

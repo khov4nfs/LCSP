@@ -1,0 +1,345 @@
+{
+  "dataset_id": "LCSP_JEV_DECISION_EVAL",
+  "dataset_version": "2026-09-22.v1",
+  "records": [
+    {
+      "record_id": "pr-review-triage-domain-001",
+      "decision_class": "PR_REVIEW_TRIAGE",
+      "risk_tier": "MEDIUM",
+      "label_source": "accepted_review",
+      "expected_decision": "REPOSITORY",
+      "expected_questions": {
+        "affected_domain": "REPOSITORY",
+        "security_sensitive_change": {
+          "value": true,
+          "reason_code": "YES"
+        },
+        "exact_head_lifecycle_risk": {
+          "value": false,
+          "reason_code": "NO"
+        },
+        "needs_deep_review": {
+          "value": true,
+          "reason_code": "YES"
+        },
+        "likely_missing_regression_tests": {
+          "value": false,
+          "reason_code": "NO"
+        },
+        "requires_sandbox_attention": {
+          "value": true,
+          "reason_code": "YES"
+        },
+        "change_complexity": 0.7,
+        "operational_risk": 0.6,
+        "review_depth": 0.9
+      },
+      "fixture_status": "OK",
+      "latency_ms": 184,
+      "baseline_latency_ms": 1200,
+      "removed_generative_calls": 1,
+      "baseline_input_tokens": 1800,
+      "baseline_output_tokens": 420,
+      "artifact_metadata": {
+        "source": "accepted-pr-review",
+        "artifact_version": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "request": {
+        "decision_id": "eval-pr-review-triage-domain-001",
+        "decision_type": "PR_REVIEW_TRIAGE",
+        "assessment_id": "eval-assessment-redacted",
+        "review_run_id": "eval-run-pr-001",
+        "pr_number": 338,
+        "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "artifact_versions": {
+          "pge": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "state_payload": {
+          "changed_file_count": 4,
+          "change_categories": [
+            "REPOSITORY",
+            "TEST"
+          ],
+          "checkpoint_id": "eval-checkpoint-pr-001"
+        },
+        "policy_version": "LCSP_JEV_EVAL_POLICY_V1",
+        "questions": [
+          {
+            "question_id": "affected_domain",
+            "question_type": "CHOICE",
+            "prompt": "Choose the bounded affected review domain.",
+            "choices": [
+              "AUTH",
+              "BILLING",
+              "REPOSITORY",
+              "AGENT_RUNTIME",
+              "LEGAL_REQUIREMENTS",
+              "CI_RELEASE",
+              "WEB",
+              "DATA",
+              "OTHER"
+            ]
+          },
+          {
+            "question_id": "security_sensitive_change",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded metadata suggests security sensitivity.",
+            "noul_schema": {
+              "type": "object",
+              "required": [
+                "value",
+                "reason_code"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "boolean"
+                },
+                "reason_code": {
+                  "type": "string",
+                  "enum": [
+                    "YES",
+                    "NO",
+                    "UNKNOWN",
+                    "NONE"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "question_id": "exact_head_lifecycle_risk",
+            "question_type": "NOUL",
+            "prompt": "Return whether exact-head lifecycle handling needs attention.",
+            "noul_schema": {
+              "type": "object",
+              "required": [
+                "value",
+                "reason_code"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "boolean"
+                },
+                "reason_code": {
+                  "type": "string",
+                  "enum": [
+                    "YES",
+                    "NO",
+                    "UNKNOWN",
+                    "NONE"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "question_id": "needs_deep_review",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded metadata suggests deep review is needed.",
+            "noul_schema": {
+              "type": "object",
+              "required": [
+                "value",
+                "reason_code"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "boolean"
+                },
+                "reason_code": {
+                  "type": "string",
+                  "enum": [
+                    "YES",
+                    "NO",
+                    "UNKNOWN",
+                    "NONE"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "question_id": "likely_missing_regression_tests",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded metadata suggests missing regression tests.",
+            "noul_schema": {
+              "type": "object",
+              "required": [
+                "value",
+                "reason_code"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "boolean"
+                },
+                "reason_code": {
+                  "type": "string",
+                  "enum": [
+                    "YES",
+                    "NO",
+                    "UNKNOWN",
+                    "NONE"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "question_id": "requires_sandbox_attention",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded metadata suggests sandbox attention.",
+            "noul_schema": {
+              "type": "object",
+              "required": [
+                "value",
+                "reason_code"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "boolean"
+                },
+                "reason_code": {
+                  "type": "string",
+                  "enum": [
+                    "YES",
+                    "NO",
+                    "UNKNOWN",
+                    "NONE"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "question_id": "change_complexity",
+            "question_type": "SCORE",
+            "prompt": "Score bounded change complexity.",
+            "score_min": 0,
+            "score_max": 1,
+            "score_rubric": {
+              "0": "minimal bounded signal",
+              "0.5": "moderate bounded signal",
+              "1": "strong bounded signal"
+            }
+          },
+          {
+            "question_id": "operational_risk",
+            "question_type": "SCORE",
+            "prompt": "Score bounded operational risk.",
+            "score_min": 0,
+            "score_max": 1,
+            "score_rubric": {
+              "0": "minimal bounded signal",
+              "0.5": "moderate bounded signal",
+              "1": "strong bounded signal"
+            }
+          },
+          {
+            "question_id": "review_depth",
+            "question_type": "SCORE",
+            "prompt": "Score bounded review depth.",
+            "score_min": 0,
+            "score_max": 1,
+            "score_rubric": {
+              "0": "minimal bounded signal",
+              "0.5": "moderate bounded signal",
+              "1": "strong bounded signal"
+            }
+          }
+        ]
+      },
+      "captured_response": {
+        "provider": "jev",
+        "modelVersion": "jev-2026-09-22.eval",
+        "responseId": "fixture-pr-001",
+        "usage": {
+          "inputTokens": 42,
+          "outputTokens": 8,
+          "costUsd": 0.00021
+        },
+        "decisions": [
+          {
+            "questionId": "affected_domain",
+            "choice": "REPOSITORY",
+            "probability": 0.88,
+            "probabilities": {
+              "REPOSITORY": 0.88,
+              "WEB": 0.07,
+              "OTHER": 0.05
+            },
+            "confidence": 0.88
+          },
+          {
+            "questionId": "security_sensitive_change",
+            "noul": {
+              "value": true,
+              "reason_code": "YES"
+            },
+            "probability": 0.84,
+            "confidence": 0.84
+          },
+          {
+            "questionId": "exact_head_lifecycle_risk",
+            "noul": {
+              "value": false,
+              "reason_code": "NO"
+            },
+            "probability": 0.81,
+            "confidence": 0.81
+          },
+          {
+            "questionId": "needs_deep_review",
+            "noul": {
+              "value": true,
+              "reason_code": "YES"
+            },
+            "probability": 0.87,
+            "confidence": 0.87
+          },
+          {
+            "questionId": "likely_missing_regression_tests",
+            "noul": {
+              "value": false,
+              "reason_code": "NO"
+            },
+            "probability": 0.79,
+            "confidence": 0.79
+          },
+          {
+            "questionId": "requires_sandbox_attention",
+            "noul": {
+              "value": true,
+              "reason_code": "YES"
+            },
+            "probability": 0.83,
+            "confidence": 0.83
+          },
+          {
+            "questionId": "change_complexity",
+            "score": 0.7,
+            "probability": 0.86,
+            "confidence": 0.86
+          },
+          {
+            "questionId": "operational_risk",
+            "score": 0.6,
+            "probability": 0.8,
+            "confidence": 0.8
+          },
+          {
+            "questionId": "review_depth",
+            "score": 0.9,
+            "probability": 0.85,
+            "confidence": 0.85
+          }
+        ]
+      }
+    }
+  ]
+}

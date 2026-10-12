@@ -1,5 +1,7 @@
 # LCSP Event Catalog
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 Canonical command and event names for the A-to-Z runnable MVP.
@@ -19,7 +21,7 @@ Canonical command and event names for the A-to-Z runnable MVP.
 | Command                                                     | Queue                                          | Producer                                                  | Consumer                                   |
 | ----------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------- | ------------------------------------------ |
 | `command.scan-trigger.resolve-context.v1`                   | `lcsp.scan-trigger-worker.v1`                  | Backend API / webhook handler / scheduler outbox          | Python Scan Trigger Worker                 |
-| `command.scan.requested.v1`                                 | `lcsp.scan-worker.v1`                          | Backend API outbox                                        | Python Scanner Worker                      |
+| command.scan.requested.v1                                 | lcsp.scan-worker.v1                          | Backend API outbox                                        | Managed Repository Analysis Agent           |
 | `command.technical-profile.requested.v1`                    | `lcsp.technical-profile-worker.v1`             | scan projection                                           | Python Technical Profile Worker            |
 | `command.ai-usage-flow.requested.v1`                        | `lcsp.ai-usage-flow-worker.v1`                 | profile projection                                        | Python AI Usage Flow Worker                |
 | `command.legal-source.ingest.requested.v1`                  | `lcsp.legal-source-ingest.v1`                  | Internal Legal Operations API                             | Python Legal Ingestion Worker              |

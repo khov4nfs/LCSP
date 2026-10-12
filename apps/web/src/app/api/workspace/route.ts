@@ -29,8 +29,24 @@ export async function GET(request: NextRequest) {
 
   const session = requireSessionToken(request);
   if (!session.ok) return session.response;
-  const upstream = await upstreamRequest("/workspace", {
+  const upstream = await upstreamRequest("/auth/profile", {
     bearerToken: session.token,
   });
+
+  if (upstream.ok && upstream.data && typeof upstream.data === "object") {
+    const profile = upstream.data as {
+      user_id?: string;
+      email?: string;
+      display_name?: string | null;
+      role?: string;
+      [key: string]: unknown;
+    };
+    const adaptedData = {
+      ...profile,
+      display_name: profile.display_name ?? profile.email ?? "",
+    };
+    return successJson(adaptedData, { status: upstream.status });
+  }
+
   return upstreamJson(upstream);
 }

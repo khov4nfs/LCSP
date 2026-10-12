@@ -1,18 +1,10 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  ASSESSMENT_STATUS_CODES,
-  type AssessmentStatusCode,
-} from "@lcsp/contracts/assessment";
-
-export type AssessmentStatus = AssessmentStatusCode;
-
 type AssessmentProps = {
   id: string;
   ownerId: string;
   name: string;
   description: string | null;
-  status: AssessmentStatus;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -20,7 +12,7 @@ type AssessmentProps = {
 type NewAssessmentProps = Omit<AssessmentProps, "id">;
 
 /**
- * Represents an assessment aggregate and its owner, lifecycle, and descriptive state.
+ * Represents an assessment aggregate and its owner and descriptive state.
  */
 export class Assessment {
   /**
@@ -35,7 +27,7 @@ export class Assessment {
   private props: AssessmentProps;
 
   /**
-   * Creates a new assessment in the wizard-in-progress lifecycle state.
+   * Creates the descriptive aggregate; the lifecycle coordinator initializes ALS.
    *
    * @param input - Owner, name, and optional description for the assessment.
    * @returns A newly created assessment aggregate with normalized text fields and timestamps.
@@ -51,7 +43,6 @@ export class Assessment {
       ownerId: input.ownerId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
-      status: ASSESSMENT_STATUS_CODES.wizardInProgress,
       createdAt: now,
       updatedAt: now,
     });
@@ -89,11 +80,6 @@ export class Assessment {
     return this.props.description;
   }
 
-  /** @returns The current assessment lifecycle status. */
-  get status(): AssessmentStatus {
-    return this.props.status;
-  }
-
   /** @returns The assessment creation timestamp. */
   get createdAt(): Date {
     return this.props.createdAt;
@@ -102,5 +88,11 @@ export class Assessment {
   /** @returns The most recent assessment update timestamp. */
   get updatedAt(): Date {
     return this.props.updatedAt;
+  }
+
+  /** Renames the assessment while preserving its identity and lifecycle state. */
+  rename(name: string): void {
+    this.props.name = name.trim();
+    this.props.updatedAt = new Date();
   }
 }

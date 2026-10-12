@@ -1,22 +1,23 @@
+import { jest } from "@jest/globals";
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
-import { GITHUB_INTEGRATION_EVENT_TYPES } from "@lcsp/contracts/github-integration";
 import {
-  OUTBOX_STATUSES,
+  GITHUB_INTEGRATION_ERROR_CODES,
+  GITHUB_INTEGRATION_EVENT_TYPES,
+} from "@lcsp/contracts/github-integration";
+import {
   OUTBOX_AGGREGATE_TYPES,
   OUTBOX_AUDIT_EVENT_TYPES,
+  OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
-import { TARGETED_REANALYSIS_CAPACITY_POLICY } from "@lcsp/contracts/scan";
-import { jest } from "@jest/globals";
-import type { Prisma } from "@prisma/client";
+import { ConflictException, Logger } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
-import { Logger } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 
+import type { AuditWriterService } from "../audit/audit-writer.service.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
 import { OutboxPublisherService } from "./outbox-publisher.service.js";
-import type { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 import type { OutboxRepository } from "./outbox.repository.js";
 import type { RabbitMqClient } from "./rabbitmq.client.js";
-import type { AuditWriterService } from "../audit/audit-writer.service.js";
 
 type WithPendingBatchFn = (
   batchSize: number,
@@ -39,16 +40,6 @@ type MarkFailureFn = (
   now: Date,
   nextAttemptAt: Date | null,
 ) => Promise<void>;
-type RecordTargetedReanalysisPublishFailureFn = (
-  tx: Prisma.TransactionClient,
-  requestId: string,
-  attempts: number,
-  terminalFailureCode: string | null,
-) => Promise<void>;
-type ReserveTargetedReanalysisDispatchFn = (
-  tx: Prisma.TransactionClient,
-  requestId: string,
-) => Promise<boolean>;
 type EnsureConnectedFn = () => Promise<void>;
 type PublishFn = (
   exchange: string,
@@ -77,24 +68,12 @@ function makeOutboxRepository(overrides: {
   withPendingBatch?: ReturnType<typeof jest.fn<WithPendingBatchFn>>;
   markPublished?: ReturnType<typeof jest.fn<MarkPublishedFn>>;
   markFailure?: ReturnType<typeof jest.fn<MarkFailureFn>>;
-  recordTargetedReanalysisPublishFailure?: ReturnType<
-    typeof jest.fn<RecordTargetedReanalysisPublishFailureFn>
-  >;
-  reserveTargetedReanalysisDispatch?: ReturnType<
-    typeof jest.fn<ReserveTargetedReanalysisDispatchFn>
-  >;
 }) {
   return {
     withPendingBatch:
       overrides.withPendingBatch ?? jest.fn<WithPendingBatchFn>(),
     markPublished: overrides.markPublished ?? jest.fn<MarkPublishedFn>(),
     markFailure: overrides.markFailure ?? jest.fn<MarkFailureFn>(),
-    recordTargetedReanalysisPublishFailure:
-      overrides.recordTargetedReanalysisPublishFailure ??
-      jest.fn<RecordTargetedReanalysisPublishFailureFn>(),
-    reserveTargetedReanalysisDispatch:
-      overrides.reserveTargetedReanalysisDispatch ??
-      jest.fn<ReserveTargetedReanalysisDispatchFn>().mockResolvedValue(true),
   } as unknown as OutboxRepository;
 }
 
@@ -120,20 +99,6 @@ function makeAuditWriter(): AuditWriterDouble {
     write: writeMock,
     writeMock,
   } as unknown as AuditWriterDouble;
-}
-
-type SnapshotCreatedAutoScanDouble = SnapshotCreatedAutoScanService & {
-  handleMock: jest.MockedFunction<SnapshotCreatedAutoScanService["handle"]>;
-};
-
-function makeSnapshotCreatedAutoScanService(): SnapshotCreatedAutoScanDouble {
-  const handleMock = jest
-    .fn<SnapshotCreatedAutoScanService["handle"]>()
-    .mockResolvedValue(undefined);
-  return {
-    handle: handleMock,
-    handleMock,
-  } as unknown as SnapshotCreatedAutoScanDouble;
 }
 
 function makeMessage(
@@ -171,20 +136,20 @@ describe("OutboxPublisherService", () => {
     jest.useRealTimers();
   });
 
-  it("does not start the poll timer when outbox publishing is disabled", () => {
+  it("always starts the poll timer without any enable flag", () => {
     jest.useFakeTimers();
     const setIntervalSpy = jest.spyOn(globalThis, "setInterval");
     const service = new OutboxPublisherService(
       makeOutboxRepository({}),
       makeRabbitMqClient({}),
-      makeConfigService({ "outbox.enabled": false }),
+      makeConfigService({}),
       makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
     );
 
     service.onModuleInit();
 
-    expect(setIntervalSpy).not.toHaveBeenCalled();
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+    service.onModuleDestroy();
   });
 
   it("T01: publishes a pending message and marks it published", async () => {
@@ -215,7 +180,6 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService(),
       makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
@@ -262,8 +226,6 @@ describe("OutboxPublisherService", () => {
       markPublished,
     });
     const publish = jest.fn<PublishFn>().mockResolvedValue(undefined);
-    const autoScan = makeSnapshotCreatedAutoScanService();
-
     const service = new OutboxPublisherService(
       outboxRepository,
       makeRabbitMqClient({
@@ -274,12 +236,10 @@ describe("OutboxPublisherService", () => {
       }),
       makeConfigService(),
       makeAuditWriter(),
-      autoScan,
     );
 
     await service.poll();
 
-    expect(autoScan.handleMock).toHaveBeenCalledWith(message);
     expect(publish).toHaveBeenCalledWith(
       "lcsp.events",
       GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
@@ -288,6 +248,54 @@ describe("OutboxPublisherService", () => {
         user_id: "user-1",
         "x-correlation-id": "corr-1",
       },
+    );
+  });
+
+  it("logs exception type and problem code when publishing fails", async () => {
+    const message = makeMessage({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.repositorySnapshot,
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+    });
+    const withPendingBatch = jest
+      .fn<WithPendingBatchFn>()
+      .mockImplementation(async (_batchSize, handler) =>
+        handler([message], {} as Prisma.TransactionClient),
+      );
+    const markFailure = jest.fn<MarkFailureFn>().mockResolvedValue(undefined);
+    const failure = new ConflictException({
+      ok: false,
+      problem: {
+        code: GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict,
+      },
+    });
+
+    const service = new OutboxPublisherService(
+      makeOutboxRepository({ withPendingBatch, markFailure }),
+      makeRabbitMqClient({
+        ensureConnected: jest
+          .fn<EnsureConnectedFn>()
+          .mockResolvedValue(undefined),
+        publish: jest.fn<PublishFn>().mockRejectedValue(failure),
+      }),
+      makeConfigService(),
+      makeAuditWriter(),
+    );
+
+    await service.poll();
+
+    expect(markFailure).toHaveBeenCalledWith(
+      {},
+      "outbox-1",
+      1,
+      5,
+      "Conflict Exception",
+      expect.any(Date),
+      expect.any(Date),
+    );
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `error_type=ConflictException error_code=${GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict}`,
+      ),
     );
   });
 
@@ -319,7 +327,6 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService({ "outbox.maxAttempts": 5 }),
       auditWriter,
-      makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
@@ -339,103 +346,6 @@ describe("OutboxPublisherService", () => {
         correlationId: "outbox:outbox-1",
       }),
     );
-  });
-
-  it("uses the targeted-reanalysis retry budget instead of the generic outbox budget", async () => {
-    const message = makeMessage({
-      aggregateType: OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest,
-      aggregateId: "reanalysis-1",
-      eventType: GITHUB_INTEGRATION_EVENT_TYPES.targetedReanalysisRequested,
-      attempts: TARGETED_REANALYSIS_CAPACITY_POLICY.apiOutboxMaxAttempts - 1,
-    });
-    const markFailure = jest.fn<MarkFailureFn>().mockResolvedValue(undefined);
-    const recordTargetedReanalysisPublishFailure = jest
-      .fn<RecordTargetedReanalysisPublishFailureFn>()
-      .mockResolvedValue(undefined);
-    const service = new OutboxPublisherService(
-      makeOutboxRepository({
-        withPendingBatch: jest
-          .fn<WithPendingBatchFn>()
-          .mockImplementation(async (_batchSize, handler) =>
-            handler([message], {} as Prisma.TransactionClient),
-          ),
-        markFailure,
-        recordTargetedReanalysisPublishFailure,
-      }),
-      makeRabbitMqClient({
-        ensureConnected: jest
-          .fn<EnsureConnectedFn>()
-          .mockResolvedValue(undefined),
-        publish: jest
-          .fn<PublishFn>()
-          .mockRejectedValue(new Error("broker refused")),
-      }),
-      makeConfigService({ "outbox.maxAttempts": 5 }),
-      makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
-    );
-
-    await service.poll();
-
-    expect(markFailure).toHaveBeenCalledWith(
-      {},
-      "outbox-1",
-      TARGETED_REANALYSIS_CAPACITY_POLICY.apiOutboxMaxAttempts,
-      TARGETED_REANALYSIS_CAPACITY_POLICY.apiOutboxMaxAttempts,
-      "broker refused",
-      expect.any(Date),
-      null,
-    );
-    expect(recordTargetedReanalysisPublishFailure).toHaveBeenCalledWith(
-      {},
-      "reanalysis-1",
-      TARGETED_REANALYSIS_CAPACITY_POLICY.apiOutboxMaxAttempts,
-      "TARGETED_REANALYSIS_OUTBOX_DELIVERY_EXHAUSTED",
-    );
-  });
-
-  it("keeps a targeted-reanalysis message pending when the organization has no dispatch slot", async () => {
-    const message = makeMessage({
-      aggregateType: OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest,
-      aggregateId: "reanalysis-1",
-      eventType: GITHUB_INTEGRATION_EVENT_TYPES.targetedReanalysisRequested,
-    });
-    const reserveTargetedReanalysisDispatch = jest
-      .fn<ReserveTargetedReanalysisDispatchFn>()
-      .mockResolvedValue(false);
-    const markPublished = jest
-      .fn<MarkPublishedFn>()
-      .mockResolvedValue(undefined);
-    const publish = jest.fn<PublishFn>().mockResolvedValue(undefined);
-    const service = new OutboxPublisherService(
-      makeOutboxRepository({
-        withPendingBatch: jest
-          .fn<WithPendingBatchFn>()
-          .mockImplementation(async (_batchSize, handler) =>
-            handler([message], {} as Prisma.TransactionClient),
-          ),
-        reserveTargetedReanalysisDispatch,
-        markPublished,
-      }),
-      makeRabbitMqClient({
-        ensureConnected: jest
-          .fn<EnsureConnectedFn>()
-          .mockResolvedValue(undefined),
-        publish,
-      }),
-      makeConfigService(),
-      makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
-    );
-
-    await service.poll();
-
-    expect(reserveTargetedReanalysisDispatch).toHaveBeenCalledWith(
-      {},
-      "reanalysis-1",
-    );
-    expect(publish).not.toHaveBeenCalled();
-    expect(markPublished).not.toHaveBeenCalled();
   });
 
   it("publishes worker authorization metadata as AMQP headers", async () => {
@@ -464,7 +374,6 @@ describe("OutboxPublisherService", () => {
       }),
       makeConfigService(),
       makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
@@ -477,57 +386,6 @@ describe("OutboxPublisherService", () => {
         user_id: "user-1",
         "x-correlation-id": "corr-1",
       },
-    );
-  });
-
-  it("publishes scan commands to RabbitMQ for the Managed Deep Agent event bridge", async () => {
-    const message = makeMessage({
-      aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
-      aggregateId: "scan-job-1",
-      eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
-      payload: {
-        scanJobId: "scan-job-1",
-        snapshotId: "snapshot-1",
-        assessmentId: "assessment-1",
-        correlationId: "corr-1",
-      },
-    });
-    const markPublished = jest
-      .fn<MarkPublishedFn>()
-      .mockResolvedValue(undefined);
-    const publish = jest.fn<PublishFn>().mockResolvedValue(undefined);
-
-    const service = new OutboxPublisherService(
-      makeOutboxRepository({
-        withPendingBatch: jest
-          .fn<WithPendingBatchFn>()
-          .mockImplementation(async (_batchSize, handler) =>
-            handler([message], {} as Prisma.TransactionClient),
-          ),
-        markPublished,
-      }),
-      makeRabbitMqClient({
-        ensureConnected: jest
-          .fn<EnsureConnectedFn>()
-          .mockResolvedValue(undefined),
-        publish,
-      }),
-      makeConfigService(),
-      makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
-    );
-
-    await service.poll();
-
-    expect(publish).toHaveBeenCalledWith(
-      "lcsp.events",
-      GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
-      message.payload,
-    );
-    expect(markPublished).toHaveBeenCalledWith(
-      {},
-      "outbox-1",
-      expect.any(Date),
     );
   });
 
@@ -562,7 +420,6 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService(),
       makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
     );
 
     await expect(service.poll()).resolves.toBeUndefined();
@@ -590,7 +447,6 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService(),
       makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
     );
 
     const firstPoll = service.poll();
@@ -621,7 +477,6 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService({ "outbox.pollIntervalMs": 100 }),
       makeAuditWriter(),
-      makeSnapshotCreatedAutoScanService(),
     );
 
     service.onModuleInit();

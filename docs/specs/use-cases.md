@@ -1,5 +1,7 @@
 # LCSP Use Cases
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 Canonical active use-case catalog for the A-to-Z runnable MVP. Detailed user interaction sequences live in `user-task-flows.md`.
@@ -63,7 +65,7 @@ Goal: pin repository evidence to an immutable branch/commit snapshot. Inaccessib
 
 ## UC-007 Execute Repository Scan
 
-Goal: convert the snapshot into static technical evidence through the Python Scanner Worker. The worker runs the approved scanner toolchain, including Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules, persists metadata-only evidence, verifies cleanup, and emits completed or failed event.
+Goal: convert the pinned snapshot into grounded technical evidence through the repository-backed Repository Deep Agent running in the LCSP Agent Runtime. The agent explores the repository with native filesystem/shell/subagent capabilities, may use Codebase Memory MCP as structural memory, verifies material facts against source, derives coverage and AI-discovery state, persists the compatibility evidence payload, and emits completed or failed scan-job events.
 
 ## UC-008 Generate TechnicalProfile
 

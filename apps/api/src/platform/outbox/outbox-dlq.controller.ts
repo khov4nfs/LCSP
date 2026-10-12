@@ -14,7 +14,7 @@ import { OutboxDlqService } from "./outbox-dlq.service.js";
 import type { AuthenticatedRequest } from "../../common/interfaces/authenticated-request.interface.js";
 import { RequireRoles } from "../rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../rbac/rbac.guard.js";
-import { resultEnvelope } from "../problems/result-envelope.js";
+import { resultEnvelope } from "../http/filters/error.factory.js";
 
 /**
  * Exposes RBAC-protected operator endpoints for inspecting and recovering outbox DLQ messages.

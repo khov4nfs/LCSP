@@ -1,0 +1,194 @@
+import { lockAccountLifecycle } from "../../../infrastructure/persistence/account-lifecycle.lock.js";
+import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import {
+  AUTH_AUDIT_EVENT_TYPES,
+  AUTH_USER_ROLES,
+  SIGN_UP_ERROR_CODES,
+} from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
+import * as crypto from "node:crypto";
+
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
+import {
+  AUTH_RECORD_TYPES,
+  authRecordLookupKey,
+} from "../../../infrastructure/persistence/auth-record.persistence.ts";
+import {
+  createCorrelationId,
+  fingerprintToken,
+  hashSecret,
+  issueOpaqueToken,
+} from "../../../infrastructure/security/security.utils.ts";
+import type { SignUpResponse } from "../../contracts/auth/sign-up.contract.ts";
+import { AuthAuditService } from "../../services/auth/auth-audit.service.ts";
+import { SignUpCommand } from "./sign-up.command.ts";
+
+const SESSION_TTL_MS = 8 * 60 * 60_000;
+
+/**
+ * Handles new customer account registration.
+ *
+ * Enforces:
+ * 1. Email uniqueness pre-check and atomic database duplicate constraint handling.
+ * 2. Secure password hashing with scrypt.
+ * 3. Atomic transaction creating user record, initial authenticated session, and audit log.
+ * 4. Account lifecycle advisory locking to serialize user creation operations.
+ * 5. Returns issued session token and expiration timestamp.
+ */
+@CommandHandler(SignUpCommand)
+export class SignUpHandler implements ICommandHandler<SignUpCommand> {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authAudit: AuthAuditService,
+  ) {}
+
+  /**
+   * Executes user registration and initial session issuance.
+   *
+   * @param command - Contains normalized email, display name, password, and correlation ID.
+   * @returns User ID, opaque session token, and session expiration timestamp.
+   */
+  async execute(command: SignUpCommand): Promise<SignUpResponse> {
+    const { email, displayName, password } = command.input;
+    const correlationId = command.input.correlationId ?? createCorrelationId();
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const trimmedDisplayName = displayName.trim();
+    const sessionToken = issueOpaqueToken();
+    const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_MS);
+    const role = AUTH_USER_ROLES.customer;
+    const newUserId = crypto.randomUUID();
+    const newSessionId = crypto.randomUUID();
+    const tokenFingerprint = fingerprintToken(sessionToken);
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (existingUser) {
+      await this.recordFailure(
+        correlationId,
+        SIGN_UP_ERROR_CODES.emailAlreadyExists,
+      );
+      throw problemException(
+        SIGN_UP_ERROR_CODES.emailAlreadyExists,
+        correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+
+    let userId = "";
+    let sessionId = "";
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await lockAccountLifecycle(tx);
+        const user = await tx.user.create({
+          data: {
+            id: newUserId,
+            email: normalizedEmail,
+            passwordHash: hashSecret(password),
+            // Per UC-M01-04 (Create Account), self-registered users onboard immediately
+            // and are active without a mandatory email verification step.
+            emailVerified: true,
+            failedLoginCount: 0,
+            lockUntil: null,
+            displayName: trimmedDisplayName,
+            role,
+          },
+        });
+        userId = user.id;
+
+        const session = await tx.authRecord.create({
+          data: {
+            id: newSessionId,
+            userId,
+            type: AUTH_RECORD_TYPES.session,
+            lookupKey: authRecordLookupKey(
+              AUTH_RECORD_TYPES.session,
+              tokenFingerprint,
+            ),
+            secretHash: hashSecret(sessionToken),
+            expiresAt: sessionExpiresAt,
+            revokedAt: null,
+            metadata: {
+              tokenFingerprint,
+              mfaVerifiedAt: null,
+              sensitiveActionVerifiedAt: null,
+            },
+          },
+        });
+        sessionId = session.id;
+
+        await this.authAudit.writeInTx(
+          {
+            eventType: AUTH_AUDIT_EVENT_TYPES.authSignUpSuccess,
+            actorId: userId,
+            resourceType: AUDIT_RESOURCE_TYPES.authSession,
+            resourceId: sessionId,
+            decision: AUDIT_DECISIONS.allow,
+            correlationId,
+            sessionId,
+            payload: {
+              event_type: AUTH_AUDIT_EVENT_TYPES.authSignUpSuccess,
+              actor_id: userId,
+              decision: AUDIT_DECISIONS.allow,
+              correlationId,
+              session_id: sessionId,
+              role,
+            },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      if (isUniqueConstraintViolation(error)) {
+        await this.recordFailure(
+          correlationId,
+          SIGN_UP_ERROR_CODES.emailAlreadyExists,
+        );
+        throw problemException(
+          SIGN_UP_ERROR_CODES.emailAlreadyExists,
+          correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      throw error;
+    }
+
+    return {
+      user_id: userId,
+      session_token: sessionToken,
+      expires_at: sessionExpiresAt.toISOString(),
+      correlationId,
+    };
+  }
+
+  private recordFailure(correlationId: string, reasonCode: string) {
+    return this.authAudit.write({
+      eventType: AUTH_AUDIT_EVENT_TYPES.authSignUpFailed,
+      actorId: null,
+      resourceType: AUDIT_RESOURCE_TYPES.authSession,
+      resourceId: null,
+      decision: AUDIT_DECISIONS.deny,
+      correlationId,
+      reasonCode,
+      payload: {
+        event_type: AUTH_AUDIT_EVENT_TYPES.authSignUpFailed,
+        decision: AUDIT_DECISIONS.deny,
+        reason_code: reasonCode,
+        correlationId,
+      },
+    });
+  }
+}
+
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
+  );
+}

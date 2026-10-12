@@ -1,5 +1,7 @@
 # Phase 5.2L UX-to-Readiness Task List
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Status
 
 ACTIONABLE PLANNING TASK LIST — NOT SPRINT EXECUTION
@@ -97,7 +99,7 @@ Stories must not silently assume decisions for:
 
 - RBAC engine and policy topology;
 - trusted scan trigger retry/DLQ/idempotency;
-- scanner tool failure severity and tool version/config/ruleset hash policy.
+- repository-analysis failure/coverage policy and runtime/config provenance policy.
 
 If unresolved, mark as `TECHNICAL_DECISION_REQUIRED_BEFORE_READY`.
 

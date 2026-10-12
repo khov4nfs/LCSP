@@ -5,6 +5,9 @@ task_id: TASK-AO-6-12-resume-waiting-runs
 jira_issue: LCSP-213
 status: DONE
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # TASK-AO-6-12 — `resume_waiting_runs`
 
 ## Objective and tool definition
