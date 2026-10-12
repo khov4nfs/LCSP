@@ -325,7 +325,7 @@ class Stack:
         pg_port = self.url("postgres", 5432).rsplit(":", 1)[1]
         access = {"runId": self.run_id, "api": api_url, "web": web_url, "agentServer": server_url,
                   "databaseUrl": envs["api"]["DATABASE_URL"].replace(f"{self.prefix}-postgres:5432", f"127.0.0.1:{pg_port}"),
-                  "workerKey": envs["api"]["WORKER_API_KEY"], "accounts": accounts}
+                  "workerKey": "[REDACTED]", "accounts": accounts}
         write_json(self.private / "access.json", access, private=True)
         require(accepted_images() == image_ids, "candidate inputs changed during staging launch")
         return {"scope": "RELEASE_ISOLATED_VERIFIED_IMAGE_STAGING_READINESS", "status": "READY_FOR_ACCEPTANCE",
