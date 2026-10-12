@@ -28,9 +28,14 @@ test("malformed regex syntax cannot throw or broaden the match", () => {
 });
 
 test("nested-quantifier payload is matched literally", () => {
-  const answer = "(a+){2}$";
   const nonmatch = `${"a".repeat(4096)}!`;
-  assert.equal(findLiteralAnswerChoice([nonmatch, `Literal ${answer}`], answer), `Literal ${answer}`);
+  for (const answer of ["(a+)+$", "(a+){2}$"]) {
+    assert.equal(findLiteralAnswerChoice([nonmatch, `Literal ${answer}`], answer), `Literal ${answer}`);
+  }
+});
+
+test("Vietnamese labels keep case-insensitive matching", () => {
+  assert.equal(findLiteralAnswerChoice(["Nội bộ", "Dịch vụ CÔNG KHAI"], "công khai"), "Dịch vụ CÔNG KHAI");
 });
 
 test("an unmatched literal answer remains unmatched", () => {
