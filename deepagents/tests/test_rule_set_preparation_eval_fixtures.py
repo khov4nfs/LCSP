@@ -22,19 +22,19 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
         self.rubric = read_json(EVAL_DIR / "rubric.json")
         self.pins = read_json(ACCEPTED_DIR / "pins.json")
         self.sources_by_version = {
-            source["corpusVersion"]: source for source in self.pins["sources"]
+            source["legalSourceVersion"]: source for source in self.pins["sources"]
         }
 
     def test_reuses_exact_accepted_source_pins_hashes_and_text(self) -> None:
-        fixture_sources = self.cases["sourceCorpus"]["sources"]
+        fixture_sources = self.cases["sourceLegalSource"]["sources"]
         self.assertEqual(
-            [source["corpusVersion"] for source in fixture_sources],
-            ["SYNTHETIC-CORPUS-V1", "SYNTHETIC-CORPUS-V2"],
+            [source["legalSourceVersion"] for source in fixture_sources],
+            ["SYNTHETIC-LEGAL_SOURCE-V1", "SYNTHETIC-LEGAL_SOURCE-V2"],
         )
         for fixture_source in fixture_sources:
-            accepted = self.sources_by_version[fixture_source["corpusVersion"]]
+            accepted = self.sources_by_version[fixture_source["legalSourceVersion"]]
             for field in (
-                "corpusVersion",
+                "legalSourceVersion",
                 "documentId",
                 "sourceFile",
                 "sourceSha256",
@@ -53,12 +53,12 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
             for snippet in fixture_source["textMustContain"]:
                 self.assertIn(snippet, source_text)
 
-        v1 = self.sources_by_version["SYNTHETIC-CORPUS-V1"]["chunkSha256"]
-        v2 = self.sources_by_version["SYNTHETIC-CORPUS-V2"]["chunkSha256"]
+        v1 = self.sources_by_version["SYNTHETIC-LEGAL_SOURCE-V1"]["chunkSha256"]
+        v2 = self.sources_by_version["SYNTHETIC-LEGAL_SOURCE-V2"]["chunkSha256"]
         changed = {locator for locator in v1 if v1[locator] != v2[locator]}
         self.assertEqual(
             changed,
-            set(self.cases["sourceCorpus"]["changedChunkLocatorsBetweenVersions"]),
+            set(self.cases["sourceLegalSource"]["changedChunkLocatorsBetweenVersions"]),
         )
         self.assertEqual(
             {locator for locator in v1 if v1[locator] == v2[locator]},
@@ -78,22 +78,22 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
         rule_ids = {candidate["ruleId"] for candidate in candidates}
 
         for candidate in candidates:
-            corpus_version = candidate["corpusVersion"]
-            source = self.sources_by_version[corpus_version]
+            legal_source_version = candidate["legalSourceVersion"]
+            source = self.sources_by_version[legal_source_version]
             for reference in [
                 *candidate["sourceRefs"],
                 *candidate["contextRefs"],
             ]:
-                self.assertEqual(reference["corpusVersion"], corpus_version)
+                self.assertEqual(reference["legalSourceVersion"], legal_source_version)
                 self.assertEqual(reference["documentId"], source["documentId"])
                 self.assertIn(reference["locator"], source["chunkSha256"])
             self.assertTrue(candidate["expected"]["refsResolve"])
-            self.assertTrue(candidate["expected"]["singleCorpusVersion"])
+            self.assertTrue(candidate["expected"]["singleLegalSourceVersion"])
 
         self.assertEqual(
             self.cases["coverage"],
             {
-                "corpusVersion": "SYNTHETIC-CORPUS-V1",
+                "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
                 "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
                 "coveredLocators": "ALL_ACCEPTED_PIN_LOCATORS",
                 "missingLocators": [],
@@ -110,7 +110,7 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
             "duplicate-rule-id",
             "orphan-context-relation",
             "coverage-gap",
-            "mixed-corpus-versions",
+            "mixed-legal-source-versions",
             "failed-attempt-preserves-earlier-active",
         }
         self.assertEqual({case["id"] for case in invalid_cases}, expected_ids)
@@ -145,7 +145,7 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
             {"expectedAction": "REJECT", "reason": "INCOMPLETE_SOURCE_COVERAGE"},
         )
         self.assertEqual(
-            expectations["mixed-corpus-versions"],
+            expectations["mixed-legal-source-versions"],
             {"expectedAction": "REJECT", "reason": "MIXED_SOURCE_VERSION"},
         )
         self.assertEqual(
@@ -158,11 +158,11 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
 
         fake_ref = next(case for case in invalid_cases if case["id"] == "fake-reference")
         fake = fake_ref["sourceRefs"][0]
-        self.assertNotIn(fake["locator"], self.sources_by_version[fake["corpusVersion"]]["chunkSha256"])
+        self.assertNotIn(fake["locator"], self.sources_by_version[fake["legalSourceVersion"]]["chunkSha256"])
 
         stale = next(case for case in invalid_cases if case["id"] == "stale-reference")
-        v1_art5 = self.sources_by_version["SYNTHETIC-CORPUS-V1"]["chunkSha256"]["art-5::cl-1"]
-        v2_art5 = self.sources_by_version["SYNTHETIC-CORPUS-V2"]["chunkSha256"]["art-5::cl-1"]
+        v1_art5 = self.sources_by_version["SYNTHETIC-LEGAL_SOURCE-V1"]["chunkSha256"]["art-5::cl-1"]
+        v2_art5 = self.sources_by_version["SYNTHETIC-LEGAL_SOURCE-V2"]["chunkSha256"]["art-5::cl-1"]
         self.assertEqual(stale["declaredSourceSha256"], v2_art5)
         self.assertNotEqual(stale["declaredSourceSha256"], v1_art5)
 
@@ -170,7 +170,7 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
         self.assertEqual(repealed["declaredLegalStatus"], "REPEALED")
         self.assertIn(
             repealed["sourceRef"]["locator"],
-            self.sources_by_version[repealed["sourceRef"]["corpusVersion"]]["chunkSha256"],
+            self.sources_by_version[repealed["sourceRef"]["legalSourceVersion"]]["chunkSha256"],
         )
 
         duplicate = next(case for case in invalid_cases if case["id"] == "duplicate-rule-id")
@@ -184,10 +184,10 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
         gap = next(case for case in invalid_cases if case["id"] == "coverage-gap")
         self.assertEqual(gap["coverage"]["excludeLocators"], ["art-6::cl-1"])
 
-        mixed = next(case for case in invalid_cases if case["id"] == "mixed-corpus-versions")
+        mixed = next(case for case in invalid_cases if case["id"] == "mixed-legal-source-versions")
         self.assertEqual(
-            {reference["corpusVersion"] for reference in mixed["sourceRefs"]},
-            {"SYNTHETIC-CORPUS-V1", "SYNTHETIC-CORPUS-V2"},
+            {reference["legalSourceVersion"] for reference in mixed["sourceRefs"]},
+            {"SYNTHETIC-LEGAL_SOURCE-V1", "SYNTHETIC-LEGAL_SOURCE-V2"},
         )
 
         preserved = next(
@@ -207,7 +207,7 @@ class RuleSetPreparationEvalFixtureTest(unittest.TestCase):
                 "EXCEPTIONS",
                 "CROSS_REFERENCES",
                 "NON_REPOSITORY_DUTIES",
-                "CORPUS_VERSION_PINNING",
+                "LEGAL_SOURCE_VERSION_PINNING",
             },
         )
         candidate_ids = {candidate["id"] for candidate in self.cases["validCandidates"]}

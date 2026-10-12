@@ -109,7 +109,8 @@ def main():
                 before_constraints = conn.execute("SELECT oid,conname FROM pg_constraint WHERE connamespace='public'::regnamespace ORDER BY oid").fetchall()
                 before_triggers = conn.execute("SELECT oid,tgname,tgfoid FROM pg_trigger WHERE NOT tgisinternal ORDER BY oid").fetchall()
                 before_events = rows(conn, "OutboxMessage")
-            configure(MIGRATIONS)
+            shutil.copytree(MIGRATIONS / MIGRATION, prior / MIGRATION)
+            configure(prior)
             migrate(config, "upgrade")
             with psycopg.connect(URL, autocommit=True) as conn:
                 assert catalog(conn) == before_catalog, "table/column/type identities changed"

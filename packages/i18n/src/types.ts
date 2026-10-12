@@ -1686,9 +1686,9 @@ export type PagesMessages = {
         activeUsersSubtitle: string;
         assessments: string;
         assessmentsSubtitle: string;
-        currentCorpus: string;
-        corpusSubtitle: string;
-        noCorpus: string;
+        currentLegalSource: string;
+        legalSourceSubtitle: string;
+        noLegalSource: string;
       };
       assessmentActivity: {
         title: string;
@@ -1724,13 +1724,13 @@ export type PagesMessages = {
           suspendedAccount: string;
           restoredAccount: string;
           invitedUser: string;
-          publishedCorpus: string;
+          activatedLegalSource: string;
         };
         systemActor: string;
         targets: {
           userAccount: string;
           newUser: string;
-          corpusVersion: string;
+          legalSourceVersion: string;
           system: string;
         };
         emptyTitle: string;
@@ -1738,7 +1738,7 @@ export type PagesMessages = {
         errorTitle: string;
         errorDescription: string;
       };
-      corpusStatus: {
+      legalSourceStatus: {
         title: string;
         subtitle: string;
         currentLabel: string;

@@ -104,7 +104,7 @@ def fixture(mode):
         for relation in packet["contextRelations"]
         if relation.get("toSourceRef")
     )
-    # The integrity validator requires every leaf in the seeded corpus to be covered.
+    # The integrity validator requires every leaf in the seeded legal_source to be covered.
     # Keep only chunks this focused one-rule packet actually cites.
     locators = [locator for locator in locators if locator in referenced_locators]
     return {"documentId":DOC,"hashes":hashes,"chunks":[{"locator":l,"content":text,"contentSha256":hashes[l]} for l in locators],"packet":packet,"files":files,"fixture":mode}

@@ -13,7 +13,7 @@ class CallbackPath(StrEnum):
 
 class InternalPath(StrEnum):
     AUDIT_EVENTS = "/internal/audit-events"
-    LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-rule-catalog/source-snapshots"
+    LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-sources/source-snapshots"
     COMPLIANCE_RULE_SET_CLAIMS = "/internal/compliance-rule-set/claims"
     COMPLIANCE_RULE_SET_VALIDATIONS = "/internal/compliance-rule-set/validations"
     COMPLIANCE_RULE_SET_SUBMISSIONS = "/internal/compliance-rule-set/submissions"

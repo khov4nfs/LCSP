@@ -4,6 +4,6 @@ export * from "./assessment/index.ts";
 export * from "./auth/index.ts";
 export * from "./evidence/index.ts";
 export * from "./github-integration/index.ts";
-export * from "./legal-rule-catalog/index.ts";
+export * from "./legal-source/index.ts";
 export * from "./outbox/index.ts";
 export * from "./shared/index.ts";

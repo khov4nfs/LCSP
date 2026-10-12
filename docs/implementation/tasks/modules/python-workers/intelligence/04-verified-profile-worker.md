@@ -9,6 +9,8 @@ depends_on:
   - python-workers/intelligence/03-conflict-detection-worker.md
 ---
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # VerifiedProfile Worker
 
 > Superseded: active classification no longer depends on a VerifiedProfile worker/callback/approval gate. Direct EngineeringRule assessment consumes accepted evidence context.

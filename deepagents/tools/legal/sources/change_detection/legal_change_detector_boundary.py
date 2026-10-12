@@ -10,9 +10,9 @@ from structlog import get_logger
 
 from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import LegalToolDispatcher
 from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoints import LegalToolExecutionContext
-from tools.legal.corpus.partial_update.partial_update_context_builder import build_partial_update_context
-from tools.legal.sources.ingest.official_corpus_acquisition import (
-    OfficialCorpusAcquisition,
+from tools.legal.legal_source.partial_update.partial_update_context_builder import build_partial_update_context
+from tools.legal.sources.ingest.official_legal_source_acquisition import (
+    OfficialLegalSourceAcquisition,
     source_crawl_requests,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
@@ -20,7 +20,7 @@ from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase, 
 
 logger = get_logger(__name__)
 
-LEGAL_CHANGE_DETECTOR_COMMAND = "cron.legal-catalog.check-updates.v1"
+LEGAL_CHANGE_DETECTOR_COMMAND = "cron.legal-source.check-updates.v1"
 LEGAL_CHANGE_DETECTOR_BOUNDARY_SOURCE = "lcsp.legal-change-detector.v1"
 
 
@@ -61,7 +61,7 @@ class LegalChangeCheckResult:
 
 
 class LegalChangeDetectorBoundary(AgentBoundaryBase):
-    """Detect source changes and prepare the complete configured corpus."""
+    """Detect source changes and prepare the complete configured legal_source."""
 
     boundary_source = LEGAL_CHANGE_DETECTOR_BOUNDARY_SOURCE
     source_event = LEGAL_CHANGE_DETECTOR_COMMAND
@@ -147,9 +147,9 @@ class LegalChangeDetectorBoundary(AgentBoundaryBase):
             for item in requests
         ):
             raise NonRetryableAgentBoundaryError(
-                "configured corpus acquisition must include the changed official source"
+                "configured legal_source acquisition must include the changed official source"
             )
-        OfficialCorpusAcquisition(api_client=self._api_client).run(
+        OfficialLegalSourceAcquisition(api_client=self._api_client).run(
             {
                 "idempotencyKey": envelope.idempotency_key,
                 "storageRoot": str(storage_root),
@@ -206,7 +206,7 @@ class LegalChangeDetectorBoundary(AgentBoundaryBase):
         except ValueError as exc:
             raise NonRetryableAgentBoundaryError("base snapshot object key escapes storage root") from exc
         if not object_path.is_file():
-            raise NonRetryableAgentBoundaryError(f"base snapshot object is missing from corpus store: {object_key}")
+            raise NonRetryableAgentBoundaryError(f"base snapshot object is missing from legal_source store: {object_key}")
         return object_path.read_text(encoding="utf-8")
 
 

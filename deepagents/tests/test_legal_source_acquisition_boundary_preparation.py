@@ -88,7 +88,7 @@ def _fetch_request(output_dir: Path, storage_root: Path | None = None):
 
 
 def test_ingest_adapter_preserves_source_identity_hash_and_provenance(tmp_path: Path):
-    storage_root = tmp_path / ".corpus"
+    storage_root = tmp_path / ".legal-source"
     api_client = _RecordingApiClient()
     boundary = LegalSourceIngestBoundary(
         SimpleNamespace(legal_source_storage_root=str(storage_root)),
@@ -101,7 +101,7 @@ def test_ingest_adapter_preserves_source_identity_hash_and_provenance(tmp_path: 
             "documentId": DOCUMENT_ID,
             "catalogSourceRef": CATALOG_SOURCE_REF,
             "adminCatalogVersion": "catalog_v2026_08",
-            "corpusVersionId": "corpus_draft_01",
+            "legalSourceVersionId": "legal_source_draft_01",
             "idempotencyKey": "legal-source-ingest:LAW-71-2025-QH15:01",
             "actorRef": "actor:internal-legal-operator:demo",
             "sourceUrl": SOURCE_URL,
@@ -129,7 +129,7 @@ def test_ingest_adapter_preserves_source_identity_hash_and_provenance(tmp_path: 
     assert registered["byteLength"] == len(HTML.encode())
     assert registered["documentIdentityVerified"] is True
 
-    manifest_dir = storage_root / "source-crawl" / "corpus_draft_01" / DOCUMENT_ID
+    manifest_dir = storage_root / "source-crawl" / "legal_source_draft_01" / DOCUMENT_ID
     manifest_path = manifest_dir / f"{DOCUMENT_ID}.source.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["documentNumber"] == DOCUMENT_NUMBER
@@ -144,20 +144,20 @@ def test_ingest_adapter_preserves_source_identity_hash_and_provenance(tmp_path: 
 def test_recovery_payload_keeps_exact_hierarchy_locators_and_artifact_lineage(
     tmp_path: Path,
 ):
-    source_dir = tmp_path / "source-crawl" / "corpus_draft_01" / DOCUMENT_ID
-    storage_root = tmp_path / ".corpus"
+    source_dir = tmp_path / "source-crawl" / "legal_source_draft_01" / DOCUMENT_ID
+    storage_root = tmp_path / ".legal-source"
     result = OfficialSourceSnapshotFetcher(vbpl_session=_VbplSession()).fetch(
         _fetch_request(source_dir, storage_root)
     )
 
     payload = build_official_source_payload(
         [result.manifest_path],
-        "VN-LEGAL-CORPUS-SYNTHETIC",
+        "VN-LEGAL-LEGAL_SOURCE-SYNTHETIC",
     )
 
     document = payload["documents"][0]
     chunks = document["chunks"]
-    namespaced = "VN-LEGAL-CORPUS-SYNTHETIC::"
+    namespaced = "VN-LEGAL-LEGAL_SOURCE-SYNTHETIC::"
     assert document["documentId"] == DOCUMENT_ID
     assert document["sourceSha256"] == _sha256(HTML.encode())
     assert document["snapshotPath"] == f"{DOCUMENT_ID}.source.html"

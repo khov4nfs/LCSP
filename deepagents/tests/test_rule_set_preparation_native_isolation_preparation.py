@@ -22,7 +22,7 @@ from test_native_researcher_task_preparation import ScriptedModel
 
 TESTS_DIR = Path(__file__).parent
 ACCEPTED_DIR = TESTS_DIR / "fixtures" / "compliance_rule_set_context"
-PINNED_VERSION = "SYNTHETIC-CORPUS-V1"
+PINNED_VERSION = "SYNTHETIC-LEGAL_SOURCE-V1"
 FORBIDDEN_TOOL_ATTEMPTS = (
     ("write_file", {"file_path": "/mutated.txt", "content": "MUTATED"}),
     ("execute", {"command": "touch /mutated.txt"}),
@@ -44,7 +44,7 @@ class RuleSetPreparationScriptedModel(ScriptedModel):
 
 def _load_pinned_source() -> tuple[dict[str, Any], bytes]:
     pins = json.loads((ACCEPTED_DIR / "pins.json").read_text(encoding="utf-8"))
-    pin = next(source for source in pins["sources"] if source["corpusVersion"] == PINNED_VERSION)
+    pin = next(source for source in pins["sources"] if source["legalSourceVersion"] == PINNED_VERSION)
     source_bytes = (ACCEPTED_DIR / pin["sourceFile"]).read_bytes()
     assert len(source_bytes) == pin["byteLength"]
     assert f"sha256:{hashlib.sha256(source_bytes).hexdigest()}" == pin["sourceSha256"]
@@ -58,7 +58,7 @@ def _tool_call(name: str, args: dict[str, Any], call_id: str) -> AIMessage:
     )
 
 
-def test_native_rule_set_preparation_reads_one_pinned_corpus_without_other_tools(
+def test_native_rule_set_preparation_reads_one_pinned_legal_source_without_other_tools(
     tmp_path: Path,
 ) -> None:
     pin, source_bytes = _load_pinned_source()
@@ -69,7 +69,7 @@ def test_native_rule_set_preparation_reads_one_pinned_corpus_without_other_tools
 
     request = (
         "Read only the pinned legal source and return source-grounded preparation context: "
-        f"corpus={pin['corpusVersion']} document={pin['documentId']} "
+        f"legal_source={pin['legalSourceVersion']} document={pin['documentId']} "
         f"source_sha256={pin['sourceSha256']} path=/{pin['sourceFile']}"
     )
     responses = [

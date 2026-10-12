@@ -1,4 +1,4 @@
-"""Structural (non-semantic) legal-corpus chunk gate.
+"""Structural (non-semantic) legal-source chunk gate.
 
 Formal headings and law preambles are not retrievable law. This only inspects chunk shape;
 it never decides whether a provision imposes a duty or is relevant to engineering - that

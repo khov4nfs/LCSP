@@ -459,7 +459,7 @@ def infer_authoritative_domain(paths: tuple[str, ...]) -> str:
         "BILLING",
         "REPOSITORY",
         "AGENT_RUNTIME",
-        "LEGAL_RULES",
+        "LEGAL_REQUIREMENTS",
         "CI_RELEASE",
         "WEB",
         "DATA",
@@ -583,8 +583,8 @@ def _domain_for_path(path: str) -> str:
         return "REPOSITORY"
     if path.startswith("deepagents/decision/") or path.startswith("deepagents/orchestration/"):
         return "AGENT_RUNTIME"
-    if "legal" in lowered or "engineering_rule" in lowered:
-        return "LEGAL_RULES"
+    if "legal" in lowered or "assessment_rule" in lowered:
+        return "LEGAL_REQUIREMENTS"
     if path.startswith(".github/") or path.startswith("scripts/"):
         return "CI_RELEASE"
     if path.startswith("apps/web/"):

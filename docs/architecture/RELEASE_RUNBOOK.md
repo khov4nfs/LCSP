@@ -1,19 +1,8 @@
 # Release verification runbook
 
-Current status: **IN PROGRESS**; `releaseEligible=false`. Production deployment is not authorized.
-The latest historical candidate activated a Compliance Rule Set, but semantic review failed because
-an Assessment Rule omitted a material definition source reference. The general instructions
-now require checking the final authored reference arrays. Root stream authorization and
-activity translations also have focused passing regressions. A later run validated packets
-but submitted schema-invalid revisions and activated nothing; the instructions now require
-submitting the exact validated packet. The next run still sent a schema-invalid packet
-and ended without submission. Both rule-set tools now expose the existing shared packet
-contract as their argument schema, with a contracts-build check preventing schema drift.
-The API validator and semantic rubric are unchanged. The new image gate and fresh
-semantic/browser acceptance are in progress. Current evidence:
-[`legal-preparation-semantic-correction.json`](../../reports/legal-preparation-semantic-correction.json),
-[`staging-acceptance-matrix.json`](../../reports/staging-acceptance-matrix.json), and
-[`release-remote-ci.json`](../../reports/release-remote-ci.json).
+Current pre-merge authority is [the PR #367 correction release proof](../../reports/pr367-correction-release-proof.md) and [the acceptance matrix](../../reports/staging-acceptance-matrix.json). The current final candidate must pass the complete browser journey on its own fresh isolated staging stack; an older candidate or equivalence bridge does not satisfy that gate. Production remains outside this pre-merge verification.
+
+The canonical physical PostgreSQL migration uses in-place renames, removes terminology compatibility maps, and preserves shared rule-set history and assessment pins. [The populated upgrade rehearsal](../../reports/pr367-physical-rename/receipt.json) must pass before the image gate. Source lifecycle routes are `/internal/legal-sources`; Legal Source activation automatically dispatches Rule Set Preparation through its durable event and CommandBus. Admin has bounded retry of a failed run and no generic Start; assessments only pin and reuse the shared immutable Compliance Rule Set.
 
 Use purpose-based automation from the repository root:
 
@@ -36,8 +25,7 @@ Review the actual generated packet against all six unchanged semantic dimensions
 insert a fixture rule set, repair meaning in the validator, or add an approval workflow. Source/index
 fixture inputs are bounded synthetic prerequisites, not official-source acquisition or live indexing proof.
 After semantic success, finish the real browser flow, reconcile every frozen acceptance row, verify
-current-source remote CI and enforce the existing all-suite aggregate. Required-check settings remain
-unchanged pending publication/approval; the prepared proposal is `reports/release-required-checks-proposal.json`.
+current-source remote CI and enforce the existing all-suite aggregate. Read back develop ruleset 18478777: strict checks must include Require Jira issue key, Docker sandbox E2E, and V2 required release gate. One approving human review is required; new pushes dismiss stale reviews. Leave the PR open and unmerged.
 Keep unaffected accepted migration/domain/deletion evidence and rerun only affected checks.
 
 ## Historical execution log

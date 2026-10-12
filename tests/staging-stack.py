@@ -25,7 +25,7 @@ from uuid import UUID, uuid4
 from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE_EVIDENCE = ROOT / "reports/release-images/20261011210628_a047d4ca2aa1"
+IMAGE_EVIDENCE = ROOT / "reports/release-images/20261012041902_4058ec2256a0"
 OWNER_LABEL = "lcsp.release-staging"
 PROVIDER_KEYS = ("APX_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY")
 HOST_KEYS = ("PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", "DOCKER_HOST",
@@ -114,7 +114,7 @@ def environment(run_id: str, image_ids: dict, provider: dict) -> dict[str, dict[
         "LCSP_AGENT_SERVER_URL": f"http://{prefix}-server:8000",
         "LCSP_AGENT_RUNTIME_MODE": "production", "LCSP_REPOSITORY_SANDBOX_IMAGE": image_ids["worker"],
         "LANGGRAPH_CHECKPOINT_DATABASE_URL": database.replace("/lcsp_staging?schema=public", "/lcsp_langgraph"),
-        "LEGAL_SOURCE_STORAGE_ROOT": "/app/.corpus", "LEGAL_CHROMA_PATH": "/app/.chroma",
+        "LEGAL_SOURCE_STORAGE_ROOT": "/app/.legal-source", "LEGAL_CHROMA_PATH": "/app/.chroma",
         "LANGSMITH_TRACING": "false", "LANGCHAIN_TRACING_V2": "false",
         "LCSP_ENABLE_REMOTE_MCP": "false", "LCSP_REPOSITORY_SANDBOX_CLEANUP_ON_START": "false",
         "LCSP_AGENT_RUNTIME_RABBITMQ_PREFETCH": "2",
@@ -271,14 +271,14 @@ class Stack:
         self.create("rabbitmq", envs["rabbitmq"])
         self.wait("rabbitmq", lambda: self.docker("exec", "--user", "rabbitmq", f"{self.prefix}-rabbitmq", "rabbitmq-diagnostics", "-q", "ping") is not None)
         mount_map = {}
-        for directory, target in (("corpus", "/app/.corpus"), ("chroma", "/app/.chroma"),
+        for directory, target in (("legal_source", "/app/.legal-source"), ("chroma", "/app/.chroma"),
                                   ("runtime", "/app/tmp"), ("artifacts", "/app/.artifacts"),
                                   ("snapshot-cache", "/app/.snapshot-cache")):
             path = self.private / directory
             path.mkdir(mode=0o700)
             mount_map[directory] = (str(path), target)
         self.create("server", envs["server"], port=8000,
-                    mounts=[mount_map[name] for name in ("corpus", "chroma", "runtime")]
+                    mounts=[mount_map[name] for name in ("legal_source", "chroma", "runtime")]
                     + [(endpoint[7:], "/var/run/docker.sock")])
         server_url = self.url("server", 8000)
         self.wait("server", lambda: http_ok(server_url + "/health"))
@@ -295,7 +295,7 @@ class Stack:
         require(self.sql('SELECT count(*) FROM "_prisma_migrations" WHERE migration_name='
                          "'20261008160000_w7_drop_v1_authority' AND finished_at IS NOT NULL AND rolled_back_at IS NULL;") == "1",
                 "RELEASE migration was not applied by the API image")
-        self.create("bridge", envs["bridge"], mounts=[mount_map[name] for name in ("corpus", "chroma", "runtime")]
+        self.create("bridge", envs["bridge"], mounts=[mount_map[name] for name in ("legal_source", "chroma", "runtime")]
                     + [(mount_map["runtime"][0], "/app/deepagents/tmp")])
         def consumers_ready() -> bool:
             output = self.docker("exec", "--user", "rabbitmq", f"{self.prefix}-rabbitmq", "rabbitmqctl", "-q", "list_queues", "name", "consumers")

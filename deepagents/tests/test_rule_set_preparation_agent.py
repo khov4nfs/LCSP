@@ -11,7 +11,7 @@ import pytest
 from langchain_core.messages import AIMessage, ToolMessage
 
 from rule_set_preparation.agent import _without_general_purpose_subagent, create_rule_set_preparation_agent
-from rule_set_preparation.corpus_files import INDEX_PATH, materialize_corpus
+from rule_set_preparation.legal_source_files import INDEX_PATH, materialize_legal_source
 from rule_set_preparation.runner import (
     SOURCE_VERSION_UNAVAILABLE,
     MODEL_ERROR,
@@ -22,7 +22,7 @@ from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set
 from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
 
 RUN_ID = "11111111-1111-4111-8111-111111111111"
-CORPUS_ID = "22222222-2222-4222-8222-222222222222"
+LEGAL_SOURCE_ID = "22222222-2222-4222-8222-222222222222"
 DOC = "SYNTHETIC-NOTICE-INSTRUMENT"
 
 
@@ -55,8 +55,8 @@ def _bundle() -> dict[str, Any]:
     return {
         "preparationRunId": RUN_ID,
         "executionState": "RUNNING",
-        "legalSourceVersionId": CORPUS_ID,
-        "legalSourceVersion": "SYNTHETIC-CORPUS-V1",
+        "legalSourceVersionId": LEGAL_SOURCE_ID,
+        "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
         "documents": [
             {
                 "documentId": DOC,
@@ -212,10 +212,10 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
         assert "context-only definition" in relation["properties"]["toSourceRef"]["description"]
 
 
-def test_corpus_files_carry_exact_citation_headers_and_only_the_pinned_corpus(tmp_path: Path) -> None:
-    paths = materialize_corpus(_bundle(), tmp_path)
+def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_legal_source(tmp_path: Path) -> None:
+    paths = materialize_legal_source(_bundle(), tmp_path)
     assert paths[0] == INDEX_PATH
-    index = (tmp_path / "corpus" / "INDEX.md").read_text()
+    index = (tmp_path / "legal-source" / "INDEX.md").read_text()
     chunk_file = next(tmp_path.rglob("art-1__cl-1.md"))
     header = chunk_file.read_text().split("---")[0]
     assert f"documentId: {DOC}" in header
@@ -225,13 +225,13 @@ def test_corpus_files_carry_exact_citation_headers_and_only_the_pinned_corpus(tm
     assert {p.name for p in tmp_path.rglob("*") if p.is_file()} == {"INDEX.md", "art-1__cl-1.md", "art-2__cl-1.md"}
 
 
-def test_agent_has_only_read_only_corpus_tools_and_the_two_rule_set_tools(tmp_path: Path) -> None:
+def test_agent_has_only_read_only_legal_source_tools_and_the_two_rule_set_tools(tmp_path: Path) -> None:
     from rule_set_preparation.agent import INSTRUCTIONS
 
-    materialize_corpus(_bundle(), tmp_path)
+    materialize_legal_source(_bundle(), tmp_path)
     model = _model([AIMessage(content="done")])
     agent = create_rule_set_preparation_agent(
-        context=RuleSetPreparationContext(RUN_ID, FakeApi()), corpus_root=tmp_path, model=model
+        context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
     )
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     bound = {name for names in model.bound_tool_names for name in names}
@@ -260,7 +260,7 @@ def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_p
     assert key == f"rule-set-preparation-submit-{RUN_ID}"
     assert sent == packet
     messages = _tool_messages(model)
-    assert "Pinned corpus SYNTHETIC-CORPUS-V1" in messages["read-index"].content
+    assert "Pinned legal_source SYNTHETIC-LEGAL_SOURCE-V1" in messages["read-index"].content
     assert json.loads(messages["submit-2"].content)["alreadySubmitted"] is True
 
 
@@ -365,7 +365,7 @@ def test_packet_graph_400_feedback_reaches_model_and_can_be_corrected(tmp_path: 
 
 
 def test_no_submission_is_recorded_as_failed(tmp_path: Path) -> None:
-    model = _model([AIMessage(content="I could not read the corpus.")])
+    model = _model([AIMessage(content="I could not read the legal_source.")])
     api = FakeApi()
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
     assert result["state"] == "FAILED" and result["submission"] is None
@@ -424,26 +424,26 @@ def test_capacity_and_auth_errors_are_not_retried_on_the_same_key() -> None:
     assert not retry_model_error(StatusError(401, "invalid api key"))
 
 
-def test_forbidden_tools_and_paths_outside_the_corpus_are_unavailable(tmp_path: Path) -> None:
-    materialize_corpus(_bundle(), tmp_path)
-    (tmp_path / "secret.txt").write_text("NOT-IN-CORPUS")
+def test_forbidden_tools_and_paths_outside_the_legal_source_are_unavailable(tmp_path: Path) -> None:
+    materialize_legal_source(_bundle(), tmp_path)
+    (tmp_path / "secret.txt").write_text("NOT-IN-LEGAL_SOURCE")
     attempts = [
-        _call("write_file", {"file_path": "/corpus/x.md", "content": "MUTATED"}, "write"),
-        _call("execute", {"command": "touch /corpus/y"}, "execute"),
+        _call("write_file", {"file_path": "/legal-source/x.md", "content": "MUTATED"}, "write"),
+        _call("execute", {"command": "touch /legal-source/y"}, "execute"),
         _call("task", {"description": "research", "subagent_type": "general-purpose"}, "task"),
         _call("read_file", {"file_path": "/secret.txt"}, "outside"),
         AIMessage(content="done"),
     ]
     model = _model(attempts)
     agent = create_rule_set_preparation_agent(
-        context=RuleSetPreparationContext(RUN_ID, FakeApi()), corpus_root=tmp_path, model=model
+        context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
     )
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     messages = _tool_messages(model)
     for call_id in ("write", "execute", "task"):
         assert "is not a valid tool" in messages[call_id].content, messages[call_id].content
-    assert "NOT-IN-CORPUS" not in messages["outside"].content
-    assert not (tmp_path / "corpus" / "x.md").exists() and not (tmp_path / "corpus" / "y").exists()
+    assert "NOT-IN-LEGAL_SOURCE" not in messages["outside"].content
+    assert not (tmp_path / "legal_source" / "x.md").exists() and not (tmp_path / "legal_source" / "y").exists()
 
 
 def test_the_no_subagent_profile_is_scoped_to_graph_build_time() -> None:
@@ -481,9 +481,9 @@ def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(
         assert _harness_profile_for_model(model, None).general_purpose_subagent.enabled is False
 
     # Building the real graph with that model leaves no task/sub-agent tool in the tool node.
-    materialize_corpus(_bundle(), tmp_path)
+    materialize_legal_source(_bundle(), tmp_path)
     agent = create_rule_set_preparation_agent(
-        context=RuleSetPreparationContext(RUN_ID, FakeApi()), corpus_root=tmp_path, model=model
+        context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
     )
     tools = set(agent.nodes["tools"].bound.tools_by_name)
     assert {"read_file", "validate_compliance_rule_set", "submit_compliance_rule_set"} <= tools

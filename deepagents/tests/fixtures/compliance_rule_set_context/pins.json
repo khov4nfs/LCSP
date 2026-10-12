@@ -3,7 +3,7 @@
   "sources": [
     {
       "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
-      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
       "sourceFile": "synthetic-notice-v1.txt",
       "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
       "byteLength": 1185,
@@ -28,7 +28,7 @@
     },
     {
       "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
-      "corpusVersion": "SYNTHETIC-CORPUS-V2",
+      "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V2",
       "sourceFile": "synthetic-notice-v2.txt",
       "sourceSha256": "sha256:93884394e3fe5a1b590967b9a5f92f25b5e4cc392721ccd55ad325f0a532c92b",
       "byteLength": 1186,

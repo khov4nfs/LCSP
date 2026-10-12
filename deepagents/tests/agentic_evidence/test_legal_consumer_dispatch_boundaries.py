@@ -9,9 +9,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.legal.corpus.chunk_integrity.chunk_integrity_boundary import ChunkIntegrityBoundary
-from tools.legal.corpus.legal_chunks.legal_chunk_boundary import LegalChunkBoundary
-from tools.legal.sources.ingest.official_corpus_acquisition import OfficialCorpusAcquisition
+from tools.legal.legal_source.chunk_integrity.chunk_integrity_boundary import ChunkIntegrityBoundary
+from tools.legal.legal_source.legal_chunks.legal_chunk_boundary import LegalChunkBoundary
+from tools.legal.sources.ingest.official_legal_source_acquisition import OfficialLegalSourceAcquisition
 from tools.legal.retrieval.index.legal_retrieval_index_boundary import LegalRetrievalIndexBoundary
 from tools.legal.sources.ingest.legal_source_ingest_boundary import LegalSourceIngestBoundary
 from tools.legal.sources.ocr_fallback.ocr_fallback_boundary import OcrFallbackBoundary
@@ -19,8 +19,8 @@ from tools.legal.sources.ocr_quality.ocr_quality_boundary import OcrQualityBound
 from tools.legal.sources.extraction.official_text_extraction_boundary import (
     OfficialTextExtractionBoundary,
 )
-from tools.legal.corpus.reviewed_input.reviewed_corpus_input_boundary import (
-    ReviewedCorpusInputBoundary,
+from tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_boundary import (
+    ReviewedLegalSourceInputBoundary,
 )
 from tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_boundary import (
     VbplEffectedChunkSetBoundary,
@@ -43,8 +43,8 @@ from tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_boundary import (
         (OcrFallbackBoundary, "run_ocr_fallback", ".run("),
         (OcrQualityBoundary, "evaluate_ocr_quality", "validator.evaluate("),
         (
-            ReviewedCorpusInputBoundary,
-            "build_reviewed_corpus_input",
+            ReviewedLegalSourceInputBoundary,
+            "build_reviewed_legal_source_input",
             "builder.build(",
         ),
         (LegalChunkBoundary, "build_legal_chunks", "builder.build("),
@@ -65,7 +65,7 @@ from tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_boundary import (
         ),
     ],
 )
-def test_legal_corpus_consumer_executes_through_canonical_dispatcher(
+def test_legal_source_consumer_executes_through_canonical_dispatcher(
     boundary,
     tool_name: str,
     forbidden_direct_call: str,
@@ -101,7 +101,7 @@ def test_source_fetch_runtime_failure_stays_retryable(tmp_path: Path) -> None:
                 "documentId": "LAW-TEST",
                 "catalogSourceRef": "catalog-source:test",
                 "adminCatalogVersion": "catalog-v1",
-                "corpusVersionId": "corpus-v1",
+                "legalSourceVersionId": "legal_source-v1",
                 "idempotencyKey": "legal-source-ingest:test:01",
                 "actorRef": "actor:test",
                 "sourceUrl": "https://example.test/legal",
@@ -114,18 +114,18 @@ def test_source_fetch_runtime_failure_stays_retryable(tmp_path: Path) -> None:
 
 def test_acquisition_validation_crosses_canonical_dispatcher() -> None:
     """Acquisition index validation may not own a private Chroma implementation."""
-    source = inspect.getsource(OfficialCorpusAcquisition._validate_retrieval_index)
+    source = inspect.getsource(OfficialLegalSourceAcquisition._validate_retrieval_index)
 
     assert "dispatcher.dispatch(" in source or "_legal_dispatcher.dispatch(" in source
     assert '"validate_retrieval_index"' in source
     assert "ChromaDbCitationRetriever(" not in source
-    assert ".index_corpus(" not in source
+    assert ".index_legal_source(" not in source
 
 
 def test_acquisition_activation_crosses_canonical_dispatcher() -> None:
-    """Corpus activation must remain behind the canonical protected API entrypoint."""
-    source = inspect.getsource(OfficialCorpusAcquisition._run_locked)
+    """LegalSource activation must remain behind the canonical protected API entrypoint."""
+    source = inspect.getsource(OfficialLegalSourceAcquisition._run_locked)
 
     assert "_legal_dispatcher.dispatch(" in source
-    assert '"activate_validated_corpus_version"' in source
-    assert "_api_client.activate_validated_corpus_version(" not in source
+    assert '"activate_validated_legal_source_version"' in source
+    assert "_api_client.activate_validated_legal_source_version(" not in source

@@ -8,7 +8,7 @@ import pytest
 
 from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import (
     ALL_TOOL_BINDINGS,
-    LEGAL_CORPUS_TOOL_BINDINGS,
+    LEGAL_SOURCE_TOOL_BINDINGS,
     LegalToolDispatcher,
     ToolRuntimeTarget,
     runtime_binding,
@@ -19,7 +19,7 @@ from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoin
 )
 
 
-EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS = {
+EXPECTED_LEGAL_SOURCE_LOCAL_TOOLS = {
     "fetch_official_source_snapshot": (
         ToolRuntimeTarget.PYTHON_LOCAL,
         "OfficialSourceSnapshotFetcher.fetch",
@@ -33,9 +33,9 @@ EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS = {
         ToolRuntimeTarget.PYTHON_LOCAL,
         "OcrQualityValidator.evaluate",
     ),
-    "build_reviewed_corpus_input": (
+    "build_reviewed_legal_source_input": (
         ToolRuntimeTarget.PYTHON_LOCAL,
-        "ReviewedCorpusInputBuilder.build",
+        "ReviewedLegalSourceInputBuilder.build",
     ),
     "build_legal_chunks": (ToolRuntimeTarget.PYTHON_LOCAL, "LegalChunkBuilder.build"),
     "validate_chunk_integrity": (
@@ -52,11 +52,11 @@ EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS = {
     ),
     "validate_retrieval_index": (
         ToolRuntimeTarget.PYTHON_LOCAL,
-        "ChromaDbCitationRetriever.index_corpus + retrieve_exact",
+        "ChromaDbCitationRetriever.index_legal_source + retrieve_exact",
     ),
-    "activate_validated_corpus_version": (
+    "activate_validated_legal_source_version": (
         ToolRuntimeTarget.PROTECTED_API,
-        "WorkerApiClient.activate_validated_corpus_version",
+        "WorkerApiClient.activate_validated_legal_source_version",
     ),
 }
 
@@ -68,14 +68,14 @@ def _context() -> LegalToolExecutionContext:
     )
 
 
-def test_legal_corpus_bindings_have_exact_named_static_entrypoints() -> None:
-    names = {binding.tool_name for binding in LEGAL_CORPUS_TOOL_BINDINGS}
-    assert names == set(EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS)
-    assert len(names) == len(LEGAL_CORPUS_TOOL_BINDINGS)
+def test_legal_source_bindings_have_exact_named_static_entrypoints() -> None:
+    names = {binding.tool_name for binding in LEGAL_SOURCE_TOOL_BINDINGS}
+    assert names == set(EXPECTED_LEGAL_SOURCE_LOCAL_TOOLS)
+    assert len(names) == len(LEGAL_SOURCE_TOOL_BINDINGS)
 
     source = inspect.getsource(legal_tool_entrypoints)
-    for binding in LEGAL_CORPUS_TOOL_BINDINGS:
-        expected_runtime, expected_downstream = EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS[
+    for binding in LEGAL_SOURCE_TOOL_BINDINGS:
+        expected_runtime, expected_downstream = EXPECTED_LEGAL_SOURCE_LOCAL_TOOLS[
             binding.tool_name
         ]
         assert binding.runtime_target == expected_runtime
@@ -89,25 +89,25 @@ def test_global_binding_index_covers_all_canonical_tools() -> None:
     names = [binding.tool_name for binding in ALL_TOOL_BINDINGS]
 
     assert len(names) == len(set(names))
-    assert set(names) == set(EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS)
+    assert set(names) == set(EXPECTED_LEGAL_SOURCE_LOCAL_TOOLS)
     assert not any(name.startswith("run_") and "semantic_analysis" in name for name in names)
     assert runtime_binding("build_legal_chunks").downstream_target == "LegalChunkBuilder.build"
     assert (
-        runtime_binding("activate_validated_corpus_version").runtime_target
+        runtime_binding("activate_validated_legal_source_version").runtime_target
         == ToolRuntimeTarget.PROTECTED_API
     )
 
 
 def test_legal_dispatcher_keeps_activation_behind_protected_api() -> None:
     context = _context()
-    context.api_client.activate_validated_corpus_version.return_value = {
+    context.api_client.activate_validated_legal_source_version.return_value = {
         "status": "READY"
     }
     dispatcher = LegalToolDispatcher(context)
 
     response = dispatcher.dispatch(
-        "activate_validated_corpus_version",
-        corpus_version_id="corpus-1",
+        "activate_validated_legal_source_version",
+        legal_source_version_id="legal_source-1",
         payload={
             "integrityManifestRef": "integrity-1",
             "retrievalValidationRef": "retrieval-1",
@@ -116,8 +116,8 @@ def test_legal_dispatcher_keeps_activation_behind_protected_api() -> None:
     )
 
     assert response == {"status": "READY"}
-    context.api_client.activate_validated_corpus_version.assert_called_once_with(
-        "corpus-1",
+    context.api_client.activate_validated_legal_source_version.assert_called_once_with(
+        "legal_source-1",
         {
             "integrityManifestRef": "integrity-1",
             "retrievalValidationRef": "retrieval-1",
@@ -132,12 +132,12 @@ def test_activation_rejects_missing_idempotency_key_before_api_call() -> None:
 
     with pytest.raises(ValueError, match="requires idempotencyKey"):
         dispatcher.dispatch(
-            "activate_validated_corpus_version",
-            corpus_version_id="corpus-1",
+            "activate_validated_legal_source_version",
+            legal_source_version_id="legal_source-1",
             payload={"integrityManifestRef": "integrity-1"},
         )
 
-    context.api_client.activate_validated_corpus_version.assert_not_called()
+    context.api_client.activate_validated_legal_source_version.assert_not_called()
 
 
 def test_fetch_snapshot_dispatches_through_same_named_function() -> None:

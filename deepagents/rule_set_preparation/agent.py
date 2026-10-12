@@ -13,7 +13,7 @@ from deepagents.profiles.harness import harness_profiles
 from deepagents.backends import FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPermission
 
-from rule_set_preparation.corpus_files import CORPUS_ROOT
+from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
@@ -73,15 +73,15 @@ def _lookup_profile_key(model: Any) -> str:
 def create_rule_set_preparation_agent(
     *,
     context: RuleSetPreparationContext,
-    corpus_root: Path,
+    legal_source_root: Path,
     model: Any | None = None,
     checkpointer: Any | None = None,
     store: Any | None = None,
 ):
     """Build the agent for one run.
 
-    ``corpus_root`` holds only the pinned corpus (see ``materialize_corpus``). The agent
-    gets read-only filesystem tools over ``/corpus`` plus the two governed rule_set tools;
+    ``legal_source_root`` holds only the pinned legal_source (see ``materialize_legal_source``). The agent
+    gets read-only filesystem tools over ``/legal-source`` plus the two governed rule_set tools;
     it has no write, shell, task/sub-agent, human, repository or memory tools.
     """
     if model is None:
@@ -89,12 +89,12 @@ def create_rule_set_preparation_agent(
 
         model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
 
-    backend = FilesystemBackend(root_dir=corpus_root, virtual_mode=True)
+    backend = FilesystemBackend(root_dir=legal_source_root, virtual_mode=True)
     read_only = FilesystemMiddleware(
         backend=backend,
         tools=READ_ONLY_TOOLS,
         _permissions=[
-            FilesystemPermission(["read"], [f"{CORPUS_ROOT}/**"], mode="allow"),
+            FilesystemPermission(["read"], [f"{LEGAL_SOURCE_ROOT}/**"], mode="allow"),
             FilesystemPermission(["read"], ["/**"], mode="deny"),
             FilesystemPermission(["write"], ["/**"], mode="deny"),
         ],

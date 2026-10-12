@@ -9,8 +9,8 @@ const workerAgentPath = join(rootDir, "deepagents");
 const defaultChromaPath = join(rootDir, ".chroma");
 
 const commands = {
-  corpus: {
-    script: join(rootDir, "scripts", "seed_legal_corpus_dev.py"),
+  legalSource: {
+    script: join(rootDir, "scripts", "seed_legal_source_dev.py"),
     defaultArgs: [],
   },
 };
@@ -18,7 +18,7 @@ const commands = {
 function usage() {
   console.error(
     [
-      "Usage: node scripts/seed-legal-dev.mjs <corpus|all> [--dry-run] [-- ...extra args]",
+      "Usage: node scripts/seed-legal-dev.mjs <legalSource|all> [--dry-run] [-- ...extra args]",
       "",
       "Environment:",
       "  PYTHON or PYTHON_BIN can override the Python executable.",
@@ -124,7 +124,7 @@ if (!target || target === "-h" || target === "--help") {
 const options = [...optionArgs, ...extraArgs];
 
 if (target === "all") {
-  runSeed("corpus", options);
+  runSeed("legalSource", options);
 } else {
   runSeed(target, options);
 }

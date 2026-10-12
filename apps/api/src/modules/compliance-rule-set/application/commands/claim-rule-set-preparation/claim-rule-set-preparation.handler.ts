@@ -1,7 +1,7 @@
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS,
-  type RuleSetPreparationCorpusBundle,
+  type RuleSetPreparationLegalSourceBundle,
 } from "@lcsp/contracts/compliance-rule-set";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
@@ -23,7 +23,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
 
   async execute(
     input: ClaimRuleSetPreparationCommand,
-  ): Promise<RuleSetPreparationCorpusBundle> {
+  ): Promise<RuleSetPreparationLegalSourceBundle> {
     const run = await this.prisma.ruleSetPreparationRun.findUnique({
       where: { id: input.request.preparationRunId },
       include: { ruleSet: { select: { id: true } } },
@@ -74,7 +74,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
     }
     const state = PrismaAgentExecutionState.RUNNING;
 
-    const corpus = await this.prisma.legalSourceVersion.findUniqueOrThrow({
+    const legalSource = await this.prisma.legalSourceVersion.findUniqueOrThrow({
       where: { id: run.legalSourceVersionId },
       select: {
         id: true,
@@ -105,9 +105,9 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
     return {
       preparationRunId: run.id,
       executionState: state,
-      legalSourceVersionId: corpus.id,
-      legalSourceVersion: corpus.version,
-      documents: corpus.documents.map((document) => ({
+      legalSourceVersionId: legalSource.id,
+      legalSourceVersion: legalSource.version,
+      documents: legalSource.documents.map((document) => ({
         ...document,
         chunks: document.chunks.map(({ id, ...chunk }) => ({
           chunkId: id,

@@ -1,4 +1,7 @@
 ---
+
+> **Historical pre-freeze documentation.** Earlier implementation inventory; current authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md).
+
 status: in-progress
 updated_at: 2026-08-12
 ---

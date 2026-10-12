@@ -24,6 +24,10 @@ const evidenceDir = path.join(ROOT, "reports/staging", runId);
 const receiptPath = path.join(evidenceDir, "browser-full-flow.json");
 const statePath = path.join(privateDir, "browser-state.json");
 const access = JSON.parse(readFileSync(path.join(privateDir, "access.json"), "utf8"));
+const stagingReceipt = JSON.parse(readFileSync(path.join(evidenceDir, "report.json"), "utf8"));
+const candidateId = path.basename(path.dirname(stagingReceipt.imageReceipt));
+if (!["READY_FOR_ACCEPTANCE", "PASS"].includes(stagingReceipt.status) || stagingReceipt.runId !== runId || !/^\d{14}_[a-f0-9]{12}$/.test(candidateId))
+  throw new Error("accepted exact-candidate staging receipt required");
 mkdirSync(path.join(evidenceDir, "screenshots"), { recursive: true });
 mkdirSync(path.join(privateDir, "aria"), { recursive: true });
 mkdirSync(path.join(privateDir, "sessions"), { recursive: true });
@@ -33,9 +37,10 @@ const readJson = (file, fallback) => (existsSync(file) ? JSON.parse(readFileSync
 const state = readJson(statePath, {});
 const saveState = () => writeFileSync(statePath, JSON.stringify(state, null, 2) + "\n", { mode: 0o600 });
 const receipt = readJson(receiptPath, {
-  scope: "EXACT_IMAGE_PLAYWRIGHT_FULL_FLOW", runId, status: "IN_PROGRESS", phases: {},
+  scope: "EXACT_IMAGE_PLAYWRIGHT_FULL_FLOW", runId, candidateId, workers: 1, imageReceipt: stagingReceipt.imageReceipt, status: "IN_PROGRESS", phases: {},
   note: "UI_ACTION and UI_OBSERVATION were performed/observed in Playwright; BACKEND_VERIFICATION is SQL/docker only.",
 });
+if (receipt.candidateId !== candidateId) throw new Error("browser receipt candidate mismatch");
 const phaseId = `${phaseName}-${phaseArgs[0]?.replace(/[^a-zA-Z0-9_-]/g, "_") ?? "default"}-${Date.now()}`;
 const phase = (receipt.phases[phaseId] = { name: phaseName, args: phaseArgs, startedAt: new Date().toISOString(), steps: [], console: [], failedRequests: [], abortedRequests: [], apiStatuses: [], navigations: [], screenshots: [] });
 const saveReceipt = () => writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + "\n");
@@ -260,8 +265,8 @@ const PHASES = {
     const mode = phaseArgs[0] ?? "initial";
     must(["initial", "supersession"].includes(mode), "unknown rule set preparation scenario");
     const priorAttempt = state.legalAttempts?.[mode];
-    const priorRuleSetExists = priorAttempt && Number(sql(`SELECT count(*) FROM "LegalPortfolioVersion" WHERE "preparationRunId"=${q(priorAttempt.preparationRunId)};`)) === 1;
-    const corpus = JSON.parse(readFileSync(path.join(privateDir, `legal-corpus-precondition${mode === "initial" ? "" : `-${mode}`}.json`), "utf8"));
+    const priorRuleSetExists = priorAttempt && Number(sql(`SELECT count(*) FROM "ComplianceRuleSetVersion" WHERE "preparationRunId"=${q(priorAttempt.preparationRunId)};`)) === 1;
+    const legalSource = JSON.parse(readFileSync(path.join(privateDir, `legal-source-precondition${mode === "initial" ? "" : `-${mode}`}.json`), "utf8"));
     const s = await open("admin");
     await login(s);
     const { page } = s;
@@ -285,18 +290,18 @@ const PHASES = {
     await aria(s, "before-start");
 
     execFileSync(path.join(ROOT, "deepagents/.venv/bin/python"), ["tests/staging-legal-evidence.py", runId, "activate", mode], { cwd: ROOT, encoding: "utf8" });
-    record(KINDS.backend, "Legal Source activation and idempotent replay use the governed API", { version: corpus.version });
+    record(KINDS.backend, "Legal Source activation and idempotent replay use the governed API", { version: legalSource.version });
     let preparationRunId = priorAttempt?.preparationRunId;
     const deliveryDeadline = Date.now() + 60000;
     while (!preparationRunId && Date.now() < deliveryDeadline) {
-      const runs = JSON.parse(sql(`SELECT coalesce(json_agg(id),'[]') FROM "LegalPreparationRun" WHERE "legalCorpusVersionId"=${q(corpus.corpusVersionId)};`));
+      const runs = JSON.parse(sql(`SELECT coalesce(json_agg(id),'[]') FROM "RuleSetPreparationRun" WHERE "legalSourceVersionId"=${q(legalSource.legalSourceVersionId)};`));
       must(runs.length <= 1, "activation created duplicate preparation runs");
       if (runs.length === 1) { preparationRunId = runs[0]; break; }
       await sleep(1000);
     }
     must(/^[0-9a-f-]{36}$/.test(preparationRunId ?? ""), "activation event did not start preparation");
     state.legalAttempts ??= {};
-    state.legalAttempts[mode] = { ...priorAttempt, preparationRunId, corpusVersionId: corpus.corpusVersionId };
+    state.legalAttempts[mode] = { ...priorAttempt, preparationRunId, legalSourceVersionId: legalSource.legalSourceVersionId };
     saveState();
     record(KINDS.backend, "one automatic system preparation persisted", { preparationRunId });
     await page.waitForLoadState("networkidle").catch(() => {});
@@ -329,14 +334,14 @@ const PHASES = {
     must(reloaded === terminal.view.active, "ACTIVE ruleSet did not survive reload");
     record(KINDS.observation, "ACTIVE ruleSet persists after reload", { label: reloaded });
 
-    const run = JSON.parse(sql(`SELECT row_to_json(r) FROM (SELECT p.id,p."requestedBy",p."executionState",p."failureReason",p."correlationId",v.id AS "ruleSetId",v."lifecycleState",v."validationOutcome",o.status AS "outboxStatus" FROM "LegalPreparationRun" p LEFT JOIN "LegalPortfolioVersion" v ON v."preparationRunId"=p.id LEFT JOIN "OutboxMessage" o ON o.id=p."outboxEventId" WHERE p.id=${q(preparationRunId)}) r;`));
+    const run = JSON.parse(sql(`SELECT row_to_json(r) FROM (SELECT p.id,p."requestedBy",p."executionState",p."failureReason",p."correlationId",v.id AS "ruleSetId",v."lifecycleState",v."validationOutcome",o.status AS "outboxStatus" FROM "RuleSetPreparationRun" p LEFT JOIN "ComplianceRuleSetVersion" v ON v."preparationRunId"=p.id LEFT JOIN "OutboxMessage" o ON o.id=p."outboxEventId" WHERE p.id=${q(preparationRunId)}) r;`));
     const thread = uuid5(`event:rule_set_preparation_requested:${run.correlationId}`, LEGAL_THREAD_NAMESPACE);
     const checkpoints = Number(sql(`SELECT count(*) FROM checkpoints WHERE thread_id=${q(thread)};`, "lcsp_langgraph"));
-    const activations = Number(sql(`SELECT count(*) FROM "LegalPortfolioActivationRecord" WHERE "preparationRunId"=${q(run.id)};`));
+    const activations = Number(sql(`SELECT count(*) FROM "ComplianceRuleSetActivationRecord" WHERE "preparationRunId"=${q(run.id)};`));
     must(run.executionState === "SUCCEEDED" && run.lifecycleState === "ACTIVE" && run.validationOutcome === "PASSED" && run.outboxStatus === "PUBLISHED", `persisted preparation state mismatch: ${JSON.stringify(run)}`);
     must(checkpoints > 0 && activations === 1, "native checkpoint or single governed activation missing");
     must(run.requestedBy === (priorAttempt?.previousFailedRunId ? access.accounts.admin.userId : RULE_SET_PREPARATION_SYSTEM_ACTOR), "preparation actor differs from automatic activation or bounded retry owner");
-    state.legal = { corpusVersionId: corpus.corpusVersionId, preparationRunId: run.id, ruleSetVersionId: run.ruleSetId, activeLabel: reloaded };
+    state.legal = { legalSourceVersionId: legalSource.legalSourceVersionId, preparationRunId: run.id, ruleSetVersionId: run.ruleSetId, activeLabel: reloaded };
     saveState();
     record(KINDS.backend, "persisted preparation matches the UI: SUCCEEDED, ACTIVE, PASSED, outbox PUBLISHED, one activation, native checkpoints", {
       preparationRunId: run.id, ruleSetVersionId: run.ruleSetId, nativeCheckpointCount: checkpoints, activationCount: activations });
@@ -494,7 +499,7 @@ const PHASES = {
     record(KINDS.observation, "exactly one Human Resolution request is shown", { question, control, lifecycle: seen.lifecycle, execution: seen.execution });
     await shot(s, "question");
     await aria(s, "question");
-    const requests = JSON.parse(sql(`SELECT coalesce(json_agg(r),'[]') FROM (SELECT "requestId",status,"controlType",question,"decisionImpact","criterionIds","engineeringRuleId",choices,"threadId" FROM "AssessmentHumanRequest" WHERE "assessmentId"=${q(assessmentId)}) r;`));
+    const requests = JSON.parse(sql(`SELECT coalesce(json_agg(r),'[]') FROM (SELECT "requestId",status,"controlType",question,"decisionImpact","criterionIds","assessmentRuleId",choices,"threadId" FROM "AssessmentHumanRequest" WHERE "assessmentId"=${q(assessmentId)}) r;`));
     const runtime = runtimeRow(assessmentId);
     must(requests.length === 1 && requests[0].status === "OPEN", `expected one OPEN request: ${JSON.stringify(requests)}`);
     must(requests[0].threadId === runtime.threadId && runtime.runtimeRows === 1, "request is not bound to the one Root thread");
@@ -619,7 +624,7 @@ const PHASES = {
     record(KINDS.observation, "UI left PAUSED", resumed);
     const runtime = runtimeRow(assessmentId);
     const requestsAfter = Number(sql(`SELECT count(*) FROM "AssessmentHumanRequest" WHERE "assessmentId"=${q(assessmentId)};`));
-    const duplicateDecisions = Number(sql(`SELECT count(*) FROM (SELECT "engineeringRuleId" FROM "AssessmentRuleDecision" WHERE "assessmentId"=${q(assessmentId)} AND state='ACCEPTED' AND "supersededAt" IS NULL AND "invalidatedAt" IS NULL GROUP BY 1 HAVING count(*)>1) d;`));
+    const duplicateDecisions = Number(sql(`SELECT count(*) FROM (SELECT "assessmentRuleId" FROM "AssessmentRuleDecision" WHERE "assessmentId"=${q(assessmentId)} AND state='ACCEPTED' AND "supersededAt" IS NULL AND "invalidatedAt" IS NULL GROUP BY 1 HAVING count(*)>1) d;`));
     must(runtime.threadId === stop.threadId && runtime.runtimeRows === 1, "Continue changed or duplicated the Root thread");
     must(requestsAfter >= requestsBefore && duplicateDecisions === 0, "duplicate decision after Continue");
     record(KINDS.backend, "same Root thread, one runtime row, no duplicate decisions", { stoppedThread: stop.threadId, runtime, requestsBefore, requestsAfter, duplicateDecisions });
@@ -672,8 +677,8 @@ const PHASES = {
     must(artifact.contentSha256.replace(/^sha256:/, "") === browserSha && Number(artifact.sizeBytes) === bytes.length, `browser bytes differ from the stored artifact: ${JSON.stringify(artifact)}`);
     record(KINDS.backend, "browser download SHA-256 equals the immutable stored artifact", { artifact, browserSha });
 
-    const rules = JSON.parse(sql(`SELECT coalesce(json_agg(e."engineeringRuleId"),'[]') FROM "AssessmentCase" c JOIN "EngineeringRule" e ON e."portfolioVersionId"=c."legalPortfolioVersionId" WHERE c."assessmentId"=${q(assessmentId)};`));
-    const current = JSON.parse(sql(`SELECT coalesce(json_agg(r),'[]') FROM (SELECT "engineeringRuleId" AS "assessmentRuleId",state,applicability,compliance,decision FROM "AssessmentRuleDecision" WHERE "assessmentId"=${q(assessmentId)} AND state='ACCEPTED' AND "supersededAt" IS NULL AND "invalidatedAt" IS NULL) r;`));
+    const rules = JSON.parse(sql(`SELECT coalesce(json_agg(e."assessmentRuleId"),'[]') FROM "AssessmentCase" c JOIN "AssessmentRule" e ON e."ruleSetVersionId"=c."ruleSetVersionId" WHERE c."assessmentId"=${q(assessmentId)};`));
+    const current = JSON.parse(sql(`SELECT coalesce(json_agg(r),'[]') FROM (SELECT "assessmentRuleId" AS "assessmentRuleId",state,applicability,compliance,decision FROM "AssessmentRuleDecision" WHERE "assessmentId"=${q(assessmentId)} AND state='ACCEPTED' AND "supersededAt" IS NULL AND "invalidatedAt" IS NULL) r;`));
     const outcomes = current.map((row) => ({ rule: row.assessmentRuleId, applicability: row.applicability, compliance: row.compliance,
       criteria: (row.decision.criteria ?? []).map((c) => `${c.criterionId}:${c.outcome}`) }));
     for (const ruleId of rules) must(current.filter((row) => row.assessmentRuleId === ruleId).length === 1, `rule ${ruleId} lacks exactly one current ACCEPTED decision`);

@@ -1,12 +1,12 @@
 {
   "fixtureId": "rule-set-preparation-reviewed-candidate",
-  "fixtureVersion": "LEGAL-PREPARATION-EVAL-CANDIDATE-1",
+  "fixtureVersion": "RULE-SET-PREPARATION-EVAL-CANDIDATE-1",
   "syntheticOnly": true,
-  "sourceCorpus": {
+  "sourceLegalSource": {
     "pinsPath": "../compliance_rule_set_context/pins.json",
     "sources": [
       {
-        "corpusVersion": "SYNTHETIC-CORPUS-V1",
+        "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
         "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
         "sourceFile": "synthetic-notice-v1.txt",
         "sourceSha256": "sha256:b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
@@ -17,7 +17,7 @@
         ]
       },
       {
-        "corpusVersion": "SYNTHETIC-CORPUS-V2",
+        "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V2",
         "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
         "sourceFile": "synthetic-notice-v2.txt",
         "sourceSha256": "sha256:93884394e3fe5a1b590967b9a5f92f25b5e4cc392721ccd55ad325f0a532c92b",
@@ -33,110 +33,110 @@
   "validCandidates": [
     {
       "id": "definition-retained",
-      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
       "ruleId": "LR-V1-DEF-RECORD",
       "kind": "DEFINITION",
       "sourceRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-1::cl-1"
         }
       ],
       "contextRefs": [],
-      "expected": {"refsResolve": true, "singleCorpusVersion": true}
+      "expected": {"refsResolve": true, "singleLegalSourceVersion": true}
     },
     {
       "id": "qualifier-retained",
-      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
       "ruleId": "LR-V1-RETENTION-QUALIFIED",
       "kind": "QUALIFIER",
       "sourceRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-5::cl-1"
         }
       ],
       "contextRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-2::cl-1"
         },
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-3::cl-1"
         }
       ],
-      "expected": {"refsResolve": true, "singleCorpusVersion": true}
+      "expected": {"refsResolve": true, "singleLegalSourceVersion": true}
     },
     {
       "id": "exception-retained",
-      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
       "ruleId": "LR-V1-RETENTION-EXCEPTION",
       "kind": "EXCEPTION",
       "sourceRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-3::cl-1"
         }
       ],
       "contextRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-5::cl-1"
         },
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-6::cl-1"
         }
       ],
-      "expected": {"refsResolve": true, "singleCorpusVersion": true}
+      "expected": {"refsResolve": true, "singleLegalSourceVersion": true}
     },
     {
       "id": "cross-reference-context",
-      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
       "ruleId": "LR-V1-CROSS-REFERENCE",
       "kind": "CROSS_REFERENCE",
       "sourceRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-4::cl-1"
         }
       ],
       "contextRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-1::cl-1"
         },
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-2::cl-1"
         },
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-3::cl-1"
         }
       ],
-      "expected": {"refsResolve": true, "singleCorpusVersion": true}
+      "expected": {"refsResolve": true, "singleLegalSourceVersion": true}
     },
     {
       "id": "non-repository-duty-represented",
-      "corpusVersion": "SYNTHETIC-CORPUS-V1",
+      "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
       "ruleId": "LR-V1-IN-PERSON-DUTY",
       "kind": "NON_REPOSITORY_DUTY",
       "sourceRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-6::cl-1"
         }
@@ -144,13 +144,13 @@
       "contextRefs": [],
       "expected": {
         "refsResolve": true,
-        "singleCorpusVersion": true,
+        "singleLegalSourceVersion": true,
         "mustRemainInRuleSet": true
       }
     }
   ],
   "coverage": {
-    "corpusVersion": "SYNTHETIC-CORPUS-V1",
+    "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
     "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
     "coveredLocators": "ALL_ACCEPTED_PIN_LOCATORS",
     "missingLocators": []
@@ -161,7 +161,7 @@
       "kind": "FAKE_SOURCE_REFERENCE",
       "sourceRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-99::cl-1"
         }
@@ -175,7 +175,7 @@
       "id": "stale-reference",
       "kind": "STALE_SOURCE_HASH",
       "sourceRef": {
-        "corpusVersion": "SYNTHETIC-CORPUS-V1",
+        "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
         "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
         "locator": "art-5::cl-1"
       },
@@ -186,7 +186,7 @@
       "id": "repealed-reference",
       "kind": "REPEALED_SOURCE_REFERENCE",
       "sourceRef": {
-        "corpusVersion": "SYNTHETIC-CORPUS-V1",
+        "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
         "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
         "locator": "art-3::cl-1"
       },
@@ -212,7 +212,7 @@
       "id": "coverage-gap",
       "kind": "COVERAGE_GAP",
       "coverage": {
-        "corpusVersion": "SYNTHETIC-CORPUS-V1",
+        "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
         "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
         "coveredLocators": "ALL_ACCEPTED_PIN_LOCATORS",
         "excludeLocators": ["art-6::cl-1"]
@@ -220,16 +220,16 @@
       "expected": {"expectedAction": "REJECT", "reason": "INCOMPLETE_SOURCE_COVERAGE"}
     },
     {
-      "id": "mixed-corpus-versions",
+      "id": "mixed-legal-source-versions",
       "kind": "MIXED_SOURCE_VERSION",
       "sourceRefs": [
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V1",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V1",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-1::cl-1"
         },
         {
-          "corpusVersion": "SYNTHETIC-CORPUS-V2",
+          "legalSourceVersion": "SYNTHETIC-LEGAL_SOURCE-V2",
           "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
           "locator": "art-5::cl-1"
         }

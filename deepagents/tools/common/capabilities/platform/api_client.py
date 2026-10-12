@@ -404,23 +404,23 @@ class WorkerApiClient:
 
 
 
-    def ingest_validated_legal_corpus_draft(self, payload: dict) -> dict:
-        """Submit a validated legal-corpus draft for server-side persistence."""
+    def ingest_validated_legal_source_draft(self, payload: dict) -> dict:
+        """Submit a validated legal-source draft for server-side persistence."""
         data = self._post_with_retry(
-            "/internal/legal-rule-catalog/corpus/validated-draft",
+            "/internal/legal-sources/validated-draft",
             payload,
         )
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal corpus ingest response was invalid.")
+            raise WorkerCallbackError("Legal legal_source ingest response was invalid.")
         return data
 
     def register_validated_retrieval_index(
-        self, corpus_version_id: str, payload: dict
+        self, legal_source_version_id: str, payload: dict
     ) -> dict:
-        """Register a validated retrieval index against its pinned corpus version."""
+        """Register a validated retrieval index against its pinned legal_source version."""
         data = self._post_with_retry(
             (
-                f"/internal/legal-rule-catalog/corpus/{corpus_version_id}"
+                f"/internal/legal-sources/{legal_source_version_id}"
                 "/retrieval-indexes/validated"
             ),
             payload,
@@ -429,23 +429,23 @@ class WorkerApiClient:
             raise WorkerCallbackError("Retrieval index response was invalid.")
         return data
 
-    def activate_validated_corpus_version(
-        self, corpus_version_id: str, payload: dict
+    def activate_validated_legal_source_version(
+        self, legal_source_version_id: str, payload: dict
     ) -> dict:
-        """Activate a corpus version only after its validation/index pipeline succeeds."""
+        """Activate a legal_source version only after its validation/index pipeline succeeds."""
         data = self._post_with_retry(
             (
-                f"/internal/legal-rule-catalog/corpus/{corpus_version_id}"
+                f"/internal/legal-sources/{legal_source_version_id}"
                 "/activate-validated"
             ),
             payload,
         )
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal corpus activation response was invalid.")
+            raise WorkerCallbackError("Legal legal_source activation response was invalid.")
         return data
 
     def claim_rule_set_preparation(self, preparation_run_id: str) -> dict:
-        """Claim one Rule Set Preparation run; returns only its pinned corpus bundle."""
+        """Claim one Rule Set Preparation run; returns only its pinned legal_source bundle."""
         data = self._post_with_retry(
             InternalPath.COMPLIANCE_RULE_SET_CLAIMS,
             {"preparationRunId": preparation_run_id},
@@ -501,20 +501,20 @@ class WorkerApiClient:
             raise WorkerCallbackError("Compliance rule set response was invalid.")
         return data
 
-    def get_active_legal_corpus(self) -> dict:
-        """Fetch metadata for the currently active legal corpus version."""
-        path = "/internal/legal-rule-catalog/corpus/active"
+    def get_active_legal_source(self) -> dict:
+        """Fetch metadata for the currently active legal legal_source version."""
+        path = "/internal/legal-sources/active"
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal corpus response was invalid.")
+            raise WorkerCallbackError("Legal legal_source response was invalid.")
         return data
 
-    def get_legal_corpus_chunks(self, corpus_version_id: str) -> dict:
-        """Fetch persisted text chunks for a specific legal corpus version."""
-        path = f"/internal/legal-rule-catalog/corpus/{corpus_version_id}/chunks"
+    def get_legal_source_chunks(self, legal_source_version_id: str) -> dict:
+        """Fetch persisted text chunks for a specific legal legal_source version."""
+        path = f"/internal/legal-sources/{legal_source_version_id}/chunks"
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal corpus chunks response was invalid.")
+            raise WorkerCallbackError("Legal legal_source chunks response was invalid.")
         return data
 
     def get_official_source_snapshot(

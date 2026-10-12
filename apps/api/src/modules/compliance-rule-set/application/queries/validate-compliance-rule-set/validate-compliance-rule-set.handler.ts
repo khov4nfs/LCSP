@@ -8,7 +8,7 @@ import { type IQueryHandler, QueryHandler } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import { LegalCorpusSnapshotLoader } from "../../../infrastructure/persistence/legal-corpus-snapshot.service.js";
+import { LegalSourceSnapshotLoader } from "../../../infrastructure/persistence/legal-source-snapshot.service.js";
 import {
   sourceClaimKey,
   validateComplianceRuleSetPacket,
@@ -20,7 +20,7 @@ import { ValidateComplianceRuleSetQuery } from "./validate-compliance-rule-set.q
 export class ValidateComplianceRuleSetHandler implements IQueryHandler<ValidateComplianceRuleSetQuery> {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly corpus: LegalCorpusSnapshotLoader,
+    private readonly legalSource: LegalSourceSnapshotLoader,
   ) {}
 
   async execute(
@@ -38,15 +38,15 @@ export class ValidateComplianceRuleSetHandler implements IQueryHandler<ValidateC
         { status: HttpStatus.NOT_FOUND },
       );
     }
-    const corpus = await this.corpus.load(
+    const legalSource = await this.legalSource.load(
       run.legalSourceVersionId,
       input.request.packet,
     );
     const { failures } = validateComplianceRuleSetPacket(
       input.request.packet,
-      corpus.snapshot,
+      legalSource.snapshot,
       (claim) =>
-        corpus.foreignHashes.has(
+        legalSource.foreignHashes.has(
           `${sourceClaimKey(claim)}|${claim.contentSha256}`,
         ),
     );

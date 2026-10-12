@@ -88,7 +88,7 @@ const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 const COMMIT = "c".repeat(40);
 
-const { q, base, post, stop, seedCorpus, activateLegalSource, databaseUrl } = await startStack({
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = await startStack({
   database,
   apiPort,
 });
@@ -126,9 +126,9 @@ const customerHttp = (method, route, token, body) =>
   http(method, route, { body, token, worker: false });
 
 try {
-  // ---- compliance rule set P1 (corpus A) through the real COMPLIANCE_RULE_SET path ---------------------------------
-  const seedCorpusVersion = (name, variant, status) =>
-    seedCorpus({
+  // ---- compliance rule set P1 (legalSource A) through the real COMPLIANCE_RULE_SET path ---------------------------------
+  const seedLegalSourceVersion = (name, variant, status) =>
+    seedLegalSource({
       name,
       status,
       documentId: DOC,
@@ -137,8 +137,8 @@ try {
         return { locator, content, contentSha256: contentHash(content) };
       }),
     });
-  const corpusA = await seedCorpusVersion("assessment-a", "a", "APPROVED");
-  const corpusB = await seedCorpusVersion("assessment-b", "b", "APPROVED");
+  const legalSourceA = await seedLegalSourceVersion("assessment-a", "a", "ACTIVE");
+  const legalSourceB = await seedLegalSourceVersion("assessment-b", "b", "ACTIVE");
   const seedDir = mkdtempSync(path.join(tmpdir(), "lcsp-assessment-vertical-"));
   const seedFile = path.join(seedDir, "seed.json");
   writeFileSync(
@@ -149,9 +149,9 @@ try {
       ),
     }),
   );
-  const prepareRuleSet = async (corpusId) => {
+  const prepareRuleSet = async (legalSourceId) => {
     // The activation event (delivered to the real consumer) starts the one automatic run.
-    const started = await activateLegalSource(corpusId);
+    const started = await activateLegalSource(legalSourceId);
     eq(started.runs.length, 1, "one Legal Source -> one automatic preparation");
     const result = await runPython(
       path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),
@@ -160,10 +160,10 @@ try {
     eq(result.state, "SUCCEEDED", JSON.stringify(result));
     return result.submission.ruleSetVersionId;
   };
-  const ruleSet1 = await prepareRuleSet(corpusA);
+  const ruleSet1 = await prepareRuleSet(legalSourceA);
   const ruleCount = (
     await q(
-      `SELECT count(*)::int AS n FROM "EngineeringRule" WHERE "portfolioVersionId"=$1`,
+      `SELECT count(*)::int AS n FROM "AssessmentRule" WHERE "ruleSetVersionId"=$1`,
       [ruleSet1],
     )
   ).rows[0].n;
@@ -226,7 +226,7 @@ try {
   eq((await lifecycle(A.id)).lifecycleState, "PREPARING");
   const created = (
     await q(
-      `SELECT c."legalPortfolioVersionId" AS "ruleSet", c."repositorySnapshotId" AS snapshot, r."threadId" AS thread FROM "AssessmentCase" c JOIN "AssessmentRuntime" r USING("assessmentId") WHERE c."assessmentId"=$1`,
+      `SELECT c."ruleSetVersionId" AS "ruleSet", c."repositorySnapshotId" AS snapshot, r."threadId" AS thread FROM "AssessmentCase" c JOIN "AssessmentRuntime" r USING("assessmentId") WHERE c."assessmentId"=$1`,
       [A.id],
     )
   ).rows[0];
@@ -331,7 +331,7 @@ try {
   // every pinned rule is covered by exactly one accepted decision
   const coverage = (
     await q(
-      `SELECT "engineeringRuleId" AS rule, "resolutionState" AS state, "decisionRevision" AS rev FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1 ORDER BY 1`,
+      `SELECT "assessmentRuleId" AS rule, "resolutionState" AS state, "decisionRevision" AS rev FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1 ORDER BY 1`,
       [A.id],
     )
   ).rows;
@@ -342,7 +342,7 @@ try {
   ]);
   const decisions = (
     await q(
-      `SELECT "engineeringRuleId" AS rule, applicability, compliance, state, "portfolioVersionId" AS "ruleSet", "repositoryCommit" AS commit FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY 1`,
+      `SELECT "assessmentRuleId" AS rule, applicability, compliance, state, "ruleSetVersionId" AS "ruleSet", "repositoryCommit" AS commit FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY 1`,
       [A.id],
     )
   ).rows;
@@ -640,13 +640,13 @@ try {
   );
 
   // ---- legal basis supersession: A keeps its pin, a NEW assessment pins the new ACTIVE rule set -
-  const ruleSet2 = await prepareRuleSet(corpusB);
+  const ruleSet2 = await prepareRuleSet(legalSourceB);
   ok(ruleSet2 !== ruleSet1, "new ruleSet");
   const C = await newAssessment("ASSESSMENT vertical C");
   eq(
     (
       await q(
-        `SELECT "legalPortfolioVersionId" AS p FROM "AssessmentCase" WHERE "assessmentId"=$1`,
+        `SELECT "ruleSetVersionId" AS p FROM "AssessmentCase" WHERE "assessmentId"=$1`,
         [C.id],
       )
     ).rows[0].p,
@@ -655,7 +655,7 @@ try {
   eq(
     (
       await q(
-        `SELECT "legalPortfolioVersionId" AS p FROM "AssessmentCase" WHERE "assessmentId"=$1`,
+        `SELECT "ruleSetVersionId" AS p FROM "AssessmentCase" WHERE "assessmentId"=$1`,
         [A.id],
       )
     ).rows[0].p,
@@ -664,7 +664,7 @@ try {
   eq(
     (
       await q(
-        `SELECT "lifecycleState" AS s FROM "LegalPortfolioVersion" WHERE id=$1`,
+        `SELECT "lifecycleState" AS s FROM "ComplianceRuleSetVersion" WHERE id=$1`,
         [ruleSet1],
       )
     ).rows[0].s,
@@ -707,7 +707,7 @@ try {
   };
   await rejects(
     "pin immutable",
-    `UPDATE "AssessmentCase" SET "legalPortfolioVersionId"=$2 WHERE "assessmentId"=$1`,
+    `UPDATE "AssessmentCase" SET "ruleSetVersionId"=$2 WHERE "assessmentId"=$1`,
     [A.id, ruleSet2],
     /immutable/,
   );
@@ -731,13 +731,13 @@ try {
   );
   await rejects(
     "DRS RESOLVED needs decision",
-    `UPDATE "AssessmentDecisionCoverage" SET "currentDecisionId"=NULL WHERE "assessmentId"=$1 AND "engineeringRuleId"='ER-RET'`,
+    `UPDATE "AssessmentDecisionCoverage" SET "currentDecisionId"=NULL WHERE "assessmentId"=$1 AND "assessmentRuleId"='ER-RET'`,
     [A.id],
     /resolved_has_decision|RESOLVED/,
   );
   await rejects(
     "DRS illegal transition",
-    `UPDATE "AssessmentDecisionCoverage" SET "resolutionState"='PENDING' WHERE "assessmentId"=$1 AND "engineeringRuleId"='ER-RET'`,
+    `UPDATE "AssessmentDecisionCoverage" SET "resolutionState"='PENDING' WHERE "assessmentId"=$1 AND "assessmentRuleId"='ER-RET'`,
     [A.id],
     /illegal decision-resolution/,
   );
@@ -813,7 +813,7 @@ try {
   );
   const artifact = (
     await q(
-      `SELECT "artifactId" AS id, "lifecycleState" AS state, "contentSha256" AS hash, "sizeBytes" AS size, "storageRef" AS ref, "schemaVersion" AS schema, "legalPortfolioVersionId" AS "ruleSet", "repositorySnapshotId" AS snapshot, "repositoryCommit" AS commit, "caseRevision" AS "caseRevision", "reportRequestDigest" AS "requestDigest" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
+      `SELECT "artifactId" AS id, "lifecycleState" AS state, "contentSha256" AS hash, "sizeBytes" AS size, "storageRef" AS ref, "schemaVersion" AS schema, "ruleSetVersionId" AS "ruleSet", "repositorySnapshotId" AS snapshot, "repositoryCommit" AS commit, "caseRevision" AS "caseRevision", "reportRequestDigest" AS "requestDigest" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
       [A.id, AssessmentArtifactKind.FINAL_REPORT],
     )
   ).rows[0];

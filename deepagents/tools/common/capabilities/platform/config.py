@@ -39,8 +39,8 @@ class WorkerConfig:
 
 
 def default_legal_source_storage_root() -> str:
-    """Return the repository-level runtime corpus artifact root."""
-    return str(Path(get_repo_root()) / ".corpus")
+    """Return the repository-level runtime legal_source artifact root."""
+    return str(Path(get_repo_root()) / ".legal-source")
 
 
 def resolve_legal_source_storage_root(configured: str | None = None) -> str:
@@ -49,7 +49,7 @@ def resolve_legal_source_storage_root(configured: str | None = None) -> str:
     Source-acquisition artifacts are shared across processes, so this must resolve to one
     durable store for every process. A relative `LEGAL_SOURCE_STORAGE_ROOT` used as-is
     splits it per working directory: the consumer, the compiled agent and an operator
-    shell each got their own `.corpus` and could not see each other's completed work.
+    shell each got their own `.legal-source` and could not see each other's completed work.
     Mirrors resolve_legal_chroma_path, which already anchors the same way.
     """
     raw = configured if configured is not None else os.getenv("LEGAL_SOURCE_STORAGE_ROOT")

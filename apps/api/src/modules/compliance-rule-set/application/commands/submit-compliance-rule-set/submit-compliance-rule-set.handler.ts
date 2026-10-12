@@ -8,7 +8,7 @@ import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
-import { LegalCorpusSnapshotLoader } from "../../../infrastructure/persistence/legal-corpus-snapshot.service.js";
+import { LegalSourceSnapshotLoader } from "../../../infrastructure/persistence/legal-source-snapshot.service.js";
 import {
   ComplianceRuleSetActivation,
   type SubmitContext,
@@ -29,7 +29,7 @@ const MAX_TRANSACTION_ATTEMPTS = 4;
 export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitComplianceRuleSetCommand> {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly corpus: LegalCorpusSnapshotLoader,
+    private readonly legalSource: LegalSourceSnapshotLoader,
     private readonly activation: ComplianceRuleSetActivation,
   ) {}
 
@@ -42,7 +42,7 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
 
     const run = await this.prisma.ruleSetPreparationRun.findUnique({
       where: { id: request.preparationRunId },
-      include: { corpusVersion: { select: { id: true, version: true } } },
+      include: { legalSourceVersion: { select: { id: true, version: true } } },
     });
     if (!run) {
       throw problemException(
@@ -62,12 +62,15 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
     );
     if (replay) return replay;
 
-    const corpus = await this.corpus.load(run.corpusVersion.id, request.packet);
+    const legalSource = await this.legalSource.load(
+      run.legalSourceVersion.id,
+      request.packet,
+    );
     const validation = validateComplianceRuleSetPacket(
       request.packet,
-      corpus.snapshot,
+      legalSource.snapshot,
       (claim) =>
-        corpus.foreignHashes.has(
+        legalSource.foreignHashes.has(
           `${sourceClaimKey(claim)}|${claim.contentSha256}`,
         ),
     );
@@ -80,7 +83,7 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
       packet: request.packet,
       failures: validation.failures,
       resolved: validation.resolved,
-      corpus: run.corpusVersion,
+      legalSource: run.legalSourceVersion,
       correlationId: input.correlationId,
     };
 

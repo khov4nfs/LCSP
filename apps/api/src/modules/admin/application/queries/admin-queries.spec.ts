@@ -111,7 +111,7 @@ describe("Admin CQRS Queries", () => {
           .fn<() => Promise<unknown>>()
           .mockResolvedValueOnce({
             version: "v1",
-            approvedAt: new Date(),
+            activatedAt: new Date(),
             _count: { documents: 5 },
           })
           .mockResolvedValueOnce(null),
@@ -132,6 +132,6 @@ describe("Admin CQRS Queries", () => {
     expect(result.summary.totalUsers.count).toBe(12);
     expect(result.summary.activeUsers.count).toBe(10);
     expect(result.summary.assessments.totalCount).toBe(20);
-    expect(result.summary.currentCorpus.version).toBe("v1");
+    expect(result.summary.currentLegalSource.version).toBe("v1");
   });
 });

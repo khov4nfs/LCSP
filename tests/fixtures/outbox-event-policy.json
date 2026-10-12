@@ -15,14 +15,14 @@
     "command.legal-corpus.recovery.requested.v1"
   ],
   "retained": [
-    "cron.legal-catalog.check-updates.v1",
+    "cron.legal-source.check-updates.v1",
     "command.assessment.root.requested.v1",
     "command.compliance-rule-set.preparation.requested.v1",
     "command.legal-source.ingest.v1",
     "command.official-text.extract.v1",
     "command.ocr-fallback.run.v1",
     "command.ocr-quality.evaluate.v1",
-    "command.reviewed-corpus-input.build.v1",
+    "command.reviewed-legal-source-input.build.v1",
     "command.legal-chunks.build.v1",
     "command.vbpl-effected-chunk-set.build.v1",
     "command.chunk-integrity.validate.v1",
@@ -32,7 +32,7 @@
     "event.assessment.created.v1",
     "event.assessment.event-recorded.v1",
     "event.assessment.lifecycle-changed.v1",
-    "event.legal-corpus.activated.v1",
+    "event.legal-source.activated.v1",
     "event.repository-snapshot.created.v1",
     "command.billing.sepay-reconcile.v1"
   ]

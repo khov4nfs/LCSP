@@ -1,4 +1,4 @@
-"""Run one claimed Rule Set Preparation: claim -> read pinned corpus -> author -> submit."""
+"""Run one claimed Rule Set Preparation: claim -> read pinned legal_source -> author -> submit."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 from rule_set_preparation.agent import create_rule_set_preparation_agent
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
-from rule_set_preparation.corpus_files import materialize_corpus
+from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
 
 # Reasons mirror packages/contracts RULE_SET_PREPARATION_FAILURE_REASONS.
@@ -23,7 +23,7 @@ HTTP_CONFLICT = 409
 logger = get_logger(__name__)
 
 _TASK = (
-    "Prepare the complete compliance rule set for the pinned corpus. Read /corpus/INDEX.md first, "
+    "Prepare the complete compliance rule set for the pinned Legal Source. Read /legal-source/INDEX.md first, "
     "author the LegalRequirements, AssessmentRules and context relations, validate until the packet "
     "passes, then submit it once."
 )
@@ -42,7 +42,7 @@ def run_rule_set_preparation(
 
     The API owns every state transition: an activated or invalid submission is recorded by
     the submit transaction itself; this function records ``FAILED`` only when the agent
-    produced no submission (model/runtime/corpus error).
+    produced no submission (model/runtime/legal-source error).
     """
     try:
         bundle = api.claim_rule_set_preparation(run_id)
@@ -62,9 +62,9 @@ def run_rule_set_preparation(
     with tempfile.TemporaryDirectory(prefix="lcsp-rule-set-preparation-") as scratch:
         root = work_dir or Path(scratch)
         try:
-            materialize_corpus(bundle, root)
+            materialize_legal_source(bundle, root)
             agent = create_rule_set_preparation_agent(
-                context=context, corpus_root=root, model=model
+                context=context, legal_source_root=root, model=model
             )
             agent.invoke(
                 {"messages": [{"role": "user", "content": _TASK}]},

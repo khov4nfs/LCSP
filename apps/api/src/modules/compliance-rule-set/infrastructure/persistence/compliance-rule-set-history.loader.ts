@@ -7,8 +7,8 @@ import {
   RULE_SET_PREPARATION_MAX_ATTEMPTS,
   complianceRuleSetHistorySchema,
 } from "@lcsp/contracts/compliance-rule-set";
-import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
-import { toPrismaLegalRuleLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
+import { toPrismaLegalSourceLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
 @Injectable()
@@ -20,7 +20,7 @@ export class ComplianceRuleSetHistoryLoader {
         const [ruleSets, preparations] = await Promise.all([
           tx.complianceRuleSetVersion.findMany({
             include: {
-              corpusVersion: { select: { version: true } },
+              legalSourceVersion: { select: { version: true } },
               _count: { select: { rules: true, assessmentRules: true } },
             },
             orderBy: { createdAt: "desc" },
@@ -29,14 +29,14 @@ export class ComplianceRuleSetHistoryLoader {
           tx.ruleSetPreparationRun.findMany({
             include: {
               ruleSet: { select: { id: true } },
-              corpusVersion: { select: { version: true, status: true } },
+              legalSourceVersion: { select: { version: true, status: true } },
             },
             orderBy: { createdAt: "desc" },
             take: 100,
           }),
         ]);
-        const approved = toPrismaLegalRuleLifecycleStatus(
-          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+        const approved = toPrismaLegalSourceLifecycleStatus(
+          LEGAL_SOURCE_LIFECYCLE_STATUSES.active,
         );
         // Attempts are numbered per Legal Source Version in creation order.
         const attemptOf = new Map<string, number>();
@@ -60,7 +60,7 @@ export class ComplianceRuleSetHistoryLoader {
             ruleSetVersionId: row.id,
             version: row.version,
             legalSourceVersionId: row.legalSourceVersionId,
-            legalSourceVersion: row.corpusVersion.version,
+            legalSourceVersion: row.legalSourceVersion.version,
             ruleSetDigest: row.ruleSetDigest,
             lifecycleState: row.lifecycleState,
             activatedAt: row.activatedAt?.toISOString() ?? null,
@@ -74,7 +74,7 @@ export class ComplianceRuleSetHistoryLoader {
             return {
               preparationRunId: row.id,
               legalSourceVersionId: row.legalSourceVersionId,
-              legalSourceVersion: row.corpusVersion.version,
+              legalSourceVersion: row.legalSourceVersion.version,
               executionState: row.executionState,
               ruleSetVersionId: row.ruleSet?.id ?? null,
               failureReason: row.failureReason,
@@ -86,7 +86,7 @@ export class ComplianceRuleSetHistoryLoader {
                 row.executionState === PrismaAgentExecutionState.FAILED &&
                 latestOf.get(row.legalSourceVersionId) === row.id &&
                 attempt < RULE_SET_PREPARATION_MAX_ATTEMPTS &&
-                row.corpusVersion.status === approved,
+                row.legalSourceVersion.status === approved,
             };
           }),
         });

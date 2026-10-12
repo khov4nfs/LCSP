@@ -28,7 +28,7 @@ function packetWith(
 
 /**
  * The shared contract owns the structural coverage invariant the database CHECK
- * LegalPortfolioRule_coverage_reason_check also enforces. This is structure only,
+ * LegalRequirement_coverage_reason_check also enforces. This is structure only,
  * never legal judgment.
  */
 describe("compliance rule set coverage contract (shared, structural)", () => {

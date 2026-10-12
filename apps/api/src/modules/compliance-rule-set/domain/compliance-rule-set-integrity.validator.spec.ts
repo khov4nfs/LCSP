@@ -4,7 +4,7 @@ import { complianceRuleSetPacketSchema } from "@lcsp/contracts/compliance-rule-s
 import {
   FIXTURE_LEAVES,
   fixtureChunks,
-  fixtureCorpus,
+  fixtureLegalSource,
   fixtureHash,
   ref,
   validPacket,
@@ -25,7 +25,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     expect(complianceRuleSetPacketSchema.safeParse(packet).success).toBe(true);
     const { failures, resolved } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       never,
     );
     expect(failures).toEqual([]);
@@ -41,7 +41,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     }
   });
 
-  it("rejects a fake reference (locator not in the pinned corpus)", () => {
+  it("rejects a fake reference (locator not in the pinned legalSource)", () => {
     const packet = validPacket();
     packet.legalRequirements[0].sourceRefs.push({
       ...ref("art-1::cl-1"),
@@ -49,7 +49,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     });
     const { failures } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       never,
     );
     expect(codes(failures)).toContain(
@@ -57,13 +57,13 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     );
   });
 
-  it("rejects a stale hash (declared hash is from another corpus version)", () => {
+  it("rejects a stale hash (declared hash is from another legalSource version)", () => {
     const packet = validPacket();
     packet.legalRequirements[1].sourceRefs[0] = ref("art-5::cl-1::pt-a");
     packet.legalRequirements[1].sourceRefs.push(ref("art-5::cl-1", "v2")); // art-5::cl-1 changed in v2
     const { failures } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       never,
     );
     expect(codes(failures)).toContain(
@@ -74,14 +74,14 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     );
   });
 
-  it("reports mixed corpus versions when clean claims and foreign-version claims coexist", () => {
+  it("reports mixed legalSource versions when clean claims and foreign-version claims coexist", () => {
     const packet = validPacket();
     packet.legalRequirements[1].sourceRefs.push(ref("art-5::cl-1", "v2"));
     const foreign = (claim: { locator: string; contentSha256: string }) =>
       claim.contentSha256 === fixtureHash("art-5::cl-1", "v2");
     const { failures } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       foreign,
     );
     expect(codes(failures)).toEqual(
@@ -93,13 +93,13 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
   });
 
   it("rejects a repealed source reference", () => {
-    const corpus = fixtureCorpus(
+    const legalSource = fixtureLegalSource(
       {},
       { "art-2::cl-1": { legalStatus: "REPEALED" } },
     );
     const { failures } = validateComplianceRuleSetPacket(
       validPacket(),
-      corpus,
+      legalSource,
       never,
     );
     expect(codes(failures)).toContain(
@@ -114,7 +114,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     packet.contextRelations.push({ ...packet.contextRelations[0] });
     const { failures } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       never,
     );
     expect(codes(failures)).toEqual(
@@ -131,7 +131,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     packet.contextRelations[0].toLegalRequirementId = "LR-MISSING-TARGET";
     const { failures } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       never,
     );
     expect(codes(failures)).toEqual(
@@ -149,7 +149,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     );
     const { failures } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       never,
     );
     const coverage = failures.filter(
@@ -167,7 +167,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     packet.legalRequirements[1].sourceRefs = [ref("art-5::cl-1")]; // parent covers pt-a and pt-b
     const { failures } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       never,
     );
     expect(failures).toEqual([]);
@@ -181,7 +181,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     packet.legalRequirements[4].coverage.nonAssessableReason = "   ";
     const { failures } = validateComplianceRuleSetPacket(
       packet,
-      fixtureCorpus(),
+      fixtureLegalSource(),
       never,
     );
     expect(codes(failures)).toEqual(
@@ -200,7 +200,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     };
     const result = validateComplianceRuleSetPacket(
       empty,
-      fixtureCorpus({ retrievalIndexValid: false }),
+      fixtureLegalSource({ retrievalIndexValid: false }),
       never,
     );
     expect(codes(result.failures)).toEqual(
@@ -211,13 +211,13 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     );
   });
 
-  it("is deterministic and never mutates the packet or the corpus", () => {
+  it("is deterministic and never mutates the packet or the legalSource", () => {
     const packet = validPacket();
-    const corpus = fixtureCorpus();
-    const before = canonicalJson({ packet, corpus });
-    const first = validateComplianceRuleSetPacket(packet, corpus, never);
-    const second = validateComplianceRuleSetPacket(packet, corpus, never);
-    expect(canonicalJson({ packet, corpus })).toBe(before);
+    const legalSource = fixtureLegalSource();
+    const before = canonicalJson({ packet, legalSource });
+    const first = validateComplianceRuleSetPacket(packet, legalSource, never);
+    const second = validateComplianceRuleSetPacket(packet, legalSource, never);
+    expect(canonicalJson({ packet, legalSource })).toBe(before);
     expect(first.failures).toEqual(second.failures);
     expect(fixtureChunks().length).toBeGreaterThan(0);
   });

@@ -1845,7 +1845,7 @@ export const enPages = {
     overview: {
       title: "Overview",
       description:
-        "System-level statistics across users, assessments, and corpus versions.",
+        "System-level statistics across users, assessments, and legal source versions.",
       periodSelectorAria: "Select reporting period",
       periodLabel: "Period",
       periods: {
@@ -1860,9 +1860,9 @@ export const enPages = {
         activeUsersSubtitle: "{percentage}% of all accounts",
         assessments: "Assessments",
         assessmentsSubtitle: "{completed} completed this period",
-        currentCorpus: "Current corpus",
-        corpusSubtitle: "{sources} sources · {rules} rules",
-        noCorpus: "No published corpus",
+        currentLegalSource: "Current legal source",
+        legalSourceSubtitle: "{sources} sources · {rules} rules",
+        noLegalSource: "No active legal source",
       },
       assessmentActivity: {
         title: "Assessment activity",
@@ -1900,13 +1900,13 @@ export const enPages = {
           suspendedAccount: "Suspended account",
           restoredAccount: "Restored access",
           invitedUser: "Invited user",
-          publishedCorpus: "Published corpus",
+          activatedLegalSource: "Activated legal source",
         },
         systemActor: "System",
         targets: {
           userAccount: "User account",
           newUser: "New user",
-          corpusVersion: "Corpus version",
+          legalSourceVersion: "Legal source version",
           system: "System",
         },
         emptyTitle: "No recent activity",
@@ -1914,12 +1914,12 @@ export const enPages = {
         errorTitle: "Unable to load activity",
         errorDescription: "Failed to load recent administrative activity.",
       },
-      corpusStatus: {
-        title: "Corpus status",
-        subtitle: "Published and draft corpus versions",
+      legalSourceStatus: {
+        title: "Legal source status",
+        subtitle: "Published and draft legal source versions",
         currentLabel: "CURRENT",
         draftLabel: "DRAFT",
-        noPublished: "No published corpus version",
+        noPublished: "No active legal source version",
         noDraft: "No active draft version",
       },
       loading: "Loading overview statistics...",

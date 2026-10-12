@@ -2,7 +2,7 @@
  * Compliance rule set contract value sets (COMPLIANCE_RULE_SET).
  *
  * One Rule Set Preparation Deep Agent authors the complete LegalRequirement +
- * AssessmentRule rule set for one pinned immutable corpus. The server
+ * AssessmentRule rule set for one pinned immutable legalSource. The server
  * validates mechanical integrity only (identity, hash, citation, locator,
  * provenance, shape, completeness) and never judges legal meaning.
  *
@@ -115,7 +115,7 @@ export const RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS = 1800;
 
 /** Durable API-side work queue that turns a Legal Source Version activation into one preparation. */
 export const RULE_SET_PREPARATION_QUEUE_NAMES = {
-  legalSourceActivated: "lcsp.rule-set-preparation.legal-source-activated.v1",
+  legalSourceActivated: "lcsp.rule-set-preparation.legalSource-activated.v1",
 } as const;
 
 /**

@@ -45,7 +45,9 @@ _bmad/
 # fogewise-dev-launchers/
 **/__pycache__/
 tmp/
+# Historical generated source artifacts remain excluded.
 .corpus/
+.legal-source/
 .chroma/
 .chorma/
 

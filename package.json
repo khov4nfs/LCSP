@@ -42,8 +42,8 @@
     "prisma:generate": "pnpm --filter @lcsp/api prisma:generate",
     "typecheck": "node scripts/with-check-memory.mjs pnpm run typecheck:run",
     "typecheck:run": "pnpm run prisma:generate && pnpm exec tsc -b",
-    "seed:legal-corpus:dev:dry": "node scripts/seed-legal-dev.mjs corpus --dry-run",
-    "seed:legal-corpus:dev": "node scripts/seed-legal-dev.mjs corpus",
+    "seed:legal-source:dev:dry": "node scripts/seed-legal-dev.mjs legalSource --dry-run",
+    "seed:legal-source:dev": "node scripts/seed-legal-dev.mjs legalSource",
     "seed:legal:dev": "node scripts/seed-legal-dev.mjs all"
   },
   "devDependencies": {

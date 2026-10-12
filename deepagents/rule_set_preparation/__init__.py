@@ -1,6 +1,6 @@
 """Rule Set Preparation: the single agent that authors a complete compliance rule set.
 
-One Deep Agent reads one pinned immutable corpus and authors both LegalRequirement and
+One Deep Agent reads one pinned immutable legal_source and authors both LegalRequirement and
 AssessmentRule layers. Deterministic code only validates identity, hashes,
 citations, provenance, shape and completeness; it never judges legal meaning.
 """

@@ -19,7 +19,7 @@ import { BillingModule } from "./modules/billing/billing.module.js";
 import { GitHubIntegrationModule } from "./modules/github-integration/github-integration.module.js";
 import { HealthModule } from "./modules/health/health.module.js";
 import { ComplianceRuleSetModule } from "./modules/compliance-rule-set/compliance-rule-set.module.js";
-import { LegalRuleCatalogModule } from "./modules/legal-rule-catalog/legal-rule-catalog.module.js";
+import { LegalSourceModule } from "./modules/legal-source/legal-source.module.js";
 import { AuditModule as AuditPlatformModule } from "./platform/audit/audit.module.js";
 import { DevUnsafeHttpTraceMiddleware } from "./platform/logging/dev-unsafe-http-trace.middleware.js";
 import { unsafeDevTraceEnabled } from "./platform/logging/dev-unsafe-trace.js";
@@ -107,7 +107,7 @@ function findUpwards(
     GitHubIntegrationModule,
     AuditFeatureModule,
     ComplianceRuleSetModule,
-    LegalRuleCatalogModule,
+    LegalSourceModule,
     HealthModule,
   ],
   providers: [

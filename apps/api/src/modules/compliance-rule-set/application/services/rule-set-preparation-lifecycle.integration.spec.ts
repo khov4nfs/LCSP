@@ -21,7 +21,7 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 
 import {
-  corpusFactory,
+  legalSourceFactory,
   validPacket,
 } from "../../../../../test/support/compliance-rule-set-fixtures.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -42,7 +42,7 @@ import { SubmitComplianceRuleSetCommand } from "../commands/submit-compliance-ru
 import { SubmitComplianceRuleSetHandler } from "../commands/submit-compliance-rule-set/submit-compliance-rule-set.handler.js";
 import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { ComplianceRuleSetHistoryLoader } from "../../infrastructure/persistence/compliance-rule-set-history.loader.js";
-import { LegalCorpusSnapshotLoader } from "../../infrastructure/persistence/legal-corpus-snapshot.service.js";
+import { LegalSourceSnapshotLoader } from "../../infrastructure/persistence/legal-source-snapshot.service.js";
 import { LegalSourceActivatedConsumer } from "../../infrastructure/messaging/legal-source-activated.consumer.js";
 
 /**
@@ -59,7 +59,7 @@ describeDatabase(
   "Rule Set Preparation lifecycle PostgreSQL integration",
   () => {
     let prisma: PrismaClient;
-    let createCorpus: ReturnType<typeof corpusFactory>;
+    let createLegalSource: ReturnType<typeof legalSourceFactory>;
     let start: StartRuleSetPreparationHandler;
     let retry: RetryRuleSetPreparationHandler;
     let claim: ClaimRuleSetPreparationHandler;
@@ -72,7 +72,7 @@ describeDatabase(
     beforeAll(async () => {
       prisma = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
       await prisma.$connect();
-      createCorpus = corpusFactory(prisma, RUN);
+      createLegalSource = legalSourceFactory(prisma, RUN);
       const service = prisma as unknown as PrismaService;
       const outbox = new OutboxRepository(service);
       start = new StartRuleSetPreparationHandler(service, outbox);
@@ -80,7 +80,7 @@ describeDatabase(
       fail = new FailRuleSetPreparationHandler(service);
       submit = new SubmitComplianceRuleSetHandler(
         service,
-        new LegalCorpusSnapshotLoader(service),
+        new LegalSourceSnapshotLoader(service),
         new ComplianceRuleSetActivation(
           outbox,
           new AuditWriterService(service),
@@ -106,7 +106,7 @@ describeDatabase(
 
     afterAll(async () => {
       await prisma.legalSourceVersion.updateMany({
-        where: { version: { startsWith: `corpus-${RUN}-` } },
+        where: { version: { startsWith: `legalSource-${RUN}-` } },
         data: { status: "SUPERSEDED" },
       });
       await prisma.$disconnect();
@@ -160,7 +160,7 @@ describeDatabase(
         ),
       );
     const activate = async (changed = false) => {
-      const source = await createCorpus(changed);
+      const source = await createLegalSource(changed);
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
       await claimRun(run.id);
@@ -187,7 +187,7 @@ describeDatabase(
     }
 
     it("a Legal Source activation starts exactly one system-owned Rule Set Preparation", async () => {
-      const source = await createCorpus();
+      const source = await createLegalSource();
       await consumer.handle(activation(source.id));
 
       const runs = await runsOf(source.id);
@@ -201,7 +201,7 @@ describeDatabase(
     });
 
     it("a replayed activation event creates no second run and no second paid command", async () => {
-      const source = await createCorpus();
+      const source = await createLegalSource();
       for (let delivery = 0; delivery < 3; delivery += 1) {
         await consumer.handle(activation(source.id));
       }
@@ -210,7 +210,7 @@ describeDatabase(
     });
 
     it("concurrent deliveries of one activation still yield one logical preparation", async () => {
-      const source = await createCorpus();
+      const source = await createLegalSource();
       await Promise.all(
         Array.from({ length: 8 }, () => consumer.handle(activation(source.id))),
       );
@@ -219,7 +219,7 @@ describeDatabase(
     });
 
     it("never prepares a superseded, unknown or malformed source and never retries the poison event", async () => {
-      const superseded = await createCorpus(false, "SUPERSEDED");
+      const superseded = await createLegalSource(false, "SUPERSEDED");
       const before = startCommands;
       await consumer.handle(activation(superseded.id));
       await consumer.handle(activation(randomUUID()));
@@ -232,7 +232,7 @@ describeDatabase(
     });
 
     it("a duplicated preparation command cannot claim a run twice, so one run never bills two models", async () => {
-      const source = await createCorpus();
+      const source = await createLegalSource();
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
 
@@ -296,14 +296,14 @@ describeDatabase(
 
     it("a failed preparation never replaces the current ACTIVE rule set", async () => {
       const current = await activate();
-      const source = await createCorpus(true);
+      const source = await createLegalSource(true);
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
       await claimRun(run.id);
       await failRun(run.id);
 
       // A submission that fails mechanical validation is recorded INVALID, never authoritative.
-      const invalidSource = await createCorpus(true);
+      const invalidSource = await createLegalSource(true);
       await consumer.handle(activation(invalidSource.id));
       const [invalidRun] = await runsOf(invalidSource.id);
       await claimRun(invalidRun.id);
@@ -328,7 +328,7 @@ describeDatabase(
     });
 
     it("an operator can retry only the latest failed run of the same source, within a bounded budget", async () => {
-      const source = await createCorpus();
+      const source = await createLegalSource();
       await consumer.handle(activation(source.id));
       const [first] = await runsOf(source.id);
 
@@ -387,7 +387,7 @@ describeDatabase(
     });
 
     it("refuses to retry a run whose Legal Source Version is no longer the ACTIVE one", async () => {
-      const source = await createCorpus();
+      const source = await createLegalSource();
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
       await claimRun(run.id);
@@ -404,7 +404,7 @@ describeDatabase(
     });
 
     it("the operations history exposes version, counts, digest, failures and retryability", async () => {
-      const source = await createCorpus();
+      const source = await createLegalSource();
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
       await claimRun(run.id);
@@ -425,7 +425,7 @@ describeDatabase(
       expect(ruleSets.length).toBeGreaterThan(0);
       for (const ruleSet of ruleSets) {
         expect(ruleSet.ruleSetDigest).toMatch(/^[a-f0-9]{64}$/u);
-        expect(ruleSet.legalSourceVersion).toMatch(/^corpus-/u);
+        expect(ruleSet.legalSourceVersion).toMatch(/^legalSource-/u);
       }
     });
 

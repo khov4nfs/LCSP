@@ -1,5 +1,5 @@
 // Run: node tests/compliance-rule-set-vertical.mjs   (needs a built API: pnpm --dir apps/api run build)
-// COMPLIANCE_RULE_SET corpus -> rule set vertical on REAL components: a fresh migrated PostgreSQL database on the
+// COMPLIANCE_RULE_SET legalSource -> rule set vertical on REAL components: a fresh migrated PostgreSQL database on the
 // loopback test container (default 55441), the REAL built API process over HTTP, and the REAL
 // Python Rule Set Preparation agent + WorkerApiClient. Only the model is scripted (provider-free), so
 // this proves plumbing, authority, atomicity and concurrency - NOT legal-reading quality.
@@ -55,7 +55,7 @@ const DOC = "SYNTHETIC-NOTICE-INSTRUMENT";
 const contentFor = (locator, variant) =>
   `content ${locator}${variant === "b" && locator === "art-5::cl-1" ? " v2" : ""}`;
 
-const { q, base, post, get, stop, seedCorpus, activateLegalSource } = await startStack({
+const { q, base, post, get, stop, seedLegalSource, activateLegalSource } = await startStack({
   database,
   apiPort,
 });
@@ -63,7 +63,7 @@ const { q, base, post, get, stop, seedCorpus, activateLegalSource } = await star
 try {
   // ---- seed: two pinned corpora (B changes art-5::cl-1) with valid retrieval indexes -------------
   const seed = (name, variant, status) =>
-    seedCorpus({
+    seedLegalSource({
       name,
       status,
       documentId: DOC,
@@ -72,12 +72,12 @@ try {
         return { locator, content, contentSha256: contentHash(content) };
       }),
     });
-  // Every Legal Source is ACTIVE (APPROVED) when its activation event arrives; each scenario below
+  // Every Legal Source is ACTIVE (ACTIVE) when its activation event arrives; each scenario below
   // that needs its own automatic preparation gets its own source, since one source has one run.
   let sourceCounter = 0;
-  const freshSource = (variant) => seed(`vertical-${variant}-${(sourceCounter += 1)}`, variant, "APPROVED");
-  const corpusA = await freshSource("a");
-  const corpusB = await freshSource("b");
+  const freshSource = (variant) => seed(`vertical-${variant}-${(sourceCounter += 1)}`, variant, "ACTIVE");
+  const legalSourceA = await freshSource("a");
+  const legalSourceB = await freshSource("b");
   const seedDir = mkdtempSync(
     path.join(tmpdir(), "lcsp-compliance_rule_set-vertical-"),
   );
@@ -97,8 +97,8 @@ try {
       [base, workerKey, runId, seedFile, mode],
     );
   /** The Legal Source activation event reaches the real consumer: it starts the one automatic run. */
-  const startRun = async (corpusId) => {
-    const delivery = await activateLegalSource(corpusId);
+  const startRun = async (legalSourceId) => {
+    const delivery = await activateLegalSource(legalSourceId);
     eq(delivery.failed, 0, JSON.stringify(delivery));
     eq(delivery.runs.length, 1, "one source -> one automatic run");
     return { preparationRunId: delivery.runs[0].id, executionState: delivery.runs[0].executionState };
@@ -106,13 +106,13 @@ try {
   const activeIds = async () =>
     (
       await q(
-        `SELECT id FROM "LegalPortfolioVersion" WHERE "lifecycleState"='ACTIVE'`,
+        `SELECT id FROM "ComplianceRuleSetVersion" WHERE "lifecycleState"='ACTIVE'`,
       )
     ).rows.map((r) => r.id);
   const run = async (id) =>
     (
       await q(
-        `SELECT "executionState","failureReason" FROM "LegalPreparationRun" WHERE id=$1`,
+        `SELECT "executionState","failureReason" FROM "RuleSetPreparationRun" WHERE id=$1`,
         [id],
       )
     ).rows[0];
@@ -132,17 +132,17 @@ try {
 
   // 2. there is NO route that starts a preparation; the activation event does, exactly once
   eq(
-    (await post("preparations", { legalSourceVersionId: corpusA, idempotencyKey: "any-key-12" })).status,
+    (await post("preparations", { legalSourceVersionId: legalSourceA, idempotencyKey: "any-key-12" })).status,
     404,
     "the worker API exposes no start route",
   );
-  const replayed = await activateLegalSource(corpusA, { times: 6, concurrent: true });
+  const replayed = await activateLegalSource(legalSourceA, { times: 6, concurrent: true });
   eq(replayed.failed, 0, JSON.stringify(replayed));
   eq(replayed.runs.length, 1, "replayed + concurrent deliveries -> one logical run");
   eq(replayed.runs[0].requestedBy, "rule-set-preparation-system", "automatic start is system-owned");
-  eq(replayed.runs[0].idempotencyKey, `rule-set-preparation:${corpusA}:attempt:1`);
+  eq(replayed.runs[0].idempotencyKey, `rule-set-preparation:${legalSourceA}:attempt:1`);
   eq(
-    (await q(`SELECT count(*)::int AS n FROM "OutboxMessage" WHERE "aggregateId"=$1 AND "eventType"='command.compliance-rule-set.preparation.requested.v1'`, [corpusA])).rows[0].n,
+    (await q(`SELECT count(*)::int AS n FROM "OutboxMessage" WHERE "aggregateId"=$1 AND "eventType"='command.compliance-rule-set.preparation.requested.v1'`, [legalSourceA])).rows[0].n,
     1,
     "exactly one paid preparation command for one activation",
   );
@@ -152,7 +152,7 @@ try {
   const runA = { preparationRunId: replayed.runs[0].id, executionState: replayed.runs[0].executionState };
   eq(runA.executionState, "QUEUED");
 
-  // 3. REAL agent + client + API: corpus -> rule set -> automatic activation
+  // 3. REAL agent + client + API: legalSource -> rule set -> automatic activation
   const first = await runPython(runA.preparationRunId, "valid");
   eq(first.state, "SUCCEEDED", JSON.stringify(first));
   eq(first.submission.lifecycleState, "ACTIVE");
@@ -164,10 +164,10 @@ try {
   });
   const counts = (
     await q(
-      `SELECT (SELECT count(*)::int FROM "LegalPortfolioRule" WHERE "portfolioVersionId"=$1) AS rules,
-              (SELECT count(*)::int FROM "EngineeringRule" WHERE "portfolioVersionId"=$1) AS engineering,
-              (SELECT count(*)::int FROM "LegalRuleContextRelation" WHERE "portfolioVersionId"=$1) AS relations,
-              (SELECT count(*)::int FROM "LegalRuleProvenance" WHERE "portfolioVersionId"=$1) AS provenance`,
+      `SELECT (SELECT count(*)::int FROM "LegalRequirement" WHERE "ruleSetVersionId"=$1) AS rules,
+              (SELECT count(*)::int FROM "AssessmentRule" WHERE "ruleSetVersionId"=$1) AS engineering,
+              (SELECT count(*)::int FROM "LegalRequirementContextRelation" WHERE "ruleSetVersionId"=$1) AS relations,
+              (SELECT count(*)::int FROM "LegalRequirementProvenance" WHERE "ruleSetVersionId"=$1) AS provenance`,
       [first.submission.ruleSetVersionId],
     )
   ).rows[0];
@@ -183,7 +183,7 @@ try {
   const events = (
     await q(
       `SELECT "eventType" FROM "OutboxMessage" WHERE "aggregateId" = ANY($1) ORDER BY "createdAt"`,
-      [[first.submission.ruleSetVersionId, corpusA]],
+      [[first.submission.ruleSetVersionId, legalSourceA]],
     )
   ).rows.map((r) => r.eventType);
   eq(events.sort(), [
@@ -195,7 +195,7 @@ try {
   const active = await get("active");
   eq(active.status, 200);
   eq(active.body.data.ruleSetVersionId, first.submission.ruleSetVersionId);
-  eq(active.body.data.legalSourceVersionId, corpusA);
+  eq(active.body.data.legalSourceVersionId, legalSourceA);
   eq(
     [
       active.body.data.legalRequirements.length,
@@ -224,7 +224,7 @@ try {
   });
 
   // 7. a newer valid rule set supersedes the previous ACTIVE; old rows stay readable and pinned
-  const runB = await startRun(corpusB);
+  const runB = await startRun(legalSourceB);
   const second = await runPython(runB.preparationRunId, "valid");
   eq(second.state, "SUCCEEDED", JSON.stringify(second));
   eq(
@@ -235,7 +235,7 @@ try {
   eq(
     (
       await q(
-        `SELECT "lifecycleState" FROM "LegalPortfolioVersion" WHERE id=$1`,
+        `SELECT "lifecycleState" FROM "ComplianceRuleSetVersion" WHERE id=$1`,
         [first.submission.ruleSetVersionId],
       )
     ).rows[0].lifecycleState,
@@ -244,7 +244,7 @@ try {
   eq(
     (
       await q(
-        `SELECT count(*)::int AS n FROM "LegalPortfolioRule" WHERE "portfolioVersionId"=$1`,
+        `SELECT count(*)::int AS n FROM "LegalRequirement" WHERE "ruleSetVersionId"=$1`,
         [first.submission.ruleSetVersionId],
       )
     ).rows[0].n,
@@ -283,7 +283,7 @@ try {
   eq(
     (
       await q(
-        `SELECT count(*)::int AS n FROM "LegalPortfolioVersion" WHERE "preparationRunId"=$1`,
+        `SELECT count(*)::int AS n FROM "ComplianceRuleSetVersion" WHERE "preparationRunId"=$1`,
         [orphanRun.preparationRunId],
       )
     ).rows[0].n,
@@ -311,7 +311,7 @@ try {
   eq(
     (
       await q(
-        `SELECT count(*)::int AS n FROM "LegalPortfolioVersion" WHERE "lifecycleState"='INVALID'`,
+        `SELECT count(*)::int AS n FROM "ComplianceRuleSetVersion" WHERE "lifecycleState"='INVALID'`,
       )
     ).rows[0].n,
     1,
@@ -347,20 +347,20 @@ try {
   eq(
     (
       await q(
-        `SELECT count(*)::int AS n FROM "LegalPreparationRun" WHERE "executionState" IN ('QUEUED','RUNNING')`,
+        `SELECT count(*)::int AS n FROM "RuleSetPreparationRun" WHERE "executionState" IN ('QUEUED','RUNNING')`,
       )
     ).rows[0].n,
     0,
   );
   eq(
     (
-      await q(`SELECT count(*)::int AS n FROM "LegalPortfolioActivationRecord" a JOIN "LegalPortfolioVersion" p ON p.id=a."portfolioVersionId"
+      await q(`SELECT count(*)::int AS n FROM "ComplianceRuleSetActivationRecord" a JOIN "ComplianceRuleSetVersion" p ON p.id=a."ruleSetVersionId"
               WHERE (a."validationOutcome"='PASSED') <> (p."lifecycleState" IN ('ACTIVE','SUPERSEDED'))`)
     ).rows[0].n,
     0,
   );
   eq(
-    (await q(`SELECT count(*)::int AS n FROM "CorpusApprovalRecord"`)).rows[0]
+    (await q(`SELECT count(*)::int AS n FROM "LegalSourceActivationRecord"`)).rows[0]
       .n,
     0,
     "no approval row is written or required",

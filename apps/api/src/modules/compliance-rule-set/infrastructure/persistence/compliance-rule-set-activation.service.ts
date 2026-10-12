@@ -34,13 +34,13 @@ import {
   canonicalJson,
   sha256Hex,
   sourceClaimKey,
-  type CorpusChunkSnapshot,
+  type LegalSourceChunkSnapshot,
 } from "../../domain/compliance-rule-set-integrity.validator.js";
 import { toSubmitResult } from "./compliance-rule-set.mappers.js";
 
 const RULE_SET_SERVICE = "compliance-rule-set-service";
 
-/** Same transaction-scoped advisory lock pattern as the corpus lifecycle lock. */
+/** Same transaction-scoped advisory lock pattern as the legalSource lifecycle lock. */
 export async function acquireComplianceRuleSetActivationLock(
   tx: Prisma.TransactionClient,
 ): Promise<void> {
@@ -61,8 +61,8 @@ export interface SubmitContext {
   ruleSetDigest: string;
   packet: ComplianceRuleSetPacket;
   failures: ComplianceRuleSetValidationFailure[];
-  resolved: Map<string, CorpusChunkSnapshot>;
-  corpus: { id: string; version: string };
+  resolved: Map<string, LegalSourceChunkSnapshot>;
+  legalSource: { id: string; version: string };
   correlationId: string;
 }
 
@@ -146,9 +146,9 @@ export class ComplianceRuleSetActivation {
     });
     const ordinal =
       (await tx.complianceRuleSetVersion.count({
-        where: { legalSourceVersionId: ctx.corpus.id },
+        where: { legalSourceVersionId: ctx.legalSource.id },
       })) + 1;
-    const version = `${ctx.corpus.version}.p${ordinal}`;
+    const version = `${ctx.legalSource.version}.p${ordinal}`;
     const now = new Date();
     const ruleSetId = randomUUID();
     const activationRecordId = randomUUID();
@@ -167,7 +167,7 @@ export class ComplianceRuleSetActivation {
       data: {
         id: ruleSetId,
         version,
-        legalSourceVersionId: ctx.corpus.id,
+        legalSourceVersionId: ctx.legalSource.id,
         preparationRunId: ctx.runId,
         lifecycleState: valid
           ? PrismaArtifactLifecycleState.ACTIVE
@@ -217,7 +217,7 @@ export class ComplianceRuleSetActivation {
         payload: {
           ruleSetVersionRef: `compliance-rule-set:${ruleSet.id}`,
           activationRecordRef: `compliance-rule-set-activation:${activationRecordId}`,
-          corpusVersionRef: `corpus-version:${ctx.corpus.id}`,
+          legalSourceVersionRef: `legal-source-version:${ctx.legalSource.id}`,
           previousActiveRuleSetRef:
             valid && previousActive
               ? `compliance-rule-set:${previousActive.id}`
@@ -291,7 +291,7 @@ export class ComplianceRuleSetActivation {
     ruleSetVersionId: string,
     ctx: SubmitContext,
   ): Promise<void> {
-    const { packet, resolved, corpus } = ctx;
+    const { packet, resolved, legalSource } = ctx;
     const ruleRowId = new Map(
       packet.legalRequirements.map((rule) => [
         rule.legalRequirementId,
@@ -334,7 +334,7 @@ export class ComplianceRuleSetActivation {
             {
               ruleSetVersionId,
               legalRequirementRowId: ruleRowId.get(rule.legalRequirementId)!,
-              legalSourceVersionId: corpus.id,
+              legalSourceVersionId: legalSource.id,
               chunkId: chunk.id,
               documentId: chunk.documentId,
               locator: chunk.locator,
@@ -369,7 +369,7 @@ export class ComplianceRuleSetActivation {
           id: engineeringRowId.get(rule.assessmentRuleId)!,
           ruleSetVersionId,
           assessmentRuleId: rule.assessmentRuleId,
-          assessmentRuleVersion: ctx.corpus.version,
+          assessmentRuleVersion: ctx.legalSource.version,
           concept: rule.concept,
           legalIntent: rule.legalIntent,
           applicabilityGuidance: rule.applicabilityGuidance,
@@ -380,7 +380,7 @@ export class ComplianceRuleSetActivation {
           },
           sourceFingerprint: sha256Hex(
             canonicalJson({
-              corpus: corpus.id,
+              legalSource: legalSource.id,
               chunks: chunks.map((c) => `${c.id}:${c.contentSha256}`).sort(),
             }),
           ),
@@ -412,7 +412,7 @@ export class ComplianceRuleSetActivation {
           toChunkId: relation.toSourceRef
             ? chunkOf(relation.toSourceRef).id
             : null,
-          legalSourceVersionId: corpus.id,
+          legalSourceVersionId: legalSource.id,
           relationDigest: sha256Hex(canonicalJson(relation)),
           ordinal,
         },

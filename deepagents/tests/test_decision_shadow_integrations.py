@@ -325,7 +325,7 @@ def test_pr_review_triage_trusted_recorder_rejects_forged_packet_correlation(tmp
         json.dumps(
             {
                 "schemaVersion": "LCSP_PR_REVIEW_TRIAGE_PACKET_V1",
-                "authoritativeReviewDomain": "LEGAL_RULES",
+                "authoritativeReviewDomain": "LEGAL_REQUIREMENTS",
                 "packet": {
                     "pr_number": 999,
                     "head_sha": "d" * 40,
@@ -379,7 +379,7 @@ def test_pr_review_triage_trusted_recorder_uses_trusted_authoritative_domain(tmp
         json.dumps(
             {
                 "schemaVersion": "LCSP_PR_REVIEW_TRIAGE_PACKET_V1",
-                "authoritativeReviewDomain": "LEGAL_RULES",
+                "authoritativeReviewDomain": "LEGAL_REQUIREMENTS",
                 "packet": {
                     "pr_number": 344,
                     "head_sha": head_sha,
@@ -439,7 +439,7 @@ def test_pr_review_triage_trusted_recorder_replaces_forged_packet_metadata(
         json.dumps(
             {
                 "schemaVersion": "LCSP_PR_REVIEW_TRIAGE_PACKET_V1",
-                "authoritativeReviewDomain": "LEGAL_RULES",
+                "authoritativeReviewDomain": "LEGAL_REQUIREMENTS",
                 "packet": {
                     "pr_number": 344,
                     "head_sha": head_sha,

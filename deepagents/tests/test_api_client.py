@@ -128,9 +128,9 @@ def test_t05_t06_headers(client, dummy_payload):
 
 
 @pytest.mark.parametrize("method,args", [
-    ("ingest_validated_legal_corpus_draft", ({},)),
-    ("register_validated_retrieval_index", ("corpus-1", {})),
-    ("activate_validated_corpus_version", ("corpus-1", {})),
+    ("ingest_validated_legal_source_draft", ({},)),
+    ("register_validated_retrieval_index", ("legal_source-1", {})),
+    ("activate_validated_legal_source_version", ("legal_source-1", {})),
     ("claim_rule_set_preparation", ("preparation-1",)),
     ("validate_compliance_rule_set", ("preparation-1", {})),
     ("submit_compliance_rule_set", ("preparation-1", "submit-1", {})),
@@ -340,7 +340,7 @@ def test_get_official_source_snapshot_uses_query_params(client):
 
     assert response["snapshotRef"] == "snapshot:LAW-TEST:abcd1234ef56"
     assert mock_get.call_args.args[0] == (
-        "http://testserver/internal/legal-rule-catalog/source-snapshots"
+        "http://testserver/internal/legal-sources/source-snapshots"
     )
     assert mock_get.call_args.kwargs["params"] == {
         "snapshot_ref": "snapshot:LAW-TEST:abcd1234ef56"

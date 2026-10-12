@@ -35,7 +35,7 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "legal_change_detection_requested",
         "tools.legal.sources.change_detection.legal_change_detector_boundary:LegalChangeDetectorBoundary",
         "legal.legal-change-detector",
-        "cron.legal-catalog.check-updates.v1",
+        "cron.legal-source.check-updates.v1",
     ),
     AgentInvocationBoundary(
         "assessment_root_requested",
@@ -74,14 +74,14 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "command.ocr-quality.evaluate.v1",
     ),
     AgentInvocationBoundary(
-        "reviewed_corpus_input_requested",
-        "tools.legal.corpus.reviewed_input.reviewed_corpus_input_boundary:ReviewedCorpusInputBoundary",
-        "legal.reviewed-corpus-input",
-        "command.reviewed-corpus-input.build.v1",
+        "reviewed_legal_source_input_requested",
+        "tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_boundary:ReviewedLegalSourceInputBoundary",
+        "legal.reviewed-legal-source-input",
+        "command.reviewed-legal-source-input.build.v1",
     ),
     AgentInvocationBoundary(
         "legal_chunk_build_requested",
-        "tools.legal.corpus.legal_chunks.legal_chunk_boundary:LegalChunkBoundary",
+        "tools.legal.legal_source.legal_chunks.legal_chunk_boundary:LegalChunkBoundary",
         "legal.legal-chunk-build",
         "command.legal-chunks.build.v1",
     ),
@@ -93,7 +93,7 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
     ),
     AgentInvocationBoundary(
         "chunk_integrity_requested",
-        "tools.legal.corpus.chunk_integrity.chunk_integrity_boundary:ChunkIntegrityBoundary",
+        "tools.legal.legal_source.chunk_integrity.chunk_integrity_boundary:ChunkIntegrityBoundary",
         "legal.chunk-integrity",
         "command.chunk-integrity.validate.v1",
     ),

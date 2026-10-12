@@ -92,7 +92,7 @@ test("Compliance Rule Sets is an operations view: active version, preparations, 
     // The page never offers to start a preparation or pick a source to prepare.
     assert.equal(page.querySelectorAll("form, select, [role='combobox']").length, 0);
     assert.equal(byText(page, "button", /^Start/), null);
-    assert.equal(byText(page, "button", /Start preparation|Start Legal Preparation/i), null);
+    assert.equal(byText(page, "button", /Start preparation|Start Rule Set Preparation/i), null);
     // The only action is the explicit retry of the one failed run.
     const retry = buttons(page).filter((button) => /Retry failed Rule Set Preparation/.test(button.textContent ?? ""));
     assert.equal(retry.length, 1);

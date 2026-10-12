@@ -11,7 +11,7 @@ export const ADMIN_OVERVIEW_ACTION_KEYS = {
   suspendedAccount: "SUSPENDED_ACCOUNT",
   restoredAccount: "RESTORED_ACCOUNT",
   invitedUser: "INVITED_USER",
-  publishedCorpus: "PUBLISHED_CORPUS",
+  activatedLegalSource: "ACTIVATED_LEGAL_SOURCE",
   generalAction: "GENERAL_ACTION",
 } as const;
 
@@ -43,12 +43,12 @@ export interface AdminRecentActivityItem {
   target: string | null;
 }
 
-export interface AdminCorpusStatusSummary {
+export interface AdminLegalSourceStatusSummary {
   current: {
     version: string;
     sourceCount: number;
     ruleCount: number | null;
-    publishedAt: string | null;
+    activatedAt: string | null;
   } | null;
   draft: {
     version: string;
@@ -74,7 +74,7 @@ export interface AdminOverviewStats {
       totalCount: number;
       periodCompletedCount: number;
     };
-    currentCorpus: {
+    currentLegalSource: {
       version: string | null;
       sourceCount: number;
       ruleCount: number | null;
@@ -89,5 +89,5 @@ export interface AdminOverviewStats {
   };
   accountDistribution: AdminOverviewAccountDistribution;
   recentActivity: AdminRecentActivityItem[];
-  corpusStatus: AdminCorpusStatusSummary;
+  legalSourceStatus: AdminLegalSourceStatusSummary;
 }

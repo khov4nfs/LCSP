@@ -9,7 +9,7 @@ import {
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   type RuleSetPreparationRun,
 } from "@lcsp/contracts/compliance-rule-set";
-import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
+import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
@@ -18,7 +18,7 @@ import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { AgentExecutionState as PrismaAgentExecutionState } from "@prisma/client";
 
-import { toPrismaLegalRuleLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
@@ -68,7 +68,7 @@ export class StartRuleSetPreparationHandler implements ICommandHandler<StartRule
     // A superseded or draft source never produces a shared rule set.
     if (
       source.status !==
-      toPrismaLegalRuleLifecycleStatus(LEGAL_RULE_LIFECYCLE_STATUSES.approved)
+      toPrismaLegalSourceLifecycleStatus(LEGAL_SOURCE_LIFECYCLE_STATUSES.active)
     ) {
       throw problemException(
         COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,

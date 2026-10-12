@@ -30,7 +30,7 @@ const stack = await startStack({
     : "lcsp_assessment_vertical",
   apiPort: Number(process.env.LCSP_HITL_TEST_API_PORT ?? 3414),
 });
-const { q, base, post, stop, seedCorpus, activateLegalSource, databaseUrl } = stack;
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = stack;
 let checks = 0;
 const eq = (actual, expected, message) => {
   assert.deepEqual(actual, expected, message);
@@ -100,9 +100,9 @@ try {
   const hashes = Object.fromEntries(
     locators.map((l) => [l, contentHash(`content ${l}`)]),
   );
-  const corpus = await seedCorpus({
+  const legalSource = await seedLegalSource({
     name: "assessment-hitl",
-    status: "APPROVED",
+    status: "ACTIVE",
     documentId: "SYNTHETIC-NOTICE-INSTRUMENT",
     chunks: locators.map((locator) => ({
       locator,
@@ -112,7 +112,7 @@ try {
   });
   const seed = path.join(dir, "seed.json");
   writeFileSync(seed, JSON.stringify({ hashes }));
-  const prep = await activateLegalSource(corpus);
+  const prep = await activateLegalSource(legalSource);
   eq(prep.runs.length, 1, "one Legal Source -> one automatic preparation");
   const prepared = await runPython(
     path.join(root, "deepagents/tests/vertical/scripted_preparation.py"),
@@ -266,7 +266,7 @@ try {
     eq(
       (
         await q(
-          `SELECT "resolutionState" FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1 AND "engineeringRuleId"=$2`,
+          `SELECT "resolutionState" FROM "AssessmentDecisionCoverage" WHERE "assessmentId"=$1 AND "assessmentRuleId"=$2`,
           [E, "ER-RET"],
         )
       ).rows[0].resolutionState,

@@ -123,7 +123,7 @@ export class AssessmentDetailLoader {
           ? await tx.complianceRuleSetVersion.findUnique({
               where: { id: domainCase.ruleSetVersionId },
               include: {
-                corpusVersion: { select: { version: true } },
+                legalSourceVersion: { select: { version: true } },
                 _count: { select: { rules: true, assessmentRules: true } },
               },
             })
@@ -176,7 +176,8 @@ export class AssessmentDetailLoader {
                   ? {
                       ruleSetVersionId: pinnedRuleSet.id,
                       version: pinnedRuleSet.version,
-                      legalSourceVersion: pinnedRuleSet.corpusVersion.version,
+                      legalSourceVersion:
+                        pinnedRuleSet.legalSourceVersion.version,
                       legalRequirementCount: pinnedRuleSet._count.rules,
                       assessmentRuleCount: pinnedRuleSet._count.assessmentRules,
                     }

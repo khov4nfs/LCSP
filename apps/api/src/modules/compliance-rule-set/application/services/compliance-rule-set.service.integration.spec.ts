@@ -14,14 +14,14 @@ import {
   complianceRuleSetSubmitRequestSchema,
   complianceRuleSetValidateRequestSchema,
   ruleSetPreparationClaimRequestSchema,
-  ruleSetPreparationCorpusBundleSchema,
+  ruleSetPreparationLegalSourceBundleSchema,
   ruleSetPreparationFailRequestSchema,
   ruleSetPreparationStartRequestSchema,
 } from "@lcsp/contracts/compliance-rule-set";
 
 import {
   FIXTURE_LOCATORS,
-  corpusFactory,
+  legalSourceFactory,
   ref,
   validPacket,
 } from "../../../../../test/support/compliance-rule-set-fixtures.js";
@@ -41,7 +41,7 @@ import { GetActiveComplianceRuleSetHandler } from "../queries/get-active-complia
 import { GetActiveComplianceRuleSetQuery } from "../queries/get-active-compliance-rule-set/get-active-compliance-rule-set.query.js";
 import { ValidateComplianceRuleSetHandler } from "../queries/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
 import { ValidateComplianceRuleSetQuery } from "../queries/validate-compliance-rule-set/validate-compliance-rule-set.query.js";
-import { LegalCorpusSnapshotLoader } from "../../infrastructure/persistence/legal-corpus-snapshot.service.js";
+import { LegalSourceSnapshotLoader } from "../../infrastructure/persistence/legal-source-snapshot.service.js";
 import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { ComplianceRuleSetReadModelLoader } from "../../infrastructure/persistence/compliance-rule-set-read-model.service.js";
 
@@ -71,16 +71,16 @@ function buildRuleSetUseCases(
       schema,
       COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
     ).transform(body);
-  const corpus = new LegalCorpusSnapshotLoader(prisma);
+  const legalSource = new LegalSourceSnapshotLoader(prisma);
   const start = new StartRuleSetPreparationHandler(prisma, outbox);
   const claim = new ClaimRuleSetPreparationHandler(prisma);
   const fail = new FailRuleSetPreparationHandler(prisma);
   const submit = new SubmitComplianceRuleSetHandler(
     prisma,
-    corpus,
+    legalSource,
     new ComplianceRuleSetActivation(outbox, audit),
   );
-  const validate = new ValidateComplianceRuleSetHandler(prisma, corpus);
+  const validate = new ValidateComplianceRuleSetHandler(prisma, legalSource);
   const active = new GetActiveComplianceRuleSetHandler(
     new ComplianceRuleSetReadModelLoader(prisma),
   );
@@ -135,7 +135,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   beforeAll(async () => {
     prisma = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
     await prisma.$connect();
-    createCorpus = corpusFactory(prisma, RUN);
+    createLegalSource = legalSourceFactory(prisma, RUN);
     outbox = new OutboxRepository(prisma as unknown as PrismaService);
     service = buildRuleSetUseCases(
       prisma as unknown as PrismaService,
@@ -145,20 +145,20 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   }, 30_000);
 
   afterAll(async () => {
-    // These corpora were APPROVED only to be preparable; never leave a stray active source behind.
+    // These corpora were ACTIVE only to be preparable; never leave a stray active source behind.
     await prisma.legalSourceVersion.updateMany({
-      where: { version: { startsWith: `corpus-${RUN}-` } },
+      where: { version: { startsWith: `legalSource-${RUN}-` } },
       data: { status: "SUPERSEDED" },
     });
     await prisma.$disconnect();
   });
 
-  let createCorpus: ReturnType<typeof corpusFactory>;
+  let createLegalSource: ReturnType<typeof legalSourceFactory>;
 
-  async function startRun(corpusId: string) {
+  async function startRun(legalSourceId: string) {
     return service.startPreparation({
       body: {
-        legalSourceVersionId: corpusId,
+        legalSourceVersionId: legalSourceId,
         idempotencyKey: `start-${randomUUID()}`,
       },
       requestedBy: "test-worker",
@@ -187,7 +187,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     (
       await prisma.$queryRaw<
         Array<{ n: number }>
-      >`SELECT count(*)::int AS n FROM pg_trigger WHERE tgname = 'LegalPortfolioRule_immutable'`
+      >`SELECT count(*)::int AS n FROM pg_trigger WHERE tgname = 'LegalRequirement_immutable'`
     )[0]?.n === 1;
 
   const activeCount = () =>
@@ -213,8 +213,8 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   }
 
   it("activates a valid complete ruleSet atomically and serves it from the single reader", async () => {
-    const corpus = await createCorpus();
-    const run = await startRun(corpus.id);
+    const legalSource = await createLegalSource();
+    const run = await startRun(legalSource.id);
     expect(run.executionState).toBe("QUEUED");
 
     const before = await prisma.complianceRuleSetVersion.findFirst({
@@ -239,7 +239,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
         contextRelations: true,
       },
     });
-    expect(ruleSet.legalSourceVersionId).toBe(corpus.id);
+    expect(ruleSet.legalSourceVersionId).toBe(legalSource.id);
     expect(ruleSet.rules).toHaveLength(5);
     expect(ruleSet.assessmentRules).toHaveLength(3);
     expect(ruleSet.contextRelations).toHaveLength(2);
@@ -281,7 +281,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       await service.getActiveRuleSet(randomUUID()),
     );
     expect(read.ruleSetVersionId).toBe(result.ruleSetVersionId);
-    expect(read.legalSourceVersionId).toBe(corpus.id);
+    expect(read.legalSourceVersionId).toBe(legalSource.id);
     expect(read.legalRequirements).toHaveLength(5);
     expect(
       read.assessmentRules.map((rule) => rule.assessmentRuleId).sort(),
@@ -297,8 +297,8 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("replays the same idempotency key without a second activation, audit row or event", async () => {
-    const corpus = await createCorpus();
-    const run = await startRun(corpus.id);
+    const legalSource = await createLegalSource();
+    const run = await startRun(legalSource.id);
     const key = `submit-${randomUUID()}`;
     const first = await submit(run.preparationRunId, validPacket(), key);
     const second = await submit(run.preparationRunId, validPacket(), key);
@@ -325,8 +325,8 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("rejects the same key with a different packet and a consumed run with a new key", async () => {
-    const corpus = await createCorpus();
-    const run = await startRun(corpus.id);
+    const legalSource = await createLegalSource();
+    const run = await startRun(legalSource.id);
     const key = `submit-${randomUUID()}`;
     await submit(run.preparationRunId, validPacket(), key);
 
@@ -346,7 +346,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
 
   it("an invalid packet records the failure, leaves the previous ACTIVE untouched and writes no children", async () => {
     const good = await submit(
-      (await startRun((await createCorpus()).id)).preparationRunId,
+      (await startRun((await createLegalSource()).id)).preparationRunId,
       validPacket(),
     );
     const activeBefore = await prisma.complianceRuleSetVersion.findFirstOrThrow(
@@ -356,8 +356,8 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     );
     expect(activeBefore.id).toBe(good.ruleSetVersionId);
 
-    const corpus = await createCorpus();
-    const run = await startRun(corpus.id);
+    const legalSource = await createLegalSource();
+    const run = await startRun(legalSource.id);
     const bad = validPacket();
     bad.legalRequirements[0].sourceRefs.push({
       ...ref("art-1::cl-1"),
@@ -415,9 +415,9 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     ).toEqual([COMPLIANCE_RULE_SET_EVENT_TYPES.ruleSetValidationFailed]);
   });
 
-  it("rejects stale and mixed-version source claims against the pinned corpus", async () => {
-    await createCorpus(true); // another corpus version where art-5::cl-1 differs
-    const pinned = await createCorpus();
+  it("rejects stale and mixed-version source claims against the pinned legalSource", async () => {
+    await createLegalSource(true); // another legalSource version where art-5::cl-1 differs
+    const pinned = await createLegalSource();
     const run = await startRun(pinned.id);
     const mixed = validPacket();
     mixed.legalRequirements[1].sourceRefs.push(ref("art-5::cl-1", "v2"));
@@ -431,14 +431,14 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     expect(result.lifecycleState).toBe("INVALID");
   });
 
-  it("fails closed when the pinned corpus has no valid retrieval index", async () => {
-    const corpus = await createCorpus();
+  it("fails closed when the pinned legalSource has no valid retrieval index", async () => {
+    const legalSource = await createLegalSource();
     await prisma.legalRetrievalIndex.updateMany({
-      where: { legalSourceVersionId: corpus.id },
+      where: { legalSourceVersionId: legalSource.id },
       data: { status: "BUILDING", validatedAt: null },
     });
     const result = await submit(
-      (await startRun(corpus.id)).preparationRunId,
+      (await startRun(legalSource.id)).preparationRunId,
       validPacket(),
     );
     expect(result.validation.failures.map((f) => f.code)).toContain(
@@ -448,14 +448,14 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
 
   it("supersedes the previous ACTIVE and keeps its rows immutable and readable (pins never retarget)", async () => {
     const first = await submit(
-      (await startRun((await createCorpus()).id)).preparationRunId,
+      (await startRun((await createLegalSource()).id)).preparationRunId,
       validPacket(),
     );
     const firstRules = await prisma.legalRequirement.count({
       where: { ruleSetVersionId: first.ruleSetVersionId },
     });
     const second = await submit(
-      (await startRun((await createCorpus()).id)).preparationRunId,
+      (await startRun((await createLegalSource()).id)).preparationRunId,
       validPacket(),
     );
 
@@ -483,7 +483,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
 
   it("serializes concurrent submissions: exactly one ACTIVE and a consistent supersession chain", async () => {
     const runs = await Promise.all(
-      [1, 2, 3].map(async () => startRun((await createCorpus()).id)),
+      [1, 2, 3].map(async () => startRun((await createLegalSource()).id)),
     );
     const results = await Promise.all(
       runs.map((run) => submit(run.preparationRunId, validPacket())),
@@ -503,7 +503,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("returns one result for the same idempotency key submitted concurrently", async () => {
-    const run = await startRun((await createCorpus()).id);
+    const run = await startRun((await createLegalSource()).id);
     const key = `submit-${randomUUID()}`;
     const [a, b] = await Promise.all([
       submit(run.preparationRunId, validPacket(), key),
@@ -520,10 +520,10 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
 
   it("rolls the whole activation back when any in-transaction write fails", async () => {
     const baseline = await submit(
-      (await startRun((await createCorpus()).id)).preparationRunId,
+      (await startRun((await createLegalSource()).id)).preparationRunId,
       validPacket(),
     );
-    const run = await startRun((await createCorpus()).id);
+    const run = await startRun((await createLegalSource()).id);
     const spy = jest
       .spyOn(outbox, "enqueue")
       .mockRejectedValueOnce(new Error("outbox unavailable"));
@@ -558,7 +558,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("validates the request shape at the trust boundary", async () => {
-    const run = await startRun((await createCorpus()).id);
+    const run = await startRun((await createLegalSource()).id);
     const withAuthority = {
       ...validPacket(),
       ruleSetVersionId: randomUUID(),
@@ -576,7 +576,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("rejects a coverage-invalid packet at the shared contract as a 400 before anything is persisted", async () => {
-    const run = await startRun((await createCorpus()).id);
+    const run = await startRun((await createLegalSource()).id);
     const covered = validPacket();
     covered.legalRequirements[0].coverage = {
       state: LEGAL_REQUIREMENT_COVERAGE_STATES.COVERED_BY_ASSESSMENT_RULES,
@@ -605,7 +605,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     if (!(await migrationGuardsPresent())) return;
     const rows = await prisma.$queryRaw<
       Array<{ definition: string }>
-    >`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = 'LegalPortfolioRule_coverage_reason_check'`;
+    >`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conname = 'LegalRequirement_coverage_reason_check'`;
     expect(rows).toHaveLength(1);
     expect(rows[0].definition).toEqual(
       expect.stringContaining("COVERED_BY_ASSESSMENT_RULES"),
@@ -619,7 +619,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("rejects contradictory declared coverage before persistence and still accepts a valid packet", async () => {
-    const run = await startRun((await createCorpus()).id);
+    const run = await startRun((await createLegalSource()).id);
     const nonAssessable = validPacket();
     nonAssessable.assessmentRules[1].legalRequirementIds.push(
       nonAssessable.legalRequirements[4].legalRequirementId,
@@ -657,20 +657,20 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     expect(accepted.lifecycleState).toBe(ARTIFACT_LIFECYCLE_STATES.ACTIVE);
   });
 
-  it("claims a run (QUEUED -> RUNNING) and serves only its pinned corpus", async () => {
-    const corpus = await createCorpus();
-    await createCorpus(true); // an unrelated corpus must never appear in the bundle
-    const run = await startRun(corpus.id);
+  it("claims a run (QUEUED -> RUNNING) and serves only its pinned legalSource", async () => {
+    const legalSource = await createLegalSource();
+    await createLegalSource(true); // an unrelated legalSource must never appear in the bundle
+    const run = await startRun(legalSource.id);
 
     const bundle = await service.claimPreparation({
       body: { preparationRunId: run.preparationRunId },
       correlationId: randomUUID(),
     });
-    expect(ruleSetPreparationCorpusBundleSchema.safeParse(bundle).success).toBe(
-      true,
-    );
+    expect(
+      ruleSetPreparationLegalSourceBundleSchema.safeParse(bundle).success,
+    ).toBe(true);
     expect(bundle.executionState).toBe("RUNNING");
-    expect(bundle.legalSourceVersionId).toBe(corpus.id);
+    expect(bundle.legalSourceVersionId).toBe(legalSource.id);
     expect(bundle.documents).toHaveLength(1);
     expect(bundle.documents[0].chunks.map((c) => c.locator)).toEqual(
       [...FIXTURE_LOCATORS].sort(),
@@ -713,7 +713,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("validates a packet as a dry-run without persisting anything", async () => {
-    const run = await startRun((await createCorpus()).id);
+    const run = await startRun((await createLegalSource()).id);
     const before = await prisma.complianceRuleSetVersion.count();
     const bad = validPacket();
     bad.assessmentRules[0].legalRequirementIds.push("LR-MISSING");
@@ -743,7 +743,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("records an execution failure once and refuses to fail a finished run", async () => {
-    const run = await startRun((await createCorpus()).id);
+    const run = await startRun((await createLegalSource()).id);
     const body = {
       preparationRunId: run.preparationRunId,
       reason: "NO_SUBMISSION",
@@ -773,7 +773,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       409,
     );
 
-    const done = await startRun((await createCorpus()).id);
+    const done = await startRun((await createLegalSource()).id);
     await submit(done.preparationRunId, validPacket());
     await expectProblem(
       service.failPreparation({
@@ -800,10 +800,10 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
   });
 
   it("starts a preparation run idempotently and enqueues one command", async () => {
-    const corpus = await createCorpus();
-    const other = await createCorpus();
+    const legalSource = await createLegalSource();
+    const other = await createLegalSource();
     const key = `start-${randomUUID()}`;
-    const body = { legalSourceVersionId: corpus.id, idempotencyKey: key };
+    const body = { legalSourceVersionId: legalSource.id, idempotencyKey: key };
     const a = await service.startPreparation({
       body,
       requestedBy: "w",
@@ -818,7 +818,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     expect(
       await prisma.outboxMessage.count({
         where: {
-          aggregateId: corpus.id,
+          aggregateId: legalSource.id,
           eventType: COMPLIANCE_RULE_SET_EVENT_TYPES.preparationRequested,
         },
       }),

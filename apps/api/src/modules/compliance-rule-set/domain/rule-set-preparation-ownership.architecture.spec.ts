@@ -52,7 +52,7 @@ describe("Rule Set Preparation ownership", () => {
   });
 
   it("is never invoked directly by the Legal Source lifecycle, only through its outbox event", () => {
-    const catalog = sourceFiles(join(SRC, "modules", "legal-rule-catalog"));
+    const catalog = sourceFiles(join(SRC, "modules", "legal-source"));
     expect(
       withMatch(catalog, /compliance-rule-set|RuleSetPreparation/u),
     ).toEqual([]);

@@ -212,9 +212,9 @@ describe("RabbitMqClient", () => {
         "command.compliance-rule-set.prepare.requested.v1",
       ),
     ).toBe(true);
-    expect(
-      requiresRoutableDelivery("cron.legal-catalog.check-updates.v1"),
-    ).toBe(true);
+    expect(requiresRoutableDelivery("cron.legal-source.check-updates.v1")).toBe(
+      true,
+    );
   });
 
   it("throws when RabbitMQ returns an unroutable mandatory publication", async () => {

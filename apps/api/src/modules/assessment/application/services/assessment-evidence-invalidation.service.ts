@@ -84,7 +84,7 @@ export class AssessmentEvidenceInvalidation {
     const dependants = await tx.$queryRaw<
       Array<{ decisionId: string; assessmentRuleId: string }>
     >(
-      Prisma.sql`SELECT "decisionId", "engineeringRuleId" AS "assessmentRuleId" FROM "AssessmentRuleDecision"
+      Prisma.sql`SELECT "decisionId", "assessmentRuleId" AS "assessmentRuleId" FROM "AssessmentRuleDecision"
         WHERE "assessmentId" = ${input.assessmentId} AND "state" = 'ACCEPTED'
           AND (${Prisma.join(
             needles.map((id) => Prisma.sql`"decision"::text LIKE ${`%${id}%`}`),

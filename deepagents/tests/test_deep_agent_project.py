@@ -91,7 +91,7 @@ LIVE_BOUNDARIES = {
     "official_text_extraction_requested",
     "ocr_fallback_requested",
     "ocr_quality_requested",
-    "reviewed_corpus_input_requested",
+    "reviewed_legal_source_input_requested",
     "legal_chunk_build_requested",
     "vbpl_effected_chunk_set_requested",
     "chunk_integrity_requested",

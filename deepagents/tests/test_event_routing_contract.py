@@ -28,7 +28,7 @@ def test_fogewise_deploys_agent_runtime_not_legacy_managed_service():
         "lcsp-scanner-worker",
         "lcsp-engineering-assessment-worker",
         "lcsp-gap-analysis-worker",
-        "lcsp-legal-corpus-recovery-worker",
+        "lcsp-legal-source-recovery-worker",
         "lcsp-targeted-reanalysis-worker",
         "lcsp-final-report-worker",
         "lcsp-technical-profile-worker",

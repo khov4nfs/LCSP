@@ -95,7 +95,7 @@ def test_t08_safe_metadata_field_names_survive_key_redaction() -> None:
         "encoded": "abc123",
         "decoded": "abc123",
         "keyword": "planner",
-        "messageKey": "ENGINEERING_RULE_PLANNER_DECISION",
+        "messageKey": "ASSESSMENT_ROOT_DECISION",
         "estimated_input_tokens": 2048,
         "estimated_input_bytes": 8192,
         "provider_context_limit": 1_000_000,

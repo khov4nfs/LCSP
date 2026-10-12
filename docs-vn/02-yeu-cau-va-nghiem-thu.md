@@ -1,5 +1,7 @@
 # 02 — Yêu cầu và nghiệm thu
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Bộ định danh chuẩn
 
 - Use case active: `UC-001..UC-017`; `UC-018` là lịch sử và `SUPERSEDED_FOR_ACTIVE_MVP`.

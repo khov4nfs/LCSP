@@ -113,7 +113,7 @@ def main() -> None:
             protected_rows = assessment_rows(db, survivor["assessmentId"])
             shared = {table: db.execute(sql.SQL("SELECT to_jsonb(t) AS row FROM {} t ORDER BY id")
                                        .format(sql.Identifier(table))).fetchall()
-                      for table in ("LegalPortfolioVersion", "LegalPortfolioRule", "EngineeringRule", "LegalCorpusVersion")}
+                      for table in ("ComplianceRuleSetVersion", "LegalRequirement", "AssessmentRule", "LegalSourceVersion")}
             saver = runtime._open_checkpointer()
             builder = StateGraph(dict)
             builder.add_node("fixture", lambda state: state)

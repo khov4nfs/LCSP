@@ -14,7 +14,7 @@ import { AdminPeriodSelector } from "../molecules/admin-period-selector";
 import { AdminAssessmentActivityCard } from "../molecules/admin-assessment-activity-card";
 import { AdminUserStatusCard } from "../molecules/admin-user-status-card";
 import { AdminRecentActivityCard } from "../molecules/admin-recent-activity-card";
-import { AdminCorpusStatusCard } from "../molecules/admin-corpus-status-card";
+import { AdminLegalSourceStatusCard } from "../molecules/admin-legal-source-status-card";
 import { useAdminOverviewQuery } from "@/lib/api/admin-overview-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 
@@ -49,14 +49,14 @@ export function AdminOverviewPage() {
   const assessmentsSubtitleTemplate = resolveAppMessage(
     "pages.admin.overview.metrics.assessmentsSubtitle" as MessageKey,
   );
-  const currentCorpusLabel = resolveAppMessage(
-    "pages.admin.overview.metrics.currentCorpus" as MessageKey,
+  const currentLegalSourceLabel = resolveAppMessage(
+    "pages.admin.overview.metrics.currentLegalSource" as MessageKey,
   );
-  const corpusSubtitleTemplate = resolveAppMessage(
-    "pages.admin.overview.metrics.corpusSubtitle" as MessageKey,
+  const legalSourceSubtitleTemplate = resolveAppMessage(
+    "pages.admin.overview.metrics.legalSourceSubtitle" as MessageKey,
   );
-  const noCorpusLabel = resolveAppMessage(
-    "pages.admin.overview.metrics.noCorpus" as MessageKey,
+  const noLegalSourceLabel = resolveAppMessage(
+    "pages.admin.overview.metrics.noLegalSource" as MessageKey,
   );
 
   const periodDays =
@@ -87,17 +87,17 @@ export function AdminOverviewPage() {
       )
     : "—";
 
-  const currentCorpusSubtitle = data
-    ? data.summary.currentCorpus.version
-      ? corpusSubtitleTemplate
-          .replace("{sources}", String(data.summary.currentCorpus.sourceCount))
+  const currentLegalSourceSubtitle = data
+    ? data.summary.currentLegalSource.version
+      ? legalSourceSubtitleTemplate
+          .replace("{sources}", String(data.summary.currentLegalSource.sourceCount))
           .replace(
             "{rules}",
-            data.summary.currentCorpus.ruleCount === null
+            data.summary.currentLegalSource.ruleCount === null
               ? "—"
-              : String(data.summary.currentCorpus.ruleCount),
+              : String(data.summary.currentLegalSource.ruleCount),
           )
-      : noCorpusLabel
+      : noLegalSourceLabel
     : "—";
 
   return (
@@ -160,9 +160,9 @@ export function AdminOverviewPage() {
           isLoading={isLoading}
         />
         <AdminOverviewMetricCard
-          label={currentCorpusLabel}
-          value={data ? (data.summary.currentCorpus.version ?? "—") : undefined}
-          subtitle={currentCorpusSubtitle}
+          label={currentLegalSourceLabel}
+          value={data ? (data.summary.currentLegalSource.version ?? "—") : undefined}
+          subtitle={currentLegalSourceSubtitle}
           isLoading={isLoading}
         />
       </div>
@@ -189,7 +189,7 @@ export function AdminOverviewPage() {
         </div>
       </div>
 
-      {/* Row 3: Recent Admin Activity & Corpus Status */}
+      {/* Row 3: Recent Admin Activity & LegalSource Status */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <div className="lg:col-span-8">
           <AdminRecentActivityCard
@@ -200,8 +200,8 @@ export function AdminOverviewPage() {
           />
         </div>
         <div className="lg:col-span-4">
-          <AdminCorpusStatusCard
-            corpusStatus={data?.corpusStatus}
+          <AdminLegalSourceStatusCard
+            legalSourceStatus={data?.legalSourceStatus}
             isLoading={isLoading}
           />
         </div>

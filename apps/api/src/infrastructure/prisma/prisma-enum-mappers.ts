@@ -5,7 +5,7 @@ import {
   AuthDecision as PrismaAuthDecision,
   AuthPrimaryEmailAddressPolicy as PrismaAuthPrimaryEmailAddressPolicy,
   AuthUserRole as PrismaAuthUserRole,
-  LegalRuleLifecycleStatus as PrismaLegalRuleLifecycleStatus,
+  LegalSourceLifecycleStatus as PrismaLegalSourceLifecycleStatus,
   OutboxAggregateType as PrismaOutboxAggregateType,
   OutboxStatus as PrismaOutboxStatus,
   CredentialProvider as PrismaCredentialProvider,
@@ -46,9 +46,9 @@ import {
   type RepositorySnapshotStatus,
 } from "@lcsp/contracts/github-integration";
 
-import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
+import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
 
-import { type LegalRuleLifecycleStatus } from "@lcsp/contracts/legal-rule-catalog";
+import { type LegalSourceLifecycleStatus } from "@lcsp/contracts/legal-source";
 
 import {
   OUTBOX_AGGREGATE_TYPES,
@@ -135,7 +135,8 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
   [AUDIT_RESOURCE_TYPES.httpRoute]: PrismaAuditResourceType.HTTP_ROUTE,
   [AUDIT_RESOURCE_TYPES.complianceRuleSetVersion]:
     PrismaAuditResourceType.COMPLIANCE_RULE_SET_VERSION,
-  [AUDIT_RESOURCE_TYPES.legalRequirement]: PrismaAuditResourceType.LEGAL_RULE,
+  [AUDIT_RESOURCE_TYPES.legalRequirement]:
+    PrismaAuditResourceType.LEGAL_REQUIREMENT,
   [AUDIT_RESOURCE_TYPES.legalSourceVersion]:
     PrismaAuditResourceType.LEGAL_SOURCE_VERSION,
   [AUDIT_RESOURCE_TYPES.outbox]: PrismaAuditResourceType.OUTBOX,
@@ -288,44 +289,46 @@ const PRISMA_REPOSITORY_SCAN_JOB_STATUS_TO_CONTRACT = {
   RepositoryScanJobStatus
 >;
 
-const LEGAL_RULE_LIFECYCLE_STATUS_TO_PRISMA = {
-  [LEGAL_RULE_LIFECYCLE_STATUSES.draft]: PrismaLegalRuleLifecycleStatus.DRAFT,
-  [LEGAL_RULE_LIFECYCLE_STATUSES.approved]:
-    PrismaLegalRuleLifecycleStatus.APPROVED,
-  [LEGAL_RULE_LIFECYCLE_STATUSES.rejected]:
-    PrismaLegalRuleLifecycleStatus.REJECTED,
-  [LEGAL_RULE_LIFECYCLE_STATUSES.superseded]:
-    PrismaLegalRuleLifecycleStatus.SUPERSEDED,
+const LEGAL_SOURCE_LIFECYCLE_STATUS_TO_PRISMA = {
+  [LEGAL_SOURCE_LIFECYCLE_STATUSES.draft]:
+    PrismaLegalSourceLifecycleStatus.DRAFT,
+  [LEGAL_SOURCE_LIFECYCLE_STATUSES.active]:
+    PrismaLegalSourceLifecycleStatus.ACTIVE,
+  [LEGAL_SOURCE_LIFECYCLE_STATUSES.invalid]:
+    PrismaLegalSourceLifecycleStatus.INVALID,
+  [LEGAL_SOURCE_LIFECYCLE_STATUSES.superseded]:
+    PrismaLegalSourceLifecycleStatus.SUPERSEDED,
 } as const satisfies Record<
-  LegalRuleLifecycleStatus,
-  PrismaLegalRuleLifecycleStatus
+  LegalSourceLifecycleStatus,
+  PrismaLegalSourceLifecycleStatus
 >;
 
-const PRISMA_LEGAL_RULE_LIFECYCLE_STATUS_TO_CONTRACT = {
-  [PrismaLegalRuleLifecycleStatus.DRAFT]: LEGAL_RULE_LIFECYCLE_STATUSES.draft,
-  [PrismaLegalRuleLifecycleStatus.APPROVED]:
-    LEGAL_RULE_LIFECYCLE_STATUSES.approved,
-  [PrismaLegalRuleLifecycleStatus.REJECTED]:
-    LEGAL_RULE_LIFECYCLE_STATUSES.rejected,
-  [PrismaLegalRuleLifecycleStatus.SUPERSEDED]:
-    LEGAL_RULE_LIFECYCLE_STATUSES.superseded,
+const PRISMA_LEGAL_SOURCE_LIFECYCLE_STATUS_TO_CONTRACT = {
+  [PrismaLegalSourceLifecycleStatus.DRAFT]:
+    LEGAL_SOURCE_LIFECYCLE_STATUSES.draft,
+  [PrismaLegalSourceLifecycleStatus.ACTIVE]:
+    LEGAL_SOURCE_LIFECYCLE_STATUSES.active,
+  [PrismaLegalSourceLifecycleStatus.INVALID]:
+    LEGAL_SOURCE_LIFECYCLE_STATUSES.invalid,
+  [PrismaLegalSourceLifecycleStatus.SUPERSEDED]:
+    LEGAL_SOURCE_LIFECYCLE_STATUSES.superseded,
 } as const satisfies Record<
-  PrismaLegalRuleLifecycleStatus,
-  LegalRuleLifecycleStatus
+  PrismaLegalSourceLifecycleStatus,
+  LegalSourceLifecycleStatus
 >;
 
-/** Maps legal-rule lifecycle status from the contract layer to Prisma. @param status - Contract lifecycle status. @returns Prisma lifecycle status. */
-export function toPrismaLegalRuleLifecycleStatus(
-  status: LegalRuleLifecycleStatus,
-): PrismaLegalRuleLifecycleStatus {
-  return LEGAL_RULE_LIFECYCLE_STATUS_TO_PRISMA[status];
+/** Maps legal-source lifecycle status from the contract layer to Prisma. @param status - Contract lifecycle status. @returns Prisma lifecycle status. */
+export function toPrismaLegalSourceLifecycleStatus(
+  status: LegalSourceLifecycleStatus,
+): PrismaLegalSourceLifecycleStatus {
+  return LEGAL_SOURCE_LIFECYCLE_STATUS_TO_PRISMA[status];
 }
 
-/** Maps legal-rule lifecycle status from Prisma to the contract layer. @param status - Prisma lifecycle status. @returns Contract lifecycle status. */
-export function fromPrismaLegalRuleLifecycleStatus(
-  status: PrismaLegalRuleLifecycleStatus,
-): LegalRuleLifecycleStatus {
-  return PRISMA_LEGAL_RULE_LIFECYCLE_STATUS_TO_CONTRACT[status];
+/** Maps legal-source lifecycle status from Prisma to the contract layer. @param status - Prisma lifecycle status. @returns Contract lifecycle status. */
+export function fromPrismaLegalSourceLifecycleStatus(
+  status: PrismaLegalSourceLifecycleStatus,
+): LegalSourceLifecycleStatus {
+  return PRISMA_LEGAL_SOURCE_LIFECYCLE_STATUS_TO_CONTRACT[status];
 }
 
 /** Maps audit-export status from the contract layer to Prisma. @param status - Contract audit-export status. @returns Prisma audit-export status. */

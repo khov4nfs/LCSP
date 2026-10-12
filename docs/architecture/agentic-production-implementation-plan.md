@@ -1,9 +1,9 @@
 # LCSP — Final Production Agentic Architecture & End-to-End Implementation Plan
 
-**Status:** Final target architecture / production implementation blueprint  
-**Scope:** Full production refactor, not MVP  
-**Primary principle:** **Agent decides meaning; deterministic code protects trust, integrity, lifecycle, and security.**  
-**Target runtime:** LangChain Deep Agents + LangGraph durable execution + repository sandbox + Codebase Memory MCP  
+**Status:** Current implementation blueprint, subordinate to [the Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); reconciled to canonical V2 terminology
+**Scope:** Full production refactor, not MVP
+**Primary principle:** **Agent decides meaning; deterministic code protects trust, integrity, lifecycle, and security.**
+**Target runtime:** LangChain Deep Agents + LangGraph durable execution + repository sandbox + Codebase Memory MCP
 **Current Deep Agents range in repo:** `deepagents>=0.7.16,<0.8.0`
 
 ---
@@ -14,7 +14,7 @@ LCSP must stop behaving like a conventional deterministic workflow engine that h
 
 The final production architecture has only two first-class reasoning agents:
 
-1. **Legal Preparation Agent** — automatically converts a pinned Legal Corpus into a governed LegalRule + EngineeringRule portfolio. No human approval or confirmation is required.
+1. **Rule Set Preparation Agent** — automatically converts a pinned Legal Source into a governed LegalRequirement + AssessmentRule Compliance Rule Set. No human approval or confirmation is required.
 2. **Assessment Root Agent** — owns one assessment end-to-end: understands the assessed product, investigates repository/runtime/document evidence, decides rule relevance/applicability, performs compliance reasoning, invokes human-in-the-loop only for genuinely human-owned unresolved facts, and produces accepted rule decisions before final report generation.
 
 Subagents are bounded workers, not lifecycle owners. The default assessment subagent should be a generic **Repository Researcher** used via Deep Agents native `task()` only when delegation improves context isolation or parallel research. Do not recreate Scanner, Planner, Interview, Investigator, Applicability Agent, Compliance Agent, or per-rule Repository Analyst as permanent workflow roles.
@@ -22,8 +22,8 @@ Subagents are bounded workers, not lifecycle owners. The default assessment suba
 The following are **semantic decisions and therefore agentic**:
 
 - interpretation of legal provisions;
-- generation of LegalRules;
-- generation of EngineeringRules;
+- generation of LegalRequirements;
+- generation of AssessmentRules;
 - identification of legal context/dependencies/exceptions;
 - assessment use-case discovery;
 - investigation planning and ordering;
@@ -39,7 +39,7 @@ The following remain **deterministic** because they are mechanical trust or life
 
 - repository commit pinning and sandbox isolation;
 - tenant/RBAC/credential/tool authorization;
-- corpus/repository/document version and hash validation;
+- Legal Source/repository/document version and hash validation;
 - citation/source-reference minting and verification;
 - evidence provenance and immutable authority identity;
 - schema validation and stale-revision rejection;
@@ -58,35 +58,35 @@ Any custom layer that exists mainly to help an agent **plan, remember, sequence,
 
 These are architecture rules, not implementation suggestions.
 
-## 1.1 EngineeringRule is the governed assessment basis
+## 1.1 AssessmentRule is the governed assessment basis
 
-Every applicability decision, compliance conclusion, final legal finding, and material human question must be traceable to one or more active EngineeringRules and their pinned LegalRule/legal-context lineage.
+Every applicability decision, compliance conclusion, final legal finding, and material human question must be traceable to one or more active AssessmentRules and their pinned LegalRequirement/legal-context lineage.
 
-Supplemental technical observations may exist outside an EngineeringRule, but they cannot change a legal/compliance result unless an EngineeringRule consumes that evidence.
+Supplemental technical observations may exist outside an AssessmentRule, but they cannot change a legal/compliance result unless an AssessmentRule consumes that evidence.
 
-## 1.2 Legal Corpus → LegalRule → EngineeringRule is automatic
+## 1.2 Legal Source → LegalRequirement → AssessmentRule is automatic
 
 There is **no approval/confirmation step** between these layers.
 
 The pipeline is:
 
 ```text
-Pinned Legal Corpus
+Pinned Legal Source
         ↓
-Legal Preparation Agent
+Rule Set Preparation Agent
         ↓
-LegalRules + legal-context graph + EngineeringRules
+LegalRequirements + legal-context graph + AssessmentRules
         ↓
 Deterministic integrity validation
         ↓
-Atomic ACTIVE portfolio
+Atomic ACTIVE Compliance Rule Set
 ```
 
 Human legal sign-off is not part of the runtime contract.
 
 ## 1.3 No final report with unresolved material facts
 
-A final report may be generated only when every active EngineeringRule relevant to the assessment has a final disposition:
+A final report may be generated only when every active AssessmentRule relevant to the assessment has a final disposition:
 
 ```text
 NOT_APPLICABLE
@@ -155,8 +155,8 @@ Use an agent when the task requires contextual/semantic interpretation, adaptive
 Examples:
 
 - Does a provision establish an obligation, scope qualifier, definition, or exception?
-- Should two legal clauses form one LegalRule or separate rules?
-- What EngineeringRule best represents the assessable obligation?
+- Should two legal clauses form one LegalRequirement or separate rules?
+- What AssessmentRule best represents the assessable obligation?
 - Which repository paths need investigation?
 - Does this AI feature fall within the legal concept described by the rule?
 - Does the collected evidence satisfy the criterion in context?
@@ -169,11 +169,11 @@ Use deterministic code only when the operation is mechanical and must be reprodu
 
 Examples:
 
-- Is this source reference really from corpus version X?
+- Is this source reference really from Legal Source version X?
 - Does file `A` at commit `B` contain lines `C-D`?
 - Is this Customer answer bound to assessment X and request Y?
 - Is this decision stale relative to Case revision N?
-- Has every required EngineeringRule received a final disposition?
+- Has every required AssessmentRule received a final disposition?
 - Is the report allowed to be emitted?
 
 ## 2.3 HYBRID
@@ -212,27 +212,27 @@ The validator must not contain a second hidden legal/compliance decision engine.
 │                                                               │
 │  Official/approved source acquisition                         │
 │          ↓                                                    │
-│  Pinned Legal Corpus + structure + hashes                     │
+│  Pinned Legal Source + structure + hashes                     │
 │          ↓                                                    │
-│  Legal Preparation Deep Agent                                 │
+│  Rule Set Preparation Deep Agent                                 │
 │    - reads provisions/context/cross refs                      │
-│    - extracts LegalRules                                      │
-│    - derives EngineeringRules                                 │
+│    - extracts LegalRequirements                                      │
+│    - derives AssessmentRules                                 │
 │    - preserves definitions/scope/exceptions                   │
 │    - performs coverage self-review                            │
 │          ↓                                                    │
 │  submit_legal_portfolio                                       │
 │          ↓                                                    │
-│  Deterministic Portfolio Integrity Guard                      │
+│  Deterministic Compliance Rule Set Integrity Guard                      │
 │          ↓                                                    │
-│  ACTIVE LegalRule + EngineeringRule Portfolio                 │
+│  ACTIVE LegalRequirement + AssessmentRule Compliance Rule Set                 │
 └───────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌───────────────────────────────────────────────────────────────┐
 │                     ASSESSMENT RUNTIME                        │
 │                                                               │
-│  Assessment + pinned repo + ACTIVE ER portfolio               │
+│  Assessment + pinned repo + ACTIVE ER Compliance Rule Set               │
 │          ↓                                                    │
 │  Assessment Root Deep Agent                                   │
 │    - builds working understanding                             │
@@ -305,13 +305,13 @@ Deep Agents working memory is not the authoritative domain database, but it shou
 
 Do not reuse legacy Interview/Scanner artifacts as the new canonical model.
 
-## 5.1 LegalCorpusVersion
+## 5.1 LegalSourceVersion
 
 Purpose: immutable source snapshot.
 
 Required properties:
 
-- `legalCorpusVersionId`
+- `legalSourceVersionId`
 - jurisdiction/source identity
 - canonical source metadata
 - source hashes
@@ -322,16 +322,16 @@ Required properties:
 
 This layer contains source truth, not interpretation.
 
-## 5.2 LegalRuleV2
+## 5.2 LegalRequirementV2
 
 Agent-generated semantic legal proposition.
 
 Suggested shape:
 
 ```text
-LegalRuleV2
-  legalRuleId
-  corpusVersionId
+LegalRequirementV2
+  legalRequirementId
+  legalSourceVersionId
   sourceRefs[]
   legalContextRefs[]
 
@@ -364,14 +364,14 @@ LegalRuleV2
 
 Do not model `APPROVED` as a required human state.
 
-## 5.3 EngineeringRuleV2
+## 5.3 AssessmentRuleV2
 
-EngineeringRule is an **executable assessment contract**, not merely a source-code rule.
+AssessmentRule is an **executable assessment contract**, not merely a source-code rule.
 
 ```text
-EngineeringRuleV2
-  engineeringRuleId
-  legalRuleRefs[]
+AssessmentRuleV2
+  assessmentRuleId
+  legalRequirementRefs[]
   legalContextRefs[]
 
   concept
@@ -420,7 +420,7 @@ AssessmentCase
   assessmentId
   caseRevision
   repositoryVersion
-  legalPortfolioVersion
+  legalCompliance Rule SetVersion
 
   system:
     productPurpose
@@ -494,11 +494,11 @@ Replace the old assumption that one Python evaluator owns the conclusion.
 RuleDecision
   decisionId
   assessmentId
-  engineeringRuleId
-  engineeringRuleVersion
+  assessmentRuleId
+  assessmentRuleVersion
   scopeRef
   caseRevision
-  legalPortfolioVersion
+  legalCompliance Rule SetVersion
 
   applicability:
     APPLICABLE | NOT_APPLICABLE
@@ -597,7 +597,7 @@ CANCELLED
 ### Meanings
 
 - `CREATED`: assessment record exists but runtime preparation has not completed.
-- `PREPARING`: repository snapshot/legal portfolio/runtime sandbox is being prepared.
+- `PREPARING`: repository snapshot/legal Compliance Rule Set/runtime sandbox is being prepared.
 - `ACTIVE`: Root Agent is actively reasoning/investigating/adjudicating.
 - `WAITING_FOR_HUMAN`: one or more material HumanResolutionRequests block progress.
 - `WAITING_FOR_REQUIRED_INPUT`: non-human required input is missing, e.g. required document/runtime/legal-source refresh. If all required legal sources are managed automatically, this state is mainly document/runtime input.
@@ -657,7 +657,7 @@ CANCELLED
 
 This is infrastructure state only.
 
-- Root Agent, Legal Preparation Agent, and all subagents use the same enum.
+- Root Agent, Rule Set Preparation Agent, and all subagents use the same enum.
 - Subagent `SUCCEEDED` does not mean the assessment succeeded.
 - `INTERRUPTED` indicates LangGraph/tool interrupt; assessment state determines whether this is `WAITING_FOR_HUMAN`, pause, or another blocker.
 
@@ -673,7 +673,7 @@ INVALIDATED
 
 Used for RuleDecision coverage and related work ledgers.
 
-`INVALIDATED` is required when case revision, repository version, or legal portfolio version makes an accepted decision stale.
+`INVALIDATED` is required when case revision, repository version, or legal Compliance Rule Set version makes an accepted decision stale.
 
 ## 6.4 ArtifactLifecycleState
 
@@ -735,30 +735,30 @@ Keep:
 
 Do not let an agent fabricate legal-source URLs or silently switch authority.
 
-## 8.2 Legal Preparation Agent owns semantic transformation
+## 8.2 Rule Set Preparation Agent owns semantic transformation
 
 Agent receives:
 
-- exact corpus version;
+- exact Legal Source version;
 - document hierarchy;
 - legal chunks/provisions;
 - legal search/read tools;
 - cross-reference retrieval;
-- previously active portfolio when performing an incremental update.
+- previously active Compliance Rule Set when performing an incremental update.
 
 Agent responsibilities:
 
 1. understand structure before extracting isolated clauses;
 2. identify operative provisions;
 3. identify definitions, scopes, exceptions, qualifications, cross-references;
-4. create LegalRules;
-5. create relation graph between LegalRules and context provisions;
-6. derive EngineeringRules for every independently assessable obligation;
+4. create LegalRequirements;
+5. create relation graph between LegalRequirements and context provisions;
+6. derive AssessmentRules for every independently assessable obligation;
 7. include non-repository obligations;
 8. determine potential evidence channels;
 9. generate discovery hints without confusing hints with proof;
 10. self-review for omitted obligations, duplicated obligations, lost exceptions, and invented strength;
-11. submit one complete bounded portfolio update.
+11. submit one complete bounded Compliance Rule Set update.
 
 ## 8.3 Do not preserve Candidate/Context/Reject as pipeline gates
 
@@ -777,18 +777,18 @@ STRUCTURAL
 IRRELEVANT
 ```
 
-A `DEFINITION` or `SCOPE` provision is retained through relationships even if it does not independently generate an EngineeringRule.
+A `DEFINITION` or `SCOPE` provision is retained through relationships even if it does not independently generate an AssessmentRule.
 
-## 8.4 Deterministic portfolio validator
+## 8.4 Deterministic Compliance Rule Set validator
 
 `submit_legal_portfolio()` validates only trust/integrity:
 
-- corpus version exists and is current for the run;
+- Legal Source version exists and is current for the run;
 - every source reference is valid;
 - every source hash/locator matches;
 - every context relation points to a real node;
 - all IDs are unique/canonical;
-- EngineeringRule references valid LegalRules;
+- AssessmentRule references valid LegalRequirements;
 - required schema fields are present;
 - no cross-tenant/source contamination;
 - generated artifact is internally referentially consistent;
@@ -802,21 +802,21 @@ It does **not** re-decide whether the agent interpreted the law correctly using 
 After validation:
 
 ```text
-portfolio BUILDING → ACTIVE
+Compliance Rule Set BUILDING → ACTIVE
 previous ACTIVE → SUPERSEDED
 ```
 
 No human approval.
 
-## 8.6 Incremental corpus changes
+## 8.6 Incremental Legal Source changes
 
-For a new corpus version:
+For a new Legal Source version:
 
 1. deterministic source diff identifies changed/added/removed legal regions;
-2. Legal Preparation Agent receives changed regions plus necessary parent/cross-reference context and the prior portfolio;
+2. Rule Set Preparation Agent receives changed regions plus necessary parent/cross-reference context and the prior Compliance Rule Set;
 3. agent decides semantic blast radius;
-4. agent regenerates affected LegalRules/EngineeringRules;
-5. portfolio validator verifies referential/version integrity;
+4. agent regenerates affected LegalRequirements/AssessmentRules;
+5. Compliance Rule Set validator verifies referential/version integrity;
 6. activate atomically;
 7. mark affected in-flight assessment decisions `INVALIDATED` if their legal basis changed;
 8. assessment Root resumes and re-adjudicates only affected decisions while preserving unrelated accepted evidence.
@@ -837,7 +837,7 @@ Mechanical preparation:
 4. hydrate isolated sandbox;
 5. ensure Codebase Memory/index availability;
 6. record index coverage metadata;
-7. resolve active legal portfolio appropriate to configured jurisdiction/legal corpus;
+7. resolve active legal Compliance Rule Set appropriate to configured jurisdiction/legal Legal Source;
 8. create Root thread/checkpoint identity;
 9. transition `CREATED → PREPARING → ACTIVE`.
 
@@ -849,7 +849,7 @@ Root receives a compact invariant prompt and governed tools, not a giant seriali
 
 It starts from:
 
-- active EngineeringRule portfolio metadata;
+- active AssessmentRule Compliance Rule Set metadata;
 - legal-context retrieval tools;
 - pinned repository tools;
 - current AssessmentCase;
@@ -881,11 +881,11 @@ Expected outputs into `AssessmentCase`:
 - external providers;
 - deployment/business unknowns that are actually material.
 
-Root uses EngineeringRules as an investigation agenda so discovery is legally relevant, but it must not inspect one rule at a time with fresh context.
+Root uses AssessmentRules as an investigation agenda so discovery is legally relevant, but it must not inspect one rule at a time with fresh context.
 
-## 10.2 Guarantee EngineeringRule coverage
+## 10.2 Guarantee AssessmentRule coverage
 
-Every active EngineeringRule in the portfolio scope must eventually have a decision coverage record.
+Every active AssessmentRule in the Compliance Rule Set scope must eventually have a decision coverage record.
 
 Do not rely on “agent probably looked at all rules.”
 
@@ -913,7 +913,7 @@ NOT_APPLICABLE
 
 based on:
 
-- EngineeringRule legal intent/guidance;
+- AssessmentRule legal intent/guidance;
 - pinned legal context;
 - AssessmentCase facts;
 - verified repository/document/runtime evidence;
@@ -963,12 +963,12 @@ The deterministic validator checks:
 - no invalid criterion IDs;
 - evidence references valid;
 - Customer facts genuinely confirmed;
-- legal refs belong to the pinned portfolio;
+- legal refs belong to the pinned Compliance Rule Set;
 - decision is not stale;
 - no unresolved blocker relied upon by the conclusion;
 - status combination is coherent.
 
-The legacy `EngineeringRuleEvaluator` must not remain an independent semantic final judge.
+The legacy `AssessmentRuleEvaluator` must not remain an independent semantic final judge.
 
 ---
 
@@ -1102,7 +1102,7 @@ System prompt should remain compact and invariant.
 Required behavioral rules:
 
 - own assessment from start to decision closure;
-- use active EngineeringRules as governed legal basis;
+- use active AssessmentRules as governed legal basis;
 - understand product/use cases before asking humans;
 - investigate technical facts directly;
 - delegate only bounded research when useful;
@@ -1131,11 +1131,11 @@ It does **not** own:
 - compliance verdict;
 - final report.
 
-## 13.3 Legal Preparation Agent
+## 13.3 Rule Set Preparation Agent
 
 Separate agent entry point from Assessment Root.
 
-Do not overload the Assessment Root prompt with corpus maintenance.
+Do not overload the Assessment Root prompt with Legal Source maintenance.
 
 ## 13.4 No mandatory additional judge agent
 
@@ -1183,14 +1183,14 @@ Middleware/tools/services should enforce these without consuming agent reasoning
 
 # 15. Tool surface — final target
 
-## 15.1 Legal Preparation Agent tools
+## 15.1 Rule Set Preparation Agent tools
 
 ```text
-get_corpus_manifest
+get_legal_source_manifest
 read_legal_provision
 get_parent_legal_context
 follow_legal_cross_reference
-search_legal_corpus
+search_legal_source
 get_previous_portfolio
 submit_legal_portfolio
 get_portfolio_validation_errors
@@ -1201,8 +1201,8 @@ Infrastructure/lease/pagination details remain hidden behind tools.
 ## 15.2 Assessment Root tools
 
 ```text
-get_engineering_rule_portfolio
-get_engineering_rule
+get_assessment_rule_portfolio
+get_assessment_rule
 get_legal_context
 get_assessment_case
 record_case_fact
@@ -1265,13 +1265,13 @@ Delete/update related interview boundary/recovery tests after the new HITL verti
 Delete/retire orchestration centered around:
 
 ```text
-deepagents/tools/common/capabilities/assessment/investigation/engineering_rule/
+deepagents/tools/common/capabilities/assessment/investigation/assessment_rule/
   engineering_assessment_boundary.py
 ```
 
-No Python loop should decide semantic investigation order by iterating one EngineeringRule at a time.
+No Python loop should decide semantic investigation order by iterating one AssessmentRule at a time.
 
-## 16.4 Remove `one EngineeringRule = one Repository Analyst task`
+## 16.4 Remove `one AssessmentRule = one Repository Analyst task`
 
 Delete/replace lifecycle assumptions in:
 
@@ -1300,7 +1300,7 @@ Replace with HumanResolutionRequest + Root interrupt/resume.
 Retire:
 
 ```text
-deepagents/tools/common/capabilities/assessment/evaluation/engineering_rule/
+deepagents/tools/common/capabilities/assessment/evaluation/assessment_rule/
   rule_evaluator.py
 ```
 
@@ -1350,7 +1350,7 @@ These are core LCSP product value and must remain production-grade.
 - Codebase Memory MCP integration;
 - direct source-reading fallback when index coverage is incomplete;
 - evidence ref minting and verification;
-- legal corpus source/version/hash provenance;
+- legal Legal Source source/version/hash provenance;
 - tenant isolation/RBAC;
 - credentials/network/tool boundaries;
 - model/provider governance;
@@ -1360,7 +1360,7 @@ These are core LCSP product value and must remain production-grade.
 - cancellation/pause propagation;
 - outbox/event delivery and idempotency;
 - audit trail;
-- legal portfolio versioning;
+- legal Compliance Rule Set versioning;
 - stale decision invalidation;
 - deterministic Completion Gate;
 - runtime/agent observability.
@@ -1369,7 +1369,7 @@ These are core LCSP product value and must remain production-grade.
 
 # 18. Skills, rules, instructions — mandatory rewrite
 
-## 18.1 Replace `legal-rule-triage` with `legal-preparation`
+## 18.1 Replace `legal-requirement-triage` with `rule-set-preparation`
 
 Current skill is too source-code-centric and treats `CONTEXT_ONLY` as a terminal classification concept.
 
@@ -1378,13 +1378,13 @@ New skill must teach:
 1. document-structure understanding;
 2. legal proposition extraction;
 3. definition/scope/exception/cross-reference preservation;
-4. LegalRule generation;
-5. EngineeringRule generation for technical **and non-technical** obligations;
+4. LegalRequirement generation;
+5. AssessmentRule generation for technical **and non-technical** obligations;
 6. evidence-channel reasoning;
 7. rule splitting/merging discipline;
 8. no strengthening/weakening of legal modality;
 9. coverage self-review;
-10. automatic portfolio submission.
+10. automatic Compliance Rule Set submission.
 
 ## 18.2 Replace `interview-context` with `human-resolution`
 
@@ -1408,7 +1408,7 @@ It must describe reasoning doctrine, not legacy role mechanics.
 Required sections:
 
 - legal authority and provenance;
-- EngineeringRule basis;
+- AssessmentRule basis;
 - assessment case reasoning;
 - applicability reasoning;
 - evidence quality;
@@ -1606,9 +1606,9 @@ Use lease/lock at infrastructure boundary.
 
 Queued user answers/commands are serialized against current assessment revision.
 
-## 22.2 Legal portfolio generation
+## 22.2 Legal Compliance Rule Set generation
 
-Only one activation transaction for the same corpus/version scope at a time.
+Only one activation transaction for the same Legal Source/version scope at a time.
 
 Agent prompt should not manage this lease; runtime does.
 
@@ -1619,14 +1619,14 @@ Every mutation tool receives trusted current values:
 - assessment ID;
 - case revision;
 - repository version;
-- legal portfolio version;
+- legal Compliance Rule Set version;
 - thread/run identity.
 
 Reject stale submissions.
 
 ## 22.4 Invalidation
 
-Repository commit change or legal portfolio change must invalidate decisions whose provenance no longer matches.
+Repository commit change or legal Compliance Rule Set change must invalidate decisions whose provenance no longer matches.
 
 Do not silently reuse stale legal/compliance verdicts.
 
@@ -1642,7 +1642,7 @@ Record structured events for:
 - tool call start/end;
 - evidence accepted/rejected;
 - case fact accepted;
-- legal portfolio generation/activation;
+- legal Compliance Rule Set generation/activation;
 - rule decision submitted/accepted/rejected;
 - Human interrupt/resolution;
 - pause/resume/cancel;
@@ -1686,10 +1686,10 @@ Mandatory deterministic boundaries:
 - network restrictions for sandbox;
 - audit every external/source action;
 - customer answers visible only to authorized assessment scope;
-- Triage/Legal Preparation must not receive customer repository/business context unless a future product requirement explicitly changes the boundary;
+- Triage/Rule Set Preparation must not receive customer repository/business context unless a future product requirement explicitly changes the boundary;
 - evidence and final report retention policy enforced outside the model.
 
-Legal Preparation Agent works from legal data only. Assessment Root may retrieve governed legal context but cannot mutate legal portfolio inline.
+Rule Set Preparation Agent works from legal data only. Assessment Root may retrieve governed legal context but cannot mutate legal Compliance Rule Set inline.
 
 ---
 
@@ -1738,7 +1738,7 @@ Completion Gate is deterministic because it answers a mechanical lifecycle quest
 Finalization is allowed only when all are true:
 
 ```text
-activeLegalPortfolioValid == true
+activeComplianceRuleSetValid == true
 repositorySnapshotPinned == true
 openHumanResolutionRequests == 0
 openRequiredInputs == 0
@@ -1750,7 +1750,7 @@ invalidRuleDecisions == 0
 activeAgentExecution has no unresolved fatal state
 ```
 
-And for every EngineeringRule in assessment portfolio scope:
+And for every AssessmentRule in assessment Compliance Rule Set scope:
 
 ```text
 RuleDecision.applicability == NOT_APPLICABLE
@@ -1786,7 +1786,7 @@ If the report agent discovers an apparent contradiction in accepted state, it mu
 Final report must include:
 
 - assessment scope/repository commit;
-- legal corpus/portfolio version;
+- legal Legal Source/Compliance Rule Set version;
 - product/use-case summary;
 - rule applicability matrix;
 - compliant/non-compliant findings for applicable rules;
@@ -1848,10 +1848,10 @@ Update API/runtime/UI adapters to read canonical state while legacy writers stil
 
 Add:
 
-- `LegalRuleV2`;
-- `EngineeringRuleV2`;
+- `LegalRequirementV2`;
+- `AssessmentRuleV2`;
 - context relation model;
-- portfolio version model;
+- Compliance Rule Set version model;
 - automatic lifecycle without human approval.
 
 Migrate old data through deterministic adapter where safe.
@@ -1861,17 +1861,17 @@ Migrate old data through deterministic adapter where safe.
 - V2 schema can represent definitions/scope/exceptions/non-repository obligations;
 - no `humanLegalSignoffRequired` in target contracts.
 
-## Phase 3 — Legal Preparation Agent vertical
+## Phase 3 — Rule Set Preparation Agent vertical
 
 ### Work
 
-- create separate Legal Preparation Deep Agent entry point;
+- create separate Rule Set Preparation Deep Agent entry point;
 - create minimal legal tools;
-- rewrite `legal-rule-triage` skill as `legal-preparation`;
+- rewrite `legal-requirement-triage` skill as `rule-set-preparation`;
 - hide lease/pagination mechanics behind tools/runtime;
 - implement `submit_legal_portfolio` integrity guard;
-- implement atomic portfolio activation/supersession;
-- implement incremental corpus update handling.
+- implement atomic Compliance Rule Set activation/supersession;
+- implement incremental Legal Source update handling.
 
 ### Tests
 
@@ -1885,9 +1885,9 @@ Migrate old data through deterministic adapter where safe.
 
 ### Exit criteria
 
-A corpus version automatically produces an ACTIVE, internally valid LegalRule + EngineeringRule portfolio.
+A Legal Source version automatically produces an ACTIVE, internally valid LegalRequirement + AssessmentRule Compliance Rule Set.
 
-## Phase 4 — Remove legacy legal preparation authority
+## Phase 4 — Remove legacy rule set preparation authority
 
 ### Work
 
@@ -1901,7 +1901,7 @@ Delete/retire:
 
 ### Exit criteria
 
-Exactly one authoritative Legal Corpus → portfolio path remains.
+Exactly one authoritative Legal Source → Compliance Rule Set path remains.
 
 ## Phase 5 — Assessment domain V2
 
@@ -1914,7 +1914,7 @@ Create persistence/contracts:
 - SearchCoverageEvidence;
 - RuleDecision;
 - HumanResolutionRequest;
-- EngineeringRule coverage ledger.
+- AssessmentRule coverage ledger.
 
 Implement revision/provenance/staleness rules.
 
@@ -1963,7 +1963,7 @@ Agent cannot fabricate accepted evidence and one evidence item can support multi
 
 ### Exit criteria
 
-100% EngineeringRule coverage on benchmark; irrelevant rules end `NOT_APPLICABLE` without compliance verdict.
+100% AssessmentRule coverage on benchmark; irrelevant rules end `NOT_APPLICABLE` without compliance verdict.
 
 ## Phase 9 — Native Human Resolution
 
@@ -2086,7 +2086,7 @@ deepagents/agent.py
 legal agent entrypoint
 assessment agent entrypoint
 deepagents/skills/lcsp/SKILL.md
-deepagents/skills/legal-preparation/SKILL.md
+deepagents/skills/rule-set-preparation/SKILL.md
 deepagents/skills/human-resolution/SKILL.md
 AGENTS.md
 CLAUDE.md
@@ -2111,7 +2111,7 @@ Source, instructions, architecture docs, and runtime all describe the same syste
 - provider fallback tests;
 - restart during HITL;
 - restart during subagent task;
-- legal portfolio update during assessment;
+- legal Compliance Rule Set update during assessment;
 - repository snapshot invalidation;
 - outbox/event replay;
 - idempotent duplicate answer/tool calls;
@@ -2138,9 +2138,9 @@ Historical DB migrations that are required to rebuild schema remain, but no runt
 |---|---|
 | `deepagents/FLOW.md` | Full rewrite |
 | `deepagents/instructions.md` | Full rewrite; Root owns assessment reasoning |
-| `deepagents/agent.py` | Split/create legal-preparation and assessment entry points |
-| `deepagents/subagents/triage/definition.py` | Replace with Legal Preparation Agent; remove runtime lease choreography from prompt |
-| `deepagents/skills/legal-rule-triage/SKILL.md` | Replace with `legal-preparation` |
+| `deepagents/agent.py` | Split/create rule-set-preparation and assessment entry points |
+| `deepagents/subagents/triage/definition.py` | Replace with Rule Set Preparation Agent; remove runtime lease choreography from prompt |
+| `deepagents/skills/legal-requirement-triage/SKILL.md` | Replace with `rule-set-preparation` |
 | `deepagents/subagents/repository_analyst/definition.py` | Replace with generic repository researcher; remove one-rule semantics |
 | `deepagents/skills/interview-context/**` | Delete after `human-resolution` cutover |
 | `deepagents/skills/lcsp/SKILL.md` | Rewrite reasoning doctrine |
@@ -2171,7 +2171,7 @@ Focus unit tests on truly deterministic behavior:
 - source/citation validation;
 - evidence provenance;
 - stale revision rejection;
-- portfolio referential integrity;
+- Compliance Rule Set referential integrity;
 - completion gate;
 - tenant/RBAC boundaries;
 - idempotency;
@@ -2184,9 +2184,9 @@ Do not unit-test semantic legal conclusions by reimplementing them in test code.
 
 Use eval datasets for:
 
-- LegalRule extraction;
+- LegalRequirement extraction;
 - context/exception preservation;
-- EngineeringRule generation;
+- AssessmentRule generation;
 - applicability;
 - compliance adjudication;
 - question relevance;
@@ -2265,7 +2265,7 @@ Expected:
 - request survives restart;
 - answer resumes same assessment.
 
-### J. Legal portfolio changes mid-assessment
+### J. Legal Compliance Rule Set changes mid-assessment
 
 Expected:
 
@@ -2297,7 +2297,7 @@ Before removing shadow legacy evaluators, define release thresholds.
 Suggested core metrics:
 
 ```text
-EngineeringRule disposition coverage = 100%
+AssessmentRule disposition coverage = 100%
 final unresolved material blockers = 0
 technical-question leakage = 0 on golden eval set
 fabricated accepted evidence = 0
@@ -2381,11 +2381,11 @@ The migration is not complete until every statement below is true.
 
 ## Legal preparation
 
-- Legal Corpus automatically produces LegalRules and EngineeringRules.
+- Legal Source automatically produces LegalRequirements and AssessmentRules.
 - No human approval/confirmation is required.
 - Definitions, scope, qualifiers, exceptions, and cross-references are preserved.
-- Non-repository obligations produce EngineeringRules when assessable.
-- One active portfolio is authoritative per legal source/version scope.
+- Non-repository obligations produce AssessmentRules when assessable.
+- One active Compliance Rule Set is authoritative per legal source/version scope.
 - Invalid/fabricated legal refs cannot activate.
 
 ## Assessment runtime
@@ -2404,7 +2404,7 @@ The migration is not complete until every statement below is true.
 - Agent owns criterion `MET/NOT_MET` judgment.
 - Agent owns `COMPLIANT/NON_COMPLIANT` judgment.
 - Deterministic code validates trust/provenance/completeness instead of redoing semantics.
-- Every EngineeringRule is dispositioned.
+- Every AssessmentRule is dispositioned.
 - Every final applicable rule is COMPLIANT or NON_COMPLIANT.
 - Every irrelevant rule is NOT_APPLICABLE.
 - No final UNKNOWN/PARTIAL rule outcomes exist.
@@ -2499,16 +2499,16 @@ When uncertain, prefer **one capable Root Agent + governed tools + strict trust 
 
 ```text
 1. Legal source changes/arrives
-2. Deterministic ingestion pins corpus version
-3. Legal Preparation Agent reads governed corpus
-4. Agent generates LegalRules + context relationships + EngineeringRules
-5. Portfolio integrity guard validates refs/schema/version
-6. Portfolio activates automatically
+2. Deterministic ingestion pins Legal Source version
+3. Rule Set Preparation Agent reads governed Legal Source
+4. Agent generates LegalRequirements + context relationships + AssessmentRules
+5. Compliance Rule Set integrity guard validates refs/schema/version
+6. Compliance Rule Set activates automatically
 
 7. Customer creates assessment
 8. Runtime pins repository commit and prepares sandbox/index
 9. Assessment Root starts one durable thread
-10. Root reads ER portfolio and learns actual product/use cases
+10. Root reads ER Compliance Rule Set and learns actual product/use cases
 11. Root records accepted Case facts/evidence
 12. Root reviews all ERs for coverage
 13. Root clusters and delegates repository research when useful
@@ -2565,7 +2565,7 @@ Never derive a reusable thread from:
 - tenant id alone;
 - repository id alone;
 - user id alone;
-- legal portfolio id;
+- legal Compliance Rule Set id;
 - assistant id;
 - project name.
 
@@ -2636,12 +2636,12 @@ Long-term memory may improve:
 - recurring evidence patterns;
 - failure-recovery tactics;
 - efficient repository navigation;
-- legal-preparation heuristics.
+- rule-set-preparation heuristics.
 
 It MUST NOT override:
 
-- active Legal Corpus;
-- LegalRule/EngineeringRule portfolio;
+- active Legal Source;
+- LegalRequirement/AssessmentRule Compliance Rule Set;
 - current assessment facts;
 - evidence provenance;
 - customer-confirmed facts;
@@ -2695,7 +2695,7 @@ Access:
 Root of that assessment: READ/WRITE
 Subagents invoked by that Root: bounded access through inherited/run-scoped context only
 Other assessments: NO ACCESS
-Legal Preparation Agent: NO ACCESS
+Rule Set Preparation Agent: NO ACCESS
 ```
 
 Retention is configurable, auditable and tenant-compliant.
@@ -2782,7 +2782,7 @@ Deep Agents skills / AGENTS.md-style memory where appropriate
 
 Examples:
 
-- legal-preparation skill;
+- rule-set-preparation skill;
 - human-resolution skill;
 - LCSP assessment doctrine;
 - evidence discipline;
@@ -2822,7 +2822,7 @@ AssessmentRuntime
 assessmentId
 threadId
 rootAgentVersion
-legalPortfolioVersion
+legalCompliance Rule SetVersion
 repositorySnapshotId
 startedAt
 lastResumedAt
@@ -3033,12 +3033,12 @@ set_system_memory(...)
 
 The memory service owns namespace and sanitization.
 
-## 37.13 Legal Preparation memory
+## 37.13 Rule Set Preparation memory
 
-Legal Preparation should have a separate sanitized learning namespace from Assessment Root:
+Rule Set Preparation should have a separate sanitized learning namespace from Assessment Root:
 
 ```text
-("lcsp", "legal-preparation-agent", memory_schema_version)
+("lcsp", "rule-set-preparation-agent", memory_schema_version)
 ```
 
 It may learn generic legal parsing/structure heuristics such as:
@@ -3049,9 +3049,9 @@ It may learn generic legal parsing/structure heuristics such as:
 
 It MUST NOT use Assessment/customer memory.
 
-Assessment Root MUST NOT write into Legal Preparation memory.
+Assessment Root MUST NOT write into Rule Set Preparation memory.
 
-This preserves the legal-preparation independence boundary.
+This preserves the rule-set-preparation independence boundary.
 
 ## 37.14 Tenant/user preference memory
 
@@ -3134,7 +3134,7 @@ Repeat across:
 - different user same tenant;
 - different tenant;
 - same repo;
-- same legal portfolio.
+- same legal Compliance Rule Set.
 
 ### Test M2 — HITL resume retains same assessment context
 
@@ -3246,7 +3246,7 @@ no cross-assessment memory reads
 8. Define typed sanitized learning-memory schema.
 9. Implement `search_learning_memory` and `propose_learning_memory` governed tools.
 10. Add sanitization/dedup/quarantine service.
-11. Separate Assessment and Legal Preparation learning namespaces.
+11. Separate Assessment and Rule Set Preparation learning namespaces.
 12. Define retention/deletion for assessment checkpoints.
 13. Add memory observability without raw-body logging.
 14. Add M1–M8 tests to production CI/eval suite.
@@ -3267,7 +3267,7 @@ Subagents cannot access cross-assessment memory.
 Long-term learning contains only sanitized generic heuristics.
 Learning memory is explicitly non-authoritative.
 Learning memory cannot be submitted as evidence.
-Legal Preparation and Assessment learning memories are separate.
+Rule Set Preparation and Assessment learning memories are separate.
 Stable procedures live in versioned skills, not mutable shared memory.
 Memory namespaces are server-controlled and tenant-safe.
 Assessment deletion cleans up thread-scoped state according to retention policy.
@@ -3282,18 +3282,18 @@ Cross-assessment canary tests pass at 100%.
 
 ```text
 1. Legal source arrives/changes
-2. Deterministic ingestion pins corpus version
-3. Legal Preparation Agent starts in its own legal-preparation execution context
-4. Agent may retrieve sanitized legal-preparation heuristics only
-5. Agent generates LegalRules + EngineeringRules
-6. Portfolio integrity guard validates refs/schema/version
-7. Portfolio activates automatically
+2. Deterministic ingestion pins Legal Source version
+3. Rule Set Preparation Agent starts in its own rule-set-preparation execution context
+4. Agent may retrieve sanitized rule-set-preparation heuristics only
+5. Agent generates LegalRequirements + AssessmentRules
+6. Compliance Rule Set integrity guard validates refs/schema/version
+7. Compliance Rule Set activates automatically
 
 8. Customer creates Assessment A
 9. Backend creates AssessmentRuntime with a unique server-owned threadId
 10. Runtime pins repository commit and creates assessment-private sandbox/index
 11. Assessment Root starts/resumes only thread A
-12. Root loads governed ER/legal portfolio
+12. Root loads governed ER/legal Compliance Rule Set
 13. Root optionally retrieves sanitized NON_AUTHORITATIVE assessment heuristics
 14. Root discovers actual product/use cases and records authoritative case facts
 15. Root delegates bounded repository research when useful

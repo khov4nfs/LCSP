@@ -16,7 +16,7 @@ import {
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
-/** Source content hashes use the corpus representation: `sha256:<64 hex>`. */
+/** Source content hashes use the legalSource representation: `sha256:<64 hex>`. */
 const CONTENT_HASH_PATTERN = /^sha256:[a-f0-9]{64}$/;
 
 const idSchema = z
@@ -39,12 +39,12 @@ const shortTextListSchema = z
   .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems);
 /** Raw hex digest computed by the server (rule set digest, source fingerprint). */
 const sha256Schema = z.string().regex(SHA256_PATTERN);
-/** Source content hash exactly as stored on the pinned corpus chunk. */
+/** Source content hash exactly as stored on the pinned legalSource chunk. */
 const contentHashSchema = z.string().regex(CONTENT_HASH_PATTERN);
 
 /**
  * Opaque source claim authored by the agent. The server resolves it against
- * the one pinned corpus and derives the trusted chunk/hash binding; a claim is
+ * the one pinned legalSource and derives the trusted chunk/hash binding; a claim is
  * never trusted identity.
  */
 export const complianceRuleSetSourceRefSchema = z
@@ -64,7 +64,7 @@ const sourceRefListSchema = z
   .max(COMPLIANCE_RULE_SET_LIMITS.maxSourceRefsPerRule);
 
 /**
- * Structural invariant shared with the database CHECK LegalPortfolioRule_coverage_reason_check:
+ * Structural invariant shared with the database CHECK LegalRequirement_coverage_reason_check:
  * a rule covered by assessment rules carries no reason; a non-assessable rule carries a
  * non-blank one. The refinement checks structure only and never judges the legal meaning.
  */
@@ -302,7 +302,7 @@ export const ruleSetPreparationRunSchema = z
 export type RuleSetPreparationRun = z.infer<typeof ruleSetPreparationRunSchema>;
 
 /**
- * One complete packet for one run. Corpus identity, idempotency and digests are
+ * One complete packet for one run. LegalSource identity, idempotency and digests are
  * server context; the agent supplies meaning only.
  */
 export const complianceRuleSetSubmitRequestSchema = z
@@ -420,10 +420,10 @@ export type RuleSetPreparationClaimRequest = z.infer<
 >;
 
 /**
- * The one pinned immutable corpus a Rule Set Preparation run is allowed to read.
- * Server-derived from the run; the agent never chooses a corpus.
+ * The one pinned immutable legalSource a Rule Set Preparation run is allowed to read.
+ * Server-derived from the run; the agent never chooses a legalSource.
  */
-export const ruleSetPreparationCorpusBundleSchema = z
+export const ruleSetPreparationLegalSourceBundleSchema = z
   .object({
     preparationRunId: z.string().uuid(),
     executionState: agentExecutionStateSchema,
@@ -454,8 +454,8 @@ export const ruleSetPreparationCorpusBundleSchema = z
     ),
   })
   .strict();
-export type RuleSetPreparationCorpusBundle = z.infer<
-  typeof ruleSetPreparationCorpusBundleSchema
+export type RuleSetPreparationLegalSourceBundle = z.infer<
+  typeof ruleSetPreparationLegalSourceBundleSchema
 >;
 
 /** Marks a run FAILED when the agent could not produce a submission. */

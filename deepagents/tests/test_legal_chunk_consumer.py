@@ -4,23 +4,23 @@ from types import SimpleNamespace
 import json
 import pytest
 
-from tools.legal.corpus.legal_chunks.legal_chunk_boundary import (
+from tools.legal.legal_source.legal_chunks.legal_chunk_boundary import (
     LEGAL_CHUNK_COMMAND,
     LEGAL_CHUNK_BOUNDARY_SOURCE,
     LegalChunkBoundary,
 )
-from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
+from tools.legal.legal_source.legal_chunks.legal_chunk_repository import LegalChunkRepository
 from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
 def _write_reviewed_input(*, storage_root: Path, reviewed_input_ref: str, text: str):
     from tools.legal.sources.extraction.official_text_extraction import _sha256_text
-    from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
-        ReviewedCorpusInputRecord,
-        ReviewedCorpusInputRepository,
+    from tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_repository import (
+        ReviewedLegalSourceInputRecord,
+        ReviewedLegalSourceInputRepository,
     )
 
-    output_dir = storage_root / "reviewed-corpus-inputs" / "reviewed-input-123456"
+    output_dir = storage_root / "reviewed-legal-source-inputs" / "reviewed-input-123456"
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized_text_path = output_dir / "LAW-TEST.reviewed.txt"
     manifest_path = output_dir / "LAW-TEST.reviewed-input.json"
@@ -49,8 +49,8 @@ def _write_reviewed_input(*, storage_root: Path, reviewed_input_ref: str, text: 
         + "\n",
         encoding="utf-8",
     )
-    ReviewedCorpusInputRepository(storage_root=storage_root).save(
-        ReviewedCorpusInputRecord(
+    ReviewedLegalSourceInputRepository(storage_root=storage_root).save(
+        ReviewedLegalSourceInputRecord(
             reviewed_input_ref=reviewed_input_ref,
             provenance_ref="prov:reviewed-input:reviewed-input-123456",
             extraction_ref="extraction:canonical-12345678",

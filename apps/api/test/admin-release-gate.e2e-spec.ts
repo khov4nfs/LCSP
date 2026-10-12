@@ -220,16 +220,16 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
     });
   });
 
-  describe("Section 3: Legal Rule Catalog & Corpus Lifecycle Mutations", () => {
+  describe("Section 3: Legal Rule Catalog & LegalSource Lifecycle Mutations", () => {
     it("exposes no human legal authoring, approval, publish or discard route to Admin", async () => {
       const retiredRoutes = [
-        "/internal/legal-rule-catalog/versions",
-        "/internal/legal-rule-catalog/rules",
-        "/internal/legal-rule-catalog/rules/recover-from-active-corpus",
-        "/internal/legal-rule-catalog/versions/any/approve",
-        "/internal/legal-rule-catalog/corpus",
-        "/admin/corpus-versions/any/publish",
-        "/admin/corpus-versions/any/discard",
+        "/internal/legal-sources/versions",
+        "/internal/legal-sources/rules",
+        "/internal/legal-sources/rules/recover-from-active-legalSource",
+        "/internal/legal-sources/versions/any/approve",
+        "/internal/legal-sources",
+        "/admin/legal-source-versions/any/publish",
+        "/admin/legal-source-versions/any/discard",
       ];
       for (const route of retiredRoutes) {
         const response = await httpRequest(app)
@@ -334,18 +334,18 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
       const DEPENDENCY_STATUSES = {
         ADMIN_SHELL: "PENDING_UPSTREAM_MERGE (Admin Shell & Overview UI)",
         USER_ACCOUNTS: "PENDING_UPSTREAM_MERGE (User Accounts Management UI)",
-        LEGAL_CORPUS: "PENDING_UPSTREAM_MERGE (Corpus Versions UI)",
+        LEGAL_SOURCE: "PENDING_UPSTREAM_MERGE (LegalSource Versions UI)",
         ADMIN_OVERVIEW:
           "PENDING_UPSTREAM_MERGE (Admin Overview API & Read Model)",
         ACCOUNT_LIFECYCLE:
           "PENDING_UPSTREAM_MERGE (Admin User Lifecycle API & Mutations)",
         ADMIN_AUTHORIZATION:
-          "PENDING_UPSTREAM_MERGE (Corpus Administration API & Readiness Engine)",
+          "PENDING_UPSTREAM_MERGE (LegalSource Administration API & Readiness Engine)",
       };
 
       assert.ok(DEPENDENCY_STATUSES["ADMIN_SHELL"]);
       assert.ok(DEPENDENCY_STATUSES["USER_ACCOUNTS"]);
-      assert.ok(DEPENDENCY_STATUSES["LEGAL_CORPUS"]);
+      assert.ok(DEPENDENCY_STATUSES["LEGAL_SOURCE"]);
       assert.ok(DEPENDENCY_STATUSES["ADMIN_OVERVIEW"]);
       assert.ok(DEPENDENCY_STATUSES["ACCOUNT_LIFECYCLE"]);
       assert.ok(DEPENDENCY_STATUSES["ADMIN_AUTHORIZATION"]);

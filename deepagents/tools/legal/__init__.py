@@ -1,4 +1,4 @@
-"""Legal corpus, vectorless retrieval, and official-source capabilities."""
+"""Legal legal_source, vectorless retrieval, and official-source capabilities."""
 
 from .retrieval.legal_basis.chromadb_citation_retriever import (
     ChromaDbCitationRetriever,

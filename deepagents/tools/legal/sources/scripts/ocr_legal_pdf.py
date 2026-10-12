@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create reviewable OCR artifacts from scanned legal PDFs.
 
-This command deliberately stops before normalization, corpus ingestion, or
+This command deliberately stops before normalization, legal_source ingestion, or
 approval. A legal operator must review the generated text and locators first.
 """
 

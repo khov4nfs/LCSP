@@ -115,7 +115,7 @@ FORBIDDEN_EXACT_KEYS = frozenset(
         "password",
         "private_context",
         "private_customer_context",
-        "raw_legal_corpus",
+        "raw_legal_source",
         "raw_prompt",
         "raw_source",
         "repository_source",

@@ -13,7 +13,7 @@ import {
 const REPEALED_LEGAL_STATUS = "REPEALED";
 const HIERARCHY_SEPARATOR = "::";
 
-export interface CorpusChunkSnapshot {
+export interface LegalSourceChunkSnapshot {
   id: string;
   documentId: string;
   locator: string;
@@ -22,13 +22,13 @@ export interface CorpusChunkSnapshot {
   sourceEffectStatus: string;
 }
 
-export interface CorpusSnapshot {
-  corpusVersionId: string;
-  chunks: CorpusChunkSnapshot[];
+export interface LegalSourceSnapshot {
+  legalSourceVersionId: string;
+  chunks: LegalSourceChunkSnapshot[];
   retrievalIndexValid: boolean;
 }
 
-/** True when `documentId` + `locator` carries `contentSha256` in a corpus other than the pinned one. */
+/** True when `documentId` + `locator` carries `contentSha256` in a legalSource other than the pinned one. */
 export type ForeignChunkHashLookup = (
   ref: ComplianceRuleSetSourceRef,
 ) => boolean;
@@ -36,7 +36,7 @@ export type ForeignChunkHashLookup = (
 export interface RuleSetValidationResult {
   failures: ComplianceRuleSetValidationFailure[];
   /** Server-resolved bindings keyed by sourceClaimKey; present only for refs that resolved cleanly. */
-  resolved: Map<string, CorpusChunkSnapshot>;
+  resolved: Map<string, LegalSourceChunkSnapshot>;
 }
 
 export function sourceClaimKey(ref: {
@@ -75,23 +75,23 @@ function ancestorLocators(locator: string): string[] {
 
 /**
  * Mechanical integrity validation of one complete rule set packet against the
- * one pinned corpus: identity, hash, citation, locator, provenance, shape and
+ * one pinned legalSource: identity, hash, citation, locator, provenance, shape and
  * completeness only. It never classifies, interprets or repairs legal meaning.
  */
 export function validateComplianceRuleSetPacket(
   packet: ComplianceRuleSetPacket,
-  corpus: CorpusSnapshot,
+  legalSource: LegalSourceSnapshot,
   isForeignChunkHash: ForeignChunkHashLookup,
 ): RuleSetValidationResult {
   const failures: ComplianceRuleSetValidationFailure[] = [];
-  const resolved = new Map<string, CorpusChunkSnapshot>();
+  const resolved = new Map<string, LegalSourceChunkSnapshot>();
   const fail = (
     code: ComplianceRuleSetFailureCode,
     ref: string | null,
     detail: string | null = null,
   ) => failures.push({ code, ref, detail });
 
-  if (!corpus.retrievalIndexValid) {
+  if (!legalSource.retrievalIndexValid) {
     fail(COMPLIANCE_RULE_SET_FAILURE_CODES.RETRIEVAL_INDEX_NOT_VALID, null);
   }
   if (
@@ -144,9 +144,9 @@ export function validateComplianceRuleSetPacket(
     relationIds.add(relation.relationId);
   }
 
-  // --- source claims resolve to the one pinned corpus ----------------------
+  // --- source claims resolve to the one pinned legalSource ----------------------
   const chunkByKey = new Map(
-    corpus.chunks.map((chunk) => [sourceClaimKey(chunk), chunk] as const),
+    legalSource.chunks.map((chunk) => [sourceClaimKey(chunk), chunk] as const),
   );
   let cleanClaims = 0;
   let foreignClaims = 0;
@@ -167,7 +167,7 @@ export function validateComplianceRuleSetPacket(
       fail(
         COMPLIANCE_RULE_SET_FAILURE_CODES.STALE_SOURCE_HASH,
         refLabel,
-        "declared hash does not match the pinned corpus content",
+        "declared hash does not match the pinned legalSource content",
       );
       return;
     }
@@ -198,12 +198,12 @@ export function validateComplianceRuleSetPacket(
       checkClaim(relation.toSourceRef, `relation:${relation.relationId}`);
     }
   }
-  // Refs that bind to different corpus versions inside one packet.
+  // Refs that bind to different legalSource versions inside one packet.
   if (foreignClaims > 0 && cleanClaims > 0) {
     fail(
       COMPLIANCE_RULE_SET_FAILURE_CODES.MIXED_SOURCE_VERSION,
       null,
-      "source claims bind to more than one corpus version",
+      "source claims bind to more than one legalSource version",
     );
   }
 
@@ -264,14 +264,14 @@ export function validateComplianceRuleSetPacket(
   // referenced. A NON_ASSESSABLE rule that cites it counts as covered.
   const referencedKeys = new Set(resolved.keys());
   const nonLeafKeys = new Set<string>();
-  for (const chunk of corpus.chunks) {
+  for (const chunk of legalSource.chunks) {
     for (const ancestor of ancestorLocators(chunk.locator)) {
       nonLeafKeys.add(
         sourceClaimKey({ documentId: chunk.documentId, locator: ancestor }),
       );
     }
   }
-  for (const chunk of corpus.chunks) {
+  for (const chunk of legalSource.chunks) {
     const key = sourceClaimKey(chunk);
     if (chunk.legalStatus === REPEALED_LEGAL_STATUS || nonLeafKeys.has(key))
       continue;

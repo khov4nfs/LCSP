@@ -18,7 +18,7 @@ def build_official_source_payload(
     partial_update_contexts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build an ingest payload directly from official crawler artifacts."""
-    builder = _load_script_module("build_reviewed_legal_corpus.py")
+    builder = _load_script_module("build_reviewed_legal_source.py")
     documents: list[dict[str, Any]] = []
     source_artifacts: list[dict[str, Any]] = []
     document_ids: set[str] = set()
@@ -156,7 +156,7 @@ def _safe_ref(value: str) -> str:
 
 
 def _namespace_chunks(chunks: list[dict[str, Any]], version: str) -> list[dict[str, Any]]:
-    """Make deterministic chunk IDs unique across corpus versions."""
+    """Make deterministic chunk IDs unique across legal_source versions."""
     prefix = _safe_ref(version)
     mapping = {str(c["id"]): f"{prefix}::{c['id']}" for c in chunks if c.get("id")}
     result: list[dict[str, Any]] = []
@@ -171,7 +171,7 @@ def _namespace_chunks(chunks: list[dict[str, Any]], version: str) -> list[dict[s
 
 
 def _load_script_module(filename: str):
-    """Load an AO-6 corpus build/orchestration script from the legal source tools."""
+    """Load an AO-6 legal_source build/orchestration script from the legal source tools."""
     path = Path(__file__).resolve().parents[1] / "scripts" / filename
     spec = importlib.util.spec_from_file_location(filename.removesuffix(".py"), path)
     if spec is None or spec.loader is None:

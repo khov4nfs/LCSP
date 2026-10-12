@@ -168,7 +168,7 @@ def isolated_legal_storage_root(
     tmp_path_factory: pytest.TempPathFactory,
     isolated_process_environment: None,
 ) -> Generator[None, None, None]:
-    """Keep recovery artifacts and singleton locks out of the real .corpus root.
+    """Keep recovery artifacts and singleton locks out of the real .legal-source root.
 
     Recovery artifacts double as triage completion markers, so a test writing into the
     developer's storage root can silently mark real LegalRequirements as already triaged.

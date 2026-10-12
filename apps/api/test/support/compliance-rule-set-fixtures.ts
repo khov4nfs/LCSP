@@ -6,8 +6,8 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 
 import type {
-  CorpusChunkSnapshot,
-  CorpusSnapshot,
+  LegalSourceChunkSnapshot,
+  LegalSourceSnapshot,
 } from "../../src/modules/compliance-rule-set/domain/compliance-rule-set-integrity.validator.js";
 
 /** Same hierarchy as the prepared synthetic notice fixture (art-1 .. art-6). */
@@ -45,8 +45,8 @@ export function fixtureHash(locator: string, variant = "v1"): string {
 
 export function fixtureChunks(
   variant = "v1",
-  overrides: Partial<Record<string, Partial<CorpusChunkSnapshot>>> = {},
-): CorpusChunkSnapshot[] {
+  overrides: Partial<Record<string, Partial<LegalSourceChunkSnapshot>>> = {},
+): LegalSourceChunkSnapshot[] {
   return FIXTURE_LOCATORS.map((locator) => ({
     id: `${variant}-${locator}`,
     documentId: FIXTURE_DOCUMENT_ID,
@@ -61,12 +61,14 @@ export function fixtureChunks(
   }));
 }
 
-export function fixtureCorpus(
-  overrides: Partial<CorpusSnapshot> = {},
-  chunkOverrides: Partial<Record<string, Partial<CorpusChunkSnapshot>>> = {},
-): CorpusSnapshot {
+export function fixtureLegalSource(
+  overrides: Partial<LegalSourceSnapshot> = {},
+  chunkOverrides: Partial<
+    Record<string, Partial<LegalSourceChunkSnapshot>>
+  > = {},
+): LegalSourceSnapshot {
   return {
-    corpusVersionId: "corpus-v1",
+    legalSourceVersionId: "legalSource-v1",
     retrievalIndexValid: true,
     chunks: fixtureChunks("v1", chunkOverrides),
     ...overrides,
@@ -193,8 +195,8 @@ export function validPacket(): ComplianceRuleSetPacket {
 
 export const FIXTURE_LEAVES = LEAVES;
 
-/** Minimal Prisma surface the DB corpus factory needs (keeps this support file client-agnostic). */
-type CorpusPrisma = {
+/** Minimal Prisma surface the DB legalSource factory needs (keeps this support file client-agnostic). */
+type LegalSourcePrisma = {
   legalSourceVersion: {
     create(args: unknown): Promise<{ id: string; version: string }>;
   };
@@ -207,20 +209,20 @@ type CorpusPrisma = {
  * Builds a Legal Source Version mirroring the fixture hierarchy in PostgreSQL. `changed` alters
  * art-5::cl-1 (a second source version). Rows are namespaced by `runTag`.
  */
-export function corpusFactory(prisma: CorpusPrisma, runTag: string) {
+export function legalSourceFactory(prisma: LegalSourcePrisma, runTag: string) {
   let counter = 0;
-  return async function createCorpus(
+  return async function createLegalSource(
     changed = false,
-    status: "APPROVED" | "SUPERSEDED" | "DRAFT" = "APPROVED",
+    status: "ACTIVE" | "SUPERSEDED" | "DRAFT" = "ACTIVE",
   ) {
     counter += 1;
     const tag = `${runTag}-${counter}`;
-    const corpus = await prisma.legalSourceVersion.create({
-      data: { version: `corpus-${tag}`, status, sourceManifest: {} },
+    const legalSource = await prisma.legalSourceVersion.create({
+      data: { version: `legalSource-${tag}`, status, sourceManifest: {} },
     });
     const document = await prisma.legalSourceDocument.create({
       data: {
-        legalSourceVersionId: corpus.id,
+        legalSourceVersionId: legalSource.id,
         documentId: FIXTURE_DOCUMENT_ID,
         title: "Synthetic notice",
         sourceUrl: "https://example.invalid/notice",
@@ -231,7 +233,7 @@ export function corpusFactory(prisma: CorpusPrisma, runTag: string) {
     await prisma.legalDocumentChunk.createMany({
       data: FIXTURE_LOCATORS.map((locator) => ({
         id: `${tag}-${locator}`,
-        legalSourceVersionId: corpus.id,
+        legalSourceVersionId: legalSource.id,
         legalSourceDocumentId: document.id,
         documentId: FIXTURE_DOCUMENT_ID,
         locator,
@@ -246,7 +248,7 @@ export function corpusFactory(prisma: CorpusPrisma, runTag: string) {
     });
     await prisma.legalRetrievalIndex.create({
       data: {
-        legalSourceVersionId: corpus.id,
+        legalSourceVersionId: legalSource.id,
         version: `index-${tag}`,
         status: "VALID",
         configHash: "c".repeat(64),
@@ -255,6 +257,6 @@ export function corpusFactory(prisma: CorpusPrisma, runTag: string) {
         validatedAt: new Date(),
       },
     });
-    return corpus;
+    return legalSource;
   };
 }

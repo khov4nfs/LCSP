@@ -86,9 +86,9 @@ export function AdminRecentActivityCard({
         return resolveAppMessage(
           "pages.admin.overview.recentActivity.actions.invitedUser" as MessageKey,
         );
-      case ADMIN_OVERVIEW_ACTION_KEYS.publishedCorpus:
+      case ADMIN_OVERVIEW_ACTION_KEYS.activatedLegalSource:
         return resolveAppMessage(
-          "pages.admin.overview.recentActivity.actions.publishedCorpus" as MessageKey,
+          "pages.admin.overview.recentActivity.actions.activatedLegalSource" as MessageKey,
         );
       default:
         return actionHeader;
@@ -108,9 +108,9 @@ export function AdminRecentActivityCard({
         return resolveAppMessage(
           "pages.admin.overview.recentActivity.targets.newUser" as MessageKey,
         );
-      case ADMIN_OVERVIEW_ACTION_KEYS.publishedCorpus:
+      case ADMIN_OVERVIEW_ACTION_KEYS.activatedLegalSource:
         return resolveAppMessage(
-          "pages.admin.overview.recentActivity.targets.corpusVersion" as MessageKey,
+          "pages.admin.overview.recentActivity.targets.legalSourceVersion" as MessageKey,
         );
       default:
         return "—";

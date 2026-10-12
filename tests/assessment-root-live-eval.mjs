@@ -72,7 +72,7 @@ const stack = await startStack({
   apiPort: Number(process.env.LCSP_ASSESSMENT_EVAL_API_PORT ?? 3415),
   resetDatabase: previousEval === null,
 });
-const { q, base, post, stop, seedCorpus, activateLegalSource, databaseUrl } = stack;
+const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl } = stack;
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const { ArtifactLifecycleState } = requireApi("@prisma/client");
 const http = async (route, body, token) => {
@@ -118,7 +118,7 @@ try {
   if (previousEval) {
     const existing = (
       await q(
-        `SELECT ar."assessmentId",ar."currentExecutionId",ar."executionState",ar."leaseToken",a."lifecycleState",ac."caseRevision",ac."legalPortfolioVersionId",ac."repositorySnapshotId",ac."repositoryCommit" FROM "AssessmentRuntime" ar JOIN "Assessment" a ON a.id=ar."assessmentId" JOIN "AssessmentCase" ac ON ac."assessmentId"=a.id WHERE ar."threadId"=$1`,
+        `SELECT ar."assessmentId",ar."currentExecutionId",ar."executionState",ar."leaseToken",a."lifecycleState",ac."caseRevision",ac."ruleSetVersionId",ac."repositorySnapshotId",ac."repositoryCommit" FROM "AssessmentRuntime" ar JOIN "Assessment" a ON a.id=ar."assessmentId" JOIN "AssessmentCase" ac ON ac."assessmentId"=a.id WHERE ar."threadId"=$1`,
         [previousEval.result.result.threadId],
       )
     ).rows[0];
@@ -142,13 +142,13 @@ try {
     assert.deepEqual(caseState, previousEval.finalization.assessment);
     id = assessmentId;
   } else {
-    const corpus = await seedCorpus({
+    const legalSource = await seedLegalSource({
       name: `assessment-eval-${mode}`,
-      status: "APPROVED",
+      status: "ACTIVE",
       documentId: fixture.documentId,
       chunks: fixture.chunks,
     });
-    const prep = await activateLegalSource(corpus);
+    const prep = await activateLegalSource(legalSource);
     assert.equal(prep.runs.length, 1, "one Legal Source -> one automatic preparation");
     const prepared = await runPython(
       path.join(tests, "scripted_preparation.py"),
@@ -233,7 +233,7 @@ try {
   }
   const decisions = (
     await q(
-      `SELECT "decisionId","decisionRevision","engineeringRuleId",state,decision FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY "engineeringRuleId","decisionRevision"`,
+      `SELECT "decisionId","decisionRevision","assessmentRuleId",state,decision FROM "AssessmentRuleDecision" WHERE "assessmentId"=$1 ORDER BY "assessmentRuleId","decisionRevision"`,
       [id],
     )
   ).rows;
@@ -290,13 +290,13 @@ try {
   if (mode === "bounded-absence") {
     const assessment = (
       await q(
-        `SELECT a."lifecycleState",ac."caseRevision",ac."legalPortfolioVersionId",ac."repositorySnapshotId",ac."repositoryCommit" FROM "Assessment" a JOIN "AssessmentCase" ac ON ac."assessmentId"=a.id WHERE a.id=$1`,
+        `SELECT a."lifecycleState",ac."caseRevision",ac."ruleSetVersionId",ac."repositorySnapshotId",ac."repositoryCommit" FROM "Assessment" a JOIN "AssessmentCase" ac ON ac."assessmentId"=a.id WHERE a.id=$1`,
         [id],
       )
     ).rows[0];
     const artifact = (
       await q(
-        `SELECT "artifactId",kind,"lifecycleState","legalPortfolioVersionId","repositorySnapshotId","repositoryCommit","caseRevision","schemaVersion","reportRequestDigest","contentSha256","sizeBytes","storageRef" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
+        `SELECT "artifactId",kind,"lifecycleState","ruleSetVersionId","repositorySnapshotId","repositoryCommit","caseRevision","schemaVersion","reportRequestDigest","contentSha256","sizeBytes","storageRef" FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
         [id, ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT],
       )
     ).rows[0];

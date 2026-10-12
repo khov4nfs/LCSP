@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""User-run live broker/server preparation of the reviewed synthetic corpus fixture.
+"""User-run live broker/server preparation of the reviewed synthetic legal_source fixture.
 
-Only corpus/index preconditions are seeded; the real agent must author and activate
+Only legal_source/index preconditions are seeded; the real agent must author and activate
 the rule_set. This does not prove official acquisition or legal semantic quality.
 """
 from __future__ import annotations
@@ -50,7 +50,7 @@ def check_fixture(fixture: dict, pin: dict, raw: bytes) -> None:
 def fixture_input() -> tuple[dict, dict]:
     directory = ROOT / "deepagents/tests/fixtures/compliance_rule_set_context"
     pin = next(p for p in staging.json_file(directory / "pins.json")["sources"]
-               if p["corpusVersion"] == "SYNTHETIC-CORPUS-V1")
+               if p["legalSourceVersion"] == "SYNTHETIC-LEGAL_SOURCE-V1")
     result = subprocess.run([sys.executable, str(ROOT / "deepagents/tests/vertical/fixture_chunks.py")],
                             cwd=ROOT, capture_output=True, text=True, check=True, timeout=30)
     fixture = json.loads(result.stdout)
@@ -92,11 +92,11 @@ def api(access: dict, route: str, body: dict | None = None) -> tuple[int, dict]:
         return error.code, json.load(error)
 
 
-def activate_source(access: dict, corpus_id: str, idempotency_key: str) -> dict:
+def activate_source(access: dict, legal_source_id: str, idempotency_key: str) -> dict:
     body = {"idempotencyKey": idempotency_key,
-            "integrityManifestRef": "fixture-integrity:" + corpus_id,
-            "retrievalValidationRef": "fixture-index:" + corpus_id}
-    request = Request(access["api"] + "/internal/legal-rule-catalog/corpus/" + corpus_id + "/activate-validated",
+            "integrityManifestRef": "fixture-integrity:" + legal_source_id,
+            "retrievalValidationRef": "fixture-index:" + legal_source_id}
+    request = Request(access["api"] + "/internal/legal-sources/" + legal_source_id + "/activate-validated",
                       data=json.dumps(body).encode(), method="POST",
                       headers={"content-type": "application/json", "x-worker-api-key": access["workerKey"]})
     with urlopen(request, timeout=30) as response:
@@ -105,30 +105,30 @@ def activate_source(access: dict, corpus_id: str, idempotency_key: str) -> dict:
         return result
 
 
-def seed_sql(corpus_id: str, version: str, fixture: dict, pin: dict, *, status: str = "DRAFT") -> str:
-    require(status in {"DRAFT", "APPROVED"}, "unsupported synthetic corpus precondition status")
+def seed_sql(legal_source_id: str, version: str, fixture: dict, pin: dict, *, status: str = "DRAFT") -> str:
+    require(status in {"DRAFT", "ACTIVE"}, "unsupported synthetic legal_source precondition status")
     document_id = str(uuid4())
     digest = hashlib.sha256(json.dumps(fixture, sort_keys=True).encode()).hexdigest()
     manifest = json.dumps({"synthetic": True, "scope": "RELEASE_REVIEWED_SYNTHETIC_PREPARATION_FIXTURE",
                            "sourceSha256": pin["sourceSha256"], "officialSourceAcquisition": "NOT_RUN"})
     statements = ["BEGIN; SET LOCAL standard_conforming_strings = on;",
-        f'INSERT INTO "LegalCorpusVersion"(id,version,status,"sourceManifest") VALUES '
-        f'({quote(corpus_id)},{quote(version)},{quote(status)},{quote(manifest)}::jsonb);',
-        'INSERT INTO "LegalSourceDocument"(id,"legalCorpusVersionId","documentId",title,"sourceUrl",'
-        f'"sourceSha256","sourceEffectStatus") VALUES ({quote(document_id)},{quote(corpus_id)},'
+        f'INSERT INTO "LegalSourceVersion"(id,version,status,"sourceManifest") VALUES '
+        f'({quote(legal_source_id)},{quote(version)},{quote(status)},{quote(manifest)}::jsonb);',
+        'INSERT INTO "LegalSourceDocument"(id,"legalSourceVersionId","documentId",title,"sourceUrl",'
+        f'"sourceSha256","sourceEffectStatus") VALUES ({quote(document_id)},{quote(legal_source_id)},'
         f'{quote(pin["documentId"])},\'Reviewed synthetic notice\',\'https://example.invalid/release-synthetic\','
         f'{quote(pin["sourceSha256"])},{quote(pin["sourceEffectStatus"])});']
     for chunk in fixture["chunks"]:
-        values = [f'{version}:{chunk["locator"]}', corpus_id, document_id, pin["documentId"],
+        values = [f'{version}:{chunk["locator"]}', legal_source_id, document_id, pin["documentId"],
                   chunk["locator"], chunk["content"], chunk["contentSha256"], json.dumps(chunk["hierarchy"]), "IN_FORCE"]
-        statements.append('INSERT INTO "LegalDocumentChunk"(id,"legalCorpusVersionId","legalSourceDocumentId",'
+        statements.append('INSERT INTO "LegalDocumentChunk"(id,"legalSourceVersionId","legalSourceDocumentId",'
                           '"documentId",locator,content,"contentSha256",hierarchy,"legalStatus") VALUES (' +
                           ",".join(quote(value) for value in values) + ');')
     # The existing eval's VALID index is a fixture precondition, not live Chroma/acquisition proof.
-    statements.append('INSERT INTO "LegalRetrievalIndex"(id,"legalCorpusVersionId",version,status,"configHash",'
+    statements.append('INSERT INTO "LegalRetrievalIndex"(id,"legalSourceVersionId",version,status,"configHash",'
                       '"contentHash","validationManifestRef","validatedAt") VALUES (' +
-                      ",".join(quote(value) for value in [str(uuid4()), corpus_id, "index-" + version, "VALID",
-                                                        digest, digest, "fixture-index:" + corpus_id]) + ',now()); COMMIT;')
+                      ",".join(quote(value) for value in [str(uuid4()), legal_source_id, "index-" + version, "VALID",
+                                                        digest, digest, "fixture-index:" + legal_source_id]) + ',now()); COMMIT;')
     return "\n".join(statements)
 
 
@@ -137,35 +137,35 @@ def run(stack, access: dict) -> dict:
     fixture, pin = fixture_input()
     control_path = stack.private / "rule-set-preparation-control.json"
     if not control_path.exists():
-        require(stack.sql('SELECT count(*) FROM "LegalCorpusVersion";') == "0" and
-                stack.sql('SELECT count(*) FROM "LegalPreparationRun";') == "0", "fresh fixture scope is not empty")
-        control = {"corpusId": str(uuid4()), "version": f"release-synthetic-{stack.run_id}",
+        require(stack.sql('SELECT count(*) FROM "LegalSourceVersion";') == "0" and
+                stack.sql('SELECT count(*) FROM "RuleSetPreparationRun";') == "0", "fresh fixture scope is not empty")
+        control = {"legalSourceId": str(uuid4()), "version": f"release-synthetic-{stack.run_id}",
                    "idempotencyKey": f"release-staging-legal-{stack.run_id}"}
         staging.write_json(control_path, control, private=True)
     control = staging.json_file(control_path)
-    corpus_id = str(UUID(control["corpusId"]))
+    legal_source_id = str(UUID(control["legalSourceId"]))
     require(control["version"] == f"release-synthetic-{stack.run_id}" and
             control["idempotencyKey"] == f"release-staging-legal-{stack.run_id}", "fixture control mismatch")
-    exists = stack.sql(f'SELECT count(*) FROM "LegalCorpusVersion" WHERE id={quote(corpus_id)};')
+    exists = stack.sql(f'SELECT count(*) FROM "LegalSourceVersion" WHERE id={quote(legal_source_id)};')
     if exists == "0":
-        require(stack.sql('SELECT count(*) FROM "LegalCorpusVersion";') == "0", "foreign corpus refused")
-        stack.sql(seed_sql(corpus_id, control["version"], fixture, pin))
+        require(stack.sql('SELECT count(*) FROM "LegalSourceVersion";') == "0", "foreign legal_source refused")
+        stack.sql(seed_sql(legal_source_id, control["version"], fixture, pin))
     stored = json.loads(stack.sql('SELECT json_agg(json_build_object(\'locator\',locator,\'hash\',"contentSha256",'
                                  '\'content\',content) ORDER BY locator) FROM "LegalDocumentChunk" '
-                                 f'WHERE "legalCorpusVersionId"={quote(corpus_id)};'))
+                                 f'WHERE "legalSourceVersionId"={quote(legal_source_id)};'))
     require(stored == sorted([{"locator": c["locator"], "hash": c["contentSha256"], "content": c["content"]}
                              for c in fixture["chunks"]], key=lambda c: c["locator"]), "persisted fixture changed")
     document = json.loads(stack.sql('SELECT row_to_json(d) FROM (SELECT "documentId","sourceSha256",'
-                                   f'"sourceEffectStatus" FROM "LegalSourceDocument" WHERE "legalCorpusVersionId"={quote(corpus_id)}) d;'))
+                                   f'"sourceEffectStatus" FROM "LegalSourceDocument" WHERE "legalSourceVersionId"={quote(legal_source_id)}) d;'))
     require(document == {key: pin[key] for key in ("documentId", "sourceSha256", "sourceEffectStatus")},
             "persisted source pin changed")
-    response = activate_source(access, corpus_id, control["idempotencyKey"])
+    response = activate_source(access, legal_source_id, control["idempotencyKey"])
     staging.write_json(stack.private / "legal-source-activation.json", response, private=True)
-    replay = activate_source(access, corpus_id, control["idempotencyKey"])
+    replay = activate_source(access, legal_source_id, control["idempotencyKey"])
     require(replay["data"]["result"]["outboxEventRef"] == response["data"]["result"]["outboxEventRef"], "source activation replay changed event")
     deadline = time.monotonic() + 60
     while True:
-        runs = json.loads(stack.sql('SELECT coalesce(json_agg(id),\'[]\') FROM "LegalPreparationRun" WHERE "legalCorpusVersionId"=' + quote(corpus_id) + ';'))
+        runs = json.loads(stack.sql('SELECT coalesce(json_agg(id),\'[]\') FROM "RuleSetPreparationRun" WHERE "legalSourceVersionId"=' + quote(legal_source_id) + ';'))
         if runs:
             require(len(runs) == 1, "activation created duplicate preparations")
             run_id = str(UUID(runs[0]))
@@ -175,8 +175,8 @@ def run(stack, access: dict) -> dict:
     print(f"Observing real preparation {run_id}; 20-minute observer deadline, no runtime cancellation", flush=True)
     query = ('SELECT row_to_json(r) FROM (SELECT p."executionState",p."failureReason",p."correlationId",'
              'p."outboxEventId",v.id AS "rule_setId",v."lifecycleState",v."validationOutcome",'
-             'o.status AS "outboxStatus" FROM "LegalPreparationRun" p '
-             'LEFT JOIN "LegalPortfolioVersion" v ON v."preparationRunId"=p.id '
+             'o.status AS "outboxStatus" FROM "RuleSetPreparationRun" p '
+             'LEFT JOIN "ComplianceRuleSetVersion" v ON v."preparationRunId"=p.id '
              'LEFT JOIN "OutboxMessage" o ON o.id=p."outboxEventId" '
              f'WHERE p.id={quote(run_id)}) r;')
     deadline, last_print = time.monotonic() + 1200, 0.0
@@ -201,22 +201,22 @@ def run(stack, access: dict) -> dict:
     thread = str(uuid5(namespace, f"event:rule_set_preparation_requested:{state['correlationId']}"))
     checkpoints = int(stack.sql(f"SELECT count(*) FROM checkpoints WHERE thread_id={quote(thread)};", "lcsp_langgraph"))
     require(checkpoints > 0, "native Agent Server checkpoint absent")
-    require(stack.sql(f'SELECT count(*) FROM "LegalPreparationRun" WHERE "legalCorpusVersionId"={quote(corpus_id)};') == "1",
+    require(stack.sql(f'SELECT count(*) FROM "RuleSetPreparationRun" WHERE "legalSourceVersionId"={quote(legal_source_id)};') == "1",
             "duplicate logical preparation")
-    require(stack.sql(f'SELECT count(*) FROM "LegalPortfolioActivationRecord" WHERE "preparationRunId"={quote(run_id)};') == "1",
+    require(stack.sql(f'SELECT count(*) FROM "ComplianceRuleSetActivationRecord" WHERE "preparationRunId"={quote(run_id)};') == "1",
             "expected one governed activation")
     stack.capture_logs()
     verify_stack(stack, access)
     data = active["data"]
     return {"scope": "RELEASE_EXACT_IMAGE_LIVE_BROKER_SERVER_SYNTHETIC_PREPARATION", "status": "PASS_RUNTIME_MECHANICS",
             "runId": stack.run_id, "preparationRunId": run_id, "ruleSetVersionId": state["rule_setId"],
-            "corpusVersionId": corpus_id, "sourceSha256": pin["sourceSha256"], "sourceChunks": len(stored),
+            "legalSourceVersionId": legal_source_id, "sourceSha256": pin["sourceSha256"], "sourceChunks": len(stored),
             "legalRequirements": len(data["legalRequirements"]), "assessmentRules": len(data["assessmentRules"]),
             "contextRelations": len(data["contextRelations"]), "nativeCheckpointCount": checkpoints,
             "legalSourceActivationReplay": "PASS", "automaticPreparation": True, "outboxPublished": True, "governedActivationCount": 1,
             "images": stack.manifest["images"], "semanticReview": "REQUIRED",
             "rubric": "deepagents/tests/fixtures/rule_set_preparation_eval/rubric.json",
-            "corpusAndIndexSeeding": "REVIEWED_SYNTHETIC_FIXTURE_PRECONDITIONS",
+            "legalSourceAndIndexSeeding": "REVIEWED_SYNTHETIC_FIXTURE_PRECONDITIONS",
             "officialSourceAcquisition": "NOT_RUN", "liveRetrievalIndex": "NOT_RUN",
             "failedAttemptPreservesPreviousActive": "NOT_RUN", "frozen25RowStagingMatrix": "NOT_PROVEN",
             "productionDeployment": False, "releaseEligible": False}
@@ -242,7 +242,7 @@ def self_check() -> None:
         raise AssertionError("tampered chunk accepted")
     sql = seed_sql(str(uuid4()), "test'fixture", fixture, pin)
     assert "test''fixture" in sql and sql.startswith("BEGIN;") and sql.endswith("COMMIT;")
-    assert '"ComplianceRuleSetVersion"' not in sql and '"RuleSetPreparationRun"' not in sql and "APPROVED" not in sql
+    assert '"ComplianceRuleSetVersion"' not in sql and '"RuleSetPreparationRun"' not in sql and "ACTIVE" not in sql
     assert len(staging.accepted_images()) == 4
     accepted = {role: "sha256:" + "a" * 64 for role in ("api", "web", "worker", "server")}
     run_id = "a" * 16
@@ -286,7 +286,7 @@ def self_check() -> None:
             raise AssertionError("foreign endpoint accepted")
         finally:
             fake.url = original_url
-    print("PASS — candidates, pinned-byte tamper rejection, corpus-only transaction, daemon/service/label/endpoint guards")
+    print("PASS — candidates, pinned-byte tamper rejection, legal_source-only transaction, daemon/service/label/endpoint guards")
 
 
 def main() -> int:

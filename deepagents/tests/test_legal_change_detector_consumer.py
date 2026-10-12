@@ -10,10 +10,10 @@ from tools.legal.sources.change_detection.legal_change_detector_boundary import 
 from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
 
 
-def test_change_detector_uses_corpus_store_for_cron_crawl_artifacts(
+def test_change_detector_uses_legal_source_store_for_cron_crawl_artifacts(
     tmp_path: Path,
 ) -> None:
-    storage_root = tmp_path / ".corpus"
+    storage_root = tmp_path / ".legal-source"
     boundary = LegalChangeDetectorBoundary(
         _config(storage_root),
         api_client=MagicMock(),
@@ -27,8 +27,8 @@ def test_change_detector_uses_corpus_store_for_cron_crawl_artifacts(
     assert output_dir == storage_root / "source-crawl" / "cron" / "LAW-71-2025-QH15"
 
 
-def test_change_detector_reads_base_snapshot_from_corpus_store(tmp_path: Path) -> None:
-    storage_root = tmp_path / ".corpus"
+def test_change_detector_reads_base_snapshot_from_legal_source_store(tmp_path: Path) -> None:
+    storage_root = tmp_path / ".legal-source"
     object_key = (
         "legal-source-snapshots/catalog_vbpl_vn/LAW-71-2025-QH15/"
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/"
@@ -57,10 +57,10 @@ def test_change_detector_reads_base_snapshot_from_corpus_store(tmp_path: Path) -
     )
 
 
-def test_change_detector_rejects_base_snapshot_outside_corpus_store(
+def test_change_detector_rejects_base_snapshot_outside_legal_source_store(
     tmp_path: Path,
 ) -> None:
-    storage_root = tmp_path / ".corpus"
+    storage_root = tmp_path / ".legal-source"
     api_client = MagicMock()
     api_client.get_official_source_snapshot.return_value = {
         "snapshotObjectKey": "../outside.html",
@@ -123,7 +123,7 @@ def test_source_change_uses_complete_acquisition_then_the_canonical_preparation(
     context = SimpleNamespace(to_dict=lambda: {"documentId": "LAW-TEST"})
     monkeypatch.setattr(module, "build_partial_update_context", lambda **_: context if changed else None)
     calls = []
-    monkeypatch.setattr(module.OfficialCorpusAcquisition, "run", lambda _self, message, corr: calls.append((message, corr)))
+    monkeypatch.setattr(module.OfficialLegalSourceAcquisition, "run", lambda _self, message, corr: calls.append((message, corr)))
     requests = [{
         "documentId": envelope.document_id,
         "sourceUrl": envelope.source_url,

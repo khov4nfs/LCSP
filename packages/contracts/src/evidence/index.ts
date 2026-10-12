@@ -3,7 +3,7 @@ export * from "./agentic-tool.ts";
 export * from "./assessment-runtime.ts";
 export * from "./worker-agent-stream.ts";
 export * from "./assessment-runtime-control.ts";
-export * from "./activate-validated-corpus-version.ts";
+export * from "./activate-validated-legal-source-version.ts";
 export * from "./fetch-official-source-snapshot.ts";
 export * from "./extract-official-text.ts";
 export * from "./run-ocr-fallback.ts";

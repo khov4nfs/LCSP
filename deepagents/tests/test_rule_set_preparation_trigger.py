@@ -14,7 +14,7 @@ from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBo
 from tools.common.capabilities.agent_runtime.invocation import AGENT_INVOCATION_BOUNDARIES
 from tools.common.capabilities.package.contract.api_client_contracts import InternalPath
 from tools.common.capabilities.platform.api_client import WorkerApiClient, WorkerCallbackError
-from tools.legal.sources.ingest import official_corpus_acquisition as driver_module
+from tools.legal.sources.ingest import official_legal_source_acquisition as driver_module
 
 CONFIG = SimpleNamespace(nestjs_api_base_url="http://api.invalid", worker_api_key="k" * 40)
 
@@ -74,7 +74,7 @@ def test_a_duplicated_command_is_refused_at_the_claim_and_never_runs_the_agent(
 ) -> None:
     """A second delivery finds the run claimed (409): no second paid model run, no failure recorded."""
     api = _Api(WorkerCallbackError("conflict", status_code=409))
-    monkeypatch.setattr(runner_module, "materialize_corpus", lambda *_: pytest.fail("must not read the corpus"))
+    monkeypatch.setattr(runner_module, "materialize_legal_source", lambda *_: pytest.fail("must not read the legal_source"))
     monkeypatch.setattr(runner_module, "create_rule_set_preparation_agent", lambda **_: pytest.fail("must not build the agent"))
 
     result = runner_module.run_rule_set_preparation(api, "run-1")

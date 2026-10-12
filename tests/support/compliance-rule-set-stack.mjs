@@ -13,7 +13,7 @@ export const python = path.join(root, "deepagents/.venv/bin/python");
 export const workerKey = "compliance_rule_set-vertical-worker-key-at-least-32-chars";
 export const pythonPath = [path.join(root, "deepagents"), path.join(root, "deepagents/tests")].join(":");
 export const sha = (text) => createHash("sha256").update(text).digest("hex");
-export const contentHash = (text) => `sha256:${sha(text)}`; // corpus representation of chunk hashes
+export const contentHash = (text) => `sha256:${sha(text)}`; // legalSource representation of chunk hashes
 const { Client } = createRequire(path.join(apiDir, "package.json"))("pg");
 
 export async function startStack({ database, apiPort, dbPort = Number(process.env.LCSP_TEST_PG_PORT ?? 55441), resetDatabase = true }) {
@@ -104,52 +104,52 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
   const post = (route, body, key = workerKey) => call("POST", route, body, key);
   const get = (route, key = workerKey) => call("GET", route, undefined, key);
 
-  /** Seeds one pinned corpus (document + chunks + VALID retrieval index). chunks: {locator, content, contentSha256}. */
-  async function seedCorpus({ name, status, documentId, chunks }) {
-    const corpusId = randomUUID();
+  /** Seeds one pinned legalSource (document + chunks + VALID retrieval index). chunks: {locator, content, contentSha256}. */
+  async function seedLegalSource({ name, status, documentId, chunks }) {
+    const legalSourceId = randomUUID();
     await q(
-      `INSERT INTO "LegalCorpusVersion"(id, version, status, "sourceManifest") VALUES ($1,$2,$3::"LegalRuleLifecycleStatus",'{}')`,
-      [corpusId, name, status],
+      `INSERT INTO "LegalSourceVersion"(id, version, status, "sourceManifest") VALUES ($1,$2,$3::"LegalSourceLifecycleStatus",'{}')`,
+      [legalSourceId, name, status],
     );
     const documentRow = randomUUID();
     await q(
-      `INSERT INTO "LegalSourceDocument"(id,"legalCorpusVersionId","documentId",title,"sourceUrl","sourceSha256","sourceEffectStatus")
+      `INSERT INTO "LegalSourceDocument"(id,"legalSourceVersionId","documentId",title,"sourceUrl","sourceSha256","sourceEffectStatus")
        VALUES ($1,$2,$3,'Synthetic notice','https://example.invalid/n',$4,'IN_FORCE')`,
-      [documentRow, corpusId, documentId, contentHash(name)],
+      [documentRow, legalSourceId, documentId, contentHash(name)],
     );
     for (const chunk of chunks) {
       await q(
-        `INSERT INTO "LegalDocumentChunk"(id,"legalCorpusVersionId","legalSourceDocumentId","documentId",locator,content,"contentSha256",hierarchy,"legalStatus")
+        `INSERT INTO "LegalDocumentChunk"(id,"legalSourceVersionId","legalSourceDocumentId","documentId",locator,content,"contentSha256",hierarchy,"legalStatus")
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,'IN_FORCE')`,
-        [`${name}-${chunk.locator}`, corpusId, documentRow, documentId, chunk.locator, chunk.content, chunk.contentSha256, JSON.stringify(chunk.hierarchy ?? {})],
+        [`${name}-${chunk.locator}`, legalSourceId, documentRow, documentId, chunk.locator, chunk.content, chunk.contentSha256, JSON.stringify(chunk.hierarchy ?? {})],
       );
     }
     await q(
-      `INSERT INTO "LegalRetrievalIndex"(id,"legalCorpusVersionId",version,status,"configHash","contentHash","validationManifestRef","validatedAt")
+      `INSERT INTO "LegalRetrievalIndex"(id,"legalSourceVersionId",version,status,"configHash","contentHash","validationManifestRef","validatedAt")
        VALUES ($1,$2,$3,'VALID',$4,$4,$5,now())`,
-      [randomUUID(), corpusId, `index-${name}`, "c".repeat(64), `manifest:${name}`],
+      [randomUUID(), legalSourceId, `index-${name}`, "c".repeat(64), `manifest:${name}`],
     );
-    return corpusId;
+    return legalSourceId;
   }
 
   /**
-   * Delivers `times` Legal Source activation events for `corpusId` to the real consumer (see
+   * Delivers `times` Legal Source activation events for `legalSourceId` to the real consumer (see
    * deliver-legal-source-activation.mjs) and returns that source's Rule Set Preparation runs.
    */
-  async function activateLegalSource(corpusId, { times = 1, concurrent = false } = {}) {
-    const events = Array.from({ length: times }, () => ({ legalSourceVersionId: corpusId, correlationId: randomUUID() }));
+  async function activateLegalSource(legalSourceId, { times = 1, concurrent = false } = {}) {
+    const events = Array.from({ length: times }, () => ({ legalSourceVersionId: legalSourceId, correlationId: randomUUID() }));
     const delivered = spawnSync("node", [path.join(root, "tests/support/deliver-legal-source-activation.mjs"), JSON.stringify({ events, concurrent })], {
       cwd: root, encoding: "utf8", env: apiEnv,
     });
     assert.equal(delivered.status, 0, delivered.stdout + delivered.stderr);
     const result = JSON.parse(delivered.stdout.trim().split("\n").filter((line) => line.startsWith("{")).pop());
     const runs = (
-      await q(`SELECT id, "idempotencyKey", "requestedBy", "executionState" FROM "LegalPreparationRun" WHERE "legalCorpusVersionId"=$1 ORDER BY "createdAt"`, [corpusId])
+      await q(`SELECT id, "idempotencyKey", "requestedBy", "executionState" FROM "RuleSetPreparationRun" WHERE "legalSourceVersionId"=$1 ORDER BY "createdAt"`, [legalSourceId])
     ).rows;
     return { ...result, runs, preparationRunId: runs[0]?.id ?? null };
   }
 
-  return { db, q, base, post, get, stop, seedCorpus, activateLegalSource, databaseUrl, logs: log };
+  return { db, q, base, post, get, stop, seedLegalSource, activateLegalSource, databaseUrl, logs: log };
 }
 
 /** Runs a Python script with the repo PYTHONPATH; resolves with the last JSON line it prints. */

@@ -6,16 +6,16 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, Protocol
 
-from tools.legal.corpus.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
+from tools.legal.legal_source.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
 from tools.legal.retrieval.index.chroma_path import default_legal_chroma_path
 from tools.legal.retrieval.index.chroma_vectorless import zero_embeddings
-from tools.legal.corpus.legal_chunks.legal_chunk_repository import (
+from tools.legal.legal_source.legal_chunks.legal_chunk_repository import (
     LegalChunkRepository,
     LegalChunkSetRecord,
 )
 from .legal_retrieval_index_repository import LegalRetrievalIndexRecord
 from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
-from tools.legal.corpus.relationships.relationship_manifest_repository import (
+from tools.legal.legal_source.relationships.relationship_manifest_repository import (
     RelationshipManifestRepository,
 )
 
@@ -419,7 +419,7 @@ class LegalRetrievalIndexBuilder:
             raise RuntimeError("invalid chunk metadata")
         effect_metadata = _effect_metadata(hierarchy.get("legalEffectObservations"))
         metadata = {
-            "corpus_version_id": "",
+            "legal_source_version_id": "",
             "doc_id": chunk_id.split(":", 1)[0],
             "document_number": str(hierarchy.get("documentNumber", "")),
             "document_title": str(hierarchy.get("documentTitle", "")),

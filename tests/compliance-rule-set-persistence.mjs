@@ -63,42 +63,42 @@ const H = "a".repeat(64);
 let seq = 0;
 const id = () => `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}`;
 
-async function corpus(name, status) {
+async function legalSource(name, status) {
   const c = id();
   await q(
-    `INSERT INTO "LegalCorpusVersion"(id, version, status, "sourceManifest") VALUES ($1,$2,$3::"LegalRuleLifecycleStatus",'{}')`,
+    `INSERT INTO "LegalSourceVersion"(id, version, status, "sourceManifest") VALUES ($1,$2,$3::"LegalSourceLifecycleStatus",'{}')`,
     [c, name, status],
   );
   const d = id();
   await q(
-    `INSERT INTO "LegalSourceDocument"(id, "legalCorpusVersionId", "documentId", title, "sourceUrl", "sourceSha256", "sourceEffectStatus")
+    `INSERT INTO "LegalSourceDocument"(id, "legalSourceVersionId", "documentId", title, "sourceUrl", "sourceSha256", "sourceEffectStatus")
      VALUES ($1,$2,'doc-1','t','u',$3,'IN_FORCE')`,
     [d, c, H],
   );
   const chunk = `chunk-${name}`;
   await q(
-    `INSERT INTO "LegalDocumentChunk"(id, "legalCorpusVersionId", "legalSourceDocumentId", "documentId", locator, content, "contentSha256", hierarchy, "legalStatus")
+    `INSERT INTO "LegalDocumentChunk"(id, "legalSourceVersionId", "legalSourceDocumentId", "documentId", locator, content, "contentSha256", hierarchy, "legalStatus")
      VALUES ($1,$2,$3,'doc-1','art-1::cl-1','c',$4,'{}','IN_FORCE')`,
     [chunk, c, d, H],
   );
-  return { corpusId: c, chunk };
+  return { legalSourceId: c, chunk };
 }
 
 async function ruleSet(c, name, state = "BUILDING", extra = {}) {
   const run = id();
   await q(
-    `INSERT INTO "LegalPreparationRun"(id, "idempotencyKey", "legalCorpusVersionId", "requestedBy", "correlationId")
+    `INSERT INTO "RuleSetPreparationRun"(id, "idempotencyKey", "legalSourceVersionId", "requestedBy", "correlationId")
      VALUES ($1,$2,$3,'svc','corr')`,
-    [run, `run-${name}`, c.corpusId],
+    [run, `run-${name}`, c.legalSourceId],
   );
   const p = id();
   const outcome = state === "BUILDING" ? null : state === "INVALID" ? "FAILED" : "PASSED";
   const failures = state === "INVALID" ? '[{"code":"X"}]' : "[]";
   await q(
-    `INSERT INTO "LegalPortfolioVersion"(id, version, "legalCorpusVersionId", "preparationRunId", "lifecycleState", "portfolioDigest", "validationOutcome", "validationFailures", "activatedAt", "supersededAt")
-     VALUES ($1,$2,$3,$4,$5::"ArtifactLifecycleState",$6,$7::"LegalPortfolioValidationOutcome",$8::jsonb,$9,$10)`,
+    `INSERT INTO "ComplianceRuleSetVersion"(id, version, "legalSourceVersionId", "preparationRunId", "lifecycleState", "ruleSetDigest", "validationOutcome", "validationFailures", "activatedAt", "supersededAt")
+     VALUES ($1,$2,$3,$4,$5::"ArtifactLifecycleState",$6,$7::"ComplianceRuleSetValidationOutcome",$8::jsonb,$9,$10)`,
     [
-      p, name, c.corpusId, run, state, H, outcome, failures,
+      p, name, c.legalSourceId, run, state, H, outcome, failures,
       state === "ACTIVE" || state === "SUPERSEDED" ? new Date() : null,
       state === "SUPERSEDED" ? new Date() : null,
     ],
@@ -109,8 +109,8 @@ async function ruleSet(c, name, state = "BUILDING", extra = {}) {
 async function rule(p, legalRequirementId, coverage = "COVERED_BY_ASSESSMENT_RULES", reason = null) {
   const r = id();
   await q(
-    `INSERT INTO "LegalPortfolioRule"(id, "portfolioVersionId", "legalRuleId", title, proposition, "applicabilityConditions", qualifiers, exceptions, "nonRepositoryDuty", "coverageState", "nonAssessableReason", "contentDigest", ordinal)
-     VALUES ($1,$2,$3,'t','p','[]','[]','[]',false,$4::"LegalPortfolioCoverageState",$5,$6,0)`,
+    `INSERT INTO "LegalRequirement"(id, "ruleSetVersionId", "legalRequirementId", title, proposition, "applicabilityConditions", qualifiers, exceptions, "nonRepositoryDuty", "coverageState", "nonAssessableReason", "contentDigest", ordinal)
+     VALUES ($1,$2,$3,'t','p','[]','[]','[]',false,$4::"LegalRequirementCoverageState",$5,$6,0)`,
     [r, p.id, legalRequirementId, coverage, reason, H],
   );
   return r;
@@ -119,7 +119,7 @@ async function rule(p, legalRequirementId, coverage = "COVERED_BY_ASSESSMENT_RUL
 async function assessmentRule(p, assessmentRuleId) {
   const e = id();
   await q(
-    `INSERT INTO "EngineeringRule"(id, "portfolioVersionId", "engineeringRuleId", "engineeringRuleVersion", concept, "legalIntent", "applicabilityGuidance", criteria, contract, "sourceFingerprint", "contentDigest", ordinal)
+    `INSERT INTO "AssessmentRule"(id, "ruleSetVersionId", "assessmentRuleId", "assessmentRuleVersion", concept, "legalIntent", "applicabilityGuidance", criteria, contract, "sourceFingerprint", "contentDigest", ordinal)
      VALUES ($1,$2,$3,'v1','c','i','g','[]','{}',$4,$4,0)`,
     [e, p.id, assessmentRuleId, H],
   );
@@ -127,15 +127,15 @@ async function assessmentRule(p, assessmentRuleId) {
 }
 
 try {
-  const cA = await corpus("corpus-a", "APPROVED");
-  const cB = await corpus("corpus-b", "SUPERSEDED");
+  const cA = await legalSource("legalSource-a", "ACTIVE");
+  const cB = await legalSource("legalSource-b", "SUPERSEDED");
 
   // 1. at most one ACTIVE rule set
   const active = await ruleSet(cA, "p-active", "ACTIVE");
   const second = await ruleSet(cA, "p-second", "BUILDING");
   await rejects(
     "second ACTIVE ruleSet rejected",
-    `UPDATE "LegalPortfolioVersion" SET "lifecycleState"='ACTIVE', "validationOutcome"='PASSED', "activatedAt"=now() WHERE id=$1`,
+    `UPDATE "ComplianceRuleSetVersion" SET "lifecycleState"='ACTIVE', "validationOutcome"='PASSED', "activatedAt"=now() WHERE id=$1`,
     [second.id],
     /23505|single_active/u,
   );
@@ -143,14 +143,14 @@ try {
   // 2. state consistency checks
   await rejects(
     "ACTIVE without validation PASSED rejected",
-    `INSERT INTO "LegalPortfolioVersion"(id, version, "legalCorpusVersionId", "preparationRunId", "lifecycleState", "portfolioDigest")
-     SELECT $1,'p-bad',$2, r.id, 'ACTIVE', $3 FROM "LegalPreparationRun" r LIMIT 1`,
-    [id(), cA.corpusId, H],
+    `INSERT INTO "ComplianceRuleSetVersion"(id, version, "legalSourceVersionId", "preparationRunId", "lifecycleState", "ruleSetDigest")
+     SELECT $1,'p-bad',$2, r.id, 'ACTIVE', $3 FROM "RuleSetPreparationRun" r LIMIT 1`,
+    [id(), cA.legalSourceId, H],
     /23514|23505|state_consistency|unique/u,
   );
   await rejects(
     "BUILDING with a validation outcome rejected",
-    `UPDATE "LegalPortfolioVersion" SET "validationOutcome"='PASSED' WHERE id=$1`,
+    `UPDATE "ComplianceRuleSetVersion" SET "validationOutcome"='PASSED' WHERE id=$1`,
     [second.id],
     /23514|state_consistency/u,
   );
@@ -159,44 +159,44 @@ try {
   const invalid = await ruleSet(cA, "p-invalid", "INVALID");
   await rejects(
     "INVALID is terminal",
-    `UPDATE "LegalPortfolioVersion" SET "lifecycleState"='ACTIVE', "validationOutcome"='PASSED', "activatedAt"=now() WHERE id=$1`,
+    `UPDATE "ComplianceRuleSetVersion" SET "lifecycleState"='ACTIVE', "validationOutcome"='PASSED', "activatedAt"=now() WHERE id=$1`,
     [invalid.id],
-    /illegal legal portfolio lifecycle transition|validation result is immutable/u,
+    /illegal compliance rule set lifecycle transition|validation result is immutable/u,
   );
   await rejects(
     "ACTIVE cannot return to BUILDING",
-    `UPDATE "LegalPortfolioVersion" SET "lifecycleState"='BUILDING' WHERE id=$1`,
+    `UPDATE "ComplianceRuleSetVersion" SET "lifecycleState"='BUILDING' WHERE id=$1`,
     [active.id],
-    /illegal legal portfolio lifecycle transition|state_consistency/u,
+    /illegal compliance rule set lifecycle transition|state_consistency/u,
   );
   await rejects(
     "ruleSet identity is immutable",
-    `UPDATE "LegalPortfolioVersion" SET "portfolioDigest"=$2 WHERE id=$1`,
+    `UPDATE "ComplianceRuleSetVersion" SET "ruleSetDigest"=$2 WHERE id=$1`,
     [active.id, "b".repeat(64)],
     /identity is immutable/u,
   );
   await rejects(
     "ruleSet history cannot be deleted",
-    `DELETE FROM "LegalPortfolioVersion" WHERE id=$1`,
+    `DELETE FROM "ComplianceRuleSetVersion" WHERE id=$1`,
     [invalid.id],
     /cannot be deleted/u,
   );
   // audited rollback: SUPERSEDED -> ACTIVE is legal once the pointer is free
   await ok(
     "supersede",
-    `UPDATE "LegalPortfolioVersion" SET "lifecycleState"='SUPERSEDED', "supersededAt"=now() WHERE id=$1`,
+    `UPDATE "ComplianceRuleSetVersion" SET "lifecycleState"='SUPERSEDED', "supersededAt"=now() WHERE id=$1`,
     [active.id],
   );
   await ok(
     "rollback SUPERSEDED -> ACTIVE",
-    `UPDATE "LegalPortfolioVersion" SET "lifecycleState"='ACTIVE', "supersededAt"=NULL WHERE id=$1`,
+    `UPDATE "ComplianceRuleSetVersion" SET "lifecycleState"='ACTIVE', "supersededAt"=NULL WHERE id=$1`,
     [active.id],
   );
 
   // 4. coverage reason + immutability of children
   await rejects(
     "NON_ASSESSABLE needs a reason",
-    `INSERT INTO "LegalPortfolioRule"(id, "portfolioVersionId", "legalRuleId", title, proposition, "applicabilityConditions", qualifiers, exceptions, "nonRepositoryDuty", "coverageState", "contentDigest", ordinal)
+    `INSERT INTO "LegalRequirement"(id, "ruleSetVersionId", "legalRequirementId", title, proposition, "applicabilityConditions", qualifiers, exceptions, "nonRepositoryDuty", "coverageState", "contentDigest", ordinal)
      VALUES ($1,$2,'LR-X','t','p','[]','[]','[]',true,'NON_ASSESSABLE',$3,0)`,
     [id(), active.id, H],
     /23514|coverage_reason/u,
@@ -206,120 +206,120 @@ try {
   await rule(active, "LR-2", "NON_ASSESSABLE", "organizational duty");
   await rejects(
     "duplicate legal rule id within ruleSet rejected",
-    `INSERT INTO "LegalPortfolioRule"(id, "portfolioVersionId", "legalRuleId", title, proposition, "applicabilityConditions", qualifiers, exceptions, "nonRepositoryDuty", "coverageState", "contentDigest", ordinal)
+    `INSERT INTO "LegalRequirement"(id, "ruleSetVersionId", "legalRequirementId", title, proposition, "applicabilityConditions", qualifiers, exceptions, "nonRepositoryDuty", "coverageState", "contentDigest", ordinal)
      VALUES ($1,$2,'LR-1','t','p','[]','[]','[]',false,'COVERED_BY_ASSESSMENT_RULES',$3,0)`,
     [id(), active.id, H],
     /23505/u,
   );
-  await rejects("rules are immutable (update)", `UPDATE "LegalPortfolioRule" SET title='x' WHERE id=$1`, [r1], /immutable once written/u);
-  await rejects("rules are immutable (delete)", `DELETE FROM "LegalPortfolioRule" WHERE id=$1`, [r1], /immutable once written/u);
+  await rejects("rules are immutable (update)", `UPDATE "LegalRequirement" SET title='x' WHERE id=$1`, [r1], /immutable once written/u);
+  await rejects("rules are immutable (delete)", `DELETE FROM "LegalRequirement" WHERE id=$1`, [r1], /immutable once written/u);
 
   // 5. same-rule-set ownership of the assessment-rule <-> legal-requirement link
   const e1 = await assessmentRule(active, "ER-1");
   await ok(
     "link within one ruleSet",
-    `INSERT INTO "EngineeringRuleLegalRule"("portfolioVersionId","engineeringRuleRowId","portfolioRuleId") VALUES ($1,$2,$3)`,
+    `INSERT INTO "AssessmentRuleLegalRequirement"("ruleSetVersionId","assessmentRuleRowId","legalRequirementRowId") VALUES ($1,$2,$3)`,
     [active.id, e1, r1],
   );
   const other = await ruleSet(cB, "p-other", "BUILDING");
   const foreignRule = await rule(other, "LR-1");
   await rejects(
     "cross-rule-set link rejected",
-    `INSERT INTO "EngineeringRuleLegalRule"("portfolioVersionId","engineeringRuleRowId","portfolioRuleId") VALUES ($1,$2,$3)`,
+    `INSERT INTO "AssessmentRuleLegalRequirement"("ruleSetVersionId","assessmentRuleRowId","legalRequirementRowId") VALUES ($1,$2,$3)`,
     [active.id, e1, foreignRule],
     /23503/u,
   );
 
-  // 6. provenance chunk must belong to the rule set's own corpus
+  // 6. provenance chunk must belong to the rule set's own legalSource
   await ok(
-    "provenance in own corpus",
-    `INSERT INTO "LegalRuleProvenance"(id,"portfolioVersionId","portfolioRuleId","legalCorpusVersionId","chunkId","documentId",locator,"contentSha256","sourceEffectStatus",ordinal)
+    "provenance in own legalSource",
+    `INSERT INTO "LegalRequirementProvenance"(id,"ruleSetVersionId","legalRequirementRowId","legalSourceVersionId","chunkId","documentId",locator,"contentSha256","sourceEffectStatus",ordinal)
      VALUES ($1,$2,$3,$4,$5,'doc-1','art-1::cl-1',$6,'IN_FORCE',0)`,
-    [id(), active.id, r1, cA.corpusId, cA.chunk, H],
+    [id(), active.id, r1, cA.legalSourceId, cA.chunk, H],
   );
   await rejects(
-    "provenance from another corpus rejected (mixed corpus)",
-    `INSERT INTO "LegalRuleProvenance"(id,"portfolioVersionId","portfolioRuleId","legalCorpusVersionId","chunkId","documentId",locator,"contentSha256","sourceEffectStatus",ordinal)
+    "provenance from another legalSource rejected (mixed legalSource)",
+    `INSERT INTO "LegalRequirementProvenance"(id,"ruleSetVersionId","legalRequirementRowId","legalSourceVersionId","chunkId","documentId",locator,"contentSha256","sourceEffectStatus",ordinal)
      VALUES ($1,$2,$3,$4,$5,'doc-1','art-1::cl-1',$6,'IN_FORCE',1)`,
-    [id(), active.id, r1, cA.corpusId, cB.chunk, H],
+    [id(), active.id, r1, cA.legalSourceId, cB.chunk, H],
     /23503/u,
   );
 
   // 7. context relations: exactly one target, same rule set
   await ok(
     "relation to a source chunk",
-    `INSERT INTO "LegalRuleContextRelation"(id,"portfolioVersionId","relationId",kind,"fromRuleId","toChunkId","legalCorpusVersionId","relationDigest",ordinal)
+    `INSERT INTO "LegalRequirementContextRelation"(id,"ruleSetVersionId","relationId",kind,"fromRuleId","toChunkId","legalSourceVersionId","relationDigest",ordinal)
      VALUES ($1,$2,'REL-1','EXCEPTION',$3,$4,$5,$6,0)`,
-    [id(), active.id, r1, cA.chunk, cA.corpusId, H],
+    [id(), active.id, r1, cA.chunk, cA.legalSourceId, H],
   );
   await rejects(
     "relation with no target rejected",
-    `INSERT INTO "LegalRuleContextRelation"(id,"portfolioVersionId","relationId",kind,"fromRuleId","legalCorpusVersionId","relationDigest",ordinal)
+    `INSERT INTO "LegalRequirementContextRelation"(id,"ruleSetVersionId","relationId",kind,"fromRuleId","legalSourceVersionId","relationDigest",ordinal)
      VALUES ($1,$2,'REL-2','SCOPE',$3,$4,$5,0)`,
-    [id(), active.id, r1, cA.corpusId, H],
+    [id(), active.id, r1, cA.legalSourceId, H],
     /23514|exactly_one_target/u,
   );
   await rejects(
     "relation to a rule of another ruleSet rejected (orphan)",
-    `INSERT INTO "LegalRuleContextRelation"(id,"portfolioVersionId","relationId",kind,"fromRuleId","toRuleId","legalCorpusVersionId","relationDigest",ordinal)
+    `INSERT INTO "LegalRequirementContextRelation"(id,"ruleSetVersionId","relationId",kind,"fromRuleId","toRuleId","legalSourceVersionId","relationDigest",ordinal)
      VALUES ($1,$2,'REL-3','DEFINITION',$3,$4,$5,$6,0)`,
-    [id(), active.id, r1, foreignRule, cA.corpusId, H],
+    [id(), active.id, r1, foreignRule, cA.legalSourceId, H],
     /23503/u,
   );
 
   // 8. activation record is mechanical audit: failures required iff FAILED; one per rule set
   await rejects(
     "FAILED activation needs failure codes",
-    `INSERT INTO "LegalPortfolioActivationRecord"(id,"portfolioVersionId","preparationRunId","idempotencyKey","requestDigest","validationOutcome","validationFailures","correlationId")
+    `INSERT INTO "ComplianceRuleSetActivationRecord"(id,"ruleSetVersionId","preparationRunId","idempotencyKey","requestDigest","validationOutcome","validationFailures","correlationId")
      VALUES ($1,$2,$3,'k-1',$4,'FAILED','[]','c')`,
     [id(), invalid.id, invalid.run, H],
     /23514|failures_check/u,
   );
   await ok(
     "activation record",
-    `INSERT INTO "LegalPortfolioActivationRecord"(id,"portfolioVersionId","preparationRunId","idempotencyKey","requestDigest","validationOutcome","validationFailures","correlationId")
+    `INSERT INTO "ComplianceRuleSetActivationRecord"(id,"ruleSetVersionId","preparationRunId","idempotencyKey","requestDigest","validationOutcome","validationFailures","correlationId")
      VALUES ($1,$2,$3,'k-2',$4,'FAILED','[{"code":"X"}]','c')`,
     [id(), invalid.id, invalid.run, H],
   );
   await rejects(
     "second activation record for one ruleSet rejected",
-    `INSERT INTO "LegalPortfolioActivationRecord"(id,"portfolioVersionId","preparationRunId","idempotencyKey","requestDigest","validationOutcome","validationFailures","correlationId")
+    `INSERT INTO "ComplianceRuleSetActivationRecord"(id,"ruleSetVersionId","preparationRunId","idempotencyKey","requestDigest","validationOutcome","validationFailures","correlationId")
      VALUES ($1,$2,$3,'k-3',$4,'FAILED','[{"code":"X"}]','c')`,
     [id(), invalid.id, invalid.run, H],
     /23505/u,
   );
 
-  // 9. a pinned corpus cannot be deleted while a rule set references it
+  // 9. a pinned legalSource cannot be deleted while a rule set references it
   await rejects(
-    "corpus delete is restricted",
-    `DELETE FROM "LegalCorpusVersion" WHERE id=$1`,
-    [cA.corpusId],
+    "legalSource delete is restricted",
+    `DELETE FROM "LegalSourceVersion" WHERE id=$1`,
+    [cA.legalSourceId],
     /23503/u,
   );
 
   // 9b. a preparation run is FAILED exactly when it records a failure reason
   await rejects(
     "FAILED run without a failure reason rejected",
-    `UPDATE "LegalPreparationRun" SET "executionState"='FAILED' WHERE id=$1`,
+    `UPDATE "RuleSetPreparationRun" SET "executionState"='FAILED' WHERE id=$1`,
     [active.run],
     /23514|failure_reason/u,
   );
   await rejects(
     "failure reason on a non-failed run rejected",
-    `UPDATE "LegalPreparationRun" SET "failureReason"='NO_SUBMISSION' WHERE id=$1`,
+    `UPDATE "RuleSetPreparationRun" SET "failureReason"='NO_SUBMISSION' WHERE id=$1`,
     [active.run],
     /23514|failure_reason/u,
   );
   await ok(
     "FAILED run with a reason",
-    `UPDATE "LegalPreparationRun" SET "executionState"='FAILED', "failureReason"='NO_SUBMISSION' WHERE id=$1`,
+    `UPDATE "RuleSetPreparationRun" SET "executionState"='FAILED', "failureReason"='NO_SUBMISSION' WHERE id=$1`,
     [second.run],
   );
 
   // The final schema has no approval-era catalog column.
   const v1 = await q(
     `SELECT count(*)::int AS n FROM information_schema.columns
-      WHERE table_name = 'LegalRequirement' AND column_name = 'legalRuleCatalogVersionId'`,
+      WHERE table_name = 'LegalRequirement' AND column_name = 'legalSourceVersionId'`,
   );
   assert.equal(v1.rows[0].n, 0);
   checks += 1;

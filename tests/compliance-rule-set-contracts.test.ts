@@ -133,7 +133,7 @@ test("source claims need a well-formed hash and relations need exactly one targe
   const badHash = validPacket();
   badHash.legalRequirements[0]!.sourceRefs[0]!.contentSha256 = "not-a-hash";
   assert.equal(complianceRuleSetPacketSchema.safeParse(badHash).success, false);
-  // the bare hex form is not the corpus representation and is rejected
+  // the bare hex form is not the legalSource representation and is rejected
   badHash.legalRequirements[0]!.sourceRefs[0]!.contentSha256 = "a".repeat(64);
   assert.equal(complianceRuleSetPacketSchema.safeParse(badHash).success, false);
 

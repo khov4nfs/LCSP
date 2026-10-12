@@ -75,7 +75,7 @@ test("Admin i18n invariance: dynamic runtime values must not be translated", () 
   const sampleRuntimeData = {
     email: "admin@corp.internal",
     userId: "usr_01HXYZ12345",
-    corpusVersion: "v2026.09.01-draft",
+    legalSourceVersion: "v2026.09.01-draft",
     sourceCount: 42,
     ruleCount: 110,
     timestamp: "2026-09-08T18:00:00.000Z",
@@ -99,7 +99,7 @@ test("Admin i18n invariance: dynamic runtime values must not be translated", () 
     return {
       email: data.email, // Dynamic: unchanged
       userId: data.userId, // Dynamic: unchanged
-      version: data.corpusVersion, // Dynamic: unchanged
+      version: data.legalSourceVersion, // Dynamic: unchanged
       sources: data.sourceCount, // Dynamic: unchanged
       rules: data.ruleCount, // Dynamic: unchanged
       timestamp: data.timestamp, // Dynamic: unchanged

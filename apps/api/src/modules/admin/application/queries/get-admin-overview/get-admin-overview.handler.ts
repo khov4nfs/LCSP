@@ -4,7 +4,7 @@ import {
   ADMIN_OVERVIEW_PERIODS,
   AUTH_AUDIT_EVENT_TYPES,
   USER_ACCESS_STATUSES,
-  type AdminCorpusStatusSummary,
+  type AdminLegalSourceStatusSummary,
   type AdminOverviewAccountDistribution,
   type AdminOverviewActionKey,
   type AdminOverviewActivityPoint,
@@ -14,13 +14,13 @@ import {
 } from "@lcsp/contracts/auth";
 import { ASSESSMENT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
-  LEGAL_RULE_EVENT_TYPES,
-  LEGAL_RULE_LIFECYCLE_STATUSES,
-} from "@lcsp/contracts/legal-rule-catalog";
+  LEGAL_SOURCE_EVENT_TYPES,
+  LEGAL_SOURCE_LIFECYCLE_STATUSES,
+} from "@lcsp/contracts/legal-source";
 
 import { isRecord } from "@lcsp/contracts/shared";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { toPrismaLegalRuleLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { toPrismaLegalSourceLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { GetAdminOverviewQuery } from "./get-admin-overview.query.js";
 
 /**
@@ -30,14 +30,14 @@ const ADMIN_AUDIT_EVENT_TYPES_LIST = [
   AUTH_AUDIT_EVENT_TYPES.authAdminUserSuspended,
   AUTH_AUDIT_EVENT_TYPES.authAdminUserRestored,
   AUTH_AUDIT_EVENT_TYPES.authAdminInvitationCreated,
-  LEGAL_RULE_EVENT_TYPES.corpusVersionActivated,
+  LEGAL_SOURCE_EVENT_TYPES.legalSourceVersionActivated,
 ];
 
 /**
  * Handles administrative query to aggregate system-wide overview statistics:
  * - User population and growth within selected period (7d, 30d, 90d).
  * - Assessment volumes and completion metrics.
- * - Legal corpus versioning lifecycle status.
+ * - Legal legalSource versioning lifecycle status.
  * - Assessment activity timeline distribution.
  * - Recent administrative actions and audit history.
  */
@@ -68,8 +68,8 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
       periodNewUsersCount,
       totalAssessmentsCount,
       periodCompletedAssessmentsCount,
-      publishedCorpus,
-      draftCorpus,
+      activatedLegalSource,
+      draftLegalSource,
       periodAssessments,
       recentAuditEvents,
     ] = await Promise.all([
@@ -91,17 +91,17 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
       }),
       this.prisma.legalSourceVersion.findFirst({
         where: {
-          status: toPrismaLegalRuleLifecycleStatus(
-            LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+          status: toPrismaLegalSourceLifecycleStatus(
+            LEGAL_SOURCE_LIFECYCLE_STATUSES.active,
           ),
         },
         include: { _count: { select: { documents: true } } },
-        orderBy: { approvedAt: "desc" },
+        orderBy: { activatedAt: "desc" },
       }),
       this.prisma.legalSourceVersion.findFirst({
         where: {
-          status: toPrismaLegalRuleLifecycleStatus(
-            LEGAL_RULE_LIFECYCLE_STATUSES.draft,
+          status: toPrismaLegalSourceLifecycleStatus(
+            LEGAL_SOURCE_LIFECYCLE_STATUSES.draft,
           ),
         },
         include: { _count: { select: { documents: true } } },
@@ -151,22 +151,23 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
     // Sanitize recent audit events with admin actor metadata
     const recentActivity = await this.sanitizeRecentActivity(recentAuditEvents);
 
-    // Build legal corpus summary
-    const corpusStatus: AdminCorpusStatusSummary = {
-      current: publishedCorpus
+    // Build legal legalSource summary
+    const legalSourceStatus: AdminLegalSourceStatusSummary = {
+      current: activatedLegalSource
         ? {
-            version: publishedCorpus.version,
-            sourceCount: publishedCorpus._count.documents,
+            version: activatedLegalSource.version,
+            sourceCount: activatedLegalSource._count.documents,
             ruleCount: null,
-            publishedAt: publishedCorpus.approvedAt?.toISOString() ?? null,
+            activatedAt:
+              activatedLegalSource.activatedAt?.toISOString() ?? null,
           }
         : null,
-      draft: draftCorpus
+      draft: draftLegalSource
         ? {
-            version: draftCorpus.version,
-            sourceCount: draftCorpus._count.documents,
+            version: draftLegalSource.version,
+            sourceCount: draftLegalSource._count.documents,
             ruleCount: null,
-            createdAt: draftCorpus.createdAt.toISOString(),
+            createdAt: draftLegalSource.createdAt.toISOString(),
           }
         : null,
     };
@@ -195,16 +196,16 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
           totalCount: totalAssessmentsCount,
           periodCompletedCount: periodCompletedAssessmentsCount,
         },
-        currentCorpus: {
-          version: publishedCorpus?.version ?? null,
-          sourceCount: publishedCorpus?._count.documents ?? 0,
+        currentLegalSource: {
+          version: activatedLegalSource?.version ?? null,
+          sourceCount: activatedLegalSource?._count.documents ?? 0,
           ruleCount: null,
         },
       },
       assessmentActivity: activityData,
       accountDistribution,
       recentActivity,
-      corpusStatus,
+      legalSourceStatus,
     };
   }
 
@@ -362,13 +363,13 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
       typeof payload.email === "string" && payload.email.trim()
         ? payload.email.trim()
         : null;
-    const corpusVersionRef =
-      typeof payload.corpusVersionRef === "string" &&
-      payload.corpusVersionRef.trim()
-        ? payload.corpusVersionRef.trim()
+    const legalSourceVersionRef =
+      typeof payload.legalSourceVersionRef === "string" &&
+      payload.legalSourceVersionRef.trim()
+        ? payload.legalSourceVersionRef.trim()
         : null;
 
-    const actualTarget = email || corpusVersionRef || targetUserId;
+    const actualTarget = email || legalSourceVersionRef || targetUserId;
 
     if (eventType === AUTH_AUDIT_EVENT_TYPES.authAdminUserSuspended) {
       return {
@@ -388,9 +389,9 @@ export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQu
         target: actualTarget,
       };
     }
-    if (eventType === LEGAL_RULE_EVENT_TYPES.corpusVersionActivated) {
+    if (eventType === LEGAL_SOURCE_EVENT_TYPES.legalSourceVersionActivated) {
       return {
-        actionKey: ADMIN_OVERVIEW_ACTION_KEYS.publishedCorpus,
+        actionKey: ADMIN_OVERVIEW_ACTION_KEYS.activatedLegalSource,
         target: actualTarget,
       };
     }

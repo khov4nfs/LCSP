@@ -1,5 +1,8 @@
 > HISTORICAL W6 EVIDENCE: superseded by W7. The migration-only CLI and rehearsal source were removed after W6 acceptance. Commands below describe the accepted W6 receipt and must not be run against the W7 schema.
 
+> **Historical W6 migration documentation.** Commands, signals, and pre-cutover identities are retained as migration history. Current pre-merge authority is [the canonical Architecture Freeze](../../../reports/architecture-freeze-migration-manifest.md) and the current PR #367 release receipts; this runbook does not authorize a production operation.
+
+
 ---
 runbook_id: RUNBOOK-w6-forward-migration-and-traffic-cutover
 status: READY_FOR_REVIEW

@@ -45,7 +45,7 @@ def _legal(rule_id: str, locators: list[str], hashes: dict[str, str], *, duty: b
     }
 
 
-def _engineering(rule_id: str, legal_ids: list[str], locators: list[str], hashes: dict[str, str]) -> dict[str, Any]:
+def _assessment_rule(rule_id: str, legal_ids: list[str], locators: list[str], hashes: dict[str, str]) -> dict[str, Any]:
     return {
         "assessmentRuleId": rule_id,
         "legalRequirementIds": legal_ids,
@@ -72,9 +72,9 @@ def build_packet(hashes: dict[str, str]) -> dict[str, Any]:
             _legal("LR-PERSON", ["art-6::cl-1"], hashes, duty=True),
         ],
         "assessmentRules": [
-            _engineering("ER-DEF", ["LR-DEF"], ["art-1::cl-1"], hashes),
-            _engineering("ER-RET", ["LR-RET", "LR-EXC"], ["art-5::cl-1::pt-a", "art-3::cl-1"], hashes),
-            _engineering("ER-XREF", ["LR-XREF"], ["art-4::cl-1::pt-a"], hashes),
+            _assessment_rule("ER-DEF", ["LR-DEF"], ["art-1::cl-1"], hashes),
+            _assessment_rule("ER-RET", ["LR-RET", "LR-EXC"], ["art-5::cl-1::pt-a", "art-3::cl-1"], hashes),
+            _assessment_rule("ER-XREF", ["LR-XREF"], ["art-4::cl-1::pt-a"], hashes),
         ],
         "contextRelations": [
             {"relationId": "REL-EXC", "kind": "EXCEPTION", "fromLegalRequirementId": "LR-RET",
@@ -105,7 +105,7 @@ def main() -> int:
         responses = [AIMessage(content="I could not complete the preparation.")]
     else:
         responses = [
-            _call("read_file", {"file_path": "/corpus/INDEX.md"}, "read-index"),
+            _call("read_file", {"file_path": "/legal-source/INDEX.md"}, "read-index"),
             _call("validate_compliance_rule_set", {"packet": packet}, "validate"),
             _call("submit_compliance_rule_set", {"packet": packet}, "submit"),
             AIMessage(content="DONE"),

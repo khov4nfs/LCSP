@@ -6,7 +6,7 @@ import {
   RULE_SET_PREPARATION_SYSTEM_ACTOR,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
-import { LEGAL_RULE_EVENT_TYPES } from "@lcsp/contracts/legal-rule-catalog";
+import { LEGAL_SOURCE_EVENT_TYPES } from "@lcsp/contracts/legal-source";
 import {
   HttpException,
   Injectable,
@@ -49,7 +49,7 @@ export class LegalSourceActivatedConsumer implements OnModuleInit {
     void this.rabbitMq
       .consume({
         queue: RULE_SET_PREPARATION_QUEUE_NAMES.legalSourceActivated,
-        routingKey: LEGAL_RULE_EVENT_TYPES.corpusVersionActivated,
+        routingKey: LEGAL_SOURCE_EVENT_TYPES.legalSourceVersionActivated,
         handler: (payload) => this.handle(payload),
       })
       .catch((error: unknown) => {

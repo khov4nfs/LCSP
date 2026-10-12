@@ -1,6 +1,6 @@
 {
   "rubricId": "rule-set-preparation-candidate-rubric",
-  "rubricVersion": "LEGAL-PREPARATION-EVAL-RUBRIC-1",
+  "rubricVersion": "RULE-SET-PREPARATION-EVAL-RUBRIC-1",
   "semanticOwner": "RULE_SET_PREPARATION_AGENT",
   "deterministicOwner": "RULE_SET_INTEGRITY_BOUNDARY",
   "dimensions": [
@@ -21,7 +21,7 @@
     },
     {
       "id": "CROSS_REFERENCES",
-      "agentReviewQuestion": "Are definitions, scope, and exception references followed to the same pinned corpus version?",
+      "agentReviewQuestion": "Are definitions, scope, and exception references followed to the same pinned legal source version?",
       "fixtureCaseId": "cross-reference-context"
     },
     {
@@ -30,15 +30,15 @@
       "fixtureCaseId": "non-repository-duty-represented"
     },
     {
-      "id": "CORPUS_VERSION_PINNING",
-      "agentReviewQuestion": "Does every authored proposition and context relation cite one immutable corpus version and exact source identity?",
+      "id": "LEGAL_SOURCE_VERSION_PINNING",
+      "agentReviewQuestion": "Does every authored proposition and context relation cite one immutable legal source version and exact source identity?",
       "fixtureCaseId": "qualifier-retained"
     }
   ],
   "integrityChecks": [
-    "source bytes, source hashes, and corpus versions match the accepted synthetic pins",
+    "source bytes, source hashes, and legal source versions match the accepted synthetic pins",
     "every source and context reference resolves to an accepted locator",
-    "all references in one candidate use one corpus version",
+    "all references in one candidate use one legal source version",
     "duplicate rule IDs and orphan relation endpoints are rejected",
     "fake, stale, and repealed source references are rejected",
     "every required source locator is covered or the candidate is rejected with a coverage gap",
@@ -51,7 +51,7 @@
     "duplicate-rule-id",
     "orphan-context-relation",
     "coverage-gap",
-    "mixed-corpus-versions",
+    "mixed-legal-source-versions",
     "failed-attempt-preserves-earlier-active"
   ],
   "testBoundary": {

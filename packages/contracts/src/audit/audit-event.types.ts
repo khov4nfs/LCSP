@@ -44,7 +44,7 @@ export const AUDIT_RESOURCE_TYPES = {
   githubAppInstallState: "GITHUB_APP_INSTALL_STATE",
   httpRoute: "HTTP_ROUTE",
   complianceRuleSetVersion: "COMPLIANCE_RULE_SET_VERSION",
-  legalRequirement: "LEGAL_RULE",
+  legalRequirement: "LEGAL_REQUIREMENT",
   legalSourceVersion: "LEGAL_SOURCE_VERSION",
   outbox: "OUTBOX",
   repositoryConnection: "REPOSITORY_CONNECTION",

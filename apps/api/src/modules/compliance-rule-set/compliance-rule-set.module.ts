@@ -14,7 +14,7 @@ import { SubmitComplianceRuleSetHandler } from "./application/commands/submit-co
 import { GetActiveComplianceRuleSetHandler } from "./application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.handler.js";
 import { GetComplianceRuleSetVersionHandler } from "./application/queries/get-compliance-rule-set-version/get-compliance-rule-set-version.handler.js";
 import { ValidateComplianceRuleSetHandler } from "./application/queries/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
-import { LegalCorpusSnapshotLoader } from "./infrastructure/persistence/legal-corpus-snapshot.service.js";
+import { LegalSourceSnapshotLoader } from "./infrastructure/persistence/legal-source-snapshot.service.js";
 import { ComplianceRuleSetActivation } from "./infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { ComplianceRuleSetReadModelLoader } from "./infrastructure/persistence/compliance-rule-set-read-model.service.js";
 import { LegalSourceActivatedConsumer } from "./infrastructure/messaging/legal-source-activated.consumer.js";
@@ -29,7 +29,7 @@ import { ComplianceRuleSetController } from "./presentation/http/compliance-rule
   imports: [CqrsModule, OutboxModule, RbacModule],
   controllers: [ComplianceRuleSetController, ComplianceRuleSetAdminController],
   providers: [
-    LegalCorpusSnapshotLoader,
+    LegalSourceSnapshotLoader,
     ListComplianceRuleSetHistoryHandler,
     ComplianceRuleSetHistoryLoader,
     ComplianceRuleSetActivation,

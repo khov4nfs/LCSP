@@ -1,6 +1,6 @@
 // Run: node tests/compliance-rule-set-live-eval.mjs   (needs a built API and provider credentials in .env)
 // COMPLIANCE_RULE_SET LIVE semantic run: the REAL Rule Set Preparation agent with the CONFIGURED model reads the pinned
-// synthetic fixture corpus (real text + real hashes) and submits to the REAL API / PostgreSQL.
+// synthetic fixture legalSource (real text + real hashes) and submits to the REAL API / PostgreSQL.
 // It spends real provider tokens (default route) and writes the result for rubric REVIEW; it does
 // not itself judge legal quality.
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -18,13 +18,13 @@ const timeoutMs = Number(process.env.LCSP_RULE_SET_PREPARATION_EVAL_TIMEOUT_MS ?
 const fixture = await runPython(path.join(tests, "fixture_chunks.py"), []);
 const stack = await startStack({ database, apiPort });
 try {
-  const corpusId = await stack.seedCorpus({
+  const legalSourceId = await stack.seedLegalSource({
     name: "live-synthetic-v1",
-    status: "APPROVED",
+    status: "ACTIVE",
     documentId: fixture.documentId,
     chunks: fixture.chunks,
   });
-  const started = await stack.activateLegalSource(corpusId);
+  const started = await stack.activateLegalSource(legalSourceId);
   const runId = started.preparationRunId;
   const usageFile = path.join(mkdtempSync(path.join(tmpdir(), "lcsp-compliance_rule_set-live-")), "usage.json");
 
@@ -34,9 +34,9 @@ try {
   ]);
   const usage = JSON.parse(readFileSync(usageFile, "utf8"));
 
-  const run = (await stack.q(`SELECT "executionState","failureReason" FROM "LegalPreparationRun" WHERE id=$1`, [runId])).rows[0];
+  const run = (await stack.q(`SELECT "executionState","failureReason" FROM "RuleSetPreparationRun" WHERE id=$1`, [runId])).rows[0];
   const active = await stack.get("active");
-  const invalid = (await stack.q(`SELECT "validationFailures" FROM "LegalPortfolioVersion" WHERE "preparationRunId"=$1`, [runId])).rows[0];
+  const invalid = (await stack.q(`SELECT "validationFailures" FROM "ComplianceRuleSetVersion" WHERE "preparationRunId"=$1`, [runId])).rows[0];
 
   mkdirSync(outDir, { recursive: true });
   const output = {

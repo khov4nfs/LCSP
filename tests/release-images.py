@@ -47,7 +47,7 @@ EXCLUDED_SOURCE = re.compile(
     r"|\.(spec|test)\.[cm]?[jt]sx?$"
 )
 PRIVATE_PATH = re.compile(
-    r"(^|/)(\.git|\.github|\.env(?:\.[^/]+)?|\.corpus|\.chroma|\.billing|"
+    r"(^|/)(\.git|\.github|\.env(?:\.[^/]+)?|\.legal-source|\.corpus|\.chroma|\.billing|"
     r"\.mda|\.langgraph_api|\.local|\.mcp\.json|\.aws|\.codex|\.claude|\.agent|\.agents|\.ruler|"
     r"\.cache|\.uv-cache|\.pnpm-store|\.prisma|\.vscode|\.husky|\.rtk|"
     r"\.gemini|\.bmad|_bmad|\.ua|\.code-review-graph|\.codebase-memory|"
@@ -286,16 +286,19 @@ def main() -> int:
     stage = "source preflight"
     try:
         run(["node", "scripts/check-legal-v1-authority-retired.mjs"])
+        run(["node", "scripts/check-canonical-terminology.mjs"])
         frozen = sources()
         inputs = {path: digest((ROOT / path).read_bytes()) for path in [
             ".dockerignore", "pnpm-lock.yaml", "pnpm-workspace.yaml", "package.json",
             *[item[0] for item in IMAGES.values()],
             "apps/api/prisma/schema.prisma", "apps/api/prisma/migrations/20261008160000_w7_drop_v1_authority/migration.sql",
             "apps/api/prisma/migrations/20261011120000_compliance_rule_set_terminology/migration.sql",
+            "apps/api/prisma/migrations/20261012090000_canonical_physical_terminology/migration.sql",
             "deepagents/pyproject.toml", "deepagents/uv.lock",
             "apps/api/package.json", "apps/web/package.json", "tests/release-images.py",
             "deepagents/tests/conftest.py", *["deepagents/tests/integration/" + name for name in INTEGRATIONS],
             "tests/fixtures/retired-image-paths.json", "scripts/check-legal-v1-authority-retired.mjs",
+            "scripts/check-canonical-terminology.mjs",
         ]}
         (evidence / "candidate-source.json").write_text(json.dumps({"source": frozen, "buildAndPolicyInputs": inputs}, indent=2) + "\n")
         retired = set(json.loads((ROOT / "tests/fixtures/retired-image-paths.json").read_text())["paths"])
