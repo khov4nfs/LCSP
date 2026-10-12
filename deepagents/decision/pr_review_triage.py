@@ -15,7 +15,6 @@ from typing import Any
 from .gateway import DecisionGateway
 from .shadow import (
     InMemoryDecisionIdempotencyStore,
-    PR_REVIEW_DOMAIN_CHOICES,
     PrReviewTriagePacket,
     ShadowDecisionObserver,
     shadow_record_payload,
@@ -606,7 +605,25 @@ def _safe_path(value: Any) -> str | None:
 
 
 def _safe_domain(value: Any) -> str:
-    return value if value in PR_REVIEW_DOMAIN_CHOICES else "OTHER"
+    if value == "AUTH":
+        return "AUTH"
+    if value == "BILLING":
+        return "BILLING"
+    if value == "REPOSITORY":
+        return "REPOSITORY"
+    if value == "AGENT_RUNTIME":
+        return "AGENT_RUNTIME"
+    if value == "LEGAL_REQUIREMENTS":
+        return "LEGAL_REQUIREMENTS"
+    if value == "CI_RELEASE":
+        return "CI_RELEASE"
+    if value == "WEB":
+        return "WEB"
+    if value == "DATA":
+        return "DATA"
+    if value == "OTHER":
+        return "OTHER"
+    return "OTHER"
 
 
 def _safe_identifiers(value: Any, *, path_values: bool = False) -> list[str]:

@@ -4,6 +4,7 @@ from decision.pr_review_triage import (
     JsonlTelemetrySink,
     _packet_payload,
     _redact_persisted_value,
+    _safe_domain,
     _write_safe_json,
 )
 from decision.shadow import PrReviewTriagePacket
@@ -74,3 +75,21 @@ def test_report_projection_rejects_secret_patterns_in_allowed_scalar_fields(tmp_
 
     persisted = output.read_text(encoding="utf-8")
     assert "ghp_123456789012345678901234567890123456" not in persisted
+
+
+def test_safe_domain_returns_only_approved_constants():
+    approved = (
+        "AUTH",
+        "BILLING",
+        "REPOSITORY",
+        "AGENT_RUNTIME",
+        "LEGAL_REQUIREMENTS",
+        "CI_RELEASE",
+        "WEB",
+        "DATA",
+        "OTHER",
+    )
+    assert [_safe_domain(value) for value in approved] == list(approved)
+    assert _safe_domain(" AUTH ") == "OTHER"
+    assert _safe_domain("ghp_123456789012345678901234567890123456") == "OTHER"
+    assert _safe_domain("AUTH\u202e") == "OTHER"
