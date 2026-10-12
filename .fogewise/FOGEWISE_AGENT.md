@@ -89,7 +89,7 @@ The LCSP Agent Runtime is split into two internal Fogewise services:
 
 Both services remain internal and must not publish host ports. Do not
 reintroduce separate `ConsumerBase` worker services for scanner, assessment,
-reporting, targeted reanalysis, or legal-corpus jobs.
+reporting, targeted reanalysis, or Legal Source jobs.
 
 Repository scan outbox commands are still published by NestJS through RabbitMQ.
 The `agent-runtime` bridge derives queue bindings from the invocation boundary

@@ -6,7 +6,7 @@ import hashlib
 from functools import lru_cache
 from pathlib import Path
 
-from orchestration.agent_stream import publish_agent_stream_event
+from orchestration.agent_stream import SEMANTIC_SCHEMA_VERSION, publish_agent_stream_event
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -104,7 +104,7 @@ def _emit_skill_usage(name: str, body: str, *, status: str) -> None:
         status=status,
         text="skill loaded",
         data={
-            "schemaVersion": "AGENT_STREAM_SEMANTIC_V1",
+            "schemaVersion": SEMANTIC_SCHEMA_VERSION,
             "kind": "SKILL_USAGE",
             "durability": "DURABLE",
             "skillName": name,

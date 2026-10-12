@@ -10,6 +10,8 @@ depends_on:
   - platform/outbox/02-outbox-publisher.md
 ---
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # Classification Result Callback Endpoint
 
 > Superseded in part: the legacy callback contract requiring `VerifiedProfile` plus `LegalRuleMatch` is no longer active. Direct EngineeringRule assessment persists classification results with legal-rule provenance, citation state and evidence refs.

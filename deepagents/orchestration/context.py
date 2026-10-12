@@ -24,21 +24,12 @@ class LCSPRunContext:
     snapshot_id: str | None = None
     scan_job_id: str | None = None
     commit_sha: str | None = None
-    artifact_versions: dict[str, str] = field(default_factory=dict)
-    engineering_rule_ids: tuple[str, ...] = ()
-    legal_rule_ids: tuple[str, ...] = ()
     idempotency_key: str | None = None
     correlation_id: str | None = None
     system_boundary_name: str | None = None
     system_deadline_at: float | None = None
     system_event: dict[str, Any] = field(default_factory=dict)
     repository_path: str | None = None
-    # One repository-analyst task = one EngineeringRule. Trusted, set by the runtime loop.
-    engineering_rule_version: str | None = None  # runtime contract contentHash
-    criterion_ids: tuple[str, ...] = ()  # the rule's requiredEvidence
-    context_revision: int = 0
-    prior_evidence_refs: tuple[str, ...] = ()  # accepted refs from a previous result (resume)
-    rule_execution_id: str | None = None
 
 
 def coerce_run_context(value: Any) -> LCSPRunContext | None:
@@ -69,13 +60,4 @@ def bounded_context_lines(context: LCSPRunContext | None) -> tuple[str, ...]:
         if value:
             lines.append(f"{name}={value}")
 
-    if context.engineering_rule_ids:
-        lines.append("engineering_rule_ids=" + ",".join(context.engineering_rule_ids))
-    if context.legal_rule_ids:
-        lines.append("legal_rule_ids=" + ",".join(context.legal_rule_ids))
-    if context.artifact_versions:
-        versions = ",".join(
-            f"{key}:{value}" for key, value in sorted(context.artifact_versions.items())
-        )
-        lines.append(f"artifact_versions={versions}")
     return tuple(lines)

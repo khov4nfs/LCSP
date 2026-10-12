@@ -5,6 +5,9 @@ task_id: TASK-AO-6-05-evaluate-ocr-quality
 jira_issue: LCSP-201
 status: DONE
 ---
+
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # TASK-AO-6-05 — `evaluate_ocr_quality`
 
 ## Objective and tool definition

@@ -1,5 +1,7 @@
 # LCSP Architecture Decision Records
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 This document is the active ADR authority index for the A-to-Z runnable MVP. Detailed decisions live in individual ADR files. Historical reasoning remains in git history, not active implementation or UX authority.

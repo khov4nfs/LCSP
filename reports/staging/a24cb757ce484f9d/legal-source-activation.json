@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "data": {
+    "id": "680c6b08-53f5-4c57-b825-038786a7aafb",
+    "version": "release-synthetic-a24cb757ce484f9d",
+    "status": "APPROVED",
+    "correlationId": "97e671a8-4b16-4b91-9fcd-c0360e9f6c2c",
+    "toolName": "activate_validated_corpus_version",
+    "toolVersion": "1.0.0",
+    "configHash": "sha256:activation-v1",
+    "artifactVersions": {
+      "corpusVersionId": "680c6b08-53f5-4c57-b825-038786a7aafb"
+    },
+    "provenanceRef": "tool-execution:97e671a8-4b16-4b91-9fcd-c0360e9f6c2c",
+    "coverageState": "SUFFICIENT",
+    "evidenceRefs": [
+      "corpus-approval:ac53e677-380b-44e3-89d8-4fda7ca63f3f",
+      "outbox:outbox:b7da3511ba84329a01eb194dc8b9a9f7f9345bccdf5af25ee68c0e3017d9b26e"
+    ],
+    "limitations": [],
+    "result": {
+      "activeCorpusVersionRef": "corpus-version:680c6b08-53f5-4c57-b825-038786a7aafb",
+      "lifecycleStatus": "APPROVED",
+      "activationRecordRef": "corpus-approval:ac53e677-380b-44e3-89d8-4fda7ca63f3f",
+      "outboxEventRef": "outbox:outbox:b7da3511ba84329a01eb194dc8b9a9f7f9345bccdf5af25ee68c0e3017d9b26e",
+      "systemActor": "legal-corpus-activation-service",
+      "manualApprovalRequired": false
+    }
+  }
+}

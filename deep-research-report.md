@@ -1,5 +1,8 @@
 # LCSP Memory Architecture and Hallucination Mitigation for Managed Deep Agents
 
+> **Historical pre-freeze research report.** This records the former architecture and does not define current runtime authority. See [the canonical Architecture Freeze](reports/architecture-freeze-migration-manifest.md).
+
+
 ## Executive summary and flow-to-repository mapping
 
 I reviewed the current `develop` branch of `khovan123/LCSP`, with particular emphasis on `deepagents/`, the repository’s own `FLOW.md`, the supplied orchestration SVG, the registered specialist definitions, orchestration lifecycle code, existing evidence-validation/evaluation code, and LangChain/LangGraph/Managed Deep Agents memory guidance. The current managed-agent surface is materially more mature than some older repository architecture notes imply: the root is already a Managed Deep Agents supervisor, the active registry contains five specialist agents (`triage`, `context_wizard`, `planner`, `investigator`, `resolver`), and LCSP already separates LLM reasoning from deterministic evidence validation and compliance evaluation. fileciteturn6file0L2-L2 fileciteturn10file0L2-L2 fileciteturn42file0L1-L2 fileciteturn43file0L2-L2

@@ -1,0 +1,38 @@
+{
+  "scope": "EXACT_IMAGE_LEGAL_PREPARATION_FAILURE_DIAGNOSTICS",
+  "status": "FAILED_NO_SUBMISSION_DEFECT_IDENTIFIED",
+  "runId": "e38f41379d704880",
+  "imageReceipt": "reports/release-images/20261010080615_a1b259cf9627/report.json",
+  "route": {
+    "role": "legal-preparation",
+    "provider": "google_genai",
+    "model": "gemini-3.5-flash-lite"
+  },
+  "persistedRun": {
+    "executionState": "FAILED",
+    "failureReason": "NO_SUBMISSION"
+  },
+  "callbackErrorCounts": {
+    "validations400": 5,
+    "submissions400": 3,
+    "submissions500Terminal": 4,
+    "apiConstraintViolations": 12
+  },
+  "defects": [
+    {
+      "id": "COVERAGE_INVARIANT_NOT_IN_SHARED_CONTRACT",
+      "evidence": "every authored packet declared legal rules as COVERED_BY_ENGINEERING_RULES together with a non-null nonAssessableReason text; validate_legal_portfolio reported PASSED and submit failed in the database with CHECK LegalPortfolioRule_coverage_reason_check, returned as HTTP 500 INTERNAL_ERROR",
+      "contract": "legalPortfolioCoverageSchema = {state, nonAssessableReason: text|null} without the cross-field rule the DB enforces"
+    },
+    {
+      "id": "RELATION_TARGET_FEEDBACK_IS_WHOLE_OBJECT",
+      "evidence": "the exactly-one-target refine on contextRelations reported only the relation path (packet.contextRelations.N) and later toSourceRef, giving the model no field-level guidance across several 400 retries"
+    }
+  ],
+  "notes": [
+    "The model regenerates the whole packet in each tool call, so a validated packet and the submitted packet can differ.",
+    "Private diagnostics (container logs) stay under tmp/staging/e38f41379d704880 and are captured again at teardown."
+  ],
+  "productionDeployment": false,
+  "releaseEligible": false
+}

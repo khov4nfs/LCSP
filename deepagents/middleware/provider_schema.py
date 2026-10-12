@@ -10,7 +10,6 @@ from langchain.agents.structured_output import (
     ProviderStrategy,
     ToolStrategy,
 )
-from langchain_core.messages import AIMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import BaseModel
 
@@ -26,6 +25,32 @@ GEMINI_SPECIAL_TOOL_KEYS = frozenset(
         "computer_use",
     }
 )
+
+
+def gemini_null_types(schema: Any) -> Any:
+    """Preserve JSON null through the SDK converter's repeated property traversal."""
+    if isinstance(schema, dict):
+        return {
+            key: "NULL" if key == "type" and value == "null" else gemini_null_types(value)
+            for key, value in schema.items()
+        }
+    if isinstance(schema, list):
+        return [gemini_null_types(value) for value in schema]
+    return schema
+
+
+def gemini_nullable_tools(model: Any, tools: list[Any]) -> list[Any] | None:
+    """Translate only the provider dialect; keep canonical fields and bounds intact."""
+    if not type(model).__module__.startswith(GEMINI_MODULE_PREFIX):
+        return None
+    converted = []
+    changed = False
+    for tool in tools:
+        schema = tool if isinstance(tool, dict) else convert_to_openai_tool(tool)
+        native = gemini_null_types(schema)
+        converted.append(native if native != schema else tool)
+        changed = changed or native != schema
+    return converted if changed else None
 
 
 def relax_array_upper_bounds(schema: Any) -> Any:
@@ -69,7 +94,7 @@ def gemini_compatible_tools(model: Any, tools: list[Any]) -> list[Any] | None:
             continue
 
         provider_tool = tool if isinstance(tool, dict) else convert_to_openai_tool(tool)
-        relaxed = relax_array_upper_bounds(provider_tool)
+        relaxed = gemini_null_types(relax_array_upper_bounds(provider_tool))
         converted.append(relaxed)
         changed = changed or relaxed != provider_tool or not isinstance(tool, dict)
 
@@ -150,26 +175,16 @@ def gemini_structured_model_settings(model: Any, output_format: Any, current: An
     return settings
 
 
-def llm7_compatible_messages(model: Any, messages: list[Any]) -> list[Any] | None:
-    """Drop `name` from assistant messages sent to LLM7, or return None when unchanged.
+class GeminiToolNullabilityMiddleware(AgentMiddleware):
+    """Retain explicit null alternatives without changing tool execution/validation."""
 
-    LLM7's upstream rejects an assistant message carrying `name` with 422
-    `upstream_unprocessable_request`. Deep Agents stamp the agent name on every AI
-    message, so every LLM7 tool continuation failed. Only the provider request changes;
-    graph state keeps the name.
-    """
-    from middleware.token_fallback import model_provider
+    def wrap_model_call(self, request, handler):
+        tools = gemini_nullable_tools(request.model, request.tools)
+        return handler(request.override(tools=tools) if tools is not None else request)
 
-    if model_provider(model) != "llm7":
-        return None
-    if not any(isinstance(message, AIMessage) and message.name for message in messages):
-        return None
-    return [
-        message.model_copy(update={"name": None})
-        if isinstance(message, AIMessage) and message.name
-        else message
-        for message in messages
-    ]
+    async def awrap_model_call(self, request, handler):
+        tools = gemini_nullable_tools(request.model, request.tools)
+        return await handler(request.override(tools=tools) if tools is not None else request)
 
 
 class ProviderSchemaCompatibilityMiddleware(AgentMiddleware):
@@ -178,11 +193,6 @@ class ProviderSchemaCompatibilityMiddleware(AgentMiddleware):
     @staticmethod
     def _override_request(request, replacement, tools_replacement):
         overrides: dict[str, Any] = {}
-        messages_replacement = llm7_compatible_messages(
-            request.model, list(getattr(request, "messages", None) or [])
-        )
-        if messages_replacement is not None:
-            overrides["messages"] = messages_replacement
         if replacement is not None:
             overrides["response_format"] = replacement
         if tools_replacement is not None:

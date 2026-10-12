@@ -1,5 +1,7 @@
 # Story AO-3: Orchestrate Typed Missing-Input Resolution
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 Status: ready-for-dev
 
 Jira: [LCSP-160 — Missing-Input Orchestration](https://minhpnq1807.atlassian.net/browse/LCSP-160)

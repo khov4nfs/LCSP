@@ -33,14 +33,15 @@ import { AssessmentLifecycleCoordinator } from "./assessment-lifecycle-coordinat
 export const PREPARATION_RESULTS = {
   ACTIVATED: "ACTIVATED",
   ALREADY_ACTIVE: "ALREADY_ACTIVE",
-  WAITING_FOR_LEGAL_PORTFOLIO: "WAITING_FOR_LEGAL_PORTFOLIO",
+  WAITING_FOR_COMPLIANCE_RULE_SET: "WAITING_FOR_COMPLIANCE_RULE_SET",
 } as const;
 export type PreparationResult =
   (typeof PREPARATION_RESULTS)[keyof typeof PREPARATION_RESULTS];
 
 export const PIN_RESULTS = {
   PINNED: "PINNED",
-  WAITING_FOR_LEGAL_PORTFOLIO: PREPARATION_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO,
+  WAITING_FOR_COMPLIANCE_RULE_SET:
+    PREPARATION_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET,
 } as const;
 export type PinResult = (typeof PIN_RESULTS)[keyof typeof PIN_RESULTS];
 
@@ -50,8 +51,8 @@ const ORCHESTRATOR = {
 } as const;
 
 /**
- * PREPARING -> ACTIVE for one assessment. It pins the legal portfolio and repository snapshot,
- * creates a decision-coverage row for EVERY EngineeringRule of the pinned portfolio, then asks
+ * PREPARING -> ACTIVE for one assessment. It pins the compliance rule set and repository snapshot,
+ * creates a decision-coverage row for EVERY AssessmentRule of the pinned rule set, then asks
  * the lifecycle coordinator for the transition with the guards this boundary has verified from
  * authoritative state, and enqueues the single Root run. Deterministic: no legal meaning is
  * evaluated here.
@@ -63,28 +64,28 @@ export class AssessmentRuntimePreparation {
     private readonly outbox: OutboxRepository,
   ) {}
 
-  /** Creates the case at assessment creation, pinning the then-ACTIVE legal portfolio. */
+  /** Creates the case at assessment creation, pinning the then-ACTIVE compliance rule set. */
   async createCaseInTx(
     tx: Prisma.TransactionClient,
     assessmentId: string,
-  ): Promise<{ legalPortfolioVersionId: string | null }> {
-    const portfolio = await tx.legalPortfolioVersion.findFirst({
+  ): Promise<{ ruleSetVersionId: string | null }> {
+    const ruleSet = await tx.complianceRuleSetVersion.findFirst({
       where: { lifecycleState: ArtifactLifecycleState.ACTIVE },
       select: { id: true },
     });
     await tx.assessmentCase.create({
       data: {
         assessmentId,
-        legalPortfolioVersionId: portfolio?.id ?? null,
+        ruleSetVersionId: ruleSet?.id ?? null,
       },
     });
-    return { legalPortfolioVersionId: portfolio?.id ?? null };
+    return { ruleSetVersionId: ruleSet?.id ?? null };
   }
 
   /**
-   * Pins the then-ACTIVE legal portfolio and the repository snapshot, creates the hydration ticket
-   * and one decision-coverage row per EngineeringRule. It does NOT change the lifecycle state and
-   * enqueues nothing, so a caller (repository-setup completion, or the W6 backfill) decides when the
+   * Pins the then-ACTIVE compliance rule set and the repository snapshot, creates the hydration ticket
+   * and one decision-coverage row per AssessmentRule. It does NOT change the lifecycle state and
+   * enqueues nothing, so a caller (repository-setup completion, or the CUTOVER backfill) decides when the
    * Root starts. Idempotent: re-applying identical pins is allowed by the database guard.
    */
   async pinRuntimeInputsInTx(
@@ -104,19 +105,20 @@ export class AssessmentRuntimePreparation {
         where: { assessmentId: input.assessmentId },
       });
     }
-    let portfolioId = assessmentCase.legalPortfolioVersionId;
-    if (!portfolioId) {
+    let ruleSetId = assessmentCase.ruleSetVersionId;
+    if (!ruleSetId) {
       // The assessment has not started reasoning, so a late pin of the then-ACTIVE
-      // portfolio is the same decision creation would have made.
-      const active = await tx.legalPortfolioVersion.findFirst({
+      // rule set is the same decision creation would have made.
+      const active = await tx.complianceRuleSetVersion.findFirst({
         where: { lifecycleState: ArtifactLifecycleState.ACTIVE },
         select: { id: true },
       });
-      if (!active) return { result: PIN_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO };
-      portfolioId = active.id;
+      if (!active)
+        return { result: PIN_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET };
+      ruleSetId = active.id;
       await tx.assessmentCase.update({
         where: { assessmentId: input.assessmentId },
-        data: { legalPortfolioVersionId: portfolioId },
+        data: { ruleSetVersionId: ruleSetId },
       });
     }
 
@@ -161,19 +163,19 @@ export class AssessmentRuntimePreparation {
       },
     });
 
-    const rules = await tx.engineeringRule.findMany({
-      where: { portfolioVersionId: portfolioId },
-      select: { engineeringRuleId: true, engineeringRuleVersion: true },
+    const rules = await tx.assessmentRule.findMany({
+      where: { ruleSetVersionId: ruleSetId },
+      select: { assessmentRuleId: true, assessmentRuleVersion: true },
     });
     if (rules.length === 0) {
-      return { result: PIN_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO };
+      return { result: PIN_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET };
     }
     await tx.assessmentDecisionCoverage.createMany({
       data: rules.map((rule) => ({
         assessmentId: input.assessmentId,
-        engineeringRuleId: rule.engineeringRuleId,
-        portfolioVersionId: portfolioId,
-        engineeringRuleVersion: rule.engineeringRuleVersion,
+        assessmentRuleId: rule.assessmentRuleId,
+        ruleSetVersionId: ruleSetId,
+        assessmentRuleVersion: rule.assessmentRuleVersion,
       })),
       skipDuplicates: true,
     });
@@ -216,7 +218,7 @@ export class AssessmentRuntimePreparation {
 
     const pinned = await this.pinRuntimeInputsInTx(tx, input);
     if (pinned.result !== PIN_RESULTS.PINNED) {
-      return { result: PREPARATION_RESULTS.WAITING_FOR_LEGAL_PORTFOLIO };
+      return { result: PREPARATION_RESULTS.WAITING_FOR_COMPLIANCE_RULE_SET };
     }
 
     await this.coordinator.transitionVerifiedInTx(

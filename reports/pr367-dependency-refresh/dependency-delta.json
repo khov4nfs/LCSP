@@ -1,0 +1,61 @@
+{
+  "scope": "PR367_DEVELOP_DEPENDENCY_MERGE_REFRESH",
+  "headAtStart": "63985c8ffaeead46337c121ef5bae00c445d0800",
+  "baseAtStart": "7e07dbefb41a4fc96a0fa842ac400145fc0eecff",
+  "previousAcceptedSnapshot": {
+    "head": "2cf1341c1e4a5e1c8537b82686523a212df07c42",
+    "candidateId": "20261012041902_4058ec2256a0",
+    "stagingId": "0294c54d42864ef0",
+    "status": "HISTORICAL_ACCEPTED_SUPERSEDED_FOR_CURRENT_HEAD"
+  },
+  "deltaFiles": [
+    "SECURITY.md",
+    "deepagents/pyproject.toml",
+    "deepagents/uv.lock"
+  ],
+  "applicationCodeChangedByMerge": false,
+  "dependencyChanges": {
+    "chromadb": {
+      "before": "1.5.5",
+      "after": "1.5.9"
+    },
+    "langgraph-checkpoint-postgres": {
+      "before": "3.1.0",
+      "after": "3.1.1"
+    },
+    "langgraph-sdk": {
+      "before": "0.4.2",
+      "after": "0.4.4"
+    },
+    "multidict": {
+      "before": "6.7.1",
+      "after": "6.9.1"
+    },
+    "oauthlib": {
+      "before": "3.3.1",
+      "after": "4.0.0"
+    },
+    "pyjwt": {
+      "before": "2.13.0",
+      "after": "2.15.0"
+    },
+    "pytest": {
+      "before": "8.4.2",
+      "after": "9.0.3"
+    },
+    "urllib3": {
+      "before": "2.7.0",
+      "after": "2.8.0"
+    }
+  },
+  "addedPackages": [],
+  "removedPackages": [],
+  "changedCandidateInputs": {
+    "deepagents/pyproject.toml": "95e909ab7a8251641d1842f29a8e66b630fddaa73ac835b4d6d6407cdbd1be85",
+    "deepagents/uv.lock": "02233b1e3cf38f9db618d40732fac2009996c7fb7057bf21554869c4a9a2b7ed"
+  },
+  "lockCheck": "PASS",
+  "frozenSync": "PASS",
+  "uvPipCheck": "PASS",
+  "productionTouched": false
+}

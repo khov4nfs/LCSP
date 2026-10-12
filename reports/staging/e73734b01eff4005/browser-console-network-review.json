@@ -1,0 +1,489 @@
+{
+  "scope": "PLAYWRIGHT_FINAL_CONSOLE_AND_NETWORK_REVIEW",
+  "status": "PASS",
+  "runId": "e73734b01eff4005",
+  "unexpectedConsoleCount": 0,
+  "unexpectedFailedRequestCount": 0,
+  "server500Count": 0,
+  "expected403": "SUCCESSFUL_PRODUCT_PASSWORD_REAUTHENTICATION",
+  "expected404": "MATCHED_EXPLICIT_FOREIGN_RESOURCE_NAVIGATION_OR_POST_DELETE_OLD_RESOURCE_READS",
+  "phases": [
+    {
+      "phaseId": "admin-legal-default-1791680234344",
+      "phase": "admin-legal",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-create-assessmentA-1791680438725",
+      "phase": "owner-create",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-repository-assessmentA-1791680448759",
+      "phase": "owner-repository",
+      "expectedConsole": [
+        {
+          "role": "owner",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        }
+      ],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-create-assessmentB-1791680473017",
+      "phase": "owner-create",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-repository-assessmentB-1791680490216",
+      "phase": "owner-repository",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-stop-assessmentB-1791680512342",
+      "phase": "owner-stop",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-question-assessmentA-1791680534120",
+      "phase": "owner-question",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "inspect-assessmentA-1791680656194",
+      "phase": "inspect",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "inspect-owner-1791680682026",
+      "phase": "inspect",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-answer-assessmentA-1791680700160",
+      "phase": "owner-answer",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "admin-legal-failure-1791680990772",
+      "phase": "admin-legal",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "admin-legal-supersession-1791681060607",
+      "phase": "admin-legal",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "admin-legal-supersession-1791681208259",
+      "phase": "admin-legal",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-stale-assessmentA-1791681416906",
+      "phase": "owner-stale",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-continue-assessmentA-1791681470526",
+      "phase": "owner-continue",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-create-assessmentC-1791681494465",
+      "phase": "owner-create",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-repository-assessmentC-1791681520465",
+      "phase": "owner-repository",
+      "expectedConsole": [
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "page": "/assessments/34739558-2460-4312-8f17-c78d103e1112"
+        }
+      ],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-continue-assessmentB-1791681561524",
+      "phase": "owner-continue",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-question-assessmentC-1791681612444",
+      "phase": "owner-question",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-complete-assessmentA-1791681668304",
+      "phase": "owner-complete",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-answer-assessmentC-1791681689575",
+      "phase": "owner-answer",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-question-assessmentB-1791681737133",
+      "phase": "owner-question",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-answer-assessmentB-1791681754745",
+      "phase": "owner-answer",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "accounting-assessmentA-1791681780331",
+      "phase": "accounting",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "root-model-evidence-assessmentA-1791681819768",
+      "phase": "root-model-evidence",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-complete-assessmentB-1791681841235",
+      "phase": "owner-complete",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-complete-assessmentC-1791681927606",
+      "phase": "owner-complete",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-create-assessmentD-1791681940277",
+      "phase": "owner-create",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-repository-assessmentD-1791681964659",
+      "phase": "owner-repository",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "other-isolation-assessmentA-1791681987790",
+      "phase": "other-isolation",
+      "expectedConsole": [
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/api/assessments/d30b6364-f031-4318-90af-9569b079c612/human-requests"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/api/assessments/d30b6364-f031-4318-90af-9569b079c612/artifacts/225d9da8-a2a4-508b-9638-06233acc13ae/download"
+        }
+      ],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "accounting-assessmentB-1791682031241",
+      "phase": "accounting",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "root-model-evidence-assessmentB-1791682078201",
+      "phase": "root-model-evidence",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "accounting-assessmentC-1791682143350",
+      "phase": "accounting",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "root-model-evidence-assessmentC-1791682200960",
+      "phase": "root-model-evidence",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "other-isolation-assessmentA-1791682275729",
+      "phase": "other-isolation",
+      "expectedConsole": [
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/d30b6364-f031-4318-90af-9569b079c612"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/api/assessments/d30b6364-f031-4318-90af-9569b079c612/human-requests"
+        },
+        {
+          "role": "other",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/api/assessments/d30b6364-f031-4318-90af-9569b079c612/artifacts/225d9da8-a2a4-508b-9638-06233acc13ae/download"
+        }
+      ],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-canary-assessmentB-1791682330159",
+      "phase": "owner-canary",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-canary-assessmentC-1791682339635",
+      "phase": "owner-canary",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-delete-assessmentB-1791682398569",
+      "phase": "owner-delete",
+      "expectedConsole": [
+        {
+          "role": "owner",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/8c91d731-eafb-4002-849e-8dd565f23e29"
+        },
+        {
+          "role": "owner",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+          "page": "/assessments/8c91d731-eafb-4002-849e-8dd565f23e29"
+        }
+      ],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-question-assessmentD-1791682426426",
+      "phase": "owner-question",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-answer-assessmentD-1791682522266",
+      "phase": "owner-answer",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-complete-assessmentD-1791682714505",
+      "phase": "owner-complete",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "accounting-assessmentD-1791682882079",
+      "phase": "accounting",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "root-model-evidence-assessmentD-1791682939339",
+      "phase": "root-model-evidence",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    },
+    {
+      "phaseId": "owner-canary-assessmentD-1791683334031",
+      "phase": "owner-canary",
+      "expectedConsole": [],
+      "unexpectedConsole": [],
+      "failedRequests": [],
+      "serverErrors": []
+    }
+  ]
+}

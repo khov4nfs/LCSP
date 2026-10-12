@@ -1,0 +1,25 @@
+{
+  "run": {
+    "id": "39749307-aa5a-4138-8915-49692894a66d",
+    "createdAt": "2026-10-10T19:29:39.992",
+    "startedAt": "2026-10-10T19:29:40.973",
+    "completedAt": "2026-10-10T19:42:15.504",
+    "requestedBy": "54a18c0e-c6ac-4c43-827e-956a913b0f7f",
+    "correlationId": "29fbef01-76e9-41f1-9eca-bd98eb0ae391",
+    "failureReason": "NO_SUBMISSION",
+    "outboxEventId": "outbox:eab62ac954d29d792b8eb9a3f3171f8b05d4c68afe5e819de938934332085532",
+    "executionState": "FAILED",
+    "idempotencyKey": "d174b48b-8ec9-4714-8913-faa0a32d5ffb",
+    "legalCorpusVersionId": "64ee0038-c1c7-4dcc-88e8-4b74c3bc9e34"
+  },
+  "portfolios": 0,
+  "activations": 0,
+  "outboxStatus": "PUBLISHED",
+  "scope": "EXACT_IMAGE_LEGAL_STRUCTURAL_CORRECTION_FAILURE",
+  "status": "FAIL_PREPARATION_NO_ACTIVATION",
+  "runId": "aea7c6cc3df44dd6",
+  "imageReceipt": "reports/release-images/20261010191904_fdc5b4067be2/report.json",
+  "initiatedThrough": "PLAYWRIGHT_ADMIN_START_PREPARATION",
+  "packetManuallyEdited": false,
+  "releaseEligible": false
+}

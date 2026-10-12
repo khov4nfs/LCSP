@@ -1,6 +1,5 @@
 import type {
   AgenticToolCoverageState,
-  AgenticToolName,
   AgenticToolStatus,
 } from "./agentic-tool.ts";
 
@@ -66,7 +65,12 @@ export const RUN_OCR_FALLBACK_RESULT_JSON_SCHEMA = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["page", "pageImageSha256", "spanManifestRef", "meanConfidence"],
+        required: [
+          "page",
+          "pageImageSha256",
+          "spanManifestRef",
+          "meanConfidence",
+        ],
         properties: {
           page: { type: "integer", minimum: 1 },
           pageImageSha256: { type: "string", pattern: STABLE_SHA },
@@ -95,7 +99,7 @@ export type RunOcrFallbackLimitation = {
 
 export type RunOcrFallbackResponse = {
   status: AgenticToolStatus;
-  toolName: AgenticToolName;
+  toolName: typeof RUN_OCR_FALLBACK_TOOL.name;
   toolVersion: string;
   configHash: string;
   correlationId: string;

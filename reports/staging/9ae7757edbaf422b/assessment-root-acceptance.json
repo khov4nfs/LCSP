@@ -1,0 +1,51 @@
+{
+  "scope": "PERSISTED_ROOT_SEMANTIC_REVIEW",
+  "status": "PASS",
+  "runId": "9ae7757edbaf422b",
+  "assessmentId": "d81a9318-b46e-4544-81be-7fe4612391f7",
+  "decisionId": "80754091-aa00-4030-a740-00293ff20daf",
+  "semanticAuthority": "ASSESSMENT_ROOT",
+  "source": "assessment-root-persisted.json",
+  "hiddenChainOfThoughtUsed": false,
+  "checks": {
+    "repositoryInvestigation": "PASS: cited pinned source ranges and bounded search evidence",
+    "evidenceInterpretation": "PASS: compares deletion from draft timestamp with receipt-based obligation",
+    "applicability": "PASS: public offering scope grounded in one accepted customer-owned fact",
+    "criteria": "PASS: C-1 NOT_MET; C-2/C-3/C-4 MET with separate rationale and references",
+    "compliance": "PASS: NON_COMPLIANT follows explicit C-1 defect",
+    "materialHumanResolution": "PASS: public service exposure cannot be established by repository",
+    "missingEvidenceNotAutomaticFailure": "PASS: absence prompted a material human question; failure rationale is positive code evidence",
+    "deterministicBoundary": "PASS: current-image decision-provenance and completion-blockers probes assert only structure/provenance/completeness"
+  },
+  "semanticDecisionsModifiedByProbe": false,
+  "independentNewVersionCase": {
+    "assessmentId": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+    "ruleSetVersionId": "1531de0b-29c1-4e82-8781-58c4e16f16a1",
+    "decisionId": "cf9aaeab-e280-4b7f-b02f-340054939954",
+    "applicability": "APPLICABLE",
+    "compliance": "NON_COMPLIANT",
+    "criteria": [
+      {
+        "id": "C-1",
+        "outcome": "NOT_MET"
+      },
+      {
+        "id": "C-2",
+        "outcome": "MET"
+      },
+      {
+        "id": "C-3",
+        "outcome": "MET"
+      },
+      {
+        "id": "C-4",
+        "outcome": "MET"
+      }
+    ],
+    "boundedAbsenceInterpretation": "Root interpreted complete text-manipulation search absence as supporting MET for immutable text. NON_COMPLIANT follows positive draft-timestamp retention defect, not absence.",
+    "humanRequests": 1,
+    "repositoryAnswerableTechnicalHumanRequests": 0,
+    "source": "assessment-root-persisted-C.json",
+    "terminal": "COMPLETE/SUCCEEDED"
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "scope": "W7_EXACT_IMAGE_BOUNDED_REAL_BROWSER_CHECKS",
+  "status": "PASS_BOUNDED_CHECKS",
+  "runId": "46903a5b798b40aa",
+  "readinessReceipt": "reports/w7-staging/46903a5b798b40aa/report.json",
+  "imageReceipt": "reports/w7-images/20261009235048_82d862d3af76/report.json",
+  "web": "http://localhost:32788",
+  "browser": "Playwright MCP headless Chrome",
+  "checks": {
+    "ownerRealSignIn": {
+      "status": "PASS",
+      "httpStatus": 200
+    },
+    "minimalCreateWithoutInitialInterview": {
+      "status": "PASS",
+      "httpStatus": 201,
+      "assessmentId": "1cab1625-50b5-4161-a253-6264893b1e5f",
+      "fields": [
+        "name",
+        "description"
+      ]
+    },
+    "canonicalProjectionAndReload": {
+      "status": "PASS",
+      "lifecycle": {
+        "state": "PREPARING",
+        "assessmentRevision": 1
+      },
+      "runtime": {
+        "threadId": "808e6d34-4160-41ef-a7a6-93a71d95b250",
+        "rootAgentVersion": "assessment-root-v2",
+        "checkpointNamespace": "1cab1625-50b5-4161-a253-6264893b1e5f",
+        "checkpointId": null,
+        "currentExecutionId": null,
+        "executionState": "QUEUED",
+        "eventSequence": 1,
+        "startedAt": null,
+        "lastResumedAt": null,
+        "updatedAt": "2026-10-09T23:59:54.809Z"
+      },
+      "readOnlyDatabaseParity": "PASS",
+      "reloadPreservesCanonicalState": true,
+      "humanRequests": 0,
+      "pinnedLegalPortfolioVersionId": "a1faecfb-f443-4cdb-9573-06286052fe3e"
+    },
+    "ownerArtifactsEmptyState": "PASS",
+    "otherAccountIsolation": {
+      "status": "PASS",
+      "own": {
+        "status": 200,
+        "ok": true,
+        "total": 0
+      },
+      "foreign": {
+        "status": 404,
+        "ok": false,
+        "code": "ASSESSMENT_NOT_FOUND"
+      },
+      "human": {
+        "status": 404,
+        "ok": false,
+        "code": "ASSESSMENT_NOT_FOUND"
+      },
+      "repo": {
+        "status": 404,
+        "ok": false,
+        "code": "ASSESSMENT_NOT_FOUND"
+      },
+      "foreignNameInDOM": false,
+      "genericFailureAlertObserved": true,
+      "assessmentStateUnavailableObserved": true,
+      "scope": "TWO_FIXTURE_USERS_ONE_PREPARING_ASSESSMENT"
+    },
+    "adminPreparationSuccessAndFailureProjection": {
+      "status": "PASS",
+      "httpStatus": 200,
+      "activePortfolioVersionId": "a1faecfb-f443-4cdb-9573-06286052fe3e",
+      "successfulPreparationRunId": "c1099a17-913c-477c-8e0a-871bcc1f757d",
+      "failedPreparationRunId": "257acfe6-eba3-477a-8c28-b93a59c4a1b6",
+      "portfolioCounts": {
+        "active": 1,
+        "invalid": 1
+      },
+      "approvalButtons": 0
+    }
+  },
+  "console": {
+    "successfulOwnerFlowErrors": 0,
+    "successfulOwnerFlowWarnings": 0,
+    "successfulAdminFlowErrors": 0,
+    "successfulAdminFlowWarnings": 0,
+    "expectedForeignAccess404ResourceErrors": 3,
+    "unexpectedErrorsObserved": 0,
+    "warningsObserved": 0,
+    "nativeLogScope": "INCLUDES_PRIOR_BROWSER_RUNS_AND_SELECTOR_RETRY_ATTEMPTS"
+  },
+  "chromeDevTools": {
+    "status": "UNAVAILABLE",
+    "reason": "Missing X server to start headful browser",
+    "fallback": "Playwright MCP console, network, DOM and visually inspected screenshots"
+  },
+  "browserAcceptance": "PARTIAL",
+  "liveRootAndHumanRequestFlows": "NOT_RUN",
+  "frozen25RowStagingMatrix": "NOT_PROVEN",
+  "productionDeployment": false,
+  "releaseEligible": false,
+  "privateArtifacts": [
+    {
+      "path": "tmp/w7-staging/46903a5b798b40aa/browser-owner-preparing.png",
+      "sha256": "897d0b954592fbe8e4e89fa3c88046af602e8116fc5969b30ddb78403713be83",
+      "byteLength": 62926
+    },
+    {
+      "path": "tmp/w7-staging/46903a5b798b40aa/browser-other-denied.png",
+      "sha256": "724750faa1316a1624e5c7a54af5631aa3adb4b1f888789dce9aeccf5f22e56c",
+      "byteLength": 33189
+    },
+    {
+      "path": "tmp/w7-staging/46903a5b798b40aa/browser-admin-preparation.png",
+      "sha256": "7378cd16dac4d5cd9df33d0abd8ca35f9e93bf113fd16cd3e57c27c481d1c8c5",
+      "byteLength": 73491
+    },
+    {
+      "path": "tmp/w7-staging/46903a5b798b40aa/browser-console.log",
+      "sha256": "c54e60c8b22b989c41d1c209edfe6e201df692cc182c5dd05a94f6ae0d6ad18d",
+      "byteLength": 5415
+    },
+    {
+      "path": "tmp/w7-staging/46903a5b798b40aa/browser-network.log",
+      "sha256": "6f048cf03c301ed6c43e2d572b2065e809e72090e7bce9654931014a63d09a9b",
+      "byteLength": 25088
+    },
+    {
+      "path": "tmp/w7-staging/46903a5b798b40aa/browser-canonical-db.json",
+      "sha256": "7cba4919e510f80e111f3163d8dff0480d4957bc2ffc829e056115d6f7e44c55",
+      "byteLength": 307
+    },
+    {
+      "path": "tmp/w7-staging/46903a5b798b40aa/browser-observations.json",
+      "sha256": "11773371fb65198973d20620208bad1acbec71d45787d4e4269a011d30cb9c26",
+      "byteLength": 11373
+    }
+  ]
+}

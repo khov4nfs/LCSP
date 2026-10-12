@@ -1,0 +1,21 @@
+{
+  "positiveControl": "ACTUAL_ROOT_TOOL_RESULT_CONTAINS_ACCEPTED_UI_ANSWER_CANARY",
+  "toolResults": [
+    {
+      "tool": "open_human_request",
+      "callId": "call_hr"
+    },
+    {
+      "tool": "get_assessment_context",
+      "callId": "call_ctx"
+    },
+    {
+      "tool": "get_assessment_context",
+      "callId": "call_ctx2"
+    },
+    {
+      "tool": "get_assessment_context",
+      "callId": "call_ctx3"
+    }
+  ]
+}

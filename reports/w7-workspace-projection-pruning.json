@@ -1,0 +1,11 @@
+{
+  "files": [
+    "apps/web/src/features/workspace/utils/workspace-runtime-parser.ts",
+    "apps/web/src/features/workspace/types/workspace-runtime.types.ts",
+    "apps/web/src/features/workspace/components/organisms/workspace-runtime-provider.tsx",
+    "apps/web/tests/workspace-runtime-provider.test.ts"
+  ],
+  "classification": "DELETE_NOW",
+  "removed": "Unused V1 post-finding/stage/scan/run reconstruction and orphan raw-stream helpers. Canonical parser, canonical fingerprint fields, event ordering and actual provider EventSource behavior retained.",
+  "callerAudit": "Only AssessmentOverview and AssessmentRuntimeSidebar consume the timeline, using canonicalAssessment/canonicalEvents. Removed raw helper exports had no production caller. Old console helpers and redirect routes have no source importer."
+}

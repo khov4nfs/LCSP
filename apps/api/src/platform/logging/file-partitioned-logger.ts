@@ -36,6 +36,13 @@ export class FilePartitionedLogger extends ConsoleLogger {
   ) {
     try {
       const { userId, assessmentId } = getLoggingContext();
+      if (
+        assessmentId === "unknown_assessment" ||
+        ![userId, assessmentId].every((value) =>
+          /^[A-Za-z0-9_-]{1,300}$/.test(value),
+        )
+      )
+        return;
       const repoRoot = getRepoRoot();
       const logDir = path.join(
         repoRoot,

@@ -1,0 +1,162 @@
+{
+  "scope": "CURRENT_RUNTIME_AST_IMPORT_TARGETS",
+  "generatedAt": "2026-10-09T07:51:00.568Z",
+  "typescript": {
+    "stats": [
+      {
+        "project": "apps/api",
+        "filesParsed": 456,
+        "imports": 2476,
+        "literalDynamicImports": 1,
+        "computedDynamicImports": 0
+      },
+      {
+        "project": "apps/web",
+        "filesParsed": 345,
+        "imports": 1533,
+        "literalDynamicImports": 0,
+        "computedDynamicImports": 0
+      },
+      {
+        "project": "packages/contracts",
+        "filesParsed": 79,
+        "imports": 137,
+        "literalDynamicImports": 0,
+        "computedDynamicImports": 0
+      },
+      {
+        "project": "packages/i18n",
+        "filesParsed": 13,
+        "imports": 26,
+        "literalDynamicImports": 0,
+        "computedDynamicImports": 0
+      }
+    ],
+    "issues": [],
+    "nonCodeAssets": [
+      {
+        "file": "apps/web/src/app/layout.tsx",
+        "specifier": "./globals.css",
+        "line": 12,
+        "validatedTarget": "apps/web/src/app/globals.css"
+      },
+      {
+        "file": "apps/web/src/features/auth/components/organisms/sign-in-form.tsx",
+        "specifier": "@/public/assets/icons/google.svg",
+        "line": 20,
+        "validatedTarget": "apps/web/src/public/assets/icons/google.svg"
+      }
+    ]
+  },
+  "limitations": [
+    "Import/export targets, not semantic quality or named-export/type validation; workspace typecheck required.",
+    "Installed third-party and computed dynamic imports require canonical suite/image startup proof.",
+    "Historical SQL, tests, compiled/generated/private state excluded."
+  ],
+  "python": {
+    "scope": "CURRENT_RUNTIME_PYTHON_AST_LOCAL_IMPORTS",
+    "generatedAt": "2026-10-09T10:16:53.557757+00:00",
+    "filesParsed": 153,
+    "imports": 981,
+    "excluded": [
+      ".cache",
+      ".mda",
+      ".pytest_cache",
+      ".uv-cache",
+      ".venv",
+      "__pycache__",
+      "decision",
+      "tests",
+      "tmp"
+    ],
+    "issues": [],
+    "registeredBoundaries": [
+      {
+        "name": "legal_change_detection_requested",
+        "target": "tools.legal.sources.change_detection.legal_change_detector_boundary:LegalChangeDetectorBoundary",
+        "source": "legal.legal-change-detector",
+        "event": "cron.legal-catalog.check-updates.v1"
+      },
+      {
+        "name": "assessment_root_requested",
+        "target": "assessment_root.boundary:AssessmentRootBoundary",
+        "source": "assessment.root-run",
+        "event": "command.assessment.root.requested.v1"
+      },
+      {
+        "name": "legal_portfolio_preparation_requested",
+        "target": "legal_preparation.boundary:LegalPreparationBoundary",
+        "source": "legal.legal-portfolio-preparation",
+        "event": "command.legal-portfolio.preparation.requested.v1"
+      },
+      {
+        "name": "legal_source_ingest_requested",
+        "target": "tools.legal.sources.ingest.legal_source_ingest_boundary:LegalSourceIngestBoundary",
+        "source": "legal.official-source-ingest",
+        "event": "command.legal-source.ingest.v1"
+      },
+      {
+        "name": "official_text_extraction_requested",
+        "target": "tools.legal.sources.extraction.official_text_extraction_boundary:OfficialTextExtractionBoundary",
+        "source": "legal.official-text-extraction",
+        "event": "command.official-text.extract.v1"
+      },
+      {
+        "name": "ocr_fallback_requested",
+        "target": "tools.legal.sources.ocr_fallback.ocr_fallback_boundary:OcrFallbackBoundary",
+        "source": "legal.ocr-fallback",
+        "event": "command.ocr-fallback.run.v1"
+      },
+      {
+        "name": "ocr_quality_requested",
+        "target": "tools.legal.sources.ocr_quality.ocr_quality_boundary:OcrQualityBoundary",
+        "source": "legal.ocr-quality",
+        "event": "command.ocr-quality.evaluate.v1"
+      },
+      {
+        "name": "reviewed_corpus_input_requested",
+        "target": "tools.legal.corpus.reviewed_input.reviewed_corpus_input_boundary:ReviewedCorpusInputBoundary",
+        "source": "legal.reviewed-corpus-input",
+        "event": "command.reviewed-corpus-input.build.v1"
+      },
+      {
+        "name": "legal_chunk_build_requested",
+        "target": "tools.legal.corpus.legal_chunks.legal_chunk_boundary:LegalChunkBoundary",
+        "source": "legal.legal-chunk-build",
+        "event": "command.legal-chunks.build.v1"
+      },
+      {
+        "name": "vbpl_effected_chunk_set_requested",
+        "target": "tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_boundary:VbplEffectedChunkSetBoundary",
+        "source": "legal.vbpl-effected-chunk-set",
+        "event": "command.vbpl-effected-chunk-set.build.v1"
+      },
+      {
+        "name": "chunk_integrity_requested",
+        "target": "tools.legal.corpus.chunk_integrity.chunk_integrity_boundary:ChunkIntegrityBoundary",
+        "source": "legal.chunk-integrity",
+        "event": "command.chunk-integrity.validate.v1"
+      },
+      {
+        "name": "legal_retrieval_index_requested",
+        "target": "tools.legal.retrieval.index.legal_retrieval_index_boundary:LegalRetrievalIndexBoundary",
+        "source": "legal.legal-retrieval-index",
+        "event": "command.legal-retrieval-index.build.v1"
+      },
+      {
+        "name": "audit_export_requested",
+        "target": "tools.common.capabilities.reporting.report.audit_export.audit_export_boundary:AuditExportBoundary",
+        "source": "reporting.audit-export-requested",
+        "event": "audit.export-requested"
+      },
+      {
+        "name": "agent_runtime_health_requested",
+        "target": "tools.common.capabilities.agent_runtime.health_boundary:AgentRuntimeHealthBoundary",
+        "source": "agent-runtime.health",
+        "event": "internal.agent-runtime.health.v1"
+      }
+    ],
+    "limitations": "Static local imports and manifest class existence only; not full installed-import/image/provider/staging proof."
+  },
+  "status": "PASS"
+}

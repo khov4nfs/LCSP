@@ -28,7 +28,7 @@ test.describe("Admin Release Gate: User Lifecycle & Destructive Action Safeguard
     expect(mutationCount).toBe(1);
   });
 
-  test("validates last-admin protection invariant (LCSP-295 / LCSP-299)", async () => {
+  test("validates last-admin protection invariant (USER_ACCOUNTS / ACCOUNT_LIFECYCLE)", async () => {
     function canSuspendAnotherAdmin(activeAdminCount: number): boolean {
       return activeAdminCount > 1;
     }

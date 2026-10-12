@@ -1,0 +1,49 @@
+{
+  "scope": "FRESH_FINAL_IMAGE_GENERATED_RULE_SET_REASONED_SEMANTIC_REVIEW",
+  "status": "PASS",
+  "candidateId": "20261012054358_c13bae52f1ac",
+  "runId": "f52606b690a84c87",
+  "sourceVersionId": "7abe1da3-6dc7-415f-8d9f-b328690d14f5",
+  "ruleSetVersionId": "5234415b-aed2-47a5-95cd-6254173aa164",
+  "source": "Fresh generated persisted requirements/rules/source/provenance/context; no packet editing",
+  "dimensions": [
+    {
+      "dimension": "definition",
+      "status": "PASS",
+      "reason": "The record definition remains notice text plus receipt timestamp, represented by LR-RETENTION and the association Assessment Rule, with explicit art-1 source context."
+    },
+    {
+      "dimension": "scope",
+      "status": "PASS",
+      "reason": "All three Assessment Rules apply to a public notice service and cite art-2 scope plus art-3 exception; private household use is explicitly excluded in the duration rule and the instrument scope context remains available to all."
+    },
+    {
+      "dimension": "retention-qualifier",
+      "status": "PASS",
+      "reason": "The duration rule requires at least seven days from receipt; LR-RETENTION distinguishes receipt from drafting, and the duration rule cites the art-4 timestamp qualification."
+    },
+    {
+      "dimension": "limiting-language-and-exception",
+      "status": "PASS",
+      "reason": "A separate integrity rule preserves limiting language throughout retention. Every rule preserves the temporary-test exception; none invents a ban on voluntary retention of exempt test records."
+    },
+    {
+      "dimension": "coverage-and-off-repository-duty",
+      "status": "PASS",
+      "reason": "The retention duty is covered by duration, association and integrity rules. In-person attendance is separately NON_ASSESSABLE with an external-organizer/register reason, not an invented software criterion."
+    },
+    {
+      "dimension": "direct-provenance-and-context",
+      "status": "PASS",
+      "reason": "All four duty provenance entries, five typed context relations and every Assessment Rule source reference bind the exact V2 source chunks and stored hashes."
+    }
+  ],
+  "passed": 6,
+  "total": 6,
+  "assessmentRuleCount": 3,
+  "humanLegalApprovalUsed": false,
+  "limitations": [
+    "Reviewed synthetic source fixture; official acquisition/index construction is not substituted."
+  ],
+  "productionTouched": false
+}

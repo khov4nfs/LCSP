@@ -233,7 +233,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
         !(await tx.assessmentHumanRequest.count({
           where: {
             assessmentId: input.assessmentId,
-            engineeringRuleId: row.engineeringRuleId,
+            assessmentRuleId: row.assessmentRuleId,
             status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
           },
         }))
@@ -241,7 +241,7 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
         await tx.assessmentDecisionCoverage.updateMany({
           where: {
             assessmentId: input.assessmentId,
-            engineeringRuleId: row.engineeringRuleId,
+            assessmentRuleId: row.assessmentRuleId,
             resolutionState: DECISION_RESOLUTION_STATES.WAITING_FOR_INPUT,
           },
           data: { resolutionState: DECISION_RESOLUTION_STATES.INVESTIGATING },

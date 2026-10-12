@@ -1,0 +1,219 @@
+{
+  "status": "PASS",
+  "runId": "f52606b690a84c87",
+  "candidateId": "20261012054358_c13bae52f1ac",
+  "source": "READ_ONLY_SQL_AFTER_UI_ACTIVATION",
+  "oldPinsDecisionsArtifactsByteIdentical": true,
+  "beforeReceipt": "supersession-before.json",
+  "after": {
+    "assessmentA": {
+      "case": {
+        "assessmentId": "c69448c1-9318-4b33-b056-25622e919bb6",
+        "caseRevision": 2,
+        "ruleSetVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+        "repositorySnapshotId": "777b0143-4441-4f52-bfa6-6a63332e2925",
+        "repositoryScanJobId": "bd0ef8ab-e163-4b0f-ab12-f32c311740a6",
+        "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+        "pinnedAt": "2026-10-12T05:59:29.697+00:00",
+        "createdAt": "2026-10-12T05:59:29.705+00:00",
+        "updatedAt": "2026-10-12T06:07:00.136+00:00"
+      },
+      "decisions": [
+        {
+          "decisionId": "3038b3bc-1298-4fda-aa42-27e4e283d7de",
+          "assessmentId": "c69448c1-9318-4b33-b056-25622e919bb6",
+          "ruleSetVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+          "assessmentRuleId": "AR-1",
+          "assessmentRuleVersion": "release-synthetic-f52606b690a84c87",
+          "scopeId": "ASSESSMENT",
+          "decisionRevision": 1,
+          "state": "ACCEPTED",
+          "applicability": "APPLICABLE",
+          "compliance": "NON_COMPLIANT",
+          "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+          "caseRevision": 2,
+          "idempotencyKey": "decision:d62bc1be-0cbf-48c5-93c0-d42e6119c1c4:e7ac0af7022f21338a3cd7fa",
+          "requestDigest": "ebf619f1af3957cfa09d27b9bb995f02f050d5bb5020dbc2fceabb0ce560dd77",
+          "decision": {
+            "scopeId": "ASSESSMENT",
+            "criteria": [
+              {
+                "outcome": "NOT_MET",
+                "rationale": "The system configures a 7-day retention period (service.py line 6), which meets the minimum duration requirement. However, the delete_expired method incorrectly calculates expiration from draft_timestamp instead of receipt_timestamp (line 43: 'notice.draft_timestamp + RETENTION_PERIOD <= now'). The legal requirement explicitly states that the 7-day period must begin from the receipt timestamp, which is recorded when the notice is received. This implementation error means records may be deleted before 7 days have elapsed from their receipt timestamp if the draft timestamp differs from the receipt timestamp.",
+                "references": [
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "299fc747-edf8-57be-bcc5-b56776a40d54"
+                  },
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "2048dc47-c9d4-5f97-a184-49d1e55015af"
+                  },
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "a1601820-4e2b-5640-80df-0dfe975ef56b"
+                  }
+                ],
+                "criterionId": "C-1"
+              },
+              {
+                "outcome": "MET",
+                "rationale": "The Notice dataclass (service.py lines 9-15) defines both notice_text and receipt_timestamp as fields of the same frozen dataclass, ensuring they are stored together in memory. The database schema (schema.sql lines 1-7) similarly defines both notice_text and receipt_timestamp as columns in the same notices table. The receive method (service.py lines 22-33) accepts both values and stores them together in a single Notice instance. This satisfies the requirement that notice text and receipt timestamp must be kept together.",
+                "references": [
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "a1601820-4e2b-5640-80df-0dfe975ef56b"
+                  },
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "d2932abb-6ec8-52cc-b514-61cb630ea211"
+                  },
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "4678ff04-dfd7-5fc9-8781-722995b09697"
+                  }
+                ],
+                "criterionId": "C-2"
+              },
+              {
+                "outcome": "MET",
+                "rationale": "The Notice dataclass is defined as frozen (service.py line 9: '@dataclass(frozen=True)'), which prevents modification of the notice_text field after creation. The complete service.py implementation (lines 1-47) shows only three methods: __init__, receive, get, and delete_expired. None of these methods modify notice text - they only create new notices or delete entire records. The receive method (lines 22-33) creates immutable Notice instances that cannot be modified after creation. The delete_expired method (lines 39-47) only removes entire records from the dictionary, not modify their content. The frozen dataclass constraint combined with the absence of any update logic in the complete service implementation ensures that notice text is preserved without alteration.",
+                "references": [
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "a1601820-4e2b-5640-80df-0dfe975ef56b"
+                  },
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "4678ff04-dfd7-5fc9-8781-722995b09697"
+                  },
+                  {
+                    "type": "ASSESSMENT_EVIDENCE",
+                    "evidenceId": "2048dc47-c9d4-5f97-a184-49d1e55015af"
+                  }
+                ],
+                "criterionId": "C-3"
+              }
+            ],
+            "rationale": "The rule applies because the operator offers this notice service to the public as an organization (confirmed by human-provided fact), not for private household use. The system stores notice records with receipt timestamps, and the human confirmed these are genuine operational records, not temporary test records.",
+            "compliance": "NON_COMPLIANT",
+            "references": [
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "8d3318cd-a269-426d-b479-bba04c90447a",
+                "caseRevision": 2
+              },
+              {
+                "type": "CONFIRMED_FACT",
+                "factId": "3322b9de-a39d-54b6-94d6-0af04ae155ff",
+                "caseRevision": 2
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "a322be75-9fa3-5d4a-af20-97077ac72f92"
+              },
+              {
+                "type": "ASSESSMENT_EVIDENCE",
+                "evidenceId": "cf5ac62e-c4ea-5bf4-ad79-741a91e2e96d"
+              }
+            ],
+            "caseRevision": 2,
+            "applicability": "APPLICABLE",
+            "assessmentRuleId": "AR-1",
+            "legalContextRefs": [
+              {
+                "legalContextId": "LR-1"
+              }
+            ],
+            "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+            "ruleSetVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+            "repositorySnapshotId": "777b0143-4441-4f52-bfa6-6a63332e2925",
+            "assessmentRuleVersion": "release-synthetic-f52606b690a84c87"
+          },
+          "createdAt": "2026-10-12T06:08:51.299+00:00",
+          "supersededAt": null,
+          "invalidatedAt": null
+        }
+      ],
+      "artifacts": [
+        {
+          "artifactId": "dade1a39-0bb9-5aea-be60-bc750f84e05b",
+          "assessmentId": "c69448c1-9318-4b33-b056-25622e919bb6",
+          "kind": "FINAL_REPORT",
+          "lifecycleState": "ACTIVE",
+          "ruleSetVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+          "repositorySnapshotId": "777b0143-4441-4f52-bfa6-6a63332e2925",
+          "repositoryCommit": "c14f518437c1b8cef94b4f9a176c04b1acaff6fe",
+          "caseRevision": 2,
+          "schemaVersion": "ASSESSMENT_FINAL_REPORT_V1",
+          "contentSha256": "sha256:f46f841e60f56181c01ca720d8d0e83b9402b8d15ee9fe416874cbcfdd16dc14",
+          "sizeBytes": 7025,
+          "storageRef": "{\"artifact_id\":\"dade1a39-0bb9-5aea-be60-bc750f84e05b\",\"total_size\":7025,\"hash\":\"f46f841e60f56181c01ca720d8d0e83b9402b8d15ee9fe416874cbcfdd16dc14\",\"chunks\":[\"f46f841e60f56181c01ca720d8d0e83b9402b8d15ee9fe416874cbcfdd16dc14.chunk\"]}",
+          "createdAt": "2026-10-12T06:13:04.145+00:00",
+          "activatedAt": "2026-10-12T06:13:04.151+00:00",
+          "reportRequestDigest": "4e4e9b43ffe2b9d7a90f43f26bcb5ecca23f9951c6dc5e30549489a433dcb52c"
+        }
+      ]
+    },
+    "assessmentB": {
+      "case": {
+        "assessmentId": "dbbaf5f9-3765-40c5-9606-19a22a4c2ac8",
+        "caseRevision": 0,
+        "ruleSetVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+        "repositorySnapshotId": null,
+        "repositoryScanJobId": null,
+        "repositoryCommit": null,
+        "pinnedAt": "2026-10-12T06:00:07.109+00:00",
+        "createdAt": "2026-10-12T06:00:07.114+00:00",
+        "updatedAt": "2026-10-12T06:00:07.114+00:00"
+      },
+      "decisions": [],
+      "artifacts": []
+    }
+  },
+  "versions": [
+    {
+      "id": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+      "version": "release-synthetic-f52606b690a84c87.p1",
+      "legalSourceVersionId": "45513c31-3602-4ef2-9e67-bd6f4a668f90",
+      "preparationRunId": "2c0dfb17-4cda-416d-937b-283f11b60c5d",
+      "lifecycleState": "SUPERSEDED",
+      "ruleSetDigest": "13fc2ed9055e077ec0a1540a92c9542eb76dee9890d6690858753a78f8b53493",
+      "validationOutcome": "PASSED",
+      "validationFailures": [],
+      "createdAt": "2026-10-12T05:57:54.461",
+      "validatedAt": "2026-10-12T05:57:54.461",
+      "activatedAt": "2026-10-12T05:57:54.461",
+      "supersededAt": "2026-10-12T06:23:56.493"
+    },
+    {
+      "id": "5234415b-aed2-47a5-95cd-6254173aa164",
+      "version": "release-synthetic-f52606b690a84c87-supersession.p1",
+      "legalSourceVersionId": "7abe1da3-6dc7-415f-8d9f-b328690d14f5",
+      "preparationRunId": "f5608e2a-0d10-4d59-955a-94cf99d852a3",
+      "lifecycleState": "ACTIVE",
+      "ruleSetDigest": "ba193e5ab1567508f2394049af7bfa954496ca106856b5e55870d5afee078251",
+      "validationOutcome": "PASSED",
+      "validationFailures": [],
+      "createdAt": "2026-10-12T06:23:56.496",
+      "validatedAt": "2026-10-12T06:23:56.493",
+      "activatedAt": "2026-10-12T06:23:56.493",
+      "supersededAt": null
+    }
+  ],
+  "newAssessmentC": {
+    "assessmentId": "c000b0cc-d884-4322-91c1-360602a11306",
+    "ruleSetVersionId": "5234415b-aed2-47a5-95cd-6254173aa164",
+    "case": {
+      "assessmentId": "c000b0cc-d884-4322-91c1-360602a11306",
+      "caseRevision": 0,
+      "ruleSetVersionId": "5234415b-aed2-47a5-95cd-6254173aa164",
+      "repositorySnapshotId": null,
+      "repositoryScanJobId": null,
+      "repositoryCommit": null,
+      "pinnedAt": "2026-10-12T06:25:34.625+00:00",
+      "createdAt": "2026-10-12T06:25:34.63+00:00",
+      "updatedAt": "2026-10-12T06:25:34.63+00:00"
+    }
+  }
+}

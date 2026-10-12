@@ -1,0 +1,37 @@
+{
+  "classification": "MIXED",
+  "removedOutboxKinds": {
+    "aiUsageFlow": "AI_USAGE_FLOW",
+    "classificationReviewRequest": "CLASSIFICATION_REVIEW_REQUEST",
+    "classificationResult": "CLASSIFICATION_RESULT",
+    "documentRequest": "DOCUMENT_REQUEST",
+    "legalRuleMatch": "LEGAL_RULE_MATCH",
+    "technicalEvidenceReport": "TECHNICAL_EVIDENCE_REPORT",
+    "technicalProfile": "TECHNICAL_PROFILE",
+    "targetedReanalysisRequest": "TARGETED_REANALYSIS_REQUEST",
+    "verifiedProfile": "VERIFIED_PROFILE"
+  },
+  "removedAuditResourceKinds": {
+    "aiUsageFlow": "AI_USAGE_FLOW",
+    "classificationReviewRequest": "CLASSIFICATION_REVIEW_REQUEST",
+    "classificationResult": "CLASSIFICATION_RESULT",
+    "documentRequest": "DOCUMENT_REQUEST",
+    "legalRuleMatch": "LEGAL_RULE_MATCH",
+    "technicalEvidenceReport": "TECHNICAL_EVIDENCE_REPORT",
+    "technicalProfile": "TECHNICAL_PROFILE",
+    "targetedReanalysisRequest": "TARGETED_REANALYSIS_REQUEST",
+    "verifiedProfile": "VERIFIED_PROFILE",
+    "conflictRecord": "CONFLICT_RECORD",
+    "readinessExport": "READINESS_EXPORT"
+  },
+  "canonicalCorpusAuditResource": "LEGAL_CORPUS_VERSION",
+  "canonicalKept": [
+    "generic outbox/idempotency",
+    "canonical sanitized AuditEvent",
+    "ledger/invocation identities"
+  ],
+  "migrationExecuted": false,
+  "deletedSource": [
+    "apps/api/src/platform/logging/orchestration-runtime-log.ts"
+  ]
+}

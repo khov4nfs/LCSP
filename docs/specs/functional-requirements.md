@@ -1,5 +1,7 @@
 # LCSP Functional Requirements
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Governance
 
 Canonical IDs are `FR-001..FR-056`. Phase 5.2L supersedes the previous active/deferred split:

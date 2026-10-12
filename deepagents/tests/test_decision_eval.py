@@ -9,25 +9,15 @@ def test_offline_decision_eval_reports_per_model_and_blocks_activation():
 
     assert report["schemaVersion"] == "LCSP_JEV_DECISION_EVAL_REPORT_V1"
     assert report["dataset"]["hash"].startswith("sha256:")
-    assert report["dataset"]["recordCount"] == 5
+    assert report["dataset"]["recordCount"] == 1
     assert "jev-2026-09-22.eval" in report["models"]
     model = report["models"]["jev-2026-09-22.eval"]
     assert model["agreementAccuracy"] == 1.0
-    assert model["performance"]["removedGenerativeCalls"] == 5
+    assert model["performance"]["removedGenerativeCalls"] == 1
     assert model["fallbackRate"] == 0.0
     assert report["policy"]["defaultMode"] == "SHADOW"
     assert report["policy"]["passed"] is False
     assert report["policy"]["recommendation"] == "DO_NOT_PROMOTE"
-    investigator = report["perDecision"]["INVESTIGATOR_NEXT_ACTION"]["models"][
-        "jev-2026-09-22.eval"
-    ]
-    assert investigator["agreementAccuracy"] == 1.0
-    assert investigator["highRiskFalseNegativeRate"] == 0.0
-    assert investigator["safetyQuestionCount"] == 1
-    assert investigator["questionMetrics"]["next_action"]["accuracy"] == 1.0
-    assert investigator["requirements"]["sufficientEvalSampleSize"] is False
-    assert investigator["requirements"]["acceptableCalibrationPassed"] is False
-    assert investigator["activationEvidence"]["modelVersion"] == "jev-2026-09-22.eval"
     pr_review = report["perDecision"]["PR_REVIEW_TRIAGE"]["models"][
         "jev-2026-09-22.eval"
     ]
@@ -40,11 +30,6 @@ def test_offline_decision_eval_reports_per_model_and_blocks_activation():
         ]
         == 0.0
     )
-    planner = report["perDecision"]["PLANNER_CANDIDATE_RANKING"]["models"][
-        "jev-2026-09-22.eval"
-    ]
-    assert planner["rankingMetrics"]["meanReciprocalRank"] == 1.0
-    assert planner["rankingMetrics"]["ndcg"] == 1.0
 
 
 def test_offline_decision_eval_report_is_machine_readable_json():
@@ -52,7 +37,7 @@ def test_offline_decision_eval_report_is_machine_readable_json():
     encoded = json.dumps(report, sort_keys=True)
 
     decoded = json.loads(encoded)
-    assert decoded["perDecision"]["INVESTIGATOR_NEXT_ACTION"]["activationMode"] == "SHADOW"
+    assert decoded["perDecision"]["PR_REVIEW_TRIAGE"]["activationMode"] == "SHADOW"
     assert "FINAL_READINESS" in decoded["policy"]["permanentExclusions"]
 
 

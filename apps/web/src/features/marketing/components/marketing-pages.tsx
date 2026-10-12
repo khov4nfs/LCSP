@@ -370,7 +370,7 @@ function FeaturesMarketingPageContent() {
           section="targeted-human-context"
           eyebrow={t("pages.marketing.features.humanEyebrow")}
           title={t("pages.marketing.features.humanContextTitle")}
-          description={t("pages.marketing.features.interviewDescription")}
+          description={t("pages.marketing.features.humanContextDescription")}
           preview={<HumanContextPreview />}
           reverse
         />
@@ -643,7 +643,7 @@ function AppShellPreview() {
   const locale = useMarketingLocale();
   const t = (key: string) => resolveMarketingMessage(locale, key);
 
-  const scannerSteps = [
+  const repositorySteps = [
     ["github", "pages.marketing.home.showcaseStepGithub"],
     ["github", "pages.marketing.home.showcaseStepClone"],
     ["search", "pages.marketing.home.showcaseStepScan"],
@@ -652,27 +652,27 @@ function AppShellPreview() {
   ] as const;
   const workflowSteps = [
     [
-      "pages.marketing.home.showcaseWorkflowScanner",
+      "pages.marketing.home.showcaseWorkflowRepositoryInput",
       "pages.marketing.home.showcaseStatusPassed",
       true,
     ],
     [
-      "pages.marketing.home.showcaseWorkflowInterview",
+      "pages.marketing.home.showcaseWorkflowHumanResolution",
       "pages.marketing.home.showcaseStatusPassed",
       true,
     ],
     [
-      "pages.marketing.home.showcaseWorkflowRules",
+      "pages.marketing.home.showcaseWorkflowRuleSet",
       "pages.marketing.home.showcaseStatusPassed",
       true,
     ],
     [
-      "pages.marketing.home.showcaseWorkflowRepositoryAnalyst",
+      "pages.marketing.home.showcaseWorkflowRoot",
       "pages.marketing.home.showcaseStatusRunning",
       true,
     ],
     [
-      "pages.marketing.home.showcaseWorkflowGate",
+      "pages.marketing.home.showcaseWorkflowCompletion",
       "pages.marketing.home.showcaseStatusQueued",
       false,
     ],
@@ -753,10 +753,10 @@ function AppShellPreview() {
               {t("pages.marketing.home.showcaseThoughtLong")}
             </p>
             <p className="mt-3 text-[15px] leading-6">
-              {t("pages.marketing.home.showcaseScannerComplete")}
+              {t("pages.marketing.home.showcaseRepositoryInvestigated")}
             </p>
             <div className="mt-7 space-y-3">
-              {scannerSteps.map(([icon, label]) => (
+              {repositorySteps.map(([icon, label]) => (
                 <div
                   key={label}
                   className="grid grid-cols-[20px_1fr_52px] items-center gap-3"
@@ -831,7 +831,7 @@ function AppShellPreview() {
               </p>
             </div>
             <p className="mt-3 text-[15px] leading-6">
-              {t("pages.marketing.home.showcaseInterviewReady")}
+              {t("pages.marketing.home.showcaseHumanResolution")}
             </p>
           </div>
         </div>

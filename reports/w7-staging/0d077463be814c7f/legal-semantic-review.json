@@ -1,0 +1,48 @@
+{
+  "scope": "EXACT_IMAGE_REASONED_LEGAL_SEMANTIC_REVIEW",
+  "status": "FAIL",
+  "runId": "0d077463be814c7f",
+  "preparationRunId": "2212827c-367a-4085-80a8-879c98e48c52",
+  "portfolioVersionId": "67dce8f4-92e0-4f36-84d6-06a11e58ffc9",
+  "packetSha256": "7c94b0c97b78fee2c6837e0b147787ca4941c5a451825073001605dc6b79795b",
+  "rubric": "deepagents/tests/fixtures/legal_preparation_eval/rubric.json",
+  "rubricSha256": "9d6795f1d72ddcab503cff78dc2068e037511b35ef5ce66fc40b5c750dde96b6",
+  "reviewMethod": "REASONED_SOURCE_TO_LEGALRULE_TO_ENGINEERINGRULE_REVIEW",
+  "dimensions": [
+    {
+      "id": "DEFINITIONS",
+      "status": "PASS",
+      "reason": "The retention proposition and C-1 preserve record as stored notice plus receipt timestamp, with a same-corpus definition relation."
+    },
+    {
+      "id": "QUALIFIERS",
+      "status": "FAIL",
+      "reason": "Criteria preserve receipt-based timing including received rather than drafted, notice-plus-timestamp storage and limiting-language preservation. Exact timing and subordinate preservation references are present. However requiredEvidence only asks for duration and receipt timestamps; investigationGoals do likewise, supportingEvidence and negativeEvidence are empty. There is no guidance for independently observing preservation of limiting language or exception treatment."
+    },
+    {
+      "id": "EXCEPTIONS",
+      "status": "FAIL",
+      "reason": "LR-INPERSON-01 now has an empty exceptions array, but REL-06 still makes art-3::cl-1 an EXCEPTION to it. The source explicitly does not remove this separate duty; no such relation is valid. Retention exceptions merely says Temporary test records without retaining the exception limitation."
+    },
+    {
+      "id": "CROSS_REFERENCES",
+      "status": "PASS",
+      "reason": "Relevant definition, public-service scope, retention exception and timing context are followed within the pinned corpus; this does not cure the erroneous reverse exception relation."
+    },
+    {
+      "id": "NON_REPOSITORY_DUTIES",
+      "status": "PASS",
+      "reason": "The in-person appointment/attendance duty retains its organizer-register qualifier, NON_ASSESSABLE classification and grounded reason; no technical rule or fabricated evidence is added."
+    },
+    {
+      "id": "CORPUS_VERSION_PINNING",
+      "status": "PASS",
+      "reason": "Every actual source and context reference uses the same immutable synthetic corpus and accepted exact locator/hash identity."
+    }
+  ],
+  "deterministicSemanticOracle": false,
+  "packetManuallyEdited": false,
+  "runtimeMechanics": "PASS",
+  "productionDeployment": false,
+  "releaseEligible": false
+}

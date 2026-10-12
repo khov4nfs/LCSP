@@ -1,0 +1,32 @@
+{
+  "scope": "CANONICAL_ACTIVITY_USAGE_FOCUSED_VERIFICATION",
+  "status": "PASS_FOCUSED",
+  "api": {
+    "passed": 17,
+    "failed": 0,
+    "suites": 4
+  },
+  "python": "reports/canonical-activity-python.xml",
+  "providerRegression": "reports/canonical-usage-provider-regression.xml",
+  "typechecks": [
+    "API",
+    "Web",
+    "root"
+  ],
+  "policies": [
+    "imports",
+    "contract literals",
+    "retired authority"
+  ],
+  "browserVerification": {
+    "status": "PASS_BOUNDED",
+    "receipt": "reports/staging/804a20977d4a448f/browser-full-flow.json",
+    "usageInvocations": 9,
+    "tokenUsageEvents": 9,
+    "mismatches": 0,
+    "duplicateCallbackHttp": 201,
+    "totalsUnchanged": true,
+    "fullJourney": "NOT_PROVEN"
+  },
+  "releaseEligible": false
+}

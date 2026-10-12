@@ -1,3 +1,13 @@
+import { readFileSync } from "node:fs";
+const eventPolicy = JSON.parse(
+  readFileSync(
+    new URL(
+      "../../../../../tests/fixtures/outbox-event-policy.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+) as { retired: string[]; retained: string[] };
 import {
   OUTBOX_AGGREGATE_TYPES,
   OUTBOX_AUDIT_EVENT_TYPES,
@@ -6,8 +16,6 @@ import {
 } from "@lcsp/contracts/outbox";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
-import { LEGACY_OUTBOX_EVENT_TYPES } from "@lcsp/contracts/legacy-migration";
-import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { jest } from "@jest/globals";
 import { Test, TestingModule } from "@nestjs/testing";
 import { NotFoundException } from "@nestjs/common";
@@ -140,7 +148,7 @@ describe("OutboxDlqService", () => {
     ).rejects.toThrow(NotFoundException);
   });
 
-  it.each(Object.values(LEGACY_OUTBOX_EVENT_TYPES))(
+  it.each(eventPolicy.retired)(
     "never replays the retired V1 event %s",
     async (eventType) => {
       findMessageById.mockResolvedValue({
@@ -195,27 +203,6 @@ describe("OutboxDlqService", () => {
         correlationId: "corr-1",
       }),
     );
-  });
-
-  it("rejects replay for an accepted technical evidence artifact", async () => {
-    findMessageById.mockResolvedValue({
-      id: "1",
-      aggregateType: OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport,
-      status: OUTBOX_STATUSES.dlq,
-      eventType: "event.scan.evidence.accepted.v1",
-      aggregateId: "report-1",
-    } as OutboxMessageEntity);
-    technicalEvidenceReportFindUnique.mockResolvedValue({
-      status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
-    });
-
-    await expect(
-      service.replayMessage("1", "actor-1", "corr-1"),
-    ).rejects.toMatchObject({
-      response: {
-        problem: { code: OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget },
-      },
-    });
   });
 
   it("deletes a valid DLQ message and writes audit", async () => {

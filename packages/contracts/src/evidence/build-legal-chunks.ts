@@ -1,6 +1,5 @@
 import type {
   AgenticToolCoverageState,
-  AgenticToolName,
   AgenticToolStatus,
 } from "./agentic-tool.ts";
 
@@ -66,7 +65,11 @@ export const BUILD_LEGAL_CHUNKS_RESULT_JSON_SCHEMA = {
       properties: {
         chunkId: { type: "string", minLength: 8, maxLength: 220 },
         locator: { type: "string", minLength: 3, maxLength: 220 },
-        parentChunkId: { type: ["string", "null"], minLength: 3, maxLength: 220 },
+        parentChunkId: {
+          type: ["string", "null"],
+          minLength: 3,
+          maxLength: 220,
+        },
         legalStatus: { enum: ["ACTIVE", "REPEALED", "AMENDED"] },
       },
     },
@@ -88,7 +91,7 @@ export type BuildLegalChunksLimitation = {
 
 export type BuildLegalChunksResponse = {
   status: AgenticToolStatus;
-  toolName: AgenticToolName;
+  toolName: typeof BUILD_LEGAL_CHUNKS_TOOL.name;
   toolVersion: string;
   configHash: string;
   correlationId: string;

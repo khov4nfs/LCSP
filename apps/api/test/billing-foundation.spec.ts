@@ -5,7 +5,7 @@ import {
   PAYMENT_RECONCILIATION_STATUSES,
 } from "@lcsp/contracts/billing";
 
-describe("LCSP-310 billing foundation invariants", () => {
+describe("billing foundation invariants", () => {
   it("exposes only the canonical lifecycle status values", () => {
     expect(Object.keys(BILLING_ORDER_STATUSES)).toEqual([
       "PENDING_PAYMENT",

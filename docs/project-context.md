@@ -68,7 +68,7 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
 
 ### 8. Versioned, Immutable Artifact Chains
 
-- Evidence, profile, classification, report, corpus version, và rerun chain là immutable history.
+- Evidence, profile, classification, report, legal source version, và rerun chain là immutable history.
 - Rerun phải tạo chain/version mới thay vì mutate lịch sử cũ. [Source: docs/specs/domain-model.md] [Source: docs/specs/non-functional-requirements.md]
 
 ### 9. Story/Implementation Scope Discipline
@@ -76,7 +76,7 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
 - Không reintroduce structured attestation. `FR-045`, `FR-046`, `UC-018` là `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Không reintroduce manual technical evidence JSON upload. `FR-051` là `REMOVED_FROM_PRODUCT`.
 - Không reintroduce delegated free-form clarification UI/API trong active MVP. `FR-052` là deferred.
-- Không tạo customer-facing corpus administration surfaces. [Source: docs/product/prd.md] [Source: docs/specs/use-cases.md]
+- Không tạo customer-facing legal source administration surfaces. [Source: docs/product/prd.md] [Source: docs/specs/use-cases.md]
 
 ### 10. File and Package Structure Expectations
 
@@ -96,7 +96,7 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
 ## Existing Patterns Worth Reusing
 
 - Documentation-first, authority-driven planning: behavior phải trace về source docs cụ thể.
-- Domain naming đã ổn định: `WizardProfile`, `TechnicalEvidenceReport`, `AIUsageFlow`, `VerifiedProfile`, `LegalRuleMatch`, `GeneratedDocument`, `AuditEvent`.
+- Domain naming đã ổn định: `WizardProfile`, `TechnicalEvidenceReport`, `AIUsageFlow`, `VerifiedProfile`, `LegalRequirementMatch`, `GeneratedDocument`, `AuditEvent`.
 - Event contracts dùng naming `command.<domain>.<action>.v1` và `event.<domain>.<fact>.v1`.
 - Correlation ID là yêu cầu xuyên suốt cho queue, audit, blocked/failure visibility.
 - Legal citation roles phải giữ tách biệt `PRIMARY_MATCH`, `PARENT_CONTEXT`, `REFERENCED_CONTEXT`.

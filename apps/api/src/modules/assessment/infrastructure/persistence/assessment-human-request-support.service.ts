@@ -50,7 +50,7 @@ export class AssessmentHumanRequestSupport {
       requestRevision: row.requestRevision,
       openedCaseRevision: row.caseRevision,
       status: row.status,
-      engineeringRuleId: row.engineeringRuleId,
+      assessmentRuleId: row.assessmentRuleId,
       criterionIds: row.criterionIds,
       question: row.question,
       unresolvedFact: row.unresolvedFact,

@@ -1,0 +1,37 @@
+{
+  "scope": "CURRENT_IMAGE_INTERNAL_ASSESSMENT_MECHANICAL_GATE",
+  "kind": "BACKEND_VERIFICATION",
+  "runId": "e73734b01eff4005",
+  "key": "assessmentA",
+  "mode": "advance-case",
+  "apiImageId": "sha256:8ccb87986add46e51b14fdca74d575c50992fda82b0563d01d7100d943f8aac5",
+  "imageReceipt": "reports/release-images/20261011005041_cce648aed2a3/report.json",
+  "assessmentId": "d30b6364-f031-4318-90af-9569b079c612",
+  "threadId": "de9feef0-c426-4903-b0ef-b09fb8a6e245",
+  "actualRootDecisionId": "72bce4af-5594-4ae5-81df-84a35cae9d1e",
+  "status": "PASS_INVALIDATION_PENDING_UI_REINVESTIGATION",
+  "beforeRevision": 2,
+  "afterRevision": 3,
+  "invalidatedDecisionIds": [
+    "72bce4af-5594-4ae5-81df-84a35cae9d1e"
+  ],
+  "blockers": [
+    {
+      "code": "ASSESSMENT_NOT_ACTIVE",
+      "reference": "PAUSED"
+    },
+    {
+      "code": "EXECUTION_FAILURE",
+      "reference": "d30b6364-f031-4318-90af-9569b079c612"
+    },
+    {
+      "code": "STALE_DECISION",
+      "reference": "ER-ART-5-RETENTION"
+    }
+  ],
+  "mutation": "CASE_REVISION_INCREMENT_WITH_EXISTING_CANONICAL_INVALIDATION_SERVICE",
+  "insertedFacts": 0,
+  "insertedEvidence": 0,
+  "insertedDecisions": 0,
+  "insertedArtifacts": 0
+}

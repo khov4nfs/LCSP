@@ -1,0 +1,478 @@
+{
+  "classification": "V1_ONLY",
+  "files": [
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/gap/__init__.py",
+      "imports": [],
+      "definitions": [],
+      "module": "tools.common.capabilities.reporting.gap",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tests.test_event_routing_contract",
+        "tests.reporting.test_gap_analysis_worker"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/gap/gap_analysis_generator.py",
+      "imports": [],
+      "definitions": [
+        "GapAnalysisGenerator",
+        "generate"
+      ],
+      "module": "tools.common.capabilities.reporting.gap.gap_analysis_generator",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tests.reporting.test_gap_analysis_worker"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/gap/gap_analysis_boundary.py",
+      "imports": [
+        "tools",
+        "tools.common",
+        "tools.common.capabilities",
+        "tools.common.capabilities.agent_runtime",
+        "tools.common.capabilities.agent_runtime.boundary",
+        "tools.common.capabilities.platform",
+        "tools.common.capabilities.platform.logging",
+        "tools.common.capabilities.reporting",
+        "tools.common.capabilities.reporting.gap",
+        "tools.common.capabilities.reporting.gap.gap_analysis_generator",
+        "tools.common.capabilities.reporting.report",
+        "tools.common.capabilities.reporting.report.delivery",
+        "tools.common.capabilities.reporting.report.delivery.document_runtime_client",
+        "tools.common.capabilities.reporting.report.delivery.storage_uploader",
+        "tools.common.capabilities.reporting.report.final_report",
+        "tools.common.capabilities.reporting.report.final_report.output_guardrail",
+        "tools.common.capabilities.reporting.report.projection",
+        "tools.common.capabilities.reporting.report.projection.classification_data_projection"
+      ],
+      "definitions": [
+        "GapAnalysisBoundary",
+        "__init__",
+        "handle",
+        "_document_request_id",
+        "_assert_gap_context",
+        "_record",
+        "_json_text"
+      ],
+      "module": "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+      "callers": [
+        "tests.test_event_routing_contract",
+        "tests.reporting.test_gap_analysis_worker"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/delivery/__init__.py",
+      "imports": [],
+      "definitions": [],
+      "module": "tools.common.capabilities.reporting.report.delivery",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/delivery/document_runtime_client.py",
+      "imports": [
+        "tools",
+        "tools.common",
+        "tools.common.capabilities",
+        "tools.common.capabilities.platform",
+        "tools.common.capabilities.platform.api_client"
+      ],
+      "definitions": [
+        "DocumentRuntimeClient",
+        "get_generation_context",
+        "post_document_callback"
+      ],
+      "module": "tools.common.capabilities.reporting.report.delivery.document_runtime_client",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/delivery/storage_uploader.py",
+      "imports": [
+        "tools",
+        "tools.common",
+        "tools.common.capabilities",
+        "tools.common.capabilities.platform",
+        "tools.common.capabilities.platform.logging"
+      ],
+      "definitions": [
+        "StorageUploader",
+        "upload_document"
+      ],
+      "module": "tools.common.capabilities.reporting.report.delivery.storage_uploader",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/dossiers/__init__.py",
+      "imports": [
+        "tools",
+        "tools.common",
+        "tools.common.capabilities",
+        "tools.common.capabilities.reporting",
+        "tools.common.capabilities.reporting.report",
+        "tools.common.capabilities.reporting.report.dossiers",
+        "tools.common.capabilities.reporting.report.dossiers.engine",
+        "tools.common.capabilities.reporting.report.dossiers.models"
+      ],
+      "definitions": [],
+      "module": "tools.common.capabilities.reporting.report.dossiers",
+      "callers": [
+        "tools.common.capabilities.reporting.report.dossiers.engine",
+        "tools.common.capabilities.reporting.report.dossiers.context_builder",
+        "tests.test_dossier_context_builder"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/dossiers/engine.py",
+      "imports": [
+        "tools",
+        "tools.common",
+        "tools.common.capabilities",
+        "tools.common.capabilities.reporting",
+        "tools.common.capabilities.reporting.report",
+        "tools.common.capabilities.reporting.report.dossiers",
+        "tools.common.capabilities.reporting.report.dossiers.models"
+      ],
+      "definitions": [
+        "DossierEngine",
+        "build_classification_dossier",
+        "_assert_source_artifacts"
+      ],
+      "module": "tools.common.capabilities.reporting.report.dossiers.engine",
+      "callers": [
+        "tools.common.capabilities.reporting.report.dossiers",
+        "tools.common.capabilities.reporting.report.dossiers.context_builder"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/dossiers/context_builder.py",
+      "imports": [
+        "tools",
+        "tools.common",
+        "tools.common.capabilities",
+        "tools.common.capabilities.reporting",
+        "tools.common.capabilities.reporting.report",
+        "tools.common.capabilities.reporting.report.dossiers",
+        "tools.common.capabilities.reporting.report.dossiers.engine",
+        "tools.common.capabilities.reporting.report.dossiers.models"
+      ],
+      "definitions": [
+        "ClassificationDossierBuilder",
+        "__init__",
+        "build",
+        "_record",
+        "_json_record",
+        "_required",
+        "_required_program_graph_id",
+        "_first_non_empty",
+        "_select",
+        "_unresolved_evidence",
+        "_evidence_appendix"
+      ],
+      "module": "tools.common.capabilities.reporting.report.dossiers.context_builder",
+      "callers": [
+        "tests.test_dossier_context_builder"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/dossiers/models.py",
+      "imports": [],
+      "definitions": [
+        "DossierSourceArtifacts",
+        "Dossier",
+        "to_dict"
+      ],
+      "module": "tools.common.capabilities.reporting.report.dossiers.models",
+      "callers": [
+        "tools.common.capabilities.reporting.report.dossiers",
+        "tools.common.capabilities.reporting.report.dossiers.engine",
+        "tools.common.capabilities.reporting.report.dossiers.context_builder"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/final_report/__init__.py",
+      "imports": [],
+      "definitions": [],
+      "module": "tools.common.capabilities.reporting.report.final_report",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary",
+        "tests.test_event_routing_contract",
+        "tests.reporting.test_output_guardrail",
+        "tests.reporting.test_gap_analysis_worker",
+        "tests.reporting.test_final_report_worker"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/final_report/output_guardrail.py",
+      "imports": [],
+      "definitions": [
+        "OutputGuardrail",
+        "check"
+      ],
+      "module": "tools.common.capabilities.reporting.report.final_report.output_guardrail",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary",
+        "tests.reporting.test_output_guardrail",
+        "tests.reporting.test_gap_analysis_worker"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/final_report/final_report_boundary.py",
+      "imports": [
+        "tools",
+        "tools.common",
+        "tools.common.capabilities",
+        "tools.common.capabilities.agent_runtime",
+        "tools.common.capabilities.agent_runtime.boundary",
+        "tools.common.capabilities.platform",
+        "tools.common.capabilities.platform.logging",
+        "tools.common.capabilities.reporting",
+        "tools.common.capabilities.reporting.report",
+        "tools.common.capabilities.reporting.report.delivery",
+        "tools.common.capabilities.reporting.report.delivery.document_runtime_client",
+        "tools.common.capabilities.reporting.report.delivery.storage_uploader",
+        "tools.common.capabilities.reporting.report.final_report",
+        "tools.common.capabilities.reporting.report.final_report.final_report_generator",
+        "tools.common.capabilities.reporting.report.final_report.output_guardrail",
+        "tools.common.capabilities.reporting.report.projection",
+        "tools.common.capabilities.reporting.report.projection.classification_data_projection"
+      ],
+      "definitions": [
+        "FinalReportBoundary",
+        "__init__",
+        "handle",
+        "_document_request_id",
+        "_assert_final_report_context",
+        "_record",
+        "_json_text"
+      ],
+      "module": "tools.common.capabilities.reporting.report.final_report.final_report_boundary",
+      "callers": [
+        "tests.test_event_routing_contract",
+        "tests.reporting.test_final_report_worker"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/final_report/final_report_generator.py",
+      "imports": [
+        "middleware",
+        "middleware.agent_run_budget",
+        "middleware.model_governance",
+        "middleware.usage_metering",
+        "model_policy",
+        "orchestration",
+        "orchestration.agent_stream",
+        "tools",
+        "tools.common",
+        "tools.common.capabilities",
+        "tools.common.capabilities.platform",
+        "tools.common.capabilities.platform.repository_sandbox"
+      ],
+      "definitions": [
+        "FinalReportGenerator",
+        "__init__",
+        "generate",
+        "_generate_executive_summary"
+      ],
+      "module": "tools.common.capabilities.reporting.report.final_report.final_report_generator",
+      "callers": [
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary",
+        "tests.reporting.test_final_report_worker"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/projection/__init__.py",
+      "imports": [],
+      "definitions": [],
+      "module": "tools.common.capabilities.reporting.report.projection",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary"
+      ]
+    },
+    {
+      "file": "deepagents/tools/common/capabilities/reporting/report/projection/classification_data_projection.py",
+      "imports": [],
+      "definitions": [
+        "document_classification_context",
+        "document_evaluations"
+      ],
+      "module": "tools.common.capabilities.reporting.report.projection.classification_data_projection",
+      "callers": [
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary"
+      ]
+    },
+    {
+      "file": "deepagents/tools/legal/retrieval/legal_basis/legal_match_builder.py",
+      "imports": [],
+      "definitions": [
+        "LegalMatchBuilder",
+        "build_payload"
+      ],
+      "module": "tools.legal.retrieval.legal_basis.legal_match_builder",
+      "callers": [
+        "tools.legal",
+        "tests.test_legal_matching_worker"
+      ]
+    },
+    {
+      "file": "deepagents/tools/legal/retrieval/legal_basis/rule_applicability_evaluator.py",
+      "imports": [],
+      "definitions": [
+        "RuleEvaluationResult",
+        "RuleApplicabilityEvaluator",
+        "blocked_invalid_rule",
+        "is_valid_fact_definition",
+        "has_evidence_refs",
+        "is_unknown_fact",
+        "fact_matches",
+        "evaluate_rule"
+      ],
+      "module": "tools.legal.retrieval.legal_basis.rule_applicability_evaluator",
+      "callers": [
+        "tools.legal",
+        "tests.test_legal_matching_worker"
+      ]
+    },
+    {
+      "file": "deepagents/memory_policy/__init__.py",
+      "imports": [
+        "memory_policy",
+        "memory_policy.episodes",
+        "memory_policy.policy",
+        "memory_policy.worker"
+      ],
+      "definitions": [],
+      "module": "memory_policy",
+      "callers": [
+        "tests.test_verified_episode_worker",
+        "memory_policy.episodes",
+        "memory_policy.gateway",
+        "memory_policy.worker"
+      ]
+    },
+    {
+      "file": "deepagents/memory_policy/episodes.py",
+      "imports": [
+        "memory_policy",
+        "memory_policy.gateway",
+        "memory_policy.models"
+      ],
+      "definitions": [],
+      "module": "memory_policy.episodes",
+      "callers": [
+        "memory_policy"
+      ]
+    },
+    {
+      "file": "deepagents/memory_policy/gateway.py",
+      "imports": [
+        "memory_policy",
+        "memory_policy.models",
+        "tools",
+        "tools.common",
+        "tools.common.runtime_envelope"
+      ],
+      "definitions": [
+        "_stable_json",
+        "episode_backend",
+        "episode_capture_path",
+        "episode_store_path",
+        "episode_retrieval_enabled",
+        "JsonlVerifiedEpisodeStore",
+        "ApiVerifiedEpisodeGateway",
+        "build_verified_episode",
+        "_summary_from_handoff",
+        "_domain_key",
+        "_evidence_refs_from_handoff",
+        "capture_verified_episode",
+        "retrieve_verified_episodes_from_gateway",
+        "consolidate_verified_episodes",
+        "__init__",
+        "append",
+        "read_all",
+        "retrieve",
+        "capture",
+        "retrieve",
+        "consolidate"
+      ],
+      "module": "memory_policy.gateway",
+      "callers": [
+        "memory_policy.episodes",
+        "memory_policy.worker"
+      ]
+    },
+    {
+      "file": "deepagents/memory_policy/models.py",
+      "imports": [],
+      "definitions": [
+        "EpisodeStoreError",
+        "VerifiedEpisode",
+        "optional_str",
+        "normalize_validation_status",
+        "normalize_trust_level",
+        "now",
+        "parse_datetime",
+        "to_dict",
+        "from_dict",
+        "is_active"
+      ],
+      "module": "memory_policy.models",
+      "callers": [
+        "memory_policy.episodes",
+        "memory_policy.gateway",
+        "memory_policy.worker"
+      ]
+    },
+    {
+      "file": "deepagents/memory_policy/policy.py",
+      "imports": [],
+      "definitions": [
+        "is_managed_durable_memory_allowed"
+      ],
+      "module": "memory_policy.policy",
+      "callers": [
+        "memory_policy"
+      ]
+    },
+    {
+      "file": "deepagents/memory_policy/worker.py",
+      "imports": [
+        "memory_policy",
+        "memory_policy.gateway",
+        "memory_policy.models"
+      ],
+      "definitions": [
+        "run_verified_episode_consolidation_from_env",
+        "_required_env"
+      ],
+      "module": "memory_policy.worker",
+      "callers": [
+        "tests.test_verified_episode_worker",
+        "memory_policy"
+      ]
+    }
+  ],
+  "tests": [
+    "deepagents/tests/reporting/test_final_report_worker.py",
+    "deepagents/tests/reporting/test_gap_analysis_worker.py",
+    "deepagents/tests/reporting/test_output_guardrail.py",
+    "deepagents/tests/test_dossier_context_builder.py",
+    "deepagents/tests/test_event_routing_contract.py",
+    "deepagents/tests/test_legal_matching_worker.py",
+    "deepagents/tests/test_verified_episode_worker.py"
+  ],
+  "kept": "Canonical Root/Legal Preparation/native researcher/checkpointer/event/billing/source acquisition/index. Chroma exact chunk round-trip is mechanical acquisition, not rule authority."
+}

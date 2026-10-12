@@ -7,16 +7,16 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 const databaseUrl = process.env.LCSP299_TEST_DATABASE_URL;
 const integration = databaseUrl ? describe : describe.skip;
 
-integration("LCSP-299 retired Admin operation migration", () => {
+integration("ACCOUNT_LIFECYCLE retired Admin operation migration", () => {
   it("removes only retired receipts and preserves roles, audit and supported receipts", async () => {
     const url = new URL(databaseUrl!);
     if (
       url.hostname !== "127.0.0.1" ||
       url.port !== "55439" ||
-      url.pathname !== "/lcsp_299_test"
+      url.pathname !== "/lcsp_account_lifecycle_test"
     )
       throw new Error(
-        "Migration regression requires the explicit disposable LCSP-299 database",
+        "Migration regression requires the explicit disposable ACCOUNT_LIFECYCLE database",
       );
     const client = new Client({ connectionString: databaseUrl });
     const schema = `lcsp299_retirement_${randomUUID().replaceAll("-", "")}`;

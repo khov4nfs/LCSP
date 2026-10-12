@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One development entrypoint for LCSP legal corpus/rule/EngineeringRule seeding."""
+"""Development entrypoint for Legal Source Version seeding."""
 from __future__ import annotations
 
 import argparse
@@ -9,8 +9,8 @@ import sys
 from pathlib import Path
 
 
-DEFAULT_CORPUS_VERSION = "VN-LEGAL-2026-08"
-_EXISTING_GOVERNED_CORPUS_MESSAGE = (
+DEFAULT_LEGAL_SOURCE_VERSION = "VN-LEGAL-2026-08"
+_EXISTING_GOVERNED_LEGAL_SOURCE_MESSAGE = (
     "already exists and is not the same approved dev seed"
 )
 
@@ -21,14 +21,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         normalized_argv = normalized_argv[1:]
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--corpus-version", default=DEFAULT_CORPUS_VERSION)
+    parser.add_argument("--legal-source-version", default=DEFAULT_LEGAL_SOURCE_VERSION)
     parser.add_argument("--env-file", default=None)
     parser.add_argument("--chroma-path", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
-        "--strict-corpus",
+        "--strict-legal-source",
         action="store_true",
-        help="Fail instead of continuing when the corpus version already exists.",
+        help="Fail instead of continuing when the legal source version already exists.",
     )
     return parser.parse_args(normalized_argv)
 
@@ -46,12 +46,12 @@ def main() -> int:
 
     phases = [
         (
-            "legal corpus",
+            "legal source",
             [
                 sys.executable,
-                str(repo_root / "scripts" / "seed_legal_corpus_dev.py"),
-                "--corpus-version",
-                args.corpus_version,
+                str(repo_root / "scripts" / "seed_legal_source_dev.py"),
+                "--legal-source-version",
+                args.legal_source_version,
                 *optional("--env-file", args.env_file),
                 *optional("--chroma-path", args.chroma_path),
                 *flag("--dry-run", args.dry_run),
@@ -77,13 +77,13 @@ def main() -> int:
             continue
         combined_output = f"{result.stdout}\n{result.stderr}"
         if (
-            phase_name == "legal corpus"
-            and not args.strict_corpus
-            and _EXISTING_GOVERNED_CORPUS_MESSAGE in combined_output
+            phase_name == "legal source"
+            and not args.strict_legal_source
+            and _EXISTING_GOVERNED_LEGAL_SOURCE_MESSAGE in combined_output
         ):
             print(
-                "[seed:legal:dev] legal corpus already exists with governed state; "
-                "continuing with legal-rule and EngineeringRule phases."
+                "[seed:legal:dev] legal source already exists with governed state; "
+                "no source seed is needed."
             )
             continue
         return result.returncode

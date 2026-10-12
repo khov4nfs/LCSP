@@ -1,5 +1,7 @@
 # LCSP User Task Flows
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 This document defines canonical user-facing and system task flows for the A-to-Z runnable MVP. It is domain-level workflow input for UX and stories, not implementation guidance.

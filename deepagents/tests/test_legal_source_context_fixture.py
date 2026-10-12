@@ -6,14 +6,14 @@ import unittest
 from pathlib import Path
 
 
-FIXTURE_DIR = Path(__file__).parent / "fixtures" / "legal_portfolio_context"
+FIXTURE_DIR = Path(__file__).parent / "fixtures" / "compliance_rule_set_context"
 PARSER_PATH = (
     Path(__file__).parents[1]
     / "tools"
     / "legal"
     / "sources"
     / "scripts"
-    / "build_reviewed_legal_corpus.py"
+    / "build_reviewed_legal_source.py"
 )
 
 
@@ -88,10 +88,10 @@ class LegalSourceContextFixtureTest(unittest.TestCase):
                 for snippet in snippets:
                     self.assertIn(snippet, by_locator[locator]["content"])
 
-            parsed_by_version[source["corpusVersion"]] = by_locator
+            parsed_by_version[source["legalSourceVersion"]] = by_locator
 
-        version_one = parsed_by_version["SYNTHETIC-CORPUS-V1"]
-        version_two = parsed_by_version["SYNTHETIC-CORPUS-V2"]
+        version_one = parsed_by_version["SYNTHETIC-LEGAL_SOURCE-V1"]
+        version_two = parsed_by_version["SYNTHETIC-LEGAL_SOURCE-V2"]
         self.assertNotEqual(
             pins["sources"][0]["sourceSha256"], pins["sources"][1]["sourceSha256"]
         )

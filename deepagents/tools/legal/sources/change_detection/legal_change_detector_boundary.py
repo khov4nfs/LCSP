@@ -1,4 +1,4 @@
-"""Consume legal catalog checks and return bounded partial-update handoffs."""
+"""Consume official source-change checks and invoke canonical rule set preparation."""
 
 from __future__ import annotations
 
@@ -10,13 +10,17 @@ from structlog import get_logger
 
 from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import LegalToolDispatcher
 from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoints import LegalToolExecutionContext
-from tools.legal.corpus.partial_update.partial_update_context_builder import build_partial_update_context
+from tools.legal.legal_source.partial_update.partial_update_context_builder import build_partial_update_context
+from tools.legal.sources.ingest.official_legal_source_acquisition import (
+    OfficialLegalSourceAcquisition,
+    source_crawl_requests,
+)
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
 
 logger = get_logger(__name__)
 
-LEGAL_CHANGE_DETECTOR_COMMAND = "cron.legal-catalog.check-updates.v1"
+LEGAL_CHANGE_DETECTOR_COMMAND = "cron.legal-source.check-updates.v1"
 LEGAL_CHANGE_DETECTOR_BOUNDARY_SOURCE = "lcsp.legal-change-detector.v1"
 
 
@@ -57,7 +61,7 @@ class LegalChangeCheckResult:
 
 
 class LegalChangeDetectorBoundary(AgentBoundaryBase):
-    """Detect changes and return the partial-update context to the Agent Runtime."""
+    """Detect source changes and prepare the complete configured legal_source."""
 
     boundary_source = LEGAL_CHANGE_DETECTOR_BOUNDARY_SOURCE
     source_event = LEGAL_CHANGE_DETECTOR_COMMAND
@@ -122,7 +126,9 @@ class LegalChangeDetectorBoundary(AgentBoundaryBase):
             catalog_source_ref=envelope.catalog_source_ref,
             expected_document_number=envelope.expected_document_number,
         )
-        snapshot_ref = str(registered.get("snapshotRef") or "UNKNOWN")
+        snapshot_ref = registered.get("snapshotRef")
+        if not isinstance(snapshot_ref, str) or not snapshot_ref.strip():
+            raise NonRetryableAgentBoundaryError("source registration returned no snapshot reference")
         final_context = build_partial_update_context(
             document_id=envelope.document_id,
             source_url=envelope.source_url,
@@ -134,6 +140,23 @@ class LegalChangeDetectorBoundary(AgentBoundaryBase):
         if final_context is None:
             raise NonRetryableAgentBoundaryError("changed legal source produced no partial update context")
 
+        requests = source_crawl_requests(message)
+        if not any(
+            item.get("documentId") == envelope.document_id
+            and item.get("sourceUrl") == envelope.source_url
+            for item in requests
+        ):
+            raise NonRetryableAgentBoundaryError(
+                "configured legal_source acquisition must include the changed official source"
+            )
+        OfficialLegalSourceAcquisition(api_client=self._api_client).run(
+            {
+                "idempotencyKey": envelope.idempotency_key,
+                "storageRoot": str(storage_root),
+                "sourceCrawlRequests": requests,
+            },
+            correlationId,
+        )
         payload = final_context.to_dict()
         logger.info("LEGAL_CHANGE_DETECTED", document_id=envelope.document_id, correlationId=correlationId)
         return LegalChangeCheckResult(
@@ -183,7 +206,7 @@ class LegalChangeDetectorBoundary(AgentBoundaryBase):
         except ValueError as exc:
             raise NonRetryableAgentBoundaryError("base snapshot object key escapes storage root") from exc
         if not object_path.is_file():
-            raise NonRetryableAgentBoundaryError(f"base snapshot object is missing from corpus store: {object_key}")
+            raise NonRetryableAgentBoundaryError(f"base snapshot object is missing from legal_source store: {object_key}")
         return object_path.read_text(encoding="utf-8")
 
 

@@ -10,6 +10,8 @@ depends_on:
   - platform/outbox/02-outbox-publisher.md
 ---
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 # VerifiedProfile Callback Endpoint
 
 > Superseded: the active flow no longer exposes a customer-facing VerifiedProfile approval gate or `POST /internal/reconciliation/verified-profile-callback` runtime contract. Direct EngineeringRule classification consumes accepted evidence context instead.

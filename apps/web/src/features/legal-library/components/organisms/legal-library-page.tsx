@@ -4,7 +4,7 @@ import { resolveMessage } from "@lcsp/i18n";
 import {
   LEGAL_RISK_LEVELS,
   type LegalRiskLevel,
-} from "@lcsp/contracts/legal-rule-catalog";
+} from "@lcsp/contracts/legal-source";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

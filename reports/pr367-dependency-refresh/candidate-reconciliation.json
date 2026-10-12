@@ -1,0 +1,40 @@
+{
+  "status": "PASS",
+  "headAtBuild": "63985c8ffaeead46337c121ef5bae00c445d0800",
+  "candidateId": "20261012054358_c13bae52f1ac",
+  "previousAcceptedCandidate": "20261012041902_4058ec2256a0",
+  "previousDisposition": "HISTORICAL_ACCEPTED_PRE_DEVELOP_MERGE",
+  "fingerprints": {
+    "source": {
+      "entries": 1116,
+      "missing": 0,
+      "mismatches": 0
+    },
+    "buildAndPolicyInputs": {
+      "entries": 25,
+      "missing": 0,
+      "mismatches": 0
+    }
+  },
+  "changedFingerprintedInputsFromHistoricalCandidate": {
+    "source": [
+      "deepagents/pyproject.toml",
+      "deepagents/uv.lock"
+    ],
+    "buildAndPolicyInputs": [
+      "deepagents/pyproject.toml",
+      "deepagents/uv.lock"
+    ]
+  },
+  "fourImagesBuilt": true,
+  "rootfsAudits": {
+    "passed": 4,
+    "total": 4
+  },
+  "DockerIntegrations": {
+    "passed": 7,
+    "total": 7,
+    "skipped": 0
+  },
+  "productionTouched": false
+}

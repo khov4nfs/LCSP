@@ -1,5 +1,7 @@
 # 01 — Tổng quan sản phẩm
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## LCSP là gì
 
 LCSP là nền tảng hỗ trợ doanh nghiệp sử dụng AI tại Việt Nam đánh giá mức độ sẵn sàng tuân thủ dựa trên bằng chứng. Hệ thống kết hợp thông tin do Manager khai báo, bằng chứng kỹ thuật từ kho mã, đối chiếu xung đột, tra cứu pháp lý có trích dẫn, phân loại rủi ro, phân tích khoảng trống, tạo tài liệu và nhật ký kiểm toán.

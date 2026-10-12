@@ -556,10 +556,10 @@ const epics = [
   {
     code: "E6",
     order: 6,
-    name: "Epic 6 - Legal Corpus and Matching",
-    shortName: "Legal Corpus",
+    name: "Epic 6 - Legal LegalSource and Matching",
+    shortName: "Legal LegalSource",
     description:
-      "Legal source ingest, corpus approval, vectorless retrieval, citation allowlist enforcement, and LegalRuleMatch evidence.",
+      "Legal source ingest, legalSource approval, vectorless retrieval, citation allowlist enforcement, and LegalRequirementMatch evidence.",
     labels: "epic,legal,matching",
     domain: "legal",
   },
@@ -955,7 +955,7 @@ const legacyCapabilityTasks = [
   {
     code: "E6-T1",
     epic: "E6",
-    summary: "Ingest and Approve Legal Corpus Version",
+    summary: "Ingest and Approve Legal LegalSource Version",
     stories: ["6.1", "6.2", "6.3"],
     owner: "D",
     priority: "High",
@@ -997,7 +997,7 @@ const legacyCapabilityTasks = [
   {
     code: "E6-T4",
     epic: "E6",
-    summary: "Create LegalMatchingResult and LegalRuleMatch Evidence",
+    summary: "Create LegalMatchingResult and LegalRequirementMatch Evidence",
     stories: ["6.7"],
     owner: "D",
     priority: "High",
@@ -1025,7 +1025,7 @@ const legacyCapabilityTasks = [
   {
     code: "E7-T2",
     epic: "E7",
-    summary: "Apply Hard-Rule and LegalRuleMatch Precedence",
+    summary: "Apply Hard-Rule and LegalRequirementMatch Precedence",
     stories: ["7.2"],
     owner: "D",
     priority: "High",

@@ -14,8 +14,6 @@ export const chunkedManifestSchema = z.strictObject({
 });
 export type ChunkedManifest = z.infer<typeof chunkedManifestSchema>;
 
-export type StoredJsonArtifact = Record<string, unknown>;
-
 @Injectable()
 export class ArtifactStorageService {
   private readonly storagePath: string;
@@ -87,7 +85,8 @@ export class ArtifactStorageService {
       });
     } catch (error) {
       if (
-        !(error instanceof Error) ||
+        typeof error !== "object" ||
+        error === null ||
         Reflect.get(error, "code") !== "EEXIST"
       ) {
         throw error;
@@ -112,51 +111,41 @@ export class ArtifactStorageService {
     return { manifest, sizeBytes: manifest.total_size };
   }
 
-  async readJsonArtifactReference(
-    reference: string,
-  ): Promise<StoredJsonArtifact> {
-    const artifactPath = this.resolveJsonArtifactReference(reference);
-    const content = await fs.promises.readFile(artifactPath, "utf8");
-    const parsed = JSON.parse(content) as unknown;
+  async eraseImmutableArtifact(
+    manifest: ChunkedManifest,
+    protectedChunks: ReadonlySet<string>,
+  ): Promise<void> {
+    chunkedManifestSchema.parse(manifest);
+    // Canonical reports use one content-addressed chunk; arbitrary paths never authorize erasure.
     if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
-    ) {
-      throw new BadRequestException("Invalid JSON artifact");
+      manifest.chunks.length !== 1 ||
+      manifest.chunks[0] !== `${manifest.hash}.chunk`
+    )
+      throw new Error("Invalid immutable artifact erasure identity");
+    const chunk = manifest.chunks[0];
+    if (protectedChunks.has(chunk)) return;
+    const target = path.join(this.storagePath, "chunks", chunk);
+    try {
+      let parent = path.resolve(path.dirname(target));
+      while (true) {
+        if ((await fs.promises.lstat(parent)).isSymbolicLink())
+          throw new Error("Invalid artifact erasure directory");
+        const next = path.dirname(parent);
+        if (next === parent) break;
+        parent = next;
+      }
+      const stat = await fs.promises.lstat(target);
+      if (!stat.isFile() || stat.isSymbolicLink())
+        throw new Error("Invalid artifact erasure target");
+      await this.readAndReconstruct(manifest);
+      await fs.promises.unlink(target);
+    } catch (error) {
+      if (
+        typeof error !== "object" ||
+        error === null ||
+        Reflect.get(error, "code") !== "ENOENT"
+      )
+        throw error;
     }
-    return parsed as StoredJsonArtifact;
-  }
-
-  /** Returns size/mtime of a JSON artifact reference without reading its content. */
-  async statJsonArtifactReference(
-    reference: string,
-  ): Promise<{ size: number; mtimeMs: number }> {
-    const stat = await fs.promises.stat(
-      this.resolveJsonArtifactReference(reference),
-    );
-    return { size: stat.size, mtimeMs: stat.mtimeMs };
-  }
-
-  private resolveJsonArtifactReference(reference: string): string {
-    if (typeof reference !== "string" || !reference.trim()) {
-      throw new BadRequestException("Invalid artifact reference");
-    }
-    const normalized = reference.replaceAll("\\", "/");
-    const marker = "/app/deepagents/tmp/";
-    const relative = normalized.startsWith(marker)
-      ? normalized.slice(marker.length)
-      : normalized;
-    if (!/^[a-zA-Z0-9_./-]+\.json$/.test(relative) || relative.includes("..")) {
-      throw new BadRequestException("Invalid artifact reference");
-    }
-    const root =
-      process.env.LCSP_GRAPH_STORAGE_PATH || path.join(getRepoRoot(), "tmp");
-    const artifactPath = path.resolve(root, relative);
-    const storageRoot = path.resolve(root) + path.sep;
-    if (!artifactPath.startsWith(storageRoot)) {
-      throw new BadRequestException("Invalid artifact reference");
-    }
-    return artifactPath;
   }
 }

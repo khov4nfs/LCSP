@@ -27,9 +27,9 @@ class ReviewTrace(BaseCallbackHandler):
     def on_chat_model_start(self, serialized, messages, **kwargs):
         with self._lock:
             if self.attempted_calls >= MAX_CALLS:
-                raise RuntimeError("W4 eval model-call budget exhausted")
+                raise RuntimeError("ASSESSMENT eval model-call budget exhausted")
             if self.input_tokens >= MAX_INPUT_TOKENS:
-                raise RuntimeError("W4 eval input-token budget exhausted")
+                raise RuntimeError("ASSESSMENT eval input-token budget exhausted")
             self.attempted_calls += 1
 
     def on_llm_end(self, response, **kwargs):
@@ -58,21 +58,21 @@ class ReviewTrace(BaseCallbackHandler):
 
 
 def evaluation_timeout(_signum, _frame):
-    raise TimeoutError("W4 eval exceeded its 120-second Root budget")
+    raise TimeoutError("ASSESSMENT eval exceeded its 120-second Root budget")
 
 
 def main() -> None:
     base, key, assessment_id, repo_dir, output = sys.argv[1:6]
     _load_llm_env()
     # Optional eval-only route selection. The production route file remains unchanged.
-    route = os.environ.get("LCSP_W4_EVAL_ROUTE")
+    route = os.environ.get("LCSP_ASSESSMENT_EVAL_ROUTE")
     if route:
         import yaml
         config = yaml.safe_load((ROOT / "deepagents/config/model_routes.yaml").read_text())
         config["roles"]["default"] = route
         config["roles"]["assessment-root"] = route
         config["roles"]["repository-researcher"] = route
-        target = Path(tempfile.mkdtemp(prefix="lcsp-w4-eval-route-")) / "routes.yaml"
+        target = Path(tempfile.mkdtemp(prefix="lcsp-assessment-eval-route-")) / "routes.yaml"
         target.write_text(yaml.safe_dump(config))
         os.environ["LCSP_MODEL_ROUTES_FILE"] = str(target)
     from deepagents.backends import FilesystemBackend

@@ -1,0 +1,13 @@
+{
+  "scope": "CURRENT_IMAGE_CANARY_FINAL_PERSISTED_AND_NATIVE_SCAN",
+  "status": "PASS",
+  "runId": "9ae7757edbaf422b",
+  "positiveControl": "cross-assessment-canary.json; Root A human tool result contains raw canary",
+  "independentCompletedCase": "f15e4d0b-5aeb-414f-9263-9fb37c7c8d3d",
+  "foreignToolResultsWithCanary": 0,
+  "genericSharedMemoryCanaryRows": 0,
+  "foreignFacts": 0,
+  "foreignDecisions": 0,
+  "foreignPersistedProjectionCanaryOccurrences": 0,
+  "rawReasoningReadOrReported": false
+}

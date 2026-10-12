@@ -1,5 +1,7 @@
 # Legal Corpus OCR
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 Use the VBPL HTML crawler as the preferred source path. It preserves document
 text and metadata without OCR. The OCR command is only a fallback for a
 provenance-validated scan that has no accessible HTML source.

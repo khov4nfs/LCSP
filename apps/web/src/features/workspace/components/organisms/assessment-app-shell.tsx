@@ -25,7 +25,7 @@ import {
 } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
-import { AssessmentRuntimeSidebar, ProgramEvidenceGraphProvider } from "@/features/assessment-runtime";
+import { AssessmentContextPanel } from "@/features/assessment-runtime";
 
 import type {
   AppShellNavigationItem,
@@ -177,7 +177,6 @@ export function AssessmentAppShell({
   );
 
   return (
-    <ProgramEvidenceGraphProvider assessmentId={assessmentId}>
     <div
       className="flex h-svh min-h-0 w-full overflow-hidden bg-background"
       data-shell-screen={effectiveShellState.screen}
@@ -271,7 +270,10 @@ export function AssessmentAppShell({
 
           {assessmentId ? (
             <AssessmentRightPanelSlot open={rightPanelOpen}>
-              <AssessmentRuntimeSidebar assessmentId={assessmentId} assessmentName={assessment?.name} />
+              <AssessmentContextPanel
+                assessmentId={assessmentId}
+                assessmentName={assessment?.name}
+              />
             </AssessmentRightPanelSlot>
           ) : null}
         </div>
@@ -296,7 +298,10 @@ export function AssessmentAppShell({
               <SheetTitle>{t("pages.appShell.runtimePanelTitle")}</SheetTitle>
               <SheetDescription>{headerEyebrow}</SheetDescription>
             </SheetHeader>
-            <AssessmentRuntimeSidebar assessmentId={assessmentId} assessmentName={assessment?.name} />
+            <AssessmentContextPanel
+              assessmentId={assessmentId}
+              assessmentName={assessment?.name}
+            />
           </SheetContent>
         </Sheet>
       ) : null}
@@ -308,7 +313,6 @@ export function AssessmentAppShell({
         open={settingsModalOpen}
       />
     </div>
-    </ProgramEvidenceGraphProvider>
   );
 }
 

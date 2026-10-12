@@ -1,5 +1,7 @@
 # LCSP Story Dependency Matrix
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 Ma trận này giúp dev thấy story trước/sau, seam phụ thuộc và boundary chuyển giao giữa các story trong cùng epic.

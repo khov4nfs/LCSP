@@ -147,25 +147,6 @@ DEFAULT_DECISION_POLICIES: dict[str, DecisionTypePolicy] = {
             "requires_sandbox_attention",
         ),
     ),
-    DECISION_TYPES["root_non_deterministic_next_stage"]: DecisionTypePolicy(
-        threshold=0.85,
-        safety_critical=True,
-        safety_question_ids=("needs_reasoning_escalation",),
-    ),
-    DECISION_TYPES["interview_topic_routing"]: DecisionTypePolicy(
-        threshold=0.80,
-        safety_critical=True,
-        safety_question_ids=(
-            "material_customer_fact_unresolved",
-            "current_context_sufficient",
-        ),
-    ),
-    DECISION_TYPES["planner_candidate_ranking"]: DecisionTypePolicy(threshold=0.75),
-    DECISION_TYPES["investigator_next_action"]: DecisionTypePolicy(
-        threshold=0.85,
-        safety_critical=True,
-        safety_question_ids=("next_action",),
-    ),
 }
 
 

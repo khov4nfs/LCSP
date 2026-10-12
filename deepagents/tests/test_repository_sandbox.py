@@ -15,37 +15,6 @@ from tools.common.capabilities.platform import repository_sandbox
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_scan_job_reuses_thread_only_for_same_scan_delivery() -> None:
-    scan = agent_server_client.agent_thread_id(
-        "scan_requested",
-        {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
-        "corr-scan",
-    )
-    redelivery = agent_server_client.agent_thread_id(
-        "scan_requested",
-        {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
-        "corr-redelivery",
-    )
-    rerun = agent_server_client.agent_thread_id(
-        "scan_requested",
-        {"assessmentId": "assessment-1", "scanJobId": "scan-2"},
-        "corr-rerun",
-    )
-    assessment = agent_server_client.agent_thread_id(
-        "engineering_assessment_requested",
-        {"assessmentId": "assessment-1", "workflowRunId": "workflow-2"},
-        "corr-assessment",
-    )
-    other = agent_server_client.agent_thread_id(
-        "scan_requested",
-        {"assessmentId": "assessment-2", "scanJobId": "scan-9"},
-        "corr-other",
-    )
-
-    assert scan == redelivery
-    assert scan != rerun
-    assert scan != assessment
-    assert scan != other
 
 
 def test_agent_server_dispatch_reuses_thread_and_keeps_event_out_of_prompt(monkeypatch) -> None:
@@ -67,13 +36,13 @@ def test_agent_server_dispatch_reuses_thread_and_keeps_event_out_of_prompt(monke
         "secretInternalField": "must-not-be-copied-to-model-message",
     }
     result = agent_server_client.dispatch_agent_runtime_event(
-        "scan_requested",
+        "assessment_root_requested",
         event,
         "corr-1",
     )
 
     assert result == {"ok": True}
-    thread_id = agent_server_client.agent_thread_id("scan_requested", event, "corr-1")
+    thread_id = agent_server_client.agent_thread_id("assessment_root_requested", event, "corr-1")
     fake_client.threads.create.assert_called_once()
     assert fake_client.threads.create.call_args.kwargs["thread_id"] == thread_id
     assert fake_client.threads.create.call_args.kwargs["if_exists"] == "do_nothing"
@@ -92,51 +61,6 @@ def test_agent_server_dispatch_reuses_thread_and_keeps_event_out_of_prompt(monke
     assert fake_client.runs.get.call_count == 2
 
 
-def test_agent_server_scan_observer_persists_scheduler_progress(monkeypatch) -> None:
-    posted = []
-
-    class FakeConfig:
-        nestjs_api_base_url = "http://api.local"
-        worker_api_key = "worker-key"
-
-    class FakeClient:
-        def __init__(self, base_url, api_key):
-            assert base_url == "http://api.local"
-            assert api_key == "worker-key"
-
-        def post_scan_runtime_event(self, scan_job_id, payload):
-            posted.append((scan_job_id, payload))
-
-    monkeypatch.setattr(agent_server_client, "load_config", lambda: FakeConfig())
-    monkeypatch.setattr(agent_server_client, "WorkerApiClient", FakeClient)
-
-    observer = agent_server_client._ScanRunObserver(
-        {"scanJobId": "scan-1", "assessmentId": "assessment-1"}
-    )
-    observer.emit(
-        event_type="TOOL_STARTED",
-        run_status="RUNNING",
-        summary="LangGraph repository run queued",
-        output_summary={"runId": "run-1", "schedulerState": "pending"},
-    )
-
-    assert posted == [
-        (
-            "scan-1",
-            {
-                "event_type": "TOOL_STARTED",
-                "run_status": "RUNNING",
-                "stage": "SCAN",
-                "tool_name": "langgraph_run",
-                "summary": "LangGraph repository run queued",
-                "output_summary": {
-                    "runId": "run-1",
-                    "schedulerState": "pending",
-                    "runtimeRunId": "run-1",
-                },
-            },
-        )
-    ]
 
 
 def test_agent_server_dispatch_raises_terminal_error_from_run_state(monkeypatch) -> None:
@@ -154,7 +78,7 @@ def test_agent_server_dispatch_raises_terminal_error_from_run_state(monkeypatch)
 
     with pytest.raises(agent_server_client.AgentServerRunError) as captured:
         agent_server_client.dispatch_agent_runtime_event(
-            "scan_requested",
+            "assessment_root_requested",
             {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
             "corr-1",
         )
@@ -180,7 +104,7 @@ def test_agent_server_dispatch_cancels_run_at_boundary_deadline(monkeypatch) -> 
 
     with pytest.raises(agent_server_client.AgentServerRunError) as captured:
         agent_server_client.dispatch_agent_runtime_event(
-            "scan_requested",
+            "assessment_root_requested",
             {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
             "corr-timeout",
             timeout_seconds=1.0,
@@ -189,7 +113,7 @@ def test_agent_server_dispatch_cancels_run_at_boundary_deadline(monkeypatch) -> 
     assert captured.value.remote_error_type == "AgentServerRunTimeout"
     fake_client.runs.cancel.assert_called_once_with(
         agent_server_client.agent_thread_id(
-            "scan_requested",
+            "assessment_root_requested",
             {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
             "corr-timeout",
         ),
@@ -261,35 +185,6 @@ def test_repository_backend_activation_is_scoped_to_repository_database() -> Non
     assert repository_sandbox.current_repository_backend() is None
 
 
-def test_runtime_backend_mirrors_native_skills_before_first_read(monkeypatch) -> None:
-    writes = []
-    raw = MagicMock()
-    raw.id = "sandbox-1"
-    raw.write.side_effect = lambda path, content: writes.append(
-        (path, content)
-    ) or WriteResult(path=path)
-    raw.ls.return_value = LsResult(entries=[])
-
-    monkeypatch.setattr(
-        repository_sandbox,
-        "resolve_repository_thread_backend",
-        lambda config: raw,
-    )
-    monkeypatch.setattr(
-        repository_sandbox,
-        "get_config",
-        lambda: {"configurable": {"thread_id": "thread-1"}},
-    )
-
-    backend = repository_sandbox.RuntimeRepositoryBackend()
-    backend.ls(repository_sandbox.REPOSITORY_SKILLS)
-
-    assert any(
-        path == f"{repository_sandbox.REPOSITORY_SKILLS}/lcsp/SKILL.md"
-        and "name: lcsp" in content
-        for path, content in writes
-    )
-    raw.ls.assert_called_once_with(repository_sandbox.REPOSITORY_SKILLS)
 
 
 def test_repository_virtualization_accepts_native_sandbox_repository_paths() -> None:
@@ -298,9 +193,9 @@ def test_repository_virtualization_accepts_native_sandbox_repository_paths() -> 
     raw.ls.return_value = LsResult(entries=[])
 
     backend = repository_sandbox.repository_database_backend(raw)
-    backend.ls(repository_sandbox.REPOSITORY_SKILLS)
+    backend.ls(repository_sandbox.REPOSITORY_ROOT)
 
-    raw.ls.assert_called_once_with(repository_sandbox.REPOSITORY_SKILLS)
+    raw.ls.assert_called_once_with(repository_sandbox.REPOSITORY_ROOT)
 
 
 def test_docker_sandbox_manager_uses_deterministic_secure_container() -> None:
@@ -358,143 +253,8 @@ def test_codebase_memory_is_baked_into_docker_sandbox_without_host_graph_state()
     assert "cli index_repository" not in setup
 
 
-def test_system_event_middleware_dispatches_inside_resolved_docker_backend(monkeypatch) -> None:
-    import middleware.system_event_dispatch as system_dispatch
-    from orchestration.context import LCSPRunContext
-
-    backend = object()
-    event = {
-        "assessmentId": "assessment-1",
-        "scanJobId": "scan-1",
-        "snapshotId": "snapshot-1",
-    }
-    calls = []
-    monkeypatch.setattr(
-        system_dispatch,
-        "resolve_repository_thread_backend",
-        lambda config: calls.append(("resolve", config)) or backend,
-    )
-    monkeypatch.setattr(
-        system_dispatch,
-        "ensure_repository_for_event",
-        lambda resolved, boundary, payload, lifecycle=None: calls.append(
-            ("hydrate", resolved, boundary, payload)
-        ),
-    )
-    monkeypatch.setattr(system_dispatch, "_worker_client", lambda: None)
-
-    def invoke(boundary, payload, correlation_id):
-        active = repository_sandbox.current_repository_backend()
-        assert isinstance(active, repository_sandbox.AssessmentRepositoryBackend)
-        assert active._backend is backend
-        calls.append(("invoke", boundary, payload, correlation_id))
-
-    monkeypatch.setattr(system_dispatch, "invoke_boundary", invoke)
-    runtime = SimpleNamespace(
-        context=LCSPRunContext(
-            assessment_id="assessment-1",
-            correlation_id="corr-1",
-            system_boundary_name="scan_requested",
-            system_event=event,
-        ),
-        config={"configurable": {"thread_id": "thread-1"}},
-    )
-
-    result = system_dispatch.dispatch_agent_runtime_system_event.before_agent({}, runtime)
-
-    assert result == {"jump_to": "end"}
-    assert calls == [
-        ("resolve", runtime.config),
-        ("hydrate", backend, "scan_requested", event),
-        ("invoke", "scan_requested", event, "corr-1"),
-    ]
-    assert repository_sandbox.current_repository_backend() is None
 
 
-def test_system_event_middleware_fails_scan_when_repository_hydration_crashes(
-    monkeypatch,
-) -> None:
-    import middleware.system_event_dispatch as system_dispatch
-    from orchestration.context import LCSPRunContext
-
-    backend = object()
-    event = {
-        "assessmentId": "assessment-1",
-        "scanJobId": "scan-1",
-        "snapshotId": "snapshot-1",
-    }
-    calls = []
-
-    class FakeClient:
-        def __init__(self) -> None:
-            self.runtime_events = []
-            self.callbacks = []
-
-        def post_scan_runtime_event(self, scan_job_id, payload):
-            self.runtime_events.append((scan_job_id, payload))
-
-        def post_scan_callback(self, scan_job_id, payload):
-            self.callbacks.append((scan_job_id, payload))
-
-    client = FakeClient()
-    monkeypatch.setattr(
-        system_dispatch,
-        "resolve_repository_thread_backend",
-        lambda config: calls.append(("resolve", config)) or backend,
-    )
-
-    def fail_hydration(resolved, boundary, payload, lifecycle=None):
-        calls.append(("hydrate", resolved, boundary, payload))
-        assert lifecycle is not None
-        lifecycle("repository_archive_downloading")
-        lifecycle("repository_sandbox_hydrating")
-        raise OSError(7, "Argument list too long", "docker")
-
-    monkeypatch.setattr(
-        system_dispatch,
-        "ensure_repository_for_event",
-        fail_hydration,
-    )
-    monkeypatch.setattr(system_dispatch, "_worker_client", lambda: client)
-    monkeypatch.setattr(
-        system_dispatch,
-        "invoke_boundary",
-        lambda *_args, **_kwargs: calls.append(("invoke",)),
-    )
-    runtime = SimpleNamespace(
-        context=LCSPRunContext(
-            assessment_id="assessment-1",
-            correlation_id="corr-1",
-            system_boundary_name="scan_requested",
-            system_event=event,
-        ),
-        config={"configurable": {"thread_id": "thread-1"}},
-    )
-
-    with pytest.raises(OSError):
-        system_dispatch.dispatch_agent_runtime_system_event.before_agent({}, runtime)
-
-    assert calls == [
-        ("resolve", runtime.config),
-        ("hydrate", backend, "scan_requested", event),
-    ]
-    assert [payload["event_type"] for _, payload in client.runtime_events] == [
-        "RUN_STARTED",
-        "TOOL_STARTED",
-        "TOOL_STARTED",
-        "TOOL_FAILED",
-        "RUN_FAILED",
-    ]
-    assert client.runtime_events[-1][1]["output_summary"] == {
-        "errorCode": "REPOSITORY_SANDBOX_HYDRATION_FAILED"
-    }
-    assert len(client.callbacks) == 1
-    scan_job_id, callback = client.callbacks[0]
-    assert scan_job_id == "scan-1"
-    assert callback.status == "FAILED"
-    assert callback.error_code == "REPOSITORY_SANDBOX_HYDRATION_FAILED"
-    assert callback.privacy_flags["containsSourceCode"] is False
-    assert repository_sandbox.current_repository_backend() is None
 
 
 

@@ -1,5 +1,7 @@
 # Agentic Evidence Tool Implementation Tasks
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../../../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 This directory turns the capability targets in `docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md` into implementation-ready task cards. Every card uses [the agentic tool task template](../../../templates/agentic-tool-implementation-task-template.md), which extends the standard [implementation task template](../../../templates/implementation-task-template.md).
 
 Every packet also inherits the executable [shared tool contract](shared-tool-contract.md): request/response envelope, RBAC preflight, immutable artifact pinning, LLM context boundary, audit, privacy, status/error mapping, and definition of done.

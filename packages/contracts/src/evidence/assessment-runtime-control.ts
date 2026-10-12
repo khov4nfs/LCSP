@@ -41,17 +41,3 @@ export function isAssessmentRuntimeControlState(
     value as AssessmentRuntimeControlState,
   );
 }
-
-/** Private worker registration/acknowledgement. Never included in customer DTOs. */
-export type AssessmentRuntimeControlAcknowledgement = {
-  assessmentId: string;
-  targetRunId: string;
-  state: AssessmentRuntimeControlState;
-  threadId?: string;
-  boundary?: string;
-  logicalRunId?: string;
-  workflowRunId?: string;
-  correlationId: string;
-  context?: Record<string, unknown>;
-  checkpoint?: Record<string, unknown>;
-};

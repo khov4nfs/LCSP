@@ -1,4 +1,7 @@
 ---
+
+> **Historical pre-freeze documentation.** Earlier implementation inventory; current authority is [the canonical Architecture Freeze](../../../reports/architecture-freeze-migration-manifest.md).
+
 status: ACTIVE_MODULE_TASK_CATALOG
 artifact_type: implementation_task_catalog
 source: docs/implementation/tasks/modules

@@ -6,12 +6,6 @@ import pytest
 from tools.common.capabilities.agent_runtime import agent_server_client
 
 
-class _NullObserver:
-    def __init__(self, _message):
-        self.events = []
-
-    def emit(self, **kwargs):
-        self.events.append(kwargs)
 
 
 class _FakeThreads:
@@ -57,7 +51,7 @@ class _FakeRuns:
         return {
             "run_id": run_id,
             "status": "success",
-            "metadata": {"lcsp_boundary_name": "scan_requested"},
+            "metadata": {"lcsp_boundary_name": "assessment_root_requested"},
         }
 
     def cancel(self, thread_id, run_id, **kwargs):
@@ -75,7 +69,6 @@ class _FakeClient:
 def _install_client(monkeypatch, fake_client):
     monkeypatch.setattr(agent_server_client, "get_sync_client", lambda **_kwargs: fake_client)
     monkeypatch.setattr(agent_server_client.time, "sleep", lambda _seconds: None)
-    monkeypatch.setattr(agent_server_client, "_ScanRunObserver", _NullObserver)
 
 
 def test_checkpoint_continue_preserves_frozen_event_and_checkpoint(monkeypatch):
@@ -110,7 +103,7 @@ def test_run_poll_timeout_keeps_existing_binding(monkeypatch):
     _install_client(monkeypatch, fake_client)
 
     result = agent_server_client.dispatch_agent_runtime_event(
-        "scan_requested",
+        "assessment_root_requested",
         {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
         "correlation-1",
         timeout_seconds=30,
@@ -129,7 +122,7 @@ def test_dispatch_shares_deadline_and_deducts_scheduler_setup_time(monkeypatch):
     monkeypatch.setattr(agent_server_client.time, "time", lambda: 1000.0)
     seen = []
     monkeypatch.setattr(agent_server_client, "_poll_run_until_terminal", lambda *_args, **kwargs: seen.append(kwargs["timeout_seconds"]))
-    agent_server_client.dispatch_agent_runtime_event("scan_requested", {}, "corr-1", timeout_seconds=30)
+    agent_server_client.dispatch_agent_runtime_event("assessment_root_requested", {}, "corr-1", timeout_seconds=30)
     assert fake_runs.created_context["system_deadline_at"] == 1030.0
     assert seen == [26.0]
 
@@ -152,13 +145,13 @@ def test_dispatch_without_a_boundary_deadline_never_interrupts_the_run(monkeypat
     assert seen == [None]
 
 
-def test_redelivered_scan_reattaches_active_boundary_run(monkeypatch):
+def test_redelivered_root_reattaches_active_boundary_run(monkeypatch):
     fake_runs = _FakeRuns(
         listed_runs=[
             {
                 "run_id": "active-run",
                 "status": "running",
-                "metadata": {"lcsp_boundary_name": "scan_requested"},
+                "metadata": {"lcsp_boundary_name": "assessment_root_requested"},
             }
         ]
     )
@@ -166,7 +159,7 @@ def test_redelivered_scan_reattaches_active_boundary_run(monkeypatch):
     _install_client(monkeypatch, fake_client)
 
     result = agent_server_client.dispatch_agent_runtime_event(
-        "scan_requested",
+        "assessment_root_requested",
         {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
         "correlation-1",
         timeout_seconds=30,
@@ -191,7 +184,7 @@ def test_active_run_from_other_boundary_is_not_reused(monkeypatch):
     _install_client(monkeypatch, fake_client)
 
     result = agent_server_client.dispatch_agent_runtime_event(
-        "scan_requested",
+        "assessment_root_requested",
         {"assessmentId": "assessment-1", "scanJobId": "scan-1"},
         "correlation-1",
         timeout_seconds=30,
@@ -256,7 +249,7 @@ def test_interrupt_ignores_an_active_run_from_a_different_boundary(monkeypatch):
             {
                 "run_id": "other-boundary-run",
                 "status": "running",
-                "metadata": {"lcsp_boundary_name": "scan_requested"},
+                "metadata": {"lcsp_boundary_name": "assessment_root_requested"},
             }
         ],
         refuse_cancel=False,

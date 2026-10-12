@@ -1,0 +1,2123 @@
+{
+  "scope": "EXACT_IMAGE_PLAYWRIGHT_FULL_FLOW",
+  "runId": "804a20977d4a448f",
+  "status": "NOT_PROVEN",
+  "phases": {
+    "admin-legal-default-1791631065683": {
+      "name": "admin-legal",
+      "args": [],
+      "startedAt": "2026-10-10T11:17:45.683Z",
+      "steps": [
+        {
+          "at": "2026-10-10T11:17:46.059Z",
+          "kind": "UI_ACTION",
+          "name": "admin submits sign-in form"
+        },
+        {
+          "at": "2026-10-10T11:17:46.343Z",
+          "kind": "UI_OBSERVATION",
+          "name": "admin authenticated",
+          "landedOn": "/admin"
+        },
+        {
+          "at": "2026-10-10T11:17:47.520Z",
+          "kind": "UI_OBSERVATION",
+          "name": "Legal Portfolio page renders no approve/publish/discard/review control",
+          "controls": [
+            "R\nRELEASE admin\nrelease-admin-804a20977d4a448f@staging.invalid",
+            "Start preparation",
+            "Overview",
+            "User accounts",
+            "Billing & Revenue",
+            "Corpus versions"
+          ]
+        },
+        {
+          "at": "2026-10-10T11:17:47.536Z",
+          "kind": "UI_OBSERVATION",
+          "name": "no ACTIVE portfolio before preparation",
+          "label": "Active portfolio: Unavailable"
+        },
+        {
+          "at": "2026-10-10T11:17:47.662Z",
+          "kind": "UI_ACTION",
+          "name": "admin selects the immutable synthetic corpus",
+          "version": "release-synthetic-804a20977d4a448f"
+        },
+        {
+          "at": "2026-10-10T11:17:47.705Z",
+          "kind": "UI_ACTION",
+          "name": "admin clicks Start preparation"
+        },
+        {
+          "at": "2026-10-10T11:17:47.796Z",
+          "kind": "UI_OBSERVATION",
+          "name": "preparation start accepted",
+          "status": 202
+        },
+        {
+          "at": "2026-10-10T11:18:36.500Z",
+          "kind": "UI_OBSERVATION",
+          "name": "ACTIVE portfolio visible after real preparation",
+          "active": "Active portfolio: release-synthetic-804a20977d4a448f.p1",
+          "runs": [
+            "10/10/2026, 6:17:47 PM · Succeeded"
+          ]
+        },
+        {
+          "at": "2026-10-10T11:18:36.503Z",
+          "kind": "UI_OBSERVATION",
+          "name": "portfolio history shows exactly one ACTIVE row and no approval step",
+          "rows": [
+            "release-synthetic-804a20977d4a448f.p1\tActive\t2 / 2"
+          ]
+        },
+        {
+          "at": "2026-10-10T11:18:37.361Z",
+          "kind": "UI_OBSERVATION",
+          "name": "ACTIVE portfolio persists after reload",
+          "label": "Active portfolio: release-synthetic-804a20977d4a448f.p1"
+        },
+        {
+          "at": "2026-10-10T11:18:37.568Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "persisted preparation matches the UI: SUCCEEDED, ACTIVE, PASSED, outbox PUBLISHED, one activation, native checkpoints",
+          "preparationRunId": "1991a0e4-e34a-4a47-8541-2190bb630b66",
+          "portfolioVersionId": "81ff0b97-a00d-4658-9e94-ea566688d89f",
+          "nativeCheckpointCount": 22,
+          "activationCount": 1
+        }
+      ],
+      "console": [],
+      "failedRequests": [],
+      "abortedRequests": [
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/vi",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/sign-up",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/vi",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/legal-portfolios",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/legal-portfolios",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/legal-portfolios",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/legal-portfolios",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/legal-portfolios",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/legal-portfolios",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "apiStatuses": [
+        {
+          "role": "admin",
+          "method": "POST",
+          "path": "/api/auth/sign-in",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/overview",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "POST",
+          "path": "/api/admin/legal-portfolios/preparations",
+          "status": 202
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/legal-portfolios",
+          "status": 200
+        }
+      ],
+      "navigations": [
+        {
+          "role": "admin",
+          "path": "/sign-in"
+        },
+        {
+          "role": "admin",
+          "path": "/sign-in"
+        },
+        {
+          "role": "admin",
+          "path": "/admin"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/legal-portfolios"
+        }
+      ],
+      "screenshots": [
+        "screenshots/admin-legal-default-1791631065683-admin-before-start.png",
+        "screenshots/admin-legal-default-1791631065683-admin-corpus-options.png",
+        "screenshots/admin-legal-default-1791631065683-admin-started.png",
+        "screenshots/admin-legal-default-1791631065683-admin-terminal.png"
+      ],
+      "finishedAt": "2026-10-10T11:18:37.569Z",
+      "status": "PASS",
+      "consoleErrorCount": 0
+    },
+    "owner-create-providerSetup-1791631456319": {
+      "name": "owner-create",
+      "args": [
+        "providerSetup",
+        "Approved real-Git-provider repository setup only. Semantic fixture acceptance is not claimed.",
+        "Repository connection verification"
+      ],
+      "startedAt": "2026-10-10T11:24:16.319Z",
+      "steps": [
+        {
+          "at": "2026-10-10T11:24:16.631Z",
+          "kind": "UI_ACTION",
+          "name": "owner submits sign-in form"
+        },
+        {
+          "at": "2026-10-10T11:24:16.901Z",
+          "kind": "UI_OBSERVATION",
+          "name": "owner authenticated",
+          "landedOn": "/workspace"
+        },
+        {
+          "at": "2026-10-10T11:24:17.688Z",
+          "kind": "UI_OBSERVATION",
+          "name": "authenticated workspace renders for the owner",
+          "totals": "Total assessments 0"
+        },
+        {
+          "at": "2026-10-10T11:24:17.743Z",
+          "kind": "UI_ACTION",
+          "name": "owner clicks Create Assessment on the workspace dashboard"
+        },
+        {
+          "at": "2026-10-10T11:24:17.903Z",
+          "kind": "UI_ACTION",
+          "name": "Repository connection verification",
+          "descriptionLength": 93
+        },
+        {
+          "at": "2026-10-10T11:24:18.177Z",
+          "kind": "UI_OBSERVATION",
+          "name": "browser navigated to the created assessment",
+          "assessmentId": "c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "createStatus": 201
+        },
+        {
+          "at": "2026-10-10T11:24:19.165Z",
+          "kind": "UI_OBSERVATION",
+          "name": "post-create surface",
+          "repositorySetupSurface": true,
+          "assessmentTitleVisible": true
+        },
+        {
+          "at": "2026-10-10T11:24:19.253Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "Repository connection verification",
+          "ownerId": "6fe512c7-36a8-4231-a693-7b131a462b3b",
+          "lifecycleState": "PREPARING",
+          "executionState": "QUEUED",
+          "threadId": "14bfa73a-f069-443b-8238-ca645c745094",
+          "eventSequence": 1
+        }
+      ],
+      "console": [],
+      "failedRequests": [],
+      "abortedRequests": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/sign-up",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/recovery/request",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/vi",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/sign-up",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/workspace",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/new",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/artifacts",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/new",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "apiStatuses": [
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/auth/sign-in",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace/runtime-events",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/assessments",
+          "status": 201
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/provider-credentials",
+          "status": 200
+        }
+      ],
+      "navigations": [
+        {
+          "role": "owner",
+          "path": "/sign-in"
+        },
+        {
+          "role": "owner",
+          "path": "/sign-in"
+        },
+        {
+          "role": "owner",
+          "path": "/workspace"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/new"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        }
+      ],
+      "screenshots": [
+        "screenshots/owner-create-providerSetup-1791631456319-owner-workspace.png",
+        "screenshots/owner-create-providerSetup-1791631456319-owner-create-form.png",
+        "screenshots/owner-create-providerSetup-1791631456319-owner-created.png"
+      ],
+      "finishedAt": "2026-10-10T11:24:19.254Z",
+      "status": "PASS",
+      "consoleErrorCount": 0
+    },
+    "owner-repository-providerSetup-1791631467834": {
+      "name": "owner-repository",
+      "args": [
+        "providerSetup",
+        "https://github.com/khov4nfs/codex-pr-review-bot"
+      ],
+      "startedAt": "2026-10-10T11:24:27.834Z",
+      "steps": [
+        {
+          "at": "2026-10-10T11:24:28.088Z",
+          "kind": "UI_OBSERVATION",
+          "name": "owner session reused",
+          "path": "/workspace"
+        },
+        {
+          "at": "2026-10-10T11:24:29.176Z",
+          "kind": "UI_ACTION",
+          "name": "owner selects the GitHub provider in the repository setup conversation"
+        },
+        {
+          "at": "2026-10-10T11:24:29.264Z",
+          "kind": "UI_OBSERVATION",
+          "name": "repository composer requires a configured provider credential",
+          "configureSecureConnectionShown": true,
+          "repositoryUrlComposerDisabled": true
+        },
+        {
+          "at": "2026-10-10T11:24:29.264Z",
+          "kind": "UI_ACTION",
+          "name": "owner opens Configure secure connection"
+        },
+        {
+          "at": "2026-10-10T11:24:29.391Z",
+          "kind": "UI_ACTION",
+          "name": "owner enters local GH_TOKEN in the secure credential field and clicks Connect"
+        },
+        {
+          "at": "2026-10-10T11:24:29.661Z",
+          "kind": "UI_ACTION",
+          "name": "owner confirms access through the password reauthentication dialog"
+        },
+        {
+          "at": "2026-10-10T11:24:30.858Z",
+          "kind": "UI_OBSERVATION",
+          "name": "provider credential configured through the product UI",
+          "status": 201
+        },
+        {
+          "at": "2026-10-10T11:24:30.914Z",
+          "kind": "UI_ACTION",
+          "name": "owner submits the approved repository URL through the repository composer",
+          "repositoryUrl": "https://github.com/khov4nfs/codex-pr-review-bot"
+        },
+        {
+          "at": "2026-10-10T11:24:32.536Z",
+          "kind": "UI_OBSERVATION",
+          "name": "repository setup completion accepted",
+          "status": 201
+        },
+        {
+          "at": "2026-10-10T11:24:35.603Z",
+          "kind": "UI_OBSERVATION",
+          "name": "assessment left PREPARING after setup completion",
+          "lifecycle": "ACTIVE",
+          "execution": "RUNNING"
+        },
+        {
+          "at": "2026-10-10T11:24:35.717Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "real Git provider setup persisted a pinned repository snapshot",
+          "snapshot": {
+            "id": "4588cf19-0950-49e4-9cad-cb947ba39edb",
+            "repositoryFullName": "khov4nfs/codex-pr-review-bot",
+            "commitSha": "c58d63d62c1198b3204fcdaf3da235b16765c3b6",
+            "branch": "master"
+          },
+          "connectionStatus": 201,
+          "noRepositoryRowsSeeded": true
+        },
+        {
+          "at": "2026-10-10T11:24:35.778Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "one runtime row, same pre-allocated Root thread",
+          "lifecycleState": "ACTIVE",
+          "executionState": "RUNNING",
+          "threadId": "14bfa73a-f069-443b-8238-ca645c745094",
+          "currentExecutionId": "ed574b19-7a4d-49c5-9fd6-bc7257ba59df",
+          "eventSequence": 3,
+          "runtimeRows": 1
+        }
+      ],
+      "console": [
+        {
+          "role": "owner",
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "page": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        }
+      ],
+      "failedRequests": [],
+      "abortedRequests": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/new",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/recovery/request",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "apiStatuses": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace/runtime-events",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/provider-credentials",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/provider-credentials",
+          "status": 403
+        },
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/auth/re-auth/password",
+          "status": 201
+        },
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/provider-credentials",
+          "status": 201
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/provider-credentials",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-connection",
+          "status": 201
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/snapshots",
+          "status": 201
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup/complete",
+          "status": 201
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        }
+      ],
+      "navigations": [
+        {
+          "role": "owner",
+          "path": "/workspace"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        }
+      ],
+      "screenshots": [
+        "screenshots/owner-repository-providerSetup-1791631467834-owner-provider-selected.png",
+        "screenshots/owner-repository-providerSetup-1791631467834-owner-credential-dialog-empty.png",
+        "screenshots/owner-repository-providerSetup-1791631467834-owner-repository-url.png",
+        "screenshots/owner-repository-providerSetup-1791631467834-owner-after-continue-setup.png"
+      ],
+      "finishedAt": "2026-10-10T11:24:35.778Z",
+      "status": "PASS",
+      "consoleErrorCount": 1
+    },
+    "owner-stop-providerSetup-1791631552650": {
+      "name": "owner-stop",
+      "args": [
+        "providerSetup"
+      ],
+      "startedAt": "2026-10-10T11:25:52.650Z",
+      "steps": [
+        {
+          "at": "2026-10-10T11:25:52.871Z",
+          "kind": "UI_OBSERVATION",
+          "name": "owner session reused",
+          "path": "/workspace"
+        },
+        {
+          "at": "2026-10-10T11:25:54.157Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "runtime before Stop",
+          "lifecycleState": "ACTIVE",
+          "executionState": "RUNNING",
+          "threadId": "14bfa73a-f069-443b-8238-ca645c745094",
+          "currentExecutionId": "ed574b19-7a4d-49c5-9fd6-bc7257ba59df",
+          "eventSequence": 22,
+          "runtimeRows": 1
+        },
+        {
+          "at": "2026-10-10T11:25:54.207Z",
+          "kind": "UI_ACTION",
+          "name": "owner clicks Stop"
+        },
+        {
+          "at": "2026-10-10T11:25:54.294Z",
+          "kind": "UI_OBSERVATION",
+          "name": "Stop accepted",
+          "status": 201
+        },
+        {
+          "at": "2026-10-10T11:26:06.555Z",
+          "kind": "UI_OBSERVATION",
+          "name": "UI shows PAUSED with a Continue control",
+          "surface": "assessment",
+          "lifecycle": "PAUSED",
+          "execution": "PAUSED",
+          "forms": 0,
+          "activity": [
+            "Repository evidence inspected",
+            "Repository evidence inspected",
+            "Repository evidence inspected",
+            "Assessment reasoning completed\n\n24.9k in\n· 219 out\n· 25.1k tokens",
+            "Assessment reasoning completed\n\n24.6k in\n· 208 out\n· 24.8k tokens"
+          ],
+          "decisions": 0,
+          "stop": 0,
+          "resume": 1,
+          "report": 0
+        },
+        {
+          "at": "2026-10-10T11:26:07.753Z",
+          "kind": "UI_OBSERVATION",
+          "name": "PAUSED persists after reload",
+          "surface": "assessment",
+          "lifecycle": "PAUSED",
+          "execution": "PAUSED",
+          "forms": 0,
+          "activity": [
+            "Repository evidence inspected",
+            "Repository evidence inspected",
+            "Repository evidence inspected",
+            "Assessment reasoning completed\n\n24.9k in\n· 219 out\n· 25.1k tokens",
+            "Assessment reasoning completed\n\n24.6k in\n· 208 out\n· 24.8k tokens"
+          ],
+          "decisions": 0,
+          "stop": 0,
+          "resume": 1,
+          "report": 0
+        },
+        {
+          "at": "2026-10-10T11:26:07.888Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "persisted PAUSED projection on the same thread with native checkpoints",
+          "runtime": {
+            "lifecycleState": "PAUSED",
+            "executionState": "PAUSED",
+            "threadId": "14bfa73a-f069-443b-8238-ca645c745094",
+            "currentExecutionId": "ed574b19-7a4d-49c5-9fd6-bc7257ba59df",
+            "eventSequence": 28,
+            "runtimeRows": 1
+          },
+          "nativeCheckpointCount": 163
+        }
+      ],
+      "console": [],
+      "failedRequests": [],
+      "abortedRequests": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/new",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/artifacts",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/artifacts",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/new",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "apiStatuses": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace/runtime-events",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "POST",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/stop",
+          "status": 201
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace/runtime-events",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        }
+      ],
+      "navigations": [
+        {
+          "role": "owner",
+          "path": "/workspace"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        }
+      ],
+      "screenshots": [
+        "screenshots/owner-stop-providerSetup-1791631552650-owner-running.png",
+        "screenshots/owner-stop-providerSetup-1791631552650-owner-paused.png",
+        "screenshots/owner-stop-providerSetup-1791631552650-owner-paused-after-reload.png"
+      ],
+      "finishedAt": "2026-10-10T11:26:07.889Z",
+      "status": "PASS",
+      "consoleErrorCount": 0
+    },
+    "accounting-providerSetup-1791631619925": {
+      "name": "accounting",
+      "args": [
+        "providerSetup"
+      ],
+      "startedAt": "2026-10-10T11:26:59.925Z",
+      "steps": [
+        {
+          "at": "2026-10-10T11:27:00.211Z",
+          "kind": "UI_OBSERVATION",
+          "name": "owner session reused",
+          "path": "/workspace"
+        },
+        {
+          "at": "2026-10-10T11:27:01.278Z",
+          "kind": "UI_ACTION",
+          "name": "owner opens the assessment to inspect token accounting"
+        },
+        {
+          "at": "2026-10-10T11:27:01.317Z",
+          "kind": "UI_OBSERVATION",
+          "name": "visible token total matches canonical persisted usage",
+          "totalLabels": [
+            "130.6k tokens",
+            "130.6k tokens"
+          ],
+          "persistedTotal": "130553"
+        },
+        {
+          "at": "2026-10-10T11:27:01.709Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "persisted usage reconciles: one row per invocation, reservations and ledger inventoried",
+          "before": {
+            "usageRows": 9,
+            "distinctInvocations": 9,
+            "inputTokens": "129032",
+            "outputTokens": "1521",
+            "totalTokens": "130553",
+            "chargedCredits": "0",
+            "withReservation": 0
+          },
+          "statuses": [
+            {
+              "status": "SETTLED",
+              "n": 9
+            }
+          ],
+          "reservations": [],
+          "ledger": {
+            "entries": 0,
+            "delta": "0"
+          },
+          "tokenEvents": {
+            "withTokenUsage": 9,
+            "withRawContentKeys": 0
+          }
+        },
+        {
+          "at": "2026-10-10T11:27:01.861Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "duplicate usage callback replay is idempotent",
+          "replayStatus": 201,
+          "before": {
+            "usageRows": 9,
+            "distinctInvocations": 9,
+            "inputTokens": "129032",
+            "outputTokens": "1521",
+            "totalTokens": "130553",
+            "chargedCredits": "0",
+            "withReservation": 0
+          },
+          "after": {
+            "usageRows": 9,
+            "distinctInvocations": 9,
+            "inputTokens": "129032",
+            "outputTokens": "1521",
+            "totalTokens": "130553",
+            "chargedCredits": "0",
+            "withReservation": 0
+          }
+        },
+        {
+          "at": "2026-10-10T11:27:01.862Z",
+          "kind": "UI_ACTION",
+          "name": "owner reloads after the duplicate callback"
+        }
+      ],
+      "console": [],
+      "failedRequests": [],
+      "abortedRequests": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/new",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/new",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "apiStatuses": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace/runtime-events",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace/runtime-events",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        }
+      ],
+      "navigations": [
+        {
+          "role": "owner",
+          "path": "/workspace"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        }
+      ],
+      "screenshots": [
+        "screenshots/accounting-providerSetup-1791631619925-owner-token-accounting.png",
+        "screenshots/accounting-providerSetup-1791631619925-owner-token-accounting-reloaded.png"
+      ],
+      "finishedAt": "2026-10-10T11:27:03.055Z",
+      "status": "PASS",
+      "consoleErrorCount": 0
+    },
+    "root-model-evidence-providerSetup-1791631673689": {
+      "name": "root-model-evidence",
+      "args": [
+        "providerSetup"
+      ],
+      "startedAt": "2026-10-10T11:27:53.689Z",
+      "steps": [
+        {
+          "at": "2026-10-10T11:27:55.085Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "configured Root model versus the model that actually ran it",
+          "configuredRole": "assessment-root",
+          "configuredProvider": "apx",
+          "configuredModel": "claude-sonnet-4-6-free",
+          "configuredFallbackRouteIds": [
+            "fallback",
+            "fallback-01"
+          ],
+          "actualProviders": [
+            "apx"
+          ],
+          "actualModels": [
+            "claude-sonnet-4-6-free"
+          ],
+          "usageByRoleProviderModel": [
+            {
+              "agentRole": "assessment-root",
+              "provider": "APX",
+              "model": "claude-sonnet-4-6-free",
+              "status": "SETTLED",
+              "n": 9
+            }
+          ],
+          "circuitOpenedForThisRun": 0,
+          "providerFallbackLogLines": 0,
+          "primaryFallbackUsed": false
+        }
+      ],
+      "console": [],
+      "failedRequests": [],
+      "abortedRequests": [],
+      "apiStatuses": [],
+      "navigations": [],
+      "screenshots": [],
+      "finishedAt": "2026-10-10T11:27:55.086Z",
+      "status": "PASS",
+      "consoleErrorCount": 0
+    },
+    "inspect-owner-1791631769675": {
+      "name": "inspect",
+      "args": [
+        "owner",
+        "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+      ],
+      "startedAt": "2026-10-10T11:29:29.675Z",
+      "steps": [
+        {
+          "at": "2026-10-10T11:29:29.893Z",
+          "kind": "UI_OBSERVATION",
+          "name": "owner session reused",
+          "path": "/workspace"
+        }
+      ],
+      "console": [],
+      "failedRequests": [],
+      "abortedRequests": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/assessments/new",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "apiStatuses": [
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/workspace/runtime-events",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/human-requests",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/repository-setup",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc/runtime/control",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        },
+        {
+          "role": "owner",
+          "method": "GET",
+          "path": "/api/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc",
+          "status": 200
+        }
+      ],
+      "navigations": [
+        {
+          "role": "owner",
+          "path": "/workspace"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        },
+        {
+          "role": "owner",
+          "path": "/assessments/c633fe54-d062-48b6-a99f-c11bacfbe1dc"
+        }
+      ],
+      "screenshots": [
+        "screenshots/inspect-owner-1791631769675-owner-_assessments_c633fe54-d062-48b6-a99f-c11bacfbe1dc.png"
+      ],
+      "finishedAt": "2026-10-10T11:29:31.134Z",
+      "status": "INSPECTED",
+      "consoleErrorCount": 0
+    }
+  },
+  "note": "UI_ACTION and UI_OBSERVATION were performed/observed in Playwright; BACKEND_VERIFICATION is SQL/docker only.",
+  "scopeDisposition": "APPROVED_REAL_PROVIDER_SETUP_AND_PAUSE_DIAGNOSTICS_ONLY",
+  "fullJourney": "NOT_RUN_SEMANTIC_FIXTURE_MISSING",
+  "semanticFixture": "NOT_AUTHORIZED_TO_TREAT_APPROVED_BOT_REPOSITORY_AS_NOTICE_FIXTURE",
+  "legalSemanticReview": "reports/staging/804a20977d4a448f/legal-semantic-review.json",
+  "unexecutedRequiredSteps": [
+    "material notice-service Human Resolution and answer",
+    "Continue on this candidate",
+    "all pinned decision completion",
+    "COMPLETE and immutable final report download",
+    "current-candidate second-user isolation",
+    "crash/restart",
+    "concurrent assessment execution",
+    "positive memory canary",
+    "stale decision invalidation",
+    "portfolio supersession",
+    "bounded negative evidence and completion blockers"
+  ],
+  "consoleReview": {
+    "unexpectedErrors": 0,
+    "expectedSecurityChallengeErrors": 1,
+    "detail": "POST /api/provider-credentials returned 403 requiring reauthentication; the visible Confirm access dialog was completed, then configuration returned 201.",
+    "failedNetworkRequests": 0
+  },
+  "visualReview": {
+    "status": "PASS_BOUNDED",
+    "inspectedMilestones": [
+      "admin automatic ACTIVE state",
+      "owner workspace",
+      "Create Assessment form",
+      "repository URL composer",
+      "ACTIVE/RUNNING repository connection",
+      "PAUSED after reload with activity and token counters"
+    ],
+    "overlapsObserved": false,
+    "staleTerminalSpinnerObserved": false,
+    "scope": "Only rendered milestones exercised; remaining full-flow milestones not reviewed."
+  }
+}

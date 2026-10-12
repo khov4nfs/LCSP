@@ -3,14 +3,12 @@ import { ConfigService } from "@nestjs/config";
 import { CqrsModule } from "@nestjs/cqrs";
 
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
-import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
+import { WorkerApiKeyGuard } from "../../common/guards/worker-api-key.guard.js";
 import { PinSnapshotHandler } from "./application/commands/pin-snapshot/pin-snapshot.handler.js";
-import { TriggerScanHandler } from "./application/commands/trigger-scan/trigger-scan.handler.js";
 import { StreamSnapshotArchiveHandler } from "./application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.js";
 import { ListRepositoryConnectionsHandler } from "./application/queries/list-repository-connections/list-repository-connections.handler.js";
 import { REPOSITORY_CONNECTION_REPOSITORY } from "./application/ports/persistence/repository-connection.repository.js";
 import { REPOSITORY_SNAPSHOT_REPOSITORY } from "./application/ports/persistence/repository-snapshot.repository.js";
-import { REPOSITORY_SCAN_JOB_REPOSITORY } from "./application/ports/persistence/repository-scan-job.repository.js";
 import { PROVIDER_CREDENTIAL_REPOSITORY } from "./application/ports/persistence/provider-credential.repository.js";
 import { CREDENTIAL_STORE } from "./application/ports/security/credential-store.port.js";
 import { ACTIVE_PROVIDER_CREDENTIAL_RESOLVER } from "./application/ports/security/active-provider-credential.resolver.js";
@@ -20,7 +18,6 @@ import type { AppConfig } from "../../config/config.types.js";
 import { SnapshotArchiveCache } from "./infrastructure/github/snapshot-archive-cache.js";
 import { PrismaRepositoryConnectionRepository } from "./infrastructure/persistence/prisma-github-integration.repository.js";
 import { PrismaRepositorySnapshotRepository } from "./infrastructure/persistence/prisma-repository-snapshot.repository.js";
-import { PrismaRepositoryScanJobRepository } from "./infrastructure/persistence/prisma-repository-scan-job.repository.js";
 import { PrismaProviderCredentialRepository } from "./infrastructure/persistence/prisma-credential.repositories.js";
 import { PrismaDatabaseCredentialStore } from "./infrastructure/persistence/prisma-database-credential.store.js";
 import { PrismaCredentialAuthorizationResolver } from "./infrastructure/persistence/prisma-credential-authorization.resolver.js";
@@ -31,7 +28,6 @@ import { ProductionConfiguredKeyEncryptionKeyProvider } from "./infrastructure/s
 import { providerOrUnavailable } from "./infrastructure/repository-provider-availability.js";
 import { InternalSnapshotController } from "./presentation/http/internal-snapshot.controller.js";
 import { GitHubIntegrationController } from "./presentation/http/github-integration.controller.js";
-import { ScanTriggerGuard } from "./presentation/http/scan-trigger.guard.js";
 import { GitHubCredentialRequestGuard } from "./presentation/http/github-credential-request.guard.js";
 import { DiscoverGitHubRepositoriesHandler } from "./application/commands/discover-github-repositories/discover-github-repositories.handler.js";
 import { ConnectGitHubCliRepositoryHandler } from "./application/commands/connect-github-cli-repository/connect-github-cli-repository.handler.js";
@@ -89,14 +85,13 @@ import {
 import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
 
 /**
- * Wires per-user credential repository access (GitHub, GitLab, Bitbucket, Azure DevOps), immutable snapshot pinning/streaming, and repository scan triggering across HTTP, CQRS, and Prisma adapters.
+ * Wires per-user credential repository access (GitHub, GitLab, Bitbucket, Azure DevOps), immutable snapshot pinning/streaming, and mechanical sandbox hydration across HTTP, CQRS, and Prisma adapters.
  */
 @Module({
   imports: [CqrsModule, RbacModule],
   controllers: [GitHubIntegrationController, InternalSnapshotController],
   providers: [
     PinSnapshotHandler,
-    TriggerScanHandler,
     StreamSnapshotArchiveHandler,
     ListRepositoryConnectionsHandler,
     DiscoverGitHubRepositoriesHandler,
@@ -187,13 +182,11 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
     WorkerApiKeyGuard,
     PrismaRepositoryConnectionRepository,
     PrismaRepositorySnapshotRepository,
-    PrismaRepositoryScanJobRepository,
     PrismaProviderCredentialRepository,
     EnvelopeEncryptionService,
     PrismaDatabaseCredentialStore,
     PrismaCredentialAuthorizationResolver,
     PrismaCredentialPersistenceUnitOfWork,
-    ScanTriggerGuard,
     GitHubCredentialRequestGuard,
     {
       provide: GITHUB_ARCHIVE_TRANSPORT,
@@ -279,10 +272,6 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
     {
       provide: REPOSITORY_SNAPSHOT_REPOSITORY,
       useExisting: PrismaRepositorySnapshotRepository,
-    },
-    {
-      provide: REPOSITORY_SCAN_JOB_REPOSITORY,
-      useExisting: PrismaRepositoryScanJobRepository,
     },
     {
       provide: PROVIDER_CREDENTIAL_REPOSITORY,

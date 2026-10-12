@@ -1,0 +1,73 @@
+{
+  "scope": "CORRECTED_EXACT_IMAGE_PLAYWRIGHT_ACCEPTANCE",
+  "status": "PASS",
+  "runId": "9ae7757edbaf422b",
+  "candidateId": "20261011201401_b17f791a42ea",
+  "workers": 1,
+  "productionWebImage": true,
+  "freshSelectedPhases": 23,
+  "selectedPhaseIds": [
+    "admin-retry-initial-1791750299921",
+    "admin-legal-initial-1791750484239",
+    "owner-create-assessmentA-1791750548566",
+    "owner-create-assessmentB-1791750574012",
+    "owner-repository-assessmentA-1791750723646",
+    "owner-question-assessmentA-1791750742293",
+    "owner-answer-assessmentA-1791750919525",
+    "admin-legal-supersession-1791751010598",
+    "owner-create-assessmentC-1791751143055",
+    "owner-continue-assessmentA-1791751166238",
+    "owner-complete-assessmentA-1791751187102",
+    "accounting-assessmentA-1791751211560",
+    "root-model-evidence-assessmentA-1791751247551",
+    "other-isolation-assessmentA-1791751279188",
+    "owner-repository-assessmentC-1791751301387",
+    "owner-complete-assessmentC-1791751664335",
+    "owner-question-assessmentC-1791751463312",
+    "owner-answer-assessmentC-1791751494701",
+    "owner-continue-assessmentC-1791751628975",
+    "accounting-assessmentC-1791751700413",
+    "owner-canary-assessmentC-1791751719138",
+    "root-model-evidence-assessmentC-1791751735420",
+    "owner-delete-assessmentC-1791751792713"
+  ],
+  "supersededAttempts": [
+    {
+      "phaseId": "admin-legal-default-1791747770907",
+      "reason": "preparation ended without an ACTIVE ruleSet: {\"active\":\"NONE\",\"runs\":[\"release-synthetic-9ae7757edbaf422b\\nAttempt 1 \u00b7 Oct 12, 2026, 2:42 AM \u00b7 System\\nFailed\\nModel error\\nRetry failed Rule Set Preparation\"]}",
+      "disposition": "HISTORICAL_PROVIDER_FAILURE"
+    },
+    {
+      "phaseId": "admin-legal-initial-1791750319967",
+      "reason": "ruleSet history does not contain exactly one ACTIVE row: [\"release-synthetic-9ae7757edbaf422b.p1\\trelease-synthetic-9ae7757edbaf422b\\tActive\\t2\\t1\\tOct 12, 2026, 3:26 AM\"]",
+      "disposition": "SUPERSEDED_OBSERVER_PRECONDITION; ORIGINAL_RECEIPT_RETAINED"
+    },
+    {
+      "phaseId": "owner-complete-assessmentC-1791751392393",
+      "reason": "assessment did not complete successfully: {\"surface\":\"assessment\",\"lifecycle\":\"WAITING_FOR_HUMAN\",\"execution\":\"INTERRUPTED\",\"forms\":1,\"activity\":[\"Worked for 1m 41s\\n\\n208.5k in\\n\u00b7 2.3k out\\n\u00b7 210.8k tokens\"],\"decisions\":0,\"stop\":0,\"resume\":0,\"report\":0}",
+      "disposition": "SUPERSEDED_OBSERVER_PRECONDITION; ORIGINAL_RECEIPT_RETAINED"
+    }
+  ],
+  "expectedConsoleResponses": [
+    {
+      "phaseId": "owner-repository-assessmentA-1791750723646",
+      "reason": "Expected credential reauthentication 403",
+      "count": 1
+    },
+    {
+      "phaseId": "other-isolation-assessmentA-1791751279188",
+      "reason": "Expected foreign tenant 404 refusals",
+      "count": 10
+    },
+    {
+      "phaseId": "owner-delete-assessmentC-1791751792713",
+      "reason": "Expected post-deletion 404 before navigation completes",
+      "count": 1
+    }
+  ],
+  "unexpectedConsoleErrors": 0,
+  "unexpectedFailedRequests": 0,
+  "McpChatReceipt": "chat-mcp-acceptance.json",
+  "historicalPhaseReceiptsPreserved": true,
+  "chromeDevTools": "UNAVAILABLE_NO_X_SERVER"
+}

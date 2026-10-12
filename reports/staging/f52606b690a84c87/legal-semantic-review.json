@@ -1,0 +1,49 @@
+{
+  "scope": "FRESH_FINAL_IMAGE_GENERATED_RULE_SET_REASONED_SEMANTIC_REVIEW",
+  "status": "PASS",
+  "candidateId": "20261012054358_c13bae52f1ac",
+  "runId": "f52606b690a84c87",
+  "sourceVersionId": "45513c31-3602-4ef2-9e67-bd6f4a668f90",
+  "ruleSetVersionId": "40fc8b6e-0789-4cc4-a473-a6887d65ecfe",
+  "source": "Fresh generated persisted legal requirements, assessment rule, source chunks, provenance and context; no packet editing",
+  "dimensions": [
+    {
+      "dimension": "definition",
+      "status": "PASS",
+      "reason": "LR-1 and C-2 preserve a record as the stored notice together with its receipt timestamp; definition context links art-1::cl-1."
+    },
+    {
+      "dimension": "scope",
+      "status": "PASS",
+      "reason": "LR-1, LR-2 and AR-1 explicitly restrict applicability to a public notice service and exclude private household use; each duty has art-2 scope context."
+    },
+    {
+      "dimension": "retention-qualifier",
+      "status": "PASS",
+      "reason": "C-1 requires at least seven days from the receipt timestamp; LR-1 and AR-1 explicitly distinguish receipt from drafting, preserving art-4 qualification and art-5 duty."
+    },
+    {
+      "dimension": "limiting-language-and-exception",
+      "status": "PASS",
+      "reason": "C-3 preserves limiting language and C-1 covers non-test records. The temporary-test exception is explicit. Advisory negative-evidence text is interpreted against these criteria, not as a ban on voluntary retention of test records."
+    },
+    {
+      "dimension": "coverage-and-off-repository-duty",
+      "status": "PASS",
+      "reason": "LR-1 is covered by AR-1. LR-2 records the external in-person attendance/register duty as NON_ASSESSABLE with a specific non-repository reason; it is not invented as a software criterion."
+    },
+    {
+      "dimension": "direct-provenance-and-context",
+      "status": "PASS",
+      "reason": "All four duty provenance entries and six typed definition/scope/exception/qualifier relations reference this exact source version and stored chunk hashes; AR-1 cites the relevant direct duty and interpretation context chunks."
+    }
+  ],
+  "passed": 6,
+  "total": 6,
+  "humanLegalApprovalUsed": false,
+  "limitations": [
+    "Reviewed synthetic source fixture; official acquisition/index construction is not substituted.",
+    "Advisory search hints do not override the explicit non-test criterion or source exception."
+  ],
+  "productionTouched": false
+}

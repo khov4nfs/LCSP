@@ -14,29 +14,10 @@ export type ArtifactOpenTarget =
 type ArtifactOpenAction = (ref: ArtifactRef) => ArtifactOpenTarget;
 
 export function buildArtifactOpenTarget(ref: ArtifactRef): ArtifactOpenTarget {
-  const assessment = `/assessments/${encodeURIComponent(ref.assessmentId)}`;
-  switch (ref.type) {
-    case ARTIFACT_TYPES.finalReport:
-    case ARTIFACT_TYPES.gapAnalysis:
-    case ARTIFACT_TYPES.readinessExport:
-    case ARTIFACT_TYPES.remediationPatch:
-    case ARTIFACT_TYPES.verificationReport:
-      return ref.resourceId
-        ? {
-            kind: ARTIFACT_OPEN_KINDS.download,
-            href: `${assessment}/documents/${encodeURIComponent(ref.resourceId)}/download`,
-          }
-        : { kind: ARTIFACT_OPEN_KINDS.unsupported };
-    case ARTIFACT_TYPES.businessContext:
-    case ARTIFACT_TYPES.programEvidenceGraph:
-    case ARTIFACT_TYPES.evidenceGraph:
-    case ARTIFACT_TYPES.findingsReport:
-    case ARTIFACT_TYPES.technicalEvidence:
-    case ARTIFACT_TYPES.repositorySnapshot:
-    case ARTIFACT_TYPES.scanJob:
-    case ARTIFACT_TYPES.investigationNotes:
-      return { kind: ARTIFACT_OPEN_KINDS.internal, href: assessment };
-    default:
-      return { kind: ARTIFACT_OPEN_KINDS.unsupported };
-  }
+  return ref.type === ARTIFACT_TYPES.finalReport && ref.resourceId
+    ? {
+        kind: ARTIFACT_OPEN_KINDS.download,
+        href: `/api/assessments/${encodeURIComponent(ref.assessmentId)}/artifacts/${encodeURIComponent(ref.resourceId)}/download`,
+      }
+    : { kind: ARTIFACT_OPEN_KINDS.unsupported };
 }

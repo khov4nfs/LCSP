@@ -15,11 +15,11 @@ describe("outbox aggregate type mapping", () => {
     }
   });
 
-  it("maps the legal portfolio aggregate used by activation events", () => {
+  it("maps the compliance rule set aggregate used by activation events", () => {
     expect(
       fromPrismaOutboxAggregateType(
-        PrismaOutboxAggregateType.LEGAL_PORTFOLIO_VERSION,
+        PrismaOutboxAggregateType.COMPLIANCE_RULE_SET_VERSION,
       ),
-    ).toBe(OUTBOX_AGGREGATE_TYPES.legalPortfolioVersion);
+    ).toBe(OUTBOX_AGGREGATE_TYPES.complianceRuleSetVersion);
   });
 });

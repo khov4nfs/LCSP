@@ -45,7 +45,9 @@ _bmad/
 # fogewise-dev-launchers/
 **/__pycache__/
 tmp/
+# Historical generated source artifacts remain excluded.
 .corpus/
+.legal-source/
 .chroma/
 .chorma/
 
@@ -62,3 +64,9 @@ graft/
 graphify-out/
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+# Local Playwright MCP runtime snapshots are not durable release evidence.
+/.playwright-mcp/
+
+# Private local agent session/handoff transcripts: never staged, committed or imaged.
+/codex-session-*.md
+/claude-session-*.md

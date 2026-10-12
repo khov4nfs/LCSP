@@ -1,4 +1,3 @@
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   AUDIT_EVENT_SCHEMA_VERSION,
   AUDIT_REDACTION_STATUSES,
@@ -116,7 +115,6 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
         id: "assessment-1",
         ownerId: "user-1",
         name: "Snapshot assessment",
-        status: ASSESSMENT_STATUS_CODES.wizardInProgress,
       },
     });
     await prisma.providerCredential.deleteMany();

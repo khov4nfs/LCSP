@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
 
-from tools.legal.corpus.legal_chunks.legal_chunk_builder import (
+from tools.legal.legal_source.legal_chunks.legal_chunk_builder import (
     BuildLegalChunksRequest,
     LegalChunkBuilder,
 )
-from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
-    ReviewedCorpusInputRecord,
-    ReviewedCorpusInputRepository,
+from tools.legal.legal_source.reviewed_input.reviewed_legal_source_input_repository import (
+    ReviewedLegalSourceInputRecord,
+    ReviewedLegalSourceInputRepository,
 )
 
 
@@ -20,7 +20,7 @@ def _write_reviewed_input(
     snapshot_ref: str = "snapshot:LAW-TEST:abcd1234ef56",
     source_kind: str = "CANONICAL",
 ) -> str:
-    output_dir = storage_root / "reviewed-corpus-inputs" / "reviewed-input-123456"
+    output_dir = storage_root / "reviewed-legal-source-inputs" / "reviewed-input-123456"
     output_dir.mkdir(parents=True, exist_ok=True)
     normalized_text_path = output_dir / f"{document_id}.reviewed.txt"
     manifest_path = output_dir / f"{document_id}.reviewed-input.json"
@@ -47,8 +47,8 @@ def _write_reviewed_input(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-    ReviewedCorpusInputRepository(storage_root=storage_root).save(
-        ReviewedCorpusInputRecord(
+    ReviewedLegalSourceInputRepository(storage_root=storage_root).save(
+        ReviewedLegalSourceInputRecord(
             reviewed_input_ref=reviewed_input_ref,
             provenance_ref="prov:reviewed-input:reviewed-input-123456",
             extraction_ref="extraction:canonical-12345678",
@@ -74,7 +74,7 @@ def _write_reviewed_input(
 def _builder(storage_root: Path) -> LegalChunkBuilder:
     return LegalChunkBuilder(
         storage_root=storage_root,
-        reviewed_input_repository=ReviewedCorpusInputRepository(storage_root=storage_root),
+        reviewed_input_repository=ReviewedLegalSourceInputRepository(storage_root=storage_root),
     )
 
 
@@ -152,7 +152,7 @@ def test_builder_returns_conflict_for_hash_mismatch(tmp_path: Path):
     )
     text_path = (
         storage_root
-        / "reviewed-corpus-inputs"
+        / "reviewed-legal-source-inputs"
         / "reviewed-input-123456"
         / "LAW-TEST.reviewed.txt"
     )

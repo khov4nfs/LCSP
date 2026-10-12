@@ -1,0 +1,42 @@
+{
+  "api": {
+    "statusCodes": {},
+    "codes": {
+      "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID": 40
+    },
+    "schemaIssuePaths": [
+      "packet.contextRelations.4.toSourceRef",
+      "packet.contextRelations.0",
+      "packet.contextRelations.1",
+      "packet.contextRelations.2",
+      "packet.contextRelations.3",
+      "packet.contextRelations.4",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason",
+      "packet.legalRequirements.0.coverage.nonAssessableReason"
+    ]
+  },
+  "bridge": {
+    "statusCodes": {},
+    "codes": {},
+    "schemaIssuePaths": []
+  },
+  "server": {
+    "statusCodes": {},
+    "codes": {
+      "COMPLIANCE_RULE_SET_SUBMIT_REQUEST_INVALID": 5
+    },
+    "schemaIssuePaths": []
+  }
+}

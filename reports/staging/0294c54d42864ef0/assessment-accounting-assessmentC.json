@@ -1,0 +1,43 @@
+{
+  "scope": "EXACT_IMAGE_LIVE_ACCOUNTING_RECONCILIATION",
+  "runId": "0294c54d42864ef0",
+  "assessmentId": "663ec102-0c82-4b7e-ab7c-825cfa8bec25",
+  "usage": {
+    "usageRows": 13,
+    "distinctInvocations": 13,
+    "inputTokens": "226129",
+    "outputTokens": "4097",
+    "totalTokens": "230226",
+    "chargedCredits": "0",
+    "withReservation": 0
+  },
+  "statuses": [
+    {
+      "status": "SETTLED",
+      "n": 13
+    }
+  ],
+  "reservations": [],
+  "ledger": {
+    "entries": 0,
+    "delta": "0"
+  },
+  "tokenEvents": {
+    "withTokenUsage": 13,
+    "withRawContentKeys": 0
+  },
+  "mismatches": 0,
+  "duplicateCallback": {
+    "status": 201,
+    "totalsUnchanged": true
+  },
+  "uiTokenDisplay": {
+    "totalLabels": [
+      "230.23K tokens"
+    ],
+    "afterReload": [
+      "230.23K tokens"
+    ],
+    "expectedTotal": "230.23K"
+  }
+}

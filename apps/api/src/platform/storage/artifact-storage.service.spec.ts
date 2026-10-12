@@ -13,7 +13,6 @@ describe("ArtifactStorageService", () => {
 
   beforeAll(() => {
     process.env.LCSP_ARTIFACT_STORAGE_PATH = testStoragePath;
-    process.env.LCSP_GRAPH_STORAGE_PATH = testStoragePath;
     service = new ArtifactStorageService();
   });
 
@@ -21,7 +20,6 @@ describe("ArtifactStorageService", () => {
     if (fs.existsSync(testStoragePath)) {
       fs.rmSync(testStoragePath, { recursive: true, force: true });
     }
-    delete process.env.LCSP_GRAPH_STORAGE_PATH;
   });
 
   it("reconstructs content successfully from valid chunks and matches hash/size", async () => {
@@ -98,20 +96,67 @@ describe("ArtifactStorageService", () => {
     );
   });
 
-  it("reads only safe JSON references under the configured graph root", async () => {
-    fs.mkdirSync(path.join(testStoragePath, "graphs"), { recursive: true });
-    fs.writeFileSync(
-      path.join(testStoragePath, "graphs", "graph.json"),
-      JSON.stringify({ nodes: [] }),
-      "utf8",
+  it("erases verified immutable bytes idempotently and preserves another artifact", async () => {
+    const owned = await service.writeImmutableArtifact(
+      crypto.randomUUID(),
+      "owned synthetic report",
     );
-    await expect(
-      service.readJsonArtifactReference(
-        "/app/deepagents/tmp/graphs/graph.json",
+    const other = await service.writeImmutableArtifact(
+      crypto.randomUUID(),
+      "another synthetic report",
+    );
+    await service.eraseImmutableArtifact(
+      owned.manifest,
+      new Set(other.manifest.chunks),
+    );
+    await service.eraseImmutableArtifact(
+      owned.manifest,
+      new Set(other.manifest.chunks),
+    );
+    expect(
+      fs.existsSync(
+        path.join(testStoragePath, "chunks", owned.manifest.chunks[0]),
       ),
-    ).resolves.toEqual({ nodes: [] });
+    ).toBe(false);
+    await expect(service.readAndReconstruct(other.manifest)).resolves.toBe(
+      "another synthetic report",
+    );
+  });
+
+  it("preserves a content-addressed chunk still owned by another assessment", async () => {
+    const stored = await service.writeImmutableArtifact(
+      crypto.randomUUID(),
+      "shared synthetic chunk",
+    );
+    await service.eraseImmutableArtifact(
+      stored.manifest,
+      new Set(stored.manifest.chunks),
+    );
+    await expect(service.readAndReconstruct(stored.manifest)).resolves.toBe(
+      "shared synthetic chunk",
+    );
+  });
+
+  it("refuses hash-tampered and symlinked erasure targets", async () => {
+    const stored = await service.writeImmutableArtifact(
+      crypto.randomUUID(),
+      "verify before erase",
+    );
+    const target = path.join(
+      testStoragePath,
+      "chunks",
+      stored.manifest.chunks[0],
+    );
+    fs.writeFileSync(target, "tampered");
     await expect(
-      service.readJsonArtifactReference("/app/deepagents/tmp/../secret.json"),
-    ).rejects.toBeInstanceOf(BadRequestException);
+      service.eraseImmutableArtifact(stored.manifest, new Set()),
+    ).rejects.toThrow();
+    expect(fs.existsSync(target)).toBe(true);
+    fs.unlinkSync(target);
+    fs.symlinkSync(path.join(testStoragePath, "chunks", "chunk1.json"), target);
+    await expect(
+      service.eraseImmutableArtifact(stored.manifest, new Set()),
+    ).rejects.toThrow();
+    expect(fs.lstatSync(target).isSymbolicLink()).toBe(true);
   });
 });

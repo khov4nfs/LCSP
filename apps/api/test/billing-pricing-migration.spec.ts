@@ -15,7 +15,7 @@ const reservationUsageMigrationPath = fileURLToPath(
   ),
 );
 
-describe("LCSP-311 pricing migration upgrade path", () => {
+describe("pricing migration upgrade path", () => {
   it("preserves legacy pricing rows while adding nullable composite authority fields", () => {
     const migration = readFileSync(pricingMigrationPath, "utf8");
     const pricingUpgrade = migration.split('ALTER TABLE "LlmUsageEvent"')[0];
@@ -29,7 +29,7 @@ describe("LCSP-311 pricing migration upgrade path", () => {
   });
 });
 
-describe("LCSP-339 usage reservation migration upgrade path", () => {
+describe("usage reservation migration upgrade path", () => {
   it("removes the stale reservation-only unique index instead of keeping one event per reservation", () => {
     const migration = readFileSync(reservationUsageMigrationPath, "utf8");
     expect(migration).toContain(

@@ -1,5 +1,7 @@
 # LCSP Implementation Documents
 
+> **Historical pre-freeze documentation.** This document records the earlier design or implementation. Current architecture authority is [the canonical Architecture Freeze](../../reports/architecture-freeze-migration-manifest.md); current runtime names and release status must be read there and in the current PR #367 receipts.
+
 ## Purpose
 
 Active BUILD layer for the A-to-Z runnable MVP. These documents describe how the planned system will be built, configured, and verified after implementation readiness is certified.

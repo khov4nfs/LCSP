@@ -16,7 +16,6 @@ from langgraph_sdk import get_sync_client
 from tests.integration.test_docker_sandbox_e2e import _fixture_archive
 from tests.integration.test_local_agent_runtime_e2e import (
     _free_port,
-    _skill_value,
     _thread_state_values,
 )
 from tools.common.capabilities.agent_runtime.agent_server_client import (
@@ -132,16 +131,17 @@ def test_production_agent_server_image_runs_without_license_and_persists_state(
             event,
             correlation_id,
         )
-        values = _state_values(graph_url, thread_id)
-        skills_metadata = values.get("skills_metadata")
-        if skills_metadata is not None:
-            assert any(
-                _skill_value(skill, "name") == "lcsp"
-                for skill in skills_metadata
-            )
-        skill = sandbox.read("/workspace/repository/.lcsp/agent/skills/lcsp/SKILL.md")
-        assert skill.error is None
+        state = get_sync_client(url=graph_url).threads.get_state(thread_id)
+        values = _thread_state_values(state)
+        checkpoint = state["checkpoint"]
+        assert checkpoint["thread_id"] == thread_id
+        assert checkpoint["checkpoint_id"]
+        assert not values.get("skills_metadata")
         assert api.archive_requests == 1
+        health = sandbox.read("/workspace/repository/.lcsp/agent/runtime-health.json")
+        assert health.error is None
+        assert "AgentRuntimeHealthBoundary" in health.file_data["content"]
+        assert event["expectedPath"] in health.file_data["content"]
 
         _docker(["rm", "-f", server_name], check=False, timeout=30)
         _start_server_container(
@@ -155,15 +155,11 @@ def test_production_agent_server_image_runs_without_license_and_persists_state(
         )
         _wait_for_http(graph_url, "/health")
 
-        restarted_values = _state_values(graph_url, thread_id)
-        restarted_skills = restarted_values.get("skills_metadata")
-        if restarted_skills is not None:
-            assert any(
-                _skill_value(skill, "name") == "lcsp"
-                for skill in restarted_skills
-            )
-        restarted_skill = sandbox.read("/workspace/repository/.lcsp/agent/skills/lcsp/SKILL.md")
-        assert restarted_skill.error is None
+        restarted_state = get_sync_client(url=graph_url).threads.get_state(thread_id)
+        restarted_values = _thread_state_values(restarted_state)
+        assert restarted_state["checkpoint"] == checkpoint
+        assert restarted_values == values
+        assert not restarted_values.get("skills_metadata")
     finally:
         sandbox.cleanup()
         _docker(["rm", "-f", server_name], check=False, timeout=30)
@@ -268,11 +264,6 @@ def _start_server_container(
         ],
         timeout=60,
     )
-
-
-def _state_values(graph_url: str, thread_id: str):
-    state = get_sync_client(url=graph_url).threads.get_state(thread_id)
-    return _thread_state_values(state)
 
 
 def _require_image(image: str) -> None:

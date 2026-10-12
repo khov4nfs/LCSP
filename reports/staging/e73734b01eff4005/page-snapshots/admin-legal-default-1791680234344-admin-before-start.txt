@@ -1,0 +1,34 @@
+- complementary "Admin navigation":
+  - text: ADMIN
+  - navigation "Admin sections":
+    - link "Overview":
+      - /url: /admin
+    - link "User accounts":
+      - /url: /admin/users
+    - link "Billing & Revenue":
+      - /url: /admin/billing
+    - link "Corpus versions":
+      - /url: /admin/legal-portfolios
+  - paragraph: Administration
+  - paragraph: System-level billing, payments, prepaid credits, and reconciliation.
+  - button "Administrator": R RELEASE admin release-admin-e73734b01eff4005@staging.invalid
+- main:
+  - heading "Legal preparation" [level=1]
+  - paragraph: The Legal Preparation agent authors the portfolio. Integrity validation activates a valid portfolio automatically.
+  - paragraph: "Active portfolio: Unavailable"
+  - group:
+    - text: Immutable legal source corpus
+    - combobox "Immutable legal source corpus": Select a source corpus
+  - button "Start preparation"
+  - heading "Portfolio history" [level=2]
+  - table:
+    - rowgroup:
+      - row "Version Lifecycle Legal / engineering rules":
+        - columnheader "Version"
+        - columnheader "Lifecycle"
+        - columnheader "Legal / engineering rules"
+    - rowgroup
+  - heading "Preparation runs" [level=2]
+  - list
+- region "Notifications alt+T"
+- alert

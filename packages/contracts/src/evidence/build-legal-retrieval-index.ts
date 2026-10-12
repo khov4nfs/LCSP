@@ -1,6 +1,5 @@
 import type {
   AgenticToolCoverageState,
-  AgenticToolName,
   AgenticToolStatus,
 } from "./agentic-tool.ts";
 
@@ -81,7 +80,7 @@ export type BuildLegalRetrievalIndexLimitation = {
 
 export type BuildLegalRetrievalIndexResponse = {
   status: AgenticToolStatus;
-  toolName: AgenticToolName;
+  toolName: typeof BUILD_LEGAL_RETRIEVAL_INDEX_TOOL.name;
   toolVersion: string;
   configHash: string;
   correlationId: string;

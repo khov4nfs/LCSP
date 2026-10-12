@@ -1,0 +1,849 @@
+{
+  "scope": "EXACT_IMAGE_PLAYWRIGHT_FULL_FLOW",
+  "runId": "374170cc375641bd",
+  "candidateId": "20261012035632_a8f49d91d56c",
+  "workers": 1,
+  "imageReceipt": "reports/release-images/20261012035632_a8f49d91d56c/report.json",
+  "status": "IN_PROGRESS",
+  "phases": {
+    "admin-legal-initial-1791777781750": {
+      "name": "admin-legal",
+      "args": [
+        "initial"
+      ],
+      "startedAt": "2026-10-12T04:03:01.750Z",
+      "steps": [
+        {
+          "at": "2026-10-12T04:03:02.179Z",
+          "kind": "UI_ACTION",
+          "name": "admin submits sign-in form"
+        },
+        {
+          "at": "2026-10-12T04:03:02.610Z",
+          "kind": "UI_OBSERVATION",
+          "name": "admin authenticated",
+          "landedOn": "/admin"
+        },
+        {
+          "at": "2026-10-12T04:03:03.677Z",
+          "kind": "UI_OBSERVATION",
+          "name": "Compliance Rule Set page renders no approve/publish/discard/review control",
+          "controls": [
+            "R\nRELEASE admin\nrelease-admin-374170cc375641bd@staging.invalid",
+            "Overview",
+            "User accounts",
+            "Billing & Revenue",
+            "Compliance rule sets"
+          ]
+        },
+        {
+          "at": "2026-10-12T04:03:03.705Z",
+          "kind": "UI_OBSERVATION",
+          "name": "canonical ACTIVE state before preparation",
+          "mode": "initial",
+          "label": "NONE"
+        },
+        {
+          "at": "2026-10-12T04:03:04.258Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "Legal Source activation and idempotent replay use the governed API",
+          "version": "release-synthetic-374170cc375641bd"
+        },
+        {
+          "at": "2026-10-12T04:03:05.405Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "one automatic system preparation persisted",
+          "preparationRunId": "bdf2f3ef-8fa4-4808-9d83-7ada7ce41dce"
+        },
+        {
+          "at": "2026-10-12T04:04:57.759Z",
+          "kind": "UI_OBSERVATION",
+          "name": "ACTIVE ruleSet visible after real preparation",
+          "active": "40c46f63-a91b-4e81-962d-d7ee1e9e8c0b",
+          "runs": [
+            "release-synthetic-374170cc375641bd\nAttempt 1 · Oct 12, 2026, 11:03 AM · System\nSucceeded"
+          ]
+        },
+        {
+          "at": "2026-10-12T04:04:57.765Z",
+          "kind": "UI_OBSERVATION",
+          "name": "ruleSet history shows exactly one ACTIVE row and no approval step",
+          "rows": [
+            "release-synthetic-374170cc375641bd.p1\trelease-synthetic-374170cc375641bd\tActive\t2\t1\tOct 12, 2026, 11:04 AM"
+          ]
+        },
+        {
+          "at": "2026-10-12T04:04:58.656Z",
+          "kind": "UI_OBSERVATION",
+          "name": "ACTIVE ruleSet persists after reload",
+          "label": "40c46f63-a91b-4e81-962d-d7ee1e9e8c0b"
+        },
+        {
+          "at": "2026-10-12T04:04:58.851Z",
+          "kind": "BACKEND_VERIFICATION",
+          "name": "persisted preparation matches the UI: SUCCEEDED, ACTIVE, PASSED, outbox PUBLISHED, one activation, native checkpoints",
+          "preparationRunId": "bdf2f3ef-8fa4-4808-9d83-7ada7ce41dce",
+          "ruleSetVersionId": "40c46f63-a91b-4e81-962d-d7ee1e9e8c0b",
+          "nativeCheckpointCount": 77,
+          "activationCount": 1
+        }
+      ],
+      "console": [],
+      "failedRequests": [],
+      "abortedRequests": [
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/sign-up",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/recovery/request",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/vi",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/sign-up",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/recovery/request",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/compliance-rule-sets",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/compliance-rule-sets",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/compliance-rule-sets",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/compliance-rule-sets",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/compliance-rule-sets",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/compliance-rule-sets",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/compliance-rule-sets",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/billing",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/compliance-rule-sets",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin/users",
+          "error": "net::ERR_ABORTED"
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/admin",
+          "error": "net::ERR_ABORTED"
+        }
+      ],
+      "apiStatuses": [
+        {
+          "role": "admin",
+          "method": "POST",
+          "path": "/api/auth/sign-in",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/auth/profile",
+          "status": 200
+        },
+        {
+          "role": "admin",
+          "method": "GET",
+          "path": "/api/admin/compliance-rule-sets",
+          "status": 200
+        }
+      ],
+      "navigations": [
+        {
+          "role": "admin",
+          "path": "/sign-in"
+        },
+        {
+          "role": "admin",
+          "path": "/sign-in"
+        },
+        {
+          "role": "admin",
+          "path": "/admin"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        },
+        {
+          "role": "admin",
+          "path": "/admin/compliance-rule-sets"
+        }
+      ],
+      "screenshots": [
+        "screenshots/admin-legal-initial-1791777781750-admin-before-start.png",
+        "screenshots/admin-legal-initial-1791777781750-admin-started.png",
+        "screenshots/admin-legal-initial-1791777781750-admin-terminal.png"
+      ],
+      "snapshots": [
+        "tmp/staging/374170cc375641bd/aria/admin-legal-initial-1791777781750-admin-before-start.txt",
+        "tmp/staging/374170cc375641bd/aria/admin-legal-initial-1791777781750-admin-started.txt",
+        "tmp/staging/374170cc375641bd/aria/admin-legal-initial-1791777781750-admin-terminal.txt"
+      ],
+      "finishedAt": "2026-10-12T04:04:58.851Z",
+      "status": "PASS",
+      "consoleErrorCount": 0
+    }
+  },
+  "note": "UI_ACTION and UI_OBSERVATION were performed/observed in Playwright; BACKEND_VERIFICATION is SQL/docker only."
+}
