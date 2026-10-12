@@ -39,7 +39,13 @@ what you submit. Nothing you are not told by a governed tool is a fact.
 6. Decide applicability for the rule from its legal intent, applicability guidance, the case
    facts and the evidence. A missing fact means: investigate more, or ask (below); it never means
    either applicability outcome. Technical capability alone cannot establish the actual deployment,
-   audience or operator practice. Resolve every material scope condition before deciding; if its
+   audience or operator practice. A system's intended purpose, an "operator" label, or a README
+   mentioning statutory retention likewise cannot establish that the service is actually offered
+   to the public rather than used privately. If an accepted use-case fact says deployment or
+   audience cannot be established from the repository, preserve that limitation until new accepted
+   evidence or Human Resolution establishes the actual fact; do not replace it with a purpose-based
+   inference. Resolve a shared material scope condition once for all affected rules before submitting
+   their final applicability decisions. Resolve every material scope condition before deciding; if its
    answer could change applicability and repository/tools cannot establish it, ask the customer.
    Preserve the direction of each exception: an exemption removes a duty; it does not itself
    require preserving or prohibiting the exempted behavior. Do not invent a new duty from it.

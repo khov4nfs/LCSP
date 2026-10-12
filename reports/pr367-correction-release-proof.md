@@ -1,3 +1,19 @@
+# PR #367 current source publication and accepted release snapshot
+
+Current source: `refs/pull/367/head`, resolved in the PR body and exact-head CI links. **Exact current-source live acceptance: NOT_REPROVEN.** Release eligibility: **false**; PR must remain open/unmerged pending human approval. Production is untouched.
+
+The accepted LCSP release snapshot remains HEAD `2cf1341c1e4a5e1c8537b82686523a212df07c42`, candidate `20261012041902_4058ec2256a0`, staging `0294c54d42864ef0`. Its reports and receipts are retained, including byte-identical copies made before this update. It is not an exact-image claim for subsequent source changes.
+
+The develop merge added SECURITY.md and updated eight Python dependency versions. Lock/frozen installation, package compatibility, 1,110 unique worker/native recovery cases, native Chroma retrieval, and type/import/contract/V1-retirement gates passed. The exploratory candidate `20261012054358_c13bae52f1ac` passed 4/4 rootfs and 7/7 Docker integrations; its staging `f52606b690a84c87` FAILED semantic acceptance and was stopped.
+
+**Root cause:** Root C explicitly recorded deployment exposure as an operator/environment fact unavailable in the repository, then inferred public offering from README purpose and completed without Human Resolution. Dependency causation is not established. The public failure receipt and persisted decisions are retained.
+
+**Fix:** the existing Root applicability guidance now explicitly distinguishes intended purpose/operator/statutory-retention wording from actual public offering and preserves an acknowledged deployment/audience limitation until accepted evidence or Human Resolution establishes the fact. The existing agent/domain/governance architecture is unchanged. Focused Root tests passed 40/40. Fresh live semantics of this prompt update have not been claimed.
+
+Per the latest user instruction, no further expensive candidate/staging/model cycle is run here. Current-head CI is verified in the PR body; the accepted historical evidence comment remains unchanged. No merge or production operation is authorized.
+
+## Historical accepted LCSP proof at 2cf1341c
+
 # PR #367 final pre-merge correction
 
 Status: **PASS — local final-candidate acceptance**. Exact publication and remote CI are authoritative in the [current PR evidence comment](https://github.com/khov4nfs/LCSP/pull/367#issuecomment-6109881367).

@@ -1,7 +1,6 @@
 {
-  "scope": "CURRENT_PR367_FINAL_PREMERGE_ACCEPTANCE_MATRIX",
-  "status": "PASS_LOCAL_ACCEPTANCE",
-  "headRef": "refs/pull/367/head",
+  "scope": "ACCEPTED_LCSP_SNAPSHOT_MATRIX_AT_2CF1341C",
+  "status": "HISTORICAL_ACCEPTED_SNAPSHOT",
   "exactHeadAuthority": "https://github.com/khov4nfs/LCSP/pull/367#issuecomment-6109881367",
   "base": "047922c58147f5be3de093dc88db164daadedea8",
   "candidateId": "20261012041902_4058ec2256a0",
@@ -512,9 +511,14 @@
   },
   "publicationAuthority": "Exact published HEAD and final remote CI results are in the linked PR evidence comment; this tracked report binds the head ref and immutable source fingerprint, avoiding a self-referential Git commit hash.",
   "releaseEligible": false,
-  "releaseEligibilityReason": "ONE_REQUIRED_HUMAN_APPROVAL; PR_MUST_REMAIN_UNMERGED",
+  "releaseEligibilityReason": "CURRENT_SOURCE_LIVE_SEMANTIC_ACCEPTANCE_NOT_REPROVEN; ONE_HUMAN_APPROVAL_REQUIRED",
   "preMergeLocalAcceptance": true,
   "productionDeployment": false,
   "reconciledAt": "2026-10-12T04:54:18.343128+00:00",
-  "historicalMatrix": "reports/staging/9ae7757edbaf422b/acceptance-matrix-before-physical-cutover.json"
+  "historicalMatrix": "reports/staging/9ae7757edbaf422b/acceptance-matrix-before-physical-cutover.json",
+  "acceptedHead": "2cf1341c1e4a5e1c8537b82686523a212df07c42",
+  "currentSourceReleaseAcceptance": "NOT_REPROVEN_AFTER_DEPENDENCY_MERGE_AND_ROOT_SCOPE_GUIDANCE",
+  "currentLiveHeadRef": "refs/pull/367/head",
+  "acceptedSnapshotImageReceipt": "reports/release-images/20261012041902_4058ec2256a0/report.json",
+  "acceptedSnapshotStagingRunId": "0294c54d42864ef0"
 }
