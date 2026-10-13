@@ -391,7 +391,7 @@ describeDatabase(
 
       // A duplicate request reuses the active attempt instead of creating another one.
       expect(await retryRun(first.id)).toMatchObject({
-        preparationRunId: attempts[1]!.id,
+        preparationRunId: attempts[1].id,
       });
 
       for (let attempt = 3; attempt <= 10; attempt += 1) {
