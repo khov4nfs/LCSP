@@ -4,7 +4,7 @@ LCSP is an implemented monorepo with a Next.js web application, NestJS API, shar
 
 ## Primary entry points
 
-- [README.md](./README.md) — documentation authority and reading order.
+- [Repository README](../README.md) — product overview, setup, and current release state.
 - [product/system-context.md](./product/system-context.md) — actors, system boundary, and golden path.
 - [product/prd.md](./product/prd.md) — product requirements.
 - [specs/](./specs/) — canonical functional, non-functional, domain, event, and evidence contracts.
