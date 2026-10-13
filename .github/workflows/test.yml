@@ -486,6 +486,31 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  windows-dev-launcher:
+    name: Windows dev launcher security tests
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Verify Windows runner and Corepack pnpm
+        shell: pwsh
+        run: |
+          if ($env:RUNNER_OS -ne "Windows") { throw "Windows runner required" }
+          node --version
+          pnpm --version
+
+      - name: Run Windows launcher security tests
+        run: node --test scripts/dev-entry-command.test.mjs
+
   v2-release-gate:
     name: V2 required release gate
     if: always()
@@ -500,6 +525,7 @@ jobs:
       - docker-sandbox-e2e
       - assessment-domain-vertical
       - admin-playwright-e2e
+      - windows-dev-launcher
     runs-on: ubuntu-latest
     steps:
       - name: Require every applicable V2 production suite
