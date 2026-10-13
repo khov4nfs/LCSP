@@ -481,7 +481,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     ).toBe(1);
   });
 
-  it("a failed attempt uses canonical Retry and a subsequent Prepare returns that queued retry", async () => {
+  it("Admin can Prepare after terminal failure and Retry uses the same next-attempt engine", async () => {
     const source = await eligibleSource();
     const first = await prepare();
     await claim.execute(
@@ -499,24 +499,175 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         randomUUID(),
       ),
     );
-    await expect(prepare()).rejects.toMatchObject({ status: 409 });
-    const next = await retry.execute(
+    const second = await prepare();
+    expect(second).toMatchObject({
+      legalSourceVersionId: source.id,
+      executionState: AGENT_EXECUTION_STATES.QUEUED,
+    });
+    await expect(
+      prisma.ruleSetPreparationRun.findUniqueOrThrow({
+        where: { id: second.preparationRunId },
+      }),
+    ).resolves.toMatchObject({
+      idempotencyKey: ruleSetPreparationIdempotencyKey(source.id, 2),
+    });
+    await claim.execute(
+      new ClaimRuleSetPreparationCommand(
+        { preparationRunId: second.preparationRunId },
+        randomUUID(),
+      ),
+    );
+    await fail.execute(
+      new FailRuleSetPreparationCommand(
+        {
+          preparationRunId: second.preparationRunId,
+          reason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
+        },
+        randomUUID(),
+      ),
+    );
+    const third = await retry.execute(
       new RetryRuleSetPreparationCommand(
-        first.preparationRunId,
+        second.preparationRunId,
         "owner-admin",
         randomUUID(),
       ),
     );
-    expect(next.preparationRunId).not.toBe(first.preparationRunId);
-    expect(next.legalSourceVersionId).toBe(source.id);
+    expect(third.preparationRunId).not.toBe(second.preparationRunId);
+    expect(third.legalSourceVersionId).toBe(source.id);
     expect(await prepare()).toMatchObject({
-      preparationRunId: next.preparationRunId,
+      preparationRunId: third.preparationRunId,
     });
     expect(
       await prisma.ruleSetPreparationRun.count({
         where: { legalSourceVersionId: source.id },
       }),
-    ).toBe(2);
+    ).toBe(3);
+  });
+
+  it("three failed attempts keep Admin Prepare available and concurrent calls create only Attempt 4", async () => {
+    const source = await eligibleSource();
+    let latest = await prepare();
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      await claim.execute(
+        new ClaimRuleSetPreparationCommand(
+          { preparationRunId: latest.preparationRunId },
+          randomUUID(),
+        ),
+      );
+      await fail.execute(
+        new FailRuleSetPreparationCommand(
+          {
+            preparationRunId: latest.preparationRunId,
+            reason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
+          },
+          randomUUID(),
+        ),
+      );
+      if (attempt < 3) latest = await prepare();
+    }
+
+    const [four, duplicateFour] = await Promise.all([prepare(), prepare()]);
+    expect(four.preparationRunId).toBe(duplicateFour.preparationRunId);
+    expect(four).toMatchObject({
+      legalSourceVersionId: source.id,
+      executionState: AGENT_EXECUTION_STATES.QUEUED,
+    });
+    await expect(
+      prisma.ruleSetPreparationRun.findUniqueOrThrow({
+        where: { id: four.preparationRunId },
+      }),
+    ).resolves.toMatchObject({
+      idempotencyKey: ruleSetPreparationIdempotencyKey(source.id, 4),
+    });
+    expect(
+      await prisma.ruleSetPreparationRun.count({
+        where: { legalSourceVersionId: source.id },
+      }),
+    ).toBe(4);
+  });
+
+  it("explicit Prepare advances from Attempt 10 to Attempt 11", async () => {
+    const source = await eligibleSource();
+    let latest = await prepare();
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      await claim.execute(
+        new ClaimRuleSetPreparationCommand(
+          { preparationRunId: latest.preparationRunId },
+          randomUUID(),
+        ),
+      );
+      await fail.execute(
+        new FailRuleSetPreparationCommand(
+          {
+            preparationRunId: latest.preparationRunId,
+            reason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
+          },
+          randomUUID(),
+        ),
+      );
+      if (attempt < 10) latest = await prepare();
+    }
+
+    const eleventh = await prepare();
+    expect(eleventh).toMatchObject({
+      legalSourceVersionId: source.id,
+      executionState: AGENT_EXECUTION_STATES.QUEUED,
+    });
+    await expect(
+      prisma.ruleSetPreparationRun.findUniqueOrThrow({
+        where: { id: eleventh.preparationRunId },
+      }),
+    ).resolves.toMatchObject({
+      idempotencyKey: ruleSetPreparationIdempotencyKey(source.id, 11),
+    });
+    expect(
+      await prisma.ruleSetPreparationRun.count({
+        where: { legalSourceVersionId: source.id },
+      }),
+    ).toBe(11);
+  });
+
+  it("replayed source activation does not auto-retry a FAILED run", async () => {
+    const source = await eligibleSource();
+    const run = await prepare();
+    await claim.execute(
+      new ClaimRuleSetPreparationCommand(
+        { preparationRunId: run.preparationRunId },
+        randomUUID(),
+      ),
+    );
+    await fail.execute(
+      new FailRuleSetPreparationCommand(
+        {
+          preparationRunId: run.preparationRunId,
+          reason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
+        },
+        randomUUID(),
+      ),
+    );
+
+    await consumer.handle({ legalSourceVersionId: source.id });
+
+    expect(
+      await prisma.ruleSetPreparationRun.count({
+        where: { legalSourceVersionId: source.id },
+      }),
+    ).toBe(1);
+  });
+
+  it("replayed source activation does not auto-retry a CANCELLED run", async () => {
+    const source = await eligibleSource();
+    const run = await prepare();
+    await cancelRun(run.preparationRunId);
+
+    await consumer.handle({ legalSourceVersionId: source.id });
+
+    expect(
+      await prisma.ruleSetPreparationRun.count({
+        where: { legalSourceVersionId: source.id },
+      }),
+    ).toBe(1);
   });
 
   it("an ACTIVE fixture without canonical activation cannot be selected", async () => {
