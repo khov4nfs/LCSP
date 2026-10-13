@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -12,17 +13,24 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  COMPLIANCE_RULE_SET_ERROR_CODES,
+  ruleSetPreparationAdminRequestSchema,
+  type RuleSetPreparationAdminRequest,
+} from "@lcsp/contracts/compliance-rule-set";
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ListComplianceRuleSetHistoryQuery } from "../../application/queries/list-compliance-rule-set-history/list-compliance-rule-set-history.query.js";
+import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 
 /**
  * Operations view of the shared Compliance Rule Sets. Preparation starts automatically with a
- * Legal Source Version activation, so there is no start route here: the only operator action is
- * retrying one failed preparation of the same Legal Source Version.
+ * Legal Source Version activation; Admin can also prepare the current source or retry a failure.
+ * The controller only dispatches commands; source selection and orchestration stay server-owned.
  */
 @Controller("admin/compliance-rule-sets")
 @UseGuards(RbacGuard)
@@ -50,6 +58,28 @@ export class ComplianceRuleSetAdminController {
       .execute(
         new RetryRuleSetPreparationCommand(
           preparationRunId,
+          req.rbacContext.userId,
+          req.correlationId || randomUUID(),
+        ),
+      )
+      .then(resultEnvelope);
+  }
+
+  @Post("prepare")
+  @HttpCode(HttpStatus.ACCEPTED)
+  prepare(
+    @Body(
+      new ZodValidationPipe(
+        ruleSetPreparationAdminRequestSchema,
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+      ),
+    )
+    _request: RuleSetPreparationAdminRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.commands
+      .execute(
+        new PrepareCurrentRuleSetCommand(
           req.rbacContext.userId,
           req.correlationId || randomUUID(),
         ),

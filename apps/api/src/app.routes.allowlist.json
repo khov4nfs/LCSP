@@ -52,6 +52,7 @@
   "PATCH /assessments/:assessmentId",
   "PATCH /auth/profile",
   "POST /admin/compliance-rule-sets/preparations/:preparationRunId/retries",
+  "POST /admin/compliance-rule-sets/prepare",
   "POST /admin/users/:id/restore",
   "POST /admin/users/:id/suspend",
   "POST /assessments",

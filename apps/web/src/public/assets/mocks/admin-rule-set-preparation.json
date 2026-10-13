@@ -1,0 +1,41 @@
+{
+  "clean": {
+    "preparation": {
+      "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "legalSourceVersion": "2026.10",
+      "canStart": true,
+      "refusalReason": null,
+      "currentRun": null
+    },
+    "ruleSets": [],
+    "preparations": []
+  },
+  "queuedRun": {
+    "preparationRunId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "executionState": "QUEUED",
+    "ruleSetVersionId": null
+  },
+  "runDetails": {
+    "legalSourceVersion": "2026.10",
+    "attempt": 1,
+    "requestedBy": "admin@example.com",
+    "createdAt": "2026-10-13T00:00:00.000Z",
+    "completedAt": null,
+    "failureReason": null,
+    "retryable": false
+  },
+  "activeRuleSet": {
+    "ruleSetVersionId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "version": "2026.10.p1",
+    "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "legalSourceVersion": "2026.10",
+    "ruleSetDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "lifecycleState": "ACTIVE",
+    "activatedAt": "2026-10-13T00:10:00.000Z",
+    "supersededAt": null,
+    "createdAt": "2026-10-13T00:09:00.000Z",
+    "legalRequirementCount": 110,
+    "assessmentRuleCount": 66
+  }
+}
