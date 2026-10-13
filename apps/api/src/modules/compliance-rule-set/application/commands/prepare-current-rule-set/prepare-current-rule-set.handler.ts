@@ -1,6 +1,5 @@
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
-  RULE_SET_PREPARATION_MAX_ATTEMPTS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -50,18 +49,6 @@ export class PrepareCurrentRuleSetHandler implements ICommandHandler<PrepareCurr
         {
           status: HttpStatus.CONFLICT,
           meta: { reason: availability.refusalReason },
-        },
-      );
-    }
-    if (attempts >= RULE_SET_PREPARATION_MAX_ATTEMPTS) {
-      throw problemException(
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
-        input.correlationId,
-        {
-          status: HttpStatus.CONFLICT,
-          meta: {
-            reason: RULE_SET_PREPARATION_REFUSAL_REASONS.ATTEMPTS_EXHAUSTED,
-          },
         },
       );
     }

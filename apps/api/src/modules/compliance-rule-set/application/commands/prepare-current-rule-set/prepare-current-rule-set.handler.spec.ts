@@ -3,7 +3,6 @@ import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
-  RULE_SET_PREPARATION_MAX_ATTEMPTS,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
 import type { CommandBus } from "@nestjs/cqrs";
@@ -125,7 +124,7 @@ describe("Admin current-source preparation", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("requires the canonical Retry path after a failed attempt", async () => {
+  it("allows explicit Prepare after a failed attempt", async () => {
     const { handler, tx, execute } = build();
     tx.ruleSetPreparationRun.findFirst.mockResolvedValue({
       id: RUN,
@@ -133,17 +132,17 @@ describe("Admin current-source preparation", () => {
       executionState: AGENT_EXECUTION_STATES.FAILED,
       ruleSet: null,
     });
-    await expect(handler.execute(command())).rejects.toMatchObject({
-      response: {
-        problem: {
-          meta: {
-            reason:
-              RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_ALREADY_STARTED,
-          },
-        },
-      },
+    tx.ruleSetPreparationRun.count.mockResolvedValue(1);
+
+    await handler.execute(command());
+
+    expect(
+      (execute.mock.calls[0]?.[0] as StartRuleSetPreparationCommand).request,
+    ).toEqual({
+      legalSourceVersionId: SOURCE,
+      idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 2),
     });
-    expect(execute).not.toHaveBeenCalled();
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it("starts a fresh canonical attempt after cancellation without treating it as FAILED", async () => {
@@ -167,7 +166,31 @@ describe("Admin current-source preparation", () => {
     });
   });
 
-  it("does not exceed the canonical per-source attempt maximum after cancellation", async () => {
+  it.each([3, 10])(
+    "derives the next server-owned attempt after %i terminal runs",
+    async (attempts) => {
+      const { handler, tx, execute } = build();
+      tx.ruleSetPreparationRun.findFirst.mockResolvedValue({
+        id: RUN,
+        legalSourceVersionId: SOURCE,
+        executionState: AGENT_EXECUTION_STATES.FAILED,
+        ruleSet: null,
+      });
+      tx.ruleSetPreparationRun.count.mockResolvedValue(attempts);
+
+      await handler.execute(command());
+
+      expect(
+        (execute.mock.calls[0]?.[0] as StartRuleSetPreparationCommand).request,
+      ).toEqual({
+        legalSourceVersionId: SOURCE,
+        idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, attempts + 1),
+      });
+      expect(execute).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("keeps Prepare available after a cancelled terminal run", async () => {
     const { handler, tx, execute } = build();
     tx.ruleSetPreparationRun.findFirst.mockResolvedValue({
       id: RUN,
@@ -175,20 +198,14 @@ describe("Admin current-source preparation", () => {
       executionState: AGENT_EXECUTION_STATES.CANCELLED,
       ruleSet: null,
     });
-    tx.ruleSetPreparationRun.count.mockResolvedValue(
-      RULE_SET_PREPARATION_MAX_ATTEMPTS,
-    );
+    tx.ruleSetPreparationRun.count.mockResolvedValue(3);
 
-    await expect(handler.execute(command())).rejects.toMatchObject({
-      response: {
-        problem: {
-          meta: {
-            reason: RULE_SET_PREPARATION_REFUSAL_REASONS.ATTEMPTS_EXHAUSTED,
-          },
-        },
-      },
-    });
-    expect(execute).not.toHaveBeenCalled();
+    await handler.execute(command());
+
+    expect(
+      (execute.mock.calls[0]?.[0] as StartRuleSetPreparationCommand).request
+        .idempotencyKey,
+    ).toBe(ruleSetPreparationIdempotencyKey(SOURCE, 4));
   });
 
   it.each(["missing", "ambiguous", "fixture", "emptyDocument", "invalidIndex"])(
