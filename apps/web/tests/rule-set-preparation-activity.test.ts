@@ -6,6 +6,7 @@ import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES as T,
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 
 import {
   preparationTokenUsage,
@@ -135,4 +136,30 @@ test("preparation token usage deduplicates provider completion events", () => {
     outputTokens: 4,
     totalTokens: 14,
   });
+});
+
+test("cancellation is terminal and settles every active preparation activity", () => {
+  const activities = projectPreparationActivity(
+    [
+      event(1, T.boundaryStarted),
+      event(2, T.semanticToolCall, {
+        toolName: "task",
+        toolCallId: "reader-71",
+        status: "RUNNING",
+        data: { native_tool: "task", subagent_type: "legal-source-reader" },
+      }),
+      event(3, T.preparationCancelled, {
+        status: "COMPLETED",
+        data: { execution_state: AGENT_EXECUTION_STATES.CANCELLED },
+      }),
+    ],
+    true,
+    true,
+  );
+
+  assert.equal(
+    activities.at(-1)?.labelKey,
+    "pages.complianceRuleSets.activity.cancelled",
+  );
+  assert.ok(activities.every((activity) => activity.status === "CANCELLED"));
 });

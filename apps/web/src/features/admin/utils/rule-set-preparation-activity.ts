@@ -4,6 +4,7 @@ import {
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import type { MessageKey } from "@lcsp/i18n";
 
 const ACTIVITY_KEYS = {
@@ -23,6 +24,7 @@ const ACTIVITY_KEYS = {
   sourceBlocked: "pages.complianceRuleSets.activity.sourceBlocked",
   completed: "pages.complianceRuleSets.activity.completed",
   failed: "pages.complianceRuleSets.activity.failed",
+  cancelled: "pages.complianceRuleSets.activity.cancelled",
 } as const satisfies Record<string, MessageKey>;
 
 const EVENT_TYPES = ASSESSMENT_AGENT_STREAM_EVENT_TYPES;
@@ -30,6 +32,7 @@ const ACTIVITY_STATUSES = {
   running: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
   completed: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
   failed: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+  cancelled: AGENT_EXECUTION_STATES.CANCELLED,
 } as const;
 type PreparationActivityStatus =
   (typeof ACTIVITY_STATUSES)[keyof typeof ACTIVITY_STATUSES];
@@ -68,6 +71,7 @@ type ActivityDraft = PreparationActivity;
 export function projectPreparationActivity(
   events: AssessmentAgentStreamEvent[],
   terminal = false,
+  cancelled = false,
 ): PreparationActivity[] {
   const drafts: ActivityDraft[] = [];
   const byId = new Map<string, ActivityDraft>();
@@ -104,6 +108,14 @@ export function projectPreparationActivity(
         drafts,
         byId,
         activity(event, ACTIVITY_KEYS.failed, ACTIVITY_STATUSES.failed),
+      );
+      continue;
+    }
+    if (event.eventType === EVENT_TYPES.preparationCancelled) {
+      add(
+        drafts,
+        byId,
+        activity(event, ACTIVITY_KEYS.cancelled, ACTIVITY_STATUSES.cancelled),
       );
       continue;
     }
@@ -146,7 +158,9 @@ export function projectPreparationActivity(
   if (terminal) {
     for (const draft of drafts) {
       if (draft.status === ACTIVITY_STATUSES.running) {
-        draft.status = ACTIVITY_STATUSES.completed;
+        draft.status = cancelled
+          ? ACTIVITY_STATUSES.cancelled
+          : ACTIVITY_STATUSES.completed;
       }
     }
   }

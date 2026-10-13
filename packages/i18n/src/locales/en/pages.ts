@@ -35,6 +35,15 @@ export const enPages = {
     retrying: "Retrying…",
     retryFailed:
       "The retry could not be started. Refresh the page and check the preparation state.",
+    cancelFailed:
+      "The preparation could not be cancelled. Refresh the page and check its current state.",
+    cancelPreparation: "Cancel preparation",
+    cancelling: "Cancelling…",
+    confirmCancelTitle: "Cancel preparation?",
+    confirmCancelDescription:
+      "The current Rule Set Preparation will stop. No active rule set will be created from this attempt. Its activity history will be kept.",
+    keepRunning: "Keep running",
+    confirmCancel: "Cancel preparation",
     activity: {
       title: "Preparation activity",
       live: "Live",
@@ -57,6 +66,7 @@ export const enPages = {
       sourceBlocked: "Reporting blocked legal source",
       completed: "Preparation succeeded",
       failed: "Preparation failed",
+      cancelled: "Preparation cancelled",
       tokenUsage: "Preparation token usage",
       agent: "Agent",
       subagent: "Subagent",

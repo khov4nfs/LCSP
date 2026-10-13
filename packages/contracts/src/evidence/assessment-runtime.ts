@@ -29,6 +29,7 @@ export const ASSESSMENT_AGENT_STREAM_EVENT_TYPES = {
   boundaryCompleted: "BOUNDARY_COMPLETED",
   boundaryFailed: "BOUNDARY_FAILED",
   boundaryPaused: "BOUNDARY_PAUSED",
+  preparationCancelled: "PREPARATION_CANCELLED",
   runtimeStopRequested: "RUNTIME_STOP_REQUESTED",
   runtimeStopped: "RUNTIME_STOPPED",
   runtimeResumeRequested: "RUNTIME_RESUME_REQUESTED",

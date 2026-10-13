@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import type { z } from "zod";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import {
+  AgentExecutionState as PrismaAgentExecutionState,
+  PrismaClient,
+} from "@prisma/client";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
@@ -166,16 +169,37 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     });
   }
 
-  const submit = (
+  const submissionClaims = new Map<string, Promise<void>>();
+  const claimBeforeSubmit = (preparationRunId: string) => {
+    const existing = submissionClaims.get(preparationRunId);
+    if (existing) return existing;
+    const claim = (async () => {
+      const run = await prisma.ruleSetPreparationRun.findUnique({
+        where: { id: preparationRunId },
+        select: { executionState: true },
+      });
+      if (run?.executionState === PrismaAgentExecutionState.QUEUED) {
+        await service.claimPreparation({
+          body: { preparationRunId },
+          correlationId: randomUUID(),
+        });
+      }
+    })();
+    submissionClaims.set(preparationRunId, claim);
+    return claim;
+  };
+  const submit = async (
     preparationRunId: string,
     packet: unknown,
     idempotencyKey = `submit-${randomUUID()}`,
-  ) =>
-    service.submit({
+  ) => {
+    await claimBeforeSubmit(preparationRunId);
+    return service.submit({
       body: { preparationRunId, idempotencyKey, packet },
       actorId: "test-worker",
       correlationId: randomUUID(),
     });
+  };
 
   /**
    * Other suites rebuild the shared test database with `prisma db push`, which drops the
@@ -551,7 +575,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
           where: { id: run.preparationRunId },
         })
       ).executionState,
-    ).toBe("QUEUED");
+    ).toBe(PrismaAgentExecutionState.RUNNING);
     // the same request is safely retryable afterwards
     const retried = await submit(run.preparationRunId, validPacket());
     expect(retried.lifecycleState).toBe("ACTIVE");

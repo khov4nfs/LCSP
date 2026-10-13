@@ -13,15 +13,17 @@ import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
 type Props = {
   events: AssessmentAgentStreamEvent[];
   terminal: boolean;
+  cancelled?: boolean;
   connected: boolean;
 };
 
 export function RuleSetPreparationActivity({
   events,
   terminal,
+  cancelled = false,
   connected,
 }: Props) {
-  const activities = projectPreparationActivity(events, terminal);
+  const activities = projectPreparationActivity(events, terminal, cancelled);
   const usage = preparationTokenUsage(events);
   return (
     <section
@@ -57,8 +59,7 @@ export function RuleSetPreparationActivity({
                     "size-2 rounded-full bg-muted-foreground",
                     item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running &&
                       "animate-pulse bg-primary",
-                    item.status ===
-                      ASSESSMENT_RUNTIME_RUN_STATUSES.completed &&
+                    item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed &&
                       "bg-emerald-600",
                     item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed &&
                       "bg-destructive",

@@ -69,6 +69,13 @@ export type PagesMessages = {
     retry: string;
     retrying: string;
     retryFailed: string;
+    cancelFailed: string;
+    cancelPreparation: string;
+    cancelling: string;
+    confirmCancelTitle: string;
+    confirmCancelDescription: string;
+    keepRunning: string;
+    confirmCancel: string;
     activity: {
       title: string;
       live: string;
@@ -91,6 +98,7 @@ export type PagesMessages = {
       sourceBlocked: string;
       completed: string;
       failed: string;
+      cancelled: string;
       tokenUsage: string;
       agent: string;
       subagent: string;

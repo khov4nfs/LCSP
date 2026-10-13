@@ -35,6 +35,15 @@ export const viPages = {
     retrying: "Đang thử lại…",
     retryFailed:
       "Không thể bắt đầu thử lại. Hãy làm mới trang và kiểm tra trạng thái lượt chuẩn bị.",
+    cancelFailed:
+      "Không thể hủy lượt chuẩn bị. Hãy làm mới trang và kiểm tra trạng thái hiện tại.",
+    cancelPreparation: "Hủy lượt chuẩn bị",
+    cancelling: "Đang hủy…",
+    confirmCancelTitle: "Hủy lượt chuẩn bị bộ quy tắc?",
+    confirmCancelDescription:
+      "Lượt chuẩn bị hiện tại sẽ dừng. Lượt này sẽ không tạo bộ quy tắc đang hoạt động. Lịch sử hoạt động vẫn được giữ lại.",
+    keepRunning: "Tiếp tục chạy",
+    confirmCancel: "Hủy lượt chuẩn bị",
     activity: {
       title: "Hoạt động chuẩn bị",
       live: "Trực tiếp",
@@ -57,6 +66,7 @@ export const viPages = {
       sourceBlocked: "Đang báo nguồn pháp lý bị chặn",
       completed: "Chuẩn bị thành công",
       failed: "Chuẩn bị thất bại",
+      cancelled: "Đã hủy lượt chuẩn bị",
       tokenUsage: "Mức sử dụng token của lượt chuẩn bị",
       agent: "Tác tử",
       subagent: "Tác tử con",

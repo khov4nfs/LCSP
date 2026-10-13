@@ -26,6 +26,7 @@ const SOURCE_V2 = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const RULE_SET_V1 = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const RUN_OK = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const RUN_FAILED = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+const RUN_CANCEL = "99999999-9999-4999-8999-999999999999";
 
 const history = complianceRuleSetHistorySchema.parse({
   preparation: {
@@ -350,6 +351,159 @@ test("an unavailable source cannot start preparation", async () => {
     await settle();
     assert.equal(byText(rendered, "button", "Prepare rule set"), null);
   } finally {
+    stub.restore();
+  }
+});
+
+function cancellableHistory(state: "QUEUED" | "RUNNING") {
+  const run = {
+    preparationRunId: RUN_CANCEL,
+    legalSourceVersionId: SOURCE_V1,
+    executionState: state,
+    ruleSetVersionId: null,
+  };
+  return complianceRuleSetHistorySchema.parse({
+    ...clean,
+    preparation: {
+      ...clean.preparation,
+      canStart: false,
+      refusalReason:
+        RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
+      currentRun: run,
+    },
+    preparations: [
+      {
+        ...run,
+        legalSourceVersion: "2026.10",
+        failureReason: null,
+        attempt: 1,
+        requestedBy: "rule-set-preparation-system",
+        createdAt: "2026-10-13T01:00:00.000Z",
+        completedAt: null,
+        retryable: false,
+      },
+    ],
+  });
+}
+
+test("queued and running preparations expose the Admin cancel action", async () => {
+  for (const executionState of ["QUEUED", "RUNNING"] as const) {
+    const stub = installFetch({
+      "GET /api/admin/compliance-rule-sets": cancellableHistory(executionState),
+    });
+    try {
+      const rendered = page();
+      await settle();
+      assert.ok(byText(rendered, "button", "Cancel preparation"));
+      assert.equal(
+        rendered.querySelectorAll(
+          `[data-preparation-state='${executionState}']`,
+        ).length,
+        1,
+      );
+    } finally {
+      stub.restore();
+    }
+    document.body.replaceChildren();
+  }
+});
+
+test("Admin cancellation confirms, sends only the preparation ID, and settles the UI", async () => {
+  const routes: Record<string, unknown> = {
+    "GET /api/admin/compliance-rule-sets": cancellableHistory("RUNNING"),
+    [`POST /api/admin/compliance-rule-sets/preparations/${RUN_CANCEL}/cancel`]:
+      {
+        preparationRunId: RUN_CANCEL,
+        legalSourceVersionId: SOURCE_V1,
+        executionState: AGENT_EXECUTION_STATES.CANCELLED,
+        ruleSetVersionId: null,
+      },
+  };
+  const cancelledHistory = complianceRuleSetHistorySchema.parse({
+    ...cancellableHistory("RUNNING"),
+    preparation: {
+      ...cancellableHistory("RUNNING").preparation,
+      canStart: true,
+      refusalReason: null,
+      currentRun: {
+        preparationRunId: RUN_CANCEL,
+        legalSourceVersionId: SOURCE_V1,
+        executionState: AGENT_EXECUTION_STATES.CANCELLED,
+        ruleSetVersionId: null,
+      },
+    },
+    preparations: [
+      {
+        ...cancellableHistory("RUNNING").preparations[0],
+        executionState: AGENT_EXECUTION_STATES.CANCELLED,
+        completedAt: "2026-10-13T01:05:00.000Z",
+      },
+    ],
+  });
+  const stub = installFetch(routes);
+  const fetch = globalThis.fetch;
+  let release!: () => void;
+  let started!: () => void;
+  const requestStarted = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const pendingRequest = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  globalThis.fetch = (async (input, init) => {
+    if (init?.method === "POST") {
+      started();
+      await pendingRequest;
+      routes["GET /api/admin/compliance-rule-sets"] = cancelledHistory;
+    }
+    return fetch(input, init);
+  }) as typeof fetch;
+  try {
+    const rendered = page();
+    await settle();
+    click(byText(rendered, "button", "Cancel preparation"));
+    await settle();
+    const dialog = document.body.querySelector('[role="dialog"]');
+    assert.ok(dialog);
+    assert.match(
+      dialog.textContent ?? "",
+      /No active rule set will be created/,
+    );
+    click(byText(dialog, "button", "Keep running"));
+    await settle();
+    assert.equal(stub.calls.filter((call) => call.method === "POST").length, 0);
+
+    click(byText(rendered, "button", "Cancel preparation"));
+    await settle();
+    const confirmation = document.body.querySelector('[role="dialog"]');
+    assert.ok(confirmation);
+    click(byText(confirmation, "button", "Cancel preparation"));
+    await requestStarted;
+    await settle();
+    const pendingButtons = buttons(rendered).filter(
+      (button) => button.textContent?.trim() === "Cancelling…",
+    );
+    assert.equal(pendingButtons.length, 2);
+    assert.ok(pendingButtons.every((button) => button.disabled));
+    release();
+    await settle(12);
+
+    const posts = stub.calls.filter((call) => call.method === "POST");
+    assert.equal(posts.length, 1);
+    assert.equal(
+      posts[0]?.url,
+      `/api/admin/compliance-rule-sets/preparations/${RUN_CANCEL}/cancel`,
+    );
+    assert.equal(posts[0]?.body, null);
+    assert.equal(byText(rendered, "button", "Cancel preparation"), null);
+    assert.equal(
+      rendered.querySelectorAll(
+        `[data-preparation-state='${AGENT_EXECUTION_STATES.CANCELLED}']`,
+      ).length,
+      1,
+    );
+  } finally {
+    release();
     stub.restore();
   }
 });
