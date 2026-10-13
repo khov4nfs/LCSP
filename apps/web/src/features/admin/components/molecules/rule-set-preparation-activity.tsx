@@ -2,6 +2,7 @@
 
 import type { MessageKey } from "@lcsp/i18n";
 import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
+import type { AgentExecutionState } from "@lcsp/contracts/assessment";
 import { resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -13,17 +14,21 @@ import type { AssessmentAgentStreamEvent } from "@lcsp/contracts/evidence";
 type Props = {
   events: AssessmentAgentStreamEvent[];
   terminal: boolean;
-  cancelled?: boolean;
+  executionState: AgentExecutionState | null;
   connected: boolean;
 };
 
 export function RuleSetPreparationActivity({
   events,
   terminal,
-  cancelled = false,
+  executionState,
   connected,
 }: Props) {
-  const activities = projectPreparationActivity(events, terminal, cancelled);
+  const activities = projectPreparationActivity(
+    events,
+    terminal,
+    executionState,
+  );
   const usage = preparationTokenUsage(events);
   return (
     <section
