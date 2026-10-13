@@ -44,7 +44,9 @@ async function main() {
   await run(pnpmCommand, ["--filter", "@lcsp/api", "prisma:migrate:deploy"]);
 
   if (mode === "docker") {
-    console.log("[dev] Building the Docker worker image (Docker cache is reused).");
+    console.log(
+      "[dev] Building the Docker worker image (Docker cache is reused).",
+    );
     await run(pnpmCommand, ["run", "dev:agent:docker:build"]);
   }
 
@@ -92,7 +94,7 @@ function run(command, args) {
 function spawnCommand(command, args) {
   const isPnpmOnWindows = isWindows && command === pnpmCommand;
   return spawn(
-    isPnpmOnWindows ? (process.env.ComSpec ?? "cmd.exe") : command,
+    isPnpmOnWindows ? "cmd.exe" : command,
     isPnpmOnWindows ? ["/d", "/s", "/c", command, ...args] : args,
     {
       cwd: repoRoot,
