@@ -3,6 +3,7 @@ import { z } from "zod";
 /** Provider-neutral effective model selected by the runtime policy. */
 export const effectiveRuntimeModelSchema = z.object({
   provider: z.string().trim().min(1),
+  protocol: z.string().trim().min(1).optional(),
   model: z.string().trim().min(1),
   policyVersion: z.string().trim().min(1),
   effectiveAt: z.iso.datetime(),

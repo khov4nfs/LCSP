@@ -5,7 +5,7 @@ override with ``LCSP_MODEL_ROUTES_FILE``; no env-JSON path). Shape and validatio
 ``model_routes_config``::
 
     version: 1
-    routes:    {<routeId>: {provider: <exact transport id>, model: <any string>, options: {...}}}
+    routes:    {<routeId>: {provider: <canonical id>, protocol: <API family>, model: <any string>, options: {...}}}
     roles:     {default: <routeId>, <role>: <routeId>}
     fallbacks: {<routeId>: [<routeId>, ...]}
 
@@ -16,9 +16,9 @@ for tests); nothing is resolved at import time. Public API: ``load_model_routes`
 ``effective_model_configs``, ``distinct_runtime_identities``, ``canonical_provider``,
 ``provider_client``, ``provider_init_kwargs``.
 
-Providers are transport adapters only (LangChain key, base_url, timeout, API protocol,
-credential source), matched by exact id, and accept arbitrary case-preserved model strings;
-no model catalog or alias table exists. ``options`` are trusted inference options passed to
+Providers own credential identity; route protocol selects the native LangChain API family.
+Routes accept arbitrary case-preserved model strings; no model catalog or alias table exists.
+``options`` are trusted inference options passed to
 ``init_chat_model``; unknown options are not interpreted (LangChain/the provider fails closed).
 Protected keys (credentials, base_url, headers, endpoint, transport, client, ...) are rejected
 at load time, and adapter transport kwargs win over options at construction time.
@@ -30,9 +30,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from pathlib import Path
 from dataclasses import dataclass, field
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from langsmith_bootstrap import disable_langsmith_tracing_by_default
@@ -40,7 +40,8 @@ from langsmith_bootstrap import disable_langsmith_tracing_by_default
 disable_langsmith_tracing_by_default()
 
 from langchain.chat_models import init_chat_model
-from model_routes_config import read_model_routes
+
+from model_routes_config import APX_PROTOCOLS, PROTOCOLS, read_model_routes
 from provider_credentials import (
     apx_base_url,
     credential_init_kwargs,
@@ -54,7 +55,7 @@ RESPONSES_OUTPUT_VERSION = "responses/v1"
 SNAPSHOT_EFFECTIVE_AT = "1970-01-01T00:00:00.000Z"
 PROFILE_OPTIONS = ("context_window_tokens", "max_output_tokens")
 
-# canonical provider -> (LangChain provider key, client label, transport kwargs)
+# canonical provider -> (default protocol, client label, transport kwargs)
 _PROVIDERS: dict[str, tuple[str, str, Any]] = {
     "openai": (
         "openai",
@@ -96,6 +97,7 @@ class ResolvedModelConfig:
     role: str
     route_id: str
     provider: str
+    protocol: str
     model: str
     options: dict[str, Any] = field(default_factory=dict)
     fallback_route_ids: tuple[str, ...] = ()
@@ -113,6 +115,7 @@ class ModelRoutes:
             role=role,
             route_id=route_id,
             provider=route["provider"],
+            protocol=route["protocol"],
             model=route["model"],
             options=route["options"],
             fallback_route_ids=self.fallbacks.get(route_id, ()),
@@ -126,14 +129,55 @@ def canonical_provider(provider: str) -> str:
     return provider
 
 
-def provider_client(provider: str) -> str:
+def provider_client(provider: str, protocol: str | None = None) -> str:
     """Return non-secret telemetry describing the provider client."""
-    return _PROVIDERS[canonical_provider(provider)][1]
+    provider = canonical_provider(provider)
+    protocol = _PROVIDERS[provider][0] if protocol is None else protocol
+    if protocol not in PROTOCOLS:
+        raise RuntimeError(
+            f"unsupported model protocol {protocol!r}; supported: {', '.join(sorted(PROTOCOLS))}"
+        )
+    if provider == "apx":
+        if protocol not in APX_PROTOCOLS:
+            raise RuntimeError(
+                f"unsupported APX protocol {protocol!r}; supported: {', '.join(sorted(APX_PROTOCOLS))}"
+            )
+        if protocol == "openai":
+            return "openai_compatible_chat_completions"
+    elif protocol != _PROVIDERS[provider][0]:
+        raise RuntimeError(
+            f"unsupported protocol {protocol!r} for provider {provider!r}"
+        )
+    return _PROVIDERS[provider][1]
 
 
-def provider_init_kwargs(provider: str) -> dict[str, object]:
+def provider_init_kwargs(
+    provider: str, protocol: str | None = None
+) -> dict[str, object]:
     """Return transport-only constructor kwargs for one provider (no model facts)."""
-    return dict(_PROVIDERS[canonical_provider(provider)][2]())
+    provider = canonical_provider(provider)
+    protocol = _PROVIDERS[provider][0] if protocol is None else protocol
+    if protocol not in PROTOCOLS:
+        raise RuntimeError(
+            f"unsupported model protocol {protocol!r}; supported: {', '.join(sorted(PROTOCOLS))}"
+        )
+    if provider == "apx":
+        if protocol not in APX_PROTOCOLS:
+            raise RuntimeError(
+                f"unsupported APX protocol {protocol!r}; supported: {', '.join(sorted(APX_PROTOCOLS))}"
+            )
+        kwargs: dict[str, object] = {
+            "base_url": apx_base_url(protocol),
+            "timeout": llm_provider_timeout_seconds(),
+        }
+        if protocol == "openai":
+            kwargs["use_responses_api"] = False
+        return kwargs
+    if protocol != _PROVIDERS[provider][0]:
+        raise RuntimeError(
+            f"unsupported protocol {protocol!r} for provider {provider!r}"
+        )
+    return dict(_PROVIDERS[provider][2]())
 
 
 @lru_cache(maxsize=8)
@@ -167,20 +211,26 @@ def fallback_routes(route_id_or_role: str) -> tuple[ResolvedModelConfig, ...]:
     return tuple(routes.config(item) for item in routes.fallbacks.get(route_id, ()))
 
 
-def route_for_model(provider: str, model: str) -> ResolvedModelConfig | None:
-    """Map a runtime provider/model back to its (first) configured route."""
+def route_for_model(
+    provider: str, model: str, protocol: str | None = None
+) -> ResolvedModelConfig | None:
+    """Map a runtime identity to its uniquely configured route."""
     routes = load_model_routes()
-    for route_id, route in routes.routes.items():
-        if route["provider"] == provider and route["model"] == model:
-            return routes.config(route_id)
-    return None
+    matches = [
+        route_id
+        for route_id, route in routes.routes.items()
+        if route["provider"] == provider
+        and route["model"] == model
+        and (protocol is None or route["protocol"] == protocol)
+    ]
+    return routes.config(matches[0]) if len(matches) == 1 else None
 
 
 def _init_kwargs(config: ResolvedModelConfig) -> dict[str, object]:
     options = dict(config.options)
     context = options.pop("context_window_tokens", None)
     output = options.pop("max_output_tokens", None)
-    kwargs = provider_init_kwargs(config.provider)
+    kwargs = provider_init_kwargs(config.provider, config.protocol)
     if context is not None:
         profile: dict[str, object] = {"name": config.model, "max_input_tokens": context}
         if output is not None:
@@ -191,11 +241,31 @@ def _init_kwargs(config: ResolvedModelConfig) -> dict[str, object]:
 
 def build_model(config: ResolvedModelConfig):
     """Build the chat model for one resolved route: adapter kwargs, options, credentials."""
-    langchain_provider = _PROVIDERS[config.provider][0]
-    return init_chat_model(
-        f"{langchain_provider}:{config.model}",
-        **{**_init_kwargs(config), **credential_init_kwargs(config.provider)},  # one merge: no duplicate-kwarg TypeError
+    model = init_chat_model(
+        f"{config.protocol}:{config.model}",
+        **{
+            **_init_kwargs(config),
+            **credential_init_kwargs(config.provider),
+        },  # one merge: no duplicate-kwarg TypeError
     )
+    return attach_model_route(model, config)
+
+
+_MODEL_ROUTE_ATTRIBUTE = "_lcsp_resolved_model_route"
+
+
+def attach_model_route(model: Any, config: ResolvedModelConfig) -> Any:
+    """Keep trusted route identity alongside the native model instance."""
+    namespace = getattr(model, "__dict__", None)
+    if isinstance(namespace, dict):
+        namespace[_MODEL_ROUTE_ATTRIBUTE] = config
+    return model
+
+
+def model_route_config(model: Any) -> ResolvedModelConfig | None:
+    """Return LCSP route metadata attached when the model was built."""
+    config = getattr(model, _MODEL_ROUTE_ATTRIBUTE, None)
+    return config if isinstance(config, ResolvedModelConfig) else None
 
 
 def resolve_agent_model(role: str):
@@ -210,6 +280,7 @@ def config_snapshot(config: ResolvedModelConfig, role: str) -> dict[str, str]:
             "role": role,
             "routeId": config.route_id,
             "provider": config.provider,
+            "protocol": config.protocol,
             "model": config.model,
             "options": config.options,
         },
@@ -219,6 +290,7 @@ def config_snapshot(config: ResolvedModelConfig, role: str) -> dict[str, str]:
     return {
         "role": role,
         "provider": config.provider.upper(),
+        "protocol": config.protocol,
         "model": config.model,
         "policyVersion": "cfg-" + hashlib.sha256(canonical.encode()).hexdigest()[:16],
         "effectiveAt": SNAPSHOT_EFFECTIVE_AT,
@@ -238,8 +310,9 @@ def effective_model_configs() -> tuple[dict[str, Any], ...]:
             "role": role,
             "routeId": config.route_id,
             "provider": config.provider,
+            "protocol": config.protocol,
             "model": config.model,
-            "client": provider_client(config.provider),
+            "client": provider_client(config.provider, config.protocol),
             "optionKeys": tuple(sorted(config.options)),
             "fallbackRouteIds": config.fallback_route_ids,
         }
@@ -248,8 +321,8 @@ def effective_model_configs() -> tuple[dict[str, Any], ...]:
     )
 
 
-def distinct_runtime_identities() -> frozenset[tuple[str, str]]:
-    """(PROVIDER_UPPER, model) of every route reachable from a role or a fallback chain."""
+def distinct_runtime_identities() -> frozenset[tuple[str, str, str]]:
+    """(PROVIDER_UPPER, protocol, model) for every reachable route."""
     routes = load_model_routes()
     reachable: set[str] = set()
     pending = list(routes.roles.values())
@@ -259,5 +332,10 @@ def distinct_runtime_identities() -> frozenset[tuple[str, str]]:
             reachable.add(route_id)
             pending.extend(routes.fallbacks.get(route_id, ()))
     return frozenset(
-        (routes.routes[i]["provider"].upper(), routes.routes[i]["model"]) for i in reachable
+        (
+            routes.routes[i]["provider"].upper(),
+            routes.routes[i]["protocol"],
+            routes.routes[i]["model"],
+        )
+        for i in reachable
     )

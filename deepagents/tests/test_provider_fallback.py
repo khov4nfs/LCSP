@@ -21,14 +21,13 @@ from middleware.provider_fallback import (
     provider_fallback_failure,
     route_key,
 )
+from middleware.token_fallback import TokenFallbackMiddleware, model_provider
 from middleware.usage_metering import (
     AgentRunState,
     UsageMeteringMiddleware,
     activate_agent_run_state,
 )
-from middleware.token_fallback import TokenFallbackMiddleware, model_provider
 from provider_credentials import credential_init_kwargs
-
 
 ALPHA, GAMMA, FUTURE, DELTA = "model-alpha", "model-gamma", "future-model-v99", "model-delta"
 MODEL_FOR = {"openai": ALPHA, "apx": GAMMA, "google_genai": FUTURE, "inception": DELTA}
@@ -42,7 +41,11 @@ def _routes(monkeypatch, primary: str, *fallbacks: str) -> None:
         (
             {
                 "routes": {
-                    f"r{i}": {"provider": provider, "model": MODEL_FOR[provider]}
+                    f"r{i}": {
+                        "provider": provider,
+                        **({"protocol": "anthropic"} if provider == "apx" else {}),
+                        "model": MODEL_FOR[provider],
+                    }
                     for i, provider in enumerate(chain)
                 },
                 "roles": {"default": "r0"},
@@ -63,11 +66,17 @@ class CapacityError(Exception):
 
 class AllowanceExhaustedError(Exception):
     status_code = 429
-    code = "allowance_exhausted"
 
-    def __init__(self):
+    def __init__(self, protocol="openai"):
         super().__init__("monthly allowance used up")
-        self.body = {"error": {"code": "allowance_exhausted"}}
+        error = {
+            "code": "allowance_exhausted",
+            "message": "Your monthly allowance is used up.",
+        }
+        if protocol == "openai":
+            self.body = {"error": {"type": "insufficient_quota", **error}}
+        else:
+            self.body = {"type": "error", "error": {"type": "rate_limit_error", **error}}
 
 
 class ProAccessRequiredError(Exception):
@@ -342,7 +351,7 @@ def test_apx_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
             )
 
     assert provider_calls == ["apx", "google_genai", "google_genai"]
-    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is True
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
     assert [payload.provider for payload in client.payloads] == [
         "GOOGLE_GENAI",
         "GOOGLE_GENAI",
@@ -449,7 +458,7 @@ def test_apx_upstream_unprocessable_fallback_preserves_tool_continuation_and_ope
         ("google_genai", messages),
         ("google_genai", messages),
     ]
-    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is True
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
     # No provider-reported usage on these responses: nothing is posted, no zeros invented.
     assert client.payloads == []
     # Routing transitions are infrastructure, never assessment events.
@@ -511,6 +520,55 @@ def test_primary_key_pool_exhausts_before_apx_pool(monkeypatch):
     ]
     apx_model = requests[-1].model
     assert str(apx_model.anthropic_api_url).rstrip("/") == "https://api.apmix.ai"
+
+
+def test_apx_allowance_exhaustion_rotates_every_slot_before_gemini_fallback(monkeypatch):
+    import model_policy as mp
+
+    monkeypatch.setenv("APX_API_KEY", "apx-slot-0,apx-slot-1")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "direct-anthropic-must-not-be-used")
+    monkeypatch.setenv("GOOGLE_API_KEY", "gemini-only")
+    monkeypatch.setenv("INCEPTION_API_KEY", "inception-later")
+    use_model_routes(
+        monkeypatch,
+        {
+            "routes": {
+                "primary": {
+                    "provider": "apx",
+                    "protocol": "anthropic",
+                    "model": "claude-sonnet-4-6-free",
+                },
+                "gemini": {"provider": "google_genai", "model": FUTURE},
+                "inception": {"provider": "inception", "model": DELTA},
+            },
+            "roles": {"default": "primary"},
+            "fallbacks": {"primary": ["gemini", "inception"]},
+        },
+    )
+    request = ModelRequest(
+        model=mp.build_model(mp.load_model_routes().config("primary")),
+        messages=[],
+        tools=[],
+    )
+    response = ModelResponse(result=[])
+    observed = []
+
+    def raw_handler(next_request):
+        model = next_request.model
+        observed.append((model_provider(model), _model_api_key(model)))
+        if model_provider(model) == "apx":
+            raise AllowanceExhaustedError("anthropic")
+        return response
+
+    assert _sync_chain(request, raw_handler) is response
+    assert observed == [
+        ("apx", "apx-slot-0"),
+        ("apx", "apx-slot-1"),
+        ("google_genai", "gemini-only"),
+    ]
+    from middleware import token_fallback
+
+    assert token_fallback._DEAD_CREDENTIAL_SLOTS[("apx", "APX_API_KEY")] == {0, 1}
 
 
 def test_single_primary_auth_failure_moves_to_apx(monkeypatch):
@@ -633,7 +691,7 @@ def test_apx_pro_access_required_on_one_key_rotates_to_the_next_key_without_leav
     assert [model_provider(item.model) for item in requests] == ["apx", "apx"]
     assert [_model_api_key(item.model) for item in requests] == ["apx-a", "apx-b"]
     # One key's missing capability must not disable the whole apx route for the run.
-    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is False
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is False
 
 
 @pytest.mark.asyncio
@@ -786,7 +844,7 @@ async def test_apx_output_rejection_falls_back_and_opens_circuit(monkeypatch, as
             assert isinstance(result, ModelResponse)
 
     assert calls == ["apx", "google_genai", "google_genai"]
-    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is True
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -864,6 +922,7 @@ def test_apx_text_only_structured_answer_falls_back_to_google(monkeypatch):
     _routes(monkeypatch, "openai", "google_genai")
     from langchain.agents.structured_output import ToolStrategy
     from pydantic import BaseModel
+
     from middleware.model_governance import StopSchemaRepairMiddleware
 
     class Answer(BaseModel):
@@ -1022,7 +1081,7 @@ def test_fallback_is_sticky_for_later_turns_even_after_cooldown_expires(monkeypa
         assert _sync_chain(request, handler) is response
 
     assert _providers(handler) == ["openai", "openai", "apx", "apx", "apx"]
-    assert session.provider_route_disabled(route_key("openai", MODEL_FOR["openai"])) is True
+    assert session.provider_route_disabled(route_key("openai", MODEL_FOR["openai"], "openai")) is True
 
 
 def test_new_run_reconsiders_primary(monkeypatch):
@@ -1042,7 +1101,7 @@ def test_new_run_reconsiders_primary(monkeypatch):
         _sync_chain(request, second)
 
     assert _providers(second) == ["openai"]
-    assert session.provider_route_disabled(route_key("openai", MODEL_FOR["openai"])) is False
+    assert session.provider_route_disabled(route_key("openai", MODEL_FOR["openai"], "openai")) is False
 
 
 def test_auth_failure_semantics_unchanged_with_sticky_fallback(monkeypatch):
@@ -1188,5 +1247,5 @@ def test_same_provider_different_model_route_is_a_distinct_fallback(monkeypatch)
 
     # The permanently failed route stays closed for the run; its sibling model is untouched.
     assert seen == [("openai", ALPHA), ("openai", "model-beta"), ("openai", "model-beta")]
-    assert session.provider_route_disabled(route_key("openai", ALPHA)) is True
-    assert session.provider_route_disabled(route_key("openai", "model-beta")) is False
+    assert session.provider_route_disabled(route_key("openai", ALPHA, "openai")) is True
+    assert session.provider_route_disabled(route_key("openai", "model-beta", "openai")) is False

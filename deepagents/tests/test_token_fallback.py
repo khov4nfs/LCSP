@@ -4,13 +4,21 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 from anthropic import RateLimitError
+from conftest import use_model_routes
 from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
+
+import model_policy as mp
 from middleware.failure_policy import TerminalCredentialError, is_terminal_task_error
-from middleware.token_fallback import TokenFallbackMiddleware, model_provider
+from middleware.token_fallback import (
+    TokenFallbackMiddleware,
+    model_protocol,
+    model_provider,
+)
+from model_policy import model_route_config
 from provider_credentials import credential_init_kwargs, provider_tokens
 
 
@@ -25,11 +33,17 @@ class CapacityError(Exception):
 
 class AllowanceExhaustedError(Exception):
     status_code = 429
-    code = "allowance_exhausted"
 
-    def __init__(self):
+    def __init__(self, protocol="openai"):
         super().__init__("monthly allowance used up")
-        self.body = {"error": {"code": "allowance_exhausted"}}
+        error = {
+            "code": "allowance_exhausted",
+            "message": "Your monthly allowance is used up.",
+        }
+        if protocol == "openai":
+            self.body = {"error": {"type": "insufficient_quota", **error}}
+        else:
+            self.body = {"type": "error", "error": {"type": "rate_limit_error", **error}}
 
 
 class AuthError(Exception):
@@ -99,6 +113,89 @@ def test_apx_chat_anthropic_is_detected_and_rotates_with_its_gateway(monkeypatch
     from middleware.usage_metering import provider_identity
 
     assert provider_identity(fallback) == ("APX", "claude-sonnet-4-6-free")
+
+
+def _routed_apx_model(monkeypatch, protocol, model, options=None):
+    use_model_routes(
+        monkeypatch,
+        {
+            "routes": {
+                "primary": {
+                    "provider": "apx",
+                    "protocol": protocol,
+                    "model": model,
+                    **({"options": options} if options else {}),
+                }
+            },
+            "roles": {"default": "primary"},
+        },
+    )
+    return mp.build_model(mp.load_model_routes().config("primary"))
+
+
+@pytest.mark.parametrize(
+    ("protocol", "model_name", "client_type", "key_attr", "endpoint"),
+    [
+        ("anthropic", "claude-sonnet-4-6-free", ChatAnthropic, "anthropic_api_key", "https://api.apmix.ai"),
+        ("openai", "gpt-5.6-luna", ChatOpenAI, "openai_api_key", "https://api.apmix.ai/v1"),
+    ],
+    ids=["apx-anthropic", "apx-openai"],
+)
+def test_apx_allowance_exhaustion_rotates_native_client_and_preserves_route(
+    monkeypatch, protocol, model_name, client_type, key_attr, endpoint
+):
+    monkeypatch.setenv("APX_API_KEY", "apx-first-secret,apx-second-secret")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "direct-anthropic-secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "direct-openai-secret")
+    monkeypatch.setenv("APX_BASE_URL", "https://api.apmix.ai/v1/")
+    monkeypatch.setenv("LLM_PROVIDER_TIMEOUT_SECONDS", "17")
+    logger = _FakeLogger()
+    from middleware import token_fallback
+
+    monkeypatch.setattr(token_fallback, "logger", logger)
+    model = _routed_apx_model(
+        monkeypatch,
+        protocol,
+        model_name,
+        {"temperature": 0.2, "context_window_tokens": 1000, "max_output_tokens": 64},
+    )
+    assert isinstance(model, client_type)
+    assert model_provider(model) == "apx"
+    assert model_protocol(model) == protocol
+    assert getattr(model, key_attr).get_secret_value() == "apx-first-secret"
+    route = model_route_config(model)
+    assert route is not None and (route.provider, route.protocol, route.model) == (
+        "apx", protocol, model_name
+    )
+
+    response = ModelResponse(result=[])
+    handler = MagicMock(
+        side_effect=[AllowanceExhaustedError(protocol), response]
+    )
+    result = TokenFallbackMiddleware().wrap_model_call(
+        ModelRequest(model=model, messages=[], tools=[]), handler
+    )
+
+    assert result is response
+    assert handler.call_count == 2
+    fallback = handler.call_args.args[0].model
+    assert isinstance(fallback, client_type)
+    assert getattr(fallback, key_attr).get_secret_value() == "apx-second-secret"
+    assert model_provider(fallback) == "apx"
+    assert model_protocol(fallback) == protocol
+    assert model_route_config(fallback) == route
+    assert fallback.profile == model.profile
+    assert str(getattr(fallback, "anthropic_api_url", None) or getattr(fallback, "openai_api_base", "")).rstrip("/") == endpoint
+    if protocol == "anthropic":
+        assert fallback.temperature == 0.2
+        assert fallback.default_request_timeout == 17
+        assert fallback._client is not model._client
+    else:
+        assert fallback.request_timeout == 17
+        assert fallback.use_responses_api is False
+        assert fallback.root_client is not model.root_client
+    assert "apx-first-secret" not in str(logger.events)
+    assert "apx-second-secret" not in str(logger.events)
 
 
 def test_direct_anthropic_uses_only_its_canonical_credential_pool(monkeypatch):
@@ -1039,6 +1136,7 @@ def test_server_errors_on_every_slot_terminate_without_waiting(monkeypatch):
 
 def test_outer_model_retry_does_not_resend_auth_failures(monkeypatch):
     from langchain.agents.middleware import ModelRetryMiddleware
+
     from middleware.failure_policy import retry_model_error
 
     monkeypatch.setenv("GOOGLE_API_KEY", "only-test-token")
@@ -1057,6 +1155,7 @@ def test_outer_model_retry_does_not_resend_auth_failures(monkeypatch):
 
 def test_outer_model_retry_does_not_resend_provider_capacity_failure(monkeypatch):
     from langchain.agents.middleware import ModelRetryMiddleware
+
     from middleware.failure_policy import retry_model_error
 
     monkeypatch.setenv("APX_API_KEY", "only-test-token")
@@ -1161,6 +1260,7 @@ def test_dead_fallback_token_is_skipped_on_later_rotation(monkeypatch):
 
 def test_outer_model_retry_does_not_restart_exhausted_tokens(monkeypatch):
     from langchain.agents.middleware import ModelRetryMiddleware
+
     from middleware.failure_policy import retry_model_error
     monkeypatch.setenv("OPENAI_API_KEY", "first-test-token,second-test-token")
     _install_fake_cooldown_clock(monkeypatch)
@@ -1177,6 +1277,7 @@ def test_outer_model_retry_does_not_restart_exhausted_tokens(monkeypatch):
 def test_google_retired_model_never_retries_or_rotates_token(monkeypatch):
     from google.genai.errors import ClientError
     from langchain_google_genai.chat_models import GoogleModelNotFoundError
+
     from middleware.failure_policy import retry_model_error
     from middleware.token_fallback import credential_failure
 
