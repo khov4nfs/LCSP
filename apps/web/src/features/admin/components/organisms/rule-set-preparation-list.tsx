@@ -1,6 +1,6 @@
 import type { MessageKey } from "@lcsp/i18n";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -26,18 +26,15 @@ export function RuleSetPreparationList({
   const [selectedRunId, setSelectedRunId] = useState<string | null>(
     preparations[0]?.preparationRunId ?? null,
   );
-  useEffect(() => {
-    if (
-      selectedRunId === null ||
-      !preparations.some((run) => run.preparationRunId === selectedRunId)
-    ) {
-      setSelectedRunId(preparations[0]?.preparationRunId ?? null);
-    }
-  }, [preparations, selectedRunId]);
-  const activity = useRuleSetPreparationActivity(selectedRunId);
+  const activeRunId = preparations.some(
+    (run) => run.preparationRunId === selectedRunId,
+  )
+    ? selectedRunId
+    : (preparations[0]?.preparationRunId ?? null);
+  const activity = useRuleSetPreparationActivity(activeRunId);
   const retry = useRetryRuleSetPreparationMutation();
   const selectedRun = preparations.find(
-    (run) => run.preparationRunId === selectedRunId,
+    (run) => run.preparationRunId === activeRunId,
   );
   const terminal =
     selectedRun !== undefined &&
@@ -61,7 +58,7 @@ export function RuleSetPreparationList({
             <button
               type="button"
               className="flex min-w-48 flex-1 flex-col items-start gap-0.5 text-left"
-              aria-pressed={selectedRunId === run.preparationRunId}
+              aria-pressed={activeRunId === run.preparationRunId}
               onClick={() => setSelectedRunId(run.preparationRunId)}
             >
               <span className="text-sm font-medium">
@@ -103,7 +100,7 @@ export function RuleSetPreparationList({
           </li>
         ))}
       </ul>
-      {selectedRunId ? (
+      {activeRunId ? (
         <RuleSetPreparationActivity
           events={activity.events}
           connected={activity.connected}

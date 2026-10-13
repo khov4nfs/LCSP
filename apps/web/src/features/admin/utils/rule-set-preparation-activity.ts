@@ -85,7 +85,6 @@ export function projectPreparationActivity(
     const modelStepId = stringValue(data?.model_step_id);
     const toolId = event.toolCallId;
     const existingId = toolId ?? modelStepId;
-    const existing = existingId ? byId.get(existingId) : undefined;
     const status = statusOf(event.status);
 
     if (event.eventType === EVENT_TYPES.boundaryStarted) {

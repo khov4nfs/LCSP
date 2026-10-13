@@ -7,12 +7,12 @@ import {
 import { useEffect, useState } from "react";
 
 export function useRuleSetPreparationActivity(preparationRunId: string | null) {
-  const [events, setEvents] = useState<AssessmentAgentStreamEvent[]>([]);
-  const [connected, setConnected] = useState(false);
+  const [streams, setStreams] = useState<
+    Record<string, { events: AssessmentAgentStreamEvent[]; connected: boolean }>
+  >({});
+  const current = preparationRunId ? streams[preparationRunId] : undefined;
 
   useEffect(() => {
-    setEvents([]);
-    setConnected(false);
     if (!preparationRunId || typeof EventSource === "undefined") return;
 
     const source = new EventSource(
@@ -26,23 +26,45 @@ export function useRuleSetPreparationActivity(preparationRunId: string | null) {
           JSON.parse(data),
         );
         if (!parsed.success) return;
-        setEvents(
-          parsed.data.agent_stream_events.filter(
-            (event) => event.preparationRunId === preparationRunId,
-          ),
+        const events = parsed.data.agent_stream_events.filter(
+          (event) => event.preparationRunId === preparationRunId,
         );
+        setStreams((previous) => ({
+          ...previous,
+          [preparationRunId]: {
+            events,
+            connected: previous[preparationRunId]?.connected ?? true,
+          },
+        }));
       } catch {
         // A malformed telemetry frame must not affect the Admin page.
       }
     };
     source.addEventListener("workspace.runtime", onRuntime);
-    source.onopen = () => setConnected(true);
-    source.onerror = () => setConnected(false);
+    source.onopen = () =>
+      setStreams((previous) => ({
+        ...previous,
+        [preparationRunId]: {
+          events: previous[preparationRunId]?.events ?? [],
+          connected: true,
+        },
+      }));
+    source.onerror = () =>
+      setStreams((previous) => ({
+        ...previous,
+        [preparationRunId]: {
+          events: previous[preparationRunId]?.events ?? [],
+          connected: false,
+        },
+      }));
     return () => {
       source.removeEventListener("workspace.runtime", onRuntime);
       source.close();
     };
   }, [preparationRunId]);
 
-  return { events, connected };
+  return {
+    events: current?.events ?? [],
+    connected: current?.connected ?? false,
+  };
 }

@@ -7,7 +7,6 @@ import {
   ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS as K,
   ASSESSMENT_RUNTIME_RUN_STATUSES as S,
   type AssessmentAgentStreamEvent,
-  type AssessmentRuntimeSummaryValue,
 } from "@lcsp/contracts/evidence";
 import {
   usageFooterParts,
