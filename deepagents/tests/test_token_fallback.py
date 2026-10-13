@@ -3,14 +3,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from anthropic import RateLimitError
 from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_anthropic import ChatAnthropic
-from langchain_openai import ChatOpenAI
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
-
+from langchain_openai import ChatOpenAI
 from middleware.failure_policy import TerminalCredentialError, is_terminal_task_error
-from middleware.token_fallback import TokenFallbackMiddleware, model_provider, model_with_token
-from provider_credentials import provider_tokens, credential_init_kwargs
+from middleware.token_fallback import TokenFallbackMiddleware, model_provider
+from provider_credentials import credential_init_kwargs, provider_tokens
 
 
 class QuotaError(Exception):
@@ -20,6 +21,15 @@ class QuotaError(Exception):
 class CapacityError(Exception):
     status_code = 402
     code = "insufficient_balance"
+
+
+class AllowanceExhaustedError(Exception):
+    status_code = 429
+    code = "allowance_exhausted"
+
+    def __init__(self):
+        super().__init__("monthly allowance used up")
+        self.body = {"error": {"code": "allowance_exhausted"}}
 
 
 class AuthError(Exception):
@@ -48,7 +58,7 @@ def test_parse_tokens_and_empty_list(monkeypatch):
 
 
 def test_apx_credentials_are_isolated_from_openai(monkeypatch):
-    monkeypatch.setenv("APX_API_KEY", "apx-one,apx-two")
+    monkeypatch.setenv("APX_API_KEY", " apx-one, apx-two,apx-one, ,")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
 
     assert provider_tokens("apx") == ("apx-one", "apx-two")
@@ -69,13 +79,12 @@ def test_inception_credentials_are_isolated_from_openai(monkeypatch):
     }
 
 
-def test_apx_chat_openai_is_detected_and_rotates_with_its_gateway(monkeypatch):
+def test_apx_chat_anthropic_is_detected_and_rotates_with_its_gateway(monkeypatch):
     monkeypatch.setenv("APX_API_KEY", "apx-first,apx-second")
-    monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
-    model = ChatOpenAI(
-        model="gpt-5.6-luna",
-        base_url="https://api.apmix.ai/v1",
-        use_responses_api=False,
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "direct-anthropic-must-not-be-used")
+    model = ChatAnthropic(
+        model="claude-sonnet-4-6-free",
+        base_url="https://api.apmix.ai",
         **credential_init_kwargs("apx"),
     )
     assert model_provider(model) == "apx"
@@ -84,18 +93,41 @@ def test_apx_chat_openai_is_detected_and_rotates_with_its_gateway(monkeypatch):
     TokenFallbackMiddleware().wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), handler)
 
     fallback = handler.call_args.args[0].model
-    assert fallback.openai_api_key.get_secret_value() == "apx-second"
-    assert str(fallback.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
-    assert fallback.use_responses_api is False
+    assert fallback.anthropic_api_key.get_secret_value() == "apx-second"
+    assert str(fallback.anthropic_api_url).rstrip("/") == "https://api.apmix.ai"
+    assert model_provider(fallback) == "apx"
+    from middleware.usage_metering import provider_identity
+
+    assert provider_identity(fallback) == ("APX", "claude-sonnet-4-6-free")
 
 
-def test_apx_chat_openai_rotation_preserves_gateway_policy(monkeypatch):
+def test_direct_anthropic_uses_only_its_canonical_credential_pool(monkeypatch):
+    monkeypatch.setenv("APX_API_KEY", "apx-must-not-be-used,apx-second")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "anthropic-first,anthropic-second")
+    model = ChatAnthropic(
+        model="claude-sonnet-4-6",
+        **credential_init_kwargs("anthropic"),
+    )
+    assert model_provider(model) == "anthropic"
+    handler = MagicMock(side_effect=[AuthError(), ModelResponse(result=[])])
+
+    TokenFallbackMiddleware().wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), handler)
+
+    assert [call.args[0].model.anthropic_api_key.get_secret_value() for call in handler.call_args_list] == [
+        "anthropic-first",
+        "anthropic-second",
+    ]
+    assert model_provider(handler.call_args_list[-1].args[0].model) == "anthropic"
+
+
+def test_apx_chat_anthropic_rotation_preserves_gateway_policy(monkeypatch):
     monkeypatch.setenv("APX_API_KEY", "apx-first,apx-second")
-    monkeypatch.setenv("OPENAI_API_KEY", "openai-must-not-be-used")
-    model = ChatOpenAI(
-        model="minimax-m2.7",
-        base_url="https://api.apmix.ai/v1",
-        use_responses_api=False,
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "direct-anthropic-must-not-be-used")
+    model = ChatAnthropic(
+        model="claude-sonnet-4-6-free",
+        base_url="https://api.apmix.ai",
+        temperature=0.2,
+        timeout=17,
         **credential_init_kwargs("apx"),
     )
     assert model_provider(model) == "apx"
@@ -108,10 +140,12 @@ def test_apx_chat_openai_rotation_preserves_gateway_policy(monkeypatch):
     assert result is response
     assert handler.call_count == 2
     fallback = handler.call_args.args[0].model
-    assert fallback.openai_api_key.get_secret_value() == "apx-second"
-    assert str(fallback.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
-    assert fallback.use_responses_api is False
+    assert fallback.anthropic_api_key.get_secret_value() == "apx-second"
+    assert str(fallback.anthropic_api_url).rstrip("/") == "https://api.apmix.ai"
+    assert fallback.temperature == 0.2
+    assert fallback.default_request_timeout == 17
     assert fallback.max_retries == 0
+    assert fallback._client is not model._client
 
 
 def test_inception_chat_openai_rotation_preserves_gateway_policy(monkeypatch):
@@ -147,9 +181,11 @@ def clear_dead_credential_slots():
 
     token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
     token_fallback._RATE_LIMITED_UNTIL.clear()
+    token_fallback._CREDENTIAL_POOL_FINGERPRINTS.clear()
     yield
     token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
     token_fallback._RATE_LIMITED_UNTIL.clear()
+    token_fallback._CREDENTIAL_POOL_FINGERPRINTS.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -206,7 +242,6 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
         "google_genai": "GOOGLE_API_KEY",
         "apx": "APX_API_KEY",
         "inception": "INCEPTION_API_KEY",
-        "apx": "APX_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
     }[provider]
     monkeypatch.setenv(name, "first-test-token,second-test-token,")
@@ -218,10 +253,9 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
             **credential_init_kwargs(provider),
         )
     elif provider == "apx":
-        model = ChatOpenAI(
-            model="minimax-m2.7",
-            base_url="https://api.apmix.ai/v1",
-            use_responses_api=False,
+        model = ChatAnthropic(
+            model="claude-sonnet-4-6-free",
+            base_url="https://api.apmix.ai",
             **credential_init_kwargs(provider),
         )
     elif provider == "inception":
@@ -229,13 +263,6 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
             model="mercury-2.5",
             base_url="https://api.inceptionlabs.ai/v1",
             temperature=0.75,
-            use_responses_api=False,
-            **credential_init_kwargs(provider),
-        )
-    elif provider == "apx":
-        model = ChatOpenAI(
-            model="gpt-5.6-luna",
-            base_url="https://api.apmix.ai/v1",
             use_responses_api=False,
             **credential_init_kwargs(provider),
         )
@@ -261,9 +288,9 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
     fallback = handler.call_args.args[0].model
     key = (
         fallback.openai_api_key
-        if provider in {"openai", "apx", "inception", "apx"}
+        if provider in {"openai", "inception"}
         else fallback.anthropic_api_key
-        if provider == "anthropic"
+        if provider in {"apx", "anthropic"}
         else fallback.google_api_key
     )
     assert key.get_secret_value() == "second-test-token"
@@ -273,19 +300,13 @@ async def test_token_fallback_preserves_model_policy(monkeypatch, provider, asyn
         assert fallback.use_responses_api is True
         assert fallback.root_client is not model.root_client
     elif provider == "apx":
-        assert str(fallback.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
-        assert fallback.use_responses_api is False
+        assert model_provider(model) == "apx"
+        assert str(fallback.anthropic_api_url).rstrip("/") == "https://api.apmix.ai"
         assert fallback.max_retries == 0
-        assert fallback.root_client is not model.root_client
+        assert fallback._client is not model._client
     elif provider == "inception":
         assert str(fallback.openai_api_base).rstrip("/") == "https://api.inceptionlabs.ai/v1"
         assert fallback.temperature == 0.75
-        assert fallback.use_responses_api is False
-        assert fallback.max_retries == 0
-        assert fallback.root_client is not model.root_client
-    elif provider == "apx":
-        assert model_provider(model) == "apx"
-        assert str(fallback.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
         assert fallback.use_responses_api is False
         assert fallback.max_retries == 0
         assert fallback.root_client is not model.root_client
@@ -394,12 +415,15 @@ def _gemini_model():
 
 
 def _apx_model():
-    return ChatOpenAI(
-        model="minimax-m2.7",
-        base_url="https://api.apmix.ai/v1",
-        use_responses_api=False,
+    return ChatAnthropic(
+        model="claude-sonnet-4-6-free",
+        base_url="https://api.apmix.ai",
         **credential_init_kwargs("apx"),
     )
+
+
+def _anthropic_api_key(model) -> str:
+    return model.anthropic_api_key.get_secret_value()
 
 
 def _api_key(request_call) -> str:
@@ -492,7 +516,7 @@ def test_apx_roll_key_uses_same_dead_and_cooldown_semantics(monkeypatch):
     first = MagicMock(side_effect=[AuthError(), QuotaError(), response])
     assert middleware.wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), first) is response
     assert [
-        call.args[0].model.openai_api_key.get_secret_value()
+        _anthropic_api_key(call.args[0].model)
         for call in first.call_args_list
     ] == [
         "slot-a-test-token",
@@ -502,13 +526,141 @@ def test_apx_roll_key_uses_same_dead_and_cooldown_semantics(monkeypatch):
 
     second = MagicMock(side_effect=[response])
     assert middleware.wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), second) is response
-    assert second.call_args.args[0].model.openai_api_key.get_secret_value() == "slot-c-test-token"
+    assert _anthropic_api_key(second.call_args.args[0].model) == "slot-c-test-token"
 
     clock["now"] += token_fallback._DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS + 1
     third = MagicMock(side_effect=[response])
     assert middleware.wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), third) is response
-    assert third.call_args.args[0].model.openai_api_key.get_secret_value() == "slot-b-test-token"
+    assert _anthropic_api_key(third.call_args.args[0].model) == "slot-b-test-token"
     assert token_fallback._DEAD_CREDENTIAL_SLOTS[("apx", "APX_API_KEY")] == {0}
+
+
+def test_apx_allowance_exhaustion_advances_through_slots_without_leaving_apx(monkeypatch):
+    monkeypatch.setenv("APX_API_KEY", "apx-slot-zero,apx-slot-one,apx-slot-two")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "direct-anthropic-must-not-be-used")
+    model = _apx_model()
+    response = ModelResponse(result=[])
+    request = ModelRequest(model=model, messages=[], tools=[])
+    handler = MagicMock(side_effect=[AllowanceExhaustedError(), AllowanceExhaustedError(), response])
+
+    assert TokenFallbackMiddleware().wrap_model_call(request, handler) is response
+
+    requests = [call.args[0] for call in handler.call_args_list]
+    assert [model_provider(item.model) for item in requests] == ["apx", "apx", "apx"]
+    assert [_anthropic_api_key(item.model) for item in requests] == [
+        "apx-slot-zero",
+        "apx-slot-one",
+        "apx-slot-two",
+    ]
+    assert [item.model.anthropic_api_url for item in requests] == ["https://api.apmix.ai"] * 3
+    assert TokenFallbackMiddleware()._dead_slots("apx", "APX_API_KEY") == {0, 1}
+
+
+@pytest.mark.asyncio
+async def test_apx_rotates_entire_anthropic_credential_pool_before_success(monkeypatch):
+    slots = tuple(f"apx-pool-slot-{index}" for index in range(11))
+    monkeypatch.setenv("APX_API_KEY", ",".join(slots))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "direct-anthropic-must-not-be-used")
+    model = _apx_model()
+    request = ModelRequest(model=model, messages=[], tools=[])
+    body = {
+        "type": "error",
+        "error": {
+            "type": "allowance_exhausted",
+            "message": "monthly allowance used up",
+        },
+    }
+
+    def allowance_error() -> RateLimitError:
+        response = httpx.Response(
+            429,
+            request=httpx.Request("POST", "https://api.apmix.ai/v1/messages"),
+            json=body,
+        )
+        return RateLimitError("monthly allowance used up", response=response, body=body)
+
+    handler = AsyncMock(side_effect=[*(allowance_error() for _ in slots[:-1]), ModelResponse(result=[])])
+
+    assert await TokenFallbackMiddleware().awrap_model_call(request, handler)
+
+    tried = [call.args[0].model for call in handler.call_args_list]
+    assert [model_provider(candidate) for candidate in tried] == ["apx"] * len(slots)
+    assert [_anthropic_api_key(candidate) for candidate in tried] == list(slots)
+    assert all(candidate.anthropic_api_url == "https://api.apmix.ai" for candidate in tried)
+
+
+def test_apx_slot_rotation_does_not_replay_completed_tool_calls(monkeypatch):
+    monkeypatch.setenv("APX_API_KEY", "apx-slot-zero,apx-slot-one,apx-slot-two")
+    model = _apx_model()
+    history = [
+        HumanMessage(content="Inspect the pinned source."),
+        AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": "read_file",
+                    "args": {"path": "/legal-source/INDEX.md"},
+                    "id": "read-1",
+                }
+            ],
+        ),
+        ToolMessage(content="INDEX contents redacted", tool_call_id="read-1", name="read_file"),
+    ]
+    request = ModelRequest(model=model, messages=history, tools=[])
+    handler = MagicMock(
+        side_effect=[
+            AllowanceExhaustedError(),
+            AllowanceExhaustedError(),
+            ModelResponse(result=[]),
+        ]
+    )
+
+    TokenFallbackMiddleware().wrap_model_call(request, handler)
+
+    assert handler.call_count == 3
+    assert [call.args[0].messages for call in handler.call_args_list] == [history] * 3
+    assert sum(isinstance(message, ToolMessage) for message in history) == 1
+
+
+def test_apx_pool_health_is_bound_to_safe_fingerprints(monkeypatch):
+    from middleware import token_fallback
+
+    monkeypatch.setenv("APX_API_KEY", "old-slot-zero,old-slot-one")
+    middleware = TokenFallbackMiddleware()
+    old_model = _apx_model()
+    failing = MagicMock(side_effect=AuthError())
+    with pytest.raises(TerminalCredentialError):
+        middleware.wrap_model_call(ModelRequest(model=old_model, messages=[], tools=[]), failing)
+    assert token_fallback._DEAD_CREDENTIAL_SLOTS[("apx", "APX_API_KEY")] == {0, 1}
+
+    monkeypatch.setenv("APX_API_KEY", "new-slot-zero,new-slot-one")
+    fresh_model = _apx_model()
+    healthy = MagicMock(return_value=ModelResponse(result=[]))
+    assert middleware.wrap_model_call(ModelRequest(model=fresh_model, messages=[], tools=[]), healthy)
+    assert [_anthropic_api_key(call.args[0].model) for call in healthy.call_args_list] == [
+        "new-slot-zero"
+    ]
+    assert token_fallback._DEAD_CREDENTIAL_SLOTS.get(("apx", "APX_API_KEY"), set()) == set()
+
+
+def test_apx_credential_failure_logs_only_stable_safe_fingerprint(monkeypatch):
+    from middleware import token_fallback
+
+    secret = "apx-test-secret-never-log"
+    monkeypatch.setenv("APX_API_KEY", f"{secret},apx-next-secret")
+    logger = _FakeLogger()
+    monkeypatch.setattr(token_fallback, "logger", logger)
+    model = _apx_model()
+    handler = MagicMock(side_effect=[AllowanceExhaustedError(), ModelResponse(result=[])])
+
+    TokenFallbackMiddleware().wrap_model_call(ModelRequest(model=model, messages=[], tools=[]), handler)
+
+    serialized = repr(logger.events)
+    assert secret not in serialized
+    dead = next(kwargs for event, kwargs in logger.events if event == "MODEL_CREDENTIAL_FALLBACK_SLOT_DEAD")
+    assert dead["provider"] == "apx"
+    assert dead["credential_fingerprint"] == _fingerprint(secret)
+    assert dead["reason"] == "allowance_exhausted"
 
 
 def test_rate_limited_slots_are_cooled_not_marked_dead_and_still_tried_last(monkeypatch):
@@ -1022,8 +1174,8 @@ def test_outer_model_retry_does_not_restart_exhausted_tokens(monkeypatch):
 def test_google_retired_model_never_retries_or_rotates_token(monkeypatch):
     from google.genai.errors import ClientError
     from langchain_google_genai.chat_models import GoogleModelNotFoundError
-    from middleware.token_fallback import credential_failure
     from middleware.failure_policy import retry_model_error
+    from middleware.token_fallback import credential_failure
 
     source = ClientError(404, {"error": {"code": 404, "message": "model no longer available", "status": "NOT_FOUND"}})
     error = GoogleModelNotFoundError("model no longer available")

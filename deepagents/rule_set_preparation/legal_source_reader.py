@@ -6,6 +6,7 @@ from typing import Any
 
 from deepagents.backends.protocol import BackendProtocol
 from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPermission
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from pydantic import BaseModel, ConfigDict, Field
 
 from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
@@ -79,12 +80,14 @@ def legal_source_reader_subagent(
         ),
         "model": model,
         "tools": [],
+        # Deep Agents compiles inline subagents from their own middleware spec.
         "middleware": [
             FilesystemMiddleware(
                 backend=backend,
                 tools=READ_ONLY_TOOLS,
                 _permissions=permissions,
-            )
+            ),
+            *MODEL_GOVERNANCE_MIDDLEWARE,
         ],
         "permissions": permissions,
         "system_prompt": LEGAL_SOURCE_READER_PROMPT,
