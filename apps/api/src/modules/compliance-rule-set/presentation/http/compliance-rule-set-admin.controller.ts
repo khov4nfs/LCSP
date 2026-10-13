@@ -26,10 +26,12 @@ import type { AuthenticatedRequest } from "../../../../common/interfaces/authent
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ListComplianceRuleSetHistoryQuery } from "../../application/queries/list-compliance-rule-set-history/list-compliance-rule-set-history.query.js";
 import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
+import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 
 /**
  * Operations view of the shared Compliance Rule Sets. Preparation starts automatically with a
- * Legal Source Version activation; Admin can also prepare the current source or retry a failure.
+ * Legal Source Version activation; Admin can prepare the current source, retry a failure, or cancel
+ * an active preparation.
  * The controller only dispatches commands; source selection and orchestration stay server-owned.
  */
 @Controller("admin/compliance-rule-sets")
@@ -59,6 +61,22 @@ export class ComplianceRuleSetAdminController {
         new RetryRuleSetPreparationCommand(
           preparationRunId,
           req.rbacContext.userId,
+          req.correlationId || randomUUID(),
+        ),
+      )
+      .then(resultEnvelope);
+  }
+
+  @Post("preparations/:preparationRunId/cancel")
+  @HttpCode(HttpStatus.ACCEPTED)
+  cancel(
+    @Param("preparationRunId", new ParseUUIDPipe()) preparationRunId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.commands
+      .execute(
+        new CancelRuleSetPreparationCommand(
+          preparationRunId,
           req.correlationId || randomUUID(),
         ),
       )

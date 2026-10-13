@@ -9,17 +9,21 @@ from typing import Any
 
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
-
-from rule_set_preparation.agent import _without_general_purpose_subagent, create_rule_set_preparation_agent
+from rule_set_preparation.agent import (
+    _without_general_purpose_subagent,
+    create_rule_set_preparation_agent,
+)
 from rule_set_preparation.legal_source_files import INDEX_PATH, materialize_legal_source
 from rule_set_preparation.runner import (
-    SOURCE_VERSION_UNAVAILABLE,
     MODEL_ERROR,
     NO_SUBMISSION,
+    SOURCE_VERSION_UNAVAILABLE,
     run_rule_set_preparation,
 )
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
-from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
+from test_rule_set_preparation_native_isolation_preparation import (
+    RuleSetPreparationScriptedModel,
+)
 
 RUN_ID = "11111111-1111-4111-8111-111111111111"
 LEGAL_SOURCE_ID = "22222222-2222-4222-8222-222222222222"
@@ -30,8 +34,8 @@ DOC = "SYNTHETIC-NOTICE-INSTRUMENT"
 def _fast_model_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep the retry behavior under test but not its real exponential sleeps."""
     from langchain.agents.middleware import ModelRetryMiddleware
-    from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
     from middleware import usage_metering
+    from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 
     for middleware in MODEL_GOVERNANCE_MIDDLEWARE:
         if isinstance(middleware, ModelRetryMiddleware):
@@ -243,8 +247,9 @@ def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_to
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     bound = {name for names in model.bound_tool_names for name in names}
     assert {"read_file", "ls", "glob", "grep", "validate_compliance_rule_set", "submit_compliance_rule_set", "report_rule_set_source_blocked"} <= bound
-    forbidden = {"write_file", "edit_file", "execute", "task", "ask_human", "submit_rule_decision"}
+    forbidden = {"write_file", "edit_file", "execute", "ask_human", "submit_rule_decision"}
     assert bound.isdisjoint(forbidden), bound & forbidden
+    assert "task" in bound
     assert INSTRUCTIONS in model.prompts[0][0].content
 
 
@@ -456,15 +461,20 @@ def test_forbidden_tools_and_paths_outside_the_legal_source_are_unavailable(tmp_
     )
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     messages = _tool_messages(model)
-    for call_id in ("write", "execute", "task"):
+    for call_id in ("write", "execute"):
         assert "is not a valid tool" in messages[call_id].content, messages[call_id].content
+    assert "does not exist" in messages["task"].content
     assert "NOT-IN-LEGAL_SOURCE" not in messages["outside"].content
     assert not (tmp_path / "legal_source" / "x.md").exists() and not (tmp_path / "legal_source" / "y").exists()
 
 
 def test_the_no_subagent_profile_is_scoped_to_graph_build_time() -> None:
+    from deepagents.profiles.harness.harness_profiles import (
+        _HARNESS_PROFILES,
+        _get_harness_profile,
+    )
+
     from deepagents import HarnessProfile, register_harness_profile
-    from deepagents.profiles.harness.harness_profiles import _HARNESS_PROFILES, _get_harness_profile
 
     key = "scoped-test:model"
     register_harness_profile(key, HarnessProfile(system_prompt_suffix="LCSP-DEFAULT"))
@@ -486,7 +496,6 @@ def test_the_no_subagent_profile_is_scoped_to_graph_build_time() -> None:
 def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(tmp_path: Path) -> None:
     from deepagents.profiles.harness.harness_profiles import _harness_profile_for_model
     from langchain_openai import ChatOpenAI
-
     from rule_set_preparation.agent import _lookup_profile_key
 
     # An OpenAI-compatible route (apx) is looked up as "openai:<model>", not "apx:<model>".
@@ -496,14 +505,15 @@ def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(
     with _without_general_purpose_subagent(key):
         assert _harness_profile_for_model(model, None).general_purpose_subagent.enabled is False
 
-    # Building the real graph with that model leaves no task/sub-agent tool in the tool node.
+    # The parent has only the explicitly configured legal-source-reader delegation.
     materialize_legal_source(_bundle(), tmp_path)
     agent = create_rule_set_preparation_agent(
         context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
     )
     tools = set(agent.nodes["tools"].bound.tools_by_name)
     assert {"read_file", "validate_compliance_rule_set", "submit_compliance_rule_set"} <= tools
-    assert tools.isdisjoint({"task", "write_file", "edit_file", "execute"}), tools
+    assert "task" in tools
+    assert tools.isdisjoint({"write_file", "edit_file", "execute"}), tools
 
 
 def test_instructions_state_the_authority_boundary() -> None:
@@ -519,8 +529,9 @@ def test_instructions_state_the_authority_boundary() -> None:
     assert "never turn a context provision into a legalrequirement" in lowered
     assert "a permission never becomes a duty" in lowered
     assert "including its own limiting sentences" in lowered
-    for forbidden_tool in ("ask_human", "execute", "task("):
+    for forbidden_tool in ("ask_human", "execute"):
         assert forbidden_tool not in lowered
+    assert "legal-source-reader" in lowered and "same assistant turn" in lowered
 
 
 def test_instructions_require_general_semantic_completeness_before_validation() -> None:

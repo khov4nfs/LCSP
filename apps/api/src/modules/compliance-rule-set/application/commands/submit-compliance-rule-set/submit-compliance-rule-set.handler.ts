@@ -91,11 +91,21 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
       try {
         return await this.prisma.$transaction(
           (tx) => this.activation.commit(tx, context, input.actorId),
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+          // The run row and activation advisory locks serialize cancellation/publication and the
+          // ACTIVE pointer; READ COMMITTED lets a waiter observe the winning idempotent commit.
+          { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
         );
       } catch (error) {
         if (!isRetryable(error) || attempt >= MAX_TRANSACTION_ATTEMPTS)
           throw error;
+        const replay = await this.activation.findReplay(
+          this.prisma,
+          request.idempotencyKey,
+          run.id,
+          requestDigest,
+          input.correlationId,
+        );
+        if (replay) return replay;
       }
     }
   }

@@ -8,6 +8,11 @@ import {
 } from "@lcsp/contracts/compliance-rule-set";
 import { apiValidated } from "./api-request";
 const historyKey = ["admin", "compliance-rule-sets"];
+export const RULE_SET_PREPARATION_CANCEL_MUTATION_KEY = [
+  "admin",
+  "compliance-rule-sets",
+  "cancel-preparation",
+] as const;
 export function useComplianceRuleSetHistoryQuery() {
   return useQuery({
     queryKey: historyKey,
@@ -59,5 +64,20 @@ export function useRetryRuleSetPreparationMutation() {
         { method: "POST" },
       ),
     onSuccess: () => client.invalidateQueries({ queryKey: historyKey }),
+  });
+}
+
+/** Cancels one queued/running preparation through the Admin API. */
+export function useCancelRuleSetPreparationMutation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationKey: RULE_SET_PREPARATION_CANCEL_MUTATION_KEY,
+    mutationFn: (preparationRunId: string) =>
+      apiValidated(
+        `/api/admin/compliance-rule-sets/preparations/${encodeURIComponent(preparationRunId)}/cancel`,
+        ruleSetPreparationRunSchema,
+        { method: "POST" },
+      ),
+    onSettled: () => client.invalidateQueries({ queryKey: historyKey }),
   });
 }
