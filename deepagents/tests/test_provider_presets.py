@@ -7,7 +7,7 @@ import model_policy as mp
 
 def test_exact_provider_ids_and_clients() -> None:
     assert mp.canonical_provider("google_genai") == "google_genai"
-    assert mp.provider_client("apx") == "openai_compatible_chat_completions"
+    assert mp.provider_client("apx") == "anthropic_compatible_messages"
     assert mp.provider_client("openai") == "responses_api"
 
 
@@ -24,8 +24,8 @@ def test_adapter_kwargs_are_transport_only(monkeypatch) -> None:
     assert mp.provider_init_kwargs("google_genai")["request_timeout"] == 7
     assert mp.provider_init_kwargs("openai")["use_responses_api"] is True
     assert mp.provider_init_kwargs("inception")["use_responses_api"] is False
-    assert mp.provider_init_kwargs("apx")["use_responses_api"] is False
-    assert mp.provider_init_kwargs("apx")["base_url"] == "https://api.apmix.ai/v1"
+    assert mp.provider_init_kwargs("apx")["base_url"] == "https://api.apmix.ai"
+    assert "use_responses_api" not in mp.provider_init_kwargs("apx")
     assert mp.provider_init_kwargs("anthropic") == {}
     for provider in ("openai", "google_genai", "apx", "inception"):
         assert not {"reasoning", "thinking_level", "temperature", "model"} & set(

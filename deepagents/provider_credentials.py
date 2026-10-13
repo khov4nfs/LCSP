@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 
 INCEPTION_DEFAULT_BASE_URL = "https://api.inceptionlabs.ai/v1"
-APX_DEFAULT_BASE_URL = "https://api.apmix.ai/v1"
+APX_DEFAULT_BASE_URL = "https://api.apmix.ai"
 
 PROVIDER_KEY_ENV = {
     "openai": ("OPENAI_API_KEY",),
@@ -46,9 +46,9 @@ def llm_provider_timeout_seconds() -> float:
 
 
 def apx_base_url() -> str:
-    """Return the configured APX OpenAI-compatible endpoint."""
+    """Return the APX Anthropic Messages API root, without a version suffix."""
     configured = (os.getenv("APX_BASE_URL") or "").strip()
-    return (configured or APX_DEFAULT_BASE_URL).rstrip("/")
+    return (configured or APX_DEFAULT_BASE_URL).rstrip("/").removesuffix("/v1")
 
 
 def inception_base_url() -> str:

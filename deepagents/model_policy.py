@@ -81,11 +81,10 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
         },
     ),
     "apx": (
-        "openai",
-        "openai_compatible_chat_completions",
+        "anthropic",
+        "anthropic_compatible_messages",
         lambda: {
             "base_url": apx_base_url(),
-            "use_responses_api": False,
             "timeout": llm_provider_timeout_seconds(),
         },
     ),

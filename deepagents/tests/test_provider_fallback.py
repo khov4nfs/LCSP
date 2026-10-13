@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from conftest import use_model_routes
 from langchain.agents.middleware import ModelRequest, ModelResponse
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
@@ -58,6 +59,15 @@ class CapacityError(Exception):
     code = "insufficient_balance"
 
 
+class AllowanceExhaustedError(Exception):
+    status_code = 429
+    code = "allowance_exhausted"
+
+    def __init__(self):
+        super().__init__("monthly allowance used up")
+        self.body = {"error": {"code": "allowance_exhausted"}}
+
+
 class ProAccessRequiredError(Exception):
     """apx's key-level answer when one pool key has no Pro access to the requested model."""
 
@@ -95,6 +105,7 @@ def clear_provider_fallback_env(monkeypatch):
 
     token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
     token_fallback._RATE_LIMITED_UNTIL.clear()
+    token_fallback._CREDENTIAL_POOL_FINGERPRINTS.clear()
     # A pool whose every slot is rate limited waits once for a cooldown; advance a
     # fake clock instead of sleeping for the production 30-120s.
     clock = {"now": 1_000.0}
@@ -111,6 +122,7 @@ def clear_provider_fallback_env(monkeypatch):
     yield
     token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
     token_fallback._RATE_LIMITED_UNTIL.clear()
+    token_fallback._CREDENTIAL_POOL_FINGERPRINTS.clear()
 
 
 def _openai_model():
@@ -122,12 +134,19 @@ def _openai_model():
 
 
 def _apx_model():
-    return ChatOpenAI(
-        model=GAMMA,
-        base_url="https://api.apmix.ai/v1",
-        use_responses_api=False,
+    return ChatAnthropic(
+        model="claude-sonnet-4-6-free",
+        base_url="https://api.apmix.ai",
         **credential_init_kwargs("apx"),
     )
+
+
+def _model_api_key(model) -> str:
+    for name in ("openai_api_key", "anthropic_api_key", "google_api_key"):
+        value = getattr(model, name, None)
+        if value is not None:
+            return value.get_secret_value()
+    raise AssertionError("test model has no API-key field")
 
 
 class _FakeModel:
@@ -485,13 +504,11 @@ def test_primary_key_pool_exhausts_before_apx_pool(monkeypatch):
     ]
     # The OpenAI pool hands over to apx instead of waiting out its cooldown; only
     # the last route (apx) waits once and retries its soonest slot.
-    assert [
-        item.model.openai_api_key.get_secret_value()
-        for item in requests
-    ] == ["openai-a", "openai-b", "apx-a", "apx-b", "apx-a"]
+    assert [_model_api_key(item.model) for item in requests] == [
+        "openai-a", "openai-b", "apx-a", "apx-b", "apx-a"
+    ]
     apx_model = requests[-1].model
-    assert str(apx_model.openai_api_base).rstrip("/") == "https://api.apmix.ai/v1"
-    assert apx_model.use_responses_api is False
+    assert str(apx_model.anthropic_api_url).rstrip("/") == "https://api.apmix.ai"
 
 
 def test_single_primary_auth_failure_moves_to_apx(monkeypatch):
@@ -530,11 +547,44 @@ def test_apx_capacity_failure_rotates_keys_then_moves_to_google(monkeypatch):
         "apx",
         "google_genai",
     ]
-    assert [
-        item.model.openai_api_key.get_secret_value()
-        for item in requests[:2]
-    ] == ["apx-a", "apx-b"]
+    assert [_model_api_key(item.model) for item in requests[:2]] == ["apx-a", "apx-b"]
     assert requests[-1].model.google_api_key.get_secret_value() == "google-only"
+
+
+def test_apx_pool_exhaustion_falls_through_gemini_then_inception(monkeypatch):
+    _routes(monkeypatch, "apx", "google_genai", "inception")
+    monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
+    monkeypatch.setenv("GOOGLE_API_KEY", "google-a,google-b")
+    monkeypatch.setenv("INCEPTION_API_KEY", "inception-only")
+    request = ModelRequest(model=_apx_model(), messages=[], tools=[])
+    response = ModelResponse(result=[])
+    handler = MagicMock(
+        side_effect=[
+            AllowanceExhaustedError(),
+            AllowanceExhaustedError(),
+            AllowanceExhaustedError(),
+            AllowanceExhaustedError(),
+            response,
+        ]
+    )
+
+    assert _sync_chain(request, handler) is response
+
+    requests = [call.args[0] for call in handler.call_args_list]
+    assert [model_provider(item.model) for item in requests] == [
+        "apx",
+        "apx",
+        "google_genai",
+        "google_genai",
+        "inception",
+    ]
+    assert [_model_api_key(item.model) for item in requests] == [
+        "apx-a",
+        "apx-b",
+        "google-a",
+        "google-b",
+        "inception-only",
+    ]
 
 
 def test_apx_pro_access_required_on_one_key_rotates_to_the_next_key_without_leaving_apx(monkeypatch):
@@ -559,7 +609,7 @@ def test_apx_pro_access_required_on_one_key_rotates_to_the_next_key_without_leav
     requests = [call.args[0] for call in raw_handler.call_args_list]
     # Slot 1 lacks Pro access; slot 2 of the SAME provider answers; no provider fallback.
     assert [model_provider(item.model) for item in requests] == ["apx", "apx"]
-    assert [item.model.openai_api_key.get_secret_value() for item in requests] == ["apx-a", "apx-b"]
+    assert [_model_api_key(item.model) for item in requests] == ["apx-a", "apx-b"]
     # One key's missing capability must not disable the whole apx route for the run.
     assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"])) is False
 
@@ -580,7 +630,7 @@ async def test_async_provider_fallback_keeps_apx_key_rotation(monkeypatch):
         "apx",
         "apx",
     ]
-    assert requests[-1].model.openai_api_key.get_secret_value() == "apx-b"
+    assert _model_api_key(requests[-1].model) == "apx-b"
 
 
 def test_chain_advances_openai_then_google_then_apx(monkeypatch):
@@ -1080,7 +1130,7 @@ def test_fallback_model_is_built_from_the_configured_route(monkeypatch):
     model = fallback_module.fallback_model(config)
 
     assert model_provider(model) == "apx"
-    assert model.model_name == "model-omega-7"
+    assert model.model == "model-omega-7"
     assert model.temperature == 0.25
 
 
