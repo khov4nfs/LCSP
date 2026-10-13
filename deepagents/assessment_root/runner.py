@@ -135,7 +135,7 @@ def run_assessment_root(
         client.finish(EXECUTION_SUCCEEDED)
         return {"state": EXECUTION_SUCCEEDED, "executionId": claim["executionId"], "threadId": claim["threadId"], "errorType": None, "checkpointId": None}
     context = client.context()
-    final_state = EXECUTION_SUCCEEDED
+    final_state = EXECUTION_FAILED
     error_type: str | None = None
     run: RootRun | None = None
     checkpoint_id: str | None = None
@@ -210,8 +210,13 @@ def run_assessment_root(
                     else:
                         request_ids = sorted({request_id for item in interrupts for request_id in item.value["requestIds"]})
                         final_state = EXECUTION_INTERRUPTED
-                elif client.context()["openHumanRequestIds"]:
-                    raise RuntimeError("open human blockers without a native interrupt")
+                else:
+                    terminal = client.context()
+                    if terminal["openHumanRequestIds"]:
+                        raise RuntimeError("open human blockers without a native interrupt")
+                    if terminal["lifecycleState"] != "COMPLETE":
+                        raise RuntimeError("Root graph ended before authoritative assessment COMPLETE")
+                    final_state = EXECUTION_SUCCEEDED
     except Exception as error:  # noqa: BLE001 - settled as an execution failure below
         final_state = EXECUTION_FAILED
         error_type = type(error).__name__

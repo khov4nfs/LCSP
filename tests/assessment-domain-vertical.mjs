@@ -304,7 +304,10 @@ try {
     repoDir,
     "full",
   ]);
-  eq(first.result.state, "SUCCEEDED", JSON.stringify(first));
+  // This partial-work fixture deliberately exhausts its offline model before finalization.
+  // A normal response cannot falsely settle unfinished domain work as SUCCEEDED.
+  eq(first.result.state, AGENT_EXECUTION_STATES.FAILED, JSON.stringify(first));
+  eq(first.result.errorType, "AssertionError");
   eq(first.remainingSteps, 0);
   eq(first.result.threadId, threadA);
   // the validator rejected the bad attempt with mechanical codes and the Root corrected itself
@@ -404,7 +407,7 @@ try {
   const executionStates = events.filter(
     (e) => e.type === "EXECUTION_STATE_CHANGED",
   ).length;
-  eq(executionStates, 2); // QUEUED->RUNNING, RUNNING->SUCCEEDED
+  eq(executionStates, 2); // QUEUED->RUNNING, RUNNING->FAILED (offline model exhausted)
   eq(
     (
       await q(
@@ -412,7 +415,7 @@ try {
         [A.id],
       )
     ).rows[0],
-    { s: "SUCCEEDED", lease: null },
+    { s: AGENT_EXECUTION_STATES.FAILED, lease: null },
   );
 
   // ---- restart: a NEW execution on the SAME thread reloads everything from the server -----------
@@ -423,7 +426,12 @@ try {
     repoDir,
     "resume",
   ]);
-  eq(second.result.state, "SUCCEEDED", JSON.stringify(second));
+  eq(
+    second.result.state,
+    AGENT_EXECUTION_STATES.FAILED,
+    JSON.stringify(second),
+  );
+  eq(second.result.errorType, "AssertionError");
   eq(second.result.threadId, threadA);
   ok(
     second.result.executionId !== rootExecution,
@@ -754,6 +762,38 @@ try {
     /cannot be ACTIVE|decision coverage/,
   );
 
+  // Normal text is not terminal: the real graph continues to finalization/report on this fixture.
+  const completedByRoot = await newAssessment(
+    "Root authoritative terminal contract",
+  );
+  eq(
+    (
+      await customerHttp(
+        "POST",
+        `/assessments/${completedByRoot.id}/repository-setup/complete`,
+        owner.token,
+      )
+    ).status,
+    201,
+  );
+  const completed = await runPython(script, [
+    base,
+    workerKey,
+    completedByRoot.id,
+    repoDir,
+    "complete",
+  ]);
+  eq(
+    completed.result.state,
+    AGENT_EXECUTION_STATES.SUCCEEDED,
+    JSON.stringify(completed),
+  );
+  eq(completed.remainingSteps, 0);
+  eq(
+    (await lifecycle(completedByRoot.id)).lifecycleState,
+    ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+  );
+
   // ---- ASSESSMENT Completion Gate and immutable Root-authored report ------------------------------------
   const finalizer = (await runtime(A.id, "claim")).body.data;
   ok(finalizer.leaseToken, "Root lease is required for finalization");
@@ -1006,7 +1046,7 @@ try {
   );
   eq(answeredForDelete.status, 200, JSON.stringify(answeredForDelete.body));
   const resumedForDelete = await humanRun("resume");
-  eq(resumedForDelete.result.state, AGENT_EXECUTION_STATES.SUCCEEDED);
+  eq(resumedForDelete.result.state, AGENT_EXECUTION_STATES.FAILED);
   eq(resumedForDelete.result.threadId, threadB);
   const deletionCaseRevision = (await q(
     `SELECT "caseRevision" AS revision FROM "AssessmentCase" WHERE "assessmentId"=$1`, [B.id],

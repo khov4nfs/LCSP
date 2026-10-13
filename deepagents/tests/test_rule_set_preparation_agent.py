@@ -192,6 +192,9 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
     ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite", api_key="fixture").bind_tools(tools)
     for tool in tools:
         schema = convert_to_openai_tool(tool)["function"]["parameters"]
+        if tool.name == "report_rule_set_source_blocked":
+            assert schema["properties"]["reason"]["enum"] == ["SOURCE_UNREADABLE", "SOURCE_PINS_INCONSISTENT"]
+            continue
         packet = schema["properties"]["packet"]
         assert set(packet["required"]) == {"legalRequirements", "assessmentRules", "contextRelations"}
         assert "Operative duties, prohibitions or permissions only" in packet["properties"]["legalRequirements"]["description"]
@@ -225,17 +228,21 @@ def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_leg
     assert {p.name for p in tmp_path.rglob("*") if p.is_file()} == {"INDEX.md", "art-1__cl-1.md", "art-2__cl-1.md"}
 
 
-def test_agent_has_only_read_only_legal_source_tools_and_the_two_rule_set_tools(tmp_path: Path) -> None:
+def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_tools(tmp_path: Path) -> None:
     from rule_set_preparation.agent import INSTRUCTIONS
 
     materialize_legal_source(_bundle(), tmp_path)
-    model = _model([AIMessage(content="done")])
+    model = _model([
+        _call("validate_compliance_rule_set", {"packet": _packet()}, "validate"),
+        _call("submit_compliance_rule_set", {"packet": _packet()}, "submit"),
+        AIMessage(content="done"),
+    ])
     agent = create_rule_set_preparation_agent(
         context=RuleSetPreparationContext(RUN_ID, FakeApi()), legal_source_root=tmp_path, model=model
     )
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     bound = {name for names in model.bound_tool_names for name in names}
-    assert {"read_file", "ls", "glob", "grep", "validate_compliance_rule_set", "submit_compliance_rule_set"} <= bound
+    assert {"read_file", "ls", "glob", "grep", "validate_compliance_rule_set", "submit_compliance_rule_set", "report_rule_set_source_blocked"} <= bound
     forbidden = {"write_file", "edit_file", "execute", "task", "ask_human", "submit_rule_decision"}
     assert bound.isdisjoint(forbidden), bound & forbidden
     assert INSTRUCTIONS in model.prompts[0][0].content
@@ -261,7 +268,7 @@ def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_p
     assert sent == packet
     messages = _tool_messages(model)
     assert "Pinned legal_source SYNTHETIC-LEGAL_SOURCE-V1" in messages["read-index"].content
-    assert json.loads(messages["submit-2"].content)["alreadySubmitted"] is True
+    assert len(model.prompts) == 3  # Native graph ends at the first governed submission.
 
 
 def test_managed_agent_serializes_gemini_nullable_tools_without_rewriting_packet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -294,14 +301,17 @@ def test_managed_agent_serializes_gemini_nullable_tools_without_rewriting_packet
     api = FakeApi()
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
     assert result["state"] == "SUCCEEDED"
-    assert len(calls) == 3
+    assert len(calls) == 2
     assert api.names() == ["claim", "validate", "submit"]
     assert api.calls[1][1][-1] == api.calls[2][1][-1] == packet
 
 
 def test_invalid_submission_finishes_the_run_as_failed_without_retry_authority(tmp_path: Path) -> None:
     packet = _packet()
-    model = _model([_call("submit_compliance_rule_set", {"packet": packet}, "s"), AIMessage(content="stop")])
+    model = _model([
+        _call("validate_compliance_rule_set", {"packet": packet}, "v"),
+        _call("submit_compliance_rule_set", {"packet": packet}, "s"), AIMessage(content="stop"),
+    ])
     api = FakeApi(outcome="FAILED")
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
     assert result["state"] == "FAILED"
@@ -365,11 +375,14 @@ def test_packet_graph_400_feedback_reaches_model_and_can_be_corrected(tmp_path: 
 
 
 def test_no_submission_is_recorded_as_failed(tmp_path: Path) -> None:
-    model = _model([AIMessage(content="I could not read the legal_source.")])
+    model = _model([_call("report_rule_set_source_blocked", {
+        "reason": "SOURCE_PINS_INCONSISTENT", "path": INDEX_PATH,
+    }, "blocked")])
     api = FakeApi()
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
     assert result["state"] == "FAILED" and result["submission"] is None
-    assert result["failureReason"] == NO_SUBMISSION and result["trace"] == []
+    assert result["failureReason"] == NO_SUBMISSION
+    assert result["trace"] == [{"tool": "source_blocked", "reason": "SOURCE_PINS_INCONSISTENT", "path": INDEX_PATH}]
     assert api.calls[-1] == ("fail", (RUN_ID, NO_SUBMISSION))
 
 
@@ -401,14 +414,15 @@ def test_transient_provider_errors_are_retried_but_the_run_still_submits_once(tm
 
     packet = _packet()
     model = FlakyModel(
-        responses=[_call("submit_compliance_rule_set", {"packet": packet}, "s"), AIMessage(content="DONE")]
+        responses=[_call("validate_compliance_rule_set", {"packet": packet}, "v"),
+                   _call("submit_compliance_rule_set", {"packet": packet}, "s"), AIMessage(content="DONE")]
     )
     api = FakeApi()
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
 
     assert model.failures_left == 0  # both transient failures were retried
     assert result["state"] == "SUCCEEDED"
-    assert api.names() == ["claim", "submit"]  # retries never duplicate a submission
+    assert api.names() == ["claim", "validate", "submit"]  # retries never duplicate a submission
 
 
 def test_capacity_and_auth_errors_are_not_retried_on_the_same_key() -> None:
@@ -432,6 +446,8 @@ def test_forbidden_tools_and_paths_outside_the_legal_source_are_unavailable(tmp_
         _call("execute", {"command": "touch /legal-source/y"}, "execute"),
         _call("task", {"description": "research", "subagent_type": "general-purpose"}, "task"),
         _call("read_file", {"file_path": "/secret.txt"}, "outside"),
+        _call("validate_compliance_rule_set", {"packet": _packet()}, "validate"),
+        _call("submit_compliance_rule_set", {"packet": _packet()}, "submit"),
         AIMessage(content="done"),
     ]
     model = _model(attempts)
