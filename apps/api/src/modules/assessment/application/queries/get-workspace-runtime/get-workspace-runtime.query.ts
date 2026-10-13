@@ -4,6 +4,7 @@ export class GetWorkspaceRuntimeQuery extends Query<AssessmentRuntimeSnapshot> {
   constructor(
     public readonly ownerId: string,
     public readonly correlationId: string,
+    public readonly preparationRunId?: string | null,
   ) {
     super();
   }

@@ -128,7 +128,18 @@ export class ComplianceRuleSetActivation {
     ctx: SubmitContext,
     actorId: string,
   ): Promise<ComplianceRuleSetSubmitResult> {
-    await acquireComplianceRuleSetActivationLock(tx);
+    const [preparation] = await tx.$queryRaw<
+      Array<{ executionState: PrismaAgentExecutionState }>
+    >(
+      Prisma.sql`SELECT "executionState" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
+    );
+    if (!preparation) {
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunNotFound,
+        ctx.correlationId,
+        { status: HttpStatus.NOT_FOUND },
+      );
+    }
 
     const replay = await this.findReplay(
       tx,
@@ -138,6 +149,17 @@ export class ComplianceRuleSetActivation {
       ctx.correlationId,
     );
     if (replay) return replay;
+
+    if (preparation.executionState !== PrismaAgentExecutionState.RUNNING) {
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+        ctx.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+
+    // Cancel and publication serialize on the preparation row; only one can become terminal.
+    await acquireComplianceRuleSetActivationLock(tx);
 
     const valid = ctx.failures.length === 0;
     const previousActive = await tx.complianceRuleSetVersion.findFirst({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useIsMutating } from "@tanstack/react-query";
 import { RULE_SET_PREPARATION_REFUSAL_REASONS } from "@lcsp/contracts/compliance-rule-set";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { usePrepareRuleSetMutation } from "@/lib/api/compliance-rule-set-queries";
+import {
+  RULE_SET_PREPARATION_CANCEL_MUTATION_KEY,
+  usePrepareRuleSetMutation,
+} from "@/lib/api/compliance-rule-set-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 import type { RuleSetPreparationActionProps } from "../../types/compliance-rule-sets.types";
 
@@ -20,9 +24,13 @@ export function RuleSetPreparationAction({
   availability,
 }: RuleSetPreparationActionProps) {
   const prepare = usePrepareRuleSetMutation();
+  const cancelling =
+    useIsMutating({ mutationKey: RULE_SET_PREPARATION_CANCEL_MUTATION_KEY }) >
+    0;
   const [confirming, setConfirming] = useState(false);
   const running =
     prepare.isPending ||
+    cancelling ||
     availability.refusalReason ===
       RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS;
   if (!availability.canStart && !running) return null;
@@ -35,9 +43,11 @@ export function RuleSetPreparationAction({
         onClick={() => setConfirming(true)}
       >
         {resolveAppMessage(
-          running
-            ? "pages.complianceRuleSets.preparing"
-            : "pages.complianceRuleSets.prepare",
+          cancelling
+            ? "pages.complianceRuleSets.cancelling"
+            : running
+              ? "pages.complianceRuleSets.preparing"
+              : "pages.complianceRuleSets.prepare",
         )}
       </Button>
       {prepare.isError ? (

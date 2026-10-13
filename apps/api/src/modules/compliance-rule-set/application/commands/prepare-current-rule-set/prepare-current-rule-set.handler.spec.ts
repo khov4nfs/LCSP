@@ -3,6 +3,7 @@ import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
+  RULE_SET_PREPARATION_MAX_ATTEMPTS,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
 import type { CommandBus } from "@nestjs/cqrs";
@@ -44,6 +45,7 @@ function build() {
     },
     ruleSetPreparationRun: {
       findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue(null),
+      count: jest.fn<() => Promise<number>>().mockResolvedValue(0),
     },
   };
   const prisma = {
@@ -137,6 +139,51 @@ describe("Admin current-source preparation", () => {
           meta: {
             reason:
               RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_ALREADY_STARTED,
+          },
+        },
+      },
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("starts a fresh canonical attempt after cancellation without treating it as FAILED", async () => {
+    const { handler, tx, execute } = build();
+    tx.ruleSetPreparationRun.findFirst.mockResolvedValue({
+      id: RUN,
+      legalSourceVersionId: SOURCE,
+      executionState: AGENT_EXECUTION_STATES.CANCELLED,
+      ruleSet: null,
+    });
+    tx.ruleSetPreparationRun.count.mockResolvedValue(1);
+
+    await handler.execute(command());
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(
+      (execute.mock.calls[0]?.[0] as StartRuleSetPreparationCommand).request,
+    ).toEqual({
+      legalSourceVersionId: SOURCE,
+      idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 2),
+    });
+  });
+
+  it("does not exceed the canonical per-source attempt maximum after cancellation", async () => {
+    const { handler, tx, execute } = build();
+    tx.ruleSetPreparationRun.findFirst.mockResolvedValue({
+      id: RUN,
+      legalSourceVersionId: SOURCE,
+      executionState: AGENT_EXECUTION_STATES.CANCELLED,
+      ruleSet: null,
+    });
+    tx.ruleSetPreparationRun.count.mockResolvedValue(
+      RULE_SET_PREPARATION_MAX_ATTEMPTS,
+    );
+
+    await expect(handler.execute(command())).rejects.toMatchObject({
+      response: {
+        problem: {
+          meta: {
+            reason: RULE_SET_PREPARATION_REFUSAL_REASONS.ATTEMPTS_EXHAUSTED,
           },
         },
       },

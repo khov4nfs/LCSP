@@ -20,6 +20,7 @@ describe("canonical workspace SSE transport", () => {
         emittedAt: "2026-10-08T00:00:00.000Z",
         canonicalAssessments: [],
         canonicalEvents: [],
+        agentStreamEvents: [],
         runs: [{ status: "COMPLETE" }],
       });
     const event = await firstValueFrom(
@@ -37,6 +38,7 @@ describe("canonical workspace SSE transport", () => {
         emitted_at: "2026-10-08T00:00:00.000Z",
         canonical_assessments: [],
         canonical_events: [],
+        agent_stream_events: [],
       },
     });
   });

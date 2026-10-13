@@ -12,6 +12,7 @@ import { RetryRuleSetPreparationHandler } from "./application/commands/retry-rul
 import { StartRuleSetPreparationHandler } from "./application/commands/start-rule-set-preparation/start-rule-set-preparation.handler.js";
 import { PrepareCurrentRuleSetHandler } from "./application/commands/prepare-current-rule-set/prepare-current-rule-set.handler.js";
 import { SubmitComplianceRuleSetHandler } from "./application/commands/submit-compliance-rule-set/submit-compliance-rule-set.handler.js";
+import { CancelRuleSetPreparationHandler } from "./application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.handler.js";
 import { GetActiveComplianceRuleSetHandler } from "./application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.handler.js";
 import { GetComplianceRuleSetVersionHandler } from "./application/queries/get-compliance-rule-set-version/get-compliance-rule-set-version.handler.js";
 import { ValidateComplianceRuleSetHandler } from "./application/queries/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
@@ -20,11 +21,11 @@ import { ComplianceRuleSetActivation } from "./infrastructure/persistence/compli
 import { ComplianceRuleSetReadModelLoader } from "./infrastructure/persistence/compliance-rule-set-read-model.service.js";
 import { LegalSourceActivatedConsumer } from "./infrastructure/messaging/legal-source-activated.consumer.js";
 import { ComplianceRuleSetController } from "./presentation/http/compliance-rule-set.controller.js";
+import { AgentServerPreparationControl } from "./infrastructure/runtime/agent-server-preparation-control.js";
 
 /**
- * Compliance rule set use cases: a validated Legal Source Version activation automatically starts
- * one Rule Set Preparation, whose valid result becomes the shared ACTIVE rule set. Other modules
- * reach it only through its queries (e.g. GetComplianceRuleSetVersionQuery), never its internals.
+ * Source activation and an explicit Admin action start Rule Set Preparation; only a validated
+ * result becomes the shared ACTIVE rule set. Other modules use its public queries.
  */
 @Module({
   imports: [CqrsModule, OutboxModule, RbacModule],
@@ -42,6 +43,8 @@ import { ComplianceRuleSetController } from "./presentation/http/compliance-rule
     ClaimRuleSetPreparationHandler,
     FailRuleSetPreparationHandler,
     SubmitComplianceRuleSetHandler,
+    CancelRuleSetPreparationHandler,
+    AgentServerPreparationControl,
     ValidateComplianceRuleSetHandler,
     GetActiveComplianceRuleSetHandler,
     GetComplianceRuleSetVersionHandler,

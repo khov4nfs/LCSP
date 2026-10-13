@@ -20,6 +20,7 @@ import { Session } from "../../../auth/domain/entities/session.entity.js";
 import { User } from "../../../auth/domain/entities/user.entity.js";
 import type { RbacContextLoader } from "../../../../platform/rbac/rbac-context.loader.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
+import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
 import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
 import { ComplianceRuleSetAdminController } from "./compliance-rule-set-admin.controller.js";
@@ -139,5 +140,31 @@ describe("Admin preparation HTTP authorization and command boundary", () => {
       .calls[0][0] as RetryRuleSetPreparationCommand;
     expect(dispatched).toBeInstanceOf(RetryRuleSetPreparationCommand);
     expect(dispatched.preparationRunId).toBe(id);
+  });
+
+  it("ADMIN cancels by canonical preparation ID without supplying runtime identity", async () => {
+    const id = "31e042e8-6b91-4bfd-8853-108bb4436efd";
+    await supertest(app.getHttpServer())
+      .post(`/admin/compliance-rule-sets/preparations/${id}/cancel`)
+      .set("Authorization", "Bearer admin")
+      .expect(202);
+    const dispatched = execute.mock
+      .calls[0][0] as CancelRuleSetPreparationCommand;
+    expect(dispatched).toBeInstanceOf(CancelRuleSetPreparationCommand);
+    expect(dispatched.preparationRunId).toBe(id);
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("non-admin cannot cancel a preparation", async () => {
+    const id = "31e042e8-6b91-4bfd-8853-108bb4436efd";
+    const response = await supertest(app.getHttpServer())
+      .post(`/admin/compliance-rule-sets/preparations/${id}/cancel`)
+      .set("Authorization", "Bearer customer")
+      .expect(403);
+    expect(response.body).toMatchObject({
+      ok: false,
+      problem: { code: AUTH_ERROR_CODES.rbacDenied, status: 403 },
+    });
+    expect(execute).not.toHaveBeenCalled();
   });
 });

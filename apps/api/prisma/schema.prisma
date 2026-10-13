@@ -151,6 +151,11 @@ model Assessment {
   @@index([ownerId])
 }
 
+enum AgentStreamBoundaryType {
+  ASSESSMENT
+  RULE_SET_PREPARATION
+}
+
 enum AssessmentLifecycleState {
   CREATED
   PREPARING
@@ -494,7 +499,10 @@ model AssessmentRuntimeTurn {
 
 model AssessmentRuntimeEvent {
   id                String     @id @default(uuid())
-  assessmentId      String
+  assessmentId      String?
+  boundaryType      AgentStreamBoundaryType @default(ASSESSMENT)
+  boundaryId        String
+  preparationRunId  String?
   runId             String
   correlationId     String
   sequence          Int
@@ -509,10 +517,13 @@ model AssessmentRuntimeEvent {
   attempt           Int?
   waitingReason     String?
   createdAt         DateTime   @default(now())
-  assessment        Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessment        Assessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  preparationRun    RuleSetPreparationRun? @relation(fields: [preparationRunId], references: [id], onDelete: Cascade)
 
   @@unique([runId, sequence])
   @@index([assessmentId, createdAt])
+  @@index([boundaryType, boundaryId, createdAt])
+  @@index([preparationRunId, createdAt])
   @@index([runId, sequence])
 }
 
@@ -1040,6 +1051,7 @@ model RuleSetPreparationRun {
   legalSourceVersion   LegalSourceVersion                 @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
   ruleSet              ComplianceRuleSetVersion?
   activationRecord     ComplianceRuleSetActivationRecord?
+  runtimeEvents        AssessmentRuntimeEvent[]
 
   @@index([legalSourceVersionId])
   @@index([executionState, createdAt])

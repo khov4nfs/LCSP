@@ -7,7 +7,6 @@ import {
   ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS as K,
   ASSESSMENT_RUNTIME_RUN_STATUSES as S,
   type AssessmentAgentStreamEvent,
-  type AssessmentRuntimeSummaryValue,
 } from "@lcsp/contracts/evidence";
 import {
   usageFooterParts,
@@ -28,6 +27,9 @@ function ev(
     clientSequence: sequence,
     emittedAt: new Date(Date.UTC(2026, 8, 20, 0, 0, sequence)).toISOString(),
     assessmentId: "assessment-1",
+    boundaryType: "ASSESSMENT",
+    boundaryId: "assessment-1",
+    preparationRunId: null,
     runId: "run-1",
     correlationId: "corr-1",
     eventType,

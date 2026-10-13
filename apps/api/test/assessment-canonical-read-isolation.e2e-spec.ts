@@ -511,6 +511,8 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
     return {
       id: values.eventId,
       assessmentId: values.assessmentId,
+      boundaryType: "ASSESSMENT" as const,
+      boundaryId: values.assessmentId,
       runId: values.runId,
       correlationId: values.correlationId,
       sequence: 1,

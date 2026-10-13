@@ -51,6 +51,7 @@
   "PATCH /admin/billing/reconciliation/:paymentId/resolve",
   "PATCH /assessments/:assessmentId",
   "PATCH /auth/profile",
+  "POST /admin/compliance-rule-sets/preparations/:preparationRunId/cancel",
   "POST /admin/compliance-rule-sets/preparations/:preparationRunId/retries",
   "POST /admin/compliance-rule-sets/prepare",
   "POST /admin/users/:id/restore",

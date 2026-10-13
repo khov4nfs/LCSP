@@ -4,9 +4,8 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "@jest/globals";
 
 /**
- * Architecture proof: Rule Set Preparation is platform-owned. A validated Legal Source Version
- * activation starts it (through the durable event, the consumer and the CommandBus); an assessment
- * only ever pins an existing ACTIVE rule set and never builds, retries or waits on a preparation.
+ * Preparation is platform-owned; the shared Agent Stream boundary may resolve a preparation run
+ * identity for durable activity, but assessment lifecycle paths cannot start or read its domain data.
  */
 const SRC = join(process.cwd(), "src");
 
@@ -27,17 +26,25 @@ const withMatch = (files: string[], pattern: RegExp) =>
     files.filter((file) => pattern.test(readFileSync(file, "utf8"))),
   );
 
-const START_API =
-  /StartRuleSetPreparation|RetryRuleSetPreparation|ruleSetPreparationRun|RuleSetPreparationRun|ruleSetPreparationIdempotencyKey|RULE_SET_PREPARATION_/u;
+const PREPARATION_LIFECYCLE =
+  /StartRuleSetPreparation|RetryRuleSetPreparation|PrepareCurrentRuleSet|ClaimRuleSetPreparation|ruleSetPreparationIdempotencyKey|LegalSourceSnapshotLoader|ComplianceRuleSetActivation/u;
 
 describe("Rule Set Preparation ownership", () => {
-  it("is never started, retried or read by any assessment production path", () => {
+  it("is never started, retried or read by assessment paths except the shared stream boundary", () => {
     const assessmentPaths = [
       join(SRC, "modules", "assessment"),
       join(SRC, "platform", "runtime-events"),
     ].flatMap(sourceFiles);
     expect(assessmentPaths.length).toBeGreaterThan(20);
-    expect(withMatch(assessmentPaths, START_API)).toEqual([]);
+    const streamBoundary = assessmentPaths.filter((path) =>
+      path.endsWith("publish-agent-stream-event.handler.ts"),
+    );
+    expect(streamBoundary).toHaveLength(1);
+    const lifecyclePaths = assessmentPaths.filter(
+      (path) => !streamBoundary.includes(path),
+    );
+    expect(withMatch(lifecyclePaths, PREPARATION_LIFECYCLE)).toEqual([]);
+    expect(withMatch(streamBoundary, PREPARATION_LIFECYCLE)).toEqual([]);
     expect(
       withMatch(assessmentPaths, /compliance-rule-set\/application\/commands/u),
     ).toEqual([]);

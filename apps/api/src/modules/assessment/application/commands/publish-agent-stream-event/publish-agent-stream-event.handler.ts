@@ -11,7 +11,10 @@ import {
   ASSESSMENT_ACTIVITY_KINDS,
   assessmentEventTokenUsageSchema,
 } from "@lcsp/contracts/assessment";
-import { ASSESSMENT_AGENT_STREAM_EVENT_TYPES } from "@lcsp/contracts/evidence";
+import {
+  AGENT_STREAM_BOUNDARY_TYPES,
+  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
+} from "@lcsp/contracts/evidence";
 import { asRecord } from "@lcsp/contracts/shared";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
@@ -37,13 +40,23 @@ export class PublishAgentStreamEventHandler implements ICommandHandler<PublishAg
     const payload = command.payload;
     const correlationId = command.correlationId?.trim() ?? randomUUID();
     return this.prisma.$transaction(async (tx) => {
-      const run = await this.authority.authorizeInTx(tx, {
-        assessmentId: payload.assessment_id,
-        leaseToken: command.leaseToken,
-        correlationId,
-        requireActive: false,
-      });
-      if (payload.run_id !== run.executionId) {
+      const preparationRunId = payload.preparation_run_id?.trim() ?? null;
+      const assessmentRun = preparationRunId
+        ? null
+        : await this.authority.authorizeInTx(tx, {
+            assessmentId: payload.assessment_id as string,
+            leaseToken: command.leaseToken,
+            correlationId,
+            requireActive: false,
+          });
+      const preparationRun = preparationRunId
+        ? await tx.ruleSetPreparationRun.findUnique({
+            where: { id: preparationRunId },
+            select: { id: true },
+          })
+        : null;
+      const executionId = preparationRun?.id ?? assessmentRun?.executionId;
+      if (!executionId || payload.run_id !== executionId) {
         throw problemException(
           ASSESSMENT_DOMAIN_ERROR_CODES.EXECUTION_LEASE_INVALID,
           correlationId,
@@ -63,7 +76,14 @@ export class PublishAgentStreamEventHandler implements ICommandHandler<PublishAg
             Number.isSafeInteger(payload.client_sequence)
               ? payload.client_sequence
               : null,
-          assessmentId: payload.assessment_id.trim(),
+          ...(payload.assessment_id
+            ? { assessmentId: payload.assessment_id.trim() }
+            : {}),
+          boundaryType: preparationRunId
+            ? AGENT_STREAM_BOUNDARY_TYPES.ruleSetPreparation
+            : AGENT_STREAM_BOUNDARY_TYPES.assessment,
+          boundaryId: preparationRunId ?? payload.assessment_id?.trim(),
+          preparationRunId,
           runId: payload.run_id.trim(),
           correlationId,
           eventType: payload.event_type,
@@ -79,12 +99,13 @@ export class PublishAgentStreamEventHandler implements ICommandHandler<PublishAg
           text: optionalStreamText(payload.text),
           data: {
             ...(asRecord(payload.data) ?? {}),
-            runtimeRunId: run.executionId,
+            runtimeRunId: executionId,
           },
         },
         tx,
       );
       if (
+        !preparationRunId &&
         event &&
         (event.eventType ===
           ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelCallCompleted ||
@@ -100,7 +121,7 @@ export class PublishAgentStreamEventHandler implements ICommandHandler<PublishAg
             ? await tx.llmUsageEvent.findFirst({
                 where: {
                   assessmentId: event.assessmentId,
-                  runId: run.executionId,
+                  runId: executionId,
                   invocationId,
                 },
                 select: {
@@ -123,14 +144,14 @@ export class PublishAgentStreamEventHandler implements ICommandHandler<PublishAg
               })
             : null;
         await this.events.appendInTx(tx, {
-          assessmentId: event.assessmentId,
+          assessmentId: event.assessmentId as string,
           correlationId,
           eventId: deterministicUuid(
-            `${event.assessmentId}:${run.executionId}:${event.eventType}:${isModel ? (invocationId ?? optionalText(asRecord(event.data)?.model_step_id) ?? event.eventId) : (event.toolCallId ?? event.eventId)}`,
+            `${event.assessmentId}:${executionId}:${event.eventType}:${isModel ? (invocationId ?? optionalText(asRecord(event.data)?.model_step_id) ?? event.eventId) : (event.toolCallId ?? event.eventId)}`,
           ),
           eventType: AGENTIC_ASSESSMENT_EVENT_TYPES.ACTIVITY_RECORDED,
           actorType: ASSESSMENT_EVENT_ACTOR_TYPES.ASSESSMENT_ROOT,
-          executionId: run.executionId,
+          executionId,
           ...(event.toolCallId ? { toolCallId: event.toolCallId } : {}),
           payload: {
             kind: isModel

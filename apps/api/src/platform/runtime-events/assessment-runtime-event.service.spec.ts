@@ -5,6 +5,7 @@ import {
   ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS,
   ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
+  type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
 import {
   AGENT_EXECUTION_STATES,
@@ -244,10 +245,10 @@ describe("AssessmentRuntimeEventService", () => {
     const ownerBEvents: string[] = [];
     const ownerASubscription = service
       .observeAgentStreamEvents("user-a")
-      .subscribe((event) => ownerAEvents.push(event.assessmentId));
+      .subscribe((event) => ownerAEvents.push(event.assessmentId ?? ""));
     const ownerBSubscription = service
       .observeAgentStreamEvents("user-b")
-      .subscribe((event) => ownerBEvents.push(event.assessmentId));
+      .subscribe((event) => ownerBEvents.push(event.assessmentId ?? ""));
 
     await service.publishAgentStreamEvent({
       assessmentId: "assessment-a",
@@ -296,7 +297,7 @@ describe("AssessmentRuntimeEventService", () => {
     const events: string[] = [];
     const subscription = service
       .observeAgentStreamEvents("user-a", { assessmentId: "assessment-b" })
-      .subscribe((event) => events.push(event.assessmentId));
+      .subscribe((event) => events.push(event.assessmentId ?? ""));
 
     await service.publishAgentStreamEvent({
       assessmentId: "assessment-a",
@@ -314,6 +315,62 @@ describe("AssessmentRuntimeEventService", () => {
     });
 
     expect(events).toEqual(["assessment-b"]);
+    subscription.unsubscribe();
+  });
+
+  it("publishes and replays preparation-boundary events through the same journal", async () => {
+    const persistedRows: unknown[] = [];
+    const prisma = withTransaction({
+      ruleSetPreparationRun: {
+        findUnique: jest
+          .fn<(args?: unknown) => Promise<{ id: string } | null>>()
+          .mockResolvedValue({ id: "preparation-1" }),
+      },
+      assessmentRuntimeEvent: {
+        ...agentStreamPersistenceMock(persistedRows),
+        findMany: jest
+          .fn<(args?: unknown) => Promise<unknown[]>>()
+          .mockResolvedValue(persistedRows),
+      },
+    });
+    const service = new AssessmentRuntimeEventService(prisma as never);
+    const events: AssessmentAgentStreamEvent[] = [];
+    const subscription = service
+      .observeAgentStreamEvents("preparation:preparation-1", {
+        preparationRunId: "preparation-1",
+      })
+      .subscribe((event) => events.push(event));
+
+    await service.publishAgentStreamEvent({
+      preparationRunId: "preparation-1",
+      runId: "preparation-1",
+      correlationId: "correlation-1",
+      eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.semanticToolCall,
+      toolName: "read_file",
+      toolCallId: "read-1",
+      status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+      data: { native_tool: "read_file", scope: "/legal-source" },
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      assessmentId: null,
+      boundaryType: "RULE_SET_PREPARATION",
+      boundaryId: "preparation-1",
+      preparationRunId: "preparation-1",
+      runId: "preparation-1",
+    });
+    expect(persistedRows).toHaveLength(1);
+    expect(prisma.assessmentRuntimeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assessmentId: null,
+          boundaryType: "RULE_SET_PREPARATION",
+          boundaryId: "preparation-1",
+          preparationRunId: "preparation-1",
+        }),
+      }),
+    );
     subscription.unsubscribe();
   });
 
@@ -1246,7 +1303,12 @@ describe("AssessmentRuntimeEventService", () => {
     const snapshot = await service.buildWorkspaceSnapshot("user-1");
 
     expect(Object.keys(snapshot).sort()).toEqual(
-      ["canonicalAssessments", "canonicalEvents", "emittedAt"].sort(),
+      [
+        "agentStreamEvents",
+        "canonicalAssessments",
+        "canonicalEvents",
+        "emittedAt",
+      ].sort(),
     );
     expect(prisma.assessmentRuntimeEvent.findMany).not.toHaveBeenCalled();
     expect(prisma.repositoryScanJob.findMany).not.toHaveBeenCalled();

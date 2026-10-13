@@ -1,18 +1,25 @@
 """Native, provider-free regressions for the preparation terminal contract."""
 
-from pathlib import Path
 from copy import deepcopy
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from langchain_core.messages import AIMessage
-
 from rule_set_preparation import runner
 from rule_set_preparation.legal_source_files import INDEX_PATH
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
 from test_rule_set_preparation_agent import (
-    DOC, RUN_ID, FakeApi, _call, _model, _packet, _tool_messages,
-    _fast_model_retry_backoff,
+    DOC,
+    RUN_ID,
+    FakeApi,
+    _call,
+    _model,
+    _packet,
+    _tool_messages,
+)
+from test_rule_set_preparation_native_isolation_preparation import (
+    RuleSetPreparationScriptedModel,
 )
 
 
@@ -21,10 +28,18 @@ def _quiet_offline_diagnostics(monkeypatch) -> None:
     from middleware import usage_metering
 
     # Fake model repr contains the retained conversation; assertions inspect it instead.
+    original_assert_model_identity = usage_metering.assert_model_identity
     monkeypatch.setattr(usage_metering, "logger", SimpleNamespace(
         info=lambda *a, **kw: None, warning=lambda *a, **kw: None,
         error=lambda *a, **kw: None, debug=lambda *a, **kw: None,
     ))
+    monkeypatch.setattr(
+        usage_metering,
+        "assert_model_identity",
+        lambda model, response=None: None
+        if isinstance(model, RuleSetPreparationScriptedModel)
+        else original_assert_model_identity(model, response),
+    )
 
 
 @pytest.mark.parametrize("normal_stops", [1, 4])
@@ -65,6 +80,71 @@ def test_premature_normal_stop_continues_same_preparation(tmp_path: Path, monkey
     assert any(getattr(m, "tool_call_id", None) == "provision" for m in continued)
     assert sum(isinstance(m, AIMessage) and "[[tool_calls]]" in m.content for m in continued) == normal_stops
     assert sum(t.get("event") == "NORMAL_STOP_BEFORE_TERMINAL" for t in contexts[0].trace) == normal_stops
+
+
+def test_preparation_stream_trace_emits_redacted_meaningful_native_tool_activity(
+    monkeypatch,
+) -> None:
+    emitted = []
+    monkeypatch.setattr(
+        runner,
+        "publish_agent_stream_event",
+        lambda event_type, **fields: emitted.append((event_type, fields)),
+    )
+    trace = runner.PreparationStreamTrace()
+    trace.on_tool_start(
+        {"name": "read_file"},
+        "",
+        run_id="read-1",
+        inputs={
+            "file_path": "/legal-source/134-2025-QH15/article-1.md",
+            "content": "private source text must not be emitted",
+        },
+    )
+    trace.on_tool_end(
+        SimpleNamespace(content='{"outcome":"PASSED","content":"private"}'),
+        run_id="read-1",
+    )
+    trace.on_tool_start(
+        {"name": "task"},
+        "",
+        run_id="task-1",
+        inputs={
+            "subagent_type": "legal-source-reader",
+            "description": "Analyze /legal-source/LAW-71-2025-QH15 only",
+        },
+    )
+    trace.on_tool_start(
+        {"name": "read_file"},
+        "",
+        run_id="reader-file-1",
+        parent_run_id="task-1",
+        inputs={"file_path": "/legal-source/LAW-71-2025-QH15/article-1.md"},
+    )
+
+    assert [event_type for event_type, _ in emitted] == [
+        "SEMANTIC_TOOL_CALL",
+        "TOOL_RESULT",
+        "SEMANTIC_TOOL_CALL",
+        "SEMANTIC_TOOL_CALL",
+    ]
+    assert emitted[0][1]["data"] == {
+        "native_tool": "read_file",
+        "scope": "/legal-source",
+        "source_path": "/legal-source/134-2025-QH15/article-1.md",
+    }
+    assert emitted[1][1]["data"] == {
+        "native_tool": "read_file",
+        "outcome": "PASSED",
+    }
+    assert emitted[2][1]["data"] == {
+        "native_tool": "task",
+        "subagent_type": "legal-source-reader",
+        "source_path": "/legal-source/LAW-71-2025-QH15",
+    }
+    assert emitted[3][1]["subagent_name"] == "legal-source-reader"
+    assert emitted[3][1]["data"]["source_path"] == "/legal-source/LAW-71-2025-QH15/article-1.md"
+    assert "private" not in repr(emitted)
 
 
 def test_source_blocked_is_explicit_and_terminal(tmp_path: Path, monkeypatch) -> None:
