@@ -6,6 +6,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from langgraph.errors import GraphRecursionError
+
+from orchestration.graph_execution import agent_graph_config
 from rule_set_preparation.agent import create_rule_set_preparation_agent
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
@@ -35,7 +38,6 @@ def run_rule_set_preparation(
     *,
     model: Any | None = None,
     work_dir: Path | None = None,
-    recursion_limit: int = 150,
     callbacks: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Execute one run and return ``{"state": ..., "submission": ..., "failureReason": ...}``.
@@ -68,7 +70,7 @@ def run_rule_set_preparation(
             )
             agent.invoke(
                 {"messages": [{"role": "user", "content": _TASK}]},
-                config={"recursion_limit": recursion_limit, "callbacks": callbacks or []},
+                config=agent_graph_config({"callbacks": callbacks or []}),
             )
         except Exception as error:  # noqa: BLE001
             logger.warning(
@@ -78,11 +80,12 @@ def run_rule_set_preparation(
                 error_message=str(error)[:500],
             )
             if context.submission is None:
-                _fail(api, run_id, MODEL_ERROR)
+                reason = RUNTIME_ERROR if isinstance(error, GraphRecursionError) else MODEL_ERROR
+                _fail(api, run_id, reason)
                 return {
                     "state": "FAILED",
                     "submission": None,
-                    "failureReason": MODEL_ERROR,
+                    "failureReason": reason,
                     "error": {"type": type(error).__name__, "message": str(error)[:300]},
                     "trace": context.trace,
                 }

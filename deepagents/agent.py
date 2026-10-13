@@ -24,6 +24,7 @@ from middleware.runtime_context import inject_lcsp_runtime_context
 from middleware.system_event_dispatch import dispatch_agent_runtime_system_event
 from model_policy import effective_model_configs, resolve_agent_model
 from orchestration.context import LCSPRunContext
+from orchestration.graph_execution import agent_graph_config
 from tools.mcp import load_optional_mcp_tools
 from tools.common.capabilities.platform.repository_sandbox import (
     RuntimeRepositoryBackend,
@@ -89,7 +90,7 @@ def create_root_agent(*, checkpointer=None, store=None):
         ],
         checkpointer=checkpointer,
         store=store,
-    )
+    ).with_config(agent_graph_config())
 
 
 agent = create_root_agent()
