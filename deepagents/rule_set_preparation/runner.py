@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import json
+import re
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
 
+from langchain_core.callbacks import BaseCallbackHandler
 from langgraph.errors import GraphRecursionError
-
+from orchestration.agent_stream import publish_agent_stream_event
 from orchestration.graph_execution import agent_graph_config
-from rule_set_preparation.agent import create_rule_set_preparation_agent
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
+
+from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
 
@@ -30,6 +35,122 @@ _TASK = (
     "author the LegalRequirements, AssessmentRules and context relations, validate until the packet "
     "passes, then submit it once."
 )
+
+_ACTIVITY_TOOLS = frozenset(
+    {
+        "ls",
+        "glob",
+        "grep",
+        "read_file",
+        "task",
+        "validate_compliance_rule_set",
+        "submit_compliance_rule_set",
+        "report_rule_set_source_blocked",
+    }
+)
+_SOURCE_PATH_RE = re.compile(r"/legal-source/[A-Za-z0-9._/-]{1,200}")
+
+
+class PreparationStreamTrace(BaseCallbackHandler):
+    """Project native tool callbacks into the existing redacted agent stream."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._names: dict[str, str] = {}
+        self._subagent_names: dict[str, str] = {}
+
+    def on_tool_start(
+        self,
+        serialized,
+        input_str,
+        *,
+        run_id,
+        parent_run_id=None,
+        inputs=None,
+        **kwargs,
+    ):
+        serialized_name = serialized.get("name") if isinstance(serialized, dict) else None
+        name = serialized_name or kwargs.get("name")
+        if name not in _ACTIVITY_TOOLS:
+            return
+        native_run_id = str(run_id)
+        with self._lock:
+            parent_subagent = self._subagent_names.get(str(parent_run_id))
+            self._names[native_run_id] = name
+        args = inputs if isinstance(inputs, dict) else {}
+        data: dict[str, Any] = {"native_tool": name}
+        if name == "task":
+            subagent = args.get("subagent_type")
+            if isinstance(subagent, str) and subagent.strip():
+                data["subagent_type"] = subagent.strip()[:120]
+                with self._lock:
+                    self._subagent_names[native_run_id] = subagent.strip()[:120]
+            description = args.get("description")
+            if isinstance(description, str):
+                source_path = _SOURCE_PATH_RE.search(description)
+                if source_path:
+                    data["source_path"] = source_path.group(0)
+        elif name in {"read_file", "grep", "glob", "ls"}:
+            data["scope"] = "/legal-source"
+            if parent_subagent:
+                data["subagent_type"] = parent_subagent
+            path_value = args.get("file_path") or args.get("path")
+            if isinstance(path_value, str):
+                source_path = _SOURCE_PATH_RE.search(path_value)
+                if source_path:
+                    data["source_path"] = source_path.group(0)
+        publish_agent_stream_event(
+            "SEMANTIC_TOOL_CALL",
+            tool_name=name,
+            tool_call_id=native_run_id,
+            subagent_name=data.get("subagent_type") or parent_subagent,
+            status="RUNNING",
+            data=data,
+        )
+
+    def on_tool_end(self, output, *, run_id, **kwargs):
+        with self._lock:
+            name = self._names.pop(str(run_id), None)
+            subagent = self._subagent_names.pop(str(run_id), None)
+        if name not in _ACTIVITY_TOOLS:
+            return
+        data: dict[str, Any] = {"native_tool": name}
+        if subagent:
+            data["subagent_type"] = subagent
+        content = getattr(output, "content", output)
+        if isinstance(content, str):
+            try:
+                result = json.loads(content)
+            except (TypeError, ValueError):
+                result = None
+            if isinstance(result, dict) and isinstance(result.get("outcome"), str):
+                data["outcome"] = result["outcome"]
+        publish_agent_stream_event(
+            "TOOL_RESULT",
+            tool_name=name,
+            tool_call_id=str(run_id),
+            subagent_name=subagent,
+            status="COMPLETED",
+            data=data,
+        )
+
+    def on_tool_error(self, error, *, run_id, **kwargs):
+        with self._lock:
+            name = self._names.pop(str(run_id), None)
+            subagent = self._subagent_names.pop(str(run_id), None)
+        if name not in _ACTIVITY_TOOLS:
+            return
+        data = {"native_tool": name, "error_type": type(error).__name__}
+        if subagent:
+            data["subagent_type"] = subagent
+        publish_agent_stream_event(
+            "TOOL_RESULT",
+            tool_name=name,
+            tool_call_id=str(run_id),
+            subagent_name=subagent,
+            status="FAILED",
+            data=data,
+        )
 
 
 def run_rule_set_preparation(
@@ -56,7 +177,7 @@ def run_rule_set_preparation(
             return {"state": "ALREADY_CLAIMED", "submission": None, "failureReason": None}
         _fail(api, run_id, SOURCE_VERSION_UNAVAILABLE)
         return {"state": "FAILED", "submission": None, "failureReason": SOURCE_VERSION_UNAVAILABLE}
-    except Exception:
+    except Exception:  # noqa: BLE001 - unavailable source is a terminal worker outcome
         _fail(api, run_id, SOURCE_VERSION_UNAVAILABLE)
         return {"state": "FAILED", "submission": None, "failureReason": SOURCE_VERSION_UNAVAILABLE}
 
@@ -65,14 +186,27 @@ def run_rule_set_preparation(
         root = work_dir or Path(scratch)
         try:
             materialize_legal_source(bundle, root)
+            publish_agent_stream_event(
+                "CUSTOM_PROGRESS",
+                status="RUNNING",
+                data={
+                    "activity_kind": "SOURCE_MATERIALIZED",
+                    "source_chunk_count": len(bundle.get("chunks", []))
+                    if isinstance(bundle, dict)
+                    else None,
+                },
+            )
             agent = create_rule_set_preparation_agent(
                 context=context, legal_source_root=root, model=model
             )
+            stream_trace = PreparationStreamTrace()
             agent.invoke(
                 {"messages": [{"role": "user", "content": _TASK}]},
-                config=agent_graph_config({"callbacks": callbacks or []}),
+                config=agent_graph_config(
+                    {"callbacks": [*(callbacks or []), stream_trace]}
+                ),
             )
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:  # noqa: BLE001 - classify provider/runtime failures
             logger.warning(
                 "RULE_SET_PREPARATION_AGENT_FAILED",
                 run_id=run_id,
@@ -111,6 +245,6 @@ def run_rule_set_preparation(
 def _fail(api: Any, run_id: str, reason: str) -> None:
     try:
         api.fail_rule_set_preparation(run_id, reason)
-    except Exception:
+    except Exception:  # noqa: BLE001,S110 - failure reporting is best effort
         # The run stays RUNNING; the caller's retry/reconciliation sees the same state.
         pass

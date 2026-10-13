@@ -2,6 +2,7 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { workspaceAssessmentSnapshotSchema } from "@lcsp/contracts/evidence";
 import {
   Controller,
+  Query,
   Sse,
   Req,
   UseGuards,
@@ -33,19 +34,30 @@ import { GetWorkspaceRuntimeQuery } from "../../application/queries/get-workspac
 export class WorkspaceRuntimeEventsController {
   constructor(private readonly queries: QueryBus) {}
   @Sse()
-  stream(@Req() request: AuthenticatedRequest) {
+  stream(
+    @Req() request: AuthenticatedRequest,
+    @Query("preparation_run_id") preparationRunId?: string,
+  ) {
     const actor = request.rbacContext;
     const ownerId =
       actor.role === AUTH_USER_ROLES.customer
         ? actor.userId
         : `no-assessment-owner:${actor.userId}`;
     const correlationId = request.correlationId ?? "";
+    const preparationScope =
+      actor.role === AUTH_USER_ROLES.admin
+        ? preparationRunId?.trim()
+        : undefined;
     return interval(2000).pipe(
       startWith(0),
       exhaustMap(() =>
         defer(() =>
           this.queries.execute(
-            new GetWorkspaceRuntimeQuery(ownerId, correlationId),
+            new GetWorkspaceRuntimeQuery(
+              ownerId,
+              correlationId,
+              preparationScope || null,
+            ),
           ),
         ).pipe(
           map((data): MessageEvent => ({
@@ -54,6 +66,7 @@ export class WorkspaceRuntimeEventsController {
               emitted_at: data.emittedAt,
               canonical_assessments: data.canonicalAssessments,
               canonical_events: data.canonicalEvents,
+              agent_stream_events: data.agentStreamEvents,
             }),
           })),
         ),

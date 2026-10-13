@@ -4,24 +4,32 @@ from __future__ import annotations
 
 import dataclasses
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
-from deepagents import GeneralPurposeSubagentProfile, HarnessProfile, create_deep_agent
-from deepagents.profiles.harness import harness_profiles
 from deepagents.backends import FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPermission
-from langchain.agents.middleware import AgentMiddleware, AgentState, TracePolicy, hook_config, omit_payload
+from deepagents.profiles.harness import harness_profiles
+from langchain.agents.middleware import (
+    AgentMiddleware,
+    AgentState,
+    TracePolicy,
+    hook_config,
+    omit_payload,
+)
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
-
-from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware
 from orchestration.graph_execution import agent_graph_config
-from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
 from tools.common.capabilities.platform.logging import get_logger
+
+from deepagents import GeneralPurposeSubagentProfile, HarnessProfile, create_deep_agent
+from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
+from rule_set_preparation.legal_source_reader import legal_source_reader_subagent
+from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
 
 INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
 RULE_SET_PREPARATION_ROLE = "rule-set-preparation"
@@ -131,9 +139,9 @@ def create_rule_set_preparation_agent(
 ):
     """Build the agent for one run.
 
-    ``legal_source_root`` holds only the pinned legal_source (see ``materialize_legal_source``). The agent
-    gets read-only filesystem tools over ``/legal-source`` plus the governed preparation tools;
-    it has no write, shell, task/sub-agent, human, repository or memory tools.
+    ``legal_source_root`` holds only the pinned legal_source (see ``materialize_legal_source``). The
+    parent gets read-only filesystem tools, the governed preparation tools, and one native
+    ``legal-source-reader`` subagent. That child is read-only and cannot validate or submit.
     """
     if model is None:
         from model_policy import resolve_agent_model
@@ -163,7 +171,7 @@ def create_rule_set_preparation_agent(
                 AgentRoleMiddleware(RULE_SET_PREPARATION_ROLE),
                 *MODEL_GOVERNANCE_MIDDLEWARE,
             ],
-            subagents=[],
+            subagents=[legal_source_reader_subagent(model=model, backend=backend)],
             checkpointer=checkpointer,
             store=store,
         ).with_config(agent_graph_config())

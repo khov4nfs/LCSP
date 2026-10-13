@@ -70,6 +70,14 @@ export const ASSESSMENT_AGENT_STREAM_EVENT_TYPES = {
   log: "LOG",
 } as const;
 
+export const AGENT_STREAM_BOUNDARY_TYPES = {
+  assessment: "ASSESSMENT",
+  ruleSetPreparation: "RULE_SET_PREPARATION",
+} as const;
+
+export type AgentStreamBoundaryType =
+  (typeof AGENT_STREAM_BOUNDARY_TYPES)[keyof typeof AGENT_STREAM_BOUNDARY_TYPES];
+
 export type AssessmentAgentStreamEventType =
   (typeof ASSESSMENT_AGENT_STREAM_EVENT_TYPES)[keyof typeof ASSESSMENT_AGENT_STREAM_EVENT_TYPES];
 
@@ -86,7 +94,10 @@ export type AssessmentAgentStreamEvent = {
   sequence: number;
   clientSequence: number | null;
   emittedAt: string;
-  assessmentId: string;
+  assessmentId: string | null;
+  boundaryType: AgentStreamBoundaryType;
+  boundaryId: string;
+  preparationRunId: string | null;
   runId: string;
   correlationId: string;
   eventType: AssessmentAgentStreamEventType;
@@ -109,6 +120,33 @@ const canonicalRuntimeRevisionSchema = z
   .int()
   .nonnegative()
   .max(Number.MAX_SAFE_INTEGER);
+
+export const agentStreamEventSchema = z.strictObject({
+  eventId: canonicalRuntimeIdentifierSchema,
+  sequence: z.number().int().nonnegative(),
+  clientSequence: z.number().int().nonnegative().nullable(),
+  emittedAt: z.iso.datetime(),
+  assessmentId: canonicalRuntimeIdentifierSchema.nullable(),
+  boundaryType: z.enum(AGENT_STREAM_BOUNDARY_TYPES),
+  boundaryId: canonicalRuntimeIdentifierSchema,
+  preparationRunId: canonicalRuntimeIdentifierSchema.nullable(),
+  runId: canonicalRuntimeIdentifierSchema,
+  correlationId: canonicalRuntimeIdentifierSchema,
+  eventType: z.enum(ASSESSMENT_AGENT_STREAM_EVENT_TYPES),
+  source: canonicalRuntimeIdentifierSchema.nullable(),
+  agentName: canonicalRuntimeIdentifierSchema.nullable(),
+  subagentName: canonicalRuntimeIdentifierSchema.nullable(),
+  namespace: z.array(canonicalRuntimeIdentifierSchema),
+  nodeName: canonicalRuntimeIdentifierSchema.nullable(),
+  messageId: canonicalRuntimeIdentifierSchema.nullable(),
+  toolName: canonicalRuntimeIdentifierSchema.nullable(),
+  toolCallId: canonicalRuntimeIdentifierSchema.nullable(),
+  status: canonicalRuntimeIdentifierSchema.nullable(),
+  text: z.string().nullable(),
+  data: z
+    .unknown()
+    .transform((value) => value as AssessmentRuntimeSummaryValue | null),
+});
 
 /** Canonical AES projection shared by GET, workspace snapshots, and SSE. */
 export const assessmentRuntimeSchema = z.strictObject({
@@ -149,6 +187,7 @@ export type AssessmentRuntimeSnapshot = {
   emittedAt: string;
   canonicalAssessments: CanonicalAssessmentRuntimeSnapshot[];
   canonicalEvents: AssessmentEvent[];
+  agentStreamEvents: AssessmentAgentStreamEvent[];
 };
 
 /** Canonical customer SSE boundary. Resource-local scan status has its own endpoint. */
@@ -156,6 +195,7 @@ export const workspaceAssessmentSnapshotSchema = z.strictObject({
   emitted_at: z.iso.datetime(),
   canonical_assessments: z.array(canonicalAssessmentRuntimeSnapshotSchema),
   canonical_events: z.array(assessmentEventSchema),
+  agent_stream_events: z.array(agentStreamEventSchema).default([]),
 });
 
 /** Bounded observer metadata, never decision or lifecycle authority. */

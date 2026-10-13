@@ -1,4 +1,6 @@
 import type { MessageKey } from "@lcsp/i18n";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
+import { useEffect, useState } from "react";
 import { RULE_SET_PREPARATION_SYSTEM_ACTOR } from "@lcsp/contracts/compliance-rule-set";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -9,6 +11,8 @@ import {
   formatLocaleTimestamp,
 } from "@/features/workspace/utils/assessment-runtime-formatter";
 import type { RuleSetPreparationListProps } from "../../types/compliance-rule-sets.types";
+import { useRuleSetPreparationActivity } from "../../hooks/use-rule-set-preparation-activity";
+import { RuleSetPreparationActivity } from "../molecules/rule-set-preparation-activity";
 
 const t = (key: string) => resolveAppMessage(key as MessageKey);
 
@@ -19,7 +23,26 @@ const t = (key: string) => resolveAppMessage(key as MessageKey);
 export function RuleSetPreparationList({
   preparations,
 }: RuleSetPreparationListProps) {
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(
+    preparations[0]?.preparationRunId ?? null,
+  );
+  useEffect(() => {
+    if (
+      selectedRunId === null ||
+      !preparations.some((run) => run.preparationRunId === selectedRunId)
+    ) {
+      setSelectedRunId(preparations[0]?.preparationRunId ?? null);
+    }
+  }, [preparations, selectedRunId]);
+  const activity = useRuleSetPreparationActivity(selectedRunId);
   const retry = useRetryRuleSetPreparationMutation();
+  const selectedRun = preparations.find(
+    (run) => run.preparationRunId === selectedRunId,
+  );
+  const terminal =
+    selectedRun !== undefined &&
+    selectedRun.executionState !== AGENT_EXECUTION_STATES.RUNNING &&
+    selectedRun.executionState !== AGENT_EXECUTION_STATES.QUEUED;
   if (preparations.length === 0)
     return (
       <p className="text-sm text-muted-foreground">
@@ -35,7 +58,12 @@ export function RuleSetPreparationList({
             className="flex flex-wrap items-center gap-x-6 gap-y-2 py-3"
             data-preparation-state={run.executionState}
           >
-            <div className="flex min-w-48 flex-1 flex-col gap-0.5">
+            <button
+              type="button"
+              className="flex min-w-48 flex-1 flex-col items-start gap-0.5 text-left"
+              aria-pressed={selectedRunId === run.preparationRunId}
+              onClick={() => setSelectedRunId(run.preparationRunId)}
+            >
               <span className="text-sm font-medium">
                 {run.legalSourceVersion}
               </span>
@@ -46,12 +74,14 @@ export function RuleSetPreparationList({
                   ? t("pages.complianceRuleSets.system")
                   : run.requestedBy}
               </span>
-            </div>
+            </button>
             <div className="flex flex-col gap-0.5 text-sm">
               <span>{canonicalExecutionLabel(run.executionState)}</span>
               {run.failureReason ? (
                 <span className="text-xs text-destructive">
-                  {t(`pages.complianceRuleSets.failureReasons.${run.failureReason}`)}
+                  {t(
+                    `pages.complianceRuleSets.failureReasons.${run.failureReason}`,
+                  )}
                 </span>
               ) : null}
             </div>
@@ -73,6 +103,13 @@ export function RuleSetPreparationList({
           </li>
         ))}
       </ul>
+      {selectedRunId ? (
+        <RuleSetPreparationActivity
+          events={activity.events}
+          connected={activity.connected}
+          terminal={terminal}
+        />
+      ) : null}
       {retry.isError ? (
         <Alert variant="destructive">
           <AlertDescription>

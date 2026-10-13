@@ -1,9 +1,11 @@
 import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 import {
+  AGENT_STREAM_BOUNDARY_TYPES,
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   isAssessmentAgentStreamEventType,
   type AssessmentAgentStreamEvent,
   type AssessmentAgentStreamEventType,
+  type AgentStreamBoundaryType,
   type AssessmentRuntimeSnapshot,
   type AssessmentRuntimeSummaryValue,
   type CanonicalAssessmentRuntimeSnapshot,
@@ -57,7 +59,10 @@ const INVALID_ASSESSMENT_STREAM_SCOPE = "__invalid_assessment_stream_scope__";
 export type PublishAgentStreamEventInput = {
   eventId?: string | null;
   clientSequence?: number | null;
-  assessmentId: string;
+  assessmentId?: string | null;
+  boundaryType?: AgentStreamBoundaryType | null;
+  boundaryId?: string | null;
+  preparationRunId?: string | null;
   runId: string;
   correlationId: string;
   eventType: AssessmentAgentStreamEventType;
@@ -76,7 +81,10 @@ export type PublishAgentStreamEventInput = {
 
 type RecordRuntimeEventInput = {
   idempotentId?: string;
-  assessmentId: string;
+  assessmentId?: string | null;
+  boundaryType: AgentStreamBoundaryType;
+  boundaryId: string;
+  preparationRunId?: string | null;
   runId: string;
   correlationId: string;
   toolName?: string | null;
@@ -95,7 +103,10 @@ type RecordRuntimeEventInput = {
 
 type PersistedAssessmentRuntimeEvent = {
   id: string;
-  assessmentId: string;
+  assessmentId: string | null;
+  boundaryType: AgentStreamBoundaryType;
+  boundaryId: string;
+  preparationRunId: string | null;
   runId: string;
   correlationId: string;
   sequence: number;
@@ -119,6 +130,7 @@ type OwnedAssessmentAgentStreamEvent = {
 
 type ObserveAgentStreamEventsOptions = {
   assessmentId?: string | null;
+  preparationRunId?: string | null;
 };
 
 export type AgentStreamHistoryPage = {
@@ -150,10 +162,31 @@ export class AssessmentRuntimeEventService {
     input: PublishAgentStreamEventInput,
     existingTx?: Prisma.TransactionClient,
   ): Promise<AssessmentAgentStreamEvent | null> {
-    const ownerId = await this.resolveAssessmentOwnerId(input.assessmentId);
+    const assessmentId = sanitizeAgentStreamIdentifier(input.assessmentId);
+    const preparationRunId = sanitizeAgentStreamIdentifier(
+      input.preparationRunId,
+    );
+    const boundaryType: AgentStreamBoundaryType =
+      input.boundaryType ??
+      (preparationRunId
+        ? AGENT_STREAM_BOUNDARY_TYPES.ruleSetPreparation
+        : AGENT_STREAM_BOUNDARY_TYPES.assessment);
+    const boundaryId =
+      sanitizeAgentStreamIdentifier(input.boundaryId) ??
+      preparationRunId ??
+      assessmentId;
+    if (boundaryId === null) {
+      this.logger.warn("Agent stream event ignored without boundary identity");
+      return null;
+    }
+    const ownerId = assessmentId
+      ? await this.resolveAssessmentOwnerId(assessmentId)
+      : preparationRunId
+        ? `preparation:${preparationRunId}`
+        : null;
     if (ownerId === null) {
       this.logger.warn(
-        `Agent stream event ignored for unknown assessment ${input.assessmentId}`,
+        `Agent stream event ignored for unknown stream boundary ${boundaryId}`,
       );
       return null;
     }
@@ -162,8 +195,10 @@ export class AssessmentRuntimeEventService {
       sequence: this.nextAgentStreamSequence(),
       clientSequence: input.clientSequence ?? null,
       emittedAt: new Date().toISOString(),
-      assessmentId:
-        sanitizeAgentStreamIdentifier(input.assessmentId) ?? input.assessmentId,
+      assessmentId,
+      boundaryType,
+      boundaryId,
+      preparationRunId,
       runId: sanitizeAgentStreamIdentifier(input.runId) ?? input.runId,
       correlationId:
         sanitizeAgentStreamIdentifier(input.correlationId) ??
@@ -203,18 +238,27 @@ export class AssessmentRuntimeEventService {
     options?: ObserveAgentStreamEventsOptions,
   ): Observable<AssessmentAgentStreamEvent> {
     const assessmentId = normalizeAssessmentStreamScope(options?.assessmentId);
+    const preparationRunId = normalizeAssessmentStreamScope(
+      options?.preparationRunId,
+    );
     return merge(
       defer(() =>
-        from(this.getDurableAgentStreamEvents(ownerId, assessmentId)).pipe(
-          mergeMap((events) => from(events)),
-        ),
+        from(
+          this.getDurableAgentStreamEvents(
+            ownerId,
+            assessmentId,
+            preparationRunId,
+          ),
+        ).pipe(mergeMap((events) => from(events))),
       ),
       this.agentStreamEvents.pipe(
         filter(
           (entry) =>
             entry.ownerId === ownerId &&
             (assessmentId === null ||
-              entry.event.assessmentId === assessmentId),
+              entry.event.assessmentId === assessmentId) &&
+            (preparationRunId === null ||
+              entry.event.preparationRunId === preparationRunId),
         ),
         map((entry) => entry.event),
       ),
@@ -259,6 +303,9 @@ export class AssessmentRuntimeEventService {
             }
           : {}),
         assessmentId: event.assessmentId,
+        boundaryType: event.boundaryType,
+        boundaryId: event.boundaryId,
+        preparationRunId: event.preparationRunId,
         runId: event.runId,
         correlationId: event.correlationId,
         toolName: AGENT_STREAM_JOURNAL_TOOL_NAME,
@@ -277,7 +324,22 @@ export class AssessmentRuntimeEventService {
   private async getDurableAgentStreamEvents(
     ownerId: string,
     assessmentId: string | null = null,
+    preparationRunId: string | null = null,
   ): Promise<AssessmentAgentStreamEvent[]> {
+    if (preparationRunId !== null) {
+      const rows = await this.findMany({
+        where: {
+          preparationRunId,
+          toolName: AGENT_STREAM_JOURNAL_TOOL_NAME,
+        },
+        orderBy: [{ createdAt: "asc" }, { sequence: "asc" }],
+        take: AGENT_STREAM_DURABLE_REPLAY_TOTAL_LIMIT,
+      });
+      return rows.flatMap((row) => {
+        const event = agentStreamJournalEventFromRow(row);
+        return event === null ? [] : [event];
+      });
+    }
     if (assessmentId !== null) {
       return (
         await this.getAgentStreamHistoryPage(ownerId, assessmentId, {
@@ -393,15 +455,25 @@ export class AssessmentRuntimeEventService {
   async buildWorkspaceSnapshot(
     ownerId?: string,
     correlationId = "",
+    preparationRunId?: string | null,
   ): Promise<AssessmentRuntimeSnapshot> {
-    const [canonicalAssessments, canonicalEvents] = await Promise.all([
-      this.readCanonicalAssessments(ownerId, correlationId),
-      this.readCanonicalEvents(ownerId),
-    ]);
+    const [canonicalAssessments, canonicalEvents, agentStreamEvents] =
+      await Promise.all([
+        this.readCanonicalAssessments(ownerId, correlationId),
+        this.readCanonicalEvents(ownerId),
+        preparationRunId
+          ? this.getDurableAgentStreamEvents(
+              `preparation:${preparationRunId}`,
+              null,
+              preparationRunId,
+            )
+          : Promise.resolve([]),
+      ]);
     return {
       emittedAt: new Date().toISOString(),
       canonicalAssessments,
       canonicalEvents,
+      agentStreamEvents,
     };
   }
 
@@ -497,7 +569,10 @@ export class AssessmentRuntimeEventService {
       await runtimeEventDelegate(tx).create({
         data: {
           ...(input.idempotentId ? { id: input.idempotentId } : {}),
-          assessmentId: input.assessmentId,
+          assessmentId: input.assessmentId ?? null,
+          boundaryType: input.boundaryType,
+          boundaryId: input.boundaryId,
+          preparationRunId: input.preparationRunId ?? null,
           runId: input.runId,
           correlationId: input.correlationId,
           sequence: (latest?.sequence ?? 0) + 1,
@@ -824,6 +899,17 @@ function agentStreamJournalEventFromRow(
     clientSequence: numberValue(event.clientSequence),
     emittedAt: stringValue(event.emittedAt) ?? row.createdAt.toISOString(),
     assessmentId: stringValue(event.assessmentId) ?? row.assessmentId,
+    boundaryType:
+      (stringValue(event.boundaryType) as AgentStreamBoundaryType | null) ??
+      row.boundaryType ??
+      AGENT_STREAM_BOUNDARY_TYPES.assessment,
+    boundaryId:
+      stringValue(event.boundaryId) ??
+      row.boundaryId ??
+      row.assessmentId ??
+      row.runId,
+    preparationRunId:
+      stringValue(event.preparationRunId) ?? row.preparationRunId,
     runId: stringValue(event.runId) ?? row.runId,
     correlationId: stringValue(event.correlationId) ?? row.correlationId,
     eventType: event.eventType as AssessmentAgentStreamEventType,
