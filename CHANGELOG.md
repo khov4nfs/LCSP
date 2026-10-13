@@ -5,6 +5,32 @@ do not rewrite older entries unless correcting a factual error.
 
 ## Unreleased
 
+### 2026-10-14 — Proxy routing and release documentation
+
+#### Added
+
+- Added a production-focused README, current security policy, concise dated release notes, and a durable release report. The current web workspace guidance files are included unchanged.
+
+#### Changed
+
+- Model routes now declare canonical provider and protocol independently. APX can use Anthropic or OpenAI transport per route while retaining APX credential and usage identity; the checked-in primary route uses Anthropic protocol. ([#382](https://github.com/khov4nfs/LCSP/pull/382))
+- Updated release documentation for the current Rule Set Preparation lifecycle, validated activity state, and APX credential-pool behavior. ([#374](https://github.com/khov4nfs/LCSP/pull/374), [#377](https://github.com/khov4nfs/LCSP/pull/377), [#378](https://github.com/khov4nfs/LCSP/pull/378), [#381](https://github.com/khov4nfs/LCSP/pull/381))
+
+#### Fixed
+
+- APX credential rotation retires an exhausted allowance slot while transient rate limits use cooldown; configured provider fallback follows same-provider credential handling. ([#381](https://github.com/khov4nfs/LCSP/pull/381))
+- Persisted agent terminal contracts and activity projection keep preparation and assessment status aligned through cancellation and reconnect. ([#377](https://github.com/khov4nfs/LCSP/pull/377))
+- Removed the remaining shell-command injection path from the developer launcher. ([#379](https://github.com/khov4nfs/LCSP/pull/379))
+
+#### Migration
+
+- Added [`20261013132644_re_generate_db`](apps/api/prisma/migrations/20261013132644_re_generate_db/migration.sql) to reconcile the current schema, remove the unused `WizardProfile` table/type, and add AuditEvent and RepositoryConnection indexes. The table drop is destructive if rows remain; production application is not verified.
+
+#### Operations
+
+- Follow the repository's date-based release-promotion convention; no product version, Git tag, or GitHub Release was invented. See the [release notes](docs/releases/2026-10-14.md) and [production release report](reports/releases/2026-10-14-production-release.md).
+- The two local web workspace guidance files, [`apps/web/AGENTS.md`](apps/web/AGENTS.md) and [`apps/web/CLAUDE.md`](apps/web/CLAUDE.md), are retained as supplied.
+
 ### 2026-10-02 - Runtime configuration simplification
 
 #### Changed
