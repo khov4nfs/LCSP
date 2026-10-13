@@ -20,6 +20,7 @@ export class GetAssessmentQuery extends Query<AssessmentDetail> {
     public readonly sessionUserId: string,
     public readonly subjectRole: AuthUserRole,
     public readonly correlationId: string,
+    public readonly locale?: string | null,
   ) {
     super();
   }

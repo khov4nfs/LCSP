@@ -75,3 +75,118 @@ it("does not read usage for a foreign assessment", async () => {
   await expect(loader.load(input)).rejects.toThrow();
   expect(aggregate).not.toHaveBeenCalled();
 });
+
+it("projects decision customer-visible rationales to VI while preserving technical invariants", async () => {
+  const { loader, row } = fixture();
+  const decisionData = {
+    assessmentRuleId: "RULE-SEC-01",
+    assessmentRuleVersion: "v1",
+    scopeId: "GLOBAL_SCOPE",
+    ruleSetVersionId: "44444444-4444-4444-8444-444444444444",
+    repositorySnapshotId: "55555555-5555-4555-8555-555555555555",
+    repositoryCommit: "a".repeat(40),
+    caseRevision: 1,
+    legalContextRefs: [{ legalContextId: "LC-1" }],
+    applicability: "APPLICABLE",
+    rationale: "All access controls are properly implemented in the service.",
+    compliance: "COMPLIANT",
+    references: [
+      {
+        type: "CONFIRMED_FACT",
+        factId: "77777777-7777-4777-8777-777777777777",
+        caseRevision: 1,
+      },
+    ],
+    criteria: [
+      {
+        criterionId: "CRIT-AUTH-01",
+        outcome: "MET",
+        rationale: "Token authentication satisfies requirement.",
+        references: [
+          {
+            type: "CONFIRMED_FACT",
+            factId: "77777777-7777-4777-8777-777777777777",
+            caseRevision: 1,
+          },
+        ],
+      },
+    ],
+  };
+
+  row.domainCase = {
+    caseRevision: 1,
+    ruleSetVersionId: null,
+    repositorySnapshotId: null,
+    repositoryScanJobId: null,
+    repositoryCommit: null,
+    coverage: [
+      {
+        assessmentRuleId: "RULE-SEC-01",
+        assessmentRuleVersion: "v1",
+        resolutionState: "RESOLVED",
+        currentDecisionId: "66666666-6666-4666-8666-666666666666",
+        decisionRevision: 1,
+        currentDecision: {
+          decisionId: "66666666-6666-4666-8666-666666666666",
+          assessmentId,
+          assessmentRuleId: "RULE-SEC-01",
+          scopeId: "GLOBAL_SCOPE",
+          decisionRevision: 1,
+          state: "ACCEPTED",
+          decision: decisionData,
+          createdAt: new Date(),
+        },
+      },
+    ],
+    facts: [],
+    artifacts: [],
+  } as never;
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        projected: {
+          "All access controls are properly implemented in the service.":
+            "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
+          "Token authentication satisfies requirement.":
+            "Xác thực mã thông báo đáp ứng yêu cầu.",
+        },
+      }),
+  }) as never;
+
+  process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
+  process.env.WORKER_API_KEY = "test-worker-key";
+
+  try {
+    // 1. Read with VI locale
+    const resultVi = await loader.load({ ...input, locale: "vi" });
+    const decisionVi = resultVi.case?.decisions[0]?.decision;
+    expect(decisionVi?.rationale).toBe(
+      "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
+    );
+    expect(decisionVi?.criteria[0]?.rationale).toBe(
+      "Xác thực mã thông báo đáp ứng yêu cầu.",
+    );
+    // Invariants preserved
+    expect(decisionVi?.applicability).toBe("APPLICABLE");
+    expect(decisionVi?.compliance).toBe("COMPLIANT");
+    expect(decisionVi?.criteria[0]?.criterionId).toBe("CRIT-AUTH-01");
+    expect(decisionVi?.criteria[0]?.outcome).toBe("MET");
+
+    // 2. Read with EN locale - preserves canonical English
+    const resultEn = await loader.load({ ...input, locale: "en" });
+    const decisionEn = resultEn.case?.decisions[0]?.decision;
+    expect(decisionEn?.rationale).toBe(
+      "All access controls are properly implemented in the service.",
+    );
+    expect(decisionEn?.criteria[0]?.rationale).toBe(
+      "Token authentication satisfies requirement.",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.LCSP_AGENT_SERVER_URL;
+    delete process.env.WORKER_API_KEY;
+  }
+});

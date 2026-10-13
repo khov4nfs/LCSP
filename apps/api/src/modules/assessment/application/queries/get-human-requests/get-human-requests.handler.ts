@@ -21,7 +21,9 @@ export class GetHumanRequestsHandler implements IQueryHandler<GetHumanRequestsQu
       });
       return {
         caseRevision: current.caseRevision,
-        requests: rows.map((row) => this.support.view(row, input.locale)),
+        requests: await Promise.all(
+          rows.map((row) => this.support.view(row, input.locale)),
+        ),
       };
     });
   }

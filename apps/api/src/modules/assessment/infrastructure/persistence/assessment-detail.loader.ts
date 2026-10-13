@@ -2,6 +2,8 @@ import { Injectable, HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
+import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
+import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import {
   assessmentDetailSchema,
   assessmentListSchema,
@@ -9,11 +11,15 @@ import {
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { projectCanonicalAssessment } from "../../../../platform/runtime-events/canonical-assessment-projection.js";
+import { LocalePresentationProjectionService } from "../presentation/locale-presentation-projection.service.js";
 
 /** A consistent, read-only projection of persisted Assessment/Runtime/Case authorities. */
 @Injectable()
 export class AssessmentDetailLoader {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly projectionService: LocalePresentationProjectionService = new LocalePresentationProjectionService(),
+  ) {}
 
   async list(input: {
     sessionUserId: string;
@@ -80,6 +86,7 @@ export class AssessmentDetailLoader {
     sessionUserId: string;
     subjectRole: AuthUserRole;
     correlationId: string;
+    locale?: string | null;
   }) {
     return this.prisma.$transaction(
       async (tx) => {
@@ -195,23 +202,54 @@ export class AssessmentDetailLoader {
                   currentDecisionId: coverage.currentDecisionId,
                   decisionRevision: coverage.decisionRevision,
                 })),
-                decisions: domainCase.coverage.flatMap(
-                  ({ currentDecision: decision }) =>
-                    decision
-                      ? [
-                          {
-                            decisionId: decision.decisionId,
-                            assessmentId: decision.assessmentId,
-                            assessmentRuleId: decision.assessmentRuleId,
-                            scopeId: decision.scopeId,
-                            decisionRevision: decision.decisionRevision,
-                            state: decision.state,
-                            decision: decision.decision,
-                            createdAt: decision.createdAt.toISOString(),
-                          },
-                        ]
-                      : [],
-                ),
+                decisions: await (async () => {
+                  const rawDecisions = domainCase.coverage.flatMap(
+                    ({ currentDecision: decision }) =>
+                      decision ? [decision] : [],
+                  );
+                  const locale = input.locale
+                    ? resolveResponseLanguage(input.locale)
+                    : null;
+                  let projected = rawDecisions.map((decision) => ({
+                    decisionId: decision.decisionId,
+                    assessmentId: decision.assessmentId,
+                    assessmentRuleId: decision.assessmentRuleId,
+                    scopeId: decision.scopeId,
+                    decisionRevision: decision.decisionRevision,
+                    state: decision.state,
+                    decision: ruleDecisionSchema.parse(decision.decision),
+                    createdAt: decision.createdAt.toISOString(),
+                  }));
+                  if (locale) {
+                    const textsToProject: string[] = [];
+                    for (const d of projected) {
+                      textsToProject.push(d.decision.rationale);
+                      for (const c of d.decision.criteria) {
+                        textsToProject.push(c.rationale);
+                      }
+                    }
+                    const projections =
+                      await this.projectionService.projectBatch(
+                        textsToProject,
+                        locale,
+                      );
+                    projected = projected.map((d) => ({
+                      ...d,
+                      decision: {
+                        ...d.decision,
+                        rationale:
+                          projections.get(d.decision.rationale) ??
+                          d.decision.rationale,
+                        criteria: d.decision.criteria.map((c) => ({
+                          ...c,
+                          rationale:
+                            projections.get(c.rationale) ?? c.rationale,
+                        })),
+                      },
+                    }));
+                  }
+                  return projected;
+                })(),
                 facts: domainCase.facts.map((fact) => ({
                   factId: fact.factId,
                   assessmentId: fact.assessmentId,

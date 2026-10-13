@@ -549,6 +549,7 @@ USER_FACING_KEYS: set[str] = {
     "statement",
     "recommendations",
     "recommendation",
+    "texts",
 }
 
 

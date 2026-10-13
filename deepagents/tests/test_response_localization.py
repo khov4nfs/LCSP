@@ -1331,6 +1331,56 @@ def test_human_request_read_projection_same_thread_en_vi_switch() -> None:
     assert view_en["requestId"] == "11111111-1111-4111-8111-111111111111"
 
 
+def test_internal_project_locale_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    from starlette.testclient import TestClient
+    from tools.common.capabilities.agent_runtime import local_server
+
+    monkeypatch.setenv("WORKER_API_KEY", "test-worker-secret")
+
+    # Mock the LLM to return translated JSON
+    translated_json = '{"texts": ["Thời hạn lưu giữ là bao lâu?", "Không xác định"]}'
+    mock_model = MockChatModel(responses=[AIMessage(content=translated_json)])
+    import model_policy
+    monkeypatch.setattr(model_policy, "resolve_agent_model", lambda role: mock_model)
+
+    client = TestClient(local_server.app)
+
+    # 1. Auth failure: missing or invalid key
+    res_no_auth = client.post("/internal/project-locale", json={"texts": ["Hello"], "targetLocale": "vi"})
+    assert res_no_auth.status_code == 403
+
+    res_bad_auth = client.post(
+        "/internal/project-locale",
+        json={"texts": ["Hello"], "targetLocale": "vi"},
+        headers={"x-worker-api-key": "wrong-key"},
+    )
+    assert res_bad_auth.status_code == 403
+
+    # 2. Schema validation error
+    res_bad_schema = client.post(
+        "/internal/project-locale",
+        json={"texts": [], "targetLocale": "vi"},
+        headers={"x-worker-api-key": "test-worker-secret"},
+    )
+    assert res_bad_schema.status_code == 400
+
+    # 3. Successful localization projection
+    res_success = client.post(
+        "/internal/project-locale",
+        json={
+            "texts": ["What is the retention period?", "Not configured"],
+            "targetLocale": "vi",
+        },
+        headers={"x-worker-api-key": "test-worker-secret"},
+    )
+    assert res_success.status_code == 200
+    data = res_success.json()
+    assert "projected" in data
+    assert data["projected"]["What is the retention period?"] == "Thời hạn lưu giữ là bao lâu?"
+    assert data["projected"]["Not configured"] == "Không xác định"
+
+
+
 
 
 

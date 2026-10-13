@@ -7,30 +7,26 @@ import { Prisma, type AssessmentHumanRequest } from "@prisma/client";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
-const presentationProjectionCache = new Map<string, string>();
+import {
+  LocalePresentationProjectionService,
+  getPresentationProjection,
+  registerPresentationProjection,
+  clearPresentationProjections,
+} from "../presentation/locale-presentation-projection.service.js";
 
-export function getPresentationProjection(
-  text: string,
-  locale: string,
-): string | undefined {
-  return presentationProjectionCache.get(`${locale}:${text}`);
-}
-
-export function registerPresentationProjection(
-  text: string,
-  locale: string,
-  projectedText: string,
-): void {
-  presentationProjectionCache.set(`${locale}:${text}`, projectedText);
-}
-
-export function clearPresentationProjections(): void {
-  presentationProjectionCache.clear();
-}
+export {
+  getPresentationProjection,
+  registerPresentationProjection,
+  clearPresentationProjections,
+};
 
 /** Owner-scoped persistence projection shared by human request reads and answers. */
 @Injectable()
 export class AssessmentHumanRequestSupport {
+  constructor(
+    private readonly projectionService: LocalePresentationProjectionService = new LocalePresentationProjectionService(),
+  ) {}
+
   async requireOwner(
     tx: Prisma.TransactionClient,
     input: {
@@ -66,7 +62,7 @@ export class AssessmentHumanRequestSupport {
     return assessment;
   }
 
-  view(row: AssessmentHumanRequest, targetLocale?: string | null) {
+  async view(row: AssessmentHumanRequest, targetLocale?: string | null) {
     const locale = targetLocale ? resolveResponseLanguage(targetLocale) : null;
     let question = row.question;
     let unresolvedFact = row.unresolvedFact;
@@ -75,27 +71,44 @@ export class AssessmentHumanRequestSupport {
     let choices = row.choices;
 
     if (locale) {
-      question =
-        getPresentationProjection(row.question, locale) ?? row.question;
+      const textsToProject: string[] = [row.question, row.unresolvedFact];
+      if (Array.isArray(row.decisionImpact)) {
+        textsToProject.push(...(row.decisionImpact as string[]));
+      }
+      if (Array.isArray(row.resolutionAttempts)) {
+        textsToProject.push(...(row.resolutionAttempts as string[]));
+      }
+      if (Array.isArray(row.choices)) {
+        textsToProject.push(
+          ...(row.choices as Array<{ value: string; label: string }>).map(
+            (choice) => choice.label,
+          ),
+        );
+      }
+
+      const projections = await this.projectionService.projectBatch(
+        textsToProject,
+        locale,
+      );
+
+      question = projections.get(row.question) ?? row.question;
       unresolvedFact =
-        getPresentationProjection(row.unresolvedFact, locale) ??
-        row.unresolvedFact;
+        projections.get(row.unresolvedFact) ?? row.unresolvedFact;
       if (Array.isArray(row.decisionImpact)) {
         decisionImpact = (row.decisionImpact as string[]).map(
-          (impact) => getPresentationProjection(impact, locale) ?? impact,
+          (impact) => projections.get(impact) ?? impact,
         );
       }
       if (Array.isArray(row.resolutionAttempts)) {
         resolutionAttempts = (row.resolutionAttempts as string[]).map(
-          (attempt) => getPresentationProjection(attempt, locale) ?? attempt,
+          (attempt) => projections.get(attempt) ?? attempt,
         );
       }
       if (Array.isArray(row.choices)) {
         choices = (row.choices as Array<{ value: string; label: string }>).map(
           (choice) => ({
             value: choice.value,
-            label:
-              getPresentationProjection(choice.label, locale) ?? choice.label,
+            label: projections.get(choice.label) ?? choice.label,
           }),
         );
       }

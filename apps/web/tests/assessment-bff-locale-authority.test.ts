@@ -4,6 +4,8 @@ import { NextRequest } from "next/server";
 import { POST as completeRepositorySetup } from "../src/app/api/assessments/[id]/repository-setup/complete/route.ts";
 import { POST as continueRuntime } from "../src/app/api/assessments/[id]/runtime/continue/route.ts";
 import { POST as answerHumanRequest } from "../src/app/api/assessments/[id]/human-requests/[requestId]/answers/route.ts";
+import { GET as getHumanRequests } from "../src/app/api/assessments/[id]/human-requests/route.ts";
+import { GET as getReport } from "../src/app/api/assessments/[id]/artifacts/[artifactId]/report/route.ts";
 import { POST as createAssessment } from "../src/app/api/assessments/route.ts";
 import { apiRequest } from "../src/lib/api/api-request.ts";
 import { setAppLocale } from "../src/lib/locale.ts";
@@ -305,3 +307,188 @@ test("client apiRequest automatically attaches x-lcsp-locale header in browser e
     globalThis.fetch = originalFetch;
   }
 });
+
+test("BFF human-requests GET route derives authoritative locale from cookie and forwards across VI -> EN -> VI switches", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedHeaders: Headers | undefined;
+  let capturedUrl: string | undefined;
+
+  globalThis.fetch = async (input, init) => {
+    capturedUrl = String(input);
+    capturedHeaders = new Headers(init?.headers);
+    return Response.json({
+      ok: true,
+      data: {
+        caseRevision: 1,
+        requests: [
+          {
+            requestId,
+            requestRevision: 1,
+            openedCaseRevision: 1,
+            status: "OPEN",
+            checkpointId: null,
+            resolvedFactId: null,
+            answers: [],
+            assessmentRuleId: "rule-1",
+            criterionIds: ["crit-1"],
+            question: "Vui lòng xác nhận phạm vi",
+            unresolvedFact: "Chưa rõ phạm vi",
+            decisionImpact: ["Ảnh hưởng quyết định"],
+            resolutionAttempts: ["Đã thử tra cứu mã nguồn"],
+            controlType: "TEXT",
+            choices: [],
+          },
+        ],
+      },
+    });
+  };
+
+  try {
+    // 1. VI request
+    const reqVi = new NextRequest(
+      `http://localhost:3000/api/assessments/${assessmentId}/human-requests`,
+      {
+        method: "GET",
+        headers: {
+          cookie: `lcsp_session=${sessionToken}; lcsp_locale=vi`,
+        },
+      },
+    );
+    const resVi = await getHumanRequests(reqVi, {
+      params: Promise.resolve({ id: assessmentId }),
+    });
+    assert.equal(resVi.status, 200);
+    assert.ok(capturedUrl?.includes(`/assessments/${assessmentId}/human-requests`));
+    assert.equal(capturedHeaders?.get("x-lcsp-locale"), "vi");
+
+    // 2. Switch to EN
+    const reqEn = new NextRequest(
+      `http://localhost:3000/api/assessments/${assessmentId}/human-requests`,
+      {
+        method: "GET",
+        headers: {
+          cookie: `lcsp_session=${sessionToken}; lcsp_locale=en`,
+        },
+      },
+    );
+    const resEn = await getHumanRequests(reqEn, {
+      params: Promise.resolve({ id: assessmentId }),
+    });
+    assert.equal(resEn.status, 200);
+    assert.equal(capturedHeaders?.get("x-lcsp-locale"), "en");
+
+    // 3. Switch back to VI
+    const reqViAgain = new NextRequest(
+      `http://localhost:3000/api/assessments/${assessmentId}/human-requests`,
+      {
+        method: "GET",
+        headers: {
+          cookie: `lcsp_session=${sessionToken}; lcsp_locale=vi`,
+        },
+      },
+    );
+    const resViAgain = await getHumanRequests(reqViAgain, {
+      params: Promise.resolve({ id: assessmentId }),
+    });
+    assert.equal(resViAgain.status, 200);
+    assert.equal(capturedHeaders?.get("x-lcsp-locale"), "vi");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("BFF report artifact GET route derives authoritative locale from cookie and forwards across VI -> EN -> VI switches", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedHeaders: Headers | undefined;
+  let capturedUrl: string | undefined;
+  const artifactId = "44444444-4444-4444-8444-444444444444";
+
+  const mockReportJson = JSON.stringify({
+    schemaVersion: "ASSESSMENT_FINAL_REPORT_V1",
+    artifactId,
+    assessmentId,
+    kind: "FINAL_REPORT",
+    pins: {
+      ruleSetVersionId: "55555555-5555-4555-8555-555555555555",
+      repositorySnapshotId: "snap-1",
+      repositoryScanJobId: "job-1",
+      repositoryCommit: "a".repeat(40),
+    },
+    caseRevision: 1,
+    decisionFingerprint: `sha256:${"b".repeat(64)}`,
+    summary: "Báo cáo tuân thủ",
+    provenance: {
+      evidenceIds: [],
+      factIds: [],
+      searchCoverageEvidenceIds: [],
+    },
+    findings: [],
+  });
+
+  globalThis.fetch = async (input, init) => {
+    capturedUrl = String(input);
+    capturedHeaders = new Headers(init?.headers);
+    return new Response(new TextEncoder().encode(mockReportJson), {
+      status: 200,
+      headers: { "content-type": "application/octet-stream" },
+    });
+  };
+
+  try {
+    // 1. VI request
+    const reqVi = new NextRequest(
+      `http://localhost:3000/api/assessments/${assessmentId}/artifacts/${artifactId}/report`,
+      {
+        method: "GET",
+        headers: {
+          cookie: `lcsp_session=${sessionToken}; lcsp_locale=vi`,
+        },
+      },
+    );
+    const resVi = await getReport(reqVi, {
+      params: Promise.resolve({ id: assessmentId, artifactId }),
+    });
+    assert.equal(resVi.status, 200);
+    assert.ok(
+      capturedUrl?.includes(
+        `/assessments/${assessmentId}/artifacts/${artifactId}/download`,
+      ),
+    );
+    assert.equal(capturedHeaders?.get("x-lcsp-locale"), "vi");
+
+    // 2. Switch to EN
+    const reqEn = new NextRequest(
+      `http://localhost:3000/api/assessments/${assessmentId}/artifacts/${artifactId}/report`,
+      {
+        method: "GET",
+        headers: {
+          cookie: `lcsp_session=${sessionToken}; lcsp_locale=en`,
+        },
+      },
+    );
+    const resEn = await getReport(reqEn, {
+      params: Promise.resolve({ id: assessmentId, artifactId }),
+    });
+    assert.equal(resEn.status, 200);
+    assert.equal(capturedHeaders?.get("x-lcsp-locale"), "en");
+
+    // 3. Switch back to VI
+    const reqViAgain = new NextRequest(
+      `http://localhost:3000/api/assessments/${assessmentId}/artifacts/${artifactId}/report`,
+      {
+        method: "GET",
+        headers: {
+          cookie: `lcsp_session=${sessionToken}; lcsp_locale=vi`,
+        },
+      },
+    );
+    const resViAgain = await getReport(reqViAgain, {
+      params: Promise.resolve({ id: assessmentId, artifactId }),
+    });
+    assert.equal(resViAgain.status, 200);
+    assert.equal(capturedHeaders?.get("x-lcsp-locale"), "vi");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+

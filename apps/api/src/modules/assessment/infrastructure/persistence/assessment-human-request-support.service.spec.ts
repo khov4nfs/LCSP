@@ -36,7 +36,7 @@ describe("AssessmentHumanRequestSupport read projection", () => {
     resolvedAt: null,
   };
 
-  it("projects customer-visible fields to VI while preserving technical invariants", () => {
+  it("projects customer-visible fields to VI while preserving technical invariants", async () => {
     clearPresentationProjections();
     registerPresentationProjection(
       "What is the retention period?",
@@ -61,7 +61,7 @@ describe("AssessmentHumanRequestSupport read projection", () => {
     registerPresentationProjection("30 days", "vi", "30 ngày");
     registerPresentationProjection("90 days", "vi", "90 ngày");
 
-    const viewVi = service.view(canonicalRow, "vi");
+    const viewVi = await service.view(canonicalRow, "vi");
 
     // Localized customer-visible text
     expect(viewVi.question).toBe("Thời hạn lưu giữ dữ liệu là bao lâu?");
@@ -89,8 +89,8 @@ describe("AssessmentHumanRequestSupport read projection", () => {
     expect(viewVi.resolvedFactId).toBe(canonicalRow.resolvedFactId);
   });
 
-  it("preserves canonical English fields when reading with en or null locale", () => {
-    const viewEn = service.view(canonicalRow, "en");
+  it("preserves canonical English fields when reading with en or null locale", async () => {
+    const viewEn = await service.view(canonicalRow, "en");
     expect(viewEn.question).toBe("What is the retention period?");
     expect(viewEn.unresolvedFact).toBe(
       "Retention period is not configured in code.",
@@ -104,24 +104,99 @@ describe("AssessmentHumanRequestSupport read projection", () => {
       { value: "CHOICE_90D", label: "90 days" },
     ]);
 
-    const viewNull = service.view(canonicalRow, null);
+    const viewNull = await service.view(canonicalRow, null);
     expect(viewNull.question).toBe("What is the retention period?");
   });
 
-  it("supports same-thread EN <-> VI switching over the same canonical row", () => {
+  it("supports same-thread EN <-> VI switching over the same canonical row", async () => {
     // 1. Read in VI
-    const viewVi = service.view(canonicalRow, "vi");
+    const viewVi = await service.view(canonicalRow, "vi");
     expect(viewVi.question).toBe("Thời hạn lưu giữ dữ liệu là bao lâu?");
 
     // 2. Switch to EN
-    const viewEn = service.view(canonicalRow, "en");
+    const viewEn = await service.view(canonicalRow, "en");
     expect(viewEn.question).toBe("What is the retention period?");
 
     // 3. Switch back to VI
-    const viewVi2 = service.view(canonicalRow, "vi");
+    const viewVi2 = await service.view(canonicalRow, "vi");
     expect(viewVi2.question).toBe("Thời hạn lưu giữ dữ liệu là bao lâu?");
 
     // Canonical row itself was never modified
     expect(canonicalRow.question).toBe("What is the retention period?");
+  });
+
+  it("unseeded cache invokes upstream projection service on cache miss and preserves canonical domain row", async () => {
+    clearPresentationProjections();
+
+    const originalFetch = globalThis.fetch;
+    const capturedCalls: Array<{ url: string; body: unknown }> = [];
+
+    globalThis.fetch = jest
+      .fn()
+      .mockImplementation((input: unknown, init?: RequestInit) => {
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.toString()
+              : "";
+        const bodyStr = typeof init?.body === "string" ? init.body : "";
+        const parsedBody = bodyStr
+          ? (JSON.parse(bodyStr) as Record<string, unknown>)
+          : {};
+        capturedCalls.push({ url, body: parsedBody });
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              projected: {
+                "What is the retention period?":
+                  "Thời hạn lưu giữ dữ liệu là bao lâu?",
+                "Retention period is not configured in code.":
+                  "Thời hạn lưu giữ chưa được định cấu hình trong mã nguồn.",
+                "Determines GDPR compliance.": "Xác định mức độ tuân thủ GDPR.",
+                "Checked config.json and settings.py.":
+                  "Đã kiểm tra tệp config.json và settings.py.",
+                "30 days": "30 ngày",
+                "90 days": "90 ngày",
+              },
+            }),
+        } as Response);
+      });
+
+    process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
+    process.env.WORKER_API_KEY = "test-worker-key";
+
+    try {
+      // 1. First turn: Read with VI over completely unseeded cache
+      const viewVi = await service.view(canonicalRow, "vi");
+      expect(viewVi.question).toBe("Thời hạn lưu giữ dữ liệu là bao lâu?");
+      expect(viewVi.unresolvedFact).toBe(
+        "Thời hạn lưu giữ chưa được định cấu hình trong mã nguồn.",
+      );
+      expect(viewVi.choices[0].label).toBe("30 ngày");
+      expect(capturedCalls.length).toBe(1);
+      expect(capturedCalls[0].url).toContain("/internal/project-locale");
+
+      // 2. Second turn: Same session switch to EN
+      const viewEn = await service.view(canonicalRow, "en");
+      expect(viewEn.question).toBe("What is the retention period?");
+      expect(viewEn.choices[0].label).toBe("30 days");
+
+      // 3. Third turn: Switch back to VI - served from populated cache without second network call
+      const viewVi2 = await service.view(canonicalRow, "vi");
+      expect(viewVi2.question).toBe("Thời hạn lưu giữ dữ liệu là bao lâu?");
+      expect(capturedCalls.length).toBe(1);
+
+      // Canonical row and invariants are completely unmodified
+      expect(canonicalRow.question).toBe("What is the retention period?");
+      expect(
+        (canonicalRow.choices as Array<{ value: string }> | null)?.[0]?.value,
+      ).toBe("CHOICE_30D");
+    } finally {
+      globalThis.fetch = originalFetch;
+      delete process.env.LCSP_AGENT_SERVER_URL;
+      delete process.env.WORKER_API_KEY;
+    }
   });
 });
