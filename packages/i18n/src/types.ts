@@ -97,6 +97,7 @@ export type PagesMessages = {
       submitting: string;
       sourceBlocked: string;
       completed: string;
+      executionFinished: string;
       failed: string;
       cancelled: string;
       tokenUsage: string;

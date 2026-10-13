@@ -580,13 +580,16 @@ async def test_apx_rotates_entire_anthropic_credential_pool_before_success(monke
         return RateLimitError("monthly allowance used up", response=response, body=body)
 
     handler = AsyncMock(side_effect=[*(allowance_error() for _ in slots[:-1]), ModelResponse(result=[])])
+    middleware = TokenFallbackMiddleware()
 
-    assert await TokenFallbackMiddleware().awrap_model_call(request, handler)
+    assert await middleware.awrap_model_call(request, handler)
 
     tried = [call.args[0].model for call in handler.call_args_list]
     assert [model_provider(candidate) for candidate in tried] == ["apx"] * len(slots)
     assert [_anthropic_api_key(candidate) for candidate in tried] == list(slots)
     assert all(candidate.anthropic_api_url == "https://api.apmix.ai" for candidate in tried)
+    assert middleware._dead_slots("apx", "APX_API_KEY") == set(range(len(slots) - 1))
+    assert middleware._rate_limited_slots("apx", "APX_API_KEY") == {}
 
 
 def test_apx_slot_rotation_does_not_replay_completed_tool_calls(monkeypatch):
