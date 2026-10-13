@@ -2,6 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { buildCommandInvocation } from "./dev-entry-command.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -92,14 +93,12 @@ function run(command, args) {
 }
 
 function spawnCommand(command, args) {
-  const isPnpmOnWindows = isWindows && command === pnpmCommand;
-  return spawn(
-    isPnpmOnWindows ? "cmd.exe" : command,
-    isPnpmOnWindows ? ["/d", "/s", "/c", command, ...args] : args,
-    {
-      cwd: repoRoot,
-      stdio: "inherit",
-      shell: false,
-    },
-  );
+  const invocation = buildCommandInvocation(command, args, {
+    platform: isWindows ? "win32" : process.platform,
+  });
+  return spawn(invocation.command, invocation.args, {
+    cwd: repoRoot,
+    stdio: "inherit",
+    shell: false,
+  });
 }
