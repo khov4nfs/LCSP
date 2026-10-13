@@ -138,7 +138,20 @@ it("projects decision customer-visible rationales to VI while preserving technic
         },
       },
     ],
-    facts: [],
+    facts: [
+      {
+        factId: "77777777-7777-4777-8777-777777777777",
+        assessmentId,
+        caseRevision: 1,
+        kind: "FACT",
+        authority: "EVIDENCE_CITED",
+        state: "ACCEPTED",
+        statement:
+          "Data retention policy is enforced across all customer records.",
+        evidenceLinks: [{ evidenceId: "88888888-8888-4888-8888-888888888888" }],
+        createdAt: new Date(),
+      },
+    ],
     artifacts: [],
   } as never;
 
@@ -153,6 +166,8 @@ it("projects decision customer-visible rationales to VI while preserving technic
               "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
             "Token authentication satisfies requirement.":
               "Xác thực mã thông báo đáp ứng yêu cầu.",
+            "Data retention policy is enforced across all customer records.":
+              "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
           },
         }),
     } as Response),
@@ -177,6 +192,20 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(decisionVi?.criteria[0]?.criterionId).toBe("CRIT-AUTH-01");
     expect(decisionVi?.criteria[0]?.outcome).toBe("MET");
 
+    // Case fact statement projected to VI
+    const factVi = resultVi.case?.facts[0];
+    expect(factVi?.statement).toBe(
+      "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
+    );
+    // Fact technical invariants preserved
+    expect(factVi?.factId).toBe("77777777-7777-4777-8777-777777777777");
+    expect(factVi?.kind).toBe("FACT");
+    expect(factVi?.authority).toBe("EVIDENCE_CITED");
+    expect(factVi?.state).toBe("ACCEPTED");
+    expect(factVi?.evidenceIds).toEqual([
+      "88888888-8888-4888-8888-888888888888",
+    ]);
+
     // 2. Read with EN locale - preserves canonical English
     const resultEn = await loader.load({ ...input, locale: "en" });
     const decisionEn = resultEn.case?.decisions[0]?.decision;
@@ -186,6 +215,23 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(decisionEn?.criteria[0]?.rationale).toBe(
       "Token authentication satisfies requirement.",
     );
+    const factEn = resultEn.case?.facts[0];
+    expect(factEn?.statement).toBe(
+      "Data retention policy is enforced across all customer records.",
+    );
+
+    // 3. Switch back to VI locale on same persisted fact row
+    const resultVi2 = await loader.load({ ...input, locale: "vi" });
+    const factVi2 = resultVi2.case?.facts[0];
+    expect(factVi2?.statement).toBe(
+      "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
+    );
+
+    // Canonical persisted fact row remains unchanged
+    expect(
+      (row.domainCase as unknown as { facts: Array<{ statement: string }> })
+        .facts[0]?.statement,
+    ).toBe("Data retention policy is enforced across all customer records.");
   } finally {
     globalThis.fetch = originalFetch;
     delete process.env.LCSP_AGENT_SERVER_URL;

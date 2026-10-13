@@ -156,6 +156,115 @@ export class AssessmentDetailLoader {
             totalTokens: true,
           },
         });
+        const projectedCase = await (async () => {
+          if (!domainCase) return null;
+          const locale = input.locale
+            ? resolveResponseLanguage(input.locale)
+            : null;
+          const rawDecisions = domainCase.coverage.flatMap(
+            ({ currentDecision: decision }) => (decision ? [decision] : []),
+          );
+          let projectedDecisions = rawDecisions.map((decision) => ({
+            decisionId: decision.decisionId,
+            assessmentId: decision.assessmentId,
+            assessmentRuleId: decision.assessmentRuleId,
+            scopeId: decision.scopeId,
+            decisionRevision: decision.decisionRevision,
+            state: decision.state,
+            decision: ruleDecisionSchema.parse(decision.decision),
+            createdAt: decision.createdAt.toISOString(),
+          }));
+          let projectedFacts = domainCase.facts.map((fact) => ({
+            factId: fact.factId,
+            assessmentId: fact.assessmentId,
+            caseRevision: fact.caseRevision,
+            kind: fact.kind,
+            authority: fact.authority,
+            state: fact.state,
+            statement: fact.statement,
+            evidenceIds: fact.evidenceLinks.map((link) => link.evidenceId),
+            createdAt: fact.createdAt.toISOString(),
+          }));
+
+          if (locale) {
+            const textsToProject: string[] = [];
+            for (const d of projectedDecisions) {
+              textsToProject.push(d.decision.rationale);
+              for (const c of d.decision.criteria) {
+                textsToProject.push(c.rationale);
+              }
+            }
+            for (const f of projectedFacts) {
+              textsToProject.push(f.statement);
+            }
+            if (textsToProject.length > 0) {
+              const projections = await this.projectionService.projectBatch(
+                textsToProject,
+                locale,
+              );
+              projectedDecisions = projectedDecisions.map((d) => ({
+                ...d,
+                decision: {
+                  ...d.decision,
+                  rationale:
+                    projections.get(d.decision.rationale) ??
+                    d.decision.rationale,
+                  criteria: d.decision.criteria.map((c) => ({
+                    ...c,
+                    rationale: projections.get(c.rationale) ?? c.rationale,
+                  })),
+                },
+              }));
+              projectedFacts = projectedFacts.map((f) => ({
+                ...f,
+                statement: projections.get(f.statement) ?? f.statement,
+              }));
+            }
+          }
+
+          return {
+            caseRevision: domainCase.caseRevision,
+            ruleSetVersionId: domainCase.ruleSetVersionId,
+            ruleSet: pinnedRuleSet
+              ? {
+                  ruleSetVersionId: pinnedRuleSet.id,
+                  version: pinnedRuleSet.version,
+                  legalSourceVersion: pinnedRuleSet.legalSourceVersion.version,
+                  legalRequirementCount: pinnedRuleSet._count.rules,
+                  assessmentRuleCount: pinnedRuleSet._count.assessmentRules,
+                }
+              : null,
+            repositorySnapshotId: domainCase.repositorySnapshotId,
+            repositoryScanJobId: domainCase.repositoryScanJobId,
+            repositoryCommit: domainCase.repositoryCommit,
+            coverage: domainCase.coverage.map((coverage) => ({
+              assessmentRuleId: coverage.assessmentRuleId,
+              concept:
+                concepts.get(coverage.assessmentRuleId) ??
+                coverage.assessmentRuleId,
+              assessmentRuleVersion: coverage.assessmentRuleVersion,
+              resolutionState: coverage.resolutionState,
+              currentDecisionId: coverage.currentDecisionId,
+              decisionRevision: coverage.decisionRevision,
+            })),
+            decisions: projectedDecisions,
+            facts: projectedFacts,
+            artifacts: domainCase.artifacts.map((artifact) => ({
+              artifactId: artifact.artifactId,
+              kind: artifact.kind,
+              lifecycleState: artifact.lifecycleState,
+              ruleSetVersionId: artifact.ruleSetVersionId,
+              repositorySnapshotId: artifact.repositorySnapshotId,
+              repositoryCommit: artifact.repositoryCommit,
+              caseRevision: artifact.caseRevision,
+              contentSha256:
+                artifact.contentSha256?.replace(/^sha256:/u, "") ?? null,
+              sizeBytes: artifact.sizeBytes,
+              createdAt: artifact.createdAt.toISOString(),
+            })),
+          };
+        })();
+
         return assessmentDetailSchema.parse({
           assessment_id: row.id,
           name: row.name,
@@ -175,109 +284,7 @@ export class AssessmentDetailLoader {
           },
           lifecycle: projection.lifecycle,
           runtime: projection.runtime,
-          case: domainCase
-            ? {
-                caseRevision: domainCase.caseRevision,
-                ruleSetVersionId: domainCase.ruleSetVersionId,
-                ruleSet: pinnedRuleSet
-                  ? {
-                      ruleSetVersionId: pinnedRuleSet.id,
-                      version: pinnedRuleSet.version,
-                      legalSourceVersion:
-                        pinnedRuleSet.legalSourceVersion.version,
-                      legalRequirementCount: pinnedRuleSet._count.rules,
-                      assessmentRuleCount: pinnedRuleSet._count.assessmentRules,
-                    }
-                  : null,
-                repositorySnapshotId: domainCase.repositorySnapshotId,
-                repositoryScanJobId: domainCase.repositoryScanJobId,
-                repositoryCommit: domainCase.repositoryCommit,
-                coverage: domainCase.coverage.map((coverage) => ({
-                  assessmentRuleId: coverage.assessmentRuleId,
-                  concept:
-                    concepts.get(coverage.assessmentRuleId) ??
-                    coverage.assessmentRuleId,
-                  assessmentRuleVersion: coverage.assessmentRuleVersion,
-                  resolutionState: coverage.resolutionState,
-                  currentDecisionId: coverage.currentDecisionId,
-                  decisionRevision: coverage.decisionRevision,
-                })),
-                decisions: await (async () => {
-                  const rawDecisions = domainCase.coverage.flatMap(
-                    ({ currentDecision: decision }) =>
-                      decision ? [decision] : [],
-                  );
-                  const locale = input.locale
-                    ? resolveResponseLanguage(input.locale)
-                    : null;
-                  let projected = rawDecisions.map((decision) => ({
-                    decisionId: decision.decisionId,
-                    assessmentId: decision.assessmentId,
-                    assessmentRuleId: decision.assessmentRuleId,
-                    scopeId: decision.scopeId,
-                    decisionRevision: decision.decisionRevision,
-                    state: decision.state,
-                    decision: ruleDecisionSchema.parse(decision.decision),
-                    createdAt: decision.createdAt.toISOString(),
-                  }));
-                  if (locale) {
-                    const textsToProject: string[] = [];
-                    for (const d of projected) {
-                      textsToProject.push(d.decision.rationale);
-                      for (const c of d.decision.criteria) {
-                        textsToProject.push(c.rationale);
-                      }
-                    }
-                    const projections =
-                      await this.projectionService.projectBatch(
-                        textsToProject,
-                        locale,
-                      );
-                    projected = projected.map((d) => ({
-                      ...d,
-                      decision: {
-                        ...d.decision,
-                        rationale:
-                          projections.get(d.decision.rationale) ??
-                          d.decision.rationale,
-                        criteria: d.decision.criteria.map((c) => ({
-                          ...c,
-                          rationale:
-                            projections.get(c.rationale) ?? c.rationale,
-                        })),
-                      },
-                    }));
-                  }
-                  return projected;
-                })(),
-                facts: domainCase.facts.map((fact) => ({
-                  factId: fact.factId,
-                  assessmentId: fact.assessmentId,
-                  caseRevision: fact.caseRevision,
-                  kind: fact.kind,
-                  authority: fact.authority,
-                  state: fact.state,
-                  statement: fact.statement,
-                  evidenceIds: fact.evidenceLinks.map(
-                    (link) => link.evidenceId,
-                  ),
-                  createdAt: fact.createdAt.toISOString(),
-                })),
-                artifacts: domainCase.artifacts.map((artifact) => ({
-                  artifactId: artifact.artifactId,
-                  kind: artifact.kind,
-                  lifecycleState: artifact.lifecycleState,
-                  ruleSetVersionId: artifact.ruleSetVersionId,
-                  repositorySnapshotId: artifact.repositorySnapshotId,
-                  repositoryCommit: artifact.repositoryCommit,
-                  caseRevision: artifact.caseRevision,
-                  contentSha256:
-                    artifact.contentSha256?.replace(/^sha256:/u, "") ?? null,
-                  sizeBytes: artifact.sizeBytes,
-                  createdAt: artifact.createdAt.toISOString(),
-                })),
-              }
-            : null,
+          case: projectedCase,
           created_at: row.createdAt.toISOString(),
           updated_at: row.updatedAt.toISOString(),
           correlationId: input.correlationId,
