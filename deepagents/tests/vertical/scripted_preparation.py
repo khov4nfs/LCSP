@@ -102,7 +102,9 @@ def main() -> int:
         packet["assessmentRules"][0]["legalRequirementIds"] = ["LR-MISSING"]
 
     if mode == "no-submit":
-        responses = [AIMessage(content="I could not complete the preparation.")]
+        responses = [_call("report_rule_set_source_blocked", {
+            "reason": "SOURCE_PINS_INCONSISTENT", "path": "/legal-source/INDEX.md",
+        }, "blocked")]
     else:
         responses = [
             _call("read_file", {"file_path": "/legal-source/INDEX.md"}, "read-index"),

@@ -5,7 +5,7 @@ of the previous tool result, because evidence/fact IDs are server-minted); the D
 native task() delegation, governed tools, WorkerApiClient-style HTTP, API and PostgreSQL are real.
 
 usage: scripted_root.py <apiBase> <workerKey> <assessmentId> <repoDir> <mode>
-modes: full | resume
+modes: full | complete | resume
 """
 
 from __future__ import annotations
@@ -157,7 +157,17 @@ def resume_script(captured: dict[str, Any]) -> list[Step]:
 def main() -> int:
     base, key, assessment_id, repo_dir, mode = sys.argv[1:6]
     captured: dict[str, Any] = {}
-    steps = full_script(captured) if mode == "full" else resume_script(captured)
+    steps = full_script(captured) if mode in {"full", "complete"} else resume_script(captured)
+    if mode == "complete":
+        # The normal response above must continue in the same graph to the API-owned terminal.
+        steps += [
+            lambda m: _call("request_finalization", {}, "finalize"),
+            lambda m: _call("submit_final_report", {
+                "summary": "Accepted decisions and evidence complete the assessment.",
+                "findings": [{"assessment_rule_id": rule, "summary": "This finding follows its accepted decision.",
+                              "recommendations": []} for rule in ["ER-DEF", "ER-RET", "ER-XREF"]],
+            }, "report"),
+        ]
     model = DynamicScriptedModel(responses=[], steps=steps)
     client = AssessmentRuntimeClient(base, key)
     result = run_assessment_root(
