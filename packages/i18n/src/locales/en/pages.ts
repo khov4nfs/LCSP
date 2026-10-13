@@ -65,6 +65,7 @@ export const enPages = {
       submitting: "Submitting the validated rule set",
       sourceBlocked: "Reporting blocked legal source",
       completed: "Preparation succeeded",
+      executionFinished: "Preparation execution finished",
       failed: "Preparation failed",
       cancelled: "Preparation cancelled",
       tokenUsage: "Preparation token usage",

@@ -65,6 +65,7 @@ export const viPages = {
       submitting: "Đang gửi bộ quy tắc đã kiểm tra",
       sourceBlocked: "Đang báo nguồn pháp lý bị chặn",
       completed: "Chuẩn bị thành công",
+      executionFinished: "Lượt xử lý chuẩn bị đã kết thúc",
       failed: "Chuẩn bị thất bại",
       cancelled: "Đã hủy lượt chuẩn bị",
       tokenUsage: "Mức sử dụng token của lượt chuẩn bị",

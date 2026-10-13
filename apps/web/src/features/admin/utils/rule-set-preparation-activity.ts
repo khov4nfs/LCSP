@@ -4,7 +4,10 @@ import {
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
-import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
+import {
+  AGENT_EXECUTION_STATES,
+  type AgentExecutionState,
+} from "@lcsp/contracts/assessment";
 import type { MessageKey } from "@lcsp/i18n";
 
 const ACTIVITY_KEYS = {
@@ -23,6 +26,7 @@ const ACTIVITY_KEYS = {
   submitting: "pages.complianceRuleSets.activity.submitting",
   sourceBlocked: "pages.complianceRuleSets.activity.sourceBlocked",
   completed: "pages.complianceRuleSets.activity.completed",
+  executionFinished: "pages.complianceRuleSets.activity.executionFinished",
   failed: "pages.complianceRuleSets.activity.failed",
   cancelled: "pages.complianceRuleSets.activity.cancelled",
 } as const satisfies Record<string, MessageKey>;
@@ -71,7 +75,7 @@ type ActivityDraft = PreparationActivity;
 export function projectPreparationActivity(
   events: AssessmentAgentStreamEvent[],
   terminal = false,
-  cancelled = false,
+  executionState: AgentExecutionState | null = null,
 ): PreparationActivity[] {
   const drafts: ActivityDraft[] = [];
   const byId = new Map<string, ActivityDraft>();
@@ -96,11 +100,24 @@ export function projectPreparationActivity(
       continue;
     }
     if (event.eventType === EVENT_TYPES.boundaryCompleted) {
-      add(
-        drafts,
-        byId,
-        activity(event, ACTIVITY_KEYS.completed, ACTIVITY_STATUSES.completed),
-      );
+      const outcome =
+        executionState === AGENT_EXECUTION_STATES.SUCCEEDED
+          ? {
+              key: ACTIVITY_KEYS.completed,
+              status: ACTIVITY_STATUSES.completed,
+            }
+          : executionState === AGENT_EXECUTION_STATES.FAILED
+            ? { key: ACTIVITY_KEYS.failed, status: ACTIVITY_STATUSES.failed }
+            : executionState === AGENT_EXECUTION_STATES.CANCELLED
+              ? {
+                  key: ACTIVITY_KEYS.cancelled,
+                  status: ACTIVITY_STATUSES.cancelled,
+                }
+              : {
+                  key: ACTIVITY_KEYS.executionFinished,
+                  status: ACTIVITY_STATUSES.completed,
+                };
+      add(drafts, byId, activity(event, outcome.key, outcome.status));
       continue;
     }
     if (event.eventType === EVENT_TYPES.boundaryFailed) {
@@ -156,11 +173,15 @@ export function projectPreparationActivity(
   }
 
   if (terminal) {
-    for (const draft of drafts) {
-      if (draft.status === ACTIVITY_STATUSES.running) {
-        draft.status = cancelled
+    const terminalStatus =
+      executionState === AGENT_EXECUTION_STATES.FAILED
+        ? ACTIVITY_STATUSES.failed
+        : executionState === AGENT_EXECUTION_STATES.CANCELLED
           ? ACTIVITY_STATUSES.cancelled
           : ACTIVITY_STATUSES.completed;
+    for (const draft of drafts) {
+      if (draft.status === ACTIVITY_STATUSES.running) {
+        draft.status = terminalStatus;
       }
     }
   }

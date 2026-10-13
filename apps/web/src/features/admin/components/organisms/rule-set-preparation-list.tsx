@@ -136,9 +136,7 @@ export function RuleSetPreparationList({
           events={activity.events}
           connected={activity.connected}
           terminal={terminal}
-          cancelled={
-            selectedRun?.executionState === AGENT_EXECUTION_STATES.CANCELLED
-          }
+          executionState={selectedRun?.executionState ?? null}
         />
       ) : null}
       {retry.isError ? (
