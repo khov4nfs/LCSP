@@ -8,6 +8,7 @@ export class GetWorkspaceRuntimeHandler implements IQueryHandler<GetWorkspaceRun
     return this.events.buildWorkspaceSnapshot(
       query.ownerId,
       query.correlationId,
+      query.preparationRunId,
     );
   }
 }

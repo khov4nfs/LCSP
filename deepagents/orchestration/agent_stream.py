@@ -11,24 +11,21 @@ bounded and credential-redacted before they leave the worker process.
 from __future__ import annotations
 
 import logging
-import json
 import math
 import re
-import time
-from queue import Full, Queue
-from threading import Event, Thread
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar, copy_context
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Iterator
+from datetime import UTC, datetime
+from queue import Full, Queue
+from threading import Event, Lock, Thread
+from typing import Any
 from uuid import uuid4
 
-from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
-
 from middleware.redaction import redact_dict, redact_string
-from orchestration.runtime_control import active_runtime_run_id
 
+from orchestration.runtime_control import active_runtime_run_id
 
 MAX_STREAM_TEXT_CHARS = 65_536
 # Durable reasoning is journaled per model step; keep each entry readable.
@@ -113,7 +110,7 @@ class BufferedAgentStreamEmitter:
                 except Full:
                     try:
                         self._deliver(payload)
-                    except Exception:
+                    except Exception:  # noqa: BLE001 - telemetry delivery is best effort
                         return
                     return
             # Live telemetry must never backpressure model/tool execution. If the
@@ -139,25 +136,29 @@ class BufferedAgentStreamEmitter:
                     return
                 try:
                     self._deliver(payload)
-                except Exception:
+                except Exception:  # noqa: BLE001,S110 - telemetry must not affect execution
                     # Live telemetry is best-effort and must never fail agent execution.
                     pass
             finally:
                 self._queue.task_done()
                 if self._closed and self._queue.empty():
-                    return
+                    return  # noqa: B012 - stop after draining the closed telemetry queue
 
 
 @dataclass
 class AgentStreamSession:
     """Per-boundary live-stream context bound to one customer-visible run."""
 
-    assessment_id: str
+    assessment_id: str | None
     run_id: str
     correlation_id: str
     boundary_name: str
     emit_payload: Callable[[dict[str, Any]], None]
+    boundary_type: str = "ASSESSMENT"
+    boundary_id: str | None = None
+    preparation_run_id: str | None = None
     sequence: int = field(default=0, init=False)
+    _sequence_lock: Lock = field(default_factory=Lock, init=False, repr=False)
     def emit(self, event_type: str, **fields: Any) -> None:
         cancel = active_agent_stream_cancel.get()
         if cancel is not None and cancel.is_set() and event_type != "MODEL_CALL_CANCELLED":
@@ -171,12 +172,17 @@ class AgentStreamSession:
         data = fields.get("data")
         if step_id and (data is None or isinstance(data, dict)) and "model_step_id" not in (data or {}):
             fields = {**fields, "data": {**(data or {}), "model_step_id": step_id}}
-        self.sequence += 1
+        with self._sequence_lock:
+            self.sequence += 1
+            sequence = self.sequence
         payload = {
             "event_id": str(uuid4()),
-            "client_sequence": self.sequence,
-            "emitted_at": datetime.now(timezone.utc).isoformat(),
+            "client_sequence": sequence,
+            "emitted_at": datetime.now(UTC).isoformat(),
             "assessment_id": self.assessment_id,
+            "boundary_type": self.boundary_type,
+            "boundary_id": self.boundary_id or self.assessment_id or self.run_id,
+            "preparation_run_id": self.preparation_run_id,
             "run_id": self.run_id,
             "correlation_id": self.correlation_id,
             "event_type": event_type,
@@ -334,7 +340,7 @@ def _safe_value(value: Any, *, depth: int = MAX_STREAM_DEPTH) -> Any:
     if hasattr(value, "model_dump"):
         try:
             return _safe_value(value.model_dump(), depth=depth - 1)
-        except Exception:
+        except Exception:  # noqa: BLE001,S110 - malformed diagnostic values are ignored
             pass
     if hasattr(value, "content"):
         return {
@@ -462,7 +468,7 @@ class AgentStreamLogHandler(logging.Handler):
                     else "RUNNING"
                 ),
             )
-        except Exception:
+        except Exception:  # noqa: BLE001 - logging must never change runtime semantics
             # Logging must never change agent runtime semantics.
             return
 

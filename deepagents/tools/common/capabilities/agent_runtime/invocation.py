@@ -5,19 +5,20 @@ from __future__ import annotations
 import importlib
 import inspect
 from dataclasses import dataclass
-from typing import Any, Type
+from typing import Any
 
-from tools.common.capabilities.platform.rbac_client import RbacClient
-from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.platform.config import load_config
 from middleware.usage_metering import AgentRunState, activate_agent_run_state
-from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
 from orchestration.agent_stream import (
     AgentStreamSession,
     BufferedAgentStreamEmitter,
     activate_agent_stream,
     publish_agent_stream_event,
 )
+
+from tools.common.capabilities.agent_runtime.boundary import AgentBoundaryBase
+from tools.common.capabilities.platform.api_client import WorkerApiClient
+from tools.common.capabilities.platform.config import load_config
+from tools.common.capabilities.platform.rbac_client import RbacClient
 
 
 @dataclass(frozen=True)
@@ -180,7 +181,7 @@ def report_external_boundary_timeout(
 
 
 def _run_boundary_handler(
-    boundary_handler: Type[AgentBoundaryBase],
+    boundary_handler: type[AgentBoundaryBase],
     message: dict[str, Any],
     correlation_id: str,
     boundary: AgentInvocationBoundary,
@@ -216,8 +217,11 @@ def _agent_run_state(
     message: dict[str, Any],
     correlation_id: str,
 ) -> AgentRunState:
-    """Run-scoped state for every boundary; usage is reported only for assessments."""
+    """Run-scoped state for every boundary; stream transport also covers preparation."""
     assessment_id = _find_first_text(message, ("assessmentId", "assessment_id"))
+    preparation_run_id = _find_first_text(
+        message, ("preparationRunId", "preparation_run_id")
+    )
     run_id = _find_first_text(
         message,
         (
@@ -230,10 +234,12 @@ def _agent_run_state(
             "documentRequestId",
             "requestId",
             "request_id",
+            "preparationRunId",
+            "preparation_run_id",
         ),
-    ) or correlation_id
+    ) or preparation_run_id or correlation_id
     client = None
-    if assessment_id:
+    if assessment_id or preparation_run_id:
         config = load_config()
         client = WorkerApiClient(config.nestjs_api_base_url, config.worker_api_key)
     # The boundary owns the agent role; never trust one supplied inside an event payload.
@@ -250,9 +256,12 @@ def _agent_stream_session(
     message: dict[str, Any],
     correlation_id: str,
 ) -> AgentStreamSession | None:
-    """Build a customer-visible stream session when the event carries an assessment."""
+    """Build the shared stream session for an assessment or preparation boundary."""
     assessment_id = _find_first_text(message, ("assessmentId", "assessment_id"))
-    if not assessment_id:
+    preparation_run_id = _find_first_text(
+        message, ("preparationRunId", "preparation_run_id")
+    )
+    if not assessment_id and not preparation_run_id:
         return None
     run_id = _find_first_text(
         message,
@@ -265,8 +274,10 @@ def _agent_stream_session(
             "run_id",
             "requestId",
             "request_id",
+            "preparationRunId",
+            "preparation_run_id",
         ),
-    ) or correlation_id
+    ) or preparation_run_id or correlation_id
     config = load_config()
     client = WorkerApiClient(config.nestjs_api_base_url, config.worker_api_key)
     return AgentStreamSession(
@@ -274,6 +285,9 @@ def _agent_stream_session(
         run_id=run_id,
         correlation_id=correlation_id,
         boundary_name=boundary_name,
+        boundary_type=("RULE_SET_PREPARATION" if preparation_run_id else "ASSESSMENT"),
+        boundary_id=preparation_run_id or assessment_id,
+        preparation_run_id=preparation_run_id,
         emit_payload=(client.post_agent_stream_event if boundary_name == "assessment_root_requested"
                       else BufferedAgentStreamEmitter(client.post_agent_stream_event)),
     )
@@ -303,7 +317,7 @@ def _find_first_text(
                 return found
     return None
 
-def load_boundary(target: str) -> Type[AgentBoundaryBase]:
+def load_boundary(target: str) -> type[AgentBoundaryBase]:
     """Resolve and validate a Agent Runtime boundary class from an import target."""
     module_name, separator, class_name = target.partition(":")
     if not separator or not module_name or not class_name:

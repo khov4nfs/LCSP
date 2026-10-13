@@ -113,6 +113,8 @@ async function main(): Promise<void> {
         data: {
           id: ACTIVITY_EVENT_ID,
           assessmentId: PRESENT_ASSESSMENT_ID,
+          boundaryType: "ASSESSMENT",
+          boundaryId: PRESENT_ASSESSMENT_ID,
           runId: ACTIVITY_RUN_ID,
           correlationId: ACTIVITY_RUN_ID,
           sequence: 1,
