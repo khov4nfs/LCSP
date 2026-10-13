@@ -12,23 +12,25 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
-from langchain_core.messages import AIMessage
 from conftest import use_model_routes
 from google.genai.errors import ClientError
-from langchain.agents.middleware import ModelRequest, ModelResponse, ModelRetryMiddleware
+from langchain.agents.middleware import (
+    ModelRequest,
+    ModelResponse,
+    ModelRetryMiddleware,
+)
+from langchain_core.messages import AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_google_genai.chat_models import (
     GoogleAuthenticationError,
     GoogleModelNotFoundError,
     GooglePermissionDeniedError,
 )
-from langchain_openai.chat_models.base import OpenAIAuthenticationError, OpenAIPermissionDeniedError
-
-from middleware.usage_metering import (
-    AgentRunState,
-    UsageMeteringMiddleware,
-    activate_agent_run_state,
+from langchain_openai.chat_models.base import (
+    OpenAIAuthenticationError,
+    OpenAIPermissionDeniedError,
 )
+
 from middleware.failure_policy import (
     TerminalCredentialError,
     error_status,
@@ -44,8 +46,12 @@ from middleware.provider_fallback import (
     route_key,
 )
 from middleware.token_fallback import TokenFallbackMiddleware
+from middleware.usage_metering import (
+    AgentRunState,
+    UsageMeteringMiddleware,
+    activate_agent_run_state,
+)
 from provider_credentials import credential_init_kwargs
-
 
 GOOGLE_KEY_SLOTS = "google-slot-0-test-token,google-slot-1-test-token,google-slot-2-test-token"
 
@@ -387,7 +393,7 @@ async def test_typed_auth_opens_provider_circuit_and_later_calls_skip_that_provi
 
     # Google is tried once, its run-scoped circuit opens, and the next call skips it.
     assert provider_calls == ["google_genai", "apx", "apx"]
-    assert session.provider_route_disabled(route_key("google_genai", "future-model-v99")) is True
+    assert session.provider_route_disabled(route_key("google_genai", "future-model-v99", "google_genai")) is True
     # Only the two answered apx calls report provider usage; the failed google attempt
     # reports nothing (no invented zero-usage record).
 
@@ -413,7 +419,9 @@ async def test_model_retry_never_resends_typed_auth_failure_on_same_credential(a
 
 
 def test_non_retryable_boundary_failures_are_terminal_at_the_boundary():
-    from tools.common.capabilities.agent_runtime.boundary import NonRetryableAgentBoundaryError
+    from tools.common.capabilities.agent_runtime.boundary import (
+        NonRetryableAgentBoundaryError,
+    )
 
     # Never redelivered by the broker.
     assert is_terminal_boundary_error(NonRetryableAgentBoundaryError("scan job is terminal")) is True

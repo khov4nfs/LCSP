@@ -22,30 +22,31 @@ from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware
 
-from middleware.token_fallback import model_provider
-from orchestration.runtime_control import cancellable_sync, cancellable_async
+from middleware.token_fallback import model_protocol, model_provider
+from middleware.usage_recovery import enqueue_usage
+from model_policy import (
+    attach_model_route,
+    config_snapshot,
+    distinct_runtime_identities,
+    model_route_config,
+    resolve_role,
+    route_for_model,
+)
 from orchestration.agent_stream import (
     active_agent_stream_cancel,
     active_model_step,
     active_model_step_summary,
     check_agent_execution_active,
     note_model_step,
-    remember_message_model_step,
     publish_agent_stream_event,
+    remember_message_model_step,
 )
-from model_policy import (
-    config_snapshot,
-    distinct_runtime_identities,
-    resolve_role,
-    route_for_model,
-)
+from orchestration.runtime_control import cancellable_async, cancellable_sync
 from provider_credentials import llm_provider_timeout_seconds
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from middleware.usage_recovery import enqueue_usage
 from tools.common.capabilities.platform.callback_schemas import SettledUsagePayload
 from tools.common.capabilities.platform.config import resolve_usage_recovery_store_path
 from tools.common.capabilities.platform.logging import get_logger
-
 
 _MODEL_CALL_HEARTBEAT_SECONDS = 10.0
 # Output cap when the model route declares no ``max_output_tokens`` option.
@@ -132,7 +133,10 @@ class AgentRunState:
             provider=provider,
             model=model_name,
             effectiveRuntimeModel=effective_runtime_model(
-                agent_role or self.agent_role, provider, model_name
+                agent_role or self.agent_role,
+                provider,
+                model_name,
+                model_protocol(model),
             ),
             occurredAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             **usage,
@@ -184,7 +188,8 @@ def active_agent_run_state() -> AgentRunState | None:
 
 def assert_model_identity(model: Any, response: Any | None = None) -> None:
     """The model that answered must be one of the resolved runtime identities."""
-    if provider_identity(model, response) not in distinct_runtime_identities():
+    provider, model_name = provider_identity(model, response)
+    if (provider, model_protocol(model), model_name) not in distinct_runtime_identities():
         raise ModelIdentityMismatch(
             "Provider/model differs from the configured runtime model routes"
         )
@@ -212,8 +217,11 @@ def bounded_model(model: Any) -> Any:
     )
     limit = declared if isinstance(declared, int) and declared > 0 else DEFAULT_MAX_OUTPUT_TOKENS
     provider, _ = provider_identity(model, None)
-    parameter = "max_output_tokens" if provider in {"OPENAI", "GOOGLE_GENAI"} else "max_tokens"
-    return model.bind(**{parameter: limit})
+    protocol = model_protocol(model) or provider.lower()
+    parameter = "max_output_tokens" if protocol in {"openai", "google_genai"} else "max_tokens"
+    bound_model = model.bind(**{parameter: limit})
+    route = model_route_config(model)
+    return attach_model_route(bound_model, route) if route is not None else bound_model
 
 
 @dataclass(frozen=True)
@@ -435,6 +443,7 @@ class _ModelCallTelemetry:
 
     def __init__(self, model: Any) -> None:
         self.provider, self.model_name = provider_identity(model)
+        self.protocol = model_protocol(model) or "unknown"
         self.timeout_seconds = llm_provider_timeout_seconds()
         self.model_step_id = active_model_step_id() or str(uuid4())
         self.agent_role = active_agent_role()
@@ -447,6 +456,7 @@ class _ModelCallTelemetry:
         note_model_step("provider_attempts")
         if self._summary is not None:
             self._summary["provider"] = self.provider.lower()
+            self._summary["protocol"] = self.protocol
             self._summary["model"] = self.model_name
             if self.provider.lower() not in self._summary["providers"][:8]:
                 self._summary["providers"].append(self.provider.lower())
@@ -549,6 +559,7 @@ class _ModelCallTelemetry:
     def _data(self, *, elapsed_seconds: int) -> dict[str, Any]:
         data: dict[str, Any] = {
             "provider": self.provider.lower(),
+            "protocol": self.protocol,
             "model": self.model_name,
             "timeout_seconds": self.timeout_seconds,
             "elapsed_seconds": elapsed_seconds,
@@ -616,6 +627,7 @@ def _request_shape_diagnostic(request: Any, model: Any) -> dict[str, Any]:
     roles = [_message_role_shape(message) for message in message_list]
     return {
         "provider": provider.lower(),
+        "protocol": model_protocol(model),
         "model": model_name,
         "message_count": len(message_list),
         "message_roles": roles[-_DIAGNOSTIC_ROLE_TAIL:],
@@ -661,6 +673,7 @@ def _publish_terminal_model_failure(
             "model_step_id": step_id,
             **({"agent_role": agent_role} if agent_role else {}),
             "provider": summary.get("provider"),
+            "protocol": summary.get("protocol"),
             "model": summary.get("model"),
             "error_type": type(error).__name__,
             "provider_attempts": attempts,
@@ -708,6 +721,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
         logger.info(
             "MODEL_CONTEXT_DIAGNOSTIC",
             provider=metrics.provider.lower(),
+            protocol=model_protocol(model),
             model=metrics.model,
             agent_role=active_agent_role(),
             message_count=metrics.message_count,
@@ -774,7 +788,9 @@ class UsageMeteringMiddleware(AgentMiddleware):
         return await cancellable_async(lambda: handler(request))
 
 
-def effective_runtime_model(role: str, provider: str, model: str) -> dict[str, str] | None:
+def effective_runtime_model(
+    role: str, provider: str, model: str, protocol: str | None = None
+) -> dict[str, str] | None:
     """Audit identity of the route that actually answered, scoped to the agent role.
 
     The role's own route wins when it matches the used model; otherwise the configured
@@ -783,8 +799,11 @@ def effective_runtime_model(role: str, provider: str, model: str) -> dict[str, s
     """
     canonical = provider.lower()  # inverse of provider_identity()'s UPPER ledger form; no aliasing
     config = resolve_role(role)
-    if (config.provider, config.model) != (canonical, model):
-        config = route_for_model(canonical, model)
+    if (
+        (config.provider, config.model) != (canonical, model)
+        or (protocol is not None and config.protocol != protocol)
+    ):
+        config = route_for_model(canonical, model, protocol)
     if config is None:
         return None
     snapshot = config_snapshot(config, role)
@@ -793,12 +812,15 @@ def effective_runtime_model(role: str, provider: str, model: str) -> dict[str, s
 
 
 def provider_identity(model: Any, response: Any | None = None) -> tuple[str, str]:
-    provider = model_provider(model) or getattr(model, "provider", None)
+    route = model_route_config(model)
+    provider = route.provider if route is not None else model_provider(model)
+    if route is None:
+        provider = provider or getattr(model, "provider", None)
     provider = provider or getattr(model, "_llm_type", None) or "UNKNOWN"
     response_metadata = getattr(response, "response_metadata", None)
     if isinstance(response_metadata, dict):
         provider = provider if provider != "UNKNOWN" else response_metadata.get("provider", provider)
-    model_name = (
+    model_name = route.model if route is not None else (
         getattr(model, "model_name", None)
         or getattr(model, "model", None)
         or getattr(model, "model_id", None)
