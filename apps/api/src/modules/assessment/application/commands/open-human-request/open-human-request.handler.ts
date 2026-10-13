@@ -210,6 +210,8 @@ export class OpenHumanRequestHandler implements ICommandHandler<OpenHumanRequest
           choices: request.choices,
           idempotencyKey: request.idempotencyKey,
           requestDigest,
+          sourceLocale: request.sourceLocale ?? "en",
+          displayLocales: request.displayLocales ?? undefined,
         },
       });
       await this.support.moveCoverageToWaiting(tx, {

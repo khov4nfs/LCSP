@@ -630,6 +630,8 @@ const decisionScopeShape = {
   repositoryCommit: z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/),
   caseRevision: revisionSchema,
   legalContextRefs: z.array(ruleDecisionLegalContextReferenceSchema).min(1),
+  sourceLocale: z.string().optional(),
+  displayLocales: z.record(z.string(), z.any()).optional(),
 };
 
 /** Root-authored private domain data. Required criterion IDs and reference authority
@@ -716,6 +718,26 @@ const humanQuestionShape = {
       label: privateTextSchema,
     }),
   ),
+  sourceLocale: z.string().optional(),
+  displayLocales: z
+    .record(
+      z.string(),
+      z.strictObject({
+        question: privateTextSchema.optional(),
+        unresolvedFact: privateTextSchema.optional(),
+        decisionImpact: z.array(privateTextSchema).optional(),
+        resolutionAttempts: z.array(privateTextSchema).optional(),
+        choices: z
+          .array(
+            z.strictObject({
+              value: identifierSchema,
+              label: privateTextSchema,
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .optional(),
 };
 
 /** Root proposes a material fact question after investigation. API supplies all

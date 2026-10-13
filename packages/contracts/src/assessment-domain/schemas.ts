@@ -429,6 +429,8 @@ export const submitAssessmentFinalReportRequestSchema = z
   .strictObject({
     kind: z.literal(ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT),
     summary: privateTextSchema,
+    sourceLocale: z.string().optional(),
+    displayLocales: z.record(z.string(), z.any()).optional(),
     findings: z
       .array(finalReportFindingRequestSchema)
       .min(1)
@@ -465,6 +467,8 @@ export const assessmentFinalReportArtifactSchema = z.strictObject({
   caseRevision: revisionSchema,
   decisionFingerprint: sha256Schema,
   summary: privateTextSchema,
+  sourceLocale: z.string().optional(),
+  displayLocales: z.record(z.string(), z.any()).optional(),
   findings: z.array(
     z.strictObject({
       assessmentRuleId: identifierSchema,

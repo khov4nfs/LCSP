@@ -144,7 +144,14 @@ def run_assessment_root(
     control_request_id: str | None = None
     try:
         # The factory hydrates the pinned repository for THIS thread and returns the backend
-        # plus the context manager that exposes it to nested agents/graph tools.
+        from orchestration.context import LCSPRunContext, resolve_response_language
+
+        response_language = resolve_response_language(
+            context.get("responseLanguage")
+            or context.get("locale")
+            or claim.get("locale")
+            or claim.get("responseLanguage")
+        )
         backend, activation = backend_factory(claim, context)
         run = RootRun(
             client=client,
@@ -152,6 +159,7 @@ def run_assessment_root(
             thread_id=claim["threadId"],
             execution_id=claim["executionId"],
             backend=backend,
+            response_language=response_language,
         )
         run.adopt_context(context)
         agent = create_assessment_root_agent(
@@ -166,13 +174,6 @@ def run_assessment_root(
             "configurable": {"thread_id": run.thread_id},
             "callbacks": [run.trace, TaskLineage(client, run.execution_id), *(extra_callbacks or [])],
         })
-        from orchestration.context import LCSPRunContext, resolve_response_language
-        response_language = resolve_response_language(
-            context.get("responseLanguage")
-            or context.get("locale")
-            or claim.get("locale")
-            or claim.get("responseLanguage")
-        )
         run_context = LCSPRunContext(
             assessment_id=assessment_id,
             thread_id=run.thread_id,

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import Counter
+import copy
 import json
 import os
 import re
@@ -527,6 +528,116 @@ async def atransform_response_text(
         return text, telemetry
 
 
+USER_FACING_KEYS: set[str] = {
+    "summary",
+    "message",
+    "explanation",
+    "detail",
+    "description",
+    "label",
+    "notes",
+    "question",
+    "unresolved_fact",
+    "unresolvedFact",
+    "decision_impact",
+    "decisionImpact",
+    "resolution_attempts",
+    "resolutionAttempts",
+    "rationale",
+    "unavailability_rationale",
+    "unavailabilityRationale",
+    "statement",
+    "recommendations",
+    "recommendation",
+}
+
+
+def _extract_user_facing_fields(
+    node: Any,
+    current_key: str | None = None,
+    current_path: tuple[Any, ...] = (),
+) -> tuple[Any, list[tuple[tuple[Any, ...], str]]]:
+    """Recursively extract user-facing natural language fields from dicts, lists, or primitives.
+
+    Returns:
+        (skeleton, extracted_paths)
+        where skeleton is a pruned JSON-compatible structure containing only user-facing string leaves,
+        and extracted_paths is a list of (path_tuple, original_str).
+    """
+    if isinstance(node, str):
+        if (current_key in USER_FACING_KEYS) and node.strip():
+            return node, [(current_path, node)]
+        return None, []
+
+    if isinstance(node, dict):
+        skeleton_dict: dict[str, Any] = {}
+        paths: list[tuple[tuple[Any, ...], str]] = []
+        for k, v in node.items():
+            child_path = (*current_path, k)
+            child_skeleton, child_paths = _extract_user_facing_fields(v, current_key=k, current_path=child_path)
+            if child_skeleton is not None and (child_paths or (isinstance(child_skeleton, str) and child_skeleton.strip())):
+                skeleton_dict[k] = child_skeleton
+                paths.extend(child_paths)
+        return skeleton_dict if skeleton_dict else None, paths
+
+    if isinstance(node, list):
+        skeleton_list: list[Any] = []
+        paths: list[tuple[tuple[Any, ...], str]] = []
+        for idx, item in enumerate(node):
+            child_path = (*current_path, idx)
+            child_skeleton, child_paths = _extract_user_facing_fields(item, current_key=current_key, current_path=child_path)
+            if child_skeleton is not None:
+                skeleton_list.append(child_skeleton)
+                paths.extend(child_paths)
+        return skeleton_list if skeleton_list else None, paths
+
+    return None, []
+
+
+def _get_value_at_path(parsed: Any, path: tuple[Any, ...]) -> str | None:
+    """Retrieve string value from parsed model JSON output via nested path or flattened key."""
+    curr = parsed
+    found_nested = True
+    for segment in path:
+        if isinstance(curr, dict) and isinstance(segment, str) and segment in curr:
+            curr = curr[segment]
+        elif isinstance(curr, list) and isinstance(segment, int) and 0 <= segment < len(curr):
+            curr = curr[segment]
+        else:
+            found_nested = False
+            break
+    if found_nested and isinstance(curr, str):
+        return curr
+
+    if isinstance(parsed, dict):
+        if len(path) == 1 and str(path[0]) in parsed and isinstance(parsed[str(path[0])], str):
+            return parsed[str(path[0])]
+        dot_key = ".".join(str(s) for s in path)
+        if dot_key in parsed and isinstance(parsed[dot_key], str):
+            return parsed[dot_key]
+        bracket_key = ""
+        for i, s in enumerate(path):
+            if isinstance(s, int):
+                bracket_key += f"[{s}]"
+            else:
+                bracket_key += f".{s}" if i > 0 else str(s)
+        if bracket_key in parsed and isinstance(parsed[bracket_key], str):
+            return parsed[bracket_key]
+    return None
+
+
+def _set_value_at_path(target: Any, path: tuple[Any, ...], value: Any) -> None:
+    """Write transformed value into target dict/list at given path."""
+    curr = target
+    for segment in path[:-1]:
+        if isinstance(curr, dict):
+            curr = curr[segment]
+        elif isinstance(curr, list):
+            curr = curr[segment]
+    last_segment = path[-1]
+    curr[last_segment] = value
+
+
 def transform_structured_response(
     structured: Any,
     target_locale: str,
@@ -536,7 +647,8 @@ def transform_structured_response(
 ) -> tuple[Any, dict[str, Any]]:
     """Transform user-facing string fields of a structured response in at most ONE model invocation.
 
-    Preserves schema, non-string fields, and technical invariants.
+    Recursively traverses nested objects and lists while preserving keys, non-string types,
+    and technical invariants.
     """
     if config is None:
         config = load_localization_config()
@@ -556,15 +668,8 @@ def transform_structured_response(
     if data is None:
         return structured, telemetry
 
-    # User-facing fields to localize in structured objects
-    user_facing_fields = {"summary", "message", "explanation", "detail", "description", "label", "notes"}
-    fields_to_transform = {
-        key: value
-        for key, value in data.items()
-        if key in user_facing_fields and isinstance(value, str) and value.strip()
-    }
-
-    if not fields_to_transform:
+    skeleton, extracted_paths = _extract_user_facing_fields(data)
+    if not extracted_paths:
         return structured, telemetry
 
     definition = SUPPORTED_LOCALES.get(normalized_locale, SUPPORTED_LOCALES["en"])
@@ -576,12 +681,12 @@ def transform_structured_response(
         return structured, telemetry
 
     # Single-field optimization: 1 model call via transform_response_text
-    if len(fields_to_transform) == 1:
-        key, original_val = next(iter(fields_to_transform.items()))
+    if len(extracted_paths) == 1:
+        path, original_val = extracted_paths[0]
         transformed_val, t = transform_response_text(original_val, target_locale, model=active_model, config=config)
         if t["status"] == "APPLIED":
-            updated = dict(data)
-            updated[key] = transformed_val
+            updated = copy.deepcopy(data)
+            _set_value_at_path(updated, path, transformed_val)
             telemetry.update(t)
             if is_pydantic:
                 try:
@@ -601,7 +706,7 @@ def transform_structured_response(
         target_language=definition.name,
         target_locale=definition.code,
     )
-    json_payload = json.dumps(fields_to_transform, ensure_ascii=False)
+    json_payload = json.dumps(skeleton, ensure_ascii=False)
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=json_payload),
@@ -625,17 +730,22 @@ def transform_structured_response(
             clean_json = clean_json.removeprefix("```").removesuffix("```").strip()
 
         parsed = json.loads(clean_json)
-        if not isinstance(parsed, dict):
-            raise ValueError("Structured transform output is not a JSON object")
+        if not isinstance(parsed, (dict, list)):
+            raise ValueError("Structured transform output is not a JSON object or list")
 
-        updated = dict(data)
-        for k, orig_v in fields_to_transform.items():
-            trans_v = parsed.get(k)
+        updated = copy.deepcopy(data)
+        applied_count = 0
+        for path, orig_v in extracted_paths:
+            trans_v = _get_value_at_path(parsed, path)
             if isinstance(trans_v, str) and trans_v.strip():
                 is_valid, violation = validate_invariant_preservation(orig_v, trans_v)
                 if not is_valid:
-                    raise ValueError(f"Invariant violation in field '{k}': {violation}")
-                updated[k] = trans_v
+                    raise ValueError(f"Invariant violation in field '{path}': {violation}")
+                _set_value_at_path(updated, path, trans_v)
+                applied_count += 1
+
+        if applied_count == 0:
+            raise ValueError("No fields were updated by structured transform output")
 
         telemetry["status"] = "APPLIED"
         if is_pydantic:
@@ -674,7 +784,8 @@ async def atransform_structured_response(
 ) -> tuple[Any, dict[str, Any]]:
     """Asynchronously transform user-facing string fields of a structured response in at most ONE model invocation.
 
-    Preserves schema, non-string fields, and technical invariants without blocking the event loop.
+    Recursively traverses nested objects and lists while preserving schema, non-string fields,
+    and technical invariants without blocking the event loop.
     """
     if config is None:
         config = load_localization_config()
@@ -694,15 +805,8 @@ async def atransform_structured_response(
     if data is None:
         return structured, telemetry
 
-    # User-facing fields to localize in structured objects
-    user_facing_fields = {"summary", "message", "explanation", "detail", "description", "label", "notes"}
-    fields_to_transform = {
-        key: value
-        for key, value in data.items()
-        if key in user_facing_fields and isinstance(value, str) and value.strip()
-    }
-
-    if not fields_to_transform:
+    skeleton, extracted_paths = _extract_user_facing_fields(data)
+    if not extracted_paths:
         return structured, telemetry
 
     definition = SUPPORTED_LOCALES.get(normalized_locale, SUPPORTED_LOCALES["en"])
@@ -714,12 +818,12 @@ async def atransform_structured_response(
         return structured, telemetry
 
     # Single-field optimization: 1 model call via atransform_response_text
-    if len(fields_to_transform) == 1:
-        key, original_val = next(iter(fields_to_transform.items()))
+    if len(extracted_paths) == 1:
+        path, original_val = extracted_paths[0]
         transformed_val, t = await atransform_response_text(original_val, target_locale, model=active_model, config=config)
         if t["status"] == "APPLIED":
-            updated = dict(data)
-            updated[key] = transformed_val
+            updated = copy.deepcopy(data)
+            _set_value_at_path(updated, path, transformed_val)
             telemetry.update(t)
             if is_pydantic:
                 try:
@@ -739,7 +843,7 @@ async def atransform_structured_response(
         target_language=definition.name,
         target_locale=definition.code,
     )
-    json_payload = json.dumps(fields_to_transform, ensure_ascii=False)
+    json_payload = json.dumps(skeleton, ensure_ascii=False)
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=json_payload),
@@ -762,17 +866,22 @@ async def atransform_structured_response(
             clean_json = clean_json.removeprefix("```").removesuffix("```").strip()
 
         parsed = json.loads(clean_json)
-        if not isinstance(parsed, dict):
-            raise ValueError("Structured transform output is not a JSON object")
+        if not isinstance(parsed, (dict, list)):
+            raise ValueError("Structured transform output is not a JSON object or list")
 
-        updated = dict(data)
-        for k, orig_v in fields_to_transform.items():
-            trans_v = parsed.get(k)
+        updated = copy.deepcopy(data)
+        applied_count = 0
+        for path, orig_v in extracted_paths:
+            trans_v = _get_value_at_path(parsed, path)
             if isinstance(trans_v, str) and trans_v.strip():
                 is_valid, violation = validate_invariant_preservation(orig_v, trans_v)
                 if not is_valid:
-                    raise ValueError(f"Invariant violation in field '{k}': {violation}")
-                updated[k] = trans_v
+                    raise ValueError(f"Invariant violation in field '{path}': {violation}")
+                _set_value_at_path(updated, path, trans_v)
+                applied_count += 1
+
+        if applied_count == 0:
+            raise ValueError("No fields were updated by structured transform output")
 
         telemetry["status"] = "APPLIED"
         if is_pydantic:

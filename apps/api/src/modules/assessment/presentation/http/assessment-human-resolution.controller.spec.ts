@@ -19,6 +19,7 @@ import { z } from "zod";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AnswerHumanRequestCommand } from "../../application/commands/answer-human-request/answer-human-request.command.js";
+import { GetHumanRequestsQuery } from "../../application/queries/get-human-requests/get-human-requests.query.js";
 import { AssessmentHumanResolutionController } from "./assessment-human-resolution.controller.js";
 
 describe("Human Resolution transport", () => {
@@ -117,5 +118,39 @@ describe("Human Resolution transport", () => {
       .send(body);
     expect(response.status).toBe(422);
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("dispatches GetHumanRequestsQuery with x-lcsp-locale header when provided", async () => {
+    execute.mockResolvedValueOnce([] as never);
+    const response = await supertest(server)
+      .get(`/assessments/${assessmentId}/human-requests`)
+      .set("x-lcsp-locale", "vi");
+    expect(response.status).toBe(200);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0]?.[0]).toBeInstanceOf(GetHumanRequestsQuery);
+    expect(execute.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        assessmentId,
+        actor,
+        locale: "vi",
+      }),
+    );
+  });
+
+  it("dispatches GetHumanRequestsQuery with null locale when header is omitted", async () => {
+    execute.mockResolvedValueOnce([] as never);
+    const response = await supertest(server).get(
+      `/assessments/${assessmentId}/human-requests`,
+    );
+    expect(response.status).toBe(200);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0]?.[0]).toBeInstanceOf(GetHumanRequestsQuery);
+    expect(execute.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        assessmentId,
+        actor,
+        locale: null,
+      }),
+    );
   });
 });
