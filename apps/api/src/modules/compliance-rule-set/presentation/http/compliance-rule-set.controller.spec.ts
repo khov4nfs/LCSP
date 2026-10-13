@@ -114,7 +114,7 @@ describe("ComplianceRuleSetController HTTP validation", () => {
     await app.close();
   });
 
-  it("exposes no route that starts a Rule Set Preparation: only the Legal Source activation consumer does", async () => {
+  it("exposes no worker route that starts a Rule Set Preparation", async () => {
     await supertest(app.getHttpServer())
       .post("/internal/compliance-rule-set/preparations")
       .set("x-worker-api-key", workerKey)

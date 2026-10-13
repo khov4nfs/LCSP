@@ -3,7 +3,7 @@ export const viPages = {
   complianceRuleSets: {
     title: "Bộ quy tắc tuân thủ",
     description:
-      "Bộ quy tắc được chuẩn bị tự động khi một Phiên bản nguồn pháp lý được kích hoạt và được mọi đánh giá dùng chung. Trang này không bắt đầu việc chuẩn bị.",
+      "Bộ quy tắc được các đánh giá dùng chung và chuẩn bị khi Phiên bản nguồn pháp lý được kích hoạt. Quản trị viên cũng có thể chuẩn bị nguồn hiện tại khi chưa có bộ quy tắc tương thích đang hoạt động.",
     active: "Bộ quy tắc đang hoạt động",
     unavailable: "Chưa có bộ quy tắc đang hoạt động",
     sourceVersion: "Phiên bản nguồn pháp lý",
@@ -17,6 +17,15 @@ export const viPages = {
     emptyHistory: "Chưa có bộ quy tắc nào được chuẩn bị.",
     preparations: "Chuẩn bị bộ quy tắc",
     emptyPreparations: "Chưa có lượt chuẩn bị bộ quy tắc nào.",
+    prepare: "Chuẩn bị bộ quy tắc",
+    preparing: "Đang chuẩn bị bộ quy tắc…",
+    prepareFailed:
+      "Không thể bắt đầu chuẩn bị. Hãy làm mới trang và kiểm tra trạng thái hiện tại.",
+    confirmTitle: "Chuẩn bị bộ quy tắc tuân thủ?",
+    confirmDescription:
+      "Thao tác này sẽ phân tích Nguồn pháp lý hiện tại và tạo yêu cầu pháp lý cùng quy tắc đánh giá bằng các nhà cung cấp AI đã cấu hình. Thao tác có thể tiêu thụ hạn mức mô hình.",
+    confirmPrepare: "Chuẩn bị",
+    cancel: "Hủy",
     attempt: "Lần thử",
     startedAt: "Bắt đầu",
     startedBy: "Khởi chạy bởi",
@@ -24,7 +33,8 @@ export const viPages = {
     failure: "Lỗi",
     retry: "Thử lại lượt chuẩn bị bộ quy tắc thất bại",
     retrying: "Đang thử lại…",
-    retryFailed: "Không thể bắt đầu thử lại. Hãy làm mới trang và kiểm tra trạng thái lượt chuẩn bị.",
+    retryFailed:
+      "Không thể bắt đầu thử lại. Hãy làm mới trang và kiểm tra trạng thái lượt chuẩn bị.",
     states: {
       BUILDING: "Đang xây dựng",
       ACTIVE: "Đang hoạt động",
@@ -45,7 +55,8 @@ export const viPages = {
     userName: "Bạn",
     opening: "Tôi bắt đầu đánh giá của bạn.",
     openingRepository: "Kho mã: {repository} tại {commit}.",
-    openingRuleSet: "Bộ quy tắc tuân thủ {version} đã được ghim cho đánh giá này.",
+    openingRuleSet:
+      "Bộ quy tắc tuân thủ {version} đã được ghim cho đánh giá này.",
     work: {
       running: "Đang làm việc…",
       workedFor: "Đã làm việc {duration}",
@@ -116,7 +127,8 @@ export const viPages = {
       blockedReasons: {
         HUMAN_FACT_UNRESOLVABLE: "Không thể xác lập một thông tin bắt buộc.",
         REQUIRED_DOCUMENT_UNAVAILABLE: "Thiếu một tài liệu bắt buộc.",
-        REQUIRED_RUNTIME_INPUT_UNAVAILABLE: "Thiếu một đầu vào thực thi bắt buộc.",
+        REQUIRED_RUNTIME_INPUT_UNAVAILABLE:
+          "Thiếu một đầu vào thực thi bắt buộc.",
         COMPLIANCE_RULE_SET_UNAVAILABLE: "Bộ quy tắc tuân thủ chưa sẵn sàng.",
         REPOSITORY_SNAPSHOT_UNAVAILABLE: "Ảnh chụp kho mã chưa sẵn sàng.",
       },
@@ -1838,11 +1850,10 @@ export const viPages = {
         "Billing hệ thống, thanh toán, credit trả trước và đối soát.",
       roleAdminLabel: "Quản trị viên",
       navigationAria: "Điều hướng quản trị",
+      navigationToggle: "Mở hoặc đóng điều hướng quản trị",
       sectionsAria: "Khu vực quản trị",
       logoLabel: "LCSP Quản trị",
       soonLabel: "Sắp có",
-      identityFallbackName: "Quản trị viên",
-      identityFallbackEmail: "admin@lcsp.internal",
     },
     overview: {
       title: "Tổng quan",

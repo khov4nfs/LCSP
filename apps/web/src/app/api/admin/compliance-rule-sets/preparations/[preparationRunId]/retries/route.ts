@@ -11,7 +11,7 @@ import {
   validatedUpstreamJson,
 } from "@/lib/server/upstream-request";
 
-/** The only operator action on a Rule Set Preparation: retry one failed run of the same Legal Source Version. */
+/** Retry one failed run of the same Legal Source Version through its canonical recovery command. */
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ preparationRunId: string }> },

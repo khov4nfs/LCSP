@@ -3,7 +3,7 @@ export const enPages = {
   complianceRuleSets: {
     title: "Compliance rule sets",
     description:
-      "A rule set is prepared automatically when a Legal Source Version is activated and is shared by every assessment that pins it. Nothing on this page starts a preparation.",
+      "Rule sets are shared by assessments and prepared when a Legal Source Version is activated. Administrators can also prepare the current source when no compatible active rule set exists.",
     active: "Active rule set",
     unavailable: "No active rule set yet",
     sourceVersion: "Legal Source Version",
@@ -17,6 +17,15 @@ export const enPages = {
     emptyHistory: "No rule set has been prepared yet.",
     preparations: "Rule Set Preparation",
     emptyPreparations: "No Rule Set Preparation has run yet.",
+    prepare: "Prepare rule set",
+    preparing: "Preparing rule set…",
+    prepareFailed:
+      "Preparation could not be started. Refresh the page and check the current state.",
+    confirmTitle: "Prepare compliance rule set?",
+    confirmDescription:
+      "This will analyze the current Legal Source and generate legal requirements and assessment rules using the configured AI providers. It may consume model quota.",
+    confirmPrepare: "Prepare",
+    cancel: "Cancel",
     attempt: "Attempt",
     startedAt: "Started",
     startedBy: "Started by",
@@ -24,7 +33,8 @@ export const enPages = {
     failure: "Failure",
     retry: "Retry failed Rule Set Preparation",
     retrying: "Retrying…",
-    retryFailed: "The retry could not be started. Refresh the page and check the preparation state.",
+    retryFailed:
+      "The retry could not be started. Refresh the page and check the preparation state.",
     states: {
       BUILDING: "Building",
       ACTIVE: "Active",
@@ -45,7 +55,8 @@ export const enPages = {
     userName: "You",
     opening: "I'm starting your assessment.",
     openingRepository: "Repository: {repository} at {commit}.",
-    openingRuleSet: "Compliance rule set {version} is pinned for this assessment.",
+    openingRuleSet:
+      "Compliance rule set {version} is pinned for this assessment.",
     work: {
       running: "Working…",
       workedFor: "Worked for {duration}",
@@ -116,9 +127,12 @@ export const enPages = {
       blockedReasons: {
         HUMAN_FACT_UNRESOLVABLE: "A required fact cannot be established.",
         REQUIRED_DOCUMENT_UNAVAILABLE: "A required document is unavailable.",
-        REQUIRED_RUNTIME_INPUT_UNAVAILABLE: "A required runtime input is unavailable.",
-        COMPLIANCE_RULE_SET_UNAVAILABLE: "The compliance rule set is not available yet.",
-        REPOSITORY_SNAPSHOT_UNAVAILABLE: "The repository snapshot is not available.",
+        REQUIRED_RUNTIME_INPUT_UNAVAILABLE:
+          "A required runtime input is unavailable.",
+        COMPLIANCE_RULE_SET_UNAVAILABLE:
+          "The compliance rule set is not available yet.",
+        REPOSITORY_SNAPSHOT_UNAVAILABLE:
+          "The repository snapshot is not available.",
       },
     },
     completion: {
@@ -142,7 +156,8 @@ export const enPages = {
       failed: "This assessment run failed.",
       preparing: "Preparing the assessment",
       refresh: "Refresh",
-      controlFailed: "That request could not be completed. Refresh and try again.",
+      controlFailed:
+        "That request could not be completed. Refresh and try again.",
     },
     state: {
       UNAVAILABLE: "Unavailable",
@@ -1836,11 +1851,10 @@ export const enPages = {
         "System-level billing, payments, prepaid credits, and reconciliation.",
       roleAdminLabel: "Administrator",
       navigationAria: "Admin navigation",
+      navigationToggle: "Toggle Admin navigation",
       sectionsAria: "Admin sections",
       logoLabel: "LCSP Admin",
       soonLabel: "Soon",
-      identityFallbackName: "Administrator",
-      identityFallbackEmail: "admin@lcsp.internal",
     },
     overview: {
       title: "Overview",
