@@ -9,7 +9,7 @@ do not rewrite older entries unless correcting a factual error.
 
 #### Added
 
-- Added a production-focused README, current security policy, concise dated release notes, and a durable release report. The current web workspace guidance files are included unchanged.
+- Added a production-focused README, current security policy, concise dated release notes, and a durable release report. The current web workspace guidance files are included unchanged. ([#383](https://github.com/khov4nfs/LCSP/pull/383))
 
 #### Changed
 

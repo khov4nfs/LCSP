@@ -8,18 +8,18 @@ The latest code promoted from `develop` to `main` is the date-based release PR #
 
 ## Release identity
 
-| Field                                      | Value                                                                                                    |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| Report date                                | 2026-10-14                                                                                               |
-| Product version                            | No formal product version; package versions are private workspace metadata.                              |
-| Latest promotion to `main`                 | [PR #371](https://github.com/khov4nfs/LCSP/pull/371), merged 2026-10-12.                                 |
-| Main promotion SHA                         | `d9ec1f63dcb5250870f4f55d007f9aa9b09049e4`                                                               |
-| Latest provider-routing merge to `develop` | [PR #382](https://github.com/khov4nfs/LCSP/pull/382), merged 2026-10-13.                                 |
-| Develop candidate SHA                      | `94fad33ea83c4e5272e283958378b48d36f212b7`                                                               |
-| Production-running SHA                     | **NOT VERIFIED**; no production deployment receipt was collected.                                        |
-| Documentation and migration PR             | This release-documentation PR, targeting `develop`; its exact head and checks are recorded on GitHub.    |
-| Migration                                  | `apps/api/prisma/migrations/20261013132644_re_generate_db/migration.sql`                                 |
-| Affected areas                             | Web activity projection, API lifecycle/persistence, Python Agent Runtime routing, and PostgreSQL schema. |
+| Field                                      | Value                                                                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Report date                                | 2026-10-14                                                                                                                |
+| Product version                            | No formal product version; package versions are private workspace metadata.                                               |
+| Latest promotion to `main`                 | [PR #371](https://github.com/khov4nfs/LCSP/pull/371), merged 2026-10-12.                                                  |
+| Main promotion SHA                         | `d9ec1f63dcb5250870f4f55d007f9aa9b09049e4`                                                                                |
+| Latest provider-routing merge to `develop` | [PR #382](https://github.com/khov4nfs/LCSP/pull/382), merged 2026-10-13.                                                  |
+| Develop candidate SHA                      | `94fad33ea83c4e5272e283958378b48d36f212b7`                                                                                |
+| Production-running SHA                     | **NOT VERIFIED**; no production deployment receipt was collected.                                                         |
+| Documentation and migration PR             | [PR #383](https://github.com/khov4nfs/LCSP/pull/383), targeting `develop`; required checks are tracked on its exact head. |
+| Migration                                  | `apps/api/prisma/migrations/20261013132644_re_generate_db/migration.sql`                                                  |
+| Affected areas                             | Web activity projection, API lifecycle/persistence, Python Agent Runtime routing, and PostgreSQL schema.                  |
 
 The repository's release convention is a dated `chore: LCSP-999 release YYYY-MM-DD` promotion PR from `develop` to `main`, with changes recorded under `CHANGELOG.md`'s `Unreleased` heading. No Git tags or GitHub Releases are published; no version was invented.
 
@@ -59,6 +59,7 @@ The repository-declared services are the Next.js Web application, NestJS API, an
 
 - The production-running commit and deployment health for the develop candidate are not verified.
 - `20261013132644_re_generate_db` drops `WizardProfile`; production data-retention eligibility remains unknown until separately checked.
+- GitHub reports eight open Dependabot alerts on the default `develop` branch (four critical, four high); this documentation and migration PR does not assess or remediate those dependency findings. ([Repository security alerts](https://github.com/khov4nfs/LCSP/security/dependabot))
 - The release report does not claim Ruff evidence because no repository Ruff check is configured.
 
 ## Rollback considerations
@@ -76,4 +77,4 @@ Documentation can be reverted independently. The migration is a forward-only sch
 - [Model route authority](../../deepagents/config/model_routes.yaml)
 - [Migration](../../apps/api/prisma/migrations/20261013132644_re_generate_db/migration.sql)
 - [Last main promotion, PR #371](https://github.com/khov4nfs/LCSP/pull/371)
-- [PR #381](https://github.com/khov4nfs/LCSP/pull/381) and [PR #382](https://github.com/khov4nfs/LCSP/pull/382)
+- [PR #381](https://github.com/khov4nfs/LCSP/pull/381), [PR #382](https://github.com/khov4nfs/LCSP/pull/382), and [documentation PR #383](https://github.com/khov4nfs/LCSP/pull/383)
