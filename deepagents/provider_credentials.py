@@ -45,10 +45,17 @@ def llm_provider_timeout_seconds() -> float:
     return DEFAULT_LLM_PROVIDER_TIMEOUT_SECONDS
 
 
-def apx_base_url() -> str:
-    """Return the APX Anthropic Messages API root, without a version suffix."""
+def apx_base_url(protocol: str = "anthropic") -> str:
+    """Resolve the APX API root for one protocol without duplicating /v1."""
     configured = (os.getenv("APX_BASE_URL") or "").strip()
-    return (configured or APX_DEFAULT_BASE_URL).rstrip("/").removesuffix("/v1")
+    root = (configured or APX_DEFAULT_BASE_URL).rstrip("/")
+    while root.endswith("/v1"):
+        root = root[:-3]
+    if protocol == "anthropic":
+        return root
+    if protocol == "openai":
+        return f"{root}/v1"
+    raise ValueError(f"unsupported APX protocol {protocol!r}")
 
 
 def inception_base_url() -> str:

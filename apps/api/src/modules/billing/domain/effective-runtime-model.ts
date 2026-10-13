@@ -25,8 +25,9 @@ export function assertEffectiveRuntimeModelAt(
       "Effective runtime model identity is required",
     );
   if (
-    [model.provider, model.model, model.policyVersion].some(
-      (value) => value.length > MAX_RUNTIME_MODEL_FIELD_LENGTH,
+    [model.provider, model.protocol, model.model, model.policyVersion].some(
+      (value) =>
+        value !== undefined && value.length > MAX_RUNTIME_MODEL_FIELD_LENGTH,
     )
   )
     throw new BillingDomainError(

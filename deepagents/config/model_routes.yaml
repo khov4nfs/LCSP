@@ -3,13 +3,15 @@
 # (credentials: provider env vars; pricing: billing). Model ids are opaque strings, kept as written.
 version: 1
 
-# A route = transport provider + model id (+ optional trusted inference options).
+# A route = canonical provider + protocol + opaque model id (+ optional inference options).
 # provider must be exactly one of: openai, anthropic, google_genai, inception, apx.
+# protocol is the native API family; APX accepts anthropic or openai.
 # options (e.g. temperature, reasoning, max_output_tokens, context_window_tokens) are passed through;
 # omit them to get provider defaults. Credential/endpoint/header-like keys are rejected.
 routes:
   primary:
     provider: apx
+    protocol: anthropic
     model: claude-sonnet-4-6-free
   fallback:
     provider: google_genai

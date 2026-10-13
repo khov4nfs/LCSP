@@ -7,11 +7,6 @@ from __future__ import annotations
 
 from langchain.agents.middleware import AgentMiddleware
 
-from middleware.usage_metering import (
-    active_agent_role,
-    active_agent_run_state,
-    provider_identity,
-)
 from middleware.failure_policy import (
     TerminalCredentialError,
     error_status,
@@ -26,47 +21,61 @@ from middleware.failure_policy import (
 from middleware.token_fallback import (
     credential_failure,
     further_provider_route,
+    model_protocol,
+)
+from middleware.usage_metering import (
+    active_agent_role,
+    active_agent_run_state,
+    provider_identity,
 )
 from model_policy import (
     ResolvedModelConfig,
     build_model,
     fallback_routes,
+    model_route_config,
     resolve_role,
     route_for_model,
 )
 from provider_credentials import PROVIDER_KEY_ENV, provider_token_source
 from tools.common.capabilities.platform.logging import get_logger
 
-
 logger = get_logger(__name__)
 _PERMANENT_PROVIDER_ROUTE_STATUSES = frozenset({401, 402, 403})
 
 
-def route_key(provider: str, model: str) -> str:
+def route_key(provider: str, model: str, protocol: str) -> str:
     """Stable identity of one configured route; circuit/sticky state is keyed by it."""
-    return f"{provider.lower()}:{model}"
+    return f"{provider.lower()}:{protocol}:{model}"
 
 
 def _config_key(config: ResolvedModelConfig) -> str:
-    return route_key(config.provider, config.model)
+    return route_key(config.provider, config.model, config.protocol)
 
 
 def _request_route(model) -> tuple[str, ResolvedModelConfig | None]:
     """Return (route key, configured route) of the request's model.
 
-    The agent role's own route wins when it matches the model, so two routes sharing
-    one provider/model but differing in options keep their own fallback chain.
+    Attached configuration is authoritative; class-derived identity is only a
+    compatibility path for models created outside the route loader.
     """
+    route = model_route_config(model)
+    if route is not None:
+        return _config_key(route), route
     provider, name = provider_identity(model)
-    # provider_identity reports the UPPER form; lower() restores the exact
-    # configured transport id. Not an alias layer: unknown names simply match no route.
     provider = provider.lower()
+    protocol = model_protocol(model)
     role = active_agent_role()
     if role:
         config = resolve_role(role)
-        if (config.provider, config.model) == (provider, name):
-            return route_key(provider, name), config
-    return route_key(provider, name), route_for_model(provider, name)
+        if (
+            (config.provider, config.model) == (provider, name)
+            and (protocol is None or config.protocol == protocol)
+        ):
+            return _config_key(config), config
+    config = route_for_model(provider, name, protocol)
+    if config is not None:
+        return _config_key(config), config
+    return route_key(provider, name, protocol or "unknown"), None
 
 
 def _fallback_chain(config: ResolvedModelConfig | None) -> tuple[ResolvedModelConfig, ...]:
@@ -374,8 +383,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
 
 __all__ = [
     "ProviderFallbackMiddleware",
-    "route_key",
     "fallback_model",
     "provider_circuit_breaker_failure",
     "provider_fallback_failure",
+    "route_key",
 ]

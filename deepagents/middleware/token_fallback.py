@@ -1,8 +1,8 @@
 """Bounded credential fallback at the model-call boundary, never replaying tools."""
 from __future__ import annotations
 
-import time
 import asyncio
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from hashlib import sha256
@@ -14,12 +14,13 @@ from pydantic import ValidationError
 from middleware.failure_policy import (
     TerminalCredentialError,
     TerminalSchemaError,
+    error_status,
     is_auth_failure,
     is_provider_capacity_failure,
     is_provider_quota_exhaustion,
     is_terminal_task_error,
-    error_status,
 )
+from model_policy import attach_model_route, model_route_config, route_for_model
 from orchestration.agent_stream import model_wait_heartbeat, note_model_step
 from provider_credentials import (
     INCEPTION_DEFAULT_BASE_URL,
@@ -29,7 +30,6 @@ from provider_credentials import (
     provider_token_source,
 )
 from tools.common.capabilities.platform.logging import get_logger
-
 
 logger = get_logger(__name__)
 _RATE_LIMITED_STATUSES = frozenset({429})
@@ -166,6 +166,9 @@ def credential_failure(error: BaseException) -> bool:
 
 
 def model_provider(model) -> str | None:
+    route = model_route_config(model)
+    if route is not None:
+        return route.provider
     module = type(model).__module__
     if module.startswith("langchain_openai."):
         base_url = str(getattr(model, "openai_api_base", "") or "").rstrip("/")
@@ -177,6 +180,8 @@ def model_provider(model) -> str | None:
             or base_url.startswith(f"{default_inception}/")
         ):
             return "inception"
+        if base_url == apx_base_url("openai"):
+            return "apx"
         return "openai"
     if module.startswith("langchain_google_genai."):
         return "google_genai"
@@ -190,6 +195,30 @@ def model_provider(model) -> str | None:
             return "apx"
         return "anthropic"
     return None
+
+
+def model_protocol(model) -> str | None:
+    route = model_route_config(model)
+    if route is not None:
+        return route.protocol
+    module = type(model).__module__
+    if module.startswith("langchain_openai."):
+        return "openai"
+    if module.startswith("langchain_google_genai."):
+        return "google_genai"
+    if module.startswith("langchain_anthropic."):
+        return "anthropic"
+    protocol = getattr(model, "protocol", None)
+    if isinstance(protocol, str):
+        return protocol
+    provider = model_provider(model) or getattr(model, "provider", None)
+    model_name = (
+        getattr(model, "model_name", None)
+        or getattr(model, "model", None)
+        or getattr(model, "model_id", None)
+    )
+    route = route_for_model(str(provider).lower(), str(model_name)) if provider and model_name else None
+    return route.protocol if route is not None else None
 
 
 def model_with_token(model, provider: str, token: str):
@@ -206,7 +235,9 @@ def model_with_token(model, provider: str, token: str):
     profile = getattr(model, "profile", None)
     if profile is not None:
         settings["profile"] = profile
-    return type(model)(**settings)
+    replacement = type(model)(**settings)
+    route = model_route_config(model)
+    return attach_model_route(replacement, route) if route is not None else replacement
 
 
 class TokenFallbackMiddleware(AgentMiddleware):
@@ -751,8 +782,9 @@ class TokenFallbackMiddleware(AgentMiddleware):
 
 __all__ = [
     "TokenFallbackMiddleware",
-    "further_provider_route",
     "credential_failure",
+    "further_provider_route",
+    "model_protocol",
     "model_provider",
     "model_with_token",
 ]
