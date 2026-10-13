@@ -91,7 +91,7 @@ def main() -> int:
     config = resolve_role(RULE_SET_PREPARATION_ROLE)
     model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
     model.callbacks = [usage]
-    result = run_rule_set_preparation(api, run_id, model=model, recursion_limit=120, callbacks=[usage])
+    result = run_rule_set_preparation(api, run_id, model=model, callbacks=[usage])
     Path(usage_out).write_text(json.dumps({
         "modelCalls": usage.calls,
         "toolCalls": usage.tool_calls,

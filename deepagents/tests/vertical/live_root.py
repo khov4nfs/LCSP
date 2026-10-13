@@ -92,7 +92,7 @@ def main() -> None:
             result = run_assessment_root(AssessmentRuntimeClient(base, key), assessment_id,
                 backend_factory=lambda claim, context: (FilesystemBackend(root_dir=repo_dir, virtual_mode=True), None),
                 model=resolve_agent_model("assessment-root"), checkpointer=saver, governance=(),
-                recursion_limit=60, extra_callbacks=[trace])
+                extra_callbacks=[trace])
         finally:
             signal.alarm(0)
     evidence = {"result": result, "model": f"{config.provider}:{config.model}", "calls": trace.calls,
