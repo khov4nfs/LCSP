@@ -74,7 +74,12 @@ def test_fogewise_langgraph_server_image_has_docker_sandbox_control_plane():
     assert "FROM python:3.11-slim-trixie" in dockerfile
     assert "langchain/langgraph-api" not in dockerfile
     assert "LANGSERVE_GRAPHS" not in dockerfile
-    assert "docker.io" in dockerfile
+    docker_tokens = {
+        token
+        for line in dockerfile.splitlines()
+        for token in line.replace("\\", "").split()
+    }
+    assert any(token == "docker.io" for token in docker_tokens)
     assert "docker-cli" in dockerfile
     assert "COPY deepagents /app/deepagents" in dockerfile
     assert "HEALTHCHECK" in dockerfile

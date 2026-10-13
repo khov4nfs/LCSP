@@ -2,6 +2,7 @@
 
 import fs from "fs";
 import path from "path";
+import { findAllowedJiraPage } from "./jira-page-url.mjs";
 
 const ROOT = process.cwd();
 const DEV_DIR = path.join(ROOT, "docs", "developer");
@@ -45,13 +46,17 @@ function parseCsv(text) {
     rows.push(row);
   }
   const [header, ...body] = rows.filter((items) => items.some(Boolean));
-  return body.map((items) => Object.fromEntries(header.map((key, index) => [key, items[index] ?? ""])));
+  return body.map((items) =>
+    Object.fromEntries(header.map((key, index) => [key, items[index] ?? ""])),
+  );
 }
 
 async function fetchJson(url) {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
+    );
   }
   return response.json();
 }
@@ -67,7 +72,10 @@ class CdpPage {
   async connect() {
     this.ws = new WebSocket(this.target.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("WebSocket timeout")), 10000);
+      const timeout = setTimeout(
+        () => reject(new Error("WebSocket timeout")),
+        10000,
+      );
       this.ws.onopen = () => {
         clearTimeout(timeout);
         resolve();
@@ -121,16 +129,20 @@ class CdpPage {
 
 async function getAtlassianPage() {
   const pages = await fetchJson(`${CDP_BASE}/json/list`);
-  const target = pages.find((page) => page.type === "page" && page.url.includes("atlassian.net"));
+  const target = findAllowedJiraPage(pages);
   if (!target) {
-    throw new Error("No logged-in Atlassian page found in Chrome DevTools targets.");
+    throw new Error(
+      "No logged-in Atlassian page found in Chrome DevTools targets.",
+    );
   }
   const page = new CdpPage(target);
   await page.connect();
   return page;
 }
 
-const rows = parseCsv(fs.readFileSync(path.join(DEV_DIR, "jira-lcsp-estimate-plan.csv"), "utf8"));
+const rows = parseCsv(
+  fs.readFileSync(path.join(DEV_DIR, "jira-lcsp-estimate-plan.csv"), "utf8"),
+);
 
 const page = await getAtlassianPage();
 try {

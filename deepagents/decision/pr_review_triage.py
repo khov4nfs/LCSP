@@ -22,6 +22,22 @@ from .shadow import (
 
 
 JIRA_ID_PATTERN = re.compile(r"\bLCSP-\d+\b")
+_SHA_PATTERN = re.compile(r"[0-9a-f]{40}", re.IGNORECASE)
+_PATH_PATTERN = re.compile(r"[A-Za-z0-9_./-]{1,240}")
+_IDENTIFIER_PATTERN = re.compile(r"[A-Za-z0-9_:/.-]{1,160}")
+_SENSITIVE_KEY_PATTERN = re.compile(
+    r"(?:secret|token|password|credential|authorization|api[_-]?key)", re.IGNORECASE
+)
+_SENSITIVE_VALUE_PATTERNS = (
+    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/-]+=*\b"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9._-]{20,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(
+        r"\b(?:api[_-]?key|token|secret|password|credential)\s*[:=]\s*['\"]?[A-Za-z0-9._~+/-]{12,}",
+        re.IGNORECASE,
+    ),
+)
 
 
 class JsonlTelemetrySink:
@@ -32,10 +48,11 @@ class JsonlTelemetrySink:
         self.events: list[dict[str, Any]] = []
 
     def __call__(self, event: dict[str, Any]) -> None:
-        self.events.append(event)
+        safe_event = _safe_telemetry_event(event)
+        self.events.append(safe_event)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event, sort_keys=True) + "\n")
+            handle.write(json.dumps(safe_event, sort_keys=True) + "\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -108,16 +125,13 @@ def main(argv: list[str] | None = None) -> int:
         )
     except Exception as exc:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            json.dumps(
-                {
-                    "skipped": True,
-                    "fallbackReason": "PR_REVIEW_TRIAGE_OBSERVATION_FAILED",
-                    "errorType": type(exc).__name__,
-                },
-                sort_keys=True,
-            ),
-            encoding="utf-8",
+        _write_safe_json(
+            output_path,
+            {
+                "skipped": True,
+                "fallbackReason": "PR_REVIEW_TRIAGE_OBSERVATION_FAILED",
+                "errorType": type(exc).__name__,
+            },
         )
         print(
             "LCSP PR-review shadow triage skipped "
@@ -176,7 +190,7 @@ def write_pr_review_shadow_triage_packet(
         "packet": _packet_payload(packet),
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    _write_safe_json(output_path, payload)
     return payload
 
 
@@ -221,7 +235,7 @@ def record_pr_review_shadow_triage_packet(
             ),
         }
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        _write_safe_json(output_path, payload)
         return payload
     trusted_metadata_error: str | None = None
     if trusted_compare_path is not None:
@@ -252,7 +266,7 @@ def record_pr_review_shadow_triage_packet(
             "trustedMetadataError": trusted_metadata_error,
         }
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        _write_safe_json(output_path, payload)
         return payload
     authoritative_domain = authoritative_domain or infer_authoritative_domain(
         packet.changed_filenames
@@ -266,7 +280,7 @@ def record_pr_review_shadow_triage_packet(
             "authoritativeReviewDomain": authoritative_domain,
         }
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        _write_safe_json(output_path, payload)
         return payload
     sink = JsonlTelemetrySink(output_path.with_suffix(".events.jsonl"))
     observer = (
@@ -318,8 +332,7 @@ def _record_packet(
         "ciStateCodes": list(packet.ci_state_codes),
         "eventCount": len(sink.events),
     }
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    _write_safe_json(output_path, payload)
     return payload
 
 
@@ -474,7 +487,217 @@ def _default_observer(sink: JsonlTelemetrySink) -> ShadowDecisionObserver:
 
 
 def _packet_payload(packet: PrReviewTriagePacket) -> dict[str, Any]:
-    return {key: value for key, value in asdict(packet).items() if value is not None}
+    return _redact_persisted_value(
+        {key: value for key, value in asdict(packet).items() if value is not None}
+    )
+
+
+def _write_safe_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(_safe_report_document(payload), sort_keys=True), encoding="utf-8"
+    )
+
+
+def _safe_report_document(payload: Any) -> dict[str, Any]:
+    """Persist only the bounded report schema, never an arbitrary input mapping."""
+    if not isinstance(payload, dict):
+        return {"recordingStatus": "INVALID_REPORT_PAYLOAD"}
+    schema = payload.get("schemaVersion")
+    if schema == "LCSP_PR_REVIEW_TRIAGE_PACKET_V1":
+        packet = payload.get("packet")
+        return {
+            "schemaVersion": schema,
+            "recordingStatus": "PACKET_READY_UNTRUSTED_PR_STAGE",
+            "typedResultRecorded": False,
+            "trustedRecorderRequired": True,
+            "authoritativeReviewDomain": _safe_domain(payload.get("authoritativeReviewDomain")),
+            "packet": _safe_packet_document(packet),
+        }
+
+    allowed = {
+        "decisionId", "decisionType", "authoritativeAction", "shadowProposedAction",
+        "agreement", "confidence", "fallbackReason", "schemaVersion", "recordingStatus",
+        "typedResultRecorded", "prNumber", "baseSha", "headSha", "authoritativeReviewDomain",
+        "changedFileCount", "changeCategories", "ciStateCodes", "eventCount", "correlationMismatches",
+        "trustedCorrelation", "packet", "skipped", "trustedMetadataError", "errorType",
+    }
+    result: dict[str, Any] = {}
+    for key in allowed:
+        if key not in payload:
+            continue
+        value = payload[key]
+        if key in {"baseSha", "headSha"}:
+            result[key] = _safe_sha(value)
+        elif key in {"prNumber", "changedFileCount", "eventCount"}:
+            result[key] = _safe_nonnegative_int(value)
+        elif key == "authoritativeReviewDomain":
+            result[key] = _safe_domain(value)
+        elif key in {"authoritativeAction", "shadowProposedAction"}:
+            result[key] = _safe_identifier(value)
+        elif key in {"changeCategories", "ciStateCodes", "correlationMismatches"}:
+            result[key] = _safe_identifiers(value)
+        elif key == "trustedCorrelation":
+            result[key] = _safe_correlation(value)
+        elif key == "packet":
+            result[key] = _safe_packet_document(value)
+        elif key in {"decisionId", "decisionType", "fallbackReason", "schemaVersion", "recordingStatus"}:
+            result[key] = _safe_identifier(value)
+        elif key in {"agreement", "typedResultRecorded"}:
+            result[key] = value if isinstance(value, bool) else None
+        elif key == "skipped":
+            result[key] = value if isinstance(value, bool) else None
+        elif key in {"trustedMetadataError", "errorType"}:
+            result[key] = _safe_error_identifier(value)
+        elif key == "confidence":
+            result[key] = value if isinstance(value, (int, float)) else None
+    return result
+
+
+def _safe_packet_document(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    result: dict[str, Any] = {}
+    for key in ("pr_number", "addition_count", "deletion_count"):
+        if key in value:
+            result[key] = _safe_nonnegative_int(value[key])
+    for key in ("head_sha", "base_sha"):
+        if key in value:
+            result[key] = _safe_sha(value[key])
+    for key in ("changed_filenames", "change_categories", "jira_issue_ids", "acceptance_criteria_ids", "ci_state_codes", "repository_change_metadata", "diff_stat_keys"):
+        if key in value:
+            result[key] = _safe_identifiers(value[key], path_values=key == "changed_filenames")
+    return result
+
+
+def _safe_correlation(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "prNumber": _safe_nonnegative_int(value.get("prNumber")),
+        "headSha": _safe_sha(value.get("headSha")),
+        "baseSha": _safe_sha(value.get("baseSha")),
+    }
+
+
+def _safe_sha(value: Any) -> str | None:
+    text = _text(value)
+    return text if text and _SHA_PATTERN.fullmatch(text) else None
+
+
+def _safe_nonnegative_int(value: Any) -> int | None:
+    number = _int_or_none(value)
+    return number if number is not None and 0 <= number <= 1_000_000 else None
+
+
+def _safe_identifier(value: Any) -> str | None:
+    text = _text(value)
+    if not text or not _IDENTIFIER_PATTERN.fullmatch(text):
+        return None
+    if any(pattern.search(text) for pattern in _SENSITIVE_VALUE_PATTERNS):
+        return None
+    return text
+
+
+def _safe_error_identifier(value: Any) -> str:
+    """Keep only known diagnostic/error identifiers in durable reports."""
+    if value == "AssertionError":
+        return "AssertionError"
+    if value == "FileNotFoundError":
+        return "FileNotFoundError"
+    if value == "JSONDecodeError":
+        return "JSONDecodeError"
+    if value == "KeyError":
+        return "KeyError"
+    if value == "OSError":
+        return "OSError"
+    if value == "PermissionError":
+        return "PermissionError"
+    if value == "RuntimeError":
+        return "RuntimeError"
+    if value == "TypeError":
+        return "TypeError"
+    if value == "ValueError":
+        return "ValueError"
+    if value == "TRUSTED_COMPARE_JSON_MISSING":
+        return "TRUSTED_COMPARE_JSON_MISSING"
+    return "UNKNOWN_ERROR"
+
+
+def _safe_path(value: Any) -> str | None:
+    text = _text(value)
+    if not text or not _PATH_PATTERN.fullmatch(text):
+        return None
+    if any(pattern.search(text) for pattern in _SENSITIVE_VALUE_PATTERNS):
+        return None
+    return text
+
+
+def _safe_domain(value: Any) -> str:
+    if value == "AUTH":
+        return "AUTH"
+    if value == "BILLING":
+        return "BILLING"
+    if value == "REPOSITORY":
+        return "REPOSITORY"
+    if value == "AGENT_RUNTIME":
+        return "AGENT_RUNTIME"
+    if value == "LEGAL_REQUIREMENTS":
+        return "LEGAL_REQUIREMENTS"
+    if value == "CI_RELEASE":
+        return "CI_RELEASE"
+    if value == "WEB":
+        return "WEB"
+    if value == "DATA":
+        return "DATA"
+    if value == "OTHER":
+        return "OTHER"
+    return "OTHER"
+
+
+def _safe_identifiers(value: Any, *, path_values: bool = False) -> list[str]:
+    if not isinstance(value, (list, tuple)):
+        return []
+    validator = _safe_path if path_values else _safe_identifier
+    return [text for item in value if (text := validator(item)) is not None]
+
+
+def _safe_telemetry_event(event: dict[str, Any]) -> dict[str, Any]:
+    event_type = _safe_identifier(event.get("eventType"))
+    data = event.get("data")
+    safe_data: dict[str, Any] = {}
+    if isinstance(data, dict):
+        allowed_text_keys = ("integration", "authoritativeAction", "shadowProposedAction", "fallbackReason")
+        for key, value in data.items():
+            if key in allowed_text_keys:
+                safe_data[key] = _safe_identifier(value)
+            elif key not in {"agreement", "confidence"}:
+                safe_data[key] = "[REDACTED]"
+        for key in ("agreement",):
+            if key in data:
+                safe_data[key] = data[key] if isinstance(data[key], bool) else None
+        if "confidence" in data:
+            safe_data["confidence"] = data["confidence"] if isinstance(data["confidence"], (int, float)) else None
+    return {"eventType": event_type, "data": safe_data}
+
+
+def _redact_persisted_value(value: Any, *, key: str | None = None) -> Any:
+    if key and _SENSITIVE_KEY_PATTERN.search(key):
+        return "[REDACTED]"
+    if isinstance(value, dict):
+        return {
+            str(item_key): _redact_persisted_value(item, key=str(item_key))
+            for item_key, item in value.items()
+        }
+    if isinstance(value, tuple):
+        return tuple(_redact_persisted_value(item) for item in value)
+    if isinstance(value, list):
+        return [_redact_persisted_value(item) for item in value]
+    if isinstance(value, str) and any(
+        pattern.search(value) for pattern in _SENSITIVE_VALUE_PATTERNS
+    ):
+        return "[REDACTED]"
+    return value
 
 
 def _packet_from_payload(payload: Any) -> PrReviewTriagePacket:
