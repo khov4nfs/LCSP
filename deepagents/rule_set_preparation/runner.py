@@ -44,7 +44,7 @@ def run_rule_set_preparation(
 
     The API owns every state transition: an activated or invalid submission is recorded by
     the submit transaction itself; this function records ``FAILED`` only when the agent
-    produced no submission (model/runtime/legal-source error).
+    explicitly reported a blocked source or encountered a model/runtime/legal-source error.
     """
     try:
         bundle = api.claim_rule_set_preparation(run_id)
@@ -91,8 +91,15 @@ def run_rule_set_preparation(
                 }
 
     if context.submission is None:
-        _fail(api, run_id, NO_SUBMISSION)
-        return {"state": "FAILED", "submission": None, "failureReason": NO_SUBMISSION, "trace": context.trace}
+        reason = NO_SUBMISSION if context.source_blocked is not None else RUNTIME_ERROR
+        _fail(api, run_id, reason)
+        logger.warning("RULE_SET_PREPARATION_WITHOUT_SUBMISSION", run_id=run_id,
+                       failure_reason=reason,
+                       source_blocked=context.source_blocked,
+                       validation_calls=context.validation_calls,
+                       validation_outcome=(context.last_validation or {}).get("outcome"),
+                       submission_attempted=any(t.get("tool") == "submit" for t in context.trace))
+        return {"state": "FAILED", "submission": None, "failureReason": reason, "trace": context.trace}
     outcome = context.submission.get("validation", {}).get("outcome")
     return {
         "state": "SUCCEEDED" if outcome == "PASSED" else "FAILED",
