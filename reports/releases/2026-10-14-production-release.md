@@ -34,7 +34,7 @@ The repository's release convention is a dated `chore: LCSP-999 release YYYY-MM-
 
 **Migration:** [`20261013132644_re_generate_db`](../../apps/api/prisma/migrations/20261013132644_re_generate_db/migration.sql), timestamp 2026-10-13 13:26:44.
 
-The migration reconciles schema names and indexes after the preceding tracked migration `20261013100000_agent_stream_boundaries`. It removes obsolete foreign-key/index definitions, renames legacy Auth-prefixed constraints to the current `AuditEvent` and `User` names, drops the `AuthRecord.updatedAt` database default, adds composite indexes for `AuditEvent(resourceId, eventType, createdAt)` and `RepositoryConnection(userId, provider, status)`, and drops the unused `WizardProfile` table and `WizardProfileStatus` type. Current application source has no `WizardProfile` references.
+The migration reconciles schema names and indexes after the preceding tracked migration `20261013100000_agent_stream_boundaries`. It removes obsolete foreign-key/index definitions, renames legacy Auth-prefixed constraints to the current `AuditEvent` and `User` names, drops the `AuthRecord.updatedAt` database default, adds composite indexes for `AuditEvent(resourceId, eventType, createdAt)` and `RepositoryConnection(userId, provider, status)`, and drops the unused `WizardProfile` table and `WizardProfileStatus` type. It preserves the database-only composite foreign key on `LegalRequirementContextRelation` that prevents a relation from targeting a rule in another rule-set version. Current application source has no `WizardProfile` references.
 
 The table/type drop is destructive and is not backward-compatible for any retained `WizardProfile` rows. No production row inventory was performed. Before production application, confirm that the table contains no data that must be retained and that no old application instance depends on it. The migration has not been verified as applied to production. Once applied, reverting the migration alone cannot restore dropped rows; recovery requires an approved backup restore or a forward repair.
 
@@ -44,8 +44,9 @@ The table/type drop is destructive and is not backward-compatible for any retain
 - PR #381: 25 checks passed, 0 failed.
 - PR #382: 28 checks passed, 0 failed.
 - `DATABASE_URL=<dedicated local test database> pnpm --filter @lcsp/api exec prisma validate --schema prisma/schema.prisma`: PASS (Prisma 7.8.0).
-- Fresh disposable PostgreSQL 16 migration replay: PASS; all 109 migrations, including `20261013132644_re_generate_db`, applied. `prisma migrate status` reported up to date, and `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` reported no difference.
-- `pnpm run check:contracts`: PASS. Branch-name validation: PASS.
+- Fresh disposable PostgreSQL 16 migration replay: PASS; all 109 migrations, including `20261013132644_re_generate_db`, applied, and `prisma migrate status` reported up to date. The Prisma schema diff reports the intentionally database-only composite foreign key on `LegalRequirementContextRelation` as absent from the Prisma relation model; the schema comment documents this raw constraint, and the migration preserves it.
+- `tests/compliance-rule-set-persistence.mjs`: PASS (29 database guarantees). `tests/assessment-lifecycle-migrated-db.mjs`: PASS (16 migration constraint assertions).
+- `scripts/check-canonical-terminology.mjs`: PASS. `pnpm run check:contracts`: PASS. Branch-name validation: PASS.
 - Prettier formatting and relative Markdown-link checks: PASS across the eight changed Markdown files. The secret-pattern scan found zero matches in the six checked release/security and migration files.
 - `git diff --check` and `git diff --cached --check`: PASS. The documentation PR's required CI status is authoritative on its exact GitHub head. No local full typecheck or lint suite is claimed for this docs/migration-only change.
 - The current repository workflow runs Python tests with `pytest`; no Ruff workflow or project check is configured.

@@ -7,8 +7,8 @@
 -- DropForeignKey
 ALTER TABLE "AssessmentHumanRequest" DROP CONSTRAINT "AssessmentHumanRequest_resolved_fact_fkey";
 
--- DropForeignKey
-ALTER TABLE "LegalRequirementContextRelation" DROP CONSTRAINT "LegalRequirementContextRelation_toRuleId_ruleSetVersionId_fkey";
+-- Preserve this database-only composite FK: it prevents a context relation from
+-- targeting a rule in a different ComplianceRuleSetVersion.
 
 -- DropForeignKey
 ALTER TABLE "WizardProfile" DROP CONSTRAINT "WizardProfile_assessmentId_fkey";

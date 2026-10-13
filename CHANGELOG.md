@@ -24,7 +24,7 @@ do not rewrite older entries unless correcting a factual error.
 
 #### Migration
 
-- Added [`20261013132644_re_generate_db`](apps/api/prisma/migrations/20261013132644_re_generate_db/migration.sql) to reconcile the current schema, remove the unused `WizardProfile` table/type, and add AuditEvent and RepositoryConnection indexes. The table drop is destructive if rows remain; production application is not verified.
+- Added [`20261013132644_re_generate_db`](apps/api/prisma/migrations/20261013132644_re_generate_db/migration.sql) to reconcile the current schema, remove the unused `WizardProfile` table/type, and add AuditEvent and RepositoryConnection indexes while preserving the rule-set boundary constraint. The table drop is destructive if rows remain; production application is not verified.
 
 #### Operations
 

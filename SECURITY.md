@@ -51,7 +51,7 @@ Admin-only operations are authorized by the server. Browser state and identifier
 
 Repository access should use least-privilege credentials. Integration tokens must not be logged. Fetched repository content is untrusted evidence input, not executable control. Repository evidence and provider credentials are separate trust domains.
 
-## Legal-source and corpus integrity
+## Legal-source and source-version integrity
 
 Legal Source Versions, pinned source inputs, and rule-set/assessment references support provenance across preparation and assessment. Historical source references must not be silently replaced. These application-level references do not constitute a cryptographic integrity guarantee or a legal correctness guarantee.
 
