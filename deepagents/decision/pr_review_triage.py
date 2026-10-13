@@ -520,7 +520,7 @@ def _safe_report_document(payload: Any) -> dict[str, Any]:
         "agreement", "confidence", "fallbackReason", "schemaVersion", "recordingStatus",
         "typedResultRecorded", "prNumber", "baseSha", "headSha", "authoritativeReviewDomain",
         "changedFileCount", "changeCategories", "ciStateCodes", "eventCount", "correlationMismatches",
-        "trustedCorrelation", "packet",
+        "trustedCorrelation", "packet", "skipped", "trustedMetadataError", "errorType",
     }
     result: dict[str, Any] = {}
     for key in allowed:
@@ -545,6 +545,10 @@ def _safe_report_document(payload: Any) -> dict[str, Any]:
             result[key] = _safe_identifier(value)
         elif key in {"agreement", "typedResultRecorded"}:
             result[key] = value if isinstance(value, bool) else None
+        elif key == "skipped":
+            result[key] = value if isinstance(value, bool) else None
+        elif key in {"trustedMetadataError", "errorType"}:
+            result[key] = _safe_error_identifier(value)
         elif key == "confidence":
             result[key] = value if isinstance(value, (int, float)) else None
     return result
@@ -593,6 +597,31 @@ def _safe_identifier(value: Any) -> str | None:
     if any(pattern.search(text) for pattern in _SENSITIVE_VALUE_PATTERNS):
         return None
     return text
+
+
+def _safe_error_identifier(value: Any) -> str:
+    """Keep only known diagnostic/error identifiers in durable reports."""
+    if value == "AssertionError":
+        return "AssertionError"
+    if value == "FileNotFoundError":
+        return "FileNotFoundError"
+    if value == "JSONDecodeError":
+        return "JSONDecodeError"
+    if value == "KeyError":
+        return "KeyError"
+    if value == "OSError":
+        return "OSError"
+    if value == "PermissionError":
+        return "PermissionError"
+    if value == "RuntimeError":
+        return "RuntimeError"
+    if value == "TypeError":
+        return "TypeError"
+    if value == "ValueError":
+        return "ValueError"
+    if value == "TRUSTED_COMPARE_JSON_MISSING":
+        return "TRUSTED_COMPARE_JSON_MISSING"
+    return "UNKNOWN_ERROR"
 
 
 def _safe_path(value: Any) -> str | None:

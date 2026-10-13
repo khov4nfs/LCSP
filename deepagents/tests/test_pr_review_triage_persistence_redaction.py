@@ -1,13 +1,34 @@
 import json
 
+import decision.pr_review_triage as pr_review_triage
 from decision.pr_review_triage import (
     JsonlTelemetrySink,
     _packet_payload,
     _redact_persisted_value,
     _safe_domain,
     _write_safe_json,
+    record_pr_review_shadow_triage_packet,
 )
-from decision.shadow import PrReviewTriagePacket
+from decision.shadow import PrReviewTriagePacket, ShadowDecisionRecord
+
+
+def _write_packet_input(tmp_path):
+    packet_path = tmp_path / "packet.json"
+    packet_path.write_text(
+        json.dumps(
+            {
+                "schemaVersion": "LCSP_PR_REVIEW_TRIAGE_PACKET_V1",
+                "packet": {
+                    "pr_number": 359,
+                    "head_sha": "b" * 40,
+                    "base_sha": "c" * 40,
+                    "changed_filenames": ["deepagents/decision/shadow.py"],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return packet_path
 
 
 def test_packet_projection_redacts_secret_like_values():
@@ -93,3 +114,107 @@ def test_safe_domain_returns_only_approved_constants():
     assert _safe_domain(" AUTH ") == "OTHER"
     assert _safe_domain("ghp_123456789012345678901234567890123456") == "OTHER"
     assert _safe_domain("AUTH\u202e") == "OTHER"
+
+
+def test_normal_record_persists_skipped_status_from_producer(tmp_path):
+    class FakeObserver:
+        def observe_pr_review_triage(self, packet, *, authoritative_domain=None):
+            return ShadowDecisionRecord(
+                decision_id="review-triage-v1:359:" + "b" * 40,
+                decision_type="PR_REVIEW_TRIAGE",
+                authoritative_action=authoritative_domain,
+                shadow_proposed_action="AGENT_RUNTIME",
+                agreement=True,
+                confidence=0.9,
+                fallback_reason=None,
+                skipped=False,
+            )
+
+    output = tmp_path / "normal.json"
+    result = record_pr_review_shadow_triage_packet(
+        packet_path=_write_packet_input(tmp_path),
+        output_path=output,
+        trusted_authoritative_domain="REPOSITORY",
+        observer_factory=lambda sink: FakeObserver(),
+    )
+
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+    assert result["skipped"] is False
+    assert persisted["skipped"] is False
+
+
+def test_skipped_record_persists_skipped_status_from_producer(tmp_path):
+    class FakeObserver:
+        def observe_pr_review_triage(self, packet, *, authoritative_domain=None):
+            return ShadowDecisionRecord(
+                decision_id="review-triage-v1:359:" + "b" * 40,
+                decision_type="PR_REVIEW_TRIAGE",
+                authoritative_action=authoritative_domain,
+                shadow_proposed_action=None,
+                agreement=None,
+                confidence=None,
+                fallback_reason="DUPLICATE_DECISION_ID",
+                skipped=True,
+            )
+
+    output = tmp_path / "skipped.json"
+    result = record_pr_review_shadow_triage_packet(
+        packet_path=_write_packet_input(tmp_path),
+        output_path=output,
+        trusted_authoritative_domain="REPOSITORY",
+        observer_factory=lambda sink: FakeObserver(),
+    )
+
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+    assert result["skipped"] is True
+    assert persisted["skipped"] is True
+    assert persisted["fallbackReason"] == "DUPLICATE_DECISION_ID"
+
+
+def test_invalid_trusted_metadata_persists_safe_diagnostic(tmp_path):
+    output = tmp_path / "trusted-metadata-invalid.json"
+    result = record_pr_review_shadow_triage_packet(
+        packet_path=_write_packet_input(tmp_path),
+        output_path=output,
+        require_trusted_metadata=True,
+    )
+
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+    assert result["trustedMetadataError"] == "TRUSTED_COMPARE_JSON_MISSING"
+    assert persisted["trustedMetadataError"] == "TRUSTED_COMPARE_JSON_MISSING"
+
+
+def test_top_level_exception_persists_safe_status_without_message(tmp_path, monkeypatch):
+    secret = "token: ghp_123456789012345678901234567890123456"
+
+    def raise_observation(**_kwargs):
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(pr_review_triage, "run_pr_review_shadow_triage", raise_observation)
+    output = tmp_path / "exception.json"
+
+    assert pr_review_triage.main(["--output", str(output)]) == 0
+
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+    assert persisted["skipped"] is True
+    assert persisted["fallbackReason"] == "PR_REVIEW_TRIAGE_OBSERVATION_FAILED"
+    assert persisted["errorType"] == "RuntimeError"
+    assert secret not in output.read_text(encoding="utf-8")
+
+
+def test_invalid_audit_status_values_use_safe_fallbacks(tmp_path):
+    output = tmp_path / "invalid-status.json"
+    _write_safe_json(
+        output,
+        {
+            "schemaVersion": "LCSP_PR_REVIEW_TRIAGE_RECORD_V1",
+            "skipped": "yes",
+            "trustedMetadataError": "secret: raw-value",
+            "errorType": {"message": "nested secret"},
+        },
+    )
+
+    persisted = json.loads(output.read_text(encoding="utf-8"))
+    assert persisted["skipped"] is None
+    assert persisted["trustedMetadataError"] == "UNKNOWN_ERROR"
+    assert persisted["errorType"] == "UNKNOWN_ERROR"
