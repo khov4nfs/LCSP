@@ -88,7 +88,11 @@ test("preparation activity groups native work and settles terminal events", () =
     event(8, T.boundaryCompleted, { status: "COMPLETED" }),
   ];
 
-  const activities = projectPreparationActivity(events, true);
+  const activities = projectPreparationActivity(
+    events,
+    true,
+    AGENT_EXECUTION_STATES.SUCCEEDED,
+  );
   assert.equal(activities.length, 5);
   assert.equal(
     activities[1]?.details.sourcePath,
@@ -111,6 +115,47 @@ test("preparation activity groups native work and settles terminal events", () =
     activities.every(
       (activity) => !JSON.stringify(activity).includes("private source"),
     ),
+  );
+});
+
+test("boundary completion reflects the authoritative preparation outcome", () => {
+  const events = [
+    event(1, T.boundaryStarted),
+    event(2, T.semanticToolCall, {
+      toolName: "task",
+      toolCallId: "reader-71",
+      status: "RUNNING",
+      data: { native_tool: "task", subagent_type: "legal-source-reader" },
+    }),
+    event(3, T.boundaryCompleted, { status: "COMPLETED" }),
+  ];
+
+  const failed = projectPreparationActivity(
+    events,
+    true,
+    AGENT_EXECUTION_STATES.FAILED,
+  );
+  assert.equal(
+    failed.at(-1)?.labelKey,
+    "pages.complianceRuleSets.activity.failed",
+  );
+  assert.equal(failed.at(-1)?.status, "FAILED");
+  assert.equal(failed[1]?.status, "FAILED");
+
+  const succeeded = projectPreparationActivity(
+    events,
+    true,
+    AGENT_EXECUTION_STATES.SUCCEEDED,
+  );
+  assert.equal(
+    succeeded.at(-1)?.labelKey,
+    "pages.complianceRuleSets.activity.completed",
+  );
+
+  const unknown = projectPreparationActivity(events, true);
+  assert.equal(
+    unknown.at(-1)?.labelKey,
+    "pages.complianceRuleSets.activity.executionFinished",
   );
 });
 
@@ -154,7 +199,7 @@ test("cancellation is terminal and settles every active preparation activity", (
       }),
     ],
     true,
-    true,
+    AGENT_EXECUTION_STATES.CANCELLED,
   );
 
   assert.equal(
