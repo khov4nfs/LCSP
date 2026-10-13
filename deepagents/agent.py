@@ -71,8 +71,6 @@ if os.environ.get("LCSP_LOCAL_GRAPH_DEV") == "1":
 def create_root_agent(*, checkpointer=None, store=None):
     """Build the native LCSP Deep Agent graph for local or hosted runtimes."""
     root_model = resolve_agent_model("root")
-    from middleware.localization import ResponseLocalizationMiddleware
-
     return create_deep_agent(
         name="lcsp-agent",
         model=root_model,
@@ -82,7 +80,6 @@ def create_root_agent(*, checkpointer=None, store=None):
         middleware=[
             dispatch_agent_runtime_system_event,
             inject_lcsp_runtime_context,
-            ResponseLocalizationMiddleware(),
             AgentRoleMiddleware("root"),
             *MODEL_GOVERNANCE_MIDDLEWARE,
             TodoListMiddleware(),

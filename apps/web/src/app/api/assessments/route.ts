@@ -9,7 +9,6 @@ import {
 import { requireSessionToken } from "@/lib/server/session-token";
 import { problemJson } from "@/lib/server/problem-json";
 import {
-  upstreamJson,
   upstreamRequest,
   validatedUpstreamJson,
 } from "@/lib/server/upstream-request";
