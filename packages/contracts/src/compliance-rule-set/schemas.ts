@@ -12,6 +12,7 @@ import {
   COMPLIANCE_RULE_SET_LIMITS,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES,
   RULE_SET_PREPARATION_FAILURE_REASONS,
+  RULE_SET_PREPARATION_REFUSAL_REASONS,
 } from "./constants.ts";
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
@@ -210,7 +211,8 @@ export const legalContextRelationSchema = z
   .strict()
   .refine(
     (relation) =>
-      (relation.toLegalRequirementId === null) !== (relation.toSourceRef === null),
+      (relation.toLegalRequirementId === null) !==
+      (relation.toSourceRef === null),
     {
       message: "exactly one of toLegalRequirementId or toSourceRef is required",
     },
@@ -245,7 +247,10 @@ export const complianceRuleSetPacketSchema = z
     packet.assessmentRules.forEach((rule, ruleIndex) => {
       rule.legalRequirementIds.forEach((legalRequirementId, referenceIndex) => {
         coveredIds.add(legalRequirementId);
-        if (legalRequirements.get(legalRequirementId)?.coverage.state === NON_ASSESSABLE) {
+        if (
+          legalRequirements.get(legalRequirementId)?.coverage.state ===
+          NON_ASSESSABLE
+        ) {
           context.addIssue({
             code: "custom",
             path: [
@@ -274,12 +279,13 @@ export const complianceRuleSetPacketSchema = z
       }
     });
   });
-export type ComplianceRuleSetPacket = z.infer<typeof complianceRuleSetPacketSchema>;
+export type ComplianceRuleSetPacket = z.infer<
+  typeof complianceRuleSetPacketSchema
+>;
 
 /**
  * Internal command input that starts one Rule Set Preparation run for one Legal Source Version.
- * It is never an HTTP body: the only callers are the Legal Source activation consumer and the
- * operator retry of a failed run, and the key derives from the authoritative source identity.
+ * It is never an HTTP body: activation, Admin preparation and retry derive this input on the server.
  */
 export const ruleSetPreparationStartRequestSchema = z
   .object({
@@ -301,6 +307,25 @@ export const ruleSetPreparationRunSchema = z
   .strict();
 export type RuleSetPreparationRun = z.infer<typeof ruleSetPreparationRunSchema>;
 
+/** Admin supplies no source, idempotency key or generated rule-set content. */
+export const ruleSetPreparationAdminRequestSchema = z
+  .strictObject({})
+  .default({});
+export type RuleSetPreparationAdminRequest = z.infer<
+  typeof ruleSetPreparationAdminRequestSchema
+>;
+
+export const ruleSetPreparationAvailabilitySchema = z.strictObject({
+  legalSourceVersionId: z.uuid().nullable(),
+  legalSourceVersion: z.string().min(1).nullable(),
+  canStart: z.boolean(),
+  refusalReason: z.enum(RULE_SET_PREPARATION_REFUSAL_REASONS).nullable(),
+  currentRun: ruleSetPreparationRunSchema.nullable(),
+});
+export type RuleSetPreparationAvailability = z.infer<
+  typeof ruleSetPreparationAvailabilitySchema
+>;
+
 /**
  * One complete packet for one run. LegalSource identity, idempotency and digests are
  * server context; the agent supplies meaning only.
@@ -320,7 +345,10 @@ export const complianceRuleSetValidationFailureSchema = z
   .object({
     code: z.enum(COMPLIANCE_RULE_SET_FAILURE_CODES),
     /** Packet-local reference (rule/relation/locator id) the failure concerns. */
-    ref: z.string().max(COMPLIANCE_RULE_SET_LIMITS.maxShortTextLength).nullable(),
+    ref: z
+      .string()
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxShortTextLength)
+      .nullable(),
     detail: z
       .string()
       .max(COMPLIANCE_RULE_SET_LIMITS.maxShortTextLength)
@@ -471,10 +499,11 @@ export type RuleSetPreparationFailRequest = z.infer<
 
 /**
  * Operations view of the shared Compliance Rule Sets: the current ACTIVE version, its history and
- * every automatic preparation. It carries no start/publish/approve authority; the only operator
- * action is retrying a failed preparation of the same Legal Source Version.
+ * preparations, and server-resolved eligibility for an explicit Admin start. No publish/approve
+ * authority is exposed: preparation and retry both use the canonical command workflow.
  */
 export const complianceRuleSetHistorySchema = z.strictObject({
+  preparation: ruleSetPreparationAvailabilitySchema,
   ruleSets: z.array(
     complianceRuleSetReadModelSchema
       .pick({
@@ -505,4 +534,6 @@ export const complianceRuleSetHistorySchema = z.strictObject({
     }),
   ),
 });
-export type ComplianceRuleSetHistory = z.infer<typeof complianceRuleSetHistorySchema>;
+export type ComplianceRuleSetHistory = z.infer<
+  typeof complianceRuleSetHistorySchema
+>;

@@ -8,6 +8,7 @@ import { resolveAppMessage } from "@/lib/i18n";
 import { useComplianceRuleSetHistoryQuery } from "@/lib/api/compliance-rule-set-queries";
 import { AdminPageHeader } from "../molecules/admin-page-header";
 import { ComplianceRuleSetActiveCard } from "../molecules/compliance-rule-set-active-card";
+import { RuleSetPreparationAction } from "../molecules/rule-set-preparation-action";
 import { ComplianceRuleSetHistoryTable } from "./compliance-rule-set-history-table";
 import { RuleSetPreparationList } from "./rule-set-preparation-list";
 
@@ -16,7 +17,7 @@ const t = (key: string) => resolveAppMessage(key as MessageKey);
 /**
  * Compliance Rule Sets: an operations view of the shared rule set lifecycle
  * (Legal Source Version -> automatic Rule Set Preparation -> shared rule set version).
- * It never starts a preparation.
+ * Explicit Admin preparation uses the same workflow as Legal Source activation.
  */
 export function ComplianceRuleSetsPage() {
   const history = useComplianceRuleSetHistoryQuery();
@@ -47,6 +48,7 @@ export function ComplianceRuleSetsPage() {
           {t("pages.complianceRuleSets.preparations")}
         </h2>
         <RuleSetPreparationList preparations={history.data.preparations} />
+        <RuleSetPreparationAction availability={history.data.preparation} />
       </section>
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-semibold">

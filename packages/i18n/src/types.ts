@@ -54,6 +54,13 @@ export type PagesMessages = {
     emptyHistory: string;
     preparations: string;
     emptyPreparations: string;
+    prepare: string;
+    preparing: string;
+    prepareFailed: string;
+    confirmTitle: string;
+    confirmDescription: string;
+    confirmPrepare: string;
+    cancel: string;
     attempt: string;
     startedAt: string;
     startedBy: string;
@@ -1663,11 +1670,10 @@ export type PagesMessages = {
       administrationDescription: string;
       roleAdminLabel: string;
       navigationAria: string;
+      navigationToggle: string;
       sectionsAria: string;
       logoLabel: string;
       soonLabel: string;
-      identityFallbackName: string;
-      identityFallbackEmail: string;
     };
     overview: {
       title: string;

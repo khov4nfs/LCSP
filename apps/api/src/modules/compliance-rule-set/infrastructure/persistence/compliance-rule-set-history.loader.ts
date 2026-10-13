@@ -10,6 +10,7 @@ import {
 import { LEGAL_SOURCE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-source";
 import { toPrismaLegalSourceLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { loadRuleSetPreparationAvailability } from "./rule-set-preparation-availability.loader.js";
 
 @Injectable()
 export class ComplianceRuleSetHistoryLoader {
@@ -17,7 +18,7 @@ export class ComplianceRuleSetHistoryLoader {
   async load() {
     return this.prisma.$transaction(
       async (tx) => {
-        const [ruleSets, preparations] = await Promise.all([
+        const [ruleSets, preparations, preparation] = await Promise.all([
           tx.complianceRuleSetVersion.findMany({
             include: {
               legalSourceVersion: { select: { version: true } },
@@ -34,6 +35,7 @@ export class ComplianceRuleSetHistoryLoader {
             orderBy: { createdAt: "desc" },
             take: 100,
           }),
+          loadRuleSetPreparationAvailability(tx),
         ]);
         const approved = toPrismaLegalSourceLifecycleStatus(
           LEGAL_SOURCE_LIFECYCLE_STATUSES.active,
@@ -56,6 +58,7 @@ export class ComplianceRuleSetHistoryLoader {
           latestOf.set(group[0].legalSourceVersionId, group[0].id);
         }
         return complianceRuleSetHistorySchema.parse({
+          preparation,
           ruleSets: ruleSets.map((row) => ({
             ruleSetVersionId: row.id,
             version: row.version,

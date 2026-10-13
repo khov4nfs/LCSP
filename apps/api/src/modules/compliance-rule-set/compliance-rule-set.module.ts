@@ -10,6 +10,7 @@ import { ClaimRuleSetPreparationHandler } from "./application/commands/claim-rul
 import { FailRuleSetPreparationHandler } from "./application/commands/fail-rule-set-preparation/fail-rule-set-preparation.handler.js";
 import { RetryRuleSetPreparationHandler } from "./application/commands/retry-rule-set-preparation/retry-rule-set-preparation.handler.js";
 import { StartRuleSetPreparationHandler } from "./application/commands/start-rule-set-preparation/start-rule-set-preparation.handler.js";
+import { PrepareCurrentRuleSetHandler } from "./application/commands/prepare-current-rule-set/prepare-current-rule-set.handler.js";
 import { SubmitComplianceRuleSetHandler } from "./application/commands/submit-compliance-rule-set/submit-compliance-rule-set.handler.js";
 import { GetActiveComplianceRuleSetHandler } from "./application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.handler.js";
 import { GetComplianceRuleSetVersionHandler } from "./application/queries/get-compliance-rule-set-version/get-compliance-rule-set-version.handler.js";
@@ -35,6 +36,7 @@ import { ComplianceRuleSetController } from "./presentation/http/compliance-rule
     ComplianceRuleSetActivation,
     ComplianceRuleSetReadModelLoader,
     StartRuleSetPreparationHandler,
+    PrepareCurrentRuleSetHandler,
     RetryRuleSetPreparationHandler,
     LegalSourceActivatedConsumer,
     ClaimRuleSetPreparationHandler,

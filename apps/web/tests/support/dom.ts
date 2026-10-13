@@ -5,6 +5,7 @@ import type { Root } from "react-dom/client";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
+  pretendToBeVisual: true,
 });
 for (const [key, value] of Object.entries({
   window: dom.window,
@@ -22,6 +23,9 @@ for (const [key, value] of Object.entries({
   MouseEvent: dom.window.MouseEvent,
   Event: dom.window.Event,
   Node: dom.window.Node,
+  MutationObserver: dom.window.MutationObserver,
+  requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
+  cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window),
   getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
   React,
 })) {
@@ -100,9 +104,10 @@ function assert(value: unknown, message: string): asserts value {
 export type FetchCall = { url: string; method: string; body: string | null };
 
 /** Stubs `fetch` with envelope responses keyed by "METHOD /path" (query string ignored). */
-export function installFetch(
-  routes: Record<string, unknown>,
-): { calls: FetchCall[]; restore: () => void } {
+export function installFetch(routes: Record<string, unknown>): {
+  calls: FetchCall[];
+  restore: () => void;
+} {
   const original = globalThis.fetch;
   const calls: FetchCall[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
