@@ -10,13 +10,21 @@ from typing import Any
 import yaml
 
 TOP_LEVEL_KEYS = frozenset({"version", "routes", "roles", "fallbacks"})
-ROUTE_KEYS = frozenset({"provider", "model", "options"})
+ROUTE_KEYS = frozenset({"provider", "protocol", "model", "options"})
+PROTOCOLS = frozenset({"anthropic", "openai", "google_genai"})
+DEFAULT_PROTOCOLS = {
+    "openai": "openai",
+    "anthropic": "anthropic",
+    "google_genai": "google_genai",
+    "inception": "openai",
+}
+APX_PROTOCOLS = frozenset({"anthropic", "openai"})
 # Option keys are normalised (lowercase, strip every char outside [a-z0-9]) and rejected when the
 # result is "auth" or contains one of these parts: credentials, base URLs/endpoints, headers, proxy,
 # client objects and transports are trusted adapter config, never route options.
 PROTECTED_PARTS = (
     "apikey", "secret", "password", "authorization", "credential", "baseurl", "apibase", "apiurl",
-    "endpoint", "header", "proxy", "client", "transport", "accesstoken", "bearer", "privatekey",
+    "endpoint", "header", "proxy", "client", "transport", "protocol", "accesstoken", "bearer", "privatekey",
 )
 _WS = " \t\r\n\f\v"  # "blank"/"padded" = ASCII whitespace only, identical in model-routes.ts
 _INT = re.compile(r"[-+]?[0-9]+\Z|0o[0-7]+\Z|0x[0-9a-fA-F]+\Z")
@@ -104,6 +112,20 @@ def _check_options(value: Any, path: str) -> None:
         raise ValueError(f"{path} option values must be JSON values")
 
 
+def _default_protocol(provider: str, model: str) -> str:
+    if provider in DEFAULT_PROTOCOLS:
+        return DEFAULT_PROTOCOLS[provider]
+    if provider == "apx":
+        normalized_model = model.lower()
+        if normalized_model.startswith("claude-"):
+            return "anthropic"
+        if normalized_model.startswith(("gpt-", "o1-", "o3-", "o4-")):
+            return "openai"
+        # shortcut: infer legacy APX routes until every deployed route declares protocol.
+        return "anthropic"
+    raise ValueError(f"route provider {provider!r} requires an explicit protocol")
+
+
 def parse_model_routes(text: str, providers: tuple[str, ...]) -> tuple[dict, dict, dict]:
     """Validate YAML text; return ``(routes, roles, fallbacks)``. Raises ``ValueError``."""
     if "\t" in text:  # PyYAML and js-yaml disagree on tab handling; forbid tabs outright
@@ -134,17 +156,24 @@ def parse_model_routes(text: str, providers: tuple[str, ...]) -> tuple[dict, dic
         if not isinstance(route, dict):
             raise ValueError(f"{where} must be a mapping")
         if unknown := sorted(map(str, set(route) - ROUTE_KEYS)):
-            raise ValueError(f"{where}: unknown key {unknown}; allowed: provider, model, options")
+            raise ValueError(f"{where}: unknown key {unknown}; allowed: provider, protocol, model, options")
         provider, model = route.get("provider"), route.get("model")
         if not isinstance(provider, str) or provider not in providers:
             raise ValueError(f"{where}.provider must be exactly one of: {', '.join(providers)} (got {provider!r})")
         if not isinstance(model, str) or _blank(model) or model != model.strip(_WS):
             raise ValueError(f"{where}.model must be a non-blank string without leading/trailing whitespace (quote it in YAML)")
+        protocol = route["protocol"] if "protocol" in route else _default_protocol(provider, model)
+        if not isinstance(protocol, str) or protocol not in PROTOCOLS:
+            raise ValueError(f"{where}.protocol must be exactly one of: {', '.join(sorted(PROTOCOLS))} (got {protocol!r})")
+        if provider == "apx" and protocol not in APX_PROTOCOLS:
+            raise ValueError(f"{where}.protocol must be one of: {', '.join(sorted(APX_PROTOCOLS))}")
+        if provider in DEFAULT_PROTOCOLS and protocol != DEFAULT_PROTOCOLS[provider]:
+            raise ValueError(f"{where}.protocol must be {DEFAULT_PROTOCOLS[provider]!r} for provider {provider!r}")
         options = route.get("options", {})
         if not isinstance(options, dict):
             raise ValueError(f"{where}.options must be a mapping")
         _check_options(options, f"{where}.options")
-        routes[route_id] = {"provider": provider, "model": model, "options": options}
+        routes[route_id] = {"provider": provider, "protocol": protocol, "model": model, "options": options}
     for name, route_id in raw_roles.items():
         if not isinstance(name, str) or _blank(name):
             raise ValueError(f"role names must be non-blank strings, got {name!r}")

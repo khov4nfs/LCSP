@@ -9,13 +9,8 @@ import pytest
 from conftest import use_model_routes
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from middleware import usage_recovery, usage_metering
-from middleware.usage_recovery import (
-    _normalize_usage_recovery_payload,
-    drain,
-    enqueue_usage,
-    usage_recovery_key,
-)
+import model_policy as mp
+from middleware import usage_metering, usage_recovery
 from middleware.usage_metering import (
     DEFAULT_MAX_OUTPUT_TOKENS,
     AgentRoleMiddleware,
@@ -30,7 +25,16 @@ from middleware.usage_metering import (
     check_request_context,
     extract_provider_usage,
 )
-from orchestration.agent_stream import AgentStreamInterrupted, active_agent_stream_cancel
+from middleware.usage_recovery import (
+    _normalize_usage_recovery_payload,
+    drain,
+    enqueue_usage,
+    usage_recovery_key,
+)
+from orchestration.agent_stream import (
+    AgentStreamInterrupted,
+    active_agent_stream_cancel,
+)
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.callback_schemas import SettledUsagePayload
 from tools.common.capabilities.platform.config import resolve_usage_recovery_store_path
@@ -44,7 +48,7 @@ def _set_routes(monkeypatch, alpha_model="model-alpha", alpha_options=None):
                 "routes": {
                     "a": {"provider": "openai", "model": alpha_model, "options": alpha_options or {}},
                     "b": {"provider": "google_genai", "model": "future-model-v99"},
-                    "c": {"provider": "apx", "model": "model-gamma"},
+                    "c": {"provider": "apx", "protocol": "anthropic", "model": "model-gamma"},
                 },
                 "roles": {"default": "a", "narrator": "b"},
                 "fallbacks": {"a": ["c"]},
@@ -78,9 +82,15 @@ def _state(client=None, *, role="planner", run_id="run-1", assessment_id="assess
     )
 
 
-def _request(provider="openai", model_name="model-alpha", **extra):
+def _request(provider="openai", model_name="model-alpha", *, protocol=None, **extra):
+    protocol = protocol or {
+        "openai": "openai",
+        "google_genai": "google_genai",
+        "apx": "anthropic",
+        "inception": "openai",
+    }.get(provider)
     return SimpleNamespace(
-        model=SimpleNamespace(provider=provider, model_name=model_name), **extra
+        model=SimpleNamespace(provider=provider, protocol=protocol, model_name=model_name), **extra
     )
 
 
@@ -291,10 +301,10 @@ def test_arbitrary_future_model_without_pricing_metadata_executes():
 
 
 def test_model_identity_accepts_routed_models_and_rejects_unrouted():
-    assert_model_identity(SimpleNamespace(provider="apx", model_name="model-gamma"))
-    assert_model_identity(SimpleNamespace(provider="google_genai", model_name="future-model-v99"))
+    assert_model_identity(SimpleNamespace(provider="apx", protocol="anthropic", model_name="model-gamma"))
+    assert_model_identity(SimpleNamespace(provider="google_genai", protocol="google_genai", model_name="future-model-v99"))
     with pytest.raises(ModelIdentityMismatch):
-        assert_model_identity(SimpleNamespace(provider="openai", model_name="unapproved"))
+        assert_model_identity(SimpleNamespace(provider="openai", protocol="openai", model_name="unapproved"))
     assert ModelIdentityMismatch.status_code == 400
 
 
@@ -446,6 +456,7 @@ def test_model_call_telemetry_emits_heartbeat_and_completion(monkeypatch):
     assert {"MODEL_CALL_STARTED", "MODEL_CALL_HEARTBEAT", "MODEL_CALL_COMPLETED"} <= set(event_types)
     started = next(f for t, f in events if t == "MODEL_CALL_STARTED")
     assert started["data"]["provider"] == "google_genai"
+    assert started["data"]["protocol"] == "google_genai"
     assert started["data"]["model"] == "future-model-v99"
     assert started["data"]["timeout_seconds"] == 300.0
     assert len(client.payloads) == 1
@@ -584,10 +595,58 @@ def test_usage_reports_effective_runtime_model_of_the_resolved_route():
 
     runtime = payload.effectiveRuntimeModel
     assert (payload.provider, payload.model) == ("OPENAI", "model-alpha")
-    assert set(runtime) == {"provider", "model", "policyVersion", "effectiveAt"}
+    assert set(runtime) == {"provider", "protocol", "model", "policyVersion", "effectiveAt"}
     assert (runtime["provider"], runtime["model"]) == ("OPENAI", "model-alpha")
+    assert runtime["protocol"] == "openai"
     assert runtime["policyVersion"].startswith("cfg-")
     assert runtime["effectiveAt"] == "1970-01-01T00:00:00.000Z"
+
+
+@pytest.mark.parametrize(
+    ("protocol", "model_name", "client_provider"),
+    [
+        ("anthropic", "claude-sonnet-4-6-free", "anthropic"),
+        ("openai", "gpt-5.6-luna", "openai"),
+    ],
+    ids=["apx-anthropic", "apx-openai"],
+)
+def test_apx_usage_and_activity_keep_canonical_provider_and_route_protocol(
+    monkeypatch, protocol, model_name, client_provider
+):
+    use_model_routes(
+        monkeypatch,
+        {
+            "routes": {
+                "primary": {
+                    "provider": "apx",
+                    "protocol": protocol,
+                    "model": model_name,
+                }
+            },
+            "roles": {"default": "primary"},
+        },
+    )
+    route = mp.resolve_role("default")
+    model = mp.attach_model_route(
+        SimpleNamespace(provider=client_provider, model_name=model_name), route
+    )
+    request = SimpleNamespace(model=model, messages=[], tools=[])
+    client = FakeClient()
+    events = _capture_events(monkeypatch)
+
+    with activate_agent_run_state(_state(client)):
+        UsageMeteringMiddleware().wrap_model_call(request, lambda _: response())
+
+    assert len(client.payloads) == 1
+    payload = client.payloads[0]
+    assert (payload.provider, payload.model) == ("APX", model_name)
+    assert payload.effectiveRuntimeModel["provider"] == "APX"
+    assert payload.effectiveRuntimeModel["protocol"] == protocol
+    for event_type in ("MODEL_CALL_STARTED", "MODEL_CALL_COMPLETED"):
+        data = next(fields["data"] for kind, fields in events if kind == event_type)
+        assert (data["provider"], data["protocol"], data["model"]) == (
+            "apx", protocol, model_name
+        )
 
 
 def test_policy_version_changes_when_model_or_options_change(monkeypatch):

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import replace
 from pathlib import Path
 
-import model_policy as mp
 import pytest
+
+import model_policy as mp
 
 FIXTURE = Path(__file__).parent / "fixtures" / "model_routes_contract.json"
 CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))
@@ -54,6 +56,7 @@ def test_default_file_loads_without_override(monkeypatch):
         assert role in routes.roles
     # The committed default names a model, but tests must not pin which one: model id is configuration.
     assert routes.routes["primary"]["provider"] == "apx"
+    assert routes.routes["primary"]["protocol"] == "anthropic"
     assert isinstance(routes.routes["primary"]["model"], str) and routes.routes["primary"]["model"].strip()
 
 
@@ -99,6 +102,53 @@ def test_role_resolution_default_and_shared_route(routes):
     assert mp.resolve_role("triage").route_id == mp.resolve_role("root").route_id
     narrator = mp.resolve_role("narrator")
     assert (narrator.provider, narrator.model) == ("google_genai", "Future-Model-X9")  # case preserved
+    assert narrator.protocol == "google_genai"
+
+
+def test_protocol_defaults_and_legacy_apx_inference(set_model_routes):
+    set_model_routes(
+        {
+            "routes": {
+                "openai": {"provider": "openai", "model": "gpt-test"},
+                "anthropic": {"provider": "anthropic", "model": "claude-test"},
+                "google": {"provider": "google_genai", "model": "gemini-test"},
+                "inception": {"provider": "inception", "model": "mercury-test"},
+                "apx-anthropic": {"provider": "apx", "model": "claude-sonnet-4-6-free"},
+                "apx-openai": {"provider": "apx", "model": "gpt-5.6-luna"},
+            },
+            "roles": {
+                "default": "openai",
+                "anthropic": "anthropic",
+                "google": "google",
+                "inception": "inception",
+                "apx-anthropic": "apx-anthropic",
+                "apx-openai": "apx-openai",
+            },
+        }
+    )
+    assert {role: mp.resolve_role(role).protocol for role in mp.load_model_routes().roles} == {
+        "default": "openai",
+        "anthropic": "anthropic",
+        "google": "google_genai",
+        "inception": "openai",
+        "apx-anthropic": "anthropic",
+        "apx-openai": "openai",
+    }
+
+
+def test_route_lookup_requires_protocol_when_provider_and_model_are_ambiguous(set_model_routes):
+    set_model_routes(
+        {
+            "routes": {
+                "anthropic": {"provider": "apx", "protocol": "anthropic", "model": "shared-model"},
+                "openai": {"provider": "apx", "protocol": "openai", "model": "shared-model"},
+            },
+            "roles": {"default": "anthropic"},
+        }
+    )
+    assert mp.route_for_model("apx", "shared-model") is None
+    assert mp.route_for_model("apx", "shared-model", "anthropic").route_id == "anthropic"
+    assert mp.route_for_model("apx", "shared-model", "openai").route_id == "openai"
 
 
 def test_changing_model_string_changes_resolution_and_snapshot(set_model_routes):
@@ -128,6 +178,8 @@ def test_fallback_chain_by_route_or_role(routes):
         (lambda c: c["roles"].update(x="zzz"), "unknown route"),
         (lambda c: c["routes"]["a"].update(provider="google"), "provider"),
         (lambda c: c["routes"]["a"].update(options={"api_key": "x"}), "protected"),
+        (lambda c: c["routes"]["a"].update(options={"protocol": "openai"}), "protected"),
+        (lambda c: c["routes"]["a"].update(protocol="google_genai"), "protocol"),
         (lambda c: c["fallbacks"].update(a=["a"]), "cycle"),
         (lambda c: c["fallbacks"].update(b=["a"]), "cycle"),
         (lambda c: c["fallbacks"].update(a=["ghost"]), "unknown"),
@@ -220,22 +272,26 @@ def test_snapshot_deterministic_and_content_addressed(set_model_routes):
     first = mp.resolved_policy_snapshot("root")
     assert first == mp.resolved_policy_snapshot("root")
     assert first["provider"] == "OPENAI" and first["model"] == "Model-Alpha"
+    assert first["protocol"] == "openai"
     assert first["policyVersion"].startswith("cfg-") and len(first["policyVersion"]) == 20
     assert first["effectiveAt"] == "1970-01-01T00:00:00.000Z"
     cfg["routes"]["a"]["options"] = {"reasoning": {"effort": "high"}}
     set_model_routes(cfg)
     assert mp.resolved_policy_snapshot("root")["policyVersion"] != first["policyVersion"]
     assert "effort" not in json.dumps(mp.resolved_policy_snapshot("root"))
+    changed_protocol = replace(mp.resolve_role("root"), protocol="anthropic")
+    assert mp.config_snapshot(changed_protocol, "root")["policyVersion"] != first["policyVersion"]
 
 
 def test_effective_telemetry_and_identities(routes):
     rows = {r["role"]: r for r in mp.effective_model_configs()}
     assert rows["narrator"]["provider"] == "google_genai"
     assert rows["narrator"]["model"] == "Future-Model-X9"
+    assert rows["narrator"]["protocol"] == "google_genai"
     assert rows["default"]["optionKeys"] == ("reasoning",)
     assert "low" not in json.dumps(rows, default=str)
     assert mp.distinct_runtime_identities() == {
-        ("OPENAI", "Model-Alpha"),
-        ("GOOGLE_GENAI", "Future-Model-X9"),
-        ("APX", "model-gamma"),
+        ("OPENAI", "openai", "Model-Alpha"),
+        ("GOOGLE_GENAI", "google_genai", "Future-Model-X9"),
+        ("APX", "anthropic", "model-gamma"),
     }
