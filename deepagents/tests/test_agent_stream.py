@@ -190,3 +190,34 @@ def test_literal_agent_stream_event_types_match_shared_typescript_contract() -> 
                 emitted.add(node.args[0].value)
 
     assert emitted <= supported, sorted(emitted - supported)
+
+
+def test_agent_stream_emits_only_the_active_boundary_identifier():
+    assessment_events = []
+    assessment = AgentStreamSession(
+        assessment_id="assessment-1",
+        run_id="transport-1",
+        correlation_id="correlation-1",
+        boundary_name="assessment_root_requested",
+        emit_payload=assessment_events.append,
+    )
+    assessment.emit("CUSTOM_PROGRESS", status="RUNNING")
+
+    preparation_events = []
+    preparation = AgentStreamSession(
+        assessment_id=None,
+        run_id="transport-preparation-1",
+        correlation_id="correlation-preparation-1",
+        boundary_name="rule_set_preparation_requested",
+        emit_payload=preparation_events.append,
+        boundary_type="RULE_SET_PREPARATION",
+        boundary_id="preparation-1",
+        preparation_run_id="preparation-1",
+    )
+    preparation.emit("CUSTOM_PROGRESS", status="RUNNING")
+
+    assert assessment_events[0]["assessment_id"] == "assessment-1"
+    assert "preparation_run_id" not in assessment_events[0]
+    assert preparation_events[0]["preparation_run_id"] == "preparation-1"
+    assert preparation_events[0]["boundary_id"] == "preparation-1"
+    assert "assessment_id" not in preparation_events[0]

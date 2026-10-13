@@ -22,7 +22,6 @@ from middleware.failure_policy import (
 )
 from orchestration.agent_stream import model_wait_heartbeat, note_model_step
 from provider_credentials import (
-    APX_DEFAULT_BASE_URL,
     INCEPTION_DEFAULT_BASE_URL,
     NO_SDK_RETRY_MAX_RETRIES,
     apx_base_url,
@@ -41,6 +40,8 @@ _MAX_RATE_LIMIT_COOLDOWN_SECONDS = 120.0
 # rate limits make a slot ineligible until its cooldown expires.
 _DEAD_CREDENTIAL_SLOTS: dict[tuple[str, str], set[int]] = {}
 _RATE_LIMITED_UNTIL: dict[tuple[str, str], dict[int, float]] = {}
+# Slot health is tied to a safe fingerprinted pool snapshot, never just a slot number.
+_CREDENTIAL_POOL_FINGERPRINTS: dict[tuple[str, str], tuple[str, ...]] = {}
 _monotonic = time.monotonic
 _sleep = time.sleep
 _asleep = asyncio.sleep
@@ -176,18 +177,17 @@ def model_provider(model) -> str | None:
             or base_url.startswith(f"{default_inception}/")
         ):
             return "inception"
-        configured_apx = apx_base_url()
-        default_apx = APX_DEFAULT_BASE_URL.rstrip("/")
-        if (
-            base_url == configured_apx
-            or base_url == default_apx
-            or base_url.startswith(f"{default_apx}/")
-        ):
-            return "apx"
         return "openai"
     if module.startswith("langchain_google_genai."):
         return "google_genai"
     if module.startswith("langchain_anthropic."):
+        base_url = str(
+            getattr(model, "anthropic_api_url", None)
+            or getattr(model, "base_url", "")
+            or ""
+        ).rstrip("/")
+        if base_url == apx_base_url():
+            return "apx"
         return "anthropic"
     return None
 
@@ -227,6 +227,8 @@ class TokenFallbackMiddleware(AgentMiddleware):
         if source is None or len(source[1]) < 2:
             return handler(request)
         env_name, tokens = source
+        if provider == "apx":
+            self._refresh_pool_identity(provider, env_name, tokens)
         return self._run_with_fallback(
             request=request,
             handler=handler,
@@ -242,6 +244,8 @@ class TokenFallbackMiddleware(AgentMiddleware):
         if source is None or len(source[1]) < 2:
             return await handler(request)
         env_name, tokens = source
+        if provider == "apx":
+            self._refresh_pool_identity(provider, env_name, tokens)
         return await self._run_with_fallback(
             request=request,
             handler=handler,
@@ -261,6 +265,16 @@ class TokenFallbackMiddleware(AgentMiddleware):
 
     def _rate_limited_slots(self, provider: str, env_name: str) -> dict[int, float]:
         return _RATE_LIMITED_UNTIL.setdefault((provider, env_name), {})
+
+    def _refresh_pool_identity(
+        self, provider: str, env_name: str, tokens: tuple[str, ...]
+    ) -> None:
+        key = (provider, env_name)
+        fingerprint = tuple(_credential_fingerprint(token) for token in tokens)
+        if _CREDENTIAL_POOL_FINGERPRINTS.get(key) != fingerprint:
+            _DEAD_CREDENTIAL_SLOTS.pop(key, None)
+            _RATE_LIMITED_UNTIL.pop(key, None)
+            _CREDENTIAL_POOL_FINGERPRINTS[key] = fingerprint
 
     def _log_fallback_attempt(
         self,
@@ -290,6 +304,7 @@ class TokenFallbackMiddleware(AgentMiddleware):
         index: int,
         fingerprint: str,
         status: int | None,
+        reason: str,
     ) -> None:
         logger.warning(
             "MODEL_CREDENTIAL_FALLBACK_SLOT_DEAD",
@@ -299,6 +314,7 @@ class TokenFallbackMiddleware(AgentMiddleware):
             credential_fingerprint=fingerprint,
             fallback_enabled=True,
             status_code=status,
+            reason=reason,
         )
 
     def _log_skip_dead_slot(
@@ -374,6 +390,11 @@ class TokenFallbackMiddleware(AgentMiddleware):
             index=index,
             fingerprint=_credential_fingerprint(token),
             status=_error_status(error),
+            reason=(
+                "allowance_exhausted"
+                if is_provider_quota_exhaustion(error)
+                else "authentication_failure"
+            ),
         )
 
     def _mark_rate_limited(

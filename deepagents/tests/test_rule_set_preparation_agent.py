@@ -8,12 +8,18 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from deepagents.backends.filesystem import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from rule_set_preparation.agent import (
     _without_general_purpose_subagent,
     create_rule_set_preparation_agent,
 )
 from rule_set_preparation.legal_source_files import INDEX_PATH, materialize_legal_source
+from rule_set_preparation.legal_source_reader import (
+    LegalSourceReaderResult,
+    legal_source_reader_subagent,
+)
 from rule_set_preparation.runner import (
     MODEL_ERROR,
     NO_SUBMISSION,
@@ -45,6 +51,17 @@ def _fast_model_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(usage_metering, "assert_model_identity", lambda model, response=None:
                         None if isinstance(model, RuleSetPreparationScriptedModel)
                         else original(model, response))
+
+
+def test_legal_source_reader_uses_shared_model_governance_middleware(tmp_path):
+    subagent = legal_source_reader_subagent(
+        model=object(),
+        backend=FilesystemBackend(root_dir=tmp_path, virtual_mode=True),
+    )
+
+    assert subagent["middleware"][1:] == list(MODEL_GOVERNANCE_MIDDLEWARE)
+    assert subagent["tools"] == []
+    assert subagent["response_format"] is LegalSourceReaderResult
 
 
 def _sha(text: str) -> str:
@@ -495,13 +512,18 @@ def test_the_no_subagent_profile_is_scoped_to_graph_build_time() -> None:
 
 def test_profile_key_matches_what_deepagents_looks_up_for_a_real_provider_model(tmp_path: Path) -> None:
     from deepagents.profiles.harness.harness_profiles import _harness_profile_for_model
-    from langchain_openai import ChatOpenAI
+
+    # APX keeps its route identity while Deep Agents profiles its Anthropic client family.
+    from langchain_anthropic import ChatAnthropic
     from rule_set_preparation.agent import _lookup_profile_key
 
-    # An OpenAI-compatible route (apx) is looked up as "openai:<model>", not "apx:<model>".
-    model = ChatOpenAI(model="GLM-5.3-Flash", api_key="unused", base_url="http://127.0.0.1:9/v1")
+    model = ChatAnthropic(
+        model="claude-sonnet-4-6-free",
+        api_key="unused",
+        base_url="https://api.apmix.ai",
+    )
     key = _lookup_profile_key(model)
-    assert key == "openai:GLM-5.3-Flash"
+    assert key == "anthropic:claude-sonnet-4-6-free"
     with _without_general_purpose_subagent(key):
         assert _harness_profile_for_model(model, None).general_purpose_subagent.enabled is False
 

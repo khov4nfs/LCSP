@@ -179,10 +179,18 @@ class AgentStreamSession:
             "event_id": str(uuid4()),
             "client_sequence": sequence,
             "emitted_at": datetime.now(UTC).isoformat(),
-            "assessment_id": self.assessment_id,
             "boundary_type": self.boundary_type,
             "boundary_id": self.boundary_id or self.assessment_id or self.run_id,
-            "preparation_run_id": self.preparation_run_id,
+            **(
+                {"assessment_id": self.assessment_id}
+                if self.assessment_id is not None
+                else {}
+            ),
+            **(
+                {"preparation_run_id": self.preparation_run_id}
+                if self.preparation_run_id is not None
+                else {}
+            ),
             "run_id": self.run_id,
             "correlation_id": self.correlation_id,
             "event_type": event_type,
