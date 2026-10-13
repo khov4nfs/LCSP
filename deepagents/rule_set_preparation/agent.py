@@ -12,18 +12,68 @@ from deepagents import GeneralPurposeSubagentProfile, HarnessProfile, create_dee
 from deepagents.profiles.harness import harness_profiles
 from deepagents.backends import FilesystemBackend
 from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPermission
+from langchain.agents.middleware import AgentMiddleware, AgentState, TracePolicy, hook_config, omit_payload
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.runtime import Runtime
 
 from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware
 from orchestration.graph_execution import agent_graph_config
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
+from tools.common.capabilities.platform.logging import get_logger
 
 INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
 RULE_SET_PREPARATION_ROLE = "rule-set-preparation"
 READ_ONLY_TOOLS = ["ls", "glob", "grep", "read_file"]
 
 _PROFILE_LOCK = threading.Lock()
+logger = get_logger(__name__)
+
+
+class PreparationCompletionMiddleware(AgentMiddleware):
+    """A normal model stop is not the preparation's governed terminal action."""
+
+    # Native response_format cannot prove governed submission; native hooks enforce the domain predicate.
+
+    trace_policy = TracePolicy(process_inputs=omit_payload, process_outputs=omit_payload)
+
+    def __init__(self, context: RuleSetPreparationContext) -> None:
+        self.context = context
+
+    @hook_config(can_jump_to=["end"])
+    def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+        if self.context.submission is not None or self.context.source_blocked is not None:
+            return {"jump_to": "end"}
+        return None
+
+    @hook_config(can_jump_to=["model"])
+    def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+        response = state["messages"][-1]
+        if not isinstance(response, AIMessage) or response.tool_calls:
+            return None
+        context = self.context
+        if context.submission is not None or context.source_blocked is not None:
+            return None
+        outcome = (context.last_validation or {}).get("outcome")
+        context.trace.append({
+            "event": "NORMAL_STOP_BEFORE_TERMINAL",
+            "validationCalls": context.validation_calls,
+            "validationOutcome": outcome,
+            "submissionAttempted": any(t.get("tool") == "submit" for t in context.trace),
+        })
+        logger.info("RULE_SET_PREPARATION_CONTINUING", run_id=context.run_id,
+                    validation_calls=context.validation_calls, validation_outcome=outcome)
+        return {
+            "messages": [HumanMessage(content=(
+                "Preparation is not finished. Continue the same pinned-source work and preserve "
+                "your existing reading and packet. Use actual tool calls, not tool-call text in "
+                "an assistant response: validate_compliance_rule_set until PASSED, then submit "
+                "the exact validated packet once. If the pinned source is truly unreadable or "
+                "its pins inconsistent, use report_rule_set_source_blocked instead."
+            ))],
+            "jump_to": "model",
+        }
 
 
 @contextmanager
@@ -82,7 +132,7 @@ def create_rule_set_preparation_agent(
     """Build the agent for one run.
 
     ``legal_source_root`` holds only the pinned legal_source (see ``materialize_legal_source``). The agent
-    gets read-only filesystem tools over ``/legal-source`` plus the two governed rule_set tools;
+    gets read-only filesystem tools over ``/legal-source`` plus the governed preparation tools;
     it has no write, shell, task/sub-agent, human, repository or memory tools.
     """
     if model is None:
@@ -95,7 +145,7 @@ def create_rule_set_preparation_agent(
         backend=backend,
         tools=READ_ONLY_TOOLS,
         _permissions=[
-            FilesystemPermission(["read"], [f"{LEGAL_SOURCE_ROOT}/**"], mode="allow"),
+            FilesystemPermission(["read"], [LEGAL_SOURCE_ROOT, f"{LEGAL_SOURCE_ROOT}/**"], mode="allow"),
             FilesystemPermission(["read"], ["/**"], mode="deny"),
             FilesystemPermission(["write"], ["/**"], mode="deny"),
         ],
@@ -109,6 +159,7 @@ def create_rule_set_preparation_agent(
             tools=build_rule_set_tools(context),
             middleware=[
                 read_only,
+                PreparationCompletionMiddleware(context),
                 AgentRoleMiddleware(RULE_SET_PREPARATION_ROLE),
                 *MODEL_GOVERNANCE_MIDDLEWARE,
             ],

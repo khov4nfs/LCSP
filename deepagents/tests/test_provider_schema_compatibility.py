@@ -280,6 +280,9 @@ async def test_serialized_gemini_request_preserves_shared_packet_null_alternativ
     bound = model.bind_tools(handler.call_args.args[0].tools)
     prepared = model._prepare_request([HumanMessage(content="Schema transport test")], **bound.kwargs)
     for declaration in prepared["config"].tools[0].function_declarations:
+        if declaration.name == "report_rule_set_source_blocked":
+            assert set(declaration.parameters.required) == {"reason", "path"}
+            continue
         packet = declaration.parameters.properties["packet"].properties
         reason = packet["legalRequirements"].items.properties["coverage"].properties["nonAssessableReason"]
         relation = packet["contextRelations"].items.properties
@@ -298,6 +301,8 @@ def test_legal_null_translation_keeps_shared_contract_bounds_and_source_unchange
     translated = gemini_nullable_tools(_gemini(), tools)
     assert translated is not None
     for tool in translated:
+        if getattr(tool, "name", None) == "report_rule_set_source_blocked":
+            continue
         packet = tool["function"]["parameters"]["properties"]["packet"]
         assert packet["additionalProperties"] is False
         assert packet["properties"]["legalRequirements"]["maxItems"] == canonical["properties"]["packet"]["properties"]["legalRequirements"]["maxItems"]

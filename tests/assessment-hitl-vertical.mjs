@@ -179,10 +179,22 @@ try {
   eq(continued.status, 201, JSON.stringify(continued.body));
   eq(continued.body.data.state, "RESUME_REQUESTED");
   eq((await state(pausedAssessment)).als, ASSESSMENT_LIFECYCLE_STATES.PAUSED); // request != acknowledgement
+  // The offline resume scripts stop before domain completion and then exhaust their model.
+  // Preserve ACTIVE state; execution must fail instead of reporting premature success.
   const resumedControl = await controlRun("resume");
-  eq(resumedControl.result.state, AGENT_EXECUTION_STATES.SUCCEEDED, JSON.stringify(resumedControl));
-  eq([resumedControl.result.threadId, resumedControl.result.executionId], [paused.result.threadId, paused.result.executionId]);
-  ok(resumedControl.pid !== paused.pid, "replacement worker resumed the same checkpoint");
+  eq(
+    resumedControl.result.state,
+    AGENT_EXECUTION_STATES.FAILED,
+    JSON.stringify(resumedControl),
+  );
+  eq(
+    [resumedControl.result.threadId, resumedControl.result.executionId],
+    [paused.result.threadId, paused.result.executionId],
+  );
+  ok(
+    resumedControl.pid !== paused.pid,
+    "replacement worker resumed the same checkpoint",
+  );
   eq((await state(pausedAssessment)).als, ASSESSMENT_LIFECYCLE_STATES.ACTIVE);
   const customerDetail = await http("GET", `/assessments/${pausedAssessment}`, undefined, owner.token);
   eq(customerDetail.body.data.runtime.threadId, paused.result.threadId);
@@ -291,7 +303,7 @@ try {
     const resumed = await run(E, "resume");
     eq(
       [resumed.result.state, resumed.result.threadId],
-      [AGENT_EXECUTION_STATES.SUCCEEDED, waiting.thread],
+      [AGENT_EXECUTION_STATES.FAILED, waiting.thread],
     );
     eq((await list(E, owner.token)).body.data.requests.length, 1);
     eq(
@@ -576,7 +588,11 @@ try {
       "ASSESSMENT_IDEMPOTENCY_CONFLICT",
     );
     const resumed = await run(A, "resume");
-    eq(resumed.result.state, "SUCCEEDED", JSON.stringify(resumed));
+    eq(
+      resumed.result.state,
+      AGENT_EXECUTION_STATES.FAILED,
+      JSON.stringify(resumed),
+    );
     eq(resumed.result.threadId, waiting.thread);
     ok(resumed.pid !== first.pid, "new process");
     eq((await list(A, owner.token)).body.data.requests.length, 1);
@@ -609,7 +625,7 @@ try {
         .resumed,
       true,
     );
-    eq((await run(B, "resume")).result.state, "SUCCEEDED");
+    eq((await run(B, "resume")).result.state, AGENT_EXECUTION_STATES.FAILED);
     eq((await list(B, owner.token)).body.data.requests.length, 2);
     const C = await create("ASSESSMENT crash before settlement");
     await assert.rejects(run(C, "crash"), /exited 73/);
@@ -631,7 +647,11 @@ try {
       true,
     );
     const final = await run(C, "resume");
-    eq(final.result.state, "SUCCEEDED", JSON.stringify(final));
+    eq(
+      final.result.state,
+      AGENT_EXECUTION_STATES.FAILED,
+      JSON.stringify(final),
+    );
     eq(final.result.threadId, crashed.thread);
     eq((await list(C, owner.token)).body.data.requests.length, 1);
     const D = await create("ASSESSMENT crash before native checkpoint");
@@ -659,7 +679,7 @@ try {
         .data.resumed,
       true,
     );
-    eq((await run(D, "resume")).result.state, "SUCCEEDED");
+    eq((await run(D, "resume")).result.state, AGENT_EXECUTION_STATES.FAILED);
     eq((await list(D, owner.token)).body.data.requests.length, 1);
     console.log(
       JSON.stringify({
