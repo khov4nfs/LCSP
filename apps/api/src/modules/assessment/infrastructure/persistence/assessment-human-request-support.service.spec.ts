@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import type { AssessmentHumanRequest } from "@prisma/client";
 import {
   AssessmentHumanRequestSupport,
@@ -162,7 +162,7 @@ describe("AssessmentHumanRequestSupport read projection", () => {
               },
             }),
         } as Response);
-      });
+      }) as typeof fetch;
 
     process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
     process.env.WORKER_API_KEY = "test-worker-key";

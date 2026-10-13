@@ -143,18 +143,20 @@ it("projects decision customer-visible rationales to VI while preserving technic
   } as never;
 
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = jest.fn().mockResolvedValue({
-    ok: true,
-    json: () =>
-      Promise.resolve({
-        projected: {
-          "All access controls are properly implemented in the service.":
-            "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
-          "Token authentication satisfies requirement.":
-            "Xác thực mã thông báo đáp ứng yêu cầu.",
-        },
-      }),
-  }) as never;
+  globalThis.fetch = jest.fn().mockImplementation(() =>
+    Promise.resolve({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          projected: {
+            "All access controls are properly implemented in the service.":
+              "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
+            "Token authentication satisfies requirement.":
+              "Xác thực mã thông báo đáp ứng yêu cầu.",
+          },
+        }),
+    } as Response),
+  ) as typeof fetch;
 
   process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
   process.env.WORKER_API_KEY = "test-worker-key";

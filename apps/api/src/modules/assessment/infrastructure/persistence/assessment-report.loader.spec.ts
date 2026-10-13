@@ -1,4 +1,4 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { AssessmentFinalReportArtifact } from "@lcsp/contracts/assessment-domain";
 import { AssessmentReportLoader } from "./assessment-report.loader.js";
@@ -137,20 +137,22 @@ describe("AssessmentReportLoader locale read projection", () => {
 
   it("projects report summary, finding summaries, and recommendations to VI while preserving technical integrity", async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          projected: {
-            "The assessment completed with high compliance.":
-              "Đánh giá đã hoàn tất với mức độ tuân thủ cao.",
-            "Security headers are configured.":
-              "Các tiêu đề bảo mật đã được định cấu hình.",
-            "Ensure TLS 1.3 is enforced.":
-              "Đảm bảo giao thức TLS 1.3 được thực thi bắt buộc.",
-          },
-        }),
-    }) as never;
+    globalThis.fetch = jest.fn().mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            projected: {
+              "The assessment completed with high compliance.":
+                "Đánh giá đã hoàn tất với mức độ tuân thủ cao.",
+              "Security headers are configured.":
+                "Các tiêu đề bảo mật đã được định cấu hình.",
+              "Ensure TLS 1.3 is enforced.":
+                "Đảm bảo giao thức TLS 1.3 được thực thi bắt buộc.",
+            },
+          }),
+      } as Response),
+    ) as typeof fetch;
 
     process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
     process.env.WORKER_API_KEY = "test-worker-key";
