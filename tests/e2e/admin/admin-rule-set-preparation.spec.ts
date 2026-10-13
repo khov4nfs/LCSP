@@ -145,9 +145,8 @@ test("failed preparation exposes the canonical Retry route for the same run", as
     ...fixture.clean,
     preparation: {
       ...fixture.clean.preparation,
-      canStart: false,
-      refusalReason:
-        RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_ALREADY_STARTED,
+      canStart: true,
+      refusalReason: null,
       currentRun: run,
     },
     preparations: [
@@ -189,7 +188,10 @@ test("failed preparation exposes the canonical Retry route for the same run", as
   await expect(page.getByText("No rule set was submitted")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Prepare rule set", exact: true }),
-  ).toHaveCount(0);
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Prepare rule set", exact: true }),
+  ).toHaveCount(1);
   await page
     .getByRole("button", {
       name: "Retry failed Rule Set Preparation",
@@ -200,4 +202,90 @@ test("failed preparation exposes the canonical Retry route for the same run", as
     page.getByRole("button", { name: "Preparing rule set…", exact: true }),
   ).toBeDisabled();
   expect(retried).toBe(true);
+});
+
+test("three failed attempts let Admin Prepare once and see Attempt 4 queued", async ({
+  page,
+}) => {
+  await authenticateBillingE2e(page, BILLING_E2E_TOKENS.admin);
+  const failedRuns = [1, 2, 3].map((attempt) => ({
+    ...fixture.queuedRun,
+    preparationRunId: `eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee${attempt}`,
+    executionState: AGENT_EXECUTION_STATES.FAILED,
+    ...fixture.runDetails,
+    failureReason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
+    attempt,
+    completedAt: `2026-10-13T00:0${attempt}:00.000Z`,
+    retryable: attempt === 3,
+  }));
+  const attemptFour = {
+    ...fixture.queuedRun,
+    preparationRunId: "ffffffff-ffff-4fff-8fff-fffffffffff4",
+  };
+  let history = {
+    ...fixture.clean,
+    preparation: {
+      ...fixture.clean.preparation,
+      canStart: true,
+      refusalReason: null,
+      currentRun: {
+        preparationRunId: failedRuns[2]!.preparationRunId,
+        legalSourceVersionId: failedRuns[2]!.legalSourceVersionId,
+        executionState: AGENT_EXECUTION_STATES.FAILED,
+        ruleSetVersionId: null,
+      },
+    },
+    preparations: [...failedRuns].reverse(),
+  };
+  let posts = 0;
+  await page.route(`**${historyPath}`, (route) =>
+    route.fulfill({ json: { ok: true, data: history } }),
+  );
+  await page.route(`**${historyPath}/prepare`, async (route) => {
+    posts += 1;
+    expect(route.request().postData()).toBeNull();
+    history = {
+      ...fixture.clean,
+      preparation: {
+        ...fixture.clean.preparation,
+        canStart: false,
+        refusalReason:
+          RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
+        currentRun: attemptFour,
+      },
+      preparations: [
+        { ...attemptFour, ...fixture.runDetails, attempt: 4 },
+        ...[...failedRuns].reverse(),
+      ],
+    };
+    await route.fulfill({ status: 202, json: { ok: true, data: attemptFour } });
+  });
+
+  await page.goto("/admin/compliance-rule-sets");
+  await expect(page.locator('[data-preparation-state="FAILED"]')).toHaveCount(
+    3,
+  );
+  const prepare = page.getByRole("button", {
+    name: "Prepare rule set",
+    exact: true,
+  });
+  await expect(prepare).toBeVisible();
+  await expect(prepare).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Cancel preparation", exact: true }),
+  ).toHaveCount(0);
+  await prepare.click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Prepare", exact: true })
+    .click();
+  await expect(page.locator('[data-preparation-state="QUEUED"]')).toBeVisible();
+  await expect(page.getByText(/Attempt 4/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Prepare rule set", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Cancel preparation", exact: true }),
+  ).toBeVisible();
+  expect(posts).toBe(1);
 });

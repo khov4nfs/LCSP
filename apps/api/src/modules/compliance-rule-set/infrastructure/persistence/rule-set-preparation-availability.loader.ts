@@ -3,7 +3,6 @@ import {
   ARTIFACT_LIFECYCLE_STATES,
 } from "@lcsp/contracts/assessment";
 import {
-  RULE_SET_PREPARATION_MAX_ATTEMPTS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   type RuleSetPreparationAvailability,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -74,7 +73,7 @@ export async function loadRuleSetPreparationAvailability(
   )
     return unavailable;
 
-  const [ruleSet, run, attemptCount] = await Promise.all([
+  const [ruleSet, run] = await Promise.all([
     tx.complianceRuleSetVersion.findFirst({
       where: {
         legalSourceVersionId: source.id,
@@ -87,23 +86,12 @@ export async function loadRuleSetPreparationAvailability(
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: { ruleSet: { select: { id: true } } },
     }),
-    tx.ruleSetPreparationRun.count({
-      where: { legalSourceVersionId: source.id },
-    }),
   ]);
   const refusalReason = ruleSet
     ? RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS
-    : run
-      ? inProgress.has(run.executionState)
-        ? RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS
-        : run.executionState === AGENT_EXECUTION_STATES.CANCELLED
-          ? attemptCount < RULE_SET_PREPARATION_MAX_ATTEMPTS
-            ? null
-            : RULE_SET_PREPARATION_REFUSAL_REASONS.ATTEMPTS_EXHAUSTED
-          : RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_ALREADY_STARTED
-      : attemptCount < RULE_SET_PREPARATION_MAX_ATTEMPTS
-        ? null
-        : RULE_SET_PREPARATION_REFUSAL_REASONS.ATTEMPTS_EXHAUSTED;
+    : run && inProgress.has(run.executionState)
+      ? RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS
+      : null;
   return {
     legalSourceVersionId: source.id,
     legalSourceVersion: source.version,
