@@ -65,7 +65,7 @@ class GraphSteps(BaseCallbackHandler):
 
 
 def preparation_responses() -> list[AIMessage]:
-    # A finite scripted reasoning sequence unrelated to corpus size. All native
+    # A finite scripted reasoning sequence unrelated to Legal Source size. All native
     # middleware is present; validation is deliberately later than the old ceiling.
     return [
         *[_call("read_file", {"file_path": "/legal-source/INDEX.md"}, f"read-{i}") for i in range(16)],
