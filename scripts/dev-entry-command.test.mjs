@@ -46,61 +46,67 @@ test("Windows invocation ignores ComSpec and fails closed without Corepack", () 
   );
 });
 
-test("actual Windows Corepack pnpm invocation accepts separated arguments", async () => {
-  if (process.platform !== "win32") return;
-  const invocation = buildCommandInvocation("pnpm", ["--version"]);
-  const output = await new Promise((resolve, reject) => {
-    const child = spawn(invocation.command, invocation.args, {
-      shell: false,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.once("error", reject);
-    child.once("exit", (code) => {
-      if (code === 0) resolve(stdout.trim());
-      else reject(new Error(`pnpm exited with ${code}: ${stderr}`));
-    });
-  });
-  assert.match(output, /^\d+\.\d+\.\d+/u);
-});
-
-test("Windows metacharacter paths remain data, not shell commands", async () => {
-  if (process.platform !== "win32") return;
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "lcsp-dev-entry-"));
-  const target = path.join(tempRoot, "workspace (x) & ^ % literal.txt");
-  const script =
-    "require('node:fs').writeFileSync(process.argv[1], 'shell-free', 'utf8')";
-  try {
-    const invocation = buildCommandInvocation("pnpm", [
-      "exec",
-      "node",
-      "-e",
-      script,
-      target,
-    ]);
-    await new Promise((resolve, reject) => {
+test(
+  "actual Windows Corepack pnpm invocation accepts separated arguments",
+  { skip: process.platform !== "win32" ? "requires Windows" : false },
+  async () => {
+    const invocation = buildCommandInvocation("pnpm", ["--version"]);
+    const output = await new Promise((resolve, reject) => {
       const child = spawn(invocation.command, invocation.args, {
         shell: false,
-        stdio: "ignore",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk;
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
       });
       child.once("error", reject);
       child.once("exit", (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`pnpm exited with ${code ?? 1}`));
+        if (code === 0) resolve(stdout.trim());
+        else reject(new Error(`pnpm exited with ${code}: ${stderr}`));
       });
     });
-    assert.equal(await readFile(target, "utf8"), "shell-free");
-  } finally {
-    await rm(tempRoot, { recursive: true, force: true });
-  }
-});
+    assert.match(output, /^\d+\.\d+\.\d+/u);
+  },
+);
+
+test(
+  "Windows metacharacter paths remain data, not shell commands",
+  { skip: process.platform !== "win32" ? "requires Windows" : false },
+  async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "lcsp-dev-entry-"));
+    const target = path.join(tempRoot, "workspace (x) & ^ % literal.txt");
+    const script =
+      "require('node:fs').writeFileSync(process.argv[1], 'shell-free', 'utf8')";
+    try {
+      const invocation = buildCommandInvocation("pnpm", [
+        "exec",
+        "node",
+        "-e",
+        script,
+        target,
+      ]);
+      await new Promise((resolve, reject) => {
+        const child = spawn(invocation.command, invocation.args, {
+          shell: false,
+          stdio: "ignore",
+        });
+        child.once("error", reject);
+        child.once("exit", (code) => {
+          if (code === 0) resolve();
+          else reject(new Error(`pnpm exited with ${code ?? 1}`));
+        });
+      });
+      assert.equal(await readFile(target, "utf8"), "shell-free");
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  },
+);
 
 test("unknown developer mode is rejected before any child command", async () => {
   const child = spawn(process.execPath, ["scripts/dev-entry.mjs", "unknown"], {

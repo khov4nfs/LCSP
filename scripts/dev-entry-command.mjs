@@ -17,8 +17,9 @@ export function buildCommandInvocation(
     return { command, args: [...args] };
   }
 
-  const pnpmCli = path.join(
-    path.dirname(execPath),
+  const pathApi = platform === "win32" ? path.win32 : path;
+  const pnpmCli = pathApi.join(
+    pathApi.dirname(execPath),
     "node_modules",
     "corepack",
     "dist",
