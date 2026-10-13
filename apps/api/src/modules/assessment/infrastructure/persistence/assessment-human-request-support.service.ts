@@ -7,6 +7,27 @@ import { Prisma, type AssessmentHumanRequest } from "@prisma/client";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
+const presentationProjectionCache = new Map<string, string>();
+
+export function getPresentationProjection(
+  text: string,
+  locale: string,
+): string | undefined {
+  return presentationProjectionCache.get(`${locale}:${text}`);
+}
+
+export function registerPresentationProjection(
+  text: string,
+  locale: string,
+  projectedText: string,
+): void {
+  presentationProjectionCache.set(`${locale}:${text}`, projectedText);
+}
+
+export function clearPresentationProjections(): void {
+  presentationProjectionCache.clear();
+}
+
 /** Owner-scoped persistence projection shared by human request reads and answers. */
 @Injectable()
 export class AssessmentHumanRequestSupport {
@@ -53,48 +74,30 @@ export class AssessmentHumanRequestSupport {
     let resolutionAttempts = row.resolutionAttempts;
     let choices = row.choices;
 
-    if (
-      locale &&
-      row.displayLocales &&
-      typeof row.displayLocales === "object" &&
-      !Array.isArray(row.displayLocales)
-    ) {
-      const displayMap = row.displayLocales as Record<string, unknown>;
-      const localized = displayMap[locale];
-      if (
-        localized &&
-        typeof localized === "object" &&
-        !Array.isArray(localized)
-      ) {
-        const entry = localized as Record<string, unknown>;
-        if (
-          typeof entry.question === "string" &&
-          entry.question.trim().length > 0
-        ) {
-          question = entry.question;
-        }
-        if (
-          typeof entry.unresolvedFact === "string" &&
-          entry.unresolvedFact.trim().length > 0
-        ) {
-          unresolvedFact = entry.unresolvedFact;
-        }
-        if (
-          Array.isArray(entry.decisionImpact) &&
-          entry.decisionImpact.length > 0
-        ) {
-          decisionImpact = entry.decisionImpact as typeof row.decisionImpact;
-        }
-        if (
-          Array.isArray(entry.resolutionAttempts) &&
-          entry.resolutionAttempts.length > 0
-        ) {
-          resolutionAttempts =
-            entry.resolutionAttempts as typeof row.resolutionAttempts;
-        }
-        if (Array.isArray(entry.choices) && entry.choices.length > 0) {
-          choices = entry.choices as typeof row.choices;
-        }
+    if (locale) {
+      question =
+        getPresentationProjection(row.question, locale) ?? row.question;
+      unresolvedFact =
+        getPresentationProjection(row.unresolvedFact, locale) ??
+        row.unresolvedFact;
+      if (Array.isArray(row.decisionImpact)) {
+        decisionImpact = (row.decisionImpact as string[]).map(
+          (impact) => getPresentationProjection(impact, locale) ?? impact,
+        );
+      }
+      if (Array.isArray(row.resolutionAttempts)) {
+        resolutionAttempts = (row.resolutionAttempts as string[]).map(
+          (attempt) => getPresentationProjection(attempt, locale) ?? attempt,
+        );
+      }
+      if (Array.isArray(row.choices)) {
+        choices = (row.choices as Array<{ value: string; label: string }>).map(
+          (choice) => ({
+            value: choice.value,
+            label:
+              getPresentationProjection(choice.label, locale) ?? choice.label,
+          }),
+        );
       }
     }
 
@@ -114,8 +117,6 @@ export class AssessmentHumanRequestSupport {
       checkpointId: row.checkpointId,
       resolvedFactId: row.resolvedFactId,
       answers: row.answers,
-      sourceLocale: row.sourceLocale ?? "en",
-      displayLocales: (row.displayLocales as Record<string, any>) ?? undefined,
     });
   }
 }

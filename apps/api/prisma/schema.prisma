@@ -1409,8 +1409,6 @@ model AssessmentHumanRequest {
   idempotencyKey     String?
   requestDigest      String?
   checkpointId       String?                      @db.Uuid
-  sourceLocale       String?                      @default("en")
-  displayLocales     Json?
   createdAt          DateTime                     @default(now()) @db.Timestamptz(3)
   resolvedAt         DateTime?                    @db.Timestamptz(3)
   assessmentCase     AssessmentCase               @relation(fields: [assessmentId], references: [assessmentId], onDelete: Cascade, onUpdate: Restrict)

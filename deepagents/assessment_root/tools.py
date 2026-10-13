@@ -540,19 +540,11 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
 
     def accept_case_fact(kind: str, statement: str, evidence_ids: list[str]) -> dict[str, Any]:
         """Record an evidence-backed fact or the system's use-case description in the assessment case."""
-        active_lang = getattr(run, "response_language", "en")
-        active_statement = statement
-        if active_lang == "vi" and kind in ("USE_CASE", "FACT") and not statement.startswith("```"):
-            from orchestration.localization import transform_response_text
-
-            localized_statement, t = transform_response_text(statement, "vi")
-            if t.get("status") == "APPLIED":
-                active_statement = localized_statement
         result = client.post_fact(
             {
                 "expectedCaseRevision": run.case_revision,
                 "kind": kind,
-                "statement": active_statement,
+                "statement": statement,
                 "evidenceIds": evidence_ids,
             }
         )
@@ -587,43 +579,6 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 "compliance": compliance,
             }
         )
-        from orchestration.localization import transform_structured_response
-
-        active_lang = getattr(run, "response_language", "en")
-        canonical_narrative = {
-            "rationale": args.rationale,
-            "criteria": [
-                {"criterion_id": c.criterion_id, "rationale": c.rationale}
-                for c in args.criteria
-            ],
-        }
-        display_locales: dict[str, Any] = {
-            "en": {
-                "rationale": args.rationale,
-                "criteria": [
-                    {"criterionId": c.criterion_id, "rationale": c.rationale}
-                    for c in args.criteria
-                ],
-            }
-        }
-        localized_narrative, telemetry = transform_structured_response(canonical_narrative, "vi")
-        if telemetry.get("status") == "APPLIED":
-            display_locales["vi"] = {
-                "rationale": localized_narrative["rationale"],
-                "criteria": [
-                    {"criterionId": item["criterion_id"], "rationale": item["rationale"]}
-                    for item in localized_narrative.get("criteria", [])
-                ],
-            }
-        else:
-            display_locales["vi"] = display_locales["en"]
-
-        active_rationale = display_locales["vi"]["rationale"] if active_lang == "vi" else args.rationale
-        crit_map = {
-            item["criterionId"]: item["rationale"]
-            for item in (display_locales["vi"]["criteria"] if active_lang == "vi" else display_locales["en"]["criteria"])
-        }
-
         decision = {
             "assessmentRuleId": args.assessment_rule_id,
             "assessmentRuleVersion": run.rule_versions.get(args.assessment_rule_id, ""),
@@ -634,20 +589,18 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "caseRevision": run.case_revision,
             "legalContextRefs": [{"legalContextId": c} for c in args.legal_context_ids],
             "applicability": args.applicability,
-            "rationale": active_rationale,
+            "rationale": args.rationale,
             "references": [_reference(r) for r in args.references],
             "criteria": [
                 {
                     "criterionId": c.criterion_id,
                     "outcome": c.outcome,
-                    "rationale": crit_map.get(c.criterion_id, c.rationale),
+                    "rationale": c.rationale,
                     "references": [_reference(r) for r in c.references],
                 }
                 for c in args.criteria
             ],
             "compliance": args.compliance,
-            "sourceLocale": "en",
-            "displayLocales": display_locales,
         }
         digest = hashlib.sha256(
             json.dumps(decision, sort_keys=True, separators=(",", ":")).encode()
@@ -671,50 +624,15 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         control_type: str = "FREE_TEXT",
         choices: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
-        from orchestration.localization import transform_structured_response
-
-        active_lang = getattr(run, "response_language", "en")
-        canonical_narrative = {
-            "question": question,
-            "unresolved_fact": unresolved_fact,
-            "decision_impact": list(decision_impact),
-            "resolution_attempts": list(resolution_attempts),
-            "choices": [{"value": c["value"], "label": c.get("label", "")} for c in (choices or [])],
-        }
-        display_locales: dict[str, Any] = {
-            "en": {
-                "question": question,
-                "unresolvedFact": unresolved_fact,
-                "decisionImpact": list(decision_impact),
-                "resolutionAttempts": list(resolution_attempts),
-                "choices": [{"value": c["value"], "label": c.get("label", "")} for c in (choices or [])],
-            }
-        }
-        localized_narrative, telemetry = transform_structured_response(canonical_narrative, "vi")
-        if telemetry.get("status") == "APPLIED":
-            display_locales["vi"] = {
-                "question": localized_narrative["question"],
-                "unresolvedFact": localized_narrative["unresolved_fact"],
-                "decisionImpact": localized_narrative["decision_impact"],
-                "resolutionAttempts": localized_narrative["resolution_attempts"],
-                "choices": localized_narrative["choices"],
-            }
-        else:
-            display_locales["vi"] = display_locales["en"]
-
-        primary = display_locales["vi"] if active_lang == "vi" else display_locales["en"]
-
         content = {
             "assessmentRuleId": assessment_rule_id,
             "criterionIds": criterion_ids or [],
-            "question": primary["question"],
-            "unresolvedFact": primary["unresolvedFact"],
-            "decisionImpact": primary["decisionImpact"],
-            "resolutionAttempts": primary["resolutionAttempts"],
+            "question": question,
+            "unresolvedFact": unresolved_fact,
+            "decisionImpact": list(decision_impact),
+            "resolutionAttempts": list(resolution_attempts),
             "controlType": control_type,
-            "choices": primary["choices"],
-            "sourceLocale": "en",
-            "displayLocales": display_locales,
+            "choices": choices or [],
         }
         # Native interrupt replays this tool. Stable server-thread/content identity makes the
         # pre-interrupt request write idempotent across new processes and execution attempts.
@@ -772,20 +690,12 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         run.adopt_context(context)
         if result["requestId"] in context["openHumanRequestIds"]:
             pending: dict[str, Any] = {"requestIds": [result["requestId"]]}
-            active_lang = getattr(run, "response_language", "en")
-            active_rationale = unavailability_rationale
-            if active_lang == "vi":
-                from orchestration.localization import transform_response_text
-
-                localized, t = transform_response_text(unavailability_rationale, "vi")
-                if t.get("status") == "APPLIED":
-                    active_rationale = localized
             try:
                 client.report_unresolvable_human_fact({
                     "humanResolutionRequestId": result["requestId"],
                     "expectedCaseRevision": run.case_revision,
                     "expectedRequestRevision": result["requestRevision"],
-                    "rationale": active_rationale,
+                    "rationale": unavailability_rationale,
                     "evidenceIds": sorted(set(evidence_ids)),
                 })
             except Exception as error:  # The durable question still requires a native checkpoint.
@@ -802,66 +712,15 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         args = SubmitFinalReportArgs.model_validate(
             {"summary": summary, "findings": findings}
         )
-        from orchestration.localization import transform_structured_response
-
-        active_lang = getattr(run, "response_language", "en")
-        canonical_narrative = {
-            "summary": args.summary,
-            "findings": [
-                {
-                    "assessment_rule_id": f.assessment_rule_id,
-                    "summary": f.summary,
-                    "recommendations": list(f.recommendations),
-                }
-                for f in args.findings
-            ],
-        }
-        display_locales: dict[str, Any] = {
-            "en": {
-                "summary": args.summary,
-                "findings": [
-                    {
-                        "assessmentRuleId": f.assessment_rule_id,
-                        "summary": f.summary,
-                        "recommendations": list(f.recommendations),
-                    }
-                    for f in args.findings
-                ],
-            }
-        }
-        localized_narrative, telemetry = transform_structured_response(canonical_narrative, "vi")
-        if telemetry.get("status") == "APPLIED":
-            display_locales["vi"] = {
-                "summary": localized_narrative["summary"],
-                "findings": [
-                    {
-                        "assessmentRuleId": f.get("assessment_rule_id", ""),
-                        "summary": f.get("summary", ""),
-                        "recommendations": list(f.get("recommendations", [])),
-                    }
-                    for f in localized_narrative.get("findings", [])
-                ],
-            }
-        else:
-            display_locales["vi"] = display_locales["en"]
-
-        active_summary = display_locales["vi"]["summary"] if active_lang == "vi" else args.summary
-        finding_map = {
-            f["assessmentRuleId"]: f
-            for f in (display_locales["vi"]["findings"] if active_lang == "vi" else display_locales["en"]["findings"])
-        }
-
         result = client.post_final_report(
             {
                 "kind": "FINAL_REPORT",
-                "summary": active_summary,
-                "sourceLocale": "en",
-                "displayLocales": display_locales,
+                "summary": args.summary,
                 "findings": [
                     {
                         "assessmentRuleId": finding.assessment_rule_id,
-                        "summary": finding_map.get(finding.assessment_rule_id, {}).get("summary", finding.summary),
-                        "recommendations": finding_map.get(finding.assessment_rule_id, {}).get("recommendations", finding.recommendations),
+                        "summary": finding.summary,
+                        "recommendations": finding.recommendations,
                     }
                     for finding in args.findings
                 ],

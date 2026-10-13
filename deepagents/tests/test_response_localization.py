@@ -1141,8 +1141,8 @@ def test_nested_structured_output_choices_labels_and_criteria_single_transform()
     assert transformed.criteria[0].rationale == "Tiêu chí đã được thỏa mãn qua cấu hình chính thức."
 
 
-def test_assessment_root_tools_localize_customer_visible_payloads_in_vietnamese() -> None:
-    """Assessment Root tools localize agent-authored natural language into VI and persist displayLocales."""
+def test_assessment_root_tools_persist_canonical_domain_data_without_locale_pollution() -> None:
+    """Assessment Root tools persist canonical domain data unchanged without displayLocales or destructive mutations."""
     from assessment_root.tools import RootRun, build_root_tools
 
     posted_human_requests = []
@@ -1165,29 +1165,6 @@ def test_assessment_root_tools_localize_customer_visible_payloads_in_vietnamese(
     client.post_final_report.side_effect = lambda req: (posted_final_reports.append(req), {"reportId": "rep-1"})[1]
     client.post_fact.side_effect = lambda req: (posted_facts.append(req), {"caseRevision": 2})[1]
 
-    # Mock transform model for Vietnamese localization
-    import json
-
-    def mock_invoke(messages):
-        content = messages[-1].content
-        try:
-            parsed = json.loads(content)
-            def vi_walk(x):
-                if isinstance(x, str):
-                    return f"[VI] {x}"
-                if isinstance(x, dict):
-                    return {k: vi_walk(v) for k, v in x.items()}
-                if isinstance(x, list):
-                    return [vi_walk(i) for i in x]
-                return x
-            return AIMessage(content=json.dumps(vi_walk(parsed)))
-        except Exception:
-            return AIMessage(content=f"[VI] {content}")
-
-    mock_transform_model = MagicMock()
-    mock_transform_model.invoke = mock_invoke
-    mock_transform_model.model_name = "mock-transform"
-
     # Setup RootRun with response_language = 'vi'
     run = RootRun(
         client=client,
@@ -1200,93 +1177,90 @@ def test_assessment_root_tools_localize_customer_visible_payloads_in_vietnamese(
     run.rule_versions["RULE-01"] = "1.0"
     tools = {t.name: t for t in build_root_tools(run)}
 
-    with patch("orchestration.localization._get_transform_model", return_value=mock_transform_model):
-        # 1. Test persist_human_request via open_human_request
-        with patch("assessment_root.tools.interrupt"):
-            tools["open_human_request"].func(
-                assessment_rule_id="RULE-01",
-                question="What is the data retention period?",
-                unresolved_fact="Retention schedule is unconfirmed.",
-                decision_impact=["Affects GDPR Art 5 compliance."],
-                resolution_attempts=["Read config.json and found no retention setting."],
-                choices=[{"value": "CHOICE_30D", "label": "30 days"}],
-            )
-
-        assert len(posted_human_requests) == 1
-        req = posted_human_requests[0]
-        # Primary customer-facing fields are localized in VI
-        assert req["assessmentRuleId"] == "RULE-01"
-        assert req["question"] == "[VI] What is the data retention period?"
-        assert req["choices"][0]["label"] == "[VI] 30 days"
-        assert req["choices"][0]["value"] == "CHOICE_30D"
-        assert req["sourceLocale"] == "en"
-        assert req["displayLocales"]["en"]["question"] == "What is the data retention period?"
-        assert req["displayLocales"]["vi"]["question"] == "[VI] What is the data retention period?"
-
-        # 2. Test submit_rule_decision
-        tools["submit_rule_decision"].func(
+    # 1. Test open_human_request preserves canonical wording without displayLocales or sourceLocale
+    with patch("assessment_root.tools.interrupt"):
+        tools["open_human_request"].func(
             assessment_rule_id="RULE-01",
-            applicability="APPLICABLE",
-            rationale="Authentication satisfies security standard NIST-800-53.",
-            legal_context_ids=["LEG-1"],
-            references=[{"type": "ASSESSMENT_EVIDENCE", "id": "ev-1"}],
-            criteria=[{
-                "criterion_id": "CRIT-01",
-                "outcome": "MET",
-                "rationale": "MFA is enforced across all accounts.",
-                "references": [{"type": "ASSESSMENT_EVIDENCE", "id": "ev-1"}],
-            }],
-            compliance="COMPLIANT",
+            question="What is the data retention period?",
+            unresolved_fact="Retention schedule is unconfirmed.",
+            decision_impact=["Affects GDPR Art 5 compliance."],
+            resolution_attempts=["Read config.json and found no retention setting."],
+            choices=[{"value": "CHOICE_30D", "label": "30 days"}],
         )
 
-        assert len(posted_decisions) == 1
-        dec = posted_decisions[0]["decision"]
-        assert dec["assessmentRuleId"] == "RULE-01"
-        assert dec["rationale"] == "[VI] Authentication satisfies security standard NIST-800-53."
-        assert dec["criteria"][0]["rationale"] == "[VI] MFA is enforced across all accounts."
-        assert dec["criteria"][0]["criterionId"] == "CRIT-01"
-        assert dec["criteria"][0]["outcome"] == "MET"
-        assert dec["sourceLocale"] == "en"
-        assert "en" in dec["displayLocales"]
-        assert "vi" in dec["displayLocales"]
+    assert len(posted_human_requests) == 1
+    req = posted_human_requests[0]
+    assert req["assessmentRuleId"] == "RULE-01"
+    assert req["question"] == "What is the data retention period?"
+    assert req["unresolvedFact"] == "Retention schedule is unconfirmed."
+    assert req["decisionImpact"] == ["Affects GDPR Art 5 compliance."]
+    assert req["choices"][0]["label"] == "30 days"
+    assert req["choices"][0]["value"] == "CHOICE_30D"
+    assert "sourceLocale" not in req
+    assert "displayLocales" not in req
 
-        # 3. Test submit_final_report
-        tools["submit_final_report"].func(
-            summary="Overall assessment summary.",
-            findings=[{
-                "assessment_rule_id": "RULE-01",
-                "summary": "Rule finding summary.",
-                "recommendations": ["Recommendation 1"],
-            }],
-        )
+    # 2. Test submit_rule_decision preserves canonical rationale without displayLocales or sourceLocale
+    tools["submit_rule_decision"].func(
+        assessment_rule_id="RULE-01",
+        applicability="APPLICABLE",
+        rationale="Authentication satisfies security standard NIST-800-53.",
+        legal_context_ids=["LEG-1"],
+        references=[{"type": "ASSESSMENT_EVIDENCE", "id": "ev-1"}],
+        criteria=[{
+            "criterion_id": "CRIT-01",
+            "outcome": "MET",
+            "rationale": "MFA is enforced across all accounts.",
+            "references": [{"type": "ASSESSMENT_EVIDENCE", "id": "ev-1"}],
+        }],
+        compliance="COMPLIANT",
+    )
 
-        assert len(posted_final_reports) == 1
-        rep = posted_final_reports[0]
-        assert rep["summary"] == "[VI] Overall assessment summary."
-        assert rep["findings"][0]["summary"] == "[VI] Rule finding summary."
-        assert rep["findings"][0]["recommendations"] == ["[VI] Recommendation 1"]
-        assert rep["findings"][0]["assessmentRuleId"] == "RULE-01"
-        assert rep["sourceLocale"] == "en"
-        assert "en" in rep["displayLocales"]
-        assert "vi" in rep["displayLocales"]
+    assert len(posted_decisions) == 1
+    dec = posted_decisions[0]["decision"]
+    assert dec["assessmentRuleId"] == "RULE-01"
+    assert dec["rationale"] == "Authentication satisfies security standard NIST-800-53."
+    assert dec["criteria"][0]["rationale"] == "MFA is enforced across all accounts."
+    assert dec["criteria"][0]["criterionId"] == "CRIT-01"
+    assert dec["criteria"][0]["outcome"] == "MET"
+    assert "sourceLocale" not in dec
+    assert "displayLocales" not in dec
 
-        # 4. Test accept_case_fact with narrative
-        tools["accept_case_fact"].func(
-            kind="USE_CASE",
-            statement="The system processes customer healthcare data.",
-            evidence_ids=["ev-1"],
-        )
-        assert len(posted_facts) == 1
-        assert posted_facts[0]["kind"] == "USE_CASE"
-        assert posted_facts[0]["statement"] == "[VI] The system processes customer healthcare data."
-        assert posted_facts[0]["evidenceIds"] == ["ev-1"]
+    # 3. Test submit_final_report preserves canonical summary and findings without displayLocales or sourceLocale
+    tools["submit_final_report"].func(
+        summary="Overall assessment summary.",
+        findings=[{
+            "assessment_rule_id": "RULE-01",
+            "summary": "Rule finding summary.",
+            "recommendations": ["Recommendation 1"],
+        }],
+    )
+
+    assert len(posted_final_reports) == 1
+    rep = posted_final_reports[0]
+    assert rep["summary"] == "Overall assessment summary."
+    assert rep["findings"][0]["summary"] == "Rule finding summary."
+    assert rep["findings"][0]["recommendations"] == ["Recommendation 1"]
+    assert rep["findings"][0]["assessmentRuleId"] == "RULE-01"
+    assert "sourceLocale" not in rep
+    assert "displayLocales" not in rep
+
+    # 4. Test accept_case_fact preserves canonical statement unchanged
+    tools["accept_case_fact"].func(
+        kind="USE_CASE",
+        statement="The system processes customer healthcare data.",
+        evidence_ids=["ev-1"],
+    )
+    assert len(posted_facts) == 1
+    assert posted_facts[0]["kind"] == "USE_CASE"
+    assert posted_facts[0]["statement"] == "The system processes customer healthcare data."
+    assert posted_facts[0]["evidenceIds"] == ["ev-1"]
 
 
 def test_human_request_read_projection_same_thread_en_vi_switch() -> None:
-    """AssessmentHumanRequestSupport.view dynamically projects to EN or VI on the same persisted record."""
+    """Read projection dynamically localizes customer-facing fields on read while preserving canonical row and technical invariants."""
     from types import SimpleNamespace
 
-    # Simulate an AssessmentHumanRequest row persisted in DB
+    # Canonical row in database (no displayLocales or sourceLocale columns)
     row = SimpleNamespace(
         requestId="11111111-1111-4111-8111-111111111111",
         requestRevision=1,
@@ -1303,64 +1277,58 @@ def test_human_request_read_projection_same_thread_en_vi_switch() -> None:
         checkpointId=None,
         resolvedFactId=None,
         answers=[],
-        sourceLocale="en",
-        displayLocales={
-            "en": {
-                "question": "What is the retention period?",
-                "unresolvedFact": "Retention period is not configured in code.",
-                "decisionImpact": ["Determines GDPR compliance."],
-                "resolutionAttempts": ["Checked config.json and settings.py."],
-                "choices": [{"value": "CHOICE_30D", "label": "30 days"}],
-            },
-            "vi": {
-                "question": "Thời hạn lưu giữ dữ liệu là bao lâu?",
-                "unresolvedFact": "Thời hạn lưu giữ chưa được định cấu hình trong mã nguồn.",
-                "decisionImpact": ["Xác định mức độ tuân thủ GDPR."],
-                "resolutionAttempts": ["Đã kiểm tra tệp config.json và settings.py."],
-                "choices": [{"value": "CHOICE_30D", "label": "30 ngày"}],
-            },
-        },
     )
 
-    from orchestration.localization import ResponseLocalizationConfig
-    # Test read projection logic directly
+    # In-memory presentation projection cache (read/presentation boundary)
+    presentation_cache = {
+        ("vi", "What is the retention period?"): "Thời hạn lưu giữ dữ liệu là bao lâu?",
+        ("vi", "Retention period is not configured in code."): "Thời hạn lưu giữ chưa được định cấu hình trong mã nguồn.",
+        ("vi", "Determines GDPR compliance."): "Xác định mức độ tuân thủ GDPR.",
+        ("vi", "Checked config.json and settings.py."): "Đã kiểm tra tệp config.json và settings.py.",
+        ("vi", "30 days"): "30 ngày",
+    }
+
     def project_row(r: Any, target_locale: str | None) -> dict[str, Any]:
         locale = target_locale if target_locale in ("en", "vi") else None
-        q = r.question
-        fact = r.unresolvedFact
-        impact = r.decisionImpact
-        attempts = r.resolutionAttempts
-        choices = r.choices
-        if locale and r.displayLocales and locale in r.displayLocales:
-            loc = r.displayLocales[locale]
-            q = loc.get("question", q)
-            fact = loc.get("unresolvedFact", fact)
-            impact = loc.get("decisionImpact", impact)
-            attempts = loc.get("resolutionAttempts", attempts)
-            choices = loc.get("choices", choices)
+        def lookup(text: str) -> str:
+            if locale:
+                return presentation_cache.get((locale, text), text)
+            return text
+
         return {
-            "question": q,
-            "unresolvedFact": fact,
-            "decisionImpact": impact,
-            "resolutionAttempts": attempts,
-            "choices": choices,
+            "requestId": r.requestId,
+            "requestRevision": r.requestRevision,
+            "status": r.status,
+            "assessmentRuleId": r.assessmentRuleId,
+            "criterionIds": r.criterionIds,
+            "question": lookup(r.question),
+            "unresolvedFact": lookup(r.unresolvedFact),
+            "decisionImpact": [lookup(i) for i in r.decisionImpact],
+            "resolutionAttempts": [lookup(a) for a in r.resolutionAttempts],
+            "choices": [{"value": c["value"], "label": lookup(c["label"])} for c in r.choices],
         }
 
-    # Turn 1: Client queries with VI
+    # Turn 1: Client reads with VI locale
     view_vi = project_row(row, "vi")
     assert view_vi["question"] == "Thời hạn lưu giữ dữ liệu là bao lâu?"
     assert view_vi["unresolvedFact"] == "Thời hạn lưu giữ chưa được định cấu hình trong mã nguồn."
     assert view_vi["decisionImpact"] == ["Xác định mức độ tuân thủ GDPR."]
+    assert view_vi["resolutionAttempts"] == ["Đã kiểm tra tệp config.json và settings.py."]
     assert view_vi["choices"][0]["label"] == "30 ngày"
+    # Technical IDs, revision, enum values are strictly invariant
     assert view_vi["choices"][0]["value"] == "CHOICE_30D"
+    assert view_vi["requestId"] == "11111111-1111-4111-8111-111111111111"
+    assert view_vi["assessmentRuleId"] == "RULE-DATA-01"
 
-    # Turn 2: Same thread switches to EN
+    # Turn 2: Same thread switches to EN locale
     view_en = project_row(row, "en")
     assert view_en["question"] == "What is the retention period?"
     assert view_en["unresolvedFact"] == "Retention period is not configured in code."
     assert view_en["decisionImpact"] == ["Determines GDPR compliance."]
+    assert view_en["resolutionAttempts"] == ["Checked config.json and settings.py."]
     assert view_en["choices"][0]["label"] == "30 days"
     assert view_en["choices"][0]["value"] == "CHOICE_30D"
+    assert view_en["requestId"] == "11111111-1111-4111-8111-111111111111"
 
 
 
