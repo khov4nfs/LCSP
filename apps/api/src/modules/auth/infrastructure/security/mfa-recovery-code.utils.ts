@@ -11,8 +11,12 @@ export const MFA_RECOVERY_CODE_COUNT = 10;
 export function generateMfaRecoveryCode(): string {
   const chars: string[] = [];
   const byteCount = RECOVERY_CODE_SEGMENT_LENGTH * RECOVERY_CODE_SEGMENT_COUNT;
-  for (const byte of crypto.randomBytes(byteCount)) {
-    chars.push(RECOVERY_CODE_ALPHABET[byte % RECOVERY_CODE_ALPHABET.length]);
+  for (let index = 0; index < byteCount; index += 1) {
+    chars.push(
+      RECOVERY_CODE_ALPHABET[
+        crypto.randomInt(0, RECOVERY_CODE_ALPHABET.length)
+      ],
+    );
   }
   const segments: string[] = [];
   for (

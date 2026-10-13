@@ -39,15 +39,11 @@ test("marketing routes render real Product, Features, and Pricing pages", async 
 test("shared marketing header is 72px on desktop and routes across marketing plus auth", async () => {
   const source = await readFile(marketingShell, "utf8");
   assert.match(source, /h-18/);
-  for (const href of [
-    'href: "/"',
-    'href: "/features"',
-    'href: "/pricing"',
-    'href="/sign-in"',
-    'href="/sign-up"',
-  ]) {
-    assert.match(source, new RegExp(href.replace(/["/]/g, "\\$&")));
-  }
+  assert.match(source, /href: "\/"/);
+  assert.match(source, /href: "\/features"/);
+  assert.match(source, /href: "\/pricing"/);
+  assert.match(source, /href="\/sign-in"/);
+  assert.match(source, /href="\/sign-up"/);
   assert.match(source, /aria-current=/);
   assert.doesNotMatch(source, /\/business/);
 });
