@@ -128,9 +128,13 @@ def _error_codes(error: BaseException) -> set[str]:
                         normalized_message = (
                             message.lower().replace("_", " ").replace("-", " ")
                         )
-                        if "allowance exhausted" in normalized_message or (
-                            "monthly allowance" in normalized_message
-                            and "used up" in normalized_message
+                        if (
+                            "allowance exhausted" in normalized_message
+                            or "insufficient quota" in normalized_message
+                            or (
+                                "monthly allowance" in normalized_message
+                                and "used up" in normalized_message
+                            )
                         ):
                             codes.add("allowance_exhausted")
         text = str(current).lower()

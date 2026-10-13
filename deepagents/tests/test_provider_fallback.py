@@ -553,7 +553,11 @@ def test_apx_capacity_failure_rotates_keys_then_moves_to_google(monkeypatch):
     assert requests[-1].model.google_api_key.get_secret_value() == "google-only"
 
 
-def test_apx_pool_exhaustion_falls_through_gemini_then_inception(monkeypatch):
+@pytest.mark.parametrize(
+    "message",
+    ["monthly allowance has been used up", "insufficient_quota", "allowance_exhausted"],
+)
+def test_apx_pool_exhaustion_falls_through_gemini_then_inception(monkeypatch, message):
     _routes(monkeypatch, "apx", "google_genai", "inception")
     monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
     monkeypatch.setenv("GOOGLE_API_KEY", "google-a,google-b")
@@ -566,7 +570,7 @@ def test_apx_pool_exhaustion_falls_through_gemini_then_inception(monkeypatch):
             "type": "error",
             "error": {
                 "type": "rate_limit_error",
-                "message": "monthly allowance has been used up",
+                "message": message,
             },
         }
         response = httpx.Response(
