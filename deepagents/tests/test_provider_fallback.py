@@ -2,7 +2,9 @@ import json
 import os
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
+from anthropic import RateLimitError
 from conftest import use_model_routes
 from langchain.agents.middleware import ModelRequest, ModelResponse
 from langchain_anthropic import ChatAnthropic
@@ -558,10 +560,26 @@ def test_apx_pool_exhaustion_falls_through_gemini_then_inception(monkeypatch):
     monkeypatch.setenv("INCEPTION_API_KEY", "inception-only")
     request = ModelRequest(model=_apx_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
+
+    def apx_allowance_error():
+        body = {
+            "type": "error",
+            "error": {
+                "type": "rate_limit_error",
+                "message": "monthly allowance has been used up",
+            },
+        }
+        response = httpx.Response(
+            429,
+            request=httpx.Request("POST", "https://api.apmix.ai/v1/messages"),
+            json=body,
+        )
+        return RateLimitError("rate limit", response=response, body=body)
+
     handler = MagicMock(
         side_effect=[
-            AllowanceExhaustedError(),
-            AllowanceExhaustedError(),
+            apx_allowance_error(),
+            apx_allowance_error(),
             AllowanceExhaustedError(),
             AllowanceExhaustedError(),
             response,

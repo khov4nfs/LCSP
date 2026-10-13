@@ -123,6 +123,16 @@ def _error_codes(error: BaseException) -> set[str]:
                         value = error_payload.get(key)
                         if isinstance(value, str) and value.strip():
                             codes.add(value.strip().lower())
+                    message = error_payload.get("message")
+                    if isinstance(message, str):
+                        normalized_message = (
+                            message.lower().replace("_", " ").replace("-", " ")
+                        )
+                        if "allowance exhausted" in normalized_message or (
+                            "monthly allowance" in normalized_message
+                            and "used up" in normalized_message
+                        ):
+                            codes.add("allowance_exhausted")
         text = str(current).lower()
         for code in _PROVIDER_CAPACITY_CODES | _PROVIDER_MODEL_UNAVAILABLE_CODES:
             if code in text:
