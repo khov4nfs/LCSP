@@ -4,9 +4,8 @@ import json
 import os
 from pathlib import Path
 
-import pytest
-
 import model_policy as mp
+import pytest
 
 FIXTURE = Path(__file__).parent / "fixtures" / "model_routes_contract.json"
 CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))
@@ -177,14 +176,17 @@ def test_absent_options_inject_no_reasoning_or_profile(monkeypatch, routes):
     assert seen["spec"] == "openai:Model-Alpha"
 
 
-def test_openai_compatible_gateway_uses_openai_transport(monkeypatch, set_model_routes):
+def test_apx_gateway_uses_anthropic_messages_transport(monkeypatch, set_model_routes):
     cfg = base_cfg()
     cfg["roles"] = {"default": "c"}
     set_model_routes(cfg)
     seen = capture(monkeypatch)
     mp.resolve_agent_model("root")
-    assert seen["spec"] == "openai:model-gamma"
-    assert seen["kw"]["use_responses_api"] is False and "base_url" in seen["kw"]
+    assert seen["spec"] == "anthropic:model-gamma"
+    assert "base_url" in seen["kw"]
+    assert not {"use_responses_api", "output_version", "openai_api_base"} & set(
+        seen["kw"]
+    )
 
 
 def test_credentials_are_not_read_from_yaml(monkeypatch, set_model_routes):
