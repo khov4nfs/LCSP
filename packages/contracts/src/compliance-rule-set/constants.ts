@@ -92,11 +92,9 @@ export const RULE_SET_PREPARATION_REFUSAL_REASONS = {
   SOURCE_VERSION_NOT_ELIGIBLE: "SOURCE_VERSION_NOT_ELIGIBLE",
   ACTIVE_RULE_SET_EXISTS: "ACTIVE_RULE_SET_EXISTS",
   PREPARATION_IN_PROGRESS: "PREPARATION_IN_PROGRESS",
-  PREPARATION_ALREADY_STARTED: "PREPARATION_ALREADY_STARTED",
   SOURCE_VERSION_NOT_ACTIVE: "SOURCE_VERSION_NOT_ACTIVE",
   RUN_NOT_FAILED: "RUN_NOT_FAILED",
   RUN_NOT_LATEST_ATTEMPT: "RUN_NOT_LATEST_ATTEMPT",
-  ATTEMPTS_EXHAUSTED: "ATTEMPTS_EXHAUSTED",
 } as const;
 export type RuleSetPreparationRefusalReason =
   (typeof RULE_SET_PREPARATION_REFUSAL_REASONS)[keyof typeof RULE_SET_PREPARATION_REFUSAL_REASONS];
@@ -106,9 +104,6 @@ export type RuleSetPreparationRefusalReason =
  * An operator retry of a failed run is attributed to that operator.
  */
 export const RULE_SET_PREPARATION_SYSTEM_ACTOR = "rule-set-preparation-system";
-
-/** One automatic or Admin-started attempt plus at most two explicit operator retries per source. */
-export const RULE_SET_PREPARATION_MAX_ATTEMPTS = 3;
 
 /**
  * A worker that already holds a claim keeps it for this long. A redelivered or duplicated

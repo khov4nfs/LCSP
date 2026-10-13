@@ -1,10 +1,18 @@
 import { randomUUID } from "node:crypto";
 
-import { afterAll, beforeAll, describe, expect, it } from "@jest/globals";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "@jest/globals";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
   PrismaClient,
   AssessmentEvidenceType,
+  LegalSourceLifecycleStatus,
   RuleDecisionApplicability,
   RuleDecisionComplianceOutcome,
   RepositoryScanTriggerSource,
@@ -14,7 +22,6 @@ import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
-  RULE_SET_PREPARATION_MAX_ATTEMPTS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
   RULE_SET_PREPARATION_SYSTEM_ACTOR,
   ruleSetPreparationIdempotencyKey,
@@ -112,10 +119,38 @@ describeDatabase(
       await prisma.$disconnect();
     });
 
+    beforeEach(async () => {
+      startCommands = 0;
+      await prisma.legalSourceVersion.updateMany({
+        where: { version: { startsWith: `legalSource-${RUN}-` } },
+        data: { status: "SUPERSEDED" },
+      });
+    });
+
     const activation = (legalSourceVersionId: string) => ({
       legalSourceVersionId,
       correlationId: randomUUID(),
     });
+    const makeEligibleSource = async (source: { id: string }) => {
+      const index = await prisma.legalRetrievalIndex.findFirstOrThrow({
+        where: { legalSourceVersionId: source.id },
+      });
+      const integrityManifestRef = `integrity:${source.id}`;
+      await prisma.legalSourceVersion.update({
+        where: { id: source.id },
+        data: { integrityManifestRef },
+      });
+      await prisma.legalSourceActivationRecord.create({
+        data: {
+          legalSourceVersionId: source.id,
+          activatedBy: "isolated-test-activation",
+          status: LegalSourceLifecycleStatus.ACTIVE,
+          integrityManifestRef,
+          retrievalValidationRef: index.validationManifestRef,
+          scopeDescription: "isolated canonical activation proof",
+        },
+      });
+    };
     const runsOf = (legalSourceVersionId: string) =>
       prisma.ruleSetPreparationRun.findMany({
         where: { legalSourceVersionId },
@@ -327,8 +362,9 @@ describeDatabase(
       ).toBe("FAILED");
     });
 
-    it("an operator can retry only the latest failed run of the same source, within a bounded budget", async () => {
+    it("an operator can retry only the latest failed run and can continue beyond ten attempts", async () => {
       const source = await createLegalSource();
+      await makeEligibleSource(source);
       await consumer.handle(activation(source.id));
       const [first] = await runsOf(source.id);
 
@@ -353,37 +389,48 @@ describeDatabase(
         idempotencyKey: ruleSetPreparationIdempotencyKey(source.id, 2),
       });
 
-      // The failed first attempt is no longer the latest, so it cannot be retried again.
-      await expectRefusal(
-        retryRun(first.id),
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
-        RULE_SET_PREPARATION_REFUSAL_REASONS.RUN_NOT_LATEST_ATTEMPT,
-      );
+      // A duplicate request reuses the active attempt instead of creating another one.
+      expect(await retryRun(first.id)).toMatchObject({
+        preparationRunId: attempts[1]!.id,
+      });
 
-      for (
-        let attempt = 2;
-        attempt < RULE_SET_PREPARATION_MAX_ATTEMPTS;
-        attempt += 1
-      ) {
+      for (let attempt = 3; attempt <= 10; attempt += 1) {
         const latest = (await runsOf(source.id)).at(-1)!;
         await claimRun(latest.id);
         await failRun(latest.id);
+        if (attempt === 3) {
+          await expectRefusal(
+            retryRun(first.id),
+            COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+            RULE_SET_PREPARATION_REFUSAL_REASONS.RUN_NOT_LATEST_ATTEMPT,
+          );
+        }
         await retryRun(latest.id);
+        if (attempt === 3) {
+          await expectRefusal(
+            retryRun(first.id),
+            COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+            RULE_SET_PREPARATION_REFUSAL_REASONS.RUN_NOT_LATEST_ATTEMPT,
+          );
+        }
       }
       const last = (await runsOf(source.id)).at(-1)!;
-      expect(await runsOf(source.id)).toHaveLength(
-        RULE_SET_PREPARATION_MAX_ATTEMPTS,
+      expect(await runsOf(source.id)).toHaveLength(10);
+      expect(last.idempotencyKey).toBe(
+        ruleSetPreparationIdempotencyKey(source.id, 10),
       );
       await claimRun(last.id);
       await failRun(last.id);
-      await expectRefusal(
-        retryRun(last.id),
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
-        RULE_SET_PREPARATION_REFUSAL_REASONS.ATTEMPTS_EXHAUSTED,
-      );
-      expect(await commandsFor(source.id)).toBe(
-        RULE_SET_PREPARATION_MAX_ATTEMPTS,
-      );
+      const attemptEleven = await retryRun(last.id);
+      await expect(
+        prisma.ruleSetPreparationRun.findUniqueOrThrow({
+          where: { id: attemptEleven.preparationRunId },
+        }),
+      ).resolves.toMatchObject({
+        idempotencyKey: ruleSetPreparationIdempotencyKey(source.id, 11),
+      });
+      expect(await runsOf(source.id)).toHaveLength(11);
+      expect(await commandsFor(source.id)).toBe(11);
     });
 
     it("refuses to retry a run whose Legal Source Version is no longer the ACTIVE one", async () => {
@@ -403,8 +450,43 @@ describeDatabase(
       );
     });
 
+    it("refuses Retry and hides retryability when a compatible ACTIVE rule set exists", async () => {
+      const source = await createLegalSource();
+      await makeEligibleSource(source);
+      await consumer.handle(activation(source.id));
+      const [first] = await runsOf(source.id);
+      await claimRun(first.id);
+      await submitPacket(first.id);
+
+      const second = await start.execute(
+        new StartRuleSetPreparationCommand(
+          {
+            legalSourceVersionId: source.id,
+            idempotencyKey: ruleSetPreparationIdempotencyKey(source.id, 2),
+          },
+          "test-admin",
+          randomUUID(),
+        ),
+      );
+      await claimRun(second.preparationRunId);
+      await failRun(second.preparationRunId);
+
+      await expectRefusal(
+        retryRun(second.preparationRunId),
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+        RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS,
+      );
+      const view = await history.load();
+      expect(
+        view.preparations.find(
+          (run) => run.preparationRunId === second.preparationRunId,
+        )?.retryable,
+      ).toBe(false);
+    });
+
     it("the operations history exposes version, counts, digest, failures and retryability", async () => {
       const source = await createLegalSource();
+      await makeEligibleSource(source);
       await consumer.handle(activation(source.id));
       const [run] = await runsOf(source.id);
       await claimRun(run.id);

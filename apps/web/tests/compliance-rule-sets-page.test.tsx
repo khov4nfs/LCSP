@@ -13,6 +13,7 @@ import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   complianceRuleSetHistorySchema,
+  RULE_SET_PREPARATION_FAILURE_REASONS,
   RULE_SET_PREPARATION_REFUSAL_REASONS,
 } from "@lcsp/contracts/compliance-rule-set";
 import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
@@ -32,10 +33,14 @@ const history = complianceRuleSetHistorySchema.parse({
   preparation: {
     legalSourceVersionId: SOURCE_V2,
     legalSourceVersion: "2026.11",
-    canStart: false,
-    refusalReason:
-      RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_ALREADY_STARTED,
-    currentRun: null,
+    canStart: true,
+    refusalReason: null,
+    currentRun: {
+      preparationRunId: RUN_FAILED,
+      legalSourceVersionId: SOURCE_V2,
+      executionState: AGENT_EXECUTION_STATES.FAILED,
+      ruleSetVersionId: null,
+    },
   },
   ruleSets: [
     {
@@ -59,7 +64,7 @@ const history = complianceRuleSetHistorySchema.parse({
       legalSourceVersion: "2026.11",
       executionState: "FAILED",
       ruleSetVersionId: null,
-      failureReason: "NO_SUBMISSION",
+      failureReason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
       attempt: 1,
       requestedBy: "rule-set-preparation-system",
       createdAt: "2026-10-11T11:00:00.000Z",
@@ -91,7 +96,7 @@ function client() {
   });
 }
 
-test("Compliance Rule Sets shows metadata and canonical Retry for a failed preparation", async () => {
+test("Compliance Rule Sets shows Prepare and canonical Retry after a failed preparation", async () => {
   const stub = installFetch({ "GET /api/admin/compliance-rule-sets": history });
   try {
     const page = render(
@@ -108,17 +113,19 @@ test("Compliance Rule Sets shows metadata and canonical Retry for a failed prepa
     assert.match(text, /62/);
     assert.match(text, /f{64}/);
     assert.match(text, /No rule set|Rule Set Preparation/);
-    // A failed initial attempt uses Retry; callers cannot select another source or provide content.
+    // Prepare is available for the current source; Retry remains scoped to the latest failed run.
     assert.equal(
       page.querySelectorAll("form, select, [role='combobox']").length,
       0,
     );
-    assert.equal(byText(page, "button", /^Start/), null);
-    assert.equal(
-      byText(page, "button", /Start preparation|Start Rule Set Preparation/i),
-      null,
+    const prepare = byText<HTMLButtonElement>(
+      page,
+      "button",
+      "Prepare rule set",
     );
-    // The only action is the explicit retry of the one failed run.
+    assert.ok(prepare);
+    assert.equal(prepare.disabled, false);
+    assert.equal(byText(page, "button", "Cancel preparation"), null);
     const retry = buttons(page).filter((button) =>
       /Retry failed Rule Set Preparation/.test(button.textContent ?? ""),
     );
@@ -177,6 +184,34 @@ const clean = complianceRuleSetHistorySchema.parse({
   preparations: [],
 });
 
+const failedThreeTimes = complianceRuleSetHistorySchema.parse({
+  ...clean,
+  preparation: {
+    ...clean.preparation,
+    currentRun: {
+      preparationRunId: RUN_CANCEL,
+      legalSourceVersionId: SOURCE_V1,
+      executionState: AGENT_EXECUTION_STATES.FAILED,
+      ruleSetVersionId: null,
+    },
+  },
+  preparations: [1, 2, 3]
+    .map((attempt) => ({
+      preparationRunId: [RUN_FAILED, RUN_OK, RUN_CANCEL][attempt - 1]!,
+      legalSourceVersionId: SOURCE_V1,
+      legalSourceVersion: "2026.10",
+      executionState: AGENT_EXECUTION_STATES.FAILED,
+      ruleSetVersionId: null,
+      failureReason: RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION,
+      attempt,
+      requestedBy: "owner-admin",
+      createdAt: `2026-10-13T01:0${attempt}:00.000Z`,
+      completedAt: `2026-10-13T01:1${attempt}:00.000Z`,
+      retryable: attempt === 3,
+    }))
+    .reverse(),
+});
+
 function page() {
   return render(
     <QueryClientProvider client={client()}>
@@ -184,6 +219,98 @@ function page() {
     </QueryClientProvider>,
   );
 }
+
+test("three failed attempts keep Prepare visible and enabled with no Cancel action", async () => {
+  const stub = installFetch({
+    "GET /api/admin/compliance-rule-sets": failedThreeTimes,
+  });
+  try {
+    const rendered = page();
+    await settle();
+    const prepare = byText<HTMLButtonElement>(
+      rendered,
+      "button",
+      "Prepare rule set",
+    );
+    assert.ok(prepare);
+    assert.equal(prepare.disabled, false);
+    assert.equal(byText(rendered, "button", "Cancel preparation"), null);
+    assert.equal(
+      rendered.querySelectorAll("[data-preparation-state='FAILED']").length,
+      3,
+    );
+  } finally {
+    stub.restore();
+  }
+});
+
+test("preparing after three failures displays Attempt 4 and exposes Cancel while queued", async () => {
+  const attemptFour = {
+    preparationRunId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4",
+    legalSourceVersionId: SOURCE_V1,
+    executionState: AGENT_EXECUTION_STATES.QUEUED,
+    ruleSetVersionId: null,
+  };
+  const attemptFourHistory = complianceRuleSetHistorySchema.parse({
+    ...failedThreeTimes,
+    preparation: {
+      ...failedThreeTimes.preparation,
+      canStart: false,
+      refusalReason:
+        RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS,
+      currentRun: attemptFour,
+    },
+    preparations: [
+      {
+        ...attemptFour,
+        legalSourceVersion: "2026.10",
+        failureReason: null,
+        attempt: 4,
+        requestedBy: "owner-admin",
+        createdAt: "2026-10-13T01:04:00.000Z",
+        completedAt: null,
+        retryable: false,
+      },
+      ...failedThreeTimes.preparations,
+    ],
+  });
+  const routes: Record<string, unknown> = {
+    "GET /api/admin/compliance-rule-sets": failedThreeTimes,
+    "POST /api/admin/compliance-rule-sets/prepare": attemptFour,
+  };
+  const stub = installFetch(routes);
+  const fetch = globalThis.fetch;
+  globalThis.fetch = (async (input, init) => {
+    const response = await fetch(input, init);
+    if (init?.method === "POST") {
+      routes["GET /api/admin/compliance-rule-sets"] = attemptFourHistory;
+    }
+    return response;
+  }) as typeof fetch;
+  try {
+    const rendered = page();
+    await settle();
+    click(byText(rendered, "button", "Prepare rule set"));
+    await settle();
+    click(byText(document.body, "button", "Prepare"));
+    await settle(12);
+    assert.equal(
+      rendered.querySelectorAll("[data-preparation-state='QUEUED']").length,
+      1,
+    );
+    assert.equal(byText(rendered, "button", "Prepare rule set"), null);
+    assert.ok(byText(rendered, "button", "Cancel preparation"));
+    assert.equal(
+      stub.calls.filter(
+        (call) => call.url === "/api/admin/compliance-rule-sets/prepare",
+      ).length,
+      1,
+    );
+  } finally {
+    globalThis.fetch = fetch;
+    stub.restore();
+  }
+});
 
 test("clean baseline enables Prepare and cancellation spends no model quota", async () => {
   const stub = installFetch({ "GET /api/admin/compliance-rule-sets": clean });
