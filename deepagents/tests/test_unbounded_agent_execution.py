@@ -23,7 +23,7 @@ from rule_set_preparation import runner as preparation_runner
 from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
-from test_assessment_root_agent import ASSESSMENT, THREAD, FakeClient, RootScriptedModel
+from test_assessment_root_agent import complete_root_messages, ASSESSMENT, THREAD, FakeClient, RootScriptedModel
 from test_rule_set_preparation_agent import FakeApi, RUN_ID, _bundle, _call, _model, _packet
 from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
 from tools.common.capabilities.agent_runtime.local_server import _runtime_config
@@ -101,7 +101,7 @@ def test_root_continues_past_its_old_1000_steps_with_governance(tmp_path: Path) 
     (tmp_path / "source.txt").write_text("\n".join(f"source line {i}" for i in range(70)))
     model = RootScriptedModel(responses=[
         *[_call("read_file", {"file_path": "/source.txt", "offset": i, "limit": 1}, f"read-{i}") for i in range(65)],
-        AIMessage(content="complete"),
+        *complete_root_messages(),
     ])
     client, steps = FakeClient(), GraphSteps()
     result = run_assessment_root(
@@ -126,7 +126,7 @@ def test_native_researcher_inherits_the_shared_technical_ceiling(tmp_path: Path)
     model = ConfigRecordingModel(responses=[
         _call("task", {"description": "Inspect the repository", "subagent_type": "repository-researcher"}, "research"),
         AIMessage(content="research complete"),
-        AIMessage(content="complete"),
+        *complete_root_messages(),
     ])
     result = run_assessment_root(
         FakeClient(), ASSESSMENT,
@@ -134,7 +134,7 @@ def test_native_researcher_inherits_the_shared_technical_ceiling(tmp_path: Path)
         model=model,
     )
     assert result["state"] == "SUCCEEDED"
-    assert model.limits == [LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT] * 3
+    assert model.limits == [LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT] * 4
 
 
 def test_framework_exhaustion_is_runtime_error_not_model_error(monkeypatch, tmp_path: Path) -> None:

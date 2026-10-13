@@ -46,6 +46,13 @@ def _call(name: str, args: dict[str, Any], call_id: str) -> AIMessage:
     return AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": call_id}])
 
 
+def complete_root_messages():
+    return [
+        _call("request_finalization", {}, "finalize"),
+        _call("submit_final_report", {"summary": "Verified report.", "findings": [{"assessment_rule_id": "ER-1", "summary": "Verified rule."}]}, "report"),
+    ]
+
+
 class FakeClient:
     """In-memory stand-in for the API tool plane; records every governed call."""
 
@@ -54,6 +61,7 @@ class FakeClient:
         self.lease_token: str | None = None
         self.assessment_id: str | None = None
         self.case_revision = 0
+        self.lifecycle_state = "ACTIVE"
         self.open_requests = open_requests or []
         self.reject_decision: AssessmentApiError | None = None
 
@@ -79,7 +87,7 @@ class FakeClient:
         return {
             "assessmentId": self.assessment_id,
             "threadId": THREAD,
-            "lifecycleState": "ACTIVE",
+            "lifecycleState": self.lifecycle_state,
             "lifecycleRevision": 2,
             "caseRevision": self.case_revision,
             "decisionScopeId": "ASSESSMENT",
@@ -134,6 +142,17 @@ class FakeClient:
         if self.reject_decision:
             raise self.reject_decision
         return {"decisionId": "88888888-8888-4888-8888-888888888888", "decisionRevision": 1, "replayed": False}
+
+    def request_finalization(self):
+        self.calls.append(("finalization", None))
+        self.lifecycle_state = "FINALIZING"
+        return {"lifecycleState": self.lifecycle_state, "blockers": []}
+
+    def post_final_report(self, body):
+        assert self.lifecycle_state == "FINALIZING"
+        self.calls.append(("final_report", body))
+        self.lifecycle_state = "COMPLETE"
+        return {"lifecycleState": self.lifecycle_state, "artifactId": "server-report"}
 
     def post_human_request(self, body: dict[str, Any]) -> dict[str, Any]:
         self.calls.append(("human", body))
@@ -455,7 +474,7 @@ def test_production_root_filesystem_backend_keeps_permissions_without_shell(tmp_
         _call("read_file", {"file_path": "/src/retention.py"}, "read"),
         _call("write_file", {"file_path": "/src/new.py", "content": "forbidden"}, "deny"),
         _call("write_file", {"file_path": "/.lcsp/scratch.txt", "content": "scratch"}, "scratch"),
-        AIMessage(content="done"),
+        *complete_root_messages(),
     ])
     agent = create_assessment_root_agent(run=run, model=model, governance=(), graph_tools=[])
     with activation:
@@ -497,7 +516,7 @@ def test_root_graph_has_one_delegate_the_read_only_researcher_without_governed_t
         responses=[
             _call("task", {"description": "Where is keep_days used?", "subagent_type": RESEARCHER_NAME}, "t1"),
             AIMessage(content="candidate findings: src/retention.py:3"),  # researcher answer
-            AIMessage(content="root done"),
+            *complete_root_messages(),
         ]
     )
     agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=InMemorySaver(), graph_tools=[])
@@ -541,7 +560,7 @@ def test_root_reads_shared_generic_learning_through_its_native_store_only(tmp_pa
     store = InMemoryStore()
     heuristic = promote_reviewed_heuristic(store, PROPOSAL, signature(PROPOSAL), REVIEW_KEY)
     client = FakeClient()
-    model = RootScriptedModel(responses=[_call("retrieve_shared_heuristics", {"query": "search coverage"}, "learning-1"), AIMessage(content="Investigate source; guidance is not evidence.")])
+    model = RootScriptedModel(responses=[_call("retrieve_shared_heuristics", {"query": "search coverage"}, "learning-1"), *complete_root_messages()])
     agent = create_assessment_root_agent(run=_run(tmp_path, client), model=model, governance=(), checkpointer=InMemorySaver(), store=store, graph_tools=[])
     output = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config={"configurable": {"thread_id": THREAD}})
     messages = [message.content for message in output["messages"] if getattr(message, "name", None) == "retrieve_shared_heuristics"]
@@ -567,7 +586,7 @@ def test_runner_binds_the_server_thread_and_settles_the_execution(tmp_path) -> N
     model = RootScriptedModel(
         responses=[
             _call("get_assessment_context", {}, "c1"),
-            AIMessage(content="all rules covered"),
+            *complete_root_messages(),
         ]
     )
     result = run_assessment_root(
@@ -625,7 +644,7 @@ def test_task_delegation_is_reported_as_subagent_activity_with_root_lineage(tmp_
         responses=[
             _call("task", {"description": "look", "subagent_type": RESEARCHER_NAME}, "task-call-1"),
             AIMessage(content="findings"),
-            AIMessage(content="done"),
+            *complete_root_messages(),
         ]
     )
     run_assessment_root(
@@ -694,7 +713,7 @@ def test_root_human_tool_uses_native_interrupt_and_replays_the_same_request(tmp_
         "assessment_rule_id": "ER-1", "question": "Who owns the operational policy?",
         "unresolved_fact": "Operational policy owner", "decision_impact": ["Determines responsibility"],
         "resolution_attempts": ["Reviewed the available sources and accepted facts"],
-    }, "human-call"), AIMessage(content="Investigating the confirmed owner.")])
+    }, "human-call"), *complete_root_messages()])
     agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
     config = {"configurable": {"thread_id": THREAD}}
     result = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
@@ -735,7 +754,7 @@ def test_unresolvable_fact_tool_blocks_then_resumes_without_reapplying_the_claim
         "resolution_attempts": ["Reviewed all accepted sources"],
         "unavailability_rationale": "The records were permanently destroyed and no other source exists under the contract.",
         "evidence_ids": ["66666666-6666-4666-8666-666666666666"],
-    }, "blocked-call"), AIMessage(content="Investigating newly recovered facts.")])
+    }, "blocked-call"), *complete_root_messages()])
     agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
     config = {"configurable": {"thread_id": THREAD}}
     result = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
@@ -785,7 +804,7 @@ def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):
     client = ControlledClient()
     saver = InMemorySaver()
     backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
-    model = RootScriptedModel(responses=[AIMessage(content="Done")])
+    model = RootScriptedModel(responses=[*complete_root_messages()])
     first = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (backend, None), model=model, checkpointer=saver, governance=())
     assert first["state"] == "PAUSED"
     assert first["threadId"] == THREAD
@@ -796,7 +815,7 @@ def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):
     replacement = ControlledClient()
     replacement.control = "RUNNING"
     replacement.checkpoint = first["checkpointId"]
-    resumed = run_assessment_root(replacement, ASSESSMENT, backend_factory=lambda *_: (backend, None), model=RootScriptedModel(responses=[AIMessage(content="Done")]), checkpointer=saver, governance=())
+    resumed = run_assessment_root(replacement, ASSESSMENT, backend_factory=lambda *_: (backend, None), model=RootScriptedModel(responses=[*complete_root_messages()]), checkpointer=saver, governance=())
     assert resumed["state"] == "SUCCEEDED"
     assert resumed["threadId"] == first["threadId"]
     assert resumed["executionId"] == first["executionId"]
@@ -839,11 +858,11 @@ def test_stop_arriving_during_model_response_pauses_before_tool_effects(tmp_path
     assert len(model.prompts) == 1
     assert not any(kind == "fact" for kind, _ in client.calls)
     client.control = "RUNNING"
-    resumed_model = RootScriptedModel(responses=[AIMessage(content="Done")])
+    resumed_model = RootScriptedModel(responses=[*complete_root_messages()])
     resumed = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (backend, None),
                                   model=resumed_model, checkpointer=saver, governance=())
     assert resumed["state"] == "SUCCEEDED"
     assert resumed["threadId"] == first["threadId"] == THREAD
     assert resumed["executionId"] == first["executionId"] == EXECUTION
-    assert len(resumed_model.prompts) == 1
+    assert len(resumed_model.prompts) == 2
     assert sum(kind == "fact" for kind, _ in client.calls) == 1

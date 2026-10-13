@@ -251,24 +251,33 @@ try {
     5,
   );
 
-  // 8. failed attempts preserve the ACTIVE rule set
+  // 8. invalid packets cannot reach submission; an exhausted offline model is a provider failure.
+  // The failed dry-run and refused submission preserve the ACTIVE rule set and write no rows.
   const stale = await runPython(
     (await startRun(await freshSource("b"))).preparationRunId,
     "stale",
   );
   eq(stale.state, "FAILED");
-  eq(stale.failureReason, "RULE_SET_VALIDATION_FAILED");
+  eq(stale.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.MODEL_ERROR);
+  eq(stale.submission, null);
   ok(
-    stale.submission.validation.failures.some(
-      (f) => f.code === "STALE_SOURCE_HASH",
+    stale.trace.some(
+      (step) =>
+        step.tool === "validate" && step.failureCodes?.STALE_SOURCE_HASH,
     ),
     "stale hash rejected",
+  );
+  ok(
+    stale.trace.some(
+      (step) =>
+        step.tool === "submit" && step.outcome === "VALIDATION_REQUIRED",
+    ),
   );
   const orphanRun = await startRun(await freshSource("b"));
   const orphan = await runPython(orphanRun.preparationRunId, "orphan");
   eq(orphan.state, AGENT_EXECUTION_STATES.FAILED);
   eq(orphan.submission, null);
-  eq(orphan.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.NO_SUBMISSION);
+  eq(orphan.failureReason, RULE_SET_PREPARATION_FAILURE_REASONS.MODEL_ERROR);
   const orphanFeedback = orphan.trace.find(
     (step) => step.tool === "validate",
   )?.error;
@@ -302,7 +311,13 @@ try {
       trace: undefined,
     },
   );
-  eq(none.trace, []);
+  eq(none.trace, [
+    {
+      tool: "source_blocked",
+      reason: "SOURCE_PINS_INCONSISTENT",
+      path: "/legal-source/INDEX.md",
+    },
+  ]);
   eq(await run(noSubmit.preparationRunId), {
     executionState: "FAILED",
     failureReason: "NO_SUBMISSION",
@@ -314,7 +329,7 @@ try {
         `SELECT count(*)::int AS n FROM "ComplianceRuleSetVersion" WHERE "lifecycleState"='INVALID'`,
       )
     ).rows[0].n,
-    1,
+    0,
   );
 
   // 9. concurrent agent processes: exactly one ACTIVE, consistent supersession chain
