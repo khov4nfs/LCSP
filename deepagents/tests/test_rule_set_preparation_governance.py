@@ -5,15 +5,15 @@ import sys
 from pathlib import Path
 
 import pytest
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-
 from middleware import token_fallback, usage_metering
 from middleware.usage_metering import AgentRunState, activate_agent_run_state
 from rule_set_preparation.runner import MODEL_ERROR, run_rule_set_preparation
-from test_rule_set_preparation_agent import FakeApi, RUN_ID, _call, _packet
+from test_rule_set_preparation_agent import RUN_ID, FakeApi, _call, _packet
 
 
 class AllowanceExhausted(Exception):
@@ -53,7 +53,12 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
 
     def generate(model, messages, **kwargs):
         provider = token_fallback.model_provider(model)
-        secret = model.google_api_key if provider == "google_genai" else model.openai_api_key
+        if provider == "google_genai":
+            secret = model.google_api_key
+        elif provider == "apx":
+            secret = model.anthropic_api_key
+        else:
+            secret = model.openai_api_key
         slot = pools[provider].index(secret.get_secret_value())
         attempts.append((provider, slot))
         if (provider, slot) != successful_slot:
@@ -70,6 +75,7 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
 
     monkeypatch.setattr(ChatOpenAI, "_generate", generate)
     monkeypatch.setattr(ChatGoogleGenerativeAI, "_generate", generate)
+    monkeypatch.setattr(ChatAnthropic, "_generate", generate)
     api = FakeApi()
     state = AgentRunState(run_id=RUN_ID, agent_role="rule-set-preparation")
     # Observe the canonical usage port without assigning Preparation usage to a customer assessment.

@@ -69,6 +69,7 @@ def isolated_credential_health(monkeypatch):
     )
     token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
     token_fallback._RATE_LIMITED_UNTIL.clear()
+    token_fallback._CREDENTIAL_POOL_FINGERPRINTS.clear()
 
     def forbid_sleep(seconds: float) -> None:
         raise AssertionError(f"auth failures must never wait; slept {seconds}s")
@@ -81,6 +82,7 @@ def isolated_credential_health(monkeypatch):
     yield
     token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
     token_fallback._RATE_LIMITED_UNTIL.clear()
+    token_fallback._CREDENTIAL_POOL_FINGERPRINTS.clear()
 
 
 def _google_auth_error() -> GoogleAuthenticationError:
@@ -116,7 +118,7 @@ def _google_permission_error() -> GooglePermissionDeniedError:
 
 
 def _openai_error(error_type, status: int):
-    request = httpx.Request("POST", "https://api.apmix.ai/v1/chat/completions")
+    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
     return error_type(
         "credential rejected",
         response=httpx.Response(status, request=request),
@@ -311,9 +313,9 @@ async def test_exhausted_google_pool_with_typed_auth_moves_to_next_provider(monk
         "ChatGoogleGenerativeAI",
         "ChatGoogleGenerativeAI",
         "ChatGoogleGenerativeAI",
-        "ChatOpenAI",
+        "ChatAnthropic",
     ]
-    assert models[-1].openai_api_key.get_secret_value() == "apx-only-test-token"
+    assert models[-1].anthropic_api_key.get_secret_value() == "apx-only-test-token"
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
