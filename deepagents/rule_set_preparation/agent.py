@@ -16,6 +16,7 @@ from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPer
 from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware
+from orchestration.graph_execution import agent_graph_config
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
 
 INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
@@ -114,4 +115,4 @@ def create_rule_set_preparation_agent(
             subagents=[],
             checkpointer=checkpointer,
             store=store,
-        )
+        ).with_config(agent_graph_config())

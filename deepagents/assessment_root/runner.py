@@ -19,6 +19,7 @@ from orchestration.agent_stream import (
     active_agent_stream, AgentStreamSession, BufferedAgentStreamEmitter,
     activate_agent_stream, publish_agent_stream_event,
 )
+from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.logging import get_logger
 
 logger = get_logger(__name__)
@@ -121,9 +122,6 @@ def run_assessment_root(
     checkpointer: Any | None = None,
     store: Any | None = None,
     governance: Any | None = None,
-    # Superstep ceiling, not a round count: each model/tool round also runs the governance middleware
-    # nodes (~17 supersteps observed), so 200 allowed only ~12 rounds. ponytail: fixed ceiling, derive from a round budget if the middleware stack changes.
-    recursion_limit: int = 1000,
     extra_callbacks: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Execute one Root run on the assessment's server-owned thread.
@@ -163,11 +161,10 @@ def run_assessment_root(
             governance=governance,
             middleware=[RootRuntimeControl(client, run.execution_id)],
         )
-        config = {
+        config = agent_graph_config({
             "configurable": {"thread_id": run.thread_id},
-            "recursion_limit": recursion_limit,
             "callbacks": [run.trace, TaskLineage(client, run.execution_id), *(extra_callbacks or [])],
-        }
+        })
         with activation or contextlib.nullcontext(), _root_telemetry(claim):
             packet: Any = {"messages": [{"role": "user", "content": _START_MESSAGE}]}
             if checkpointer is not None:
