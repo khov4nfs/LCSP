@@ -8,7 +8,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from assessment_root.agent import create_assessment_root_agent
 from assessment_root.runner import run_assessment_root
 from assessment_root.tools import RootRun
-from test_assessment_root_agent import ASSESSMENT, THREAD, EXECUTION, FakeClient, RootScriptedModel
+from test_assessment_root_agent import ASSESSMENT, THREAD, EXECUTION, FakeClient, RootScriptedModel, complete_root_messages
 from vertical.live_root import MAX_CALLS, MAX_INPUT_TOKENS, ReviewTrace
 
 
@@ -39,11 +39,17 @@ def test_live_eval_budget_and_authoritative_tool_output_capture():
 def test_native_root_terminal_response_is_not_failed_by_eval_budget(tmp_path):
     client = FakeClient()
     trace = ReviewTrace()
+    class CompletedResponse(RootScriptedModel):
+        def _generate(self, messages, **kwargs):
+            result = super()._generate(messages, **kwargs)
+            client.lifecycle_state = "COMPLETE"
+            return result
+
     result = run_assessment_root(
         client,
         ASSESSMENT,
         backend_factory=lambda claim, context: (FilesystemBackend(root_dir=tmp_path, virtual_mode=True), None),
-        model=RootScriptedModel(responses=[AIMessage(
+        model=CompletedResponse(responses=[AIMessage(
             content="Assessment complete.",
             usage_metadata={"input_tokens": MAX_INPUT_TOKENS + 1, "output_tokens": 1, "total_tokens": MAX_INPUT_TOKENS + 2},
         )]),
@@ -71,7 +77,7 @@ def test_budget_failure_resumes_native_pending_model_without_repeating_tool(tmp_
     assert first["state"] == "FAILED"
     second = run_assessment_root(
         client, ASSESSMENT, backend_factory=lambda claim, context: (backend, None),
-        model=RootScriptedModel(responses=[AIMessage(content="Finished using accepted evidence.")]),
+        model=RootScriptedModel(responses=complete_root_messages()),
         checkpointer=saver, governance=(), extra_callbacks=[ReviewTrace()],
     )
     assert second["state"] == "SUCCEEDED" and second["threadId"] == first["threadId"]

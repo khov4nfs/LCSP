@@ -58,9 +58,13 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
         attempts.append((provider, slot))
         if (provider, slot) != successful_slot:
             raise AllowanceExhausted("insufficient_quota: allowance_exhausted")
-        message = (_call("submit_compliance_rule_set", {"packet": _packet()}, "submit-once")
-                   if not any(getattr(m, "name", None) == "submit_compliance_rule_set" for m in messages)
-                   else AIMessage(content="DONE"))
+        tool_results = {getattr(m, "name", None) for m in messages}
+        if "validate_compliance_rule_set" not in tool_results:
+            message = _call("validate_compliance_rule_set", {"packet": _packet()}, "validate")
+        elif "submit_compliance_rule_set" not in tool_results:
+            message = _call("submit_compliance_rule_set", {"packet": _packet()}, "submit-once")
+        else:
+            message = AIMessage(content="DONE")
         message.usage_metadata = {"input_tokens": 3, "output_tokens": 2, "total_tokens": 5}
         return ChatResult(generations=[ChatGeneration(message=message)])
 
@@ -86,7 +90,7 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
     failed = [data for event, data in events if event == "MODEL_CALL_FAILED"]
     if successful_slot:
         assert result["state"] == "SUCCEEDED"
-        assert api.names() == ["claim", "submit"]
+        assert api.names() == ["claim", "validate", "submit"]
         assert len(starts) == len(completed) == len(settled) == 2
         assert failed == []
         assert starts[0]["model_step_id"] == completed[0]["model_step_id"]

@@ -12,16 +12,62 @@ from typing import Any, Sequence
 
 from deepagents import create_deep_agent
 from deepagents.middleware.filesystem import FilesystemPermission
+from langchain.agents.middleware import AgentMiddleware, AgentState, TracePolicy, hook_config, omit_payload
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.runtime import Runtime
 
 from assessment_root.researcher import researcher_subagent
 from assessment_root.tools import RootRun, build_root_tools
 from rule_set_preparation.agent import _lookup_profile_key, _without_general_purpose_subagent
 from orchestration.graph_execution import agent_graph_config
+from tools.common.capabilities.platform.logging import get_logger
 
 ROOT_INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
 ASSESSMENT_ROOT_ROLE = "assessment-root"
 # Graph tools search; governed Root tools mint accepted source references.
 _GRAPH_TOOL_NAMES = {"search_code_graph", "trace_call_path", "search_code_text", "get_repository_architecture"}
+logger = get_logger(__name__)
+
+
+class AssessmentCompletionMiddleware(AgentMiddleware):
+    """Only API-owned COMPLETE ends the persistent workflow without an interrupt."""
+
+    # Native response_format validates response shape, not API lifecycle; native hooks route on that predicate.
+
+    trace_policy = TracePolicy(process_inputs=omit_payload, process_outputs=omit_payload)
+
+    def __init__(self, run: RootRun) -> None:
+        self.run = run
+
+    @hook_config(can_jump_to=["end"])
+    def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+        if self.run.client.context()["lifecycleState"] == "COMPLETE":
+            return {"jump_to": "end"}
+        return None
+
+    @hook_config(can_jump_to=["model"])
+    def after_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
+        response = state["messages"][-1]
+        if not isinstance(response, AIMessage) or response.tool_calls:
+            return None
+        context = self.run.client.context()
+        if context["lifecycleState"] == "COMPLETE":
+            return None
+        if context["openHumanRequestIds"]:
+            raise RuntimeError("open human blockers without a native interrupt")
+        logger.info("ASSESSMENT_ROOT_CONTINUING", assessment_id=self.run.assessment_id,
+                    execution_id=self.run.execution_id, lifecycle_state=context["lifecycleState"])
+        return {
+            "messages": [HumanMessage(content=(
+                "The API has not confirmed this assessment COMPLETE. Continue this same "
+                "assessment and preserve accepted evidence and decisions. Reload governed "
+                "context, resolve remaining pinned rules, request_finalization, then "
+                "submit_final_report when the Completion Gate permits it. Use native tools, "
+                "not tool-call text. Use the native human request interrupt for missing "
+                "customer facts; do not infer lifecycle completion from your response."
+            ))],
+            "jump_to": "model",
+        }
 
 
 def root_permissions() -> list[FilesystemPermission]:
@@ -75,7 +121,7 @@ def create_assessment_root_agent(
             tools=[*build_root_tools(run), *tools],
             subagents=[researcher_subagent(tools)],
             permissions=root_permissions(),
-            middleware=[*governance, *middleware],
+            middleware=[*governance, AssessmentCompletionMiddleware(run), *middleware],
             checkpointer=checkpointer,
             store=store,
         ).with_config(agent_graph_config())
