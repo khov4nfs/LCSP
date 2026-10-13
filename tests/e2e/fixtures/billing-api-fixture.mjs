@@ -9,6 +9,15 @@ const fixture = JSON.parse(
 );
 
 const accounts = new Map();
+const ruleSetFixture = JSON.parse(
+  await readFile(
+    new URL(
+      "../../../apps/web/src/public/assets/mocks/admin-rule-set-preparation.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
 const PORT = Number(process.env.BILLING_E2E_API_PORT ?? 3102);
 
 function readAccount(token) {
@@ -17,6 +26,7 @@ function readAccount(token) {
       wallet: structuredClone(fixture.wallet),
       orders: [],
       idempotency: new Map(),
+      ruleSetHistory: structuredClone(ruleSetFixture.clean),
     });
   }
   return accounts.get(token);
@@ -92,6 +102,39 @@ const server = createServer(async (request, response) => {
   if (request.method === "GET" && url.pathname === "/provider-credentials") {
     if (!role) return problem(response, 401, "AUTH_REQUIRED");
     return success(response, []);
+  }
+
+  if (
+    url.pathname === "/admin/compliance-rule-sets" &&
+    request.method === "GET"
+  ) {
+    if (role !== "ADMIN") return problem(response, 403, "RBAC_DENIED");
+    return success(response, readAccount(token).ruleSetHistory);
+  }
+  if (
+    url.pathname === "/admin/compliance-rule-sets/prepare" &&
+    request.method === "POST"
+  ) {
+    if (role !== "ADMIN") return problem(response, 403, "RBAC_DENIED");
+    const account = readAccount(token);
+    if (account.ruleSetHistory.preparation.currentRun)
+      return success(
+        response,
+        account.ruleSetHistory.preparation.currentRun,
+        202,
+      );
+    const run = structuredClone(ruleSetFixture.queuedRun);
+    account.ruleSetHistory = {
+      ...ruleSetFixture.clean,
+      preparation: {
+        ...ruleSetFixture.clean.preparation,
+        canStart: false,
+        refusalReason: "PREPARATION_IN_PROGRESS",
+        currentRun: run,
+      },
+      preparations: [{ ...run, ...ruleSetFixture.runDetails }],
+    };
+    return success(response, run, 202);
   }
 
   if (request.method === "GET" && url.pathname === "/admin/billing/export") {

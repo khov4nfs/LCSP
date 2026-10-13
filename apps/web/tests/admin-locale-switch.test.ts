@@ -1,18 +1,27 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { act, createElement } from "react";
+import React, { act, createElement } from "react";
+import { apiQueryKeys } from "../src/lib/api/query-keys.ts";
 import {
   APP_LOCALE_COOKIE,
   getAppLocaleSnapshot,
   setAppLocale,
 } from "../src/lib/locale.ts";
 
-const dom = new JSDOM("<!doctype html><html lang=\"vi\"><body><div id=\"root\"></div></body></html>", {
-  url: "http://localhost/admin/overview",
-  pretendToBeVisual: true,
-});
+const dom = new JSDOM(
+  '<!doctype html><html lang="vi"><body><div id="root"></div></body></html>',
+  {
+    url: "http://localhost/admin/overview",
+    pretendToBeVisual: true,
+  },
+);
 const testWindow = dom.window;
+Object.defineProperty(globalThis, "React", {
+  configurable: true,
+  value: React,
+});
 for (const name of [
   "window",
   "document",
@@ -43,7 +52,10 @@ for (const name of ["requestAnimationFrame", "cancelAnimationFrame"] as const) {
     value: testWindow[name].bind(testWindow),
   });
 }
-type IdleCb = (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void;
+type IdleCb = (deadline: {
+  didTimeout: boolean;
+  timeRemaining: () => number;
+}) => void;
 const idlePolyfill = (cb: IdleCb) =>
   setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 10 }), 1);
 const cancelIdlePolyfill = (id: number) => clearTimeout(id);
@@ -71,7 +83,7 @@ Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
 Object.defineProperty(testWindow, "matchMedia", {
   configurable: true,
   value: () => ({
-    matches: false,
+    matches: true,
     addEventListener() {},
     removeEventListener() {},
     addListener() {},
@@ -80,15 +92,12 @@ Object.defineProperty(testWindow, "matchMedia", {
 });
 
 const { createRoot } = await import("react-dom/client");
-const { QueryClient, QueryClientProvider } = await import(
-  "@tanstack/react-query"
-);
-const { AdminShell } = await import(
-  "../src/features/admin/components/templates/admin-shell.tsx"
-);
-const { AdminOverviewPage } = await import(
-  "../src/features/admin/components/organisms/admin-overview-page.tsx"
-);
+const { QueryClient, QueryClientProvider } =
+  await import("@tanstack/react-query");
+const { AdminShell } =
+  await import("../src/features/admin/components/templates/admin-shell.tsx");
+const { AdminOverviewPage } =
+  await import("../src/features/admin/components/organisms/admin-overview-page.tsx");
 
 test("setAppLocale synchronizes cookie, appLocale, and document.documentElement.lang", () => {
   setAppLocale("en");
@@ -108,20 +117,27 @@ test("AdminShell and page body update simultaneously when setAppLocale is trigge
   const root = createRoot(container);
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false },
+      queries: { retry: false, gcTime: 0 },
     },
   });
+  const { profile } = JSON.parse(
+    await readFile(
+      new URL("../src/public/assets/mocks/admin-shell.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  queryClient.setQueryDefaults(apiQueryKeys.auth.settingsProfile(), {
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+  queryClient.setQueryData(apiQueryKeys.auth.settingsProfile(), profile);
 
   await act(async () => {
     root.render(
       createElement(
         QueryClientProvider,
         { client: queryClient },
-        createElement(
-          AdminShell,
-          { adminName: "Admin User", adminEmail: "admin@example.com" },
-          createElement(AdminOverviewPage),
-        ),
+        createElement(AdminShell, null, createElement(AdminOverviewPage)),
       ),
     );
     await new Promise((r) => setTimeout(r, 10));
@@ -143,10 +159,7 @@ test("AdminShell and page body update simultaneously when setAppLocale is trigge
 
   // Verify English labels in both sidebar and page content
   assert.match(container.innerHTML, /User accounts/);
-  assert.match(
-    container.innerHTML,
-    /System-level statistics across users/,
-  );
+  assert.match(container.innerHTML, /System-level statistics across users/);
   assert.match(container.innerHTML, /Last 30 days/);
   assert.equal(document.documentElement.lang, "en");
 
@@ -168,4 +181,3 @@ test("AdminShell and page body update simultaneously when setAppLocale is trigge
     root.unmount();
   });
 });
-

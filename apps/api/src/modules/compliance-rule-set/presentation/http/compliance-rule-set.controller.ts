@@ -46,7 +46,7 @@ const body = (schema: z.ZodTypeAny, includeIssuePaths = false) =>
 /**
  * Worker-authenticated rule set boundary: claim, fail, validate, one submit -> activate, and the
  * single runtime reader of the ACTIVE rule set. A preparation is never started here: it is
- * started by the Legal Source activation consumer. Transport only: Zod validates the body and
+ * started by Legal Source activation or the separate ADMIN action. Transport only: Zod validates the body and
  * each call is one Command/Query.
  */
 @Controller("internal/compliance-rule-set")

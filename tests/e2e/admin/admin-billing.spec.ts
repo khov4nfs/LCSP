@@ -28,9 +28,9 @@ test.describe("Admin Billing & Revenue release gate", () => {
       "page",
     );
     await expect(page.getByText("admin@example.com")).toBeVisible();
-    await expect(
-      page.getByText("Administrator", { exact: true }),
-    ).toBeVisible();
+    await expect(page.locator("[data-admin-account-name]")).toHaveText(
+      "Billing Admin",
+    );
     await expect(page.getByText("₫124,500,000")).toBeVisible();
     await expect(page.getByText("3 events")).toBeVisible();
     await expect(page.getByText("12 events")).toBeVisible();
@@ -120,7 +120,9 @@ test.describe("Admin Billing & Revenue release gate", () => {
     await expect(
       page.getByText(/Billing is scoped to the customer account/),
     ).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator("[data-admin-content]").evaluate((main) => {
+      main.scrollTop = 0;
+    });
     await page.locator("nextjs-portal").evaluateAll((nodes) => {
       nodes.forEach((node) => node.remove());
     });

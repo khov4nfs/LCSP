@@ -43,9 +43,10 @@ describe("Rule Set Preparation ownership", () => {
     ).toEqual([]);
   });
 
-  it("is started only by the Legal Source activation consumer and the explicit operator retry", () => {
+  it("is started only by activation, current-source Admin preparation and canonical retry", () => {
     const all = sourceFiles(SRC);
     expect(withMatch(all, /new StartRuleSetPreparationCommand\(/u)).toEqual([
+      "modules/compliance-rule-set/application/commands/prepare-current-rule-set/prepare-current-rule-set.handler.ts",
       "modules/compliance-rule-set/application/commands/retry-rule-set-preparation/retry-rule-set-preparation.handler.ts",
       "modules/compliance-rule-set/infrastructure/messaging/legal-source-activated.consumer.ts",
     ]);
@@ -58,7 +59,7 @@ describe("Rule Set Preparation ownership", () => {
     ).toEqual([]);
   });
 
-  it("exposes no HTTP route that starts a preparation", () => {
+  it("keeps HTTP transport free of low-level preparation orchestration", () => {
     const controllers = sourceFiles(
       join(SRC, "modules", "compliance-rule-set", "presentation"),
     );
@@ -74,6 +75,7 @@ describe("Rule Set Preparation ownership", () => {
         /compliance-rule-set.*\/preparations$/u.test(route),
       ),
     ).toEqual([]);
+    expect(list).toContain("POST /admin/compliance-rule-sets/prepare");
   });
 
   it("keeps the consumer free of persistence", () => {
