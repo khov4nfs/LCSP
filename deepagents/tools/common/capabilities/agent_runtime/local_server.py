@@ -36,6 +36,7 @@ from starlette.routing import Route
 
 from tools.common.capabilities.platform.graph_runtime import checkpoint_database_url
 from orchestration.agent_stream import AgentStreamInterrupted, active_agent_stream_cancel
+from orchestration.graph_execution import agent_graph_config
 from orchestration.runtime_control import (
     active_runtime_run_id,
 )
@@ -759,7 +760,7 @@ def _runtime_config(
     metadata: object,
     context: Mapping[str, Any],
 ) -> dict[str, Any]:
-    runtime_config = dict(config) if isinstance(config, Mapping) else {}
+    runtime_config = agent_graph_config(config if isinstance(config, Mapping) else None)
     configurable = dict(runtime_config.get("configurable") or {})
     configurable["thread_id"] = thread_id
     for key, value in context.items():
