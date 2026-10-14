@@ -195,9 +195,23 @@ export class AssessmentDetailLoader {
                 textsToProject.push(c.rationale);
               }
             }
+            const humanProvidedParts = new Map<
+              string,
+              { prefix: string; answer: string }
+            >();
             for (const f of projectedFacts) {
               if (f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED) {
                 textsToProject.push(f.statement);
+              } else if (
+                f.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
+              ) {
+                const sepIdx = f.statement.indexOf(": ");
+                if (sepIdx !== -1) {
+                  const prefix = f.statement.slice(0, sepIdx);
+                  const answer = f.statement.slice(sepIdx + 2);
+                  humanProvidedParts.set(f.factId, { prefix, answer });
+                  textsToProject.push(prefix);
+                }
               }
             }
             if (textsToProject.length > 0) {
@@ -218,13 +232,28 @@ export class AssessmentDetailLoader {
                   })),
                 },
               }));
-              projectedFacts = projectedFacts.map((f) => ({
-                ...f,
-                statement:
-                  f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED
-                    ? (projections.get(f.statement) ?? f.statement)
-                    : f.statement,
-              }));
+              projectedFacts = projectedFacts.map((f) => {
+                if (f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED) {
+                  return {
+                    ...f,
+                    statement: projections.get(f.statement) ?? f.statement,
+                  };
+                }
+                if (
+                  f.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
+                ) {
+                  const parts = humanProvidedParts.get(f.factId);
+                  if (parts) {
+                    const projectedPrefix =
+                      projections.get(parts.prefix) ?? parts.prefix;
+                    return {
+                      ...f,
+                      statement: `${projectedPrefix}: ${parts.answer}`,
+                    };
+                  }
+                }
+                return f;
+              });
             }
           }
 

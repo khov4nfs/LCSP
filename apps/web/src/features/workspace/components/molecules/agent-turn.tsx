@@ -1,8 +1,9 @@
 import * as React from "react";
 import type { ReactNode } from "react";
 import { resolveMessage } from "@lcsp/i18n";
+import type { Locale } from "@lcsp/contracts/shared";
 
-import { appLocale } from "@/lib/locale";
+import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
 import {
@@ -115,9 +116,16 @@ export function ThoughtLine({ label, className }: ThoughtLineProps) {
 }
 
 export function ThinkingLine({
-  label = t("pages.appShell.chatThinking"),
+  label,
   className,
 }: ThinkingLineProps) {
+  const locale = React.useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
+  const resolvedLabel =
+    label ?? resolveMessage(locale, "pages.appShell.chatThinking");
   return (
     <p
       data-slot="thinking-line"
@@ -126,11 +134,7 @@ export function ThinkingLine({
         className,
       )}
     >
-      {label}
+      {resolvedLabel}
     </p>
   );
-}
-
-function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
 }

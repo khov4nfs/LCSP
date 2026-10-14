@@ -3,7 +3,8 @@
 import { resolveMessage } from "@lcsp/i18n";
 import { PanelLeftIcon, PanelRightIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
+import type { Locale } from "@lcsp/contracts/shared";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +24,7 @@ import {
   useAssessmentsQuery,
   useWorkspaceQuery,
 } from "@/lib/api/workspace-queries";
-import { appLocale } from "@/lib/locale";
+import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 import { AssessmentContextPanel } from "@/features/assessment-runtime";
 
@@ -51,13 +52,36 @@ type AssessmentAppShellProps = {
   sections: AppShellNavigationSection[];
 };
 
+function useSafeRouter() {
+  try {
+    return useRouter();
+  } catch {
+    return {
+      back: () => {},
+      forward: () => {},
+      push: (_url: string) => {},
+      replace: (_url: string) => {},
+      refresh: () => {},
+      prefetch: (_url: string) => {},
+    };
+  }
+}
+
 export function AssessmentAppShell({
   assessmentId,
   children,
   sections,
 }: AssessmentAppShellProps) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const rawPathname = usePathname();
+  const pathname = rawPathname ?? "/workspace";
+  const router = useSafeRouter();
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
+  const t = (key: string) =>
+    resolveMessage(locale, key as Parameters<typeof resolveMessage>[1]);
   const routeScreen = getRouteScreen(pathname, assessmentId);
   const [shellState, setShellState] = useState<AssessmentShellState>(() => ({
     screen: routeScreen,
@@ -109,7 +133,7 @@ export function AssessmentAppShell({
   const headerTitle =
     activeAssessmentItem?.label ??
     activeWorkspaceItem?.label ??
-    getFallbackHeaderTitle(pathname);
+    getFallbackHeaderTitle(pathname, locale);
   const effectiveShellState: AssessmentShellState = {
     ...shellState,
     screen: routeScreen,
@@ -182,6 +206,7 @@ export function AssessmentAppShell({
       data-shell-screen={effectiveShellState.screen}
       data-left-sidebar={effectiveShellState.leftSidebar}
       data-right-panel={effectiveShellState.rightPanel}
+      data-locale={locale}
     >
       <LeftSidebarSlot collapsed={leftCollapsed}>
         <AppSidebar
@@ -264,7 +289,7 @@ export function AssessmentAppShell({
         </header>
 
         <div className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/10">
-          <CenterContentSlot assessmentId={assessmentId}>
+          <CenterContentSlot key={locale} assessmentId={assessmentId}>
             {children}
           </CenterContentSlot>
 
@@ -325,8 +350,11 @@ function isNavigationItemActive(
   return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
 }
 
-function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
+function t(key: string, currentLocale?: Locale) {
+  return resolveMessage(
+    currentLocale ?? getAppLocaleSnapshot(),
+    key as Parameters<typeof resolveMessage>[1],
+  );
 }
 
 function getRouteScreen(
@@ -344,13 +372,14 @@ function getRouteScreen(
   return ASSESSMENT_SHELL_SCREENS.directory;
 }
 
-function getFallbackHeaderTitle(pathname: string) {
-  if (pathname === "/workspace/settings") return t("pages.appShell.settings");
+function getFallbackHeaderTitle(pathname: string, locale?: Locale) {
+  if (pathname === "/workspace/settings")
+    return t("pages.appShell.settings", locale);
   if (pathname === "/laws" || pathname.startsWith("/laws/")) {
-    return t("pages.appShell.legalLibrary");
+    return t("pages.appShell.legalLibrary", locale);
   }
   if (pathname === "/workspace" || pathname.startsWith("/workspace/")) {
-    return t("pages.appShell.overview");
+    return t("pages.appShell.overview", locale);
   }
-  return t("pages.appShell.assessments");
+  return t("pages.appShell.assessments", locale);
 }

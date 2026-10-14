@@ -196,6 +196,8 @@ it("projects decision customer-visible rationales to VI while preserving technic
                 "Xác thực mã thông báo đáp ứng yêu cầu.",
               "Data retention policy is enforced across all customer records.":
                 "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
+              "Does your backup run daily?":
+                "Bản sao lưu của bạn có chạy hàng ngày không?",
             },
           }),
       } as Response);
@@ -234,14 +236,17 @@ it("projects decision customer-visible rationales to VI while preserving technic
       "88888888-8888-4888-8888-888888888888",
     ]);
 
-    // HUMAN_PROVIDED fact: remains strictly byte-for-byte unchanged and was not sent to translation
+    // HUMAN_PROVIDED fact: prefix is projected to VI while exact user answer remains byte-for-byte unchanged
     const humanFactVi = resultVi.case?.facts[1];
     expect(humanFactVi?.statement).toBe(
-      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+      "Bản sao lưu của bạn có chạy hàng ngày không?: Yes, backups run daily at 02:00 UTC",
     );
     expect(humanFactVi?.authority).toBe(
       ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
     );
+    // User answer is absent from projection requests; only generated prefix was requested
+    expect(requestedTexts).toContain("Does your backup run daily?");
+    expect(requestedTexts).not.toContain("Yes, backups run daily at 02:00 UTC");
     expect(requestedTexts).not.toContain(
       "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
     );
@@ -272,7 +277,7 @@ it("projects decision customer-visible rationales to VI while preserving technic
     );
     const humanFactVi2 = resultVi2.case?.facts[1];
     expect(humanFactVi2?.statement).toBe(
-      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+      "Bản sao lưu của bạn có chạy hàng ngày không?: Yes, backups run daily at 02:00 UTC",
     );
 
     // Canonical persisted fact rows remain unchanged
