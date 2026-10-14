@@ -793,6 +793,61 @@ def test_current_provider_is_not_reentered_from_fallback_chain(monkeypatch):
     ]
 
 
+class _StreamedRefusal(Exception):
+    """Mid-stream provider error event: a refusal message carrying a 400-like code."""
+
+    def __init__(self, message="I'm sorry, but I can't help with that request."):
+        super().__init__(message)
+        self.code = 400
+
+
+def test_a_provider_refusal_is_a_resample_not_a_rejected_request():
+    from middleware.failure_policy import is_provider_refusal, is_terminal_task_error, retry_model_error
+
+    refusal = _StreamedRefusal()
+    assert is_provider_refusal(refusal) is True
+    assert is_provider_refusal(_StreamedRefusal("I\u2019m sorry, but I can\u2019t help with that request.")) is True
+    # Same shape, ordinary rejected request: stays terminal and is not retried.
+    rejected = _StreamedRefusal("messages.0: field required")
+    assert is_provider_refusal(rejected) is False
+    assert is_terminal_task_error(rejected) is True and retry_model_error(rejected) is False
+    # The refusal is neither terminal nor un-retryable, and another route may take it.
+    assert is_terminal_task_error(refusal) is False
+    assert retry_model_error(refusal) is True
+    assert provider_fallback_failure(refusal) is True
+
+
+def test_a_refusing_route_falls_back_to_the_next_route(monkeypatch):
+    _install_routes(monkeypatch)
+    calls: list[str] = []
+
+    def handler(request):
+        calls.append(request.model.provider)
+        if request.model.provider == "apx":
+            raise _StreamedRefusal()
+        return ModelResponse(result=[])
+
+    result = ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert isinstance(result, ModelResponse)
+    assert calls == ["apx", "google_genai"]
+
+
+def test_when_every_route_refuses_the_refusal_itself_surfaces_so_the_sample_is_retried(monkeypatch):
+    from middleware.failure_policy import retry_model_error
+
+    _install_routes(monkeypatch)
+
+    def handler(request):
+        raise _StreamedRefusal()
+
+    with pytest.raises(_StreamedRefusal) as raised:
+        ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    # Not the terminal "routes exhausted" error: model retry may resample the request.
+    assert retry_model_error(raised.value) is True
+
+
 def test_structured_output_rejection_is_provider_scoped_not_retried():
     from middleware.failure_policy import (
         StructuredOutputRejected,

@@ -44,6 +44,19 @@ _PROVIDER_MODEL_UNAVAILABLE_CODES = frozenset(
 )
 
 
+# A provider route's model declined to answer one sample ("I can't help with that request"). Some
+# gateways report it as a mid-stream error carrying a 400-like code, which reads exactly like a
+# rejected request but is the opposite: the request is fine and another sample or route answers it.
+_PROVIDER_REFUSAL_PHRASES = (
+    "can't help with that",
+    "cannot help with that",
+    "can't assist with that",
+    "cannot assist with that",
+    "unable to help with that",
+    "unable to assist with that",
+)
+
+
 class TerminalCredentialError(RuntimeError):
     """Every configured credential has failed; do not retry the list."""
 
@@ -194,6 +207,23 @@ def is_provider_model_unavailable(error: BaseException) -> bool:
     return bool(_error_codes(error) & _PROVIDER_MODEL_UNAVAILABLE_CODES)
 
 
+def is_provider_refusal(error: BaseException) -> bool:
+    """Return whether the provider's model declined this one sample instead of failing the request.
+
+    Not a terminal task error: resampling or another route is expected to answer, and a task that
+    legitimately analyses statute text must not die on a route's occasional false-positive refusal.
+    """
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        text = str(current).lower().replace("\u2019", "'")
+        if any(phrase in text for phrase in _PROVIDER_REFUSAL_PHRASES):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 def is_terminal_task_error(error: BaseException) -> bool:
     seen: set[int] = set()
     current: BaseException | None = error
@@ -211,7 +241,11 @@ def is_terminal_task_error(error: BaseException) -> bool:
         # A model-unavailability code arrives with the same status but means the
         # route is down, not the request, so it stays non-terminal and falls back.
         status = getattr(current, "status_code", None) or getattr(current, "code", None)
-        if status in (400, 404, 422) and not is_provider_model_unavailable(current):
+        if (
+            status in (400, 404, 422)
+            and not is_provider_model_unavailable(current)
+            and not is_provider_refusal(current)
+        ):
             return True
         # A non-retryable credential rejection only rules out the same credential; it is
         # classified by is_auth_failure so credential/provider fallback can continue.

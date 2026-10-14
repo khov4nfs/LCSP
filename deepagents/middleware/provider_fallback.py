@@ -17,6 +17,7 @@ from middleware.failure_policy import (
     is_provider_capacity_failure,
     is_provider_model_unavailable,
     is_provider_quota_exhaustion,
+    is_provider_refusal,
     is_provider_route_incompatibility,
     is_structured_output_rejection,
     is_terminal_task_error,
@@ -122,6 +123,9 @@ def provider_fallback_failure(error: BaseException) -> bool:
     # The model route is down; the request is fine and another provider has it.
     if is_provider_model_unavailable(error):
         return True
+    # One route's model declined the sample; another route (or another sample) may answer.
+    if is_provider_refusal(error):
+        return True
     # The provider's model could not produce the contract; another provider may.
     if is_structured_output_rejection(error):
         return True
@@ -149,6 +153,10 @@ def _is_rate_limited_chain(error: BaseException) -> bool:
 def _exhaustion_error(errors: list[BaseException]) -> BaseException:
     """Report exhaustion truthfully: a contract failure on every route stays a schema error."""
     if errors and all(is_structured_output_rejection(error) for error in errors):
+        return errors[0]
+    # Every route declined the sample: surface the refusal itself so the model retry resamples,
+    # instead of a terminal "exhausted" that no retry may follow.
+    if errors and all(is_provider_refusal(error) for error in errors):
         return errors[0]
     return TerminalCredentialError("All configured LLM provider routes exhausted; task stopped")
 
