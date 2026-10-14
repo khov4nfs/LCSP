@@ -141,7 +141,11 @@ export function ComplianceRuleSetResultPage({
             {metadata.map(([key, value]) => (
               <div key={key} className="flex min-w-0 flex-col gap-1">
                 <dt className="text-xs font-medium text-muted-foreground">
-                  {t(`pages.complianceRuleSets.${key}`)}
+                  {t(
+                    key === "supersededAt"
+                      ? "pages.complianceRuleSets.result.supersededAt"
+                      : `pages.complianceRuleSets.${key}`,
+                  )}
                 </dt>
                 <dd
                   className={

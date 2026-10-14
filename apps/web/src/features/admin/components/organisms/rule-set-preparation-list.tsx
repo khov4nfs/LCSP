@@ -145,8 +145,7 @@ export function RuleSetPreparationList({
                   {t("pages.complianceRuleSets.activeVersionRemainsInUse")}
                 </p>
               ) : null
-            ) : run.executionState === AGENT_EXECUTION_STATES.FAILED &&
-              activeRuleSet ? (
+            ) : run.retryable && activeRuleSet ? (
               <p className="w-full text-xs text-muted-foreground">
                 {t("pages.complianceRuleSets.activeVersionRemainsInUse")}
               </p>

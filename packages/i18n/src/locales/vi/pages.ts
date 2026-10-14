@@ -3,7 +3,7 @@ export const viPages = {
   complianceRuleSets: {
     title: "Bộ quy tắc tuân thủ",
     description:
-      "Bộ quy tắc được các đánh giá dùng chung và chuẩn bị khi Phiên bản nguồn pháp lý được kích hoạt. Quản trị viên cũng có thể chuẩn bị nguồn hiện tại khi chưa có bộ quy tắc tương thích đang hoạt động.",
+      "Bộ quy tắc được các đánh giá dùng chung và chuẩn bị khi Phiên bản nguồn pháp lý được kích hoạt. Quản trị viên cũng có thể chuẩn bị nguồn hiện tại, hoặc chuẩn bị phiên bản mới sẽ tự động thay thế phiên bản đang hoạt động sau khi vượt qua kiểm tra.",
     active: "Bộ quy tắc đang hoạt động",
     unavailable: "Chưa có bộ quy tắc đang hoạt động",
     sourceVersion: "Phiên bản nguồn pháp lý",
@@ -118,7 +118,7 @@ export const viPages = {
       backToHistory: "Quay lại danh sách bộ quy tắc",
       legalSource: "Nguồn gốc Nguồn pháp lý",
       chunkCount: "Số đoạn",
-      supersededAt: "Thời điểm được thay thế",
+      supersededAt: "Được thay thế lúc",
       noneStated: "Không có thông tin được nêu",
       notFoundTitle: "Không tìm thấy phiên bản bộ quy tắc",
       notFoundDescription:

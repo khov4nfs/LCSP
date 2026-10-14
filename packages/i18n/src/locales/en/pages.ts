@@ -3,7 +3,7 @@ export const enPages = {
   complianceRuleSets: {
     title: "Compliance rule sets",
     description:
-      "Rule sets are shared by assessments and prepared when a Legal Source Version is activated. Administrators can also prepare the current source when no compatible active rule set exists.",
+      "Rule sets are shared by assessments and prepared when a Legal Source Version is activated. Administrators can also prepare the current source, or prepare a new version that replaces the active one automatically once it validates.",
     active: "Active rule set",
     unavailable: "No active rule set yet",
     sourceVersion: "Legal Source Version",
@@ -117,7 +117,7 @@ export const enPages = {
       backToHistory: "Back to rule sets",
       legalSource: "Legal Source provenance",
       chunkCount: "Chunks",
-      supersededAt: "Superseded",
+      supersededAt: "Superseded at",
       noneStated: "None stated",
       notFoundTitle: "Rule set version not found",
       notFoundDescription:
