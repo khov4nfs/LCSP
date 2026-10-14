@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const workflow = readFileSync(".github/workflows/test.yml", "utf8");
+const workflow = readFileSync(".github/workflows/test.yml", "utf8").replace(
+  /\r\n/g,
+  "\n",
+);
 
 const requiredReleaseGateCommands = [
   "pnpm run typecheck",
