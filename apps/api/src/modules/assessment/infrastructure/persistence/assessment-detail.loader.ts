@@ -5,6 +5,7 @@ import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
 import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import {
+  ASSESSMENT_FACT_AUTHORITIES,
   assessmentDetailSchema,
   assessmentListSchema,
 } from "@lcsp/contracts/assessment-domain";
@@ -195,7 +196,9 @@ export class AssessmentDetailLoader {
               }
             }
             for (const f of projectedFacts) {
-              textsToProject.push(f.statement);
+              if (f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED) {
+                textsToProject.push(f.statement);
+              }
             }
             if (textsToProject.length > 0) {
               const projections = await this.projectionService.projectBatch(
@@ -217,7 +220,10 @@ export class AssessmentDetailLoader {
               }));
               projectedFacts = projectedFacts.map((f) => ({
                 ...f,
-                statement: projections.get(f.statement) ?? f.statement,
+                statement:
+                  f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED
+                    ? (projections.get(f.statement) ?? f.statement)
+                    : f.statement,
               }));
             }
           }

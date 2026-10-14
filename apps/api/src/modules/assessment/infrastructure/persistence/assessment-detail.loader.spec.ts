@@ -1,5 +1,6 @@
 import { expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { ASSESSMENT_FACT_AUTHORITIES } from "@lcsp/contracts/assessment-domain";
 import { AssessmentDetailLoader } from "./assessment-detail.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
@@ -144,11 +145,23 @@ it("projects decision customer-visible rationales to VI while preserving technic
         assessmentId,
         caseRevision: 1,
         kind: "FACT",
-        authority: "EVIDENCE_CITED",
+        authority: ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED,
         state: "ACCEPTED",
         statement:
           "Data retention policy is enforced across all customer records.",
         evidenceLinks: [{ evidenceId: "88888888-8888-4888-8888-888888888888" }],
+        createdAt: new Date(),
+      },
+      {
+        factId: "99999999-9999-4999-8999-999999999999",
+        assessmentId,
+        caseRevision: 1,
+        kind: "FACT",
+        authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+        state: "ACCEPTED",
+        statement:
+          "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+        evidenceLinks: [{ evidenceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }],
         createdAt: new Date(),
       },
     ],
@@ -156,8 +169,19 @@ it("projects decision customer-visible rationales to VI while preserving technic
   } as never;
 
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = jest.fn().mockImplementation(() =>
-    Promise.resolve({
+  const requestedTexts: string[] = [];
+  globalThis.fetch = jest.fn().mockImplementation((_url: string, init?: RequestInit) => {
+    if (init?.body) {
+      try {
+        const parsed = JSON.parse(init.body as string) as { texts?: string[] };
+        if (Array.isArray(parsed.texts)) {
+          requestedTexts.push(...parsed.texts);
+        }
+      } catch {
+        // ignore parse error in test spy
+      }
+    }
+    return Promise.resolve({
       ok: true,
       json: () =>
         Promise.resolve({
@@ -170,8 +194,8 @@ it("projects decision customer-visible rationales to VI while preserving technic
               "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
           },
         }),
-    } as Response),
-  ) as typeof fetch;
+    } as Response);
+  }) as typeof fetch;
 
   process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
   process.env.WORKER_API_KEY = "test-worker-key";
@@ -192,7 +216,7 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(decisionVi?.criteria[0]?.criterionId).toBe("CRIT-AUTH-01");
     expect(decisionVi?.criteria[0]?.outcome).toBe("MET");
 
-    // Case fact statement projected to VI
+    // Case fact statement: agent-authored EVIDENCE_CITED is projected to VI
     const factVi = resultVi.case?.facts[0];
     expect(factVi?.statement).toBe(
       "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
@@ -200,11 +224,23 @@ it("projects decision customer-visible rationales to VI while preserving technic
     // Fact technical invariants preserved
     expect(factVi?.factId).toBe("77777777-7777-4777-8777-777777777777");
     expect(factVi?.kind).toBe("FACT");
-    expect(factVi?.authority).toBe("EVIDENCE_CITED");
+    expect(factVi?.authority).toBe(ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED);
     expect(factVi?.state).toBe("ACCEPTED");
     expect(factVi?.evidenceIds).toEqual([
       "88888888-8888-4888-8888-888888888888",
     ]);
+
+    // HUMAN_PROVIDED fact: remains strictly byte-for-byte unchanged and was not sent to translation
+    const humanFactVi = resultVi.case?.facts[1];
+    expect(humanFactVi?.statement).toBe(
+      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+    );
+    expect(humanFactVi?.authority).toBe(
+      ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+    );
+    expect(requestedTexts).not.toContain(
+      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+    );
 
     // 2. Read with EN locale - preserves canonical English
     const resultEn = await loader.load({ ...input, locale: "en" });
@@ -219,6 +255,10 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(factEn?.statement).toBe(
       "Data retention policy is enforced across all customer records.",
     );
+    const humanFactEn = resultEn.case?.facts[1];
+    expect(humanFactEn?.statement).toBe(
+      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+    );
 
     // 3. Switch back to VI locale on same persisted fact row
     const resultVi2 = await loader.load({ ...input, locale: "vi" });
@@ -226,12 +266,21 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(factVi2?.statement).toBe(
       "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
     );
+    const humanFactVi2 = resultVi2.case?.facts[1];
+    expect(humanFactVi2?.statement).toBe(
+      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+    );
 
-    // Canonical persisted fact row remains unchanged
-    expect(
-      (row.domainCase as unknown as { facts: Array<{ statement: string }> })
-        .facts[0]?.statement,
-    ).toBe("Data retention policy is enforced across all customer records.");
+    // Canonical persisted fact rows remain unchanged
+    const storedFacts = (
+      row.domainCase as unknown as { facts: Array<{ statement: string }> }
+    ).facts;
+    expect(storedFacts[0]?.statement).toBe(
+      "Data retention policy is enforced across all customer records.",
+    );
+    expect(storedFacts[1]?.statement).toBe(
+      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+    );
   } finally {
     globalThis.fetch = originalFetch;
     delete process.env.LCSP_AGENT_SERVER_URL;
