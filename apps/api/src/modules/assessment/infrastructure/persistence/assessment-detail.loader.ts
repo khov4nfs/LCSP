@@ -233,7 +233,9 @@ export class AssessmentDetailLoader {
                 },
               }));
               projectedFacts = projectedFacts.map((f) => {
-                if (f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED) {
+                if (
+                  f.authority === ASSESSMENT_FACT_AUTHORITIES.EVIDENCE_CITED
+                ) {
                   return {
                     ...f,
                     statement: projections.get(f.statement) ?? f.statement,
