@@ -160,9 +160,29 @@ it("projects decision customer-visible rationales to VI while preserving technic
         authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
         state: "ACCEPTED",
         statement:
-          "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+          "Deployment region: whether production is EU-hosted: Singapore",
         evidenceLinks: [{ evidenceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }],
         createdAt: new Date(),
+      },
+    ],
+    humanRequests: [
+      {
+        requestId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        resolvedFactId: "99999999-9999-4999-8999-999999999999",
+        unresolvedFact: "Deployment region: whether production is EU-hosted",
+        answers: [
+          {
+            idempotencyKey: "12345678",
+            requestDigest:
+              "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            actorId: "test-user-id",
+            answeredAt: new Date().toISOString(),
+            caseRevision: 1,
+            requestRevision: 1,
+            doesNotKnow: false,
+            answer: "Singapore",
+          },
+        ],
       },
     ],
     artifacts: [],
@@ -196,8 +216,8 @@ it("projects decision customer-visible rationales to VI while preserving technic
                 "Xác thực mã thông báo đáp ứng yêu cầu.",
               "Data retention policy is enforced across all customer records.":
                 "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
-              "Does your backup run daily?":
-                "Bản sao lưu của bạn có chạy hàng ngày không?",
+              "Deployment region: whether production is EU-hosted":
+                "Khu vực triển khai: liệu môi trường production có được lưu trữ tại EU không",
             },
           }),
       } as Response);
@@ -236,19 +256,25 @@ it("projects decision customer-visible rationales to VI while preserving technic
       "88888888-8888-4888-8888-888888888888",
     ]);
 
-    // HUMAN_PROVIDED fact: prefix is projected to VI while exact user answer remains byte-for-byte unchanged
+    // HUMAN_PROVIDED fact: unresolvedFact contains ": " but is resolved structurally from humanRequests;
+    // all generated text re-projects while exact customer answer remains byte-for-byte unchanged
     const humanFactVi = resultVi.case?.facts[1];
     expect(humanFactVi?.statement).toBe(
-      "Bản sao lưu của bạn có chạy hàng ngày không?: Yes, backups run daily at 02:00 UTC",
+      "Khu vực triển khai: liệu môi trường production có được lưu trữ tại EU không: Singapore",
     );
     expect(humanFactVi?.authority).toBe(
       ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
     );
-    // User answer is absent from projection requests; only generated prefix was requested
-    expect(requestedTexts).toContain("Does your backup run daily?");
-    expect(requestedTexts).not.toContain("Yes, backups run daily at 02:00 UTC");
+    // User answer is absent from projection requests; all generated text was requested
+    expect(requestedTexts).toContain(
+      "Deployment region: whether production is EU-hosted",
+    );
+    expect(requestedTexts).not.toContain("Singapore");
     expect(requestedTexts).not.toContain(
-      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+      "whether production is EU-hosted: Singapore",
+    );
+    expect(requestedTexts).not.toContain(
+      "Deployment region: whether production is EU-hosted: Singapore",
     );
 
     // 2. Read with EN locale - preserves canonical English
@@ -266,7 +292,7 @@ it("projects decision customer-visible rationales to VI while preserving technic
     );
     const humanFactEn = resultEn.case?.facts[1];
     expect(humanFactEn?.statement).toBe(
-      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+      "Deployment region: whether production is EU-hosted: Singapore",
     );
 
     // 3. Switch back to VI locale on same persisted fact row
@@ -277,7 +303,7 @@ it("projects decision customer-visible rationales to VI while preserving technic
     );
     const humanFactVi2 = resultVi2.case?.facts[1];
     expect(humanFactVi2?.statement).toBe(
-      "Bản sao lưu của bạn có chạy hàng ngày không?: Yes, backups run daily at 02:00 UTC",
+      "Khu vực triển khai: liệu môi trường production có được lưu trữ tại EU không: Singapore",
     );
 
     // Canonical persisted fact rows remain unchanged
@@ -288,7 +314,7 @@ it("projects decision customer-visible rationales to VI while preserving technic
       "Data retention policy is enforced across all customer records.",
     );
     expect(storedFacts[1]?.statement).toBe(
-      "Does your backup run daily?: Yes, backups run daily at 02:00 UTC",
+      "Deployment region: whether production is EU-hosted: Singapore",
     );
   } finally {
     globalThis.fetch = originalFetch;

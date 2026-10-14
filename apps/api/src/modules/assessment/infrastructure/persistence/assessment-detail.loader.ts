@@ -105,6 +105,15 @@ export class AssessmentDetailLoader {
                   include: { evidenceLinks: true },
                   orderBy: { createdAt: "asc" },
                 },
+                humanRequests: {
+                  where: { resolvedFactId: { not: null } },
+                  select: {
+                    requestId: true,
+                    resolvedFactId: true,
+                    unresolvedFact: true,
+                    answers: true,
+                  },
+                },
                 artifacts: { orderBy: { createdAt: "asc" } },
               },
             },
@@ -195,6 +204,21 @@ export class AssessmentDetailLoader {
                 textsToProject.push(c.rationale);
               }
             }
+            const humanRequestByFactId = new Map(
+              (
+                (
+                  domainCase as {
+                    humanRequests?: Array<{
+                      resolvedFactId: string | null;
+                      unresolvedFact: string;
+                      answers?: unknown;
+                    }>;
+                  }
+                )?.humanRequests ?? []
+              )
+                .filter((hr) => hr.resolvedFactId)
+                .map((hr) => [hr.resolvedFactId as string, hr]),
+            );
             const humanProvidedParts = new Map<
               string,
               { prefix: string; answer: string }
@@ -205,12 +229,44 @@ export class AssessmentDetailLoader {
               } else if (
                 f.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
               ) {
-                const sepIdx = f.statement.indexOf(": ");
-                if (sepIdx !== -1) {
-                  const prefix = f.statement.slice(0, sepIdx);
-                  const answer = f.statement.slice(sepIdx + 2);
-                  humanProvidedParts.set(f.factId, { prefix, answer });
-                  textsToProject.push(prefix);
+                const hr = humanRequestByFactId.get(f.factId);
+                if (hr) {
+                  const prefix = hr.unresolvedFact;
+                  let answer: string | null = null;
+                  if (Array.isArray(hr.answers)) {
+                    for (let i = hr.answers.length - 1; i >= 0; i--) {
+                      const entry = hr.answers[i] as {
+                        doesNotKnow?: boolean;
+                        answer?: unknown;
+                      };
+                      if (
+                        entry &&
+                        !entry.doesNotKnow &&
+                        typeof entry.answer === "string"
+                      ) {
+                        answer = entry.answer;
+                        break;
+                      }
+                    }
+                  }
+                  if (
+                    answer === null &&
+                    f.statement.startsWith(`${prefix}: `)
+                  ) {
+                    answer = f.statement.slice(prefix.length + 2);
+                  }
+                  if (answer !== null) {
+                    humanProvidedParts.set(f.factId, { prefix, answer });
+                    textsToProject.push(prefix);
+                  }
+                } else {
+                  const sepIdx = f.statement.indexOf(": ");
+                  if (sepIdx !== -1) {
+                    const prefix = f.statement.slice(0, sepIdx);
+                    const answer = f.statement.slice(sepIdx + 2);
+                    humanProvidedParts.set(f.factId, { prefix, answer });
+                    textsToProject.push(prefix);
+                  }
                 }
               }
             }
