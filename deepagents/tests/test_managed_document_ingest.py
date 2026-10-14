@@ -5,8 +5,10 @@ Provider-free and network-free. Documents are synthetic; nothing here names a re
 
 from __future__ import annotations
 
+import re
 import zipfile
 from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -388,3 +390,18 @@ class TestBoundary:
         client = FakeClient()
         boundary(client).handle(MESSAGE, "corr")
         assert client.posted[0]["failureCode"] == "EXTRACTION_FAILED"
+
+
+class TestLawAgnostic:
+    """What the platform reasons over is data an administrator manages, never code."""
+
+    IDENTITY = re.compile(r"\b\d{1,4}[-/]\d{4}[-/][A-Z]{2,}\d*\b|VN-LEGAL|vbpl\.vn|congbao|Quốc hội", re.IGNORECASE)
+
+    def test_managed_ingestion_code_names_no_instrument(self):
+        package = Path(__file__).resolve().parents[1] / "tools" / "legal" / "managed_documents"
+        for file in sorted(package.glob("*.py")):
+            assert not self.IDENTITY.search(file.read_text(encoding="utf-8")), file.name
+
+    def test_structure_profiles_define_headings_not_instruments(self):
+        text = CONFIG_PATH.read_text(encoding="utf-8")
+        assert not self.IDENTITY.search(text)
