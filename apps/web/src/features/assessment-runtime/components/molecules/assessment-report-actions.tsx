@@ -27,26 +27,26 @@ export function AssessmentReportActions({
         <FileTextIcon aria-hidden="true" />
         {copy("completion.viewReport")}
       </Link>
-      {pdfSupported ? (
-        <a
-          href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/download`}
-          data-artifact-id={artifactId}
-          data-report-action="download"
-          className={buttonVariants({ size: "sm", variant: "outline" })}
-        >
-          <DownloadIcon aria-hidden="true" />
-          {copy("completion.downloadReport")}
-        </a>
-      ) : null}
       <a
-        href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/report.pdf`}
+        href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/download`}
         data-artifact-id={artifactId}
-        data-report-action="download-pdf"
+        data-report-action="download"
         className={buttonVariants({ size: "sm", variant: "outline" })}
       >
-        <FileTextIcon aria-hidden="true" />
-        {copy("completion.downloadPdf")}
+        <DownloadIcon aria-hidden="true" />
+        {copy("completion.downloadReport")}
       </a>
+      {pdfSupported ? (
+        <a
+          href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/report.pdf`}
+          data-artifact-id={artifactId}
+          data-report-action="download-pdf"
+          className={buttonVariants({ size: "sm", variant: "outline" })}
+        >
+          <FileTextIcon aria-hidden="true" />
+          {copy("completion.downloadPdf")}
+        </a>
+      ) : null}
     </div>
   );
 }

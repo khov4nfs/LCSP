@@ -17,6 +17,7 @@
   "GET /assessments",
   "GET /assessments/:assessmentId",
   "GET /assessments/:assessmentId/artifacts/:artifactId/download",
+  "GET /assessments/:assessmentId/artifacts/:artifactId/report.pdf",
   "GET /assessments/:assessmentId/events",
   "GET /assessments/:assessmentId/human-requests",
   "GET /assessments/:assessmentId/repository-setup",
