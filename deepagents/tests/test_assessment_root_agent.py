@@ -779,6 +779,27 @@ def test_production_root_requires_a_durable_checkpointer(monkeypatch) -> None:
             pass
 
 
+def test_root_checkpointer_drops_the_prisma_schema_query_parameter(monkeypatch) -> None:
+    """Production: the shared DATABASE_URL ends in ?schema=public and psycopg rejected it on the first Root run."""
+    import contextlib
+    from unittest.mock import MagicMock
+
+    from assessment_root.boundary import postgres_checkpointer
+    from langgraph.checkpoint.postgres import PostgresSaver
+
+    monkeypatch.setenv("LANGGRAPH_CHECKPOINT_DATABASE_URL", "postgresql://u:p@db:5432/lcsp?schema=public&sslmode=disable")
+    opened = []
+
+    def fake_from_conn_string(url):
+        opened.append(url)
+        return contextlib.nullcontext(MagicMock())
+
+    monkeypatch.setattr(PostgresSaver, "from_conn_string", staticmethod(fake_from_conn_string))
+    with postgres_checkpointer():
+        pass
+    assert opened == ["postgresql://u:p@db:5432/lcsp?sslmode=disable"]
+
+
 def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):
     class ControlledClient(FakeClient):
         def __init__(self):

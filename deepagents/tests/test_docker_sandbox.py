@@ -50,6 +50,8 @@ def test_docker_run_does_not_expose_privileged_host_surfaces() -> None:
     assert "XDG_CACHE_HOME=/workspace/runtime/cache" in rendered
     assert "CBM_CACHE_DIR=/workspace/runtime/codebase-memory" in rendered
     assert "--pids-limit 512" in rendered
+    # The Codebase Memory index of a 3.4k-file repository is 352 MB and is published via a staging copy.
+    assert "/workspace/runtime:rw,nosuid,nodev,mode=1777,size=1024m" in rendered
     assert "--entrypoint bash" in rendered
     assert "/workspace/repository" in rendered
     assert "/workspace/runtime" in rendered

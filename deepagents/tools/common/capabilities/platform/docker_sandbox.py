@@ -37,6 +37,11 @@ DEFAULT_IMAGE = "lcsp-agent-runtime:dev"
 DEFAULT_NETWORK = "none"
 DEFAULT_CPUS = "2"
 DEFAULT_MEMORY = "2g"
+# Codebase Memory publishes its index by writing a validated staging database next to the previous
+# one, so the cache needs about twice the index. LCSP's own repository (3.4k files) indexes to 352 MB
+# and failed with `persist_failed` on the former 512m cap. The cap is a ceiling, not a reservation:
+# usage is still bounded by the container memory limit.
+DEFAULT_RUNTIME_TMPFS = "1024m"
 DEFAULT_PIDS_LIMIT = "512"
 DEFAULT_EXEC_TIMEOUT = 300
 FORBIDDEN_ENV_PREFIXES = (
@@ -68,6 +73,7 @@ class DockerSandboxSpec:
     cpus: str = DEFAULT_CPUS
     memory: str = DEFAULT_MEMORY
     pids_limit: str = DEFAULT_PIDS_LIMIT
+    runtime_tmpfs: str = DEFAULT_RUNTIME_TMPFS
 
     @property
     def safe_thread_hash(self) -> str:
@@ -486,6 +492,7 @@ def sandbox_spec_from_config(config: object | None) -> DockerSandboxSpec:
         cpus=os.getenv("LCSP_REPOSITORY_SANDBOX_CPUS", DEFAULT_CPUS),
         memory=os.getenv("LCSP_REPOSITORY_SANDBOX_MEMORY", DEFAULT_MEMORY),
         pids_limit=os.getenv("LCSP_REPOSITORY_SANDBOX_PIDS_LIMIT", DEFAULT_PIDS_LIMIT),
+        runtime_tmpfs=os.getenv("LCSP_REPOSITORY_SANDBOX_RUNTIME_TMPFS", DEFAULT_RUNTIME_TMPFS),
     )
 
 
@@ -536,7 +543,7 @@ def _create_container_args(spec: DockerSandboxSpec) -> list[str]:
         "--tmpfs",
         "/tmp:rw,nosuid,nodev,noexec,mode=1777,size=256m",
         "--tmpfs",
-        "/workspace/runtime:rw,nosuid,nodev,mode=1777,size=512m",
+        f"/workspace/runtime:rw,nosuid,nodev,mode=1777,size={spec.runtime_tmpfs}",
         "--tmpfs",
         "/workspace/repository:rw,nosuid,nodev,mode=1777,size=2048m",
         "--entrypoint",
