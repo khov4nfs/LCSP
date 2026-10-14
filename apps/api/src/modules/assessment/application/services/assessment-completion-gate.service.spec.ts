@@ -541,7 +541,7 @@ describe("AssessmentCompletionGate", () => {
     });
   });
 
-  it("blocks a rule source chunk that cannot be resolved in the pinned corpus", async () => {
+  it("blocks a rule source chunk that cannot be resolved in the pinned legal source", async () => {
     const { fixture, gate, transaction } = createFixture();
     fixture.rules[0].contract = { sourceChunkIds: ["missing-chunk"] };
 

@@ -24,7 +24,7 @@ import {
 
 const requireApi = createRequire(path.join(root, "apps/api/package.json"));
 const { AssessmentArtifactKind } = requireApi("@prisma/client");
-const scenario = process.env.LCSP_CORPUS_SCENARIO ?? "ai";
+const scenario = process.env.LCSP_SOURCE_SCENARIO ?? "ai";
 const database =
   scenario === "all-na" ? "lcsp_report_all_na" : "lcsp_report_ai";
 const apiPort = Number(process.env.LCSP_ASSESSMENT_TEST_API_PORT ?? 3414);
@@ -33,12 +33,13 @@ const storageRoot = mkdtempSync(
 );
 const previousStorage = process.env.LCSP_ARTIFACT_STORAGE_PATH;
 process.env.LCSP_ARTIFACT_STORAGE_PATH = storageRoot;
-const DOC = scenario === "all-na" ? "SYNTHETIC-ALL-NA" : "SYNTHETIC-AI-CORPUS";
+const DOC =
+  scenario === "all-na" ? "SYNTHETIC-ALL-NA" : "SYNTHETIC-AI-SOURCE-BACKED";
 const COMMIT = scenario === "all-na" ? "a".repeat(40) : "b".repeat(40);
 const count = scenario === "all-na" ? 20 : 3;
 const locators = Array.from({ length: count }, (_, i) => `rule-${i + 1}`);
 const contentFor = (locator) =>
-  `Synthetic ${scenario} corpus provision ${locator}.`;
+  `Synthetic ${scenario} source-backed provision ${locator}.`;
 const sha = (value) => createHash("sha256").update(value).digest("hex");
 const http = async (
   base,
@@ -212,7 +213,7 @@ try {
   const token = signed.body.data.session_token;
   const created = await http(base, "POST", "/assessments", {
     token,
-    body: { name: `LCSP ${scenario} corpus` },
+    body: { name: `LCSP ${scenario} source-backed assessment` },
     worker: false,
   });
   assert.equal(created.status, 201, JSON.stringify(created.body));
@@ -220,7 +221,7 @@ try {
   const connection = randomUUID();
   const snapshot = randomUUID();
   await q(
-    `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions) VALUES ($1,$2,$3,'inst-corpus',$4,'repo','acme/repo','main','{}'::jsonb)`,
+    `INSERT INTO "RepositoryConnection"(id,"assessmentId","userId","installationId","repositoryId","repositoryName","repositoryFullName","defaultBranch",permissions) VALUES ($1,$2,$3,'inst-source-backed',$4,'repo','acme/repo','main','{}'::jsonb)`,
     [connection, assessmentId, ownerId, `repo-${assessmentId}`],
   );
   await q(

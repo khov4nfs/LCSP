@@ -1,4 +1,4 @@
-"""Provider-free Assessment Root script for parameterized corpus verticals."""
+"""Provider-free Assessment Root script for parameterized source-backed verticals."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def call(name: str, args: dict[str, Any], call_id: str) -> AIMessage:
 
 class DynamicModel(ScriptedModel):
     steps: list[Any] = []
-    model_name: ClassVar[str] = "assessment-report-corpus-vertical"
+    model_name: ClassVar[str] = "assessment-report-source-backed-vertical"
 
     def _get_ls_params(self, **kwargs: Any) -> dict[str, str]:
         return {"ls_provider": self.model_name, "ls_model_type": "chat"}
