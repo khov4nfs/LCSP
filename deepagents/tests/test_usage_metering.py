@@ -21,7 +21,7 @@ from middleware.usage_metering import (
     activate_agent_run_state,
     active_agent_run_state,
     assert_model_identity,
-    bounded_model,
+    output_cap_settings,
     check_request_context,
     extract_provider_usage,
 )
@@ -388,18 +388,11 @@ class _BindModel:
         return SimpleNamespace(bound=self, kwargs=kwargs)
 
 
-def test_bounded_model_uses_the_route_output_cap_or_the_code_default():
-    capped = _BindModel(profile={"max_output_tokens": 777})
-    bounded_model(capped)
-    assert capped.bind_kwargs == {"max_output_tokens": 777}
-
-    default = _BindModel()
-    bounded_model(default)
-    assert default.bind_kwargs == {"max_output_tokens": DEFAULT_MAX_OUTPUT_TOKENS}
-
-    other = _BindModel(provider="apx", profile={"max_output_tokens": 55})
-    bounded_model(other)
-    assert other.bind_kwargs == {"max_tokens": 55}
+def test_output_cap_settings_use_the_route_output_cap_or_the_code_default():
+    assert output_cap_settings(_BindModel(profile={"max_output_tokens": 777})) == {"max_tokens": 777}
+    assert output_cap_settings(_BindModel()) == {"max_tokens": DEFAULT_MAX_OUTPUT_TOKENS}
+    assert output_cap_settings(_BindModel(provider="apx", profile={"max_output_tokens": 55})) == {"max_tokens": 55}
+    assert output_cap_settings(_BindModel(provider="google_genai", profile={"max_output_tokens": 9})) == {"max_output_tokens": 9}
 
 
 def test_output_cap_preserves_identity_for_usage_reporting():
@@ -407,18 +400,19 @@ def test_output_cap_preserves_identity_for_usage_reporting():
 
     class Request:
         messages = []
+        model_settings = {"automatic_function_calling": {"disable": True}}
 
         def __init__(self):
             self.model = model
 
-        def override(self, *, model):
-            return SimpleNamespace(model=model, messages=self.messages)
+        def override(self, *, model_settings):
+            return SimpleNamespace(model=self.model, messages=self.messages, model_settings=model_settings)
 
     client = FakeClient()
     downstream = []
 
     def provider_handler(request):
-        downstream.append(request.model)
+        downstream.append(request)
         return SimpleNamespace(
             usage_metadata={"input_tokens": 3, "output_tokens": 2},
             # OpenAI response metadata commonly omits provider.
@@ -428,8 +422,12 @@ def test_output_cap_preserves_identity_for_usage_reporting():
     with activate_agent_run_state(_state(client)):
         UsageMeteringMiddleware().wrap_model_call(Request(), provider_handler)
 
-    assert model.bind_kwargs == {"max_output_tokens": DEFAULT_MAX_OUTPUT_TOKENS}
-    assert downstream[0].bound is model
+    # The cap rides in model settings next to the existing ones; the model itself is untouched.
+    assert downstream[0].model_settings == {
+        "max_tokens": DEFAULT_MAX_OUTPUT_TOKENS,
+        "automatic_function_calling": {"disable": True},
+    }
+    assert downstream[0].model is model
     (payload,) = client.payloads
     assert (payload.provider, payload.model) == ("OPENAI", "model-alpha")
     assert (payload.inputTokens, payload.outputTokens) == ("3", "2")

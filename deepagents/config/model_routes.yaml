@@ -9,16 +9,30 @@ version: 1
 # options (e.g. temperature, reasoning, max_output_tokens, context_window_tokens) are passed through;
 # omit them to get provider defaults. Credential/endpoint/header-like keys are rejected.
 routes:
+  # max_output_tokens is the per-call output ceiling (code default: 4096). The preparation packet and
+  # the Legal Source Reader results are single tool calls larger than that and were silently truncated.
+  # Each value is the provider model's own output limit, not a workload budget.
+  # streaming keeps bytes flowing during a multi-minute generation: a silent non-streaming
+  # request that a gateway drops hangs until the provider timeout (3600 s) instead of failing fast.
   primary:
     provider: apx
     protocol: anthropic
     model: claude-sonnet-4-6-free
+    options:
+      max_output_tokens: 64000
+      streaming: true
   fallback:
     provider: google_genai
     model: gemini-3.5-flash-lite
+    options:
+      max_output_tokens: 65536
+      streaming: true
   fallback-01:
     provider: inception
     model: mercury-2.5
+    options:
+      max_output_tokens: 32768
+      streaming: true
 
 # Role -> route. `default` is required and used for any role not listed.
 roles:

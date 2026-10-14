@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from langchain.agents.middleware import ModelResponse, ModelRetryMiddleware, PIIMiddleware
 
-from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, MODEL_RETRIES
 from middleware.usage_metering import UsageMeteringMiddleware
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.token_fallback import TokenFallbackMiddleware
@@ -79,7 +79,7 @@ async def test_exhausted_model_retries_preserve_original_error(monkeypatch, asyn
             retry.wrap_model_call(MagicMock(), handler)
 
     assert caught.value is error
-    assert handler.call_count == 3
+    assert handler.call_count == MODEL_RETRIES + 1
 
 
 def test_model_retry_preserves_structured_response_after_transient_failure(monkeypatch) -> None:
@@ -131,6 +131,28 @@ def test_schema_repair_message_stops_before_next_model_call():
     from middleware.failure_policy import StructuredOutputRejected
 
     assert isinstance(caught.value, StructuredOutputRejected)
+
+
+def test_schema_rejection_reports_failing_fields_without_the_model_output():
+    from langchain.agents.structured_output import AutoStrategy
+    from langchain_core.messages import ToolMessage
+    from pydantic import BaseModel
+    from middleware.failure_policy import StructuredOutputRejected
+    from middleware.model_governance import StopSchemaRepairMiddleware
+
+    class Answer(BaseModel):
+        count: int
+
+    content = (
+        "Error: Failed to parse structured output for tool 'Answer': 1 validation error for Answer\n"
+        "findings.0.locator\n  Field required [type=missing, input_value={'secret': 'PRIVATE_TEXT'}, "
+        "input_type=dict]\n Please fix your mistakes."
+    )
+    handler = MagicMock(return_value=ModelResponse(result=[ToolMessage(content=content, tool_call_id="one", name="Answer")]))
+    with pytest.raises(StructuredOutputRejected) as caught:
+        StopSchemaRepairMiddleware().wrap_model_call(MagicMock(response_format=AutoStrategy(Answer)), handler)
+    assert "findings.0.locator" in str(caught.value) and "type=missing" in str(caught.value)
+    assert "PRIVATE_TEXT" not in str(caught.value)
 
 
 def test_provider_strategy_bypasses_schema_repair_tool_check():
@@ -404,3 +426,106 @@ def test_tool_call_with_schema_invalid_arguments_is_resampled_before_the_tool_ru
 
     assert model.calls == 3
     assert executed == ["ls"]
+
+
+def test_malformed_tool_call_reason_names_the_invalid_fields_but_not_their_values():
+    from langchain_core.messages import AIMessage
+    from langchain_core.tools import StructuredTool
+    from middleware.model_governance import _malformed_tool_call_reason
+    from pydantic import BaseModel
+
+    class TaskArgs(BaseModel):
+        description: str
+        subagent_type: str
+
+    task = StructuredTool.from_function(
+        func=lambda description, subagent_type: "ok", name="task", description="Delegate.",
+        args_schema=TaskArgs,
+    )
+    call = {"name": "task", "args": {"description": ["PRIVATE_LEGAL_TEXT"]}, "id": "one", "type": "tool_call"}
+    reason = _malformed_tool_call_reason(
+        MagicMock(tools=[task]), ModelResponse(result=[AIMessage(content="", tool_calls=[call])])
+    )
+    assert reason == (
+        "Model emitted invalid arguments for tool task "
+        "(description:string_type; subagent_type:missing)"
+    )
+
+
+def test_truncated_tool_call_mislabeled_end_turn_by_the_gateway_is_still_an_output_cap_hit():
+    """Production: APX reported stop_reason end_turn for a 4096-token (capped) packet, so it reached the validator cut off."""
+    from langchain_core.messages import AIMessage
+    from langchain_core.tools import StructuredTool
+    from middleware.model_governance import _malformed_tool_call_reason
+    from middleware.usage_metering import DEFAULT_MAX_OUTPUT_TOKENS
+    from pydantic import BaseModel
+
+    class Packet(BaseModel):
+        legalRequirements: list[str] = []
+
+    validate = StructuredTool.from_function(
+        func=lambda legalRequirements=(): "ok", name="validate", description="Validate.", args_schema=Packet,
+    )
+    call = {"name": "validate", "args": {"legalRequirements": ["partial"]}, "id": "one", "type": "tool_call"}
+
+    def reason(output_tokens: int, model=None) -> str | None:
+        message = AIMessage(content="", tool_calls=[call], response_metadata={"stop_reason": "end_turn"},
+                            usage_metadata={"input_tokens": 10, "output_tokens": output_tokens, "total_tokens": 10 + output_tokens})
+        return _malformed_tool_call_reason(MagicMock(tools=[validate], model=model or MagicMock(profile=None)),
+                                           ModelResponse(result=[message]))
+
+    assert reason(DEFAULT_MAX_OUTPUT_TOKENS) == "Model output hit the output-token cap while emitting tool calls"
+    assert reason(DEFAULT_MAX_OUTPUT_TOKENS - 1) is None
+    # A route that declares a larger ceiling is judged against that ceiling.
+    assert reason(DEFAULT_MAX_OUTPUT_TOKENS, MagicMock(profile={"max_output_tokens": 64000})) is None
+    assert reason(64000, MagicMock(profile={"max_output_tokens": 64000})) is not None
+
+
+def test_gateway_empty_tool_arguments_are_resampled_until_a_complete_call_arrives(monkeypatch):
+    """Production: APX returned `task` calls with `{}` for about half of the samples of one request."""
+    from langchain.agents import create_agent
+    from langchain_core.language_models.chat_models import BaseChatModel
+    from langchain_core.messages import AIMessage
+    from langchain_core.outputs import ChatGeneration, ChatResult
+    from langchain_core.tools import tool
+    from middleware.model_governance import StopSchemaRepairMiddleware
+
+    retry = next(item for item in MODEL_GOVERNANCE_MIDDLEWARE if isinstance(item, ModelRetryMiddleware))
+    monkeypatch.setattr(retry, "initial_delay", 0)
+    delegated: list[str] = []
+
+    class FlakyGatewayModel(BaseChatModel):
+        calls: int = 0
+
+        @property
+        def _llm_type(self):
+            return "flaky-gateway"
+
+        def bind_tools(self, tools, **kwargs):
+            return self
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            self.calls += 1
+            if self.calls <= MODEL_RETRIES:  # every retry but the last still gets empty arguments
+                message = AIMessage(content="", tool_calls=[
+                    {"name": "task", "args": {}, "id": f"empty-{self.calls}", "type": "tool_call"}])
+            elif self.calls == MODEL_RETRIES + 1:
+                message = AIMessage(content="", tool_calls=[{
+                    "name": "task", "args": {"description": "read it", "subagent_type": "reader"},
+                    "id": "full", "type": "tool_call"}])
+            else:
+                message = AIMessage(content="done")
+            return ChatResult(generations=[ChatGeneration(message=message)])
+
+    @tool
+    def task(description: str, subagent_type: str) -> str:
+        """Delegate."""
+        delegated.append(subagent_type)
+        return "ok"
+
+    model = FlakyGatewayModel()
+    agent = create_agent(model=model, tools=[task], middleware=[retry, StopSchemaRepairMiddleware()])
+    agent.invoke({"messages": [{"role": "user", "content": "delegate"}]})
+
+    assert delegated == ["reader"]
+    assert model.calls == MODEL_RETRIES + 2

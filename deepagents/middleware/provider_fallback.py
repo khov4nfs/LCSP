@@ -195,6 +195,8 @@ def _trip_provider_circuit(provider: str | None, error: BaseException) -> None:
         "MODEL_PROVIDER_CIRCUIT_OPENED",
         provider=provider,
         status_code=error_status(error),
+        error_type=type(error).__name__,
+        error_message=str(error)[:300],
         run_id=state.run_id,
     )
     # Circuit state is technical provider-routing telemetry. The customer-visible
