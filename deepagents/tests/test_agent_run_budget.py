@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -10,7 +9,6 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from middleware.agent_run_budget import (
     FINALIZE_INSTRUCTION,
     AgentRunBudgetMiddleware,
-    AgentRunBudgetCounters,
 )
 from middleware.failure_policy import (
     AgentRunBudgetExceeded,
@@ -105,131 +103,6 @@ def test_after_model_counts_calls_for_this_run():
     assert middleware.after_model({"lcsp_run_model_call_count": 4}, None) == {
         "lcsp_run_model_call_count": 5
     }
-
-
-def test_repeated_identical_tool_result_without_progress_terminates():
-    middleware = AgentRunBudgetMiddleware(
-        repeated_tool_call_limit=6,
-        progress_fingerprint=lambda: 0,
-    )
-    request = SimpleNamespace(tool_call={"name": "ls", "args": {"path": "/legal-source"}})
-
-    events: list[dict[str, Any]] = []
-    with activate_agent_stream(_events(events)):
-        for _ in range(5):
-            assert middleware.wrap_tool_call(
-                request, lambda _: ToolMessage(content="same", tool_call_id="x")
-            )
-        with pytest.raises(AgentRunBudgetExceeded, match="NO_PROGRESS_DETECTED"):
-            middleware.wrap_tool_call(
-                request, lambda _: ToolMessage(content="same", tool_call_id="x")
-            )
-
-    assert events[-1]["data"]["reason"] == "NO_PROGRESS_DETECTED"
-    assert events[-1]["data"]["repeated_tool"] == "ls"
-    assert "/legal-source" not in str(events[-1])
-    assert "same" not in str(events[-1])
-
-
-def test_repeated_tool_with_changed_arguments_result_or_progress_is_allowed():
-    revision = [0]
-    middleware = AgentRunBudgetMiddleware(
-        repeated_tool_call_limit=6,
-        progress_fingerprint=lambda: revision[0],
-    )
-    results = iter(["one", "two", "same", "same"])
-    requests = [
-        SimpleNamespace(tool_call={"name": "ls", "args": {"path": path}})
-        for path in ("/legal-source", "/legal-source/a", "/legal-source", "/legal-source")
-    ]
-    for request, expected in zip(requests, results):
-        assert middleware.wrap_tool_call(
-            request, lambda _, value=expected: ToolMessage(content=value, tool_call_id="x")
-        )
-    revision[0] += 1
-    assert middleware.wrap_tool_call(
-        requests[-1], lambda _: ToolMessage(content="same", tool_call_id="x")
-    )
-
-
-def test_model_and_tool_ceiling_counters_are_shared_across_child_middleware():
-    counters = AgentRunBudgetCounters()
-    parent = AgentRunBudgetMiddleware(
-        finalize_after=3, grace_calls=2, shared_counters=True, counters=counters
-    )
-    child = AgentRunBudgetMiddleware(
-        finalize_after=3, grace_calls=2, shared_counters=True, counters=counters
-    )
-    request = FakeRequest(messages=[HumanMessage(content="work")])
-    for middleware in (parent, child, parent, child, parent):
-        middleware.wrap_model_call(request, lambda _: "ok")
-    with pytest.raises(AgentRunBudgetExceeded):
-        child.wrap_model_call(request, lambda _: "unreachable")
-    assert counters.model_calls == 5
-
-
-def test_preparation_tool_budget_is_terminal():
-    counters = AgentRunBudgetCounters()
-    middleware = AgentRunBudgetMiddleware(max_tool_calls=2, counters=counters)
-    request = SimpleNamespace(tool_call={"name": "ls", "args": {"path": "/legal-source"}})
-    for _ in range(2):
-        assert middleware.wrap_tool_call(
-            request, lambda _: ToolMessage(content="ok", tool_call_id="x")
-        )
-    with pytest.raises(AgentRunBudgetExceeded, match="TOOL_CALL_BUDGET"):
-        middleware.wrap_tool_call(
-            request, lambda _: ToolMessage(content="unreachable", tool_call_id="x")
-        )
-
-
-def test_react_loop_with_identical_legal_source_listing_terminates():
-    from langchain.agents import create_agent
-    from langchain_core.language_models.chat_models import BaseChatModel
-    from langchain_core.outputs import ChatGeneration, ChatResult
-    from langchain_core.tools import tool
-
-    calls: list[int] = []
-
-    @tool
-    def ls(path: str) -> str:
-        """List one source directory."""
-        return "article-1.md\narticle-2.md"
-
-    class RepeatingListingModel(BaseChatModel):
-        @property
-        def _llm_type(self) -> str:
-            return "repeating-listing"
-
-        def bind_tools(self, tools, **kwargs):
-            return self
-
-        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
-            calls.append(len(messages))
-            response = AIMessage(
-                content="",
-                tool_calls=[
-                    {"name": "ls", "args": {"path": "/legal-source"}, "id": f"ls-{len(calls)}"}
-                ],
-            )
-            return ChatResult(generations=[ChatGeneration(message=response)])
-
-    counters = AgentRunBudgetCounters()
-    budget = AgentRunBudgetMiddleware(
-        finalize_after=100,
-        grace_calls=2,
-        shared_counters=True,
-        max_tool_calls=100,
-        repeated_tool_call_limit=6,
-        counters=counters,
-    )
-    agent = create_agent(RepeatingListingModel(), tools=[ls], middleware=[budget])
-
-    with pytest.raises(AgentRunBudgetExceeded, match="NO_PROGRESS_DETECTED"):
-        agent.invoke({"messages": [HumanMessage(content="inspect the pinned source")]})
-
-    assert len(calls) == 6
-    assert counters.tool_calls == 6
-    assert counters.terminal_reason == "NO_PROGRESS_DETECTED"
 
 
 def test_context_budget_trims_old_tool_results_and_keeps_the_newest():

@@ -15,14 +15,11 @@ from langchain_core.runnables.config import var_child_runnable_config
 from langgraph.errors import GraphRecursionError
 from middleware.failure_policy import AgentRunBudgetExceeded
 from orchestration.agent_stream import publish_agent_stream_event
-from orchestration.graph_execution import agent_graph_config, agent_graph_recursion_limit
+from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
-from rule_set_preparation.agent import (
-    PREPARATION_RECURSION_LIMIT,
-    create_rule_set_preparation_agent,
-)
+from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
 
@@ -51,6 +48,7 @@ _ACTIVITY_TOOLS = frozenset(
         "task",
         "validate_compliance_rule_set",
         "submit_compliance_rule_set",
+        "record_preparation_progress",
         "report_rule_set_source_blocked",
     }
 )
@@ -193,6 +191,7 @@ def run_rule_set_preparation(
         try:
             materialize_legal_source(bundle, root)
             context.source_root = root
+            context.pinned_source_version_id = bundle.get("legalSourceVersionId")
             publish_agent_stream_event(
                 "CUSTOM_PROGRESS",
                 status="RUNNING",
@@ -213,17 +212,11 @@ def run_rule_set_preparation(
             isolated = contextvars.copy_context()
             isolated.run(var_child_runnable_config.set, None)
 
-            def invoke_preparation() -> None:
-                with agent_graph_recursion_limit(PREPARATION_RECURSION_LIMIT):
-                    agent.invoke(
-                        {"messages": [{"role": "user", "content": _TASK}]},
-                        config=agent_graph_config(
-                            {"callbacks": [*(callbacks or []), stream_trace]},
-                            recursion_limit=PREPARATION_RECURSION_LIMIT,
-                        ),
-                    )
-
-            isolated.run(invoke_preparation)
+            isolated.run(
+                agent.invoke,
+                {"messages": [{"role": "user", "content": _TASK}]},
+                config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
+            )
         except Exception as error:  # noqa: BLE001 - classify provider/runtime failures
             logger.warning(
                 "RULE_SET_PREPARATION_AGENT_FAILED",

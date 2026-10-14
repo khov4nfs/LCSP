@@ -1,5 +1,6 @@
 """Native, provider-free regressions for the preparation terminal contract."""
 
+import json
 from copy import deepcopy
 from pathlib import Path
 from types import SimpleNamespace
@@ -251,19 +252,17 @@ def test_invalid_source_blocking_signal_does_not_end_preparation(tmp_path: Path,
 def test_only_the_exact_passed_packet_can_be_submitted_once() -> None:
     api = FakeApi()
     context = RuleSetPreparationContext(RUN_ID, api)
-    validate, submit = build_rule_set_tools(context)[:2]
+    tools = {tool.name: tool for tool in build_rule_set_tools(context)}
+    validate = tools["validate_compliance_rule_set"]
+    submit = tools["submit_compliance_rule_set"]
     packet = _packet()
-    assert "error" in submit.invoke({"packet": packet})
-    assert api.names() == []
     validate.invoke({"packet": packet})
     changed = deepcopy(packet)
     changed["legalRequirements"][0]["title"] = "Changed after validation"
-    assert "error" in submit.invoke({"packet": changed})
-    assert api.names() == ["validate"]
-    submit.invoke({"packet": packet})
-    assert "alreadySubmitted" in submit.invoke({"packet": packet})
-    assert api.names() == ["validate", "submit"]
-    assert api.calls[-1][1] == (RUN_ID, context.idempotency_key, packet)
+    submit.invoke({"packet": changed})
+    assert "alreadySubmitted" in submit.invoke({"packet": changed})
+    assert api.names() == ["validate", "validate", "submit"]
+    assert api.calls[-1][1] == (RUN_ID, context.idempotency_key, changed)
 
 
 def test_failed_revalidation_revokes_previous_packet_pass() -> None:
@@ -274,11 +273,15 @@ def test_failed_revalidation_revokes_previous_packet_pass() -> None:
 
     api = ChangedValidationApi()
     context = RuleSetPreparationContext(RUN_ID, api)
-    validate, submit = build_rule_set_tools(context)[:2]
+    tools = {tool.name: tool for tool in build_rule_set_tools(context)}
+    validate = tools["validate_compliance_rule_set"]
+    submit = tools["submit_compliance_rule_set"]
     validate.invoke({"packet": _packet()})
     validate.invoke({"packet": _packet()})
-    assert "error" in submit.invoke({"packet": _packet()})
-    assert api.names() == ["validate", "validate"]
+    rejected = json.loads(submit.invoke({"packet": _packet()}))
+    assert rejected["completionClaim"] == "REJECTED"
+    assert rejected["gaps"]["outcome"] == "FAILED"
+    assert api.names() == ["validate", "validate", "validate"]
     assert context.submission is None
 
 

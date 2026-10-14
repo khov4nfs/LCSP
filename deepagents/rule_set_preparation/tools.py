@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -51,6 +52,21 @@ DRAFT_REMOVAL_SCHEMA = {
     },
     "additionalProperties": False,
 }
+PREPARATION_PROGRESS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "establishedFindings": {"type": "array", "items": {"type": "string"}},
+        "unresolvedMaterialWork": {"type": "array", "items": {"type": "string"}},
+        "currentTarget": {"type": "string"},
+        "intendedAction": {"type": "string"},
+        "expectedInformationGain": {"type": "string"},
+    },
+    "required": [
+        "establishedFindings", "unresolvedMaterialWork", "currentTarget",
+        "intendedAction", "expectedInformationGain",
+    ],
+    "additionalProperties": False,
+}
 
 
 class RuleSetApi(Protocol):
@@ -86,6 +102,16 @@ class RuleSetPreparationContext:
     # add_to_packet_draft calls since the last validation: past a few, the result asks for one.
     adds_since_validation: int = 0
     progress_revision: int = 0
+    pinned_source_version_id: str | None = None
+    progress_state: dict[str, Any] = field(default_factory=lambda: {
+        "establishedFindings": [],
+        "unresolvedMaterialWork": [],
+        "currentTarget": "",
+        "intendedAction": "",
+        "expectedInformationGain": "",
+    })
+    observations: dict[str, dict[str, Any]] = field(default_factory=dict)
+    observation_lock: Any = field(default_factory=threading.Lock, repr=False)
     # Per-call record of the governed tools (no packet content): what was validated/submitted
     # and which mechanical failure codes came back. Lets a failed run be diagnosed.
     trace: list[dict[str, Any]] = field(default_factory=list)
@@ -196,6 +222,34 @@ def _packet_stats(packet: dict) -> dict[str, int]:
 def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
     """Bind validation, submission and explicit source-blocking to one run."""
 
+    @tool(args_schema=PREPARATION_PROGRESS_SCHEMA)
+    def record_preparation_progress(
+        establishedFindings: list[str],
+        unresolvedMaterialWork: list[str],
+        currentTarget: str,
+        intendedAction: str,
+        expectedInformationGain: str,
+    ) -> str:
+        """Record concise source-grounded findings, unresolved work and the next factual investigation action.
+
+        This is an execution-local working ledger, not legal output or chain-of-thought. Do not include
+        private reasoning; cite source identifiers/locators when useful.
+        """
+        progress = {
+            "establishedFindings": establishedFindings,
+            "unresolvedMaterialWork": unresolvedMaterialWork,
+            "currentTarget": currentTarget,
+            "intendedAction": intendedAction,
+            "expectedInformationGain": expectedInformationGain,
+        }
+        with context.observation_lock:
+            if any(context.progress_state[key] != progress[key] for key in (
+                "establishedFindings", "unresolvedMaterialWork"
+            )):
+                context.progress_revision += 1
+            context.progress_state = progress
+        return json.dumps({"progressState": progress, "progressRevision": context.progress_revision})
+
     def run_validation(packet: dict | None = None) -> str:
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
@@ -219,8 +273,10 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             logger.warning("RULE_SET_PREPARATION_VALIDATION_ERROR", run_id=context.run_id,
                            validation_call=context.validation_calls, error=str(error)[:300])
             return json.dumps({"error": str(error)})
+        previous_validation = context.last_validation
         context.last_validation = result
-        context.progress_revision += 1
+        if result != previous_validation:
+            context.progress_revision += 1
         context.removable = _items_named_by(result.get("failures") or [])
         if result.get("outcome") == "PASSED":
             context.validated_packet = deepcopy(packet)
@@ -338,31 +394,39 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
 
     @tool(args_schema=OPTIONAL_PACKET_INPUT_SCHEMA)
     def submit_compliance_rule_set(packet: dict | None = None, **ignored: Any) -> str:
-        """Submit the validated rule set packet once. It is validated and, when mechanically
-        valid, activated automatically in one atomic step. There is no review or approval.
+        """Claim completion for a packet, run the deterministic integrity gate, then submit once.
 
-        Call it with no arguments to submit exactly the draft or packet that last passed
-        validate_compliance_rule_set, or pass that exact packet. Any edit after the pass requires
-        the semantic self-check and validation again.
-
-        If the result is FAILED the attempted rule_set is NOT activated, the previous ACTIVE
-        rule_set stays in place and this run is finished: do not call this tool again.
+        A rejected gate returns its exact mechanical gaps to this same agent for repair. The gate
+        checks structure and provenance only; this agent owns legal interpretation and completeness.
+        A passing claim is submitted through the canonical atomic activation operation.
         """
         if context.submission is not None:
             return json.dumps({**context.submission, "alreadySubmitted": True}, ensure_ascii=False)
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
         try:
-            packet = context.validated_packet if packet is None else _as_packet(packet)
-            if context.validated_packet is None or packet != context.validated_packet:
-                context.trace.append({"tool": "submit", "outcome": "VALIDATION_REQUIRED"})
-                return json.dumps({"error": "Validate this exact packet until PASSED before submitting."})
+            if packet is None:
+                packet = context.validated_packet or context.draft_packet()
+            else:
+                packet = _as_packet(packet)
+            gate = (
+                _model_view(context.last_validation, context)
+                if packet == context.validated_packet
+                and (context.last_validation or {}).get("outcome") == "PASSED"
+                else json.loads(run_validation(packet))
+            )
+            if gate.get("outcome") != "PASSED":
+                context.trace.append({"tool": "completion_claim", "outcome": "REJECTED"})
+                return json.dumps(
+                    {"completionClaim": "REJECTED", "gaps": gate}, ensure_ascii=False
+                )
+            packet = context.validated_packet
             result = context.api.submit_compliance_rule_set(
                 context.run_id, context.idempotency_key, packet
             )
         except (ValueError, WorkerCallbackError) as error:
             context.errors.append(str(error))
-            context.trace.append({"tool": "submit", "outcome": "ERROR"})
+            context.trace.append({"tool": "completion_claim", "outcome": "REJECTED"})
             return json.dumps({"error": str(error)})
         context.submission = result
         context.progress_revision += 1
@@ -414,6 +478,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         return json.dumps({"sourceBlocked": context.source_blocked})
 
     return [
+        record_preparation_progress,
         validate_compliance_rule_set,
         submit_compliance_rule_set,
         report_rule_set_source_blocked,

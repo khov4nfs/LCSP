@@ -16,10 +16,8 @@ from middleware.failure_policy import AgentRunBudgetExceeded
 from pydantic import Field
 
 from assessment_root.runner import run_assessment_root
-import orchestration.graph_execution as graph_execution
 from orchestration.graph_execution import (
     LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT,
-    agent_graph_recursion_limit,
     agent_graph_config,
 )
 from rule_set_preparation import runner as preparation_runner
@@ -27,7 +25,7 @@ from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
 from test_assessment_root_agent import complete_root_messages, ASSESSMENT, THREAD, FakeClient, RootScriptedModel
-from test_rule_set_preparation_agent import FakeApi, RUN_ID, _bundle, _call, _model, _packet
+from test_rule_set_preparation_agent import DOC, FakeApi, RUN_ID, _bundle, _call, _model, _packet, _sha
 from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
 from tools.common.capabilities.agent_runtime.local_server import _runtime_config
 
@@ -108,6 +106,49 @@ def test_preparation_continues_past_150_steps_and_submits_once(tmp_path: Path) -
     print(f"PREPARATION_COMPLETED graph_step={steps.highest_step}")
 
 
+def test_large_productive_preparation_exceeds_old_call_assumptions(tmp_path: Path) -> None:
+    bundle = _bundle()
+    chunks = []
+    responses = [_call("read_file", {"file_path": "/legal-source/INDEX.md"}, "index")]
+    for index in range(270):
+        locator = f"section-{index}::clause-1"
+        content = f"Distinct synthetic provision observation {index}."
+        chunks.append({
+            "chunkId": f"chunk-{index}", "locator": locator, "content": content,
+            "contentSha256": _sha(content), "legalStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE", "legalStatusSourceRef": "fixture:source",
+            "hierarchy": {"path": [f"section-{index}"]},
+        })
+        responses.append(_call(
+            "read_file",
+            {"file_path": f"/legal-source/{DOC}/section-{index}__clause-1.md"},
+            f"source-{index}",
+        ))
+    bundle["documents"][0]["chunks"] = chunks
+    class LargeApi(FakeApi):
+        def claim_rule_set_preparation(self, run_id: str) -> dict:
+            self.calls.append(("claim", (run_id,)))
+            return bundle
+
+    # This long but productive run is allowed to let its own agent make the completion claim.
+    responses.extend([
+        _call("validate_compliance_rule_set", {"packet": _packet()}, "validate"),
+        _call("submit_compliance_rule_set", {"packet": _packet()}, "submit"),
+    ])
+    api = LargeApi()
+    model = _model(responses)
+    result = preparation_runner.run_rule_set_preparation(
+        api,
+        RUN_ID,
+        model=model,
+        work_dir=tmp_path,
+    )
+
+    assert result["state"] == "SUCCEEDED"
+    assert api.names() == ["claim", "validate", "submit"]
+    assert len(model.prompts) > 256
+
+
 def test_root_continues_past_its_old_1000_steps_with_governance(tmp_path: Path) -> None:
     (tmp_path / "source.txt").write_text("\n".join(f"source line {i}" for i in range(70)))
     model = RootScriptedModel(responses=[
@@ -161,14 +202,11 @@ def test_framework_exhaustion_is_runtime_error_not_model_error(monkeypatch, tmp_
     assert api.calls[-1] == ("fail", (RUN_ID, preparation_runner.RUNTIME_ERROR))
 
 
-def test_agent_run_budget_exhaustion_is_runtime_error_not_model_error(monkeypatch, tmp_path: Path) -> None:
+def test_no_progress_execution_failure_is_runtime_error_not_model_error(monkeypatch, tmp_path: Path) -> None:
     class ExhaustedGraph:
         def invoke(self, *args, **kwargs):
-            assert graph_execution.agent_graph_config()["recursion_limit"] == (
-                preparation_runner.PREPARATION_RECURSION_LIMIT
-            )
             raise AgentRunBudgetExceeded(
-                "Agent run stopped by execution safety guard: NO_PROGRESS_DETECTED"
+                "NO_PROGRESS_DETECTED"
             )
 
     monkeypatch.setattr(preparation_runner, "create_rule_set_preparation_agent", lambda **kw: ExhaustedGraph())
@@ -195,15 +233,3 @@ def test_runtime_config_preserves_checkpoints_and_discards_stale_small_ceiling()
     assert result["metadata"]["origin"] == "test"
     assert config["recursion_limit"] == 150
     assert agent_graph_config()["recursion_limit"] == (1 << 31) - 1
-
-
-def test_native_reader_graph_inherits_preparation_recursion_ceiling(monkeypatch) -> None:
-    class Graph:
-        def with_config(self, config):
-            self.config = config
-            return self
-
-    monkeypatch.setattr(graph_execution, "_native_create_sub_agent", lambda *a, **kw: Graph())
-    with agent_graph_recursion_limit(1234):
-        child = graph_execution._create_sub_agent()
-    assert child.config["recursion_limit"] == 1234

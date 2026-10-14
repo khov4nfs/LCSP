@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import json
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -20,11 +22,13 @@ from langchain.agents.middleware import (
     omit_payload,
 )
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import ToolMessage
 from langgraph.runtime import Runtime
-from middleware.agent_run_budget import AgentRunBudgetCounters, AgentRunBudgetMiddleware
+from middleware.failure_policy import AgentRunBudgetExceeded
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware
-from orchestration.graph_execution import agent_graph_config, agent_graph_recursion_limit
+from orchestration.agent_stream import publish_agent_stream_event
+from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.logging import get_logger
 
 from deepagents import GeneralPurposeSubagentProfile, HarnessProfile, create_deep_agent
@@ -36,14 +40,117 @@ from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set
 INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
 RULE_SET_PREPARATION_ROLE = "rule-set-preparation"
 READ_ONLY_TOOLS = ["ls", "glob", "grep", "read_file"]
-PREPARATION_FINALIZE_AFTER_MODEL_CALLS = 256
-PREPARATION_GRACE_MODEL_CALLS = 32
-PREPARATION_MAX_TOOL_CALLS = 8192
-PREPARATION_REPEATED_TOOL_LIMIT = 6
-PREPARATION_RECURSION_LIMIT = 16_384
-
 _PROFILE_LOCK = threading.Lock()
 logger = get_logger(__name__)
+
+
+class PreparationObservationMiddleware(AgentMiddleware):
+    """Return useful source observations and escalate only a cycle that ignores feedback."""
+
+    def __init__(self, context: RuleSetPreparationContext) -> None:
+        self.context = context
+
+    def wrap_tool_call(self, request, handler):
+        return self._observe(request, handler(request))
+
+    async def awrap_tool_call(self, request, handler):
+        return self._observe(request, await handler(request))
+
+    def _observe(self, request, result):
+        call = getattr(request, "tool_call", None)
+        if not isinstance(call, dict) or call.get("name") not in READ_ONLY_TOOLS:
+            return result
+        if not isinstance(result, ToolMessage):
+            return result
+
+        name = call["name"]
+        args = call.get("args", {})
+        content = result.content
+        source_version = self.context.pinned_source_version_id or "UNKNOWN"
+        signature = _observation_hash({
+            "tool": name,
+            "arguments": args,
+            "pinnedSourceVersionId": source_version,
+        })
+        result_hash = _observation_hash(content)
+        terminal = False
+        with self.context.observation_lock:
+            revision = self.context.progress_revision
+            previous = self.context.observations.get(signature)
+            changed = previous is not None and previous["result"] != result_hash
+            advanced = previous is not None and previous["revision"] != revision
+            if previous is None or changed:
+                novelty = "NEW" if previous is None else "CHANGED"
+                self.context.progress_revision += 1
+                self.context.observations[signature] = {
+                    "result": result_hash,
+                    "revision": self.context.progress_revision,
+                    "stage": 0,
+                }
+            elif advanced:
+                novelty = "NONE"
+                previous.update(revision=revision, stage=0)
+            elif previous["stage"] == 0:
+                novelty = "NONE"
+                previous["stage"] = 1
+            elif previous["stage"] == 1:
+                novelty = "NONE"
+                previous["stage"] = 2
+            else:
+                novelty = "NONE"
+                terminal = True
+
+        feedback: dict[str, Any] = {
+            "pinnedLegalSourceVersionId": source_version,
+            "previouslyObserved": previous is not None,
+            "novelty": novelty,
+            "progressStateAdvanced": advanced,
+            "progressState": self.context.progress_state,
+        }
+        if novelty == "NONE":
+            feedback["guidance"] = (
+                "This exact observation at this pinned source version was already obtained. "
+                "Novel information: NONE. Reuse existing evidence, inspect another location or "
+                "source, change strategy, or submit completion if no material work remains."
+            )
+        if previous is not None and previous["stage"] == 2 and not terminal and not advanced:
+            feedback["NO_PROGRESS"] = (
+                "The previous action produced no new evidence and did not advance preparation "
+                "state. Re-evaluate strategy; choose a different investigation action, reuse the "
+                "existing observation, or submit completion if no material work remains."
+            )
+
+        publish_agent_stream_event(
+            "CUSTOM_PROGRESS",
+            status="RUNNING",
+            data={"activity_kind": "SOURCE_OBSERVATION", "tool_name": name,
+                  "novelty": novelty, "previously_observed": feedback["previouslyObserved"]},
+        )
+        if terminal:
+            publish_agent_stream_event(
+                "CUSTOM_PROGRESS",
+                status="FAILED",
+                data={"activity_kind": "NO_PROGRESS_DETECTED", "tool_name": name},
+            )
+            raise AgentRunBudgetExceeded("NO_PROGRESS_DETECTED")
+        return result.model_copy(update={"content": _with_observation_feedback(content, feedback)})
+
+
+def _observation_hash(value: Any) -> str:
+    try:
+        normalized = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
+    except (TypeError, ValueError):
+        normalized = repr(type(value))
+    return hashlib.sha256(normalized.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _with_observation_feedback(content: Any, feedback: dict[str, Any]) -> Any:
+    marker = "[Pinned source observation metadata]\n" + json.dumps(feedback, ensure_ascii=False)
+    if isinstance(content, str):
+        return content + "\n\n" + marker
+    if isinstance(content, list):
+        return [*content, {"type": "text", "text": marker}]
+    return content
 
 
 class PreparationCompletionMiddleware(AgentMiddleware):
@@ -164,17 +271,8 @@ def create_rule_set_preparation_agent(
 
         model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
 
-    budget_counters = AgentRunBudgetCounters()
-    budget_options = {
-        "finalize_after": PREPARATION_FINALIZE_AFTER_MODEL_CALLS,
-        "grace_calls": PREPARATION_GRACE_MODEL_CALLS,
-        "shared_counters": True,
-        "max_tool_calls": PREPARATION_MAX_TOOL_CALLS,
-        "repeated_tool_call_limit": PREPARATION_REPEATED_TOOL_LIMIT,
-        "counters": budget_counters,
-    }
-
     backend = FilesystemBackend(root_dir=legal_source_root, virtual_mode=True)
+    observation_middleware = PreparationObservationMiddleware(context)
     read_only = FilesystemMiddleware(
         backend=backend,
         tools=READ_ONLY_TOOLS,
@@ -184,10 +282,7 @@ def create_rule_set_preparation_agent(
             FilesystemPermission(["write"], ["/**"], mode="deny"),
         ],
     )
-    with (
-        agent_graph_recursion_limit(PREPARATION_RECURSION_LIMIT),
-        _without_general_purpose_subagent(_lookup_profile_key(model)),
-    ):
+    with _without_general_purpose_subagent(_lookup_profile_key(model)):
         return create_deep_agent(
             name="lcsp-rule-set-preparation",
             model=model,
@@ -196,16 +291,7 @@ def create_rule_set_preparation_agent(
             tools=build_rule_set_tools(context),
             middleware=[
                 read_only,
-                AgentRunBudgetMiddleware(
-                    **budget_options,
-                    finalize_tools=frozenset({
-                        "add_to_packet_draft",
-                        "validate_compliance_rule_set",
-                        "submit_compliance_rule_set",
-                        "report_rule_set_source_blocked",
-                    }),
-                    progress_fingerprint=lambda: context.progress_revision,
-                ),
+                observation_middleware,
                 PreparationCompletionMiddleware(context),
                 DraftHistoryMiddleware(),
                 AgentRoleMiddleware(RULE_SET_PREPARATION_ROLE),
@@ -215,10 +301,7 @@ def create_rule_set_preparation_agent(
                 legal_source_reader_subagent(
                     model=model,
                     backend=backend,
-                    budget=AgentRunBudgetMiddleware(
-                        **budget_options,
-                        progress_fingerprint=lambda: context.progress_revision,
-                    ),
+                    observation_middleware=observation_middleware,
                 )
             ],
             # False, not None: None would inherit the Agent Server run's Postgres checkpointer, and
@@ -228,4 +311,4 @@ def create_rule_set_preparation_agent(
             # _checkpointer_put_after_previous) and filled the database with 100k-token states.
             checkpointer=False if checkpointer is None else checkpointer,
             store=store,
-        ).with_config(agent_graph_config(recursion_limit=PREPARATION_RECURSION_LIMIT))
+        ).with_config(agent_graph_config())

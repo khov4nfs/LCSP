@@ -5,15 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from deepagents.backends.filesystem import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
-from middleware.agent_run_budget import AgentRunBudgetMiddleware
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 import rule_set_preparation.agent as preparation_agent
 from rule_set_preparation.agent import (
+    PreparationObservationMiddleware,
     _without_general_purpose_subagent,
     create_rule_set_preparation_agent,
 )
@@ -66,7 +67,7 @@ def test_legal_source_reader_uses_shared_model_governance_middleware(tmp_path):
     assert subagent["response_format"] is LegalSourceReaderResult
 
 
-def test_preparation_and_reader_share_bounded_execution_counters(monkeypatch, tmp_path):
+def test_preparation_and_reader_share_observation_state_without_work_budgets(monkeypatch, tmp_path):
     captured: dict[str, Any] = {}
 
     class Graph:
@@ -86,21 +87,17 @@ def test_preparation_and_reader_share_bounded_execution_counters(monkeypatch, tm
         context=context, legal_source_root=tmp_path, model=object()
     )
 
-    parent_budget = next(
-        item for item in captured["middleware"] if isinstance(item, AgentRunBudgetMiddleware)
+    parent_observations = next(
+        item for item in captured["middleware"] if isinstance(item, PreparationObservationMiddleware)
     )
-    child_budget = next(
+    child_observations = next(
         item
         for item in captured["subagents"][0]["middleware"]
-        if isinstance(item, AgentRunBudgetMiddleware)
+        if isinstance(item, PreparationObservationMiddleware)
     )
-    assert parent_budget.counters is child_budget.counters
-    assert parent_budget.max_model_calls == 288
-    assert parent_budget.max_tool_calls == 8192
-    assert parent_budget.repeated_tool_call_limit == 6
-    assert parent_budget.finalize_tools
-    assert not child_budget.finalize_tools
-    assert captured["config"]["recursion_limit"] == preparation_agent.PREPARATION_RECURSION_LIMIT
+    assert parent_observations is child_observations
+    assert not any("budget" in type(item).__name__.lower() for item in captured["middleware"])
+    assert captured["config"]["recursion_limit"] == (1 << 31) - 1
 
 
 def _sha(text: str) -> str:
@@ -259,6 +256,15 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
             continue
         if tool.name == "remove_from_packet_draft":
             continue
+        if tool.name == "record_preparation_progress":
+            assert set(schema["required"]) == {
+                "establishedFindings",
+                "unresolvedMaterialWork",
+                "currentTarget",
+                "intendedAction",
+                "expectedInformationGain",
+            }
+            continue
         if tool.name in {"validate_compliance_rule_set", "submit_compliance_rule_set"}:
             # The item contracts are carried once, by the draft tool; the packet argument is optional.
             assert "required" not in schema and schema["properties"]["packet"]["type"] == "object"
@@ -314,11 +320,38 @@ def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_to
     )
     agent.invoke({"messages": [{"role": "user", "content": "go"}]})
     bound = {name for names in model.bound_tool_names for name in names}
-    assert {"read_file", "ls", "glob", "grep", "validate_compliance_rule_set", "submit_compliance_rule_set", "report_rule_set_source_blocked"} <= bound
+    assert {
+        "read_file", "ls", "glob", "grep", "validate_compliance_rule_set",
+        "submit_compliance_rule_set", "record_preparation_progress", "report_rule_set_source_blocked",
+    } <= bound
     forbidden = {"write_file", "edit_file", "execute", "ask_human", "submit_rule_decision"}
     assert bound.isdisjoint(forbidden), bound & forbidden
     assert "task" in bound
     assert INSTRUCTIONS in model.prompts[0][0].content
+
+
+def test_progress_ledger_advances_for_findings_not_strategy_alone() -> None:
+    context = RuleSetPreparationContext(RUN_ID, FakeApi())
+    tool = next(tool for tool in build_rule_set_tools(context) if tool.name == "record_preparation_progress")
+
+    first = json.loads(tool.invoke({
+        "establishedFindings": ["DOC art-1 states the retention duty"],
+        "unresolvedMaterialWork": ["Resolve the linked exception"],
+        "currentTarget": "DOC art-2",
+        "intendedAction": "read",
+        "expectedInformationGain": "Exception scope",
+    }))
+    strategy_change = json.loads(tool.invoke({
+        "establishedFindings": ["DOC art-1 states the retention duty"],
+        "unresolvedMaterialWork": ["Resolve the linked exception"],
+        "currentTarget": "DOC art-3",
+        "intendedAction": "read",
+        "expectedInformationGain": "Cross-reference context",
+    }))
+
+    assert first["progressRevision"] == 1
+    assert strategy_change["progressRevision"] == 1
+    assert context.progress_state["currentTarget"] == "DOC art-3"
 
 
 def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_path: Path) -> None:
@@ -334,7 +367,7 @@ def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_p
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
 
     assert result["state"] == "SUCCEEDED" and result["failureReason"] is None
-    assert api.names() == ["claim", "validate", "submit"], api.names()  # the 2nd submit never reaches the API
+    assert api.names() == ["claim", "validate", "submit"], api.names()
     _, (run_id, key, sent) = api.calls[2]
     assert run_id == RUN_ID
     assert key == f"rule-set-preparation-submit-{RUN_ID}"
@@ -342,6 +375,99 @@ def test_agent_reads_validates_and_submits_once_with_server_bound_identity(tmp_p
     messages = _tool_messages(model)
     assert "Pinned legal_source SYNTHETIC-LEGAL_SOURCE-V1" in messages["read-index"].content
     assert len(model.prompts) == 3  # Native graph ends at the first governed submission.
+
+
+def test_pinned_source_listing_is_visible_and_agent_changes_strategy(tmp_path: Path) -> None:
+    packet = _packet()
+    model = _model([
+        _call("ls", {"path": "/legal-source"}, "ls-first"),
+        _call("ls", {"path": "/legal-source"}, "ls-repeat"),
+        _call("read_file", {"file_path": INDEX_PATH}, "read-index"),
+        _call("validate_compliance_rule_set", {"packet": packet}, "validate"),
+        _call("submit_compliance_rule_set", {"packet": packet}, "submit"),
+    ])
+    result = run_rule_set_preparation(FakeApi(), RUN_ID, model=model, work_dir=tmp_path)
+
+    assert result["state"] == "SUCCEEDED"
+    messages = _tool_messages(model)
+    listing = messages["ls-first"].content
+    assert "INDEX.md" in listing and DOC in listing
+    assert f'"pinnedLegalSourceVersionId": "{LEGAL_SOURCE_ID}"' in listing
+    repeated = messages["ls-repeat"].content
+    assert '"previouslyObserved": true' in repeated and '"novelty": "NONE"' in repeated
+    assert "Novel information: NONE" in repeated
+    assert "Novel information: NONE" in str(model.prompts[2])
+    assert f"legalSourceVersionId: {LEGAL_SOURCE_ID}" in messages["read-index"].content
+
+
+def test_completion_claim_returns_gate_gaps_to_same_agent_then_submits(tmp_path: Path) -> None:
+    packet = _packet()
+    corrected = _packet()
+    corrected["assessmentRules"][0]["legalIntent"] += " Preserve the stated exception."
+
+    class GateApi(FakeApi):
+        def validate_compliance_rule_set(self, run_id: str, candidate: dict) -> dict:
+            self.calls.append(("validate", (run_id, candidate)))
+            if sum(name == "validate" for name, _ in self.calls) == 1:
+                return {"outcome": "FAILED", "failures": [{
+                    "code": "INTEGRITY_GAP", "ref": "assessmentRule:ER-RET", "detail": "missing source-linked exception"
+                }]}
+            return {"outcome": "PASSED", "failures": []}
+
+    api = GateApi()
+    model = _model([
+        _call("submit_compliance_rule_set", {"packet": packet}, "claim-1"),
+        _call("validate_compliance_rule_set", {"packet": corrected}, "repair-check"),
+        _call("submit_compliance_rule_set", {"packet": corrected}, "claim-2"),
+    ])
+    result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+
+    assert result["state"] == "SUCCEEDED"
+    assert api.names() == ["claim", "validate", "validate", "submit"]
+    rejected = json.loads(_tool_messages(model)["claim-1"].content)
+    assert rejected["completionClaim"] == "REJECTED"
+    assert rejected["gaps"]["failures"][0]["code"] == "INTEGRITY_GAP"
+    assert api.calls[-1][1][-1] == corrected
+
+
+def test_agent_ignoring_no_progress_feedback_fails_only_after_feedback(tmp_path: Path) -> None:
+    model = _model([
+        _call("ls", {"path": "/legal-source"}, f"ls-{index}") for index in range(1, 5)
+    ])
+    api = FakeApi()
+    result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+
+    assert result["state"] == "FAILED" and result["failureReason"] == "RUNTIME_ERROR"
+    assert api.names() == ["claim", "fail"]
+    assert "NO_PROGRESS_DETECTED" in result["error"]["message"]
+    assert "NO_PROGRESS" in str(model.prompts[3])
+    assert "NO_PROGRESS" in _tool_messages(model)["ls-3"].content
+
+
+def test_novelty_allows_changed_observations_and_state_advancement() -> None:
+    from rule_set_preparation.agent import PreparationObservationMiddleware
+
+    context = RuleSetPreparationContext(RUN_ID, FakeApi(), pinned_source_version_id=LEGAL_SOURCE_ID)
+    middleware = PreparationObservationMiddleware(context)
+
+    def observe(name: str, path: str, output: str, call_id: str) -> str:
+        request = SimpleNamespace(tool_call={"name": name, "args": {"path": path}})
+        result = middleware.wrap_tool_call(
+            request, lambda _: ToolMessage(content=output, tool_call_id=call_id)
+        )
+        return result.content
+
+    first = observe("ls", "/legal-source", "child-a/", "1")
+    other_path = observe("ls", "/legal-source/child-a", "a.md", "2")
+    changed_result = observe("ls", "/legal-source/child-a", "a.md\nb.md", "3")
+    assert '"novelty": "NEW"' in first
+    assert '"novelty": "NEW"' in other_path
+    assert '"novelty": "CHANGED"' in changed_result
+
+    context.progress_revision += 1
+    after_progress = observe("ls", "/legal-source/child-a", "a.md\nb.md", "4")
+    assert '"progressStateAdvanced": true' in after_progress
+    assert '"NO_PROGRESS"' not in after_progress
 
 
 def test_managed_agent_serializes_gemini_nullable_tools_without_rewriting_packet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -708,9 +834,9 @@ def test_instructions_require_general_semantic_completeness_before_validation() 
     assert "insert every missing identity into the actual AssessmentRule `sourceRefs` array" in text
     assert "An inline definition or paraphrase in a criterion does not replace its source reference" in text
     assert "repeat this comparison after every packet repair" in text
-    assert "Repeat the private semantic completeness pass on that final packet" in text
-    assert "using the exact packet that just passed validation" in text
-    assert "Do not regenerate, shorten or change that packet between the two calls" in text
+    assert "explicitly claim completion" in text
+    assert "completionClaim: REJECTED" in text
+    assert "The gate checks structure and provenance, not legal meaning" in text
     assert "Preserve inherited scope and other relevant context for NON_ASSESSABLE LegalRequirements too" in text
     assert "A LegalRequirement declared `NON_ASSESSABLE` must have no AssessmentRule referencing its `legalRequirementId`" in text
     assert "Never mark the entire duty `NON_ASSESSABLE` while also authoring an AssessmentRule to assess it" in text
@@ -791,9 +917,9 @@ def test_draft_items_are_replaced_by_label_and_any_edit_revokes_a_pass() -> None
     result = json.loads(add.invoke({"legalRequirements": [corrected]}))
     assert result["replaced"] == 1 and result["draft"]["legalRequirements"] == 1
     assert context.draft["legalRequirements"]["LR-RET"]["title"] == "Retention (corrected)"
-    assert "error" in json.loads(submit.invoke({}))  # the earlier PASS no longer describes the draft
-    assert context.submission is None
-    assert json.loads(validate.invoke({}))["outcome"] == "PASSED"
+    claim = json.loads(submit.invoke({}))
+    assert claim["lifecycleState"] == "ACTIVE"  # an edited draft is gated again before submission
+    assert context.submission is not None
 
 
 def test_only_items_named_by_the_latest_validation_failures_can_be_removed() -> None:

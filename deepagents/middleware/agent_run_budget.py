@@ -17,13 +17,8 @@ returns. This middleware enforces three limits per run:
 
 from __future__ import annotations
 
-import hashlib
-import json
 import os
-import threading
-from collections.abc import Callable
 from copy import deepcopy
-from dataclasses import dataclass, field
 from typing import Annotated, Any
 
 from langchain.agents.middleware import AgentMiddleware
@@ -81,19 +76,6 @@ class AgentRunBudgetState(AgentState):
     ]
 
 
-@dataclass
-class AgentRunBudgetCounters:
-    """Shared in-memory ceilings for the root and its native child agents."""
-
-    lock: threading.Lock = field(default_factory=threading.Lock)
-    model_calls: int = 0
-    tool_calls: int = 0
-    last_tool_signature: tuple[str, str, str] | None = None
-    last_progress_fingerprint: str | None = None
-    repeated_tool_calls: int = 0
-    terminal_reason: str | None = None
-
-
 class AgentRunBudgetMiddleware(AgentMiddleware):
     """Trim, then finalize, then stop one agent run."""
 
@@ -106,16 +88,10 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         grace_calls: int | None = None,
         keep_tool_results: int = DEFAULT_KEEP_TOOL_RESULTS,
         finalize_tools: frozenset[str] = frozenset(),
-        shared_counters: bool = False,
-        max_tool_calls: int | None = None,
-        repeated_tool_call_limit: int | None = None,
-        progress_fingerprint: Callable[[], Any] | None = None,
-        counters: AgentRunBudgetCounters | None = None,
     ) -> None:
         super().__init__()
         # Governed completion tools stay callable at finalize.
         self.finalize_tools = frozenset(finalize_tools)
-        self.shared_counters = shared_counters
         self.finalize_after = max(
             1,
             finalize_after
@@ -129,10 +105,6 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
             else _positive_env(GRACE_CALLS_ENV, DEFAULT_GRACE_MODEL_CALLS),
         )
         self.keep_tool_results = max(1, keep_tool_results)
-        self.max_tool_calls = max_tool_calls
-        self.repeated_tool_call_limit = repeated_tool_call_limit
-        self.progress_fingerprint = progress_fingerprint
-        self.counters = counters or AgentRunBudgetCounters()
 
     def _finalize_instruction(self) -> str:
         if not self.finalize_tools:
@@ -155,104 +127,13 @@ class AgentRunBudgetMiddleware(AgentMiddleware):
         return self.after_model(state, runtime)
 
     def wrap_model_call(self, request, handler):
-        completed_calls = self._claim_model_call() if self.shared_counters else None
-        return handler(self._bounded_request(request, completed_calls=completed_calls))
+        return handler(self._bounded_request(request))
 
     async def awrap_model_call(self, request, handler):
-        completed_calls = self._claim_model_call() if self.shared_counters else None
-        return await handler(self._bounded_request(request, completed_calls=completed_calls))
+        return await handler(self._bounded_request(request))
 
-    def wrap_tool_call(self, request, handler):
-        self._claim_tool_call()
-        result = handler(request)
-        self._check_repetition(request, result)
-        return result
-
-    async def awrap_tool_call(self, request, handler):
-        self._claim_tool_call()
-        result = await handler(request)
-        self._check_repetition(request, result)
-        return result
-
-    def _claim_model_call(self) -> int:
-        with self.counters.lock:
-            if self.counters.terminal_reason is not None:
-                self._publish_terminal_budget(self.counters.terminal_reason)
-            completed = self.counters.model_calls
-            limit = self.max_model_calls
-            if completed >= limit:
-                self.counters.terminal_reason = AGENT_BUDGET_REASONS["hard_limit"]
-                self._publish_terminal_budget(self.counters.terminal_reason)
-            self.counters.model_calls += 1
-            return completed
-
-    def _claim_tool_call(self) -> None:
-        if self.max_tool_calls is None:
-            return
-        with self.counters.lock:
-            if self.counters.terminal_reason is not None:
-                self._publish_terminal_budget(self.counters.terminal_reason)
-            if self.counters.tool_calls >= self.max_tool_calls:
-                self.counters.terminal_reason = "TOOL_CALL_BUDGET"
-                self._publish_terminal_budget(self.counters.terminal_reason)
-            self.counters.tool_calls += 1
-
-    def _check_repetition(self, request: Any, result: Any) -> None:
-        if self.repeated_tool_call_limit is None:
-            return
-        tool_call = getattr(request, "tool_call", None)
-        if not isinstance(tool_call, dict):
-            return
-        name = tool_call.get("name")
-        if not isinstance(name, str):
-            return
-        args_hash = _fingerprint(tool_call.get("args", {}))
-        content = getattr(result, "content", result)
-        result_hash = _fingerprint(content)
-        progress_hash = _fingerprint(
-            self.progress_fingerprint() if self.progress_fingerprint else None
-        )
-        signature = (name, args_hash, result_hash)
-        with self.counters.lock:
-            if (
-                signature == self.counters.last_tool_signature
-                and progress_hash == self.counters.last_progress_fingerprint
-            ):
-                self.counters.repeated_tool_calls += 1
-            else:
-                self.counters.repeated_tool_calls = 1
-            self.counters.last_tool_signature = signature
-            self.counters.last_progress_fingerprint = progress_hash
-            repeated = self.counters.repeated_tool_calls
-            if repeated >= self.repeated_tool_call_limit:
-                self.counters.terminal_reason = "NO_PROGRESS_DETECTED"
-        if repeated >= self.repeated_tool_call_limit:
-            self._publish_terminal_budget("NO_PROGRESS_DETECTED")
-
-    def _publish_terminal_budget(self, reason: str) -> None:
-        publish_agent_stream_event(
-            AGENT_BUDGET_REACHED,
-            status="FAILED",
-            text="agent run stopped by its execution safety guard",
-            data={
-                "reason": reason,
-                "model_calls": self.counters.model_calls,
-                "tool_calls": self.counters.tool_calls,
-                "repeated_tool_calls": self.counters.repeated_tool_calls,
-                "repeated_tool": self.counters.last_tool_signature[0]
-                if self.counters.last_tool_signature
-                else None,
-            },
-        )
-        raise AgentRunBudgetExceeded(
-            f"Agent run stopped by execution safety guard: {reason}"
-        )
-
-    def _bounded_request(self, request, *, completed_calls: int | None = None):
-        calls = max(
-            _run_model_calls(getattr(request, "state", None)),
-            completed_calls if completed_calls is not None else 0,
-        )
+    def _bounded_request(self, request):
+        calls = _run_model_calls(getattr(request, "state", None))
         if calls >= self.max_model_calls:
             publish_agent_stream_event(
                 AGENT_BUDGET_REACHED,
@@ -390,20 +271,6 @@ def _positive_env(name: str, default: int) -> int:
     if value <= 0:
         raise RuntimeError(f"{name} must be a positive integer")
     return value
-
-
-def _fingerprint(value: Any) -> str:
-    try:
-        payload = json.dumps(
-            value,
-            sort_keys=True,
-            ensure_ascii=False,
-            separators=(",", ":"),
-            default=str,
-        )
-    except Exception:
-        payload = str(type(value))
-    return hashlib.sha256(payload.encode("utf-8", errors="replace")).hexdigest()
 
 
 __all__ = [

@@ -11,6 +11,18 @@ of the legal reading is your responsibility alone.
 
 - Read-only tools `ls`, `glob`, `grep`, `read_file` over `/legal-source`. Start with `/legal-source/INDEX.md`:
   it lists every provision with the exact `documentId`, `locator` and `contentSha256` you must cite.
+- Keep concise working state from observed source facts, the current unresolved material question, and your
+  next useful action. Before a read, know what it should resolve; after a read, record material findings in the
+  packet or use them to choose another source/location. Do not expose chain-of-thought.
+- Read tools return the actual pinned-source observation plus metadata (`pinnedLegalSourceVersionId`,
+  `previouslyObserved`, and `novelty`). `novelty: NONE` means that exact tool, arguments, source pin and result
+  were already observed. Reuse it, inspect another location/source, change strategy, or claim completion if no
+  material work remains. If a result includes `NO_PROGRESS`, choose a different action, reuse evidence, or claim
+  completion; do not repeat the same transition without new evidence or preparation-state advancement.
+- Use `record_preparation_progress` to keep concise established findings, unresolved material work, the current
+  target, intended action, and expected information gain. Update findings/unresolved work when evidence or the
+  packet materially advances; changing an intended action alone is strategy, not evidence progress. This ledger
+  is working state only and must not contain private chain-of-thought.
 - The native `task` tool exposes one subagent type, `legal-source-reader`. Delegate each independent
   document once by issuing all document tasks in the same assistant turn. Give each child its exact
   document ID and `/legal-source/<document-directory>/` scope. The native Deep Agents runtime runs
@@ -20,8 +32,10 @@ of the legal reading is your responsibility alone.
   (`legalRequirementId`, `assessmentRuleId`, `relationId`) is already in the draft replaces it.
 - `validate_compliance_rule_set()` — dry-run of the mechanical checks on the draft (or on a complete
   `packet` argument); nothing is persisted.
-- `submit_compliance_rule_set()` — the single submission of the draft or packet that last passed
-  validation. Call it exactly once.
+- `submit_compliance_rule_set()` — explicit completion claim, deterministic integrity gate, then the
+  single canonical submission if the gate passes. A rejected claim returns mechanical gaps to you; repair
+  them and continue. Successful submission occurs once.
+- `record_preparation_progress(...)` — update the execution-local working ledger; it records no legal decision.
 - `report_rule_set_source_blocked(reason, path)` — finish without submission only for an
   unreadable pinned source (`SOURCE_UNREADABLE`) or inconsistent pins (`SOURCE_PINS_INCONSISTENT`).
 - You have no repository, customer, assessment, interview, evidence, applicability, compliance,
@@ -94,17 +108,21 @@ of the legal reading is your responsibility alone.
    completeness pass below. Fix omissions before validation; mechanical acceptance cannot
    establish semantic completeness. Call `validate_compliance_rule_set`, fix every reported failure honestly (never by weakening
    or inventing legal content, and never by editing a hash), and validate again until it
-   passes. Repeat the private semantic completeness pass on that final packet after any
-   validation feedback; a PASS is not permission to skip it. Then call
-   `submit_compliance_rule_set` once, using the exact packet that just passed validation.
-   Do not regenerate, shorten or change that packet between the two calls. If you edit any
-   field after validation, repeat both private checks and validate the edited packet first.
-8. If a provision is ambiguous, contradictory or unreadable, keep that limitation visible in
+   passes. Repeat the private semantic completeness pass after validation feedback; a PASS is
+   not permission to skip it.
+8. When you judge the configured pinned-source scope semantically complete, explicitly claim
+   completion by calling `submit_compliance_rule_set` with the exact packet. This action runs the
+   deterministic integrity gate and, only if it passes, canonical atomic submission/activation.
+   The gate checks structure and provenance, not legal meaning. If it returns
+   `completionClaim: REJECTED`, treat `gaps` as mechanical feedback, continue this same
+   investigation, repair the packet, repeat the private semantic pass, and claim completion again.
+   A rejected claim is not terminal; a successful canonical submission occurs once.
+9. If a provision is ambiguous, contradictory or unreadable, keep that limitation visible in
    the rule text instead of guessing. If the legal source cannot be read or its pins are
    inconsistent, call `report_rule_set_source_blocked` with the affected `/legal-source`
    path and reason, **without** submitting. Do not use this outcome for unfinished work,
    ambiguous provisions or validation feedback that can be corrected.
-9. An ordinary assistant response does not finish preparation. Preserve your accumulated
+10. An ordinary assistant response does not finish preparation. Preserve your accumulated
    work and continue until the governed submission or source-blocking tool completes.
    Invoke actual tools; writing `[[tool_calls]]` or packet JSON in assistant text invokes nothing.
 
@@ -409,3 +427,12 @@ check the actual keys and JSON types, independently of your semantic check:
 
 Shape checks do not substitute for the private semantic completeness pass. Do both before
 calling either rule set tool, without adding fields to the packet or weakening meaning.
+
+## Legal effect status is versioned source metadata
+
+Every provision file and the index carry `legalEffectStatus` and, when known, its
+`legalStatusSourceRef`. Use only that pinned metadata when deciding whether a provision is a
+current obligation: `REPEALED` provisions are historical context, `FUTURE` provisions are not yet
+effective, and `UNKNOWN` must remain unresolved rather than being described as in force. Never infer
+legal effect from the document title, article number, or an instrument-specific rule. A later
+source version may record a repeal or replacement while this pinned version remains reproducible.
