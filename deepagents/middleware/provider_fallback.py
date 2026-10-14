@@ -5,6 +5,9 @@ keyed by route identity ``provider:model``.
 """
 from __future__ import annotations
 
+import asyncio
+import time
+
 from langchain.agents.middleware import AgentMiddleware
 
 from middleware.failure_policy import (
@@ -41,6 +44,11 @@ from tools.common.capabilities.platform.logging import get_logger
 
 logger = get_logger(__name__)
 _PERMANENT_PROVIDER_ROUTE_STATUSES = frozenset({401, 402, 403})
+# A plain 429 across a whole pool is a per-minute window, not a fault: the routes that hit one are
+# retried after these pauses (bounded; about four minutes in all) before the task is ended.
+_RATE_LIMIT_BACKOFF_SECONDS = (5.0, 15.0, 30.0, 60.0, 60.0, 60.0)
+_sleep = time.sleep
+_asleep = asyncio.sleep
 
 
 def route_key(provider: str, model: str, protocol: str) -> str:
@@ -136,19 +144,6 @@ def _is_rate_limited_chain(error: BaseException) -> bool:
             return True
         current = current.__cause__ or current.__context__
     return False
-
-
-def _primary_only_rate_limited(
-    current_provider: str | None, errors: list[BaseException]
-) -> bool:
-    """The primary (or a run-sticky-skipped primary) failed only on rate limits; a transient
-    permanent-circuit-free route may be waited on rather than ending the task."""
-    return (
-        current_provider is not None
-        and (not _provider_route_disabled(current_provider) or _provider_route_sticky(current_provider))
-        and bool(errors)
-        and _is_rate_limited_chain(errors[0])
-    )
 
 
 def _exhaustion_error(errors: list[BaseException]) -> BaseException:
@@ -250,8 +245,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
         return current, chain
 
     @staticmethod
-    def _log_rate_limit_wait(provider: str | None) -> None:
-        logger.warning("MODEL_PROVIDER_RATE_LIMIT_WAIT", provider=provider or "unknown")
+    def _log_rate_limit_wait(routes: list[str], delay: float) -> None:
+        logger.warning("MODEL_PROVIDER_RATE_LIMIT_WAIT", providers=routes, wait_seconds=delay)
 
     @staticmethod
     def _log_attempt(*, current_provider: str | None, provider: str, index: int) -> None:
@@ -272,6 +267,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
         first_error: BaseException | None = None
         errors: list[BaseException] = []
         failed: list[str | None] = []
+        # Routes whose last failure was a plain 429 (None is the request's own model).
+        limited: list[ResolvedModelConfig | None] = []
 
         if not _provider_route_disabled(current_provider):
             try:
@@ -284,6 +281,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 first_error = error
                 errors.append(error)
                 failed.append(current_provider)
+                if _is_rate_limited_chain(error):
+                    limited.append(None)
         elif current_provider:
             self._log_circuit_skip(current_provider)
 
@@ -304,22 +303,36 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 first_error = first_error or error
                 errors.append(error)
                 failed.append(provider)
+                if _is_rate_limited_chain(error):
+                    limited.append(config)
                 continue
             _stick_to_fallback(failed)
             return response
 
-        if _primary_only_rate_limited(current_provider, errors):
-            # The primary route only deferred its cooling credentials to a later
-            # route that also failed. Rate limits are transient: wait out the
-            # cooldown on the primary instead of ending the task.
-            self._log_rate_limit_wait(current_provider)
-            try:
-                with further_provider_route(False):
-                    return handler(request)
-            except Exception as error:
-                if not provider_fallback_failure(error):
-                    raise
-                errors.append(error)
+        for delay in _RATE_LIMIT_BACKOFF_SECONDS:
+            if not limited:
+                break
+            self._log_rate_limit_wait(
+                [_config_key(config) if config else current_provider or "unknown" for config in limited],
+                delay,
+            )
+            _sleep(delay)
+            for config in list(limited):
+                try:
+                    with further_provider_route(False):
+                        response = handler(
+                            request if config is None else request.override(model=fallback_model(config))
+                        )
+                except Exception as error:
+                    if not provider_fallback_failure(error):
+                        raise
+                    errors.append(error)
+                    if not _is_rate_limited_chain(error):
+                        limited.remove(config)
+                    continue
+                if config is not None:
+                    _stick_to_fallback(failed)
+                return response
 
         exhausted = _exhaustion_error(errors)
         if exhausted is first_error:
@@ -331,6 +344,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
         first_error: BaseException | None = None
         errors: list[BaseException] = []
         failed: list[str | None] = []
+        # Routes whose last failure was a plain 429 (None is the request's own model).
+        limited: list[ResolvedModelConfig | None] = []
 
         if not _provider_route_disabled(current_provider):
             try:
@@ -343,6 +358,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 first_error = error
                 errors.append(error)
                 failed.append(current_provider)
+                if _is_rate_limited_chain(error):
+                    limited.append(None)
         elif current_provider:
             self._log_circuit_skip(current_provider)
 
@@ -363,19 +380,36 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 first_error = first_error or error
                 errors.append(error)
                 failed.append(provider)
+                if _is_rate_limited_chain(error):
+                    limited.append(config)
                 continue
             _stick_to_fallback(failed)
             return response
 
-        if _primary_only_rate_limited(current_provider, errors):
-            self._log_rate_limit_wait(current_provider)
-            try:
-                with further_provider_route(False):
-                    return await handler(request)
-            except Exception as error:
-                if not provider_fallback_failure(error):
-                    raise
-                errors.append(error)
+        for delay in _RATE_LIMIT_BACKOFF_SECONDS:
+            if not limited:
+                break
+            self._log_rate_limit_wait(
+                [_config_key(config) if config else current_provider or "unknown" for config in limited],
+                delay,
+            )
+            await _asleep(delay)
+            for config in list(limited):
+                try:
+                    with further_provider_route(False):
+                        response = await handler(
+                            request if config is None else request.override(model=fallback_model(config))
+                        )
+                except Exception as error:
+                    if not provider_fallback_failure(error):
+                        raise
+                    errors.append(error)
+                    if not _is_rate_limited_chain(error):
+                        limited.remove(config)
+                    continue
+                if config is not None:
+                    _stick_to_fallback(failed)
+                return response
 
         exhausted = _exhaustion_error(errors)
         if exhausted is first_error:

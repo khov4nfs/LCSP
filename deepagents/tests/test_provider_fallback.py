@@ -29,6 +29,21 @@ from middleware.usage_metering import (
 )
 from provider_credentials import credential_init_kwargs
 
+@pytest.fixture(autouse=True)
+def provider_pauses(monkeypatch):
+    """Rate-limit backoff pauses are recorded, never slept."""
+    import middleware.provider_fallback as fallback_module
+
+    pauses: list[float] = []
+
+    async def _apause(delay):
+        pauses.append(delay)
+
+    monkeypatch.setattr(fallback_module, "_sleep", pauses.append)
+    monkeypatch.setattr(fallback_module, "_asleep", _apause)
+    return pauses
+
+
 ALPHA, GAMMA, FUTURE, DELTA = "model-alpha", "model-gamma", "future-model-v99", "model-delta"
 MODEL_FOR = {"openai": ALPHA, "apx": GAMMA, "google_genai": FUTURE, "inception": DELTA}
 
@@ -745,7 +760,7 @@ def test_schema_request_failure_does_not_cross_provider(monkeypatch):
     assert raw_handler.call_count == 1
 
 
-def test_all_provider_pools_exhaust_to_terminal_error(monkeypatch):
+def test_all_provider_pools_exhaust_to_terminal_error(monkeypatch, provider_pauses):
     _routes(monkeypatch, "openai", "apx")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-a,openai-b")
     monkeypatch.setenv("APX_API_KEY", "apx-a,apx-b")
@@ -754,11 +769,13 @@ def test_all_provider_pools_exhaust_to_terminal_error(monkeypatch):
 
     with pytest.raises(TerminalCredentialError, match="provider routes exhausted"):
         _sync_chain(request, raw_handler)
-    # The OpenAI pool tries both slots and hands over; the last (apx) pool tries
-    # both slots, waits once, and retries the soonest slot. Every failure was a
-    # plain rate limit, so the primary OpenAI pool then gets one waited retry of
-    # its own (bounded) before the task ends.
-    assert raw_handler.call_count == 8
+    # Every failure was a plain rate limit, so both pools are waited on through the whole bounded
+    # backoff (never forever) before the task ends.
+    from middleware.provider_fallback import _RATE_LIMIT_BACKOFF_SECONDS
+
+    assert provider_pauses == list(_RATE_LIMIT_BACKOFF_SECONDS)
+    # 8 initial invocations, then every backoff round re-runs both rate-limited pools.
+    assert raw_handler.call_count == 41
 
 
 def test_current_provider_is_not_reentered_from_fallback_chain(monkeypatch):
@@ -987,9 +1004,13 @@ def _rate_limited_primary(code: str | None = None) -> BaseException:
 
 
 def _install_routes(monkeypatch):
+    _routes(monkeypatch, "apx", "google_genai")
+    _install_fallback_models(monkeypatch)
+
+
+def _install_fallback_models(monkeypatch):
     import middleware.provider_fallback as fallback_module
 
-    _routes(monkeypatch, "apx", "google_genai")
     monkeypatch.setattr(
         fallback_module,
         "fallback_model",
@@ -1020,6 +1041,97 @@ def test_rate_limited_primary_waits_out_its_cooldown_instead_of_ending_the_task(
     # no later route: token fallback now waits for the cooldown and retries.
     assert calls == [("apx", True), ("google_genai", False), ("apx", False)]
 
+
+
+def test_a_pool_that_is_rate_limited_on_every_route_is_waited_out_not_ended(monkeypatch, provider_pauses):
+    """Production shape: APX allowance gone, Gemini failing, Inception 429 on every slot."""
+    from middleware.token_fallback import _FURTHER_PROVIDER_ROUTE
+
+    _routes(monkeypatch, "apx", "google_genai", "inception")
+    _install_fallback_models(monkeypatch)
+    calls: list[tuple[str, bool]] = []
+    inception_attempts = 0
+
+    def handler(request):
+        nonlocal inception_attempts
+        provider = request.model.provider
+        calls.append((provider, _FURTHER_PROVIDER_ROUTE.get()))
+        if provider == "apx":
+            raise _rate_limited_primary("insufficient_quota")
+        if provider == "google_genai":
+            raise _StatusError(503)
+        inception_attempts += 1
+        if inception_attempts <= 2:
+            raise _rate_limited_primary()
+        return ModelResponse(result=[])
+
+    result = ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert isinstance(result, ModelResponse)
+    # Only the route that actually hit a plain 429 is retried; apx (quota) and google (503) are not.
+    assert [provider for provider, _ in calls] == ["apx", "google_genai", "inception", "inception", "inception"]
+    assert all(further is False for _, further in calls[2:])
+    assert provider_pauses == [5.0, 15.0]
+
+
+def test_rate_limit_waiting_is_bounded_and_then_ends_the_task(monkeypatch, provider_pauses):
+    from middleware.failure_policy import TerminalCredentialError
+    from middleware.provider_fallback import _RATE_LIMIT_BACKOFF_SECONDS
+
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    calls: list[str] = []
+
+    def handler(request):
+        calls.append(request.model.provider)
+        raise _rate_limited_primary("insufficient_quota") if request.model.provider == "apx" else _rate_limited_primary()
+
+    with pytest.raises(TerminalCredentialError):
+        ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert provider_pauses == list(_RATE_LIMIT_BACKOFF_SECONDS)
+    assert calls.count("inception") == 1 + len(_RATE_LIMIT_BACKOFF_SECONDS)
+    assert calls.count("apx") == 1
+
+
+def test_a_route_that_turns_into_quota_exhaustion_stops_being_waited_on(monkeypatch, provider_pauses):
+    from middleware.failure_policy import TerminalCredentialError
+
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    attempts = 0
+
+    def handler(request):
+        nonlocal attempts
+        attempts += 1
+        raise _rate_limited_primary("insufficient_quota" if attempts > 2 else None)
+
+    with pytest.raises(TerminalCredentialError):
+        ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert attempts == 3 + 1  # apx, inception, then one retry round whose failure ends the waiting
+    assert provider_pauses == [5.0]
+
+
+@pytest.mark.asyncio
+async def test_async_rate_limited_pool_is_waited_out_too(monkeypatch, provider_pauses):
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    inception_attempts = 0
+
+    async def handler(request):
+        nonlocal inception_attempts
+        if request.model.provider == "apx":
+            raise _rate_limited_primary("insufficient_quota")
+        inception_attempts += 1
+        if inception_attempts == 1:
+            raise _rate_limited_primary()
+        return ModelResponse(result=[])
+
+    result = await ProviderFallbackMiddleware().awrap_model_call(_RouteRequest("apx"), handler)
+
+    assert isinstance(result, ModelResponse)
+    assert provider_pauses == [5.0]
 
 def test_an_exhausted_quota_is_not_waited_on(monkeypatch):
     from middleware.failure_policy import TerminalCredentialError
@@ -1120,7 +1232,7 @@ def test_auth_failure_semantics_unchanged_with_sticky_fallback(monkeypatch):
     assert _providers(handler) == ["openai", "openai", "apx"]
 
 
-def test_sticky_fallback_failure_stays_bounded(monkeypatch):
+def test_sticky_fallback_failure_stays_bounded(monkeypatch, provider_pauses):
     _sticky_env(monkeypatch)
     request = ModelRequest(model=_openai_model(), messages=[], tools=[])
     response = ModelResponse(result=[])
@@ -1131,10 +1243,13 @@ def test_sticky_fallback_failure_stays_bounded(monkeypatch):
         failing = MagicMock(side_effect=QuotaError())
         with pytest.raises(TerminalCredentialError, match="provider routes exhausted"):
             _sync_chain(request, failing)
-    # Fallback pool makes its own bounded attempts, then the sticky-skipped primary
-    # gets one last-resort retry (its transient failure is not a permanent circuit).
-    assert set(_providers(failing)) == {"apx", "openai"}
-    assert failing.call_count <= 3
+    # The sticky-skipped primary is not retried; the fallback pool that actually hit the plain
+    # rate limit is, once per bounded backoff round, and then the task ends.
+    from middleware.provider_fallback import _RATE_LIMIT_BACKOFF_SECONDS
+
+    assert set(_providers(failing)) == {"apx"}
+    assert failing.call_count == 1 + len(_RATE_LIMIT_BACKOFF_SECONDS)
+    assert provider_pauses == list(_RATE_LIMIT_BACKOFF_SECONDS)
 
 
 def test_sticky_fallback_reports_usage_per_answered_attempt_without_extra_logical_turns(monkeypatch):
