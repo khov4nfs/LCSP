@@ -1,5 +1,5 @@
 import type { Locale } from "@lcsp/contracts/shared";
-import { appLocale } from "./locale.js";
+import { appLocale } from "@/lib/locale";
 
 /**
  * Formats a date using the active or provided locale
