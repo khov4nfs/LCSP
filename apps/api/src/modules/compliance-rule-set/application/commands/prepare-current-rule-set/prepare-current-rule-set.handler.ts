@@ -36,6 +36,22 @@ export class PrepareCurrentRuleSetHandler implements ICommandHandler<PrepareCurr
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
     if (
+      input.expectedLegalSourceVersionId &&
+      input.expectedLegalSourceVersionId !== availability.legalSourceVersionId
+    ) {
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+        input.correlationId,
+        {
+          status: HttpStatus.CONFLICT,
+          meta: {
+            reason:
+              RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
+          },
+        },
+      );
+    }
+    if (
       availability.refusalReason ===
         RULE_SET_PREPARATION_REFUSAL_REASONS.PREPARATION_IN_PROGRESS &&
       availability.currentRun

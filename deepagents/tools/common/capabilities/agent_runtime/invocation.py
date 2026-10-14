@@ -57,6 +57,12 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "command.legal-source.ingest.v1",
     ),
     AgentInvocationBoundary(
+        "managed_document_ingest_requested",
+        "tools.legal.managed_documents.boundary:ManagedDocumentIngestBoundary",
+        "legal.managed-document-ingest",
+        "command.legal-source.document-ingest.requested.v1",
+    ),
+    AgentInvocationBoundary(
         "official_text_extraction_requested",
         "tools.legal.sources.extraction.official_text_extraction_boundary:OfficialTextExtractionBoundary",
         "legal.official-text-extraction",

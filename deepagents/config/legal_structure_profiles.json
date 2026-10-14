@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "maxChunkCharacters": 6000,
+  "autoMinimumHeadings": 3,
+  "autoOrder": [
+    "ARTICLES",
+    "NUMBERED_SECTIONS"
+  ],
+  "profiles": {
+    "ARTICLES": {
+      "kind": "heading-tree",
+      "levels": [
+        {
+          "name": "chapter",
+          "pattern": "^(?:chương|chapter|part)\\s+([ivxlcdm]+|\\d+)\\b[.:\\-]?\\s*(.*)$",
+          "titleOnNextLine": true,
+          "locatorPrefix": null
+        },
+        {
+          "name": "article",
+          "pattern": "^(?:điều|article|section)\\s+(\\d+[a-z]?)\\s*[.:\\u2013\\u2014-]\\s*(.*)$",
+          "locatorPrefix": "art-"
+        },
+        {
+          "name": "clause",
+          "pattern": "^(\\d+)[.)]\\s+(\\S.*)$",
+          "within": "article",
+          "locatorPrefix": "cl-"
+        }
+      ],
+      "chunkLevel": "clause",
+      "fallbackChunkLevel": "article"
+    },
+    "NUMBERED_SECTIONS": {
+      "kind": "numbered-outline",
+      "pattern": "^(\\d+(?:\\.\\d+){0,5})[.)]?\\s+(\\S.{0,159})$",
+      "locatorPrefix": "sec-",
+      "maxHeadingCharacters": 160
+    },
+    "PARAGRAPHS": {
+      "kind": "paragraph-windows",
+      "locatorPrefix": "p-"
+    }
+  }
+}

@@ -10,8 +10,10 @@ import {
 import { PrismaPg } from "@prisma/adapter-pg";
 import { LegalSourceLifecycleStatus, PrismaClient } from "@prisma/client";
 import {
+  COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
   RULE_SET_PREPARATION_FAILURE_REASONS,
+  RULE_SET_PREPARATION_REFUSAL_REASONS,
   ruleSetPreparationIdempotencyKey,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
@@ -162,6 +164,44 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     cancel.execute(
       new CancelRuleSetPreparationCommand(preparationRunId, randomUUID()),
     );
+
+  it("refuses a request that names a Legal Source Version which is not the active one, and starts nothing", async () => {
+    const source = await eligibleSource();
+    const runsBefore = await prisma.ruleSetPreparationRun.count();
+
+    await expect(
+      manual.execute(
+        new PrepareCurrentRuleSetCommand(
+          "owner-admin",
+          randomUUID(),
+          false,
+          randomUUID(),
+        ),
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        problem: {
+          code: COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+          meta: {
+            reason:
+              RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ACTIVE,
+          },
+        },
+      },
+    });
+    expect(await prisma.ruleSetPreparationRun.count()).toBe(runsBefore);
+
+    // Naming the version that really is active proceeds as before.
+    const run = await manual.execute(
+      new PrepareCurrentRuleSetCommand(
+        "owner-admin",
+        randomUUID(),
+        false,
+        source.id,
+      ),
+    );
+    expect(run.legalSourceVersionId).toBe(source.id);
+  });
 
   it("racing Admin requests and activation create exactly one run and one queued command, no rule-set rows", async () => {
     const source = await eligibleSource();

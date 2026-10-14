@@ -325,7 +325,15 @@ export type RuleSetPreparationRun = z.infer<typeof ruleSetPreparationRunSchema>;
  * operation and never needs it.
  */
 export const ruleSetPreparationAdminRequestSchema = z
-  .strictObject({ replaceActive: z.boolean().optional() })
+  .strictObject({
+    replaceActive: z.boolean().optional(),
+    /**
+     * The Legal Source Version the operator is looking at. Preparation always targets the active
+     * version; naming it makes the request refuse (instead of silently preparing another version)
+     * when the active version changed in the meantime.
+     */
+    legalSourceVersionId: z.uuid().optional(),
+  })
   .default({});
 export type RuleSetPreparationAdminRequest = z.infer<
   typeof ruleSetPreparationAdminRequestSchema

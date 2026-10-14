@@ -118,6 +118,7 @@ export class ComplianceRuleSetAdminController {
           req.rbacContext.userId,
           req.correlationId || randomUUID(),
           request.replaceActive === true,
+          request.legalSourceVersionId,
         ),
       )
       .then(resultEnvelope);

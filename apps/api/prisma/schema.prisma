@@ -498,7 +498,7 @@ model AssessmentRuntimeTurn {
 }
 
 model AssessmentRuntimeEvent {
-  id                String     @id @default(uuid())
+  id                String                  @id @default(uuid())
   assessmentId      String?
   boundaryType      AgentStreamBoundaryType @default(ASSESSMENT)
   boundaryId        String
@@ -516,9 +516,9 @@ model AssessmentRuntimeEvent {
   durationMs        Int?
   attempt           Int?
   waitingReason     String?
-  createdAt         DateTime   @default(now())
-  assessment        Assessment? @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  preparationRun    RuleSetPreparationRun? @relation(fields: [preparationRunId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                @default(now())
+  assessment        Assessment?             @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  preparationRun    RuleSetPreparationRun?  @relation(fields: [preparationRunId], references: [id], onDelete: Cascade)
 
   @@unique([runId, sequence])
   @@index([assessmentId, createdAt])
@@ -539,14 +539,31 @@ model GitHubAppInstallState {
   user         User        @relation("GitHubAppInstallStateUser", fields: [userId], references: [id], onDelete: Restrict)
 }
 
+/// Admin-managed parent of an ordered family of immutable Legal Source Versions.
+model LegalSource {
+  id          String               @id @default(uuid())
+  slug        String               @unique
+  name        String
+  description String?
+  createdBy   String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  versions    LegalSourceVersion[]
+}
+
 model LegalSourceVersion {
   id                     String                        @id @default(uuid())
+  /// Always set: a database trigger assigns a parent when an insert names none (older callers).
+  legalSourceId          String?
   version                String                        @unique
   status                 LegalSourceLifecycleStatus    @default(DRAFT)
   sourceManifest         Json
   integrityManifestRef   String?
+  basedOnVersionId       String?
+  createdBy              String?
   createdAt              DateTime                      @default(now())
   activatedAt            DateTime?
+  legalSource            LegalSource?                  @relation(fields: [legalSourceId], references: [id], onDelete: Restrict)
   documents              LegalSourceDocument[]
   chunks                 LegalDocumentChunk[]
   activations            LegalSourceActivationRecord[]
@@ -555,6 +572,7 @@ model LegalSourceVersion {
   ruleSetVersions        ComplianceRuleSetVersion[]
 
   @@index([status, createdAt])
+  @@index([legalSourceId, createdAt])
 }
 
 model LegalRetrievalIndex {
@@ -573,7 +591,7 @@ model LegalRetrievalIndex {
 }
 
 model LegalSourceDocument {
-  id                   String               @id @default(uuid())
+  id                   String                            @id @default(uuid())
   legalSourceVersionId String
   documentId           String
   title                String
@@ -582,12 +600,37 @@ model LegalSourceDocument {
   effectiveDate        DateTime?
   sourceEffectStatus   String
   snapshotPath         String?
-  createdAt            DateTime             @default(now())
-  legalSourceVersion   LegalSourceVersion   @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
+  origin               LegalSourceDocumentOrigin         @default(MIGRATED)
+  ingestionState       LegalSourceDocumentIngestionState @default(READY)
+  ingestionFailureCode String?
+  ingestionAttempt     Int                               @default(0)
+  mediaType            String?
+  originalFileName     String?
+  byteLength           Int?
+  blobSha256           String?
+  structureProfile     String?
+  provenance           Json?
+  extraction           Json?
+  createdBy            String?
+  createdAt            DateTime                          @default(now())
+  ingestedAt           DateTime?
+  legalSourceVersion   LegalSourceVersion                @relation(fields: [legalSourceVersionId], references: [id], onDelete: Cascade)
+  blob                 LegalSourceDocumentBlob?          @relation(fields: [blobSha256], references: [sha256], onDelete: Restrict)
   chunks               LegalDocumentChunk[]
 
   @@unique([legalSourceVersionId, documentId])
   @@index([documentId])
+  @@index([blobSha256])
+}
+
+/// Content-addressed original bytes of an uploaded or imported document. Immutable: a changed
+/// file is a different hash, so a version never rewrites what another version pinned.
+model LegalSourceDocumentBlob {
+  sha256     String                @id
+  byteLength Int
+  bytes      Bytes
+  createdAt  DateTime              @default(now())
+  documents  LegalSourceDocument[]
 }
 
 model LegalSourceSnapshot {
@@ -722,6 +765,19 @@ enum LegalSourceLifecycleStatus {
   ACTIVE
   INVALID
   SUPERSEDED
+}
+
+enum LegalSourceDocumentOrigin {
+  UPLOAD
+  URL_IMPORT
+  MIGRATED
+}
+
+enum LegalSourceDocumentIngestionState {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
 }
 
 enum LegalRetrievalIndexStatus {
