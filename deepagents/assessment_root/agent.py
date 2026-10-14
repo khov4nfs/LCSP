@@ -109,6 +109,9 @@ def create_assessment_root_agent(
         from middleware.usage_metering import AgentRoleMiddleware
 
         governance = [AgentRoleMiddleware(ASSESSMENT_ROOT_ROLE), *MODEL_GOVERNANCE_MIDDLEWARE]
+    from middleware.localization import ResponseLocalizationMiddleware
+    from orchestration.context import LCSPRunContext
+
     tools = graph_tools if graph_tools is not None else _graph_tools()
     # The default general-purpose subagent would inherit the governed tools; disable it so the
     # researcher is the only delegate and it holds none of them.
@@ -121,7 +124,8 @@ def create_assessment_root_agent(
             tools=[*build_root_tools(run), *tools],
             subagents=[researcher_subagent(tools)],
             permissions=root_permissions(),
-            middleware=[*governance, AssessmentCompletionMiddleware(run), *middleware],
+            middleware=[ResponseLocalizationMiddleware(), *governance, AssessmentCompletionMiddleware(run), *middleware],
+            context_schema=LCSPRunContext,
             checkpointer=checkpointer,
             store=store,
         ).with_config(agent_graph_config())

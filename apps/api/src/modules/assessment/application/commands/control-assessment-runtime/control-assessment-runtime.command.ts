@@ -11,6 +11,7 @@ export class ControlAssessmentRuntimeCommand extends Command<AssessmentRuntimeCo
     public readonly action: AssessmentRuntimeControlAction,
     public readonly targetRunId: string,
     public readonly correlationId: string,
+    public readonly responseLanguage?: string | null,
   ) {
     super();
   }

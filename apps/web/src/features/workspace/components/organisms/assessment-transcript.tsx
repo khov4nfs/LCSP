@@ -1,9 +1,9 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type Ref } from "react";
 
-import { appLocale } from "@/lib/locale";
+import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
 import type { AssessmentTranscriptAutoScrollKey } from "../../types/assessment-chat.types";
@@ -28,10 +28,18 @@ const PINNED_BOTTOM_THRESHOLD_PX = 120;
 export function AssessmentTranscript({
   children,
   autoScrollKey,
-  ariaLabel = t("pages.appShell.chatTranscriptLabel"),
+  ariaLabel,
   className,
   live = "polite",
 }: AssessmentTranscriptProps) {
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
+  const resolvedAriaLabel =
+    ariaLabel ??
+    resolveMessage(locale, "pages.appShell.chatTranscriptLabel");
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
   const pinnedRef = useRef(true);
@@ -90,7 +98,7 @@ export function AssessmentTranscript({
         data-slot="assessment-transcript"
         role="log"
         aria-live={live}
-        aria-label={ariaLabel}
+        aria-label={resolvedAriaLabel}
         onScroll={handleScroll}
         className="no-scrollbar flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto"
       >
@@ -105,11 +113,11 @@ export function AssessmentTranscript({
         <button
           type="button"
           data-slot="transcript-jump-to-latest"
-          aria-label={t("pages.appShell.chatJumpToLatest")}
+          aria-label={resolveMessage(locale, "pages.appShell.chatJumpToLatest")}
           onClick={jumpToLatest}
           className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground shadow-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {t("pages.appShell.chatNewActivity")}
+          {resolveMessage(locale, "pages.appShell.chatNewActivity")}
         </button>
       )}
     </div>
@@ -141,6 +149,3 @@ function scrollToLatest(viewport: HTMLDivElement) {
   });
 }
 
-function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
-}

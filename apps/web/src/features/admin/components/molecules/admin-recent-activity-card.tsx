@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatLocaleActivityTime } from "@/lib/date-format";
 import { resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -23,21 +24,6 @@ type AdminRecentActivityCardProps = {
   onRetry?: () => void;
   className?: string;
 };
-
-function formatOccurredTime(occurredAt: string): string {
-  if (!occurredAt) return "—";
-  const date = new Date(occurredAt);
-  if (Number.isNaN(date.getTime())) return occurredAt;
-
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const timeStr = `${hours}:${minutes}`;
-
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${month}/${day} ${timeStr}`;
-}
 
 export function AdminRecentActivityCard({
   items = [],
@@ -225,7 +211,7 @@ export function AdminRecentActivityCard({
                     className="border-border/60 hover:bg-muted/30 text-xs"
                   >
                     <TableCell className="px-3 py-2.5 font-medium text-foreground whitespace-nowrap">
-                      {formatOccurredTime(item.occurredAt)}
+                      {formatLocaleActivityTime(item.occurredAt)}
                     </TableCell>
                     <TableCell className="px-3 py-2.5 text-muted-foreground truncate max-w-40">
                       {item.adminEmail ?? item.adminName ?? systemActorText}
