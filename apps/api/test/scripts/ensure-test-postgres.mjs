@@ -136,7 +136,16 @@ function waitUntilReady() {
 }
 
 if (await isPortOpen(hostPort, host)) {
-  process.exit(0);
+  const status = containerStatus();
+  if (status.startsWith("Up ") && isAuthenticated()) {
+    process.exit(0);
+  }
+  if (!status) {
+    throw new Error(
+      `Refusing to use occupied PostgreSQL port ${host}:${hostPort}; no owned test container ` +
+        `(${containerName}) is present.`,
+    );
+  }
 }
 
 ensureContainer();
