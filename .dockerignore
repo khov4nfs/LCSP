@@ -48,6 +48,15 @@ claude-session-*.md
 # Runtime images contain application code, not release fixtures or archived architecture.
 deepagents/tests
 deepagents/decision
+# Retired deepagents application paths are excluded from runtime images. Keep
+# active source-backed capabilities (including reporting/report/audit_export).
+deepagents/skills/interview-[c]ontext
+deepagents/tools/common/capabilities/agentic_evidence/governance
+deepagents/tools/common/capabilities/reporting/report/delivery
+deepagents/tools/common/capabilities/reporting/report/dossiers
+deepagents/tools/common/capabilities/reporting/report/final_report
+deepagents/tools/common/capabilities/reporting/report/projection
+deepagents/tools/legal/sources/recovery
 frozen
 graft
 graphify-out
