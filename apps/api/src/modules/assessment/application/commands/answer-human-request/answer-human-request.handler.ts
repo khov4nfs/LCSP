@@ -31,6 +31,7 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { z } from "zod";
@@ -344,7 +345,16 @@ export class AnswerHumanRequestHandler implements ICommandHandler<AnswerHumanReq
             result: ASSESSMENT_ROOT_COMMAND_TYPES.ROOT_REQUESTED,
             redactionStatus: AUDIT_REDACTION_STATUSES.none,
             idempotencyKey: `human-resume:${input.assessmentId}:${runtime.checkpointId}`,
-            payload: { assessmentId: input.assessmentId },
+            payload: {
+              assessmentId: input.assessmentId,
+              ...(input.responseLanguage
+                ? {
+                    responseLanguage: resolveResponseLanguage(
+                      input.responseLanguage,
+                    ),
+                  }
+                : {}),
+            },
           }),
           tx,
         );

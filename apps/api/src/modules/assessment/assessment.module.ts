@@ -12,6 +12,7 @@ import { StorageModule } from "../../platform/storage/storage.module.js";
 import { AnswerHumanRequestHandler } from "./application/commands/answer-human-request/answer-human-request.handler.js";
 import { GetHumanRequestsHandler } from "./application/queries/get-human-requests/get-human-requests.handler.js";
 import { AssessmentHumanRequestSupport } from "./infrastructure/persistence/assessment-human-request-support.service.js";
+import { LocalePresentationProjectionService } from "./infrastructure/presentation/locale-presentation-projection.service.js";
 import { AssessmentDetailLoader } from "./infrastructure/persistence/assessment-detail.loader.js";
 import { AssessmentReportLoader } from "./infrastructure/persistence/assessment-report.loader.js";
 import { GetAssessmentReportHandler } from "./application/queries/get-assessment-report/get-assessment-report.handler.js";
@@ -102,6 +103,7 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     AssessmentCaseSupport,
     AssessmentEvidenceInvalidation,
     AssessmentCompletionGate,
+    LocalePresentationProjectionService,
     AssessmentHumanRequestSupport,
     AnswerHumanRequestHandler,
     GetHumanRequestsHandler,

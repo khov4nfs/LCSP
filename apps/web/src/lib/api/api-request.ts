@@ -12,6 +12,7 @@ import {
 import { API_REDIRECT_LOCATIONS } from "./outcome-kinds.ts";
 import type { z } from "zod";
 import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
+import { getAppLocaleSnapshot } from "../locale.ts";
 
 export type ApiRequestResult = {
   payload: unknown;
@@ -26,9 +27,18 @@ export async function apiRequest(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<ApiRequestResult> {
+  const requestHeaders = new Headers(init?.headers);
+  if (!requestHeaders.has("x-lcsp-locale") && typeof window !== "undefined") {
+    const activeLocale = getAppLocaleSnapshot();
+    if (activeLocale) {
+      requestHeaders.set("x-lcsp-locale", activeLocale);
+    }
+  }
+
   const response = await fetch(input, {
     credentials: "same-origin",
     ...init,
+    headers: requestHeaders,
   });
   const result = toApiResult(await response.json().catch(() => null));
   const payload = result?.ok === true ? result.data : result;

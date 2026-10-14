@@ -191,11 +191,17 @@ export class AssessmentDomainController {
     )
     assessmentId: string,
     @Headers(ASSESSMENT_LEASE_HEADER) lease: string,
+    @Headers("x-lcsp-locale") localeHeader: string | undefined,
     @Req() req: AuthenticatedRequest,
   ) {
     return resultEnvelope(
       await this.queryBus.execute(
-        new GetRootContextQuery(assessmentId, lease, this.correlation(req)),
+        new GetRootContextQuery(
+          assessmentId,
+          lease,
+          this.correlation(req),
+          localeHeader,
+        ),
       ),
     );
   }

@@ -2,24 +2,9 @@
 
 import type { MessageKey } from "@lcsp/i18n";
 import { resolveAppMessage } from "@/lib/i18n";
+import { formatLocaleDateTime } from "@/lib/date-format";
 import type { AdminUsageSummaryProps } from "@/features/admin/types/admin.types";
 import { AdminMetricCard } from "@/features/admin/components/atoms/admin-metric-card";
-
-function formatTimestamp(isoString: string | null | undefined): string {
-  if (!isoString) return "—";
-  try {
-    const d = new Date(isoString);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return "—";
-  }
-}
 
 export function AdminUsageSummary({ usageSummary }: AdminUsageSummaryProps) {
   const sectionTitle = resolveAppMessage(
@@ -46,7 +31,7 @@ export function AdminUsageSummary({ usageSummary }: AdminUsageSummaryProps) {
       ? String(usageSummary.assessments30d)
       : "—";
 
-  const formatLastAssessment = formatTimestamp(usageSummary?.lastAssessmentAt);
+  const formatLastAssessment = formatLocaleDateTime(usageSummary?.lastAssessmentAt);
 
   const formatCreditSpend =
     usageSummary?.creditSpend30d !== null && usageSummary?.creditSpend30d !== undefined

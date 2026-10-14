@@ -35,6 +35,10 @@ import {
   ASSESSMENT_NAME_MAX_LENGTH,
 } from "../assessment/constants.ts";
 import {
+  DEFAULT_RESPONSE_LANGUAGE,
+  LOCALES,
+} from "../shared/locale.ts";
+import {
   CREDENTIAL_PROVIDERS,
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -389,6 +393,7 @@ export const assessmentRootContextSchema = z.strictObject({
   facts: z.array(assessmentCaseFactSchema),
   evidence: z.array(assessmentEvidenceSchema),
   openHumanRequestIds: z.array(uuidSchema),
+  responseLanguage: z.enum(LOCALES).default(DEFAULT_RESPONSE_LANGUAGE),
 });
 export type AssessmentRootContext = z.infer<typeof assessmentRootContextSchema>;
 

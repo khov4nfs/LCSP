@@ -711,6 +711,38 @@ class AssessmentErasureRequest(BaseModel):
     threadId: str = Field(pattern=r"^[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")
 
 
+class LocaleProjectionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    texts: list[str] = Field(min_length=1, max_length=100)
+    targetLocale: str = Field(pattern=r"^[a-z]{2}(?:-[A-Z]{2})?$")
+
+
+async def project_locale(request: Request) -> JSONResponse:
+    key = os.environ.get("WORKER_API_KEY", "")
+    if not key or not hmac.compare_digest(request.headers.get("x-worker-api-key", ""), key):
+        return JSONResponse({"projected": {}}, status_code=403)
+    try:
+        payload = LocaleProjectionRequest.model_validate(await request.json())
+    except (ValueError, ValidationError):
+        return JSONResponse({"projected": {}}, status_code=400)
+
+    from orchestration.localization import transform_structured_response
+
+    container = {"texts": payload.texts}
+    localized, telemetry = transform_structured_response(container, payload.targetLocale)
+
+    projected: dict[str, str] = {}
+    if telemetry.get("status") == "APPLIED" and isinstance(localized.get("texts"), list):
+        for orig, trans in zip(payload.texts, localized["texts"]):
+            projected[orig] = trans
+    else:
+        for orig in payload.texts:
+            projected[orig] = orig
+
+    return JSONResponse({"projected": projected})
+
+
 async def erase_assessment(request: Request) -> JSONResponse:
     key = os.environ.get("WORKER_API_KEY", "")
     if not key or not hmac.compare_digest(request.headers.get("x-worker-api-key", ""), key):
@@ -734,6 +766,7 @@ app = Starlette(
         Route("/ok", ok, methods=["GET"]),
         Route("/health", ok, methods=["GET"]),
         Route("/internal/assessment-erasure", erase_assessment, methods=["POST"]),
+        Route("/internal/project-locale", project_locale, methods=["POST"]),
         Route("/threads", create_thread, methods=["POST"]),
         Route("/threads/{thread_id}", get_thread, methods=["GET"]),
         Route("/threads/{thread_id}/runs", create_run, methods=["POST"]),

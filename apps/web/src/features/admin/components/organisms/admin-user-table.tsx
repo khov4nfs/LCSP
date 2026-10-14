@@ -6,26 +6,12 @@ import { AUTH_ACCOUNT_STATUSES } from "@lcsp/contracts/auth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { resolveAppMessage } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/date-format";
 import { cn } from "@/lib/utils";
 import type { AdminUsersTableProps } from "@/features/admin/types/admin.types";
 import { AdminUserIdentityCell } from "@/features/admin/components/molecules/admin-user-identity-cell";
 import { AdminRoleBadge } from "@/features/admin/components/atoms/admin-role-badge";
 import { AdminStatusDot } from "@/features/admin/components/atoms/admin-status-dot";
-
-function formatDate(isoString: string | null | undefined): string {
-  if (!isoString) return "—";
-  try {
-    const d = new Date(isoString);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return "—";
-  }
-}
 
 export function AdminUserTable({
   users,
@@ -180,12 +166,12 @@ export function AdminUserTable({
 
                   {/* Created */}
                   <td className="w-34.5 px-4 py-3 text-[11.5px] text-muted-foreground">
-                    {formatDate(user.createdAt)}
+                    {formatLocaleDate(user.createdAt)}
                   </td>
 
                   {/* Last Active */}
                   <td className="w-31.5 px-4 py-3 text-[11.5px] text-muted-foreground">
-                    {formatDate(user.lastActiveAt)}
+                    {formatLocaleDate(user.lastActiveAt)}
                   </td>
 
                   {/* Assessments Count */}
