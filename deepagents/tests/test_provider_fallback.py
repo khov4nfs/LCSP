@@ -1129,6 +1129,56 @@ def test_a_pool_that_is_rate_limited_on_every_route_is_waited_out_not_ended(monk
     assert provider_pauses == [5.0, 15.0]
 
 
+def test_a_route_that_recovers_after_the_wait_is_not_made_sticky_disabled(monkeypatch, provider_pauses):
+    """Regression: the recovered route was in the call's failed list and got disabled for the run."""
+    import middleware.provider_fallback as fallback_module
+
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    stuck: list[list] = []
+    monkeypatch.setattr(fallback_module, "_stick_to_fallback", lambda failed: stuck.append(list(failed)))
+    inception_attempts = 0
+
+    def handler(request):
+        nonlocal inception_attempts
+        if request.model.provider == "apx":
+            raise _rate_limited_primary("insufficient_quota")
+        inception_attempts += 1
+        if inception_attempts == 1:
+            raise _rate_limited_primary()
+        return ModelResponse(result=[])
+
+    ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert provider_pauses == [5.0]
+    assert len(stuck) == 1
+    assert all("inception" not in str(route) for route in stuck[0])
+
+
+@pytest.mark.asyncio
+async def test_async_recovered_route_is_not_made_sticky_disabled(monkeypatch, provider_pauses):
+    import middleware.provider_fallback as fallback_module
+
+    _routes(monkeypatch, "apx", "inception")
+    _install_fallback_models(monkeypatch)
+    stuck: list[list] = []
+    monkeypatch.setattr(fallback_module, "_stick_to_fallback", lambda failed: stuck.append(list(failed)))
+    inception_attempts = 0
+
+    async def handler(request):
+        nonlocal inception_attempts
+        if request.model.provider == "apx":
+            raise _rate_limited_primary("insufficient_quota")
+        inception_attempts += 1
+        if inception_attempts == 1:
+            raise _rate_limited_primary()
+        return ModelResponse(result=[])
+
+    await ProviderFallbackMiddleware().awrap_model_call(_RouteRequest("apx"), handler)
+
+    assert all("inception" not in str(route) for route in stuck[0])
+
+
 def test_rate_limit_waiting_is_bounded_and_then_ends_the_task(monkeypatch, provider_pauses):
     from middleware.failure_policy import TerminalCredentialError
     from middleware.provider_fallback import _RATE_LIMIT_BACKOFF_SECONDS

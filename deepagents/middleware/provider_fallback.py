@@ -339,7 +339,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                         limited.remove(config)
                     continue
                 if config is not None:
-                    _stick_to_fallback(failed)
+                    # The route that just recovered must stay available for later turns.
+                    _stick_to_fallback([item for item in failed if item != _config_key(config)])
                 return response
 
         exhausted = _exhaustion_error(errors)
@@ -416,7 +417,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                         limited.remove(config)
                     continue
                 if config is not None:
-                    _stick_to_fallback(failed)
+                    # The route that just recovered must stay available for later turns.
+                    _stick_to_fallback([item for item in failed if item != _config_key(config)])
                 return response
 
         exhausted = _exhaustion_error(errors)
