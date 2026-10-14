@@ -54,7 +54,7 @@ const decision = (applicability: "APPLICABLE" | "NOT_APPLICABLE") =>
         caseRevision: 1,
         legalContextRefs: [{ legalContextId: "req-1" }],
         applicability: RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE,
-        rationale: "The corpus condition is not present.",
+        rationale: "The source-backed condition is not present.",
         references: [
           { type: "CONFIRMED_FACT" as const, factId: FACT_ID, caseRevision: 1 },
         ],
@@ -71,7 +71,7 @@ const decision = (applicability: "APPLICABLE" | "NOT_APPLICABLE") =>
         caseRevision: 1,
         legalContextRefs: [{ legalContextId: "req-1" }],
         applicability: RULE_DECISION_APPLICABILITIES.APPLICABLE,
-        rationale: "The corpus condition applies.",
+        rationale: "The source-backed condition applies.",
         references: [
           { type: "CONFIRMED_FACT" as const, factId: FACT_ID, caseRevision: 1 },
         ],
@@ -139,7 +139,7 @@ function report(
       {
         legalRequirementId: "req-1",
         title: "Requirement",
-        proposition: "A corpus-derived requirement.",
+        proposition: "A source-backed requirement.",
         applicabilityConditions: ["Condition"],
         qualifiers: [],
         exceptions: [],
@@ -153,7 +153,7 @@ function report(
         assessmentRuleId: "rule-1",
         assessmentRuleVersion: "1",
         legalRequirementIds: ["req-1"],
-        concept: "Corpus rule",
+        concept: "Source-backed rule",
         legalIntent: "Assess the requirement.",
         applicabilityGuidance: "Use the accepted decision.",
         criteria: [{ criterionId: "criterion-1", statement: "Criterion" }],
@@ -322,7 +322,7 @@ test("rejects duplicate rule details", () => {
   assert.throws(() => assessmentFinalReportV2Schema.parse(invalid));
 });
 
-test("accepts corpus-neutral non-AI terminology without a hard-coded report taxonomy", () => {
+test("accepts source-backed non-AI terminology without a hard-coded report taxonomy", () => {
   const value = report();
   value.legalRequirements[0].title = "Data retention duty";
   value.ruleDetails[0].concept = "Retention control";
