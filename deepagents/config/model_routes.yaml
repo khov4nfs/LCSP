@@ -41,6 +41,7 @@ roles:
   assessment-root: primary
   repository-researcher: primary
   rule-set-preparation: primary
+  response-transform: fallback
 
 # Ordered fallback chain per route (optional; cycles are rejected).
 fallbacks:

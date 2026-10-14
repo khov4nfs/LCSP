@@ -7,6 +7,7 @@ export class GetHumanRequestsQuery extends Query<AssessmentHumanRequestsResult> 
     public readonly assessmentId: string,
     public readonly actor: RbacRequestContext,
     public readonly correlationId: string,
+    public readonly locale?: string | null,
   ) {
     super();
   }

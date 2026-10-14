@@ -3,23 +3,9 @@ import type { MessageKey } from "@lcsp/i18n";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import { resolveAppMessage } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/date-format";
 import type { AdminAccountDetailsCardProps } from "@/features/admin/types/admin.types";
 import { AdminDetailRow } from "@/features/admin/components/atoms/admin-detail-row";
-
-function formatDate(isoString: string | null | undefined): string {
-  if (!isoString) return "—";
-  try {
-    const d = new Date(isoString);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return "—";
-  }
-}
 
 export function AdminAccountDetailsCard({ user }: AdminAccountDetailsCardProps) {
   const cardTitle = resolveAppMessage(
@@ -50,8 +36,8 @@ export function AdminAccountDetailsCard({ user }: AdminAccountDetailsCardProps) 
     { label: fullNameLabel, value: user.fullName },
     { label: emailLabel, value: user.email },
     { label: roleLabel, value: roleDisplay },
-    { label: createdLabel, value: formatDate(user.createdAt) },
-    { label: lastActiveLabel, value: formatDate(user.lastActiveAt) },
+    { label: createdLabel, value: formatLocaleDate(user.createdAt) },
+    { label: lastActiveLabel, value: formatLocaleDate(user.lastActiveAt) },
   ];
 
   return (

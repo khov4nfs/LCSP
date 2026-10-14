@@ -133,6 +133,7 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
           assessmentId: assessment.id,
           snapshotId: snapshot.id,
           correlationId: command.correlationId,
+          responseLanguage: command.responseLanguage,
         });
       }
 

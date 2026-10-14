@@ -2,8 +2,10 @@
 
 import { resolveMessage } from "@lcsp/i18n";
 import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
+import type { Locale } from "@lcsp/contracts/shared";
 
-import { appLocale } from "@/lib/locale";
+import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 
 import {
   getAssessmentNavigation,
@@ -18,23 +20,29 @@ import { AssessmentAppShell } from "./assessment-app-shell";
 import { WorkspaceRuntimeProvider } from "./workspace-runtime-provider";
 
 export function AppShell({ children }: AppShellProps) {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname = rawPathname ?? "/workspace";
+  const locale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
   const candidateAssessmentId = pathname.match(/^\/assessments\/([^/]+)/)?.[1];
   const assessmentId =
     candidateAssessmentId === "new" ? undefined : candidateAssessmentId;
   const sections: AppShellNavigationSection[] = [
     {
-      label: t("pages.appShell.workspaceNavigation"),
+      label: t("pages.appShell.workspaceNavigation", locale),
       kind: "workspace",
-      items: localizeNavigation(primaryNavigation),
+      items: localizeNavigation(primaryNavigation, locale),
     },
   ];
 
   sections.push({
-    label: t("pages.appShell.assessmentNavigation"),
+    label: t("pages.appShell.assessmentNavigation", locale),
     kind: "assessment",
     assessmentId,
-    items: localizeNavigation(getAssessmentNavigation(assessmentId)),
+    items: localizeNavigation(getAssessmentNavigation(assessmentId), locale),
   });
 
   if (
@@ -50,7 +58,7 @@ export function AppShell({ children }: AppShellProps) {
     return (
       <WorkspaceRuntimeProvider>
         <AssessmentAppShell
-          key={assessmentId ?? getAppShellKey(pathname)}
+          key={`${assessmentId ?? getAppShellKey(pathname)}:${locale}`}
           sections={sections}
           assessmentId={assessmentId}
         >
@@ -71,21 +79,22 @@ function localizeNavigation(
     exact?: boolean;
     disabled?: boolean;
   }>,
+  locale: Locale,
 ): AppShellNavigationItem[] {
   return definitions.map((item) => ({
     href: item.href,
-    label: t(item.labelKey),
+    label: t(item.labelKey, locale),
     icon: item.icon,
     exact: item.exact,
     disabled: item.disabled,
     disabledReason: item.disabled
-      ? t("pages.appShell.selectAssessmentFirst")
+      ? t("pages.appShell.selectAssessmentFirst", locale)
       : undefined,
   }));
 }
 
-function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
+function t(key: string, locale: Locale) {
+  return resolveMessage(locale, key as Parameters<typeof resolveMessage>[1]);
 }
 
 function getAppShellKey(pathname: string) {

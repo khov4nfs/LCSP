@@ -11,6 +11,7 @@ import {
   upstreamBinaryRequest,
   upstreamJson,
 } from "@/lib/server/upstream-request";
+import { getAuthoritativeRequestLocale } from "@/lib/server/assessment-domain-proxy";
 
 /** The stored report artifact as a validated JSON envelope, for the in-app report view. */
 export async function GET(
@@ -25,9 +26,10 @@ export async function GET(
     return problemJson(ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID, {
       status: 422,
     });
+  const locale = getAuthoritativeRequestLocale(request);
   const upstream = await upstreamBinaryRequest(
     `/assessments/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/download`,
-    { bearerToken: session.token },
+    { bearerToken: session.token, locale },
   );
   if (!upstream.ok || !upstream.body) return upstreamJson(upstream);
   const parsed = assessmentFinalReportArtifactSchema.safeParse(

@@ -11,6 +11,8 @@ import {
 } from "@lcsp/contracts/assessment-domain";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { resolveResponseLanguage } from "@lcsp/contracts/shared/locale";
+import { LocalePresentationProjectionService } from "../presentation/locale-presentation-projection.service.js";
 import {
   ArtifactStorageService,
   chunkedManifestSchema,
@@ -23,6 +25,7 @@ export class AssessmentReportLoader {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: ArtifactStorageService,
+    private readonly projectionService: LocalePresentationProjectionService = new LocalePresentationProjectionService(),
   ) {}
 
   async load(input: {
@@ -31,6 +34,7 @@ export class AssessmentReportLoader {
     sessionUserId: string;
     subjectRole: AuthUserRole;
     correlationId: string;
+    locale?: string | null;
   }) {
     const artifact = await this.prisma.assessmentArtifact.findUnique({
       where: { artifactId: input.artifactId },
@@ -92,10 +96,42 @@ export class AssessmentReportLoader {
       ) {
         throw new Error("Final report integrity mismatch");
       }
+      const locale = input.locale
+        ? resolveResponseLanguage(input.locale)
+        : null;
+      if (!locale) {
+        return {
+          artifactId: artifact.artifactId,
+          content: Buffer.from(content),
+          contentSha256: sha256Hex(content),
+        };
+      }
+
+      const textsToProject: string[] = [report.summary];
+      for (const finding of report.findings) {
+        textsToProject.push(finding.summary);
+        textsToProject.push(...finding.recommendations);
+      }
+      const projections = await this.projectionService.projectBatch(
+        textsToProject,
+        locale,
+      );
+      const projectedReport = {
+        ...report,
+        summary: projections.get(report.summary) ?? report.summary,
+        findings: report.findings.map((finding) => ({
+          ...finding,
+          summary: projections.get(finding.summary) ?? finding.summary,
+          recommendations: finding.recommendations.map(
+            (rec) => projections.get(rec) ?? rec,
+          ),
+        })),
+      };
+      const projectedJson = JSON.stringify(projectedReport);
       return {
         artifactId: artifact.artifactId,
-        content: Buffer.from(content),
-        contentSha256: sha256Hex(content),
+        content: Buffer.from(projectedJson),
+        contentSha256: sha256Hex(projectedJson),
       };
     } catch {
       throw problemException(

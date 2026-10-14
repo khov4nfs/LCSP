@@ -188,6 +188,7 @@ class RootRun:
     decision_revisions: dict[str, int] = field(default_factory=dict)
     rule_versions: dict[str, str] = field(default_factory=dict)
     rule_criteria: dict[str, list[str]] = field(default_factory=dict)
+    response_language: str = "en"
 
     def adopt_context(self, context: dict[str, Any]) -> None:
         self.case_revision = int(context["caseRevision"])
@@ -199,6 +200,11 @@ class RootRun:
         for row in context.get("coverage", []):
             self.decision_revisions[row["assessmentRuleId"]] = int(row["decisionRevision"])
             self.rule_versions[row["assessmentRuleId"]] = row["assessmentRuleVersion"]
+        if context.get("responseLanguage") or context.get("locale"):
+            from orchestration.context import resolve_response_language
+            self.response_language = resolve_response_language(
+                context.get("responseLanguage") or context.get("locale") or self.response_language
+            )
 
 
 # ---- argument schemas (semantic content only) ---------------------------------------------------
@@ -623,8 +629,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             "criterionIds": criterion_ids or [],
             "question": question,
             "unresolvedFact": unresolved_fact,
-            "decisionImpact": decision_impact,
-            "resolutionAttempts": resolution_attempts,
+            "decisionImpact": list(decision_impact),
+            "resolutionAttempts": list(resolution_attempts),
             "controlType": control_type,
             "choices": choices or [],
         }
