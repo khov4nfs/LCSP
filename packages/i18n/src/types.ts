@@ -89,6 +89,12 @@ export type PagesMessages = {
       reconnecting: string;
       empty: string;
       technicalDetails: string;
+      statuses: {
+        RUNNING: string;
+        COMPLETED: string;
+        FAILED: string;
+        CANCELLED: string;
+      };
       started: string;
       loadedSource: string;
       readerStarted: string;
