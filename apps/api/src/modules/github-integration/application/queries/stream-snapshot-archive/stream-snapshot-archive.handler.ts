@@ -35,6 +35,7 @@ import {
 import { GitHubArchiveTransportError } from "../../../infrastructure/github/github-secure-archive-http.transport.js";
 import { CredentialResolutionError } from "../../../infrastructure/persistence/prisma-credential-authorization.resolver.js";
 import type { CredentialLease } from "../../../application/security/credential-lease.js";
+import { RuntimeHydrationTicketLifecycle } from "../../services/runtime-hydration-ticket-lifecycle.service.js";
 
 export type SnapshotArchiveStreamResult = {
   snapshotId: string;
@@ -43,6 +44,7 @@ export type SnapshotArchiveStreamResult = {
   contentType: string;
   resolvedUrl: string;
   stream: NodeJS.ReadableStream;
+  hydrationDeliveryTicketId?: string;
 };
 
 /**
@@ -65,6 +67,7 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
     private readonly credentialResolver: CredentialAuthorizationResolverPort,
     @Inject(GITHUB_ARCHIVE_TRANSPORT)
     private readonly githubArchiveTransport: GitHubArchiveTransportPort,
+    private readonly hydrationLifecycle: RuntimeHydrationTicketLifecycle,
     @Optional()
     @Inject(REPOSITORY_ARCHIVE_TRANSPORT_REGISTRY)
     private readonly archiveTransportRegistry?: RepositoryArchiveTransportRegistry,
@@ -85,8 +88,11 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       where: { id: query.scanJobId },
       select: {
         id: true,
+        assessmentId: true,
         snapshotId: true,
         status: true,
+        triggerSource: true,
+        idempotencyKey: true,
       },
     });
 
@@ -99,10 +105,12 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
     }
 
     const scanJobStatus = fromPrismaRepositoryScanJobStatus(scanJob.status);
+    const isHydration = this.hydrationLifecycle.isHydrationTicket(scanJob);
     const canReadPinnedArchive =
       scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.queued ||
       scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.running ||
-      scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.completed;
+      scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.completed ||
+      (isHydration && scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.failed);
     if (!canReadPinnedArchive) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch,
@@ -111,7 +119,18 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       );
     }
 
-    if (scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.queued) {
+    if (isHydration && scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.running) {
+      throw problemException(
+        GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch,
+        query.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    const hydrationDeliveryTicketId =
+      isHydration && scanJobStatus !== REPOSITORY_SCAN_JOB_STATUSES.completed
+        ? scanJob.id
+        : undefined;
+    if (!isHydration && scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.queued) {
       const claim = await this.prisma.repositoryScanJob.updateMany({
         where: {
           id: scanJob.id,
@@ -208,6 +227,14 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       query.correlationId,
     );
     if (cacheHit) {
+      if (hydrationDeliveryTicketId) {
+        await this.hydrationLifecycle.claim(
+          scanJob.id,
+          scanJob.assessmentId,
+          query.snapshotId,
+          scanJobStatus,
+        );
+      }
       return {
         snapshotId: snapshot.id,
         commitSha: snapshot.commitSha,
@@ -215,11 +242,22 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
         contentType: cacheHit.contentType,
         resolvedUrl: cacheHit.resolvedUrl,
         stream: cacheHit.stream,
+        ...(hydrationDeliveryTicketId ? { hydrationDeliveryTicketId } : {}),
       };
     }
 
     const leaseHolder: { lease: CredentialLease | null } = { lease: null };
+    let hydrationClaimed = false;
     try {
+      if (hydrationDeliveryTicketId) {
+        await this.hydrationLifecycle.claim(
+          scanJob.id,
+          scanJob.assessmentId,
+          query.snapshotId,
+          scanJobStatus,
+        );
+        hydrationClaimed = true;
+      }
       const archive = await (async () => {
         leaseHolder.lease = await this.credentialResolver.resolveForConnection(
           {
@@ -275,8 +313,30 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
         contentType: archive.contentType,
         resolvedUrl: archive.resolvedUrl,
         stream,
+        ...(hydrationDeliveryTicketId ? { hydrationDeliveryTicketId } : {}),
       };
     } catch (error: unknown) {
+      if (hydrationDeliveryTicketId && hydrationClaimed) {
+        try {
+          await this.hydrationLifecycle.finalizeDelivery({
+            ticketId: hydrationDeliveryTicketId,
+            snapshotId: query.snapshotId,
+            outcome: REPOSITORY_SCAN_JOB_STATUSES.failed,
+          });
+        } catch (finalizationError: unknown) {
+          this.logger.error(
+            "Runtime hydration failure could not be persisted",
+            undefined,
+            {
+              scanJobId: hydrationDeliveryTicketId,
+              reason:
+                finalizationError instanceof Error
+                  ? finalizationError.name
+                  : "unknown",
+            },
+          );
+        }
+      }
       if (
         leaseHolder.lease &&
         error instanceof GitHubArchiveTransportError &&

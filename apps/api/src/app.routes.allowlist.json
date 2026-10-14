@@ -104,5 +104,6 @@
   "POST /internal/legal-sources/source-snapshots",
   "POST /internal/outbox/dlq/:id/replay",
   "POST /internal/rbac/preflight",
+  "POST /internal/repository-snapshots/:snapshotId/archive/reconcile/:scanJobId",
   "POST /provider-credentials"
 ]

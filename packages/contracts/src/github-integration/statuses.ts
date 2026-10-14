@@ -97,6 +97,14 @@ export const REPOSITORY_SCAN_JOB_STATUSES = {
 export type RepositoryScanJobStatus =
   (typeof REPOSITORY_SCAN_JOB_STATUSES)[keyof typeof REPOSITORY_SCAN_JOB_STATUSES];
 
+export const RUNTIME_HYDRATION_TICKET_REASONS = {
+  deliveryFailed: "RUNTIME_HYDRATION_DELIVERY_FAILED",
+  outcomeUnproven: "RUNTIME_HYDRATION_OUTCOME_UNPROVEN",
+} as const;
+
+export type RuntimeHydrationTicketReason =
+  (typeof RUNTIME_HYDRATION_TICKET_REASONS)[keyof typeof RUNTIME_HYDRATION_TICKET_REASONS];
+
 export const REPOSITORY_SCAN_TRIGGER_SOURCES = {
   manual: "MANUAL",
   trusted: "TRUSTED",
