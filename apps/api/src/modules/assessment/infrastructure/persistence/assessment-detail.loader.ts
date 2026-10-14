@@ -233,8 +233,7 @@ export class AssessmentDetailLoader {
                 if (
                   hr &&
                   typeof hr.unresolvedFact === "string" &&
-                  hr.unresolvedFact.trim().length > 0 &&
-                  f.statement.startsWith(`${hr.unresolvedFact}: `)
+                  hr.unresolvedFact.trim().length > 0
                 ) {
                   const prefix = hr.unresolvedFact;
                   let answer: string | null = null;
@@ -247,17 +246,18 @@ export class AssessmentDetailLoader {
                       if (
                         entry &&
                         !entry.doesNotKnow &&
-                        typeof entry.answer === "string"
+                        typeof entry.answer === "string" &&
+                        entry.answer.trim().length > 0
                       ) {
                         answer = entry.answer;
                         break;
                       }
                     }
                   }
-                  if (answer === null) {
-                    answer = f.statement.slice(prefix.length + 2);
-                  }
-                  if (f.statement === `${prefix}: ${answer}`) {
+                  if (
+                    answer !== null &&
+                    f.statement === `${prefix}: ${answer}`
+                  ) {
                     humanProvidedParts.set(f.factId, { prefix, answer });
                     textsToProject.push(prefix);
                   }

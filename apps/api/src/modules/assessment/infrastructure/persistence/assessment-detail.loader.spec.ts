@@ -186,6 +186,39 @@ it("projects decision customer-visible rationales to VI while preserving technic
         evidenceLinks: [],
         createdAt: new Date(),
       },
+      {
+        factId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+        assessmentId,
+        caseRevision: 1,
+        kind: "FACT",
+        authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+        state: "ACCEPTED",
+        statement: "Disaster recovery location: Tokyo",
+        evidenceLinks: [],
+        createdAt: new Date(),
+      },
+      {
+        factId: "11111111-1111-4111-8111-111111111111",
+        assessmentId,
+        caseRevision: 1,
+        kind: "FACT",
+        authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+        state: "ACCEPTED",
+        statement: "Backup retention period: 30 days",
+        evidenceLinks: [],
+        createdAt: new Date(),
+      },
+      {
+        factId: "22222222-2222-4222-8222-222222222222",
+        assessmentId,
+        caseRevision: 1,
+        kind: "FACT",
+        authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+        state: "ACCEPTED",
+        statement: "Encryption at rest: AES-256",
+        evidenceLinks: [],
+        createdAt: new Date(),
+      },
     ],
     humanRequests: [
       {
@@ -211,6 +244,34 @@ it("projects decision customer-visible rationales to VI while preserving technic
         resolvedFactId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
         unresolvedFact: "Expected prefix that statement does not match",
         answers: [],
+      },
+      {
+        requestId: "33333333-3333-4333-8333-333333333333",
+        resolvedFactId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+        unresolvedFact: "Disaster recovery location",
+        answers: [],
+      },
+      {
+        requestId: "44444444-4444-4444-8444-444444444444",
+        resolvedFactId: "11111111-1111-4111-8111-111111111111",
+        unresolvedFact: "Backup retention period",
+        answers: [
+          {
+            doesNotKnow: true,
+            answer: null,
+          },
+        ],
+      },
+      {
+        requestId: "55555555-5555-4555-8555-555555555555",
+        resolvedFactId: "22222222-2222-4222-8222-222222222222",
+        unresolvedFact: "Encryption at rest",
+        answers: [
+          {
+            doesNotKnow: false,
+            answer: 12345,
+          },
+        ],
       },
     ],
     artifacts: [],
@@ -310,6 +371,30 @@ it("projects decision customer-visible rationales to VI while preserving technic
       ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
     );
 
+    const emptyAnswersFactVi = resultVi.case?.facts[4];
+    expect(emptyAnswersFactVi?.statement).toBe(
+      "Disaster recovery location: Tokyo",
+    );
+    expect(emptyAnswersFactVi?.authority).toBe(
+      ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+    );
+
+    const doesNotKnowFactVi = resultVi.case?.facts[5];
+    expect(doesNotKnowFactVi?.statement).toBe(
+      "Backup retention period: 30 days",
+    );
+    expect(doesNotKnowFactVi?.authority).toBe(
+      ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+    );
+
+    const malformedAnswerFactVi = resultVi.case?.facts[6];
+    expect(malformedAnswerFactVi?.statement).toBe(
+      "Encryption at rest: AES-256",
+    );
+    expect(malformedAnswerFactVi?.authority).toBe(
+      ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+    );
+
     // User answer is absent from projection requests; all generated text was requested
     expect(requestedTexts).toContain(
       "Deployment region: whether production is EU-hosted",
@@ -335,6 +420,15 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(requestedTexts).not.toContain(
       "Expected prefix that statement does not match",
     );
+    expect(requestedTexts).not.toContain("Disaster recovery location: Tokyo");
+    expect(requestedTexts).not.toContain("Disaster recovery location");
+    expect(requestedTexts).not.toContain("Tokyo");
+    expect(requestedTexts).not.toContain("Backup retention period: 30 days");
+    expect(requestedTexts).not.toContain("Backup retention period");
+    expect(requestedTexts).not.toContain("30 days");
+    expect(requestedTexts).not.toContain("Encryption at rest: AES-256");
+    expect(requestedTexts).not.toContain("Encryption at rest");
+    expect(requestedTexts).not.toContain("AES-256");
 
     // 2. Read with EN locale - preserves canonical English
     const resultEn = await loader.load({ ...input, locale: "en" });
@@ -361,6 +455,18 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(corruptFactEn?.statement).toBe(
       "Corrupt statement does not match prefix: user answer",
     );
+    const emptyAnswersFactEn = resultEn.case?.facts[4];
+    expect(emptyAnswersFactEn?.statement).toBe(
+      "Disaster recovery location: Tokyo",
+    );
+    const doesNotKnowFactEn = resultEn.case?.facts[5];
+    expect(doesNotKnowFactEn?.statement).toBe(
+      "Backup retention period: 30 days",
+    );
+    const malformedAnswerFactEn = resultEn.case?.facts[6];
+    expect(malformedAnswerFactEn?.statement).toBe(
+      "Encryption at rest: AES-256",
+    );
 
     // 3. Switch back to VI locale on same persisted fact row
     const resultVi2 = await loader.load({ ...input, locale: "vi" });
@@ -380,6 +486,18 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(corruptFactVi2?.statement).toBe(
       "Corrupt statement does not match prefix: user answer",
     );
+    const emptyAnswersFactVi2 = resultVi2.case?.facts[4];
+    expect(emptyAnswersFactVi2?.statement).toBe(
+      "Disaster recovery location: Tokyo",
+    );
+    const doesNotKnowFactVi2 = resultVi2.case?.facts[5];
+    expect(doesNotKnowFactVi2?.statement).toBe(
+      "Backup retention period: 30 days",
+    );
+    const malformedAnswerFactVi2 = resultVi2.case?.facts[6];
+    expect(malformedAnswerFactVi2?.statement).toBe(
+      "Encryption at rest: AES-256",
+    );
 
     // Canonical persisted fact rows remain unchanged
     const storedFacts = (
@@ -397,6 +515,9 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(storedFacts[3]?.statement).toBe(
       "Corrupt statement does not match prefix: user answer",
     );
+    expect(storedFacts[4]?.statement).toBe("Disaster recovery location: Tokyo");
+    expect(storedFacts[5]?.statement).toBe("Backup retention period: 30 days");
+    expect(storedFacts[6]?.statement).toBe("Encryption at rest: AES-256");
   } finally {
     globalThis.fetch = originalFetch;
     delete process.env.LCSP_AGENT_SERVER_URL;
