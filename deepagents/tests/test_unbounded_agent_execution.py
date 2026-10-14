@@ -12,11 +12,14 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
 from langgraph.config import get_config
 from langgraph.errors import GraphRecursionError
+from middleware.failure_policy import AgentRunBudgetExceeded
 from pydantic import Field
 
 from assessment_root.runner import run_assessment_root
+import orchestration.graph_execution as graph_execution
 from orchestration.graph_execution import (
     LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT,
+    agent_graph_recursion_limit,
     agent_graph_config,
 )
 from rule_set_preparation import runner as preparation_runner
@@ -66,9 +69,17 @@ class GraphSteps(BaseCallbackHandler):
 
 def preparation_responses() -> list[AIMessage]:
     # A finite scripted reasoning sequence unrelated to Legal Source size. All native
-    # middleware is present; validation is deliberately later than the old ceiling.
+    # middleware is present; each read advances to a different source range before
+    # validation, so the no-progress guard correctly treats these as distinct evidence.
     return [
-        *[_call("read_file", {"file_path": "/legal-source/INDEX.md"}, f"read-{i}") for i in range(16)],
+        *[
+            _call(
+                "read_file",
+                {"file_path": "/legal-source/INDEX.md", "offset": i * 2, "limit": 2},
+                f"read-{i}",
+            )
+            for i in range(16)
+        ],
         _call("validate_compliance_rule_set", {"packet": _packet()}, "validate"),
         _call("submit_compliance_rule_set", {"packet": _packet()}, "submit"),
         AIMessage(content="complete"),
@@ -150,6 +161,25 @@ def test_framework_exhaustion_is_runtime_error_not_model_error(monkeypatch, tmp_
     assert api.calls[-1] == ("fail", (RUN_ID, preparation_runner.RUNTIME_ERROR))
 
 
+def test_agent_run_budget_exhaustion_is_runtime_error_not_model_error(monkeypatch, tmp_path: Path) -> None:
+    class ExhaustedGraph:
+        def invoke(self, *args, **kwargs):
+            assert graph_execution.agent_graph_config()["recursion_limit"] == (
+                preparation_runner.PREPARATION_RECURSION_LIMIT
+            )
+            raise AgentRunBudgetExceeded(
+                "Agent run stopped by execution safety guard: NO_PROGRESS_DETECTED"
+            )
+
+    monkeypatch.setattr(preparation_runner, "create_rule_set_preparation_agent", lambda **kw: ExhaustedGraph())
+    api = FakeApi()
+    result = preparation_runner.run_rule_set_preparation(api, RUN_ID, work_dir=tmp_path)
+    assert result["failureReason"] == preparation_runner.RUNTIME_ERROR
+    assert result["error"]["type"] == "AgentRunBudgetExceeded"
+    assert "NO_PROGRESS_DETECTED" in result["error"]["message"]
+    assert api.calls[-1] == ("fail", (RUN_ID, preparation_runner.RUNTIME_ERROR))
+
+
 def test_runner_interfaces_do_not_expose_per_workload_limits() -> None:
     for runner in [run_assessment_root, preparation_runner.run_rule_set_preparation]:
         assert "recursion_limit" not in inspect.signature(runner).parameters
@@ -165,3 +195,15 @@ def test_runtime_config_preserves_checkpoints_and_discards_stale_small_ceiling()
     assert result["metadata"]["origin"] == "test"
     assert config["recursion_limit"] == 150
     assert agent_graph_config()["recursion_limit"] == (1 << 31) - 1
+
+
+def test_native_reader_graph_inherits_preparation_recursion_ceiling(monkeypatch) -> None:
+    class Graph:
+        def with_config(self, config):
+            self.config = config
+            return self
+
+    monkeypatch.setattr(graph_execution, "_native_create_sub_agent", lambda *a, **kw: Graph())
+    with agent_graph_recursion_limit(1234):
+        child = graph_execution._create_sub_agent()
+    assert child.config["recursion_limit"] == 1234

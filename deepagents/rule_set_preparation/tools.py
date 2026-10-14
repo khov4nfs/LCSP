@@ -85,6 +85,7 @@ class RuleSetPreparationContext:
     removable: set[tuple[str, str]] = field(default_factory=set)
     # add_to_packet_draft calls since the last validation: past a few, the result asks for one.
     adds_since_validation: int = 0
+    progress_revision: int = 0
     # Per-call record of the governed tools (no packet content): what was validated/submitted
     # and which mechanical failure codes came back. Lets a failed run be diagnosed.
     trace: list[dict[str, Any]] = field(default_factory=list)
@@ -219,6 +220,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                            validation_call=context.validation_calls, error=str(error)[:300])
             return json.dumps({"error": str(error)})
         context.last_validation = result
+        context.progress_revision += 1
         context.removable = _items_named_by(result.get("failures") or [])
         if result.get("outcome") == "PASSED":
             context.validated_packet = deepcopy(packet)
@@ -259,12 +261,16 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             return json.dumps({"error": "Nothing was added. " + "; ".join(problems[:10])})
         added: dict[str, int] = {}
         replaced = 0
+        changed = False
         for key, items in part.items():
             added[key] = len(items or ())
             for item in items or ():
                 label = item[ITEM_ID_KEYS[key]]
                 replaced += label in context.draft[key]
+                changed |= context.draft[key].get(label) != item
                 context.draft[key][label] = deepcopy(item)
+        if changed:
+            context.progress_revision += 1
         # Any change to the draft revokes an earlier PASSED: the validated packet no longer exists.
         context.validated_packet = None
         context.last_validation = None
@@ -359,6 +365,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             context.trace.append({"tool": "submit", "outcome": "ERROR"})
             return json.dumps({"error": str(error)})
         context.submission = result
+        context.progress_revision += 1
         context.trace.append({"tool": "submit", "outcome": (result.get("validation") or {}).get("outcome")})
         return json.dumps(result, ensure_ascii=False)
 
@@ -402,6 +409,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                 "then submit the exact validated packet."
             )})
         context.source_blocked = {"reason": reason, "path": path}
+        context.progress_revision += 1
         context.trace.append({"tool": "source_blocked", **context.source_blocked})
         return json.dumps({"sourceBlocked": context.source_blocked})
 

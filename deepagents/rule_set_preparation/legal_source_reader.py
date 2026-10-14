@@ -60,7 +60,7 @@ document's scope. The parent alone resolves cross-document meaning and owns vali
 
 
 def legal_source_reader_subagent(
-    *, model: Any, backend: BackendProtocol
+    *, model: Any, backend: BackendProtocol, budget: Any | None = None
 ) -> dict[str, Any]:
     """Return the native ``SubAgent`` declaration used by the Preparation Root."""
 
@@ -87,6 +87,7 @@ def legal_source_reader_subagent(
                 tools=READ_ONLY_TOOLS,
                 _permissions=permissions,
             ),
+            *([budget] if budget is not None else []),
             *MODEL_GOVERNANCE_MIDDLEWARE,
         ],
         "permissions": permissions,

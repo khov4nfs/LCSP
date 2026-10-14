@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import wraps
 from typing import Any
 
@@ -14,14 +16,35 @@ from deepagents.middleware import subagents
 # This is independent of source, repository, rule, token and model-call counts.
 # Explicit cancellation, native interrupts and provider failures remain operative.
 LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT = (1 << 31) - 1
+_active_recursion_limit: ContextVar[int | None] = ContextVar(
+    "lcsp_agent_graph_recursion_limit", default=None
+)
 
 
-def agent_graph_config(config: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    """Preserve runtime/checkpoint config without reviving an old per-agent ceiling."""
+def agent_graph_config(
+    config: Mapping[str, Any] | None = None,
+    *,
+    recursion_limit: int | None = None,
+) -> dict[str, Any]:
+    """Preserve runtime/checkpoint config with the caller's graph ceiling."""
+    limit = recursion_limit
+    if limit is None:
+        limit = _active_recursion_limit.get()
+    if limit is None:
+        limit = LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT
     return {
         **(config or {}),
-        "recursion_limit": LANGGRAPH_EFFECTIVELY_UNBOUNDED_RECURSION_LIMIT,
+        "recursion_limit": limit,
     }
+
+
+@contextmanager
+def agent_graph_recursion_limit(limit: int) -> Iterator[None]:
+    token = _active_recursion_limit.set(limit)
+    try:
+        yield
+    finally:
+        _active_recursion_limit.reset(token)
 
 
 # Declarative task() delegates are compiled by this public Deep Agents factory.

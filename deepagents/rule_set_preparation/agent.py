@@ -21,9 +21,10 @@ from langchain.agents.middleware import (
 )
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.runtime import Runtime
+from middleware.agent_run_budget import AgentRunBudgetCounters, AgentRunBudgetMiddleware
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware
-from orchestration.graph_execution import agent_graph_config
+from orchestration.graph_execution import agent_graph_config, agent_graph_recursion_limit
 from tools.common.capabilities.platform.logging import get_logger
 
 from deepagents import GeneralPurposeSubagentProfile, HarnessProfile, create_deep_agent
@@ -35,6 +36,11 @@ from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set
 INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
 RULE_SET_PREPARATION_ROLE = "rule-set-preparation"
 READ_ONLY_TOOLS = ["ls", "glob", "grep", "read_file"]
+PREPARATION_FINALIZE_AFTER_MODEL_CALLS = 256
+PREPARATION_GRACE_MODEL_CALLS = 32
+PREPARATION_MAX_TOOL_CALLS = 8192
+PREPARATION_REPEATED_TOOL_LIMIT = 6
+PREPARATION_RECURSION_LIMIT = 16_384
 
 _PROFILE_LOCK = threading.Lock()
 logger = get_logger(__name__)
@@ -158,6 +164,16 @@ def create_rule_set_preparation_agent(
 
         model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
 
+    budget_counters = AgentRunBudgetCounters()
+    budget_options = {
+        "finalize_after": PREPARATION_FINALIZE_AFTER_MODEL_CALLS,
+        "grace_calls": PREPARATION_GRACE_MODEL_CALLS,
+        "shared_counters": True,
+        "max_tool_calls": PREPARATION_MAX_TOOL_CALLS,
+        "repeated_tool_call_limit": PREPARATION_REPEATED_TOOL_LIMIT,
+        "counters": budget_counters,
+    }
+
     backend = FilesystemBackend(root_dir=legal_source_root, virtual_mode=True)
     read_only = FilesystemMiddleware(
         backend=backend,
@@ -168,7 +184,10 @@ def create_rule_set_preparation_agent(
             FilesystemPermission(["write"], ["/**"], mode="deny"),
         ],
     )
-    with _without_general_purpose_subagent(_lookup_profile_key(model)):
+    with (
+        agent_graph_recursion_limit(PREPARATION_RECURSION_LIMIT),
+        _without_general_purpose_subagent(_lookup_profile_key(model)),
+    ):
         return create_deep_agent(
             name="lcsp-rule-set-preparation",
             model=model,
@@ -177,12 +196,31 @@ def create_rule_set_preparation_agent(
             tools=build_rule_set_tools(context),
             middleware=[
                 read_only,
+                AgentRunBudgetMiddleware(
+                    **budget_options,
+                    finalize_tools=frozenset({
+                        "add_to_packet_draft",
+                        "validate_compliance_rule_set",
+                        "submit_compliance_rule_set",
+                        "report_rule_set_source_blocked",
+                    }),
+                    progress_fingerprint=lambda: context.progress_revision,
+                ),
                 PreparationCompletionMiddleware(context),
                 DraftHistoryMiddleware(),
                 AgentRoleMiddleware(RULE_SET_PREPARATION_ROLE),
                 *MODEL_GOVERNANCE_MIDDLEWARE,
             ],
-            subagents=[legal_source_reader_subagent(model=model, backend=backend)],
+            subagents=[
+                legal_source_reader_subagent(
+                    model=model,
+                    backend=backend,
+                    budget=AgentRunBudgetMiddleware(
+                        **budget_options,
+                        progress_fingerprint=lambda: context.progress_revision,
+                    ),
+                )
+            ],
             # False, not None: None would inherit the Agent Server run's Postgres checkpointer, and
             # nothing resumes this claim-once run from those checkpoints. Each superstep of every
             # middleware hook queued a put on an 8-thread pool whose first put waits on writes queued
@@ -190,4 +228,4 @@ def create_rule_set_preparation_agent(
             # _checkpointer_put_after_previous) and filled the database with 100k-token states.
             checkpointer=False if checkpointer is None else checkpointer,
             store=store,
-        ).with_config(agent_graph_config())
+        ).with_config(agent_graph_config(recursion_limit=PREPARATION_RECURSION_LIMIT))

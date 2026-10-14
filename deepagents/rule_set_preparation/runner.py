@@ -13,12 +13,16 @@ from typing import Any
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.runnables.config import var_child_runnable_config
 from langgraph.errors import GraphRecursionError
+from middleware.failure_policy import AgentRunBudgetExceeded
 from orchestration.agent_stream import publish_agent_stream_event
-from orchestration.graph_execution import agent_graph_config
+from orchestration.graph_execution import agent_graph_config, agent_graph_recursion_limit
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
-from rule_set_preparation.agent import create_rule_set_preparation_agent
+from rule_set_preparation.agent import (
+    PREPARATION_RECURSION_LIMIT,
+    create_rule_set_preparation_agent,
+)
 from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
 
@@ -208,13 +212,18 @@ def run_rule_set_preparation(
             # checkpoints into its Postgres saver, which nothing resumes from (see agent.py).
             isolated = contextvars.copy_context()
             isolated.run(var_child_runnable_config.set, None)
-            isolated.run(
-                agent.invoke,
-                {"messages": [{"role": "user", "content": _TASK}]},
-                config=agent_graph_config(
-                    {"callbacks": [*(callbacks or []), stream_trace]}
-                ),
-            )
+
+            def invoke_preparation() -> None:
+                with agent_graph_recursion_limit(PREPARATION_RECURSION_LIMIT):
+                    agent.invoke(
+                        {"messages": [{"role": "user", "content": _TASK}]},
+                        config=agent_graph_config(
+                            {"callbacks": [*(callbacks or []), stream_trace]},
+                            recursion_limit=PREPARATION_RECURSION_LIMIT,
+                        ),
+                    )
+
+            isolated.run(invoke_preparation)
         except Exception as error:  # noqa: BLE001 - classify provider/runtime failures
             logger.warning(
                 "RULE_SET_PREPARATION_AGENT_FAILED",
@@ -223,7 +232,11 @@ def run_rule_set_preparation(
                 error_message=str(error)[:500],
             )
             if context.submission is None:
-                reason = RUNTIME_ERROR if isinstance(error, GraphRecursionError) else MODEL_ERROR
+                reason = (
+                    RUNTIME_ERROR
+                    if isinstance(error, (GraphRecursionError, AgentRunBudgetExceeded))
+                    else MODEL_ERROR
+                )
                 _fail(api, run_id, reason)
                 return {
                     "state": "FAILED",

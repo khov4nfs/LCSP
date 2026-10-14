@@ -10,7 +10,9 @@ from typing import Any
 import pytest
 from deepagents.backends.filesystem import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
+from middleware.agent_run_budget import AgentRunBudgetMiddleware
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+import rule_set_preparation.agent as preparation_agent
 from rule_set_preparation.agent import (
     _without_general_purpose_subagent,
     create_rule_set_preparation_agent,
@@ -64,6 +66,43 @@ def test_legal_source_reader_uses_shared_model_governance_middleware(tmp_path):
     assert subagent["response_format"] is LegalSourceReaderResult
 
 
+def test_preparation_and_reader_share_bounded_execution_counters(monkeypatch, tmp_path):
+    captured: dict[str, Any] = {}
+
+    class Graph:
+        def with_config(self, config):
+            captured["config"] = config
+            return self
+
+    def fake_create_deep_agent(**kwargs):
+        captured.update(kwargs)
+        return Graph()
+
+    monkeypatch.setattr(preparation_agent, "create_deep_agent", fake_create_deep_agent)
+    monkeypatch.setattr(preparation_agent, "_lookup_profile_key", lambda _: "test:model")
+    context = RuleSetPreparationContext(RUN_ID, FakeApi())
+
+    preparation_agent.create_rule_set_preparation_agent(
+        context=context, legal_source_root=tmp_path, model=object()
+    )
+
+    parent_budget = next(
+        item for item in captured["middleware"] if isinstance(item, AgentRunBudgetMiddleware)
+    )
+    child_budget = next(
+        item
+        for item in captured["subagents"][0]["middleware"]
+        if isinstance(item, AgentRunBudgetMiddleware)
+    )
+    assert parent_budget.counters is child_budget.counters
+    assert parent_budget.max_model_calls == 288
+    assert parent_budget.max_tool_calls == 8192
+    assert parent_budget.repeated_tool_call_limit == 6
+    assert parent_budget.finalize_tools
+    assert not child_budget.finalize_tools
+    assert captured["config"]["recursion_limit"] == preparation_agent.PREPARATION_RECURSION_LIMIT
+
+
 def _sha(text: str) -> str:
     return "sha256:" + hashlib.sha256(text.encode()).hexdigest()
 
@@ -92,6 +131,8 @@ def _bundle() -> dict[str, Any]:
                         "content": text,
                         "contentSha256": _sha(text),
                         "legalStatus": "IN_FORCE",
+                        "legalEffectStatus": "EFFECTIVE",
+                        "legalStatusSourceRef": "source-metadata:fixture",
                         "hierarchy": {"path": locator.split("::")},
                     }
                     for locator, text in chunks
@@ -253,6 +294,8 @@ def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_leg
     assert f"documentId: {DOC}" in header
     assert "locator: art-1::cl-1" in header
     assert f"contentSha256: {_sha('Records must be retained for five years.')}" in header
+    assert "legalEffectStatus: EFFECTIVE" in header
+    assert "legalStatusSourceRef: source-metadata:fixture" in header
     assert f"| {DOC} | art-2::cl-1 |" in index
     assert {p.name for p in tmp_path.rglob("*") if p.is_file()} == {"INDEX.md", "art-1__cl-1.md", "art-2__cl-1.md"}
 
