@@ -3,15 +3,19 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const apiDir = path.join(root, "apps/api");
-export const python = path.join(root, "deepagents/.venv/bin/python");
+const pythonCandidates = process.platform === "win32"
+  ? [path.join(root, "deepagents/.venv/Scripts/python.exe"), path.join(root, "deepagents/.venv/bin/python")]
+  : [path.join(root, "deepagents/.venv/bin/python"), path.join(root, "deepagents/.venv/Scripts/python.exe")];
+export const python = pythonCandidates.find((candidate) => existsSync(candidate)) ?? pythonCandidates[0];
 export const workerKey = "compliance_rule_set-vertical-worker-key-at-least-32-chars";
-export const pythonPath = [path.join(root, "deepagents"), path.join(root, "deepagents/tests")].join(":");
+export const pythonPath = [path.join(root, "deepagents"), path.join(root, "deepagents/tests")].join(path.delimiter);
 export const sha = (text) => createHash("sha256").update(text).digest("hex");
 export const contentHash = (text) => `sha256:${sha(text)}`; // legalSource representation of chunk hashes
 const { Client } = createRequire(path.join(apiDir, "package.json"))("pg");
@@ -35,7 +39,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
     await adminClient.end();
   }
   const migrate = spawnSync("pnpm", ["--dir", apiDir, "exec", "prisma", "migrate", "deploy"], {
-    cwd: root, encoding: "utf8", env: { ...process.env, DATABASE_URL: databaseUrl },
+    cwd: root, encoding: "utf8", shell: process.platform === "win32", env: { ...process.env, DATABASE_URL: databaseUrl },
   });
   assert.equal(migrate.status, 0, migrate.stdout + migrate.stderr);
 
@@ -48,6 +52,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
       ...process.env,
       PORT: String(apiPort),
       NODE_ENV: "test",
+      NODE_OPTIONS: "--experimental-strip-types",
       DATABASE_URL: databaseUrl,
       RABBITMQ_URL: "amqp://guest:guest@127.0.0.1:55999", // unreachable on purpose: outbox rows stay PENDING
       RABBITMQ_EXCHANGE: "lcsp.events.compliance_rule_setvertical",
@@ -64,8 +69,8 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
       BILLING_SEPAY_ACCOUNT_HOLDER: "T",
       BILLING_SEPAY_QR_URL_TEMPLATE: "https://p.test/qr?amount={amountVnd}&content={paymentCode}",
   };
-  const server = spawn("node", ["dist/src/main.js"], {
-    cwd: apiDir,
+  const server = spawn(process.execPath, ["--experimental-strip-types", path.join(apiDir, "dist/src/main.js")], {
+    cwd: root,
     env: apiEnv,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -138,7 +143,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
    */
   async function activateLegalSource(legalSourceId, { times = 1, concurrent = false } = {}) {
     const events = Array.from({ length: times }, () => ({ legalSourceVersionId: legalSourceId, correlationId: randomUUID() }));
-    const delivered = spawnSync("node", [path.join(root, "tests/support/deliver-legal-source-activation.mjs"), JSON.stringify({ events, concurrent })], {
+    const delivered = spawnSync(process.execPath, [path.join(root, "tests/support/deliver-legal-source-activation.mjs"), JSON.stringify({ events, concurrent })], {
       cwd: root, encoding: "utf8", env: apiEnv,
     });
     assert.equal(delivered.status, 0, delivered.stdout + delivered.stderr);

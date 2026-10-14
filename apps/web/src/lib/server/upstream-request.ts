@@ -35,6 +35,8 @@ type UpstreamBinaryResult = {
   status: number;
   contentType?: string;
   contentDisposition?: string;
+  sourceArtifactSha256?: string;
+  contentLength?: string;
 };
 
 export function upstreamUrl(path: string): URL {
@@ -129,6 +131,9 @@ export async function upstreamBinaryRequest(
     contentType: response.headers.get("content-type") ?? undefined,
     contentDisposition:
       response.headers.get("content-disposition") ?? undefined,
+    sourceArtifactSha256:
+      response.headers.get("x-lcsp-source-artifact-sha256") ?? undefined,
+    contentLength: response.headers.get("content-length") ?? undefined,
   };
 }
 

@@ -44,6 +44,10 @@ const assessmentRuleId = "ER-1";
 const assessmentRuleVersion = "v1";
 const legalRequirementId = "LR-1";
 const criterionId = "C-1";
+const legalSourceVersionId = randomUUID();
+const legalDocumentId = "DOC-1";
+const legalLocator = "article-1";
+const legalContentSha256 = `sha256:${"c".repeat(64)}`;
 
 type Fixture = {
   controlState: string;
@@ -69,6 +73,8 @@ type Fixture = {
     id: string;
     lifecycleState: string;
     validationOutcome: string;
+    legalSourceVersionId: string;
+    legalSourceVersion: { id: string; version: string; status: string };
   } | null;
   snapshot: {
     id: string;
@@ -82,7 +88,42 @@ type Fixture = {
     snapshotId: string;
     status: string;
   } | null;
-  rules: Array<{ assessmentRuleId: string; assessmentRuleVersion: string }>;
+  rules: Array<{
+    assessmentRuleId: string;
+    assessmentRuleVersion: string;
+    contract: unknown;
+    legalRequirementLinks: Array<{ legalRequirementRowId: string }>;
+  }>;
+  legalRequirements: Array<{
+    id: string;
+    ruleSetVersionId: string;
+    legalRequirementId: string;
+    coverageState: string;
+    provenance: Array<{
+      legalSourceVersionId: string;
+      chunkId: string;
+      documentId: string;
+      locator: string;
+      contentSha256: string;
+      sourceEffectStatus: string | null;
+      chunk: {
+        legalSourceVersionId: string;
+        documentId: string;
+        locator: string;
+        contentSha256: string;
+        legalStatus: string;
+        sourceDocument: { legalSourceVersionId: string; documentId: string };
+      };
+    }>;
+  }>;
+  legalDocumentChunks: Array<{
+    id: string;
+    legalSourceVersionId: string;
+    documentId: string;
+    locator: string;
+    contentSha256: string;
+    legalStatus: string;
+  }>;
   coverage: Array<{
     assessmentRuleId: string;
     ruleSetVersionId: string;
@@ -186,6 +227,12 @@ function createFixture() {
       id: ruleSetVersionId,
       lifecycleState: ArtifactLifecycleState.ACTIVE,
       validationOutcome: ComplianceRuleSetValidationOutcome.PASSED,
+      legalSourceVersionId,
+      legalSourceVersion: {
+        id: legalSourceVersionId,
+        version: "v1",
+        status: "ACTIVE",
+      },
     },
     snapshot: {
       id: snapshotId,
@@ -199,7 +246,55 @@ function createFixture() {
       snapshotId,
       status: RepositoryScanJobStatus.COMPLETED,
     },
-    rules: [{ assessmentRuleId, assessmentRuleVersion }],
+    rules: [
+      {
+        assessmentRuleId,
+        assessmentRuleVersion,
+        contract: {
+          sourceChunkIds: ["chunk-1"],
+        },
+        legalRequirementLinks: [{ legalRequirementRowId: "lr-row-1" }],
+      },
+    ],
+    legalRequirements: [
+      {
+        id: "lr-row-1",
+        ruleSetVersionId,
+        legalRequirementId,
+        coverageState: "COVERED_BY_ASSESSMENT_RULES",
+        provenance: [
+          {
+            legalSourceVersionId,
+            chunkId: "chunk-1",
+            documentId: legalDocumentId,
+            locator: legalLocator,
+            contentSha256: legalContentSha256,
+            sourceEffectStatus: "ACTIVE",
+            chunk: {
+              legalSourceVersionId,
+              documentId: legalDocumentId,
+              locator: legalLocator,
+              contentSha256: legalContentSha256,
+              legalStatus: "ACTIVE",
+              sourceDocument: {
+                legalSourceVersionId,
+                documentId: legalDocumentId,
+              },
+            },
+          },
+        ],
+      },
+    ],
+    legalDocumentChunks: [
+      {
+        id: "chunk-1",
+        legalSourceVersionId,
+        documentId: legalDocumentId,
+        locator: legalLocator,
+        contentSha256: legalContentSha256,
+        legalStatus: "ACTIVE",
+      },
+    ],
     coverage: [
       {
         assessmentRuleId,
@@ -269,6 +364,12 @@ function createFixture() {
       findUnique: () => Promise.resolve(fixture.scanJob),
     },
     assessmentRule: { findMany: () => Promise.resolve(fixture.rules) },
+    legalRequirement: {
+      findMany: () => Promise.resolve(fixture.legalRequirements),
+    },
+    legalDocumentChunk: {
+      findMany: () => Promise.resolve(fixture.legalDocumentChunks),
+    },
     assessmentDecisionCoverage: {
       findMany: () => Promise.resolve(fixture.coverage),
     },
@@ -360,6 +461,96 @@ describe("AssessmentCompletionGate", () => {
       decisions: [{ decisionId: "decision-1" }],
       evidence: [{ evidenceId }],
       facts: [{ factId }],
+    });
+  });
+
+  it("blocks a pinned source whose provenance hash no longer matches", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.legalRequirements[0].provenance[0].chunk.contentSha256 = `sha256:${"d".repeat(64)}`;
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.snapshot).toBeNull();
+    expect(result.blockers).toContainEqual({
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.LEGAL_SOURCE_HASH_MISMATCH,
+      reference: `${legalRequirementId}:${legalDocumentId}:${legalLocator}`,
+    });
+  });
+
+  it("blocks an invalid or revoked pinned source without requiring ACTIVE status", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.ruleSet!.legalSourceVersion.status = "INVALID";
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.snapshot).toBeNull();
+    expect(result.blockers).toContainEqual({
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.LEGAL_SOURCE_REFERENCE_INVALID,
+      reference: legalSourceVersionId,
+    });
+  });
+
+  it("blocks a rule set whose source pin does not match its source record", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.ruleSet!.legalSourceVersionId = randomUUID();
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.snapshot).toBeNull();
+    expect(result.blockers).toContainEqual({
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.LEGAL_SOURCE_PIN_MISMATCH,
+      reference: ruleSetVersionId,
+    });
+  });
+
+  it("permits a superseded source when its pinned identity and hashes remain valid", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.ruleSet!.legalSourceVersion.status = "SUPERSEDED";
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.blockers).toEqual([]);
+    expect(result.snapshot?.legalProvenance.source.status).toBe("SUPERSEDED");
+  });
+
+  it("blocks an assessment rule with an orphaned legal requirement link", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.rules[0].legalRequirementLinks = [
+      { legalRequirementRowId: "missing-row" },
+    ];
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.snapshot).toBeNull();
+    expect(result.blockers).toContainEqual({
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.RULE_REQUIREMENT_LINK_INVALID,
+      reference: `${assessmentRuleId}:missing-row`,
+    });
+  });
+
+  it("blocks missing mandatory legal provenance for a covered requirement", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.legalRequirements[0].provenance = [];
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.snapshot).toBeNull();
+    expect(result.blockers).toContainEqual({
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.REPORT_PROVENANCE_INCOMPLETE,
+      reference: legalRequirementId,
+    });
+  });
+
+  it("blocks a rule source chunk that cannot be resolved in the pinned corpus", async () => {
+    const { fixture, gate, transaction } = createFixture();
+    fixture.rules[0].contract = { sourceChunkIds: ["missing-chunk"] };
+
+    const result = await gate.inspectInTx(transaction, assessmentId);
+
+    expect(result.snapshot).toBeNull();
+    expect(result.blockers).toContainEqual({
+      code: ASSESSMENT_COMPLETION_BLOCKER_CODES.LEGAL_SOURCE_REFERENCE_INVALID,
+      reference: `${assessmentRuleId}:missing-chunk`,
     });
   });
 

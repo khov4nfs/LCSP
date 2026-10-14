@@ -30,6 +30,7 @@ import {
 
 import { AssessmentCaseSupport } from "../../infrastructure/persistence/assessment-case-support.service.js";
 import { validateRuleDecision } from "../../domain/decision-validator.js";
+import { validateLegalProvenance } from "../../domain/legal-provenance-validator.js";
 
 const REQUIRED_INPUT_BLOCKER_REASONS: ReadonlySet<string> = new Set([
   BLOCKER_REASONS.REQUIRED_DOCUMENT_UNAVAILABLE,
@@ -43,6 +44,25 @@ export interface AssessmentFinalizationSnapshot {
     repositorySnapshotId: string;
     repositoryScanJobId: string;
     repositoryCommit: string;
+  };
+  legalProvenance: {
+    source: { id: string; version: string; status: string };
+    requirements: Array<{
+      id: string;
+      legalRequirementId: string;
+      coverageState: string;
+      provenance: Array<{
+        legalSourceVersionId: string;
+        chunkId: string | null;
+        documentId: string;
+        locator: string;
+        contentSha256: string;
+      }>;
+    }>;
+    rules: Array<{
+      assessmentRuleId: string;
+      legalRequirementRowIds: string[];
+    }>;
   };
   decisions: Array<{
     decisionId: string;
@@ -183,11 +203,25 @@ export class AssessmentCompletionGate {
       repositoryCommit: assessmentCase.repositoryCommit,
     };
 
+    const ruleSet = await tx.complianceRuleSetVersion.findUnique({
+      where: { id: pins.ruleSetVersionId },
+      select: {
+        id: true,
+        lifecycleState: true,
+        validationOutcome: true,
+        legalSourceVersionId: true,
+        legalSourceVersion: {
+          select: { id: true, version: true, status: true },
+        },
+      },
+    });
+
     const [
-      ruleSet,
       snapshot,
       scanJob,
       rules,
+      requirements,
+      ruleChunks,
       coverage,
       decisions,
       evidence,
@@ -195,10 +229,6 @@ export class AssessmentCompletionGate {
       openRequests,
       artifacts,
     ] = await Promise.all([
-      tx.complianceRuleSetVersion.findUnique({
-        where: { id: pins.ruleSetVersionId },
-        select: { id: true, lifecycleState: true, validationOutcome: true },
-      }),
       tx.repositorySnapshot.findUnique({
         where: { id: pins.repositorySnapshotId },
         select: { id: true, assessmentId: true, commitSha: true, status: true },
@@ -214,7 +244,55 @@ export class AssessmentCompletionGate {
       }),
       tx.assessmentRule.findMany({
         where: { ruleSetVersionId: pins.ruleSetVersionId },
-        select: { assessmentRuleId: true, assessmentRuleVersion: true },
+        select: {
+          assessmentRuleId: true,
+          assessmentRuleVersion: true,
+          contract: true,
+          legalRequirementLinks: { select: { legalRequirementRowId: true } },
+        },
+      }),
+      tx.legalRequirement.findMany({
+        where: { ruleSetVersionId: pins.ruleSetVersionId },
+        select: {
+          id: true,
+          ruleSetVersionId: true,
+          legalRequirementId: true,
+          coverageState: true,
+          provenance: {
+            orderBy: { ordinal: "asc" },
+            select: {
+              legalSourceVersionId: true,
+              chunkId: true,
+              documentId: true,
+              locator: true,
+              contentSha256: true,
+              sourceEffectStatus: true,
+              chunk: {
+                select: {
+                  legalSourceVersionId: true,
+                  documentId: true,
+                  locator: true,
+                  contentSha256: true,
+                  legalStatus: true,
+                  sourceDocument: {
+                    select: { legalSourceVersionId: true, documentId: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      tx.legalDocumentChunk.findMany({
+        where: { legalSourceVersionId: ruleSet?.legalSourceVersionId ?? "" },
+        select: {
+          id: true,
+          legalSourceVersionId: true,
+          documentId: true,
+          locator: true,
+          contentSha256: true,
+          legalStatus: true,
+        },
       }),
       tx.assessmentDecisionCoverage.findMany({
         where: { assessmentId },
@@ -281,6 +359,19 @@ export class AssessmentCompletionGate {
         ASSESSMENT_COMPLETION_BLOCKER_CODES.RULE_SET_INVALID,
         pins.ruleSetVersionId,
       );
+    }
+    if (ruleSet) {
+      const provenanceFailures = validateLegalProvenance({
+        ruleSetVersionId: pins.ruleSetVersionId,
+        legalSourceVersionId: ruleSet.legalSourceVersionId,
+        source: ruleSet.legalSourceVersion,
+        requirements,
+        rules,
+        ruleChunks,
+      });
+      for (const failure of provenanceFailures) {
+        add(failure.code, failure.reference);
+      }
     }
     if (
       !snapshot ||
@@ -482,9 +573,41 @@ export class AssessmentCompletionGate {
         }
       }
     }
+    if (!ruleSet?.legalSourceVersion) {
+      add(
+        ASSESSMENT_COMPLETION_BLOCKER_CODES.LEGAL_SOURCE_PIN_MISMATCH,
+        pins.ruleSetVersionId,
+      );
+      return this.result(assessment.lifecycleState, blockers, null);
+    }
     const finalizationSnapshot: AssessmentFinalizationSnapshot = {
       caseRevision: assessmentCase.caseRevision,
       pins,
+      legalProvenance: {
+        source: {
+          id: ruleSet.legalSourceVersion.id,
+          version: ruleSet.legalSourceVersion.version,
+          status: ruleSet.legalSourceVersion.status,
+        },
+        requirements: requirements.map((requirement) => ({
+          id: requirement.id,
+          legalRequirementId: requirement.legalRequirementId,
+          coverageState: requirement.coverageState,
+          provenance: requirement.provenance.map((ref) => ({
+            legalSourceVersionId: ref.legalSourceVersionId,
+            chunkId: ref.chunkId,
+            documentId: ref.documentId,
+            locator: ref.locator,
+            contentSha256: ref.contentSha256,
+          })),
+        })),
+        rules: rules.map((rule) => ({
+          assessmentRuleId: rule.assessmentRuleId,
+          legalRequirementRowIds: rule.legalRequirementLinks.map(
+            (link) => link.legalRequirementRowId,
+          ),
+        })),
+      },
       decisions: resolvedDecisions,
       evidence: [...referencedEvidenceIds].sort().flatMap((evidenceId) => {
         const record = evidenceById.get(evidenceId);

@@ -23,6 +23,7 @@ import { GetRuntimeControlHandler } from "./application/queries/get-runtime-cont
 import { GetRootControlHandler } from "./application/queries/get-root-control/get-root-control.handler.js";
 import { ControlAssessmentRuntimeHandler } from "./application/commands/control-assessment-runtime/control-assessment-runtime.handler.js";
 import { AssessmentHumanResolutionController } from "./presentation/http/assessment-human-resolution.controller.js";
+import { AssessmentPdfRenderer } from "./infrastructure/report/assessment-pdf-renderer.service.js";
 
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { AssessmentRuntimeControlService } from "../../platform/runtime-events/assessment-runtime-control.service.js";
@@ -138,6 +139,7 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     GetWorkspaceRuntimeHandler,
     AssessmentDetailLoader,
     AssessmentReportLoader,
+    AssessmentPdfRenderer,
     AssessmentRepositorySetupLoader,
     GetRepositorySetupHandler,
     GetAssessmentReportHandler,

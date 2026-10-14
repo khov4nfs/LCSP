@@ -4,13 +4,13 @@ import {
   ASSESSMENT_EVENTS_PAGE_LIMIT,
   assessmentDetailSchema,
   assessmentEventsPageSchema,
-  assessmentFinalReportArtifactSchema,
   assessmentHumanRequestsResultSchema,
   assessmentRepositorySetupSchema,
   answerAssessmentHumanRequestSchema,
   answerAssessmentHumanRequestResultSchema,
   type AnswerAssessmentHumanRequest,
 } from "@lcsp/contracts/assessment-domain";
+import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 import type { AssessmentEvent } from "@lcsp/contracts/assessment";
 import { apiValidated } from "./api-request";
 
@@ -107,13 +107,16 @@ export function useAnswerHumanRequestMutation(id: string, requestId: string) {
 }
 
 /** The stored final report of one assessment, parsed against the artifact contract. */
-export function useAssessmentReportQuery(id: string, artifactId: string | null) {
+export function useAssessmentReportQuery(
+  id: string,
+  artifactId: string | null,
+) {
   return useQuery({
     queryKey: ["assessment", id, "report", artifactId] as const,
     queryFn: () =>
       apiValidated(
         `/api/assessments/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId ?? "")}/report`,
-        assessmentFinalReportArtifactSchema,
+        assessmentFinalReportArtifactVersionedSchema,
       ),
     enabled: Boolean(id) && artifactId !== null,
   });

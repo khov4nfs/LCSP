@@ -11,6 +11,7 @@ import {
 import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+  ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_EVIDENCE_TYPES,
   ASSESSMENT_DECISION_SCOPE,
@@ -33,6 +34,7 @@ const assessmentId = randomUUID();
 const evidenceId = randomUUID();
 const ruleSetId = randomUUID();
 const snapshotId = randomUUID();
+const legalSourceId = randomUUID();
 const decision = ruleDecisionSchema.parse({
   assessmentRuleId: "ER-1",
   assessmentRuleVersion: "v1",
@@ -70,6 +72,7 @@ function buildHandler(
   options: {
     existingArtifact?: unknown;
     storedContent?: string;
+    storageFailure?: boolean;
   } = {},
 ) {
   const snapshot = {
@@ -90,6 +93,15 @@ function buildHandler(
       },
     ],
     facts: [],
+    legalProvenance: {},
+  };
+  const sourceChunk = {
+    id: "chunk-1",
+    legalSourceVersionId: legalSourceId,
+    documentId: "DOC-1",
+    locator: "article-1",
+    contentSha256: `sha256:${"c".repeat(64)}`,
+    legalStatus: "ACTIVE",
   };
   const findExistingArtifact = jest.fn(() =>
     Promise.resolve(options.existingArtifact ?? null),
@@ -97,6 +109,86 @@ function buildHandler(
   const tx = {
     assessmentArtifact: {
       findUnique: findExistingArtifact,
+      create: jest.fn((_payload: unknown) => {
+        void _payload;
+        return Promise.resolve({});
+      }),
+      update: jest.fn((_payload: unknown) => {
+        void _payload;
+        return Promise.resolve({});
+      }),
+    },
+    complianceRuleSetVersion: {
+      findUnique: () =>
+        Promise.resolve({
+          id: ruleSetId,
+          version: "rules-v1",
+          ruleSetDigest: "d".repeat(64),
+          legalSourceVersion: {
+            id: legalSourceId,
+            version: "source-v1",
+            integrityManifestRef: null,
+          },
+        }),
+    },
+    assessmentRule: {
+      findMany: () =>
+        Promise.resolve([
+          {
+            assessmentRuleId: "ER-1",
+            assessmentRuleVersion: "v1",
+            concept: "Retention",
+            legalIntent: "Records are retained.",
+            applicabilityGuidance: "Applies to the system.",
+            criteria: [{ criterionId: "C-1", statement: "Retention exists." }],
+            contract: {
+              sourceChunkIds: [sourceChunk.id],
+              criteria: [
+                { criterionId: "C-1", statement: "Retention exists." },
+              ],
+            },
+            legalRequirementLinks: [{ legalRequirementRowId: "req-1" }],
+          },
+        ]),
+    },
+    legalRequirement: {
+      findMany: () =>
+        Promise.resolve([
+          {
+            id: "req-1",
+            legalRequirementId: "LR-1",
+            title: "Retention requirement",
+            proposition: "Records are retained.",
+            applicabilityConditions: ["The system stores records."],
+            qualifiers: [],
+            exceptions: [],
+            nonRepositoryDuty: false,
+            coverageState: "COVERED_BY_ASSESSMENT_RULES",
+            provenance: [
+              {
+                legalSourceVersionId: legalSourceId,
+                documentId: sourceChunk.documentId,
+                locator: sourceChunk.locator,
+                contentSha256: sourceChunk.contentSha256,
+              },
+            ],
+          },
+        ]),
+    },
+    legalDocumentChunk: { findMany: () => Promise.resolve([sourceChunk]) },
+    assessmentCaseFact: { findMany: () => Promise.resolve([]) },
+    assessmentEvidence: {
+      findMany: () =>
+        Promise.resolve([
+          {
+            evidenceId,
+            type: ASSESSMENT_EVIDENCE_TYPES.REPOSITORY_SOURCE,
+            state: "ACCEPTED",
+            repositoryCommit: "a".repeat(40),
+            contentSha256: `sha256:${"b".repeat(64)}`,
+            payload: { path: "src/retention.ts", startLine: 1, endLine: 2 },
+          },
+        ]),
     },
   };
   const prisma = {
@@ -130,7 +222,23 @@ function buildHandler(
   const events = {
     appendInTx: jest.fn(),
   } as unknown as AssessmentEventAppender;
-  const writeImmutableArtifact = jest.fn();
+  const writeImmutableArtifact = jest.fn(
+    (artifactId: string, content: string) => {
+      if (options.storageFailure) {
+        return Promise.reject(new Error("storage unavailable"));
+      }
+      const hash = sha256Hex(content);
+      return {
+        manifest: {
+          artifact_id: artifactId,
+          total_size: Buffer.byteLength(content),
+          hash,
+          chunks: [`${hash}.chunk`],
+        },
+        sizeBytes: Buffer.byteLength(content),
+      };
+    },
+  );
   const readAndReconstruct = jest.fn(() =>
     Promise.resolve(options.storedContent ?? ""),
   );
@@ -215,6 +323,46 @@ describe("SubmitAssessmentFinalReportHandler", () => {
       expect(tx.assessmentArtifact.findUnique).toHaveBeenCalledTimes(1);
     },
   );
+
+  it("persists a V2 artifact only after canonical assembly", async () => {
+    const { handler, writeImmutableArtifact, tx } = buildHandler();
+    const result = await handler.execute(
+      new SubmitAssessmentFinalReportCommand(
+        assessmentId,
+        randomUUID(),
+        requestFor({}),
+        randomUUID(),
+      ),
+    );
+
+    expect(result.replayed).toBe(false);
+    expect(result.lifecycleState).toBe(ASSESSMENT_LIFECYCLE_STATES.COMPLETE);
+    expect(writeImmutableArtifact).toHaveBeenCalledTimes(1);
+    expect(tx.assessmentArtifact.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          schemaVersion: ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
+        }),
+      }),
+    );
+  });
+
+  it("does not create or activate an artifact when immutable storage fails", async () => {
+    const { handler, tx } = buildHandler({ storageFailure: true });
+
+    await expect(
+      handler.execute(
+        new SubmitAssessmentFinalReportCommand(
+          assessmentId,
+          randomUUID(),
+          requestFor({}),
+          randomUUID(),
+        ),
+      ),
+    ).rejects.toThrow("storage unavailable");
+    expect(tx.assessmentArtifact.create).not.toHaveBeenCalled();
+    expect(tx.assessmentArtifact.update).not.toHaveBeenCalled();
+  });
 
   it("rejects unresolved text while replaying an immutable artifact", async () => {
     const request = requestFor({
