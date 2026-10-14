@@ -27,6 +27,7 @@ from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.logging import get_logger
 
 from deepagents import GeneralPurposeSubagentProfile, HarnessProfile, create_deep_agent
+from rule_set_preparation.draft_history import DraftHistoryMiddleware
 from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
 from rule_set_preparation.legal_source_reader import legal_source_reader_subagent
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
@@ -70,15 +71,24 @@ class PreparationCompletionMiddleware(AgentMiddleware):
             "validationOutcome": outcome,
             "submissionAttempted": any(t.get("tool") == "submit" for t in context.trace),
         })
+        text = response.content if isinstance(response.content, str) else "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block) for block in response.content
+        )
+        metadata = response.response_metadata or {}
         logger.info("RULE_SET_PREPARATION_CONTINUING", run_id=context.run_id,
-                    validation_calls=context.validation_calls, validation_outcome=outcome)
+                    validation_calls=context.validation_calls, validation_outcome=outcome,
+                    stop_reason=metadata.get("stop_reason") or metadata.get("finish_reason"),
+                    output_tokens=(response.usage_metadata or {}).get("output_tokens"),
+                    text_chars=len(text), text_head=" ".join(text.split())[:300])
         return {
             "messages": [HumanMessage(content=(
                 "Preparation is not finished. Continue the same pinned-source work and preserve "
-                "your existing reading and packet. Use actual tool calls, not tool-call text in "
-                "an assistant response: validate_compliance_rule_set until PASSED, then submit "
-                "the exact validated packet once. If the pinned source is truly unreadable or "
-                "its pins inconsistent, use report_rule_set_source_blocked instead."
+                "your existing reading and draft. Use actual tool calls, not tool-call text in "
+                "an assistant response: add_to_packet_draft for the next part, "
+                "validate_compliance_rule_set until PASSED, then submit_compliance_rule_set once "
+                "for the exact validated draft. There is no length limit. If the pinned source "
+                "is truly unreadable or its pins inconsistent, use report_rule_set_source_blocked "
+                "instead."
             ))],
             "jump_to": "model",
         }
@@ -168,10 +178,16 @@ def create_rule_set_preparation_agent(
             middleware=[
                 read_only,
                 PreparationCompletionMiddleware(context),
+                DraftHistoryMiddleware(),
                 AgentRoleMiddleware(RULE_SET_PREPARATION_ROLE),
                 *MODEL_GOVERNANCE_MIDDLEWARE,
             ],
             subagents=[legal_source_reader_subagent(model=model, backend=backend)],
-            checkpointer=checkpointer,
+            # False, not None: None would inherit the Agent Server run's Postgres checkpointer, and
+            # nothing resumes this claim-once run from those checkpoints. Each superstep of every
+            # middleware hook queued a put on an 8-thread pool whose first put waits on writes queued
+            # behind it, which deadlocked the whole run silently (py-spy: all 8 workers in
+            # _checkpointer_put_after_previous) and filled the database with 100k-token states.
+            checkpointer=False if checkpointer is None else checkpointer,
             store=store,
         ).with_config(agent_graph_config())

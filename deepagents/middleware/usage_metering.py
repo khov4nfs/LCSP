@@ -205,23 +205,55 @@ def check_request_context(request: Any, model: Any) -> "RequestMetrics":
     return metrics
 
 
-def bounded_model(model: Any) -> Any:
-    """Cap output at the route's ``max_output_tokens`` profile value or the code default."""
-    if not hasattr(model, "bind"):
-        return model
+def output_token_limit(model: Any) -> int:
+    """The route's ``max_output_tokens`` profile value or the code default."""
     profile = getattr(model, "profile", None)
     declared = (
         profile.get("max_output_tokens")
         if isinstance(profile, dict)
         else getattr(profile, "max_output_tokens", None)
     )
-    limit = declared if isinstance(declared, int) and declared > 0 else DEFAULT_MAX_OUTPUT_TOKENS
+    return declared if isinstance(declared, int) and declared > 0 else DEFAULT_MAX_OUTPUT_TOKENS
+
+
+def response_shape(response: Any) -> list[dict[str, Any]]:
+    """Structure of the answer(s) in a model response (names, sizes, stop reason); never argument values."""
+    shapes = []
+    for message in getattr(response, "result", None) or ():
+        if getattr(message, "type", None) != "ai":
+            continue
+        metadata = message.response_metadata or {}
+        content = message.content
+        text = content if isinstance(content, str) else "".join(
+            block.get("text", "") for block in content if isinstance(block, dict)
+        )
+        shapes.append({
+            "stop": metadata.get("stop_reason") or metadata.get("finish_reason"),
+            "output_tokens": (message.usage_metadata or {}).get("output_tokens"),
+            "text_chars": len(text),
+            "calls": [
+                {"name": call["name"], "arg_keys": sorted(call["args"]), "arg_chars": len(json.dumps(call["args"]))}
+                for call in message.tool_calls
+            ],
+            "invalid": [
+                {"name": call.get("name"), "arg_chars": len(call.get("args") or ""), "error": str(call.get("error"))[:120]}
+                for call in message.invalid_tool_calls
+            ],
+        })
+    return shapes
+
+
+def output_cap_settings(model: Any) -> dict[str, int]:
+    """The per-call output ceiling as native model settings.
+
+    LangChain forwards ``request.model_settings`` through ``bind_tools``/``bind``. A bare
+    ``model.bind(max_tokens=...)`` is dropped by ``bind_tools``, so a cap bound that way never
+    reached the provider and the SDK's own default (4096 for an unknown Anthropic model id) won.
+    """
     provider, _ = provider_identity(model, None)
     protocol = model_protocol(model) or provider.lower()
-    parameter = "max_output_tokens" if protocol in {"openai", "google_genai"} else "max_tokens"
-    bound_model = model.bind(**{parameter: limit})
-    route = model_route_config(model)
-    return attach_model_route(bound_model, route) if route is not None else bound_model
+    parameter = "max_output_tokens" if protocol == "google_genai" else "max_tokens"
+    return {parameter: output_token_limit(model)}
 
 
 @dataclass(frozen=True)
@@ -732,11 +764,17 @@ class UsageMeteringMiddleware(AgentMiddleware):
         )
         logger.info("MODEL_REQUEST_DIAGNOSTIC", **_request_shape_diagnostic(request, model))
         check_agent_execution_active()
-        # Keep the original candidate for identity/usage: bind() returns a
-        # RunnableBinding that no longer exposes provider identity.
+        # The request keeps its original model for identity/usage; the cap travels as model settings.
         if hasattr(request, "override"):
-            request = request.override(model=bounded_model(model))
+            settings = {**output_cap_settings(model), **(getattr(request, "model_settings", None) or {})}
+            request = request.override(model_settings=settings)
         return request, model
+
+    @staticmethod
+    def _log_response(response, model) -> None:
+        provider, name = provider_identity(model)
+        logger.info("MODEL_RESPONSE_DIAGNOSTIC", provider=provider.lower(), model=name,
+                    agent_role=active_agent_role(), answers=response_shape(response))
 
     def _record(self, response, model, invocation_id: str) -> None:
         state = active_agent_run_state()
@@ -758,6 +796,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
                 telemetry.cancel()
             raise
+        self._log_response(response, model)
         telemetry.complete(response, invocation_id=invocation_id)
         return response
 
@@ -778,6 +817,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
                 telemetry.cancel()
             raise
+        self._log_response(response, model)
         telemetry.complete(response, invocation_id=invocation_id)
         return response
 

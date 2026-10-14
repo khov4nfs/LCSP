@@ -219,6 +219,16 @@ def test_options_pass_through_and_adapter_transport_wins(monkeypatch, set_model_
     assert "context_window_tokens" not in seen["kw"]
 
 
+def test_output_cap_option_builds_a_profile_without_a_context_window(monkeypatch, set_model_routes):
+    """Production: a route declaring only max_output_tokens silently kept the 4096 code default."""
+    cfg = base_cfg()
+    cfg["routes"]["a"]["options"] = {"max_output_tokens": 64000}
+    set_model_routes(cfg)
+    seen = capture(monkeypatch)
+    mp.resolve_agent_model("root")
+    assert seen["kw"]["profile"] == {"name": "Model-Alpha", "max_output_tokens": 64000}
+
+
 def test_absent_options_inject_no_reasoning_or_profile(monkeypatch, routes):
     seen = capture(monkeypatch)
     mp.resolve_agent_model("narrator")

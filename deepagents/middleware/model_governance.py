@@ -8,6 +8,7 @@ from langchain.agents.middleware import (
     PIIMiddleware,
 )
 import json
+import re
 
 from langchain.agents.middleware import ModelResponse
 from langchain.agents.structured_output import (
@@ -23,13 +24,20 @@ from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.provider_schema import ProviderSchemaCompatibilityMiddleware
 from middleware.token_fallback import TokenFallbackMiddleware
-from middleware.usage_metering import AgentRoleMiddleware, UsageMeteringMiddleware
+from middleware.usage_metering import (
+    AgentRoleMiddleware,
+    UsageMeteringMiddleware,
+    output_token_limit,
+    response_shape,
+)
 from middleware.failure_policy import (
     StructuredOutputRejected,
     MalformedToolCallSample,
     TerminalSchemaError,
     retry_model_error,
 )
+
+from tools.common.capabilities.platform.logging import get_logger
 
 from middleware.redaction import (
     ANTHROPIC_KEY_PATTERN,
@@ -38,6 +46,21 @@ from middleware.redaction import (
     GENERIC_ASSIGNMENT_PATTERN,
     GITHUB_TOKEN_PATTERN,
 )
+
+
+_PYDANTIC_INPUT_VALUE = re.compile(r", input_value=.*?, input_type=", re.DOTALL)
+
+
+def _rejection_detail(response) -> str:
+    """Field paths and error types of the rejected structured output, without its values."""
+    for message in response.result:
+        if isinstance(message, ToolMessage) and isinstance(message.content, str):
+            text = " ".join(_PYDANTIC_INPUT_VALUE.sub(", input_type=", message.content).split())
+            return f": {text[:400]}"
+    return ""
+
+
+logger = get_logger(__name__)
 
 
 class StopSchemaRepairMiddleware(AgentMiddleware):
@@ -50,6 +73,7 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
         # any tool runs so ModelRetry re-samples the same request instead.
         reason = _malformed_tool_call_reason(request, response)
         if reason is not None:
+            logger.warning("MODEL_MALFORMED_TOOL_CALL_SAMPLE", reason=reason, sample=response_shape(response))
             raise MalformedToolCallSample(reason)
         output_format = request.response_format
         if output_format is None or isinstance(output_format, ProviderStrategy):
@@ -62,6 +86,7 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
         if any(isinstance(message, ToolMessage) and message.name in names for message in response.result):
             raise StructuredOutputRejected(
                 "Structured output schema validation failed; automatic repair disabled"
+                + _rejection_detail(response)
             )
         final = next(
             (message for message in reversed(response.result) if isinstance(message, AIMessage)),
@@ -107,10 +132,12 @@ _OUTPUT_CAP_FINISH_REASONS = frozenset({"length", "max_tokens", "MAX_TOKENS"})
 
 
 def _malformed_tool_call_reason(request, response) -> str | None:
+    # A tool that answers invalid arguments itself (``handle_validation_error``) gives the model correction
+    # feedback; discarding its sample would only re-roll a mistake the model can fix with that feedback.
     schemas = {
         tool.name: tool.tool_call_schema
         for tool in (getattr(request, "tools", None) or ())
-        if isinstance(tool, BaseTool)
+        if isinstance(tool, BaseTool) and not tool.handle_validation_error
     }
     for message in response.result:
         if not isinstance(message, AIMessage):
@@ -119,7 +146,9 @@ def _malformed_tool_call_reason(request, response) -> str | None:
             continue
         metadata = message.response_metadata or {}
         finish = metadata.get("finish_reason") or metadata.get("stop_reason")
-        if str(finish) in _OUTPUT_CAP_FINISH_REASONS:
+        # Some gateways (APX) report a truncated answer as ``end_turn``; the used output tokens still show it.
+        used = (message.usage_metadata or {}).get("output_tokens") or 0
+        if str(finish) in _OUTPUT_CAP_FINISH_REASONS or used >= output_token_limit(request.model):
             return "Model output hit the output-token cap while emitting tool calls"
         if message.invalid_tool_calls:
             return "Model emitted unparseable tool-call arguments"
@@ -129,8 +158,13 @@ def _malformed_tool_call_reason(request, response) -> str | None:
                 continue
             try:
                 schema.model_validate(call["args"])
-            except ValidationError:
-                return f"Model emitted invalid arguments for tool {call['name']}"
+            except ValidationError as error:
+                # Field paths and error types only: never the model's argument values.
+                fields = "; ".join(
+                    f"{'.'.join(str(part) for part in item['loc'])}:{item['type']}"
+                    for item in error.errors()[:8]
+                )
+                return f"Model emitted invalid arguments for tool {call['name']} ({fields})"
     return None
 
 
@@ -173,6 +207,11 @@ def _redacting_pii(pii_type: str, detector: str | None = None) -> PIIMiddleware:
     )
 
 
+# Extra samples of one request after a transient or malformed answer. The APX gateway returns
+# `task` calls with empty arguments for roughly half of the samples of the same request, so two
+# retries (three samples) failed a preparation run about one time in four.
+MODEL_RETRIES = 5
+
 # These are framework middleware instances, not a second policy engine. Domain
 # guardrails stay at their deterministic persistence boundaries.
 MODEL_GOVERNANCE_MIDDLEWARE = (
@@ -184,7 +223,7 @@ MODEL_GOVERNANCE_MIDDLEWARE = (
     _redacting_pii("anthropic_key", ANTHROPIC_KEY_PATTERN.pattern),
     _redacting_pii("credential_assignment", GENERIC_ASSIGNMENT_PATTERN.pattern),
     # A synthetic error message has no structured handoff and hides the cause.
-    ModelRetryMiddleware(max_retries=2, on_failure="error", retry_on=retry_model_error),
+    ModelRetryMiddleware(max_retries=MODEL_RETRIES, on_failure="error", retry_on=retry_model_error),
     # Provider fallback wraps same-provider key rotation. A provider is not left
     # until its configured credential pool has been exhausted.
     ProviderFallbackMiddleware(),

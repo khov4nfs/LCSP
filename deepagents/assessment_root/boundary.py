@@ -13,6 +13,7 @@ from tools.common.capabilities.agent_runtime.boundary import (
     AgentBoundaryBase,
     NonRetryableAgentBoundaryError,
 )
+from tools.common.capabilities.platform.graph_runtime import checkpoint_database_url
 
 ASSESSMENT_ROOT_COMMAND = "command.assessment.root.requested.v1"
 ASSESSMENT_ROOT_BOUNDARY_SOURCE = "assessment.root-run"
@@ -50,7 +51,9 @@ def sandbox_backend_factory(claim: dict[str, Any], context: dict[str, Any]):
 @contextlib.contextmanager
 def postgres_checkpointer():
     """Production HITL requires the durable LangGraph checkpointer on the server thread."""
-    url = os.getenv("LANGGRAPH_CHECKPOINT_DATABASE_URL")
+    # The same normalization the Agent Server applies: production shares Prisma's DATABASE_URL, whose
+    # `?schema=public` query parameter libpq/psycopg rejects ("invalid URI query parameter").
+    url = checkpoint_database_url(os.getenv("LANGGRAPH_CHECKPOINT_DATABASE_URL"))
     if not url:
         raise RuntimeError("LANGGRAPH_CHECKPOINT_DATABASE_URL is required for Assessment Root")
     from langgraph.checkpoint.postgres import PostgresSaver

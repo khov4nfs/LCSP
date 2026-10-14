@@ -6,7 +6,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 
 import model_policy as mp
-from middleware.usage_metering import bounded_model
+from middleware.usage_metering import output_cap_settings
 from model_policy import model_route_config
 from provider_credentials import apx_base_url
 
@@ -100,7 +100,7 @@ def test_route_protocol_selects_native_clients_and_canonical_credentials(monkeyp
     assert apx_openai.use_responses_api is False
     assert model_route_config(apx_openai).provider == "apx"
     assert model_route_config(apx_openai).protocol == "openai"
-    assert model_route_config(bounded_model(apx_openai)) == model_route_config(apx_openai)
+    assert output_cap_settings(apx_anthropic) == {"max_tokens": 50}
 
     assert isinstance(direct_anthropic, ChatAnthropic)
     assert direct_anthropic.anthropic_api_key.get_secret_value() == "anthropic-direct"

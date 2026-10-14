@@ -779,6 +779,27 @@ def test_production_root_requires_a_durable_checkpointer(monkeypatch) -> None:
             pass
 
 
+def test_root_checkpointer_drops_the_prisma_schema_query_parameter(monkeypatch) -> None:
+    """Production: the shared DATABASE_URL ends in ?schema=public and psycopg rejected it on the first Root run."""
+    import contextlib
+    from unittest.mock import MagicMock
+
+    from assessment_root.boundary import postgres_checkpointer
+    from langgraph.checkpoint.postgres import PostgresSaver
+
+    monkeypatch.setenv("LANGGRAPH_CHECKPOINT_DATABASE_URL", "postgresql://u:p@db:5432/lcsp?schema=public&sslmode=disable")
+    opened = []
+
+    def fake_from_conn_string(url):
+        opened.append(url)
+        return contextlib.nullcontext(MagicMock())
+
+    monkeypatch.setattr(PostgresSaver, "from_conn_string", staticmethod(fake_from_conn_string))
+    with postgres_checkpointer():
+        pass
+    assert opened == ["postgresql://u:p@db:5432/lcsp?sslmode=disable"]
+
+
 def test_root_stop_uses_native_checkpoint_and_same_execution_resume(tmp_path):
     class ControlledClient(FakeClient):
         def __init__(self):
@@ -866,3 +887,24 @@ def test_stop_arriving_during_model_response_pauses_before_tool_effects(tmp_path
     assert resumed["executionId"] == first["executionId"] == EXECUTION
     assert len(resumed_model.prompts) == 2
     assert sum(kind == "fact" for kind, _ in client.calls) == 1
+
+
+def test_invalid_tool_arguments_come_back_as_feedback_and_do_not_end_the_run(tmp_path) -> None:
+    """A fact cited without evidence is a correction for the Root; it used to end the whole run."""
+    from middleware.model_governance import StopSchemaRepairMiddleware
+
+    client = FakeClient()
+    model = RootScriptedModel(responses=[
+        _call("accept_case_fact", {"kind": "USE_CASE", "statement": "A system.", "evidence_ids": []}, "no-evidence"),
+        *complete_root_messages(),
+    ])
+    backend = FilesystemBackend(root_dir=_repo(tmp_path), virtual_mode=True)
+
+    result = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (backend, None),
+                                 model=model, checkpointer=InMemorySaver(), governance=(StopSchemaRepairMiddleware(),))
+
+    assert result["state"] == "SUCCEEDED"
+    assert not any(kind == "fact" for kind, _ in client.calls)
+    feedback = json.loads(next(m.content for m in model.prompts[1] if getattr(m, "name", None) == "accept_case_fact"))
+    assert feedback["code"] == "INVALID_TOOL_ARGUMENTS"
+    assert feedback["problems"][0].startswith("evidence_ids:")

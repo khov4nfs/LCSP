@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AIMessage
-from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.messages import AIMessage, AIMessageChunk
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from middleware import token_fallback, usage_metering
@@ -73,9 +73,19 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
         message.usage_metadata = {"input_tokens": 3, "output_tokens": 2, "total_tokens": 5}
         return ChatResult(generations=[ChatGeneration(message=message)])
 
-    monkeypatch.setattr(ChatOpenAI, "_generate", generate)
-    monkeypatch.setattr(ChatGoogleGenerativeAI, "_generate", generate)
-    monkeypatch.setattr(ChatAnthropic, "_generate", generate)
+    def stream(model, messages, stop=None, run_manager=None, **kwargs):
+        # The production routes stream: replay the scripted answer as one chunk.
+        message = generate(model, messages, **kwargs).generations[0].message
+        yield ChatGenerationChunk(message=AIMessageChunk(
+            content=message.content, usage_metadata=message.usage_metadata,
+            tool_call_chunks=[{"name": call["name"], "args": json.dumps(call["args"]), "id": call["id"],
+                               "index": index, "type": "tool_call_chunk"}
+                              for index, call in enumerate(message.tool_calls)],
+        ))
+
+    for client in (ChatOpenAI, ChatGoogleGenerativeAI, ChatAnthropic):
+        monkeypatch.setattr(client, "_generate", generate)
+        monkeypatch.setattr(client, "_stream", stream)
     api = FakeApi()
     state = AgentRunState(run_id=RUN_ID, agent_role="rule-set-preparation")
     # Observe the canonical usage port without assigning Preparation usage to a customer assessment.

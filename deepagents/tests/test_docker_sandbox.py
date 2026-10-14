@@ -50,6 +50,8 @@ def test_docker_run_does_not_expose_privileged_host_surfaces() -> None:
     assert "XDG_CACHE_HOME=/workspace/runtime/cache" in rendered
     assert "CBM_CACHE_DIR=/workspace/runtime/codebase-memory" in rendered
     assert "--pids-limit 512" in rendered
+    # The Codebase Memory index of a 3.4k-file repository is 352 MB and is published via a staging copy.
+    assert "/workspace/runtime:rw,nosuid,nodev,mode=1777,size=1024m" in rendered
     assert "--entrypoint bash" in rendered
     assert "/workspace/repository" in rendered
     assert "/workspace/runtime" in rendered
@@ -268,3 +270,26 @@ def test_read_paginates_by_lines_like_the_filesystem_tool_contract(
     (tmp_path / "empty.txt").write_text("")
     assert backend.read("empty.txt").file_data["content"] == ""
     assert "exceeds file length" in backend.read("service.py", offset=99).error
+
+
+def test_large_write_travels_over_stdin_and_stays_exact(tmp_path: Path, monkeypatch) -> None:
+    """A tool result evicted into the sandbox is bigger than one exec argument may be (E2BIG)."""
+    monkeypatch.setattr(docker_sandbox, "REPOSITORY_ROOT", str(tmp_path))
+    argv_sizes: list[int] = []
+
+    def runner(args, input_bytes, timeout):
+        argv_sizes.append(max(len(part) for part in args))
+        if input_bytes is None:
+            return subprocess.run(["bash", "-lc", args[-1]], capture_output=True, timeout=30)
+        assert args[-3:] == ["bash", "-l", "-s"] and "-i" in args
+        return subprocess.run(["bash", "-l", "-s"], input=input_bytes, capture_output=True, timeout=30)
+
+    backend = DockerSandboxBackend(DockerSandboxSpec("thread-large"), runner=runner)
+    backend.ensure_running = lambda: None
+    content = "rule text ✓\n" * 40_000  # ~520 KB, ~700 KB once base64-encoded
+
+    result = backend.write("/large_tool_results/call-1", content)
+
+    assert result.error is None
+    assert (tmp_path / "large_tool_results" / "call-1").read_text(encoding="utf-8") == content
+    assert max(argv_sizes) < docker_sandbox.ARGV_COMMAND_LIMIT

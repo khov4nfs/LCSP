@@ -251,7 +251,7 @@ def test_invalid_source_blocking_signal_does_not_end_preparation(tmp_path: Path,
 def test_only_the_exact_passed_packet_can_be_submitted_once() -> None:
     api = FakeApi()
     context = RuleSetPreparationContext(RUN_ID, api)
-    validate, submit, _ = build_rule_set_tools(context)
+    validate, submit = build_rule_set_tools(context)[:2]
     packet = _packet()
     assert "error" in submit.invoke({"packet": packet})
     assert api.names() == []
@@ -274,7 +274,7 @@ def test_failed_revalidation_revokes_previous_packet_pass() -> None:
 
     api = ChangedValidationApi()
     context = RuleSetPreparationContext(RUN_ID, api)
-    validate, submit, _ = build_rule_set_tools(context)
+    validate, submit = build_rule_set_tools(context)[:2]
     validate.invoke({"packet": _packet()})
     validate.invoke({"packet": _packet()})
     assert "error" in submit.invoke({"packet": _packet()})
@@ -282,8 +282,10 @@ def test_failed_revalidation_revokes_previous_packet_pass() -> None:
     assert context.submission is None
 
 
-@pytest.mark.parametrize("source_blocked", [False, True])
-def test_validation_failed_then_normal_stop_is_observable_and_not_terminal(tmp_path: Path, source_blocked: bool) -> None:
+@pytest.mark.parametrize("gives_up_with_source_blocked", [False, True])
+def test_validation_failed_then_normal_stop_is_observable_and_not_terminal(
+    tmp_path: Path, gives_up_with_source_blocked: bool
+) -> None:
     class ValidationFeedbackApi(FakeApi):
         def validate_compliance_rule_set(self, run_id, packet):
             self.calls.append(("validate", (run_id, packet)))
@@ -293,12 +295,13 @@ def test_validation_failed_then_normal_stop_is_observable_and_not_terminal(tmp_p
     model = _model([
         _call("validate_compliance_rule_set", {"packet": _packet()}, "invalid"),
         AIMessage(content="Validation failed."),
-        *([_call("report_rule_set_source_blocked", {"reason": "SOURCE_PINS_INCONSISTENT", "path": INDEX_PATH}, "blocked")]
-          if source_blocked else [
-              _call("validate_compliance_rule_set", {"packet": _packet()}, "passed"),
-              _call("submit_compliance_rule_set", {"packet": _packet()}, "submit"),
-              AIMessage(content="submitted"),
-          ]),
+        # Production run ea411318: validation feedback is not an unreadable source. The intact tree
+        # refutes the claim, so the run keeps going to a validated submission.
+        *([_call("report_rule_set_source_blocked", {"reason": "SOURCE_UNREADABLE", "path": INDEX_PATH}, "blocked")]
+          if gives_up_with_source_blocked else []),
+        _call("validate_compliance_rule_set", {"packet": _packet()}, "passed"),
+        _call("submit_compliance_rule_set", {"packet": _packet()}, "submit"),
+        AIMessage(content="submitted"),
     ])
     contexts = []
     create = runner.create_rule_set_preparation_agent
@@ -314,9 +317,6 @@ def test_validation_failed_then_normal_stop_is_observable_and_not_terminal(tmp_p
     assert continuation["validationCalls"] == 1
     assert continuation["validationOutcome"] == "FAILED"
     assert continuation["submissionAttempted"] is False
-    if source_blocked:
-        assert result["failureReason"] == runner.NO_SUBMISSION
-        assert api.names() == ["claim", "validate", "fail"]
-    else:
-        assert result["state"] == "SUCCEEDED"
-        assert api.names() == ["claim", "validate", "validate", "submit"]
+    assert result["state"] == "SUCCEEDED"
+    assert api.names() == ["claim", "validate", "validate", "submit"]
+    assert contexts[0].source_blocked is None
