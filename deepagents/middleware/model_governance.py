@@ -132,10 +132,12 @@ _OUTPUT_CAP_FINISH_REASONS = frozenset({"length", "max_tokens", "MAX_TOKENS"})
 
 
 def _malformed_tool_call_reason(request, response) -> str | None:
+    # A tool that answers invalid arguments itself (``handle_validation_error``) gives the model correction
+    # feedback; discarding its sample would only re-roll a mistake the model can fix with that feedback.
     schemas = {
         tool.name: tool.tool_call_schema
         for tool in (getattr(request, "tools", None) or ())
-        if isinstance(tool, BaseTool)
+        if isinstance(tool, BaseTool) and not tool.handle_validation_error
     }
     for message in response.result:
         if not isinstance(message, AIMessage):

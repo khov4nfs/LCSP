@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import replace
+import traceback
 import uuid
 from typing import Any, Callable
 
@@ -225,7 +226,8 @@ def run_assessment_root(
             error_type=error_type,
             error_message=str(error)[:300],
             assessment_id=assessment_id,
-            exc_info=True,
+            # Plain frames only: a rich traceback would print local variables such as the lease token.
+            error_traceback="".join(traceback.format_exception(error))[-2500:],
         )
     if final_state == EXECUTION_INTERRUPTED:
         client.finish(final_state, checkpoint_id=checkpoint_id, request_ids=request_ids)

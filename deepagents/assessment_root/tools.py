@@ -20,7 +20,7 @@ from typing import Any, Literal
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.tools import StructuredTool
 from langgraph.types import interrupt
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from assessment_root.client import AssessmentApiError, AssessmentRuntimeClient
 from assessment_root.learning import retrieve_shared_heuristics
@@ -311,6 +311,24 @@ def _failure(error: AssessmentApiError) -> dict[str, Any]:
         if not error.retryable
         else "Transient server error; retry the same call.",
     }
+
+
+def _validation_feedback(error: ValidationError) -> str:
+    """Rejected arguments are correction feedback, like a DecisionValidator rejection, not a failed run.
+
+    Field paths and messages only, never the model's argument values.
+    """
+    problems = [f"{'.'.join(str(part) for part in item['loc'])}: {item['msg']}" for item in error.errors()[:8]]
+    return json.dumps(
+        {
+            "ok": False,
+            "code": "INVALID_TOOL_ARGUMENTS",
+            "retryable": False,
+            "problems": problems,
+            "hint": "Correct the listed arguments (cite evidence or reload context first when one is missing) and call the tool again.",
+        },
+        ensure_ascii=False,
+    )
 
 
 def _guard(call):
@@ -711,6 +729,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
             description=(func.__doc__ or name).strip(),
             args_schema=schema,
             infer_schema=schema is None,
+            handle_validation_error=_validation_feedback,
         )
 
     class _NoArgs(_Args):

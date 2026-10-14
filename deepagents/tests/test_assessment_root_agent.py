@@ -887,3 +887,24 @@ def test_stop_arriving_during_model_response_pauses_before_tool_effects(tmp_path
     assert resumed["executionId"] == first["executionId"] == EXECUTION
     assert len(resumed_model.prompts) == 2
     assert sum(kind == "fact" for kind, _ in client.calls) == 1
+
+
+def test_invalid_tool_arguments_come_back_as_feedback_and_do_not_end_the_run(tmp_path) -> None:
+    """A fact cited without evidence is a correction for the Root; it used to end the whole run."""
+    from middleware.model_governance import StopSchemaRepairMiddleware
+
+    client = FakeClient()
+    model = RootScriptedModel(responses=[
+        _call("accept_case_fact", {"kind": "USE_CASE", "statement": "A system.", "evidence_ids": []}, "no-evidence"),
+        *complete_root_messages(),
+    ])
+    backend = FilesystemBackend(root_dir=_repo(tmp_path), virtual_mode=True)
+
+    result = run_assessment_root(client, ASSESSMENT, backend_factory=lambda *_: (backend, None),
+                                 model=model, checkpointer=InMemorySaver(), governance=(StopSchemaRepairMiddleware(),))
+
+    assert result["state"] == "SUCCEEDED"
+    assert not any(kind == "fact" for kind, _ in client.calls)
+    feedback = json.loads(next(m.content for m in model.prompts[1] if getattr(m, "name", None) == "accept_case_fact"))
+    assert feedback["code"] == "INVALID_TOOL_ARGUMENTS"
+    assert feedback["problems"][0].startswith("evidence_ids:")
