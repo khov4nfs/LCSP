@@ -216,8 +216,16 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
         if tool.name == "report_rule_set_source_blocked":
             assert schema["properties"]["reason"]["enum"] == ["SOURCE_UNREADABLE", "SOURCE_PINS_INCONSISTENT"]
             continue
-        packet = schema["properties"]["packet"]
-        assert set(packet["required"]) == {"legalRequirements", "assessmentRules", "contextRelations"}
+        if tool.name == "remove_from_packet_draft":
+            continue
+        if tool.name in {"validate_compliance_rule_set", "submit_compliance_rule_set"}:
+            # The item contracts are carried once, by the draft tool; the packet argument is optional.
+            assert "required" not in schema and schema["properties"]["packet"]["type"] == "object"
+            assert "properties" not in schema["properties"]["packet"]
+            continue
+        # A draft part carries the very same item contracts as a packet, with every section optional.
+        assert tool.name == "add_to_packet_draft" and "required" not in schema
+        packet = {"properties": schema["properties"]}
         assert "Operative duties, prohibitions or permissions only" in packet["properties"]["legalRequirements"]["description"]
         assert "Source coverage does not require a LegalRequirement for every provision" in packet["properties"]["legalRequirements"]["description"]
         legal = packet["properties"]["legalRequirements"]["items"]
@@ -312,8 +320,8 @@ def test_managed_agent_serializes_gemini_nullable_tools_without_rewriting_packet
     def generate(model, messages, stop=None, run_manager=None, **kwargs):
         prepared = model._prepare_request(messages, stop=stop, **kwargs)
         declarations = [d for t in prepared["config"].tools for d in t.function_declarations or []]
-        rule_set = next(d for d in declarations if d.name == "submit_compliance_rule_set")
-        reason = rule_set.parameters.properties["packet"].properties["legalRequirements"].items.properties["coverage"].properties["nonAssessableReason"]
+        rule_set = next(d for d in declarations if d.name == "add_to_packet_draft")
+        reason = rule_set.parameters.properties["legalRequirements"].items.properties["coverage"].properties["nonAssessableReason"]
         assert any(branch.type.value == "NULL" for branch in reason.any_of or [])
         calls.append(prepared)
         return ChatResult(generations=[ChatGeneration(message=responses[len(calls) - 1])])
@@ -396,16 +404,81 @@ def test_packet_graph_400_feedback_reaches_model_and_can_be_corrected(tmp_path: 
     assert api.calls[-1][1][-1] == corrected
 
 
-def test_no_submission_is_recorded_as_failed(tmp_path: Path) -> None:
-    model = _model([_call("report_rule_set_source_blocked", {
-        "reason": "SOURCE_PINS_INCONSISTENT", "path": INDEX_PATH,
-    }, "blocked")])
+def test_no_submission_is_recorded_as_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from rule_set_preparation import runner
+
+    real = runner.materialize_legal_source
+
+    def materialize_then_lose_a_chunk(bundle: dict[str, Any], root: Path) -> list[str]:
+        paths = real(bundle, root)
+        (root / paths[1].lstrip("/")).unlink()  # the pinned chunk really becomes unreadable
+        return paths
+
+    monkeypatch.setattr(runner, "materialize_legal_source", materialize_then_lose_a_chunk)
+    blocked = {"reason": "SOURCE_UNREADABLE", "path": "/legal-source/SYNTHETIC-NOTICE-INSTRUMENT/art-1__cl-1.md"}
+    model = _model([_call("report_rule_set_source_blocked", blocked, "blocked")])
     api = FakeApi()
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
     assert result["state"] == "FAILED" and result["submission"] is None
     assert result["failureReason"] == NO_SUBMISSION
-    assert result["trace"] == [{"tool": "source_blocked", "reason": "SOURCE_PINS_INCONSISTENT", "path": INDEX_PATH}]
+    assert result["trace"] == [{"tool": "source_blocked", **blocked}]
     assert api.calls[-1] == ("fail", (RUN_ID, NO_SUBMISSION))
+
+
+def _source_block_tool(tmp_path: Path) -> tuple[Any, RuleSetPreparationContext, list[str]]:
+    paths = materialize_legal_source(_bundle(), tmp_path)
+    context = RuleSetPreparationContext(run_id=RUN_ID, api=FakeApi(), source_root=tmp_path)
+    tool = next(t for t in build_rule_set_tools(context) if t.name == "report_rule_set_source_blocked")
+    return tool, context, paths
+
+
+@pytest.mark.parametrize("reason", ["SOURCE_UNREADABLE", "SOURCE_PINS_INCONSISTENT"])
+def test_source_block_claim_on_an_intact_pinned_source_is_refuted(tmp_path: Path, reason: str) -> None:
+    """Production run ea411318: a model gave up after failed validation with SOURCE_UNREADABLE on a readable INDEX."""
+    tool, context, paths = _source_block_tool(tmp_path)
+    for path in (INDEX_PATH, paths[1]):
+        result = json.loads(tool.invoke({"reason": reason, "path": path}))
+        assert "Source-blocking refused" in result["error"] and "sourceBlocked" not in result
+    assert context.source_blocked is None
+    assert [t["outcome"] for t in context.trace] == ["REFUTED", "REFUTED"]
+
+
+def test_source_block_claim_for_a_path_the_index_does_not_pin_is_refuted(tmp_path: Path) -> None:
+    tool, context, _ = _source_block_tool(tmp_path)
+    result = json.loads(tool.invoke({"reason": "SOURCE_UNREADABLE", "path": "/legal-source/other/missing.md"}))
+    assert "not a pinned source file" in result["error"] and context.source_blocked is None
+
+
+def test_source_block_claim_is_honored_when_the_pinned_source_is_really_broken(tmp_path: Path) -> None:
+    tool, context, paths = _source_block_tool(tmp_path)
+    (tmp_path / paths[2].lstrip("/")).write_text("documentId: other\nlocator: x\ncontentSha256: sha256:0\n---\nbody\n")
+    claim = {"reason": "SOURCE_PINS_INCONSISTENT", "path": paths[2]}
+    assert json.loads(tool.invoke(claim)) == {"sourceBlocked": claim}
+    assert context.source_blocked == claim
+
+    tool, context, paths = _source_block_tool(tmp_path / "unreadable")
+    (tmp_path / "unreadable" / paths[1].lstrip("/")).unlink()
+    claim = {"reason": "SOURCE_UNREADABLE", "path": paths[1]}
+    assert json.loads(tool.invoke(claim)) == {"sourceBlocked": claim}
+
+    tool, context, _ = _source_block_tool(tmp_path / "no-index")
+    (tmp_path / "no-index" / INDEX_PATH.lstrip("/")).unlink()
+    assert json.loads(tool.invoke({"reason": "SOURCE_UNREADABLE", "path": INDEX_PATH})) == {"sourceBlocked": {"reason": "SOURCE_UNREADABLE", "path": INDEX_PATH}}
+
+
+def test_refuted_source_block_does_not_end_the_run_and_the_packet_is_still_submitted(tmp_path: Path) -> None:
+    packet = _packet()
+    model = _model([
+        _call("validate_compliance_rule_set", {"packet": packet}, "validate"),
+        _call("report_rule_set_source_blocked", {"reason": "SOURCE_UNREADABLE", "path": INDEX_PATH}, "blocked"),
+        _call("submit_compliance_rule_set", {"packet": packet}, "submit"),
+        AIMessage(content="DONE"),
+    ])
+    api = FakeApi()
+    result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+    assert result["state"] == "SUCCEEDED" and result["failureReason"] is None
+    assert api.names() == ["claim", "validate", "submit"]
+    assert "Source-blocking refused" in json.loads(_tool_messages(model)["blocked"].content)["error"]
 
 
 def test_model_error_and_claim_failure_are_recorded(tmp_path: Path) -> None:
@@ -606,3 +679,174 @@ def test_instructions_require_general_semantic_completeness_before_validation() 
         "seven days", "temporary test record", "notice text",
     ):
         assert fixture_detail not in text
+
+
+def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_each(tmp_path: Path) -> None:
+    """Production: 400+ INCOMPLETE_SOURCE_COVERAGE failures were returned one by one, ~15k tokens of noise."""
+    failures = [{"code": "INCOMPLETE_SOURCE_COVERAGE", "ref": f"locator:{DOC}::art-{n}::cl-1", "detail": None}
+                for n in range(1, 4)]
+    failures.append({"code": "SOURCE_HASH_MISMATCH", "ref": "legalRequirement:LR-RET", "detail": None})
+
+    class CoverageApi(FakeApi):
+        def validate_compliance_rule_set(self, run_id, packet):
+            self.calls.append(("validate", (run_id, packet)))
+            return {"outcome": "FAILED", "failures": failures}
+
+    context = RuleSetPreparationContext(run_id=RUN_ID, api=CoverageApi(), source_root=tmp_path)
+    tool = next(t for t in build_rule_set_tools(context) if t.name == "validate_compliance_rule_set")
+    seen = json.loads(tool.invoke({"packet": _packet()}))
+    assert seen["failures"] == [failures[-1]]
+    assert seen["uncoveredProvisions"]["count"] == 3
+    assert seen["uncoveredProvisions"]["locatorsByDocumentId"] == {DOC: ["art-1::cl-1", "art-2::cl-1", "art-3::cl-1"]}
+    assert context.last_validation["failures"] == failures  # the run keeps the full API result
+
+
+def test_instructions_require_covering_the_whole_source_in_one_large_packet() -> None:
+    from rule_set_preparation.agent import INSTRUCTIONS
+
+    text = " ".join(INSTRUCTIONS.split())
+    assert "## Coverage of the whole pinned source" in text
+    assert "every non-repealed leaf provision to be referenced" in text
+    assert "Never stop, summarise or say that the volume is too large" in text
+    assert "add exactly those provisions" in text and "`uncoveredProvisions`" in text
+
+
+def _draft_tools(api: FakeApi | None = None) -> tuple[RuleSetPreparationContext, dict[str, Any]]:
+    context = RuleSetPreparationContext(run_id=RUN_ID, api=api or FakeApi())
+    return context, {tool.name: tool for tool in build_rule_set_tools(context)}
+
+
+def test_a_large_rule_set_is_authored_in_parts_validated_and_submitted_without_resending_it() -> None:
+    packet = _packet()
+    api = FakeApi()
+    context, tools = _draft_tools(api)
+    add, validate, submit = (tools[n] for n in
+                             ("add_to_packet_draft", "validate_compliance_rule_set", "submit_compliance_rule_set"))
+
+    assert "error" in json.loads(validate.invoke({}))  # an empty draft is not a packet
+    first = json.loads(add.invoke({"legalRequirements": packet["legalRequirements"]}))
+    assert first["added"]["legalRequirements"] == 1 and first["replaced"] == 0
+    add.invoke({"assessmentRules": packet["assessmentRules"], "contextRelations": packet["contextRelations"]})
+    assert context.draft_counts() == {"legalRequirements": 1, "assessmentRules": 1, "contextRelations": 1}
+
+    assert json.loads(validate.invoke({}))["outcome"] == "PASSED"
+    assert api.calls[-1] == ("validate", (RUN_ID, packet))  # the API sees the complete assembled packet
+    assert json.loads(submit.invoke({}))["lifecycleState"] == "ACTIVE"
+    assert api.calls[-1] == ("submit", (RUN_ID, f"rule-set-preparation-submit-{RUN_ID}", packet))
+    assert context.submission is not None
+
+
+def test_draft_items_are_replaced_by_label_and_any_edit_revokes_a_pass() -> None:
+    packet = _packet()
+    context, tools = _draft_tools()
+    add, remove = tools["add_to_packet_draft"], tools["remove_from_packet_draft"]
+    validate, submit = tools["validate_compliance_rule_set"], tools["submit_compliance_rule_set"]
+    add.invoke(packet)
+    assert json.loads(validate.invoke({}))["outcome"] == "PASSED"
+
+    corrected = {**packet["legalRequirements"][0], "title": "Retention (corrected)"}
+    result = json.loads(add.invoke({"legalRequirements": [corrected]}))
+    assert result["replaced"] == 1 and result["draft"]["legalRequirements"] == 1
+    assert context.draft["legalRequirements"]["LR-RET"]["title"] == "Retention (corrected)"
+    assert "error" in json.loads(submit.invoke({}))  # the earlier PASS no longer describes the draft
+    assert context.submission is None
+    assert json.loads(validate.invoke({}))["outcome"] == "PASSED"
+
+
+def test_only_items_named_by_the_latest_validation_failures_can_be_removed() -> None:
+    """Production: a model that saw 14 stale hashes deleted all 73 relations, then all 23 requirements."""
+    packet = _packet()
+
+    class RelationFailure(FakeApi):
+        def validate_compliance_rule_set(self, run_id, packet):
+            return {"outcome": "FAILED", "failures": [
+                {"code": "STALE_SOURCE_HASH", "ref": f"relation:REL-1|locator:{DOC}::art-2::cl-1", "detail": "x"}]}
+
+    context, tools = _draft_tools(RelationFailure())
+    add, remove, validate = (tools[n] for n in
+                             ("add_to_packet_draft", "remove_from_packet_draft", "validate_compliance_rule_set"))
+    add.invoke(packet)
+    refused = json.loads(remove.invoke({"legalRequirementIds": ["LR-RET"], "relationIds": ["REL-1"]}))
+    assert refused["refused"] == ["LR-RET", "REL-1"] and "why" in refused  # nothing was validated yet
+    assert context.draft_counts() == {"legalRequirements": 1, "assessmentRules": 1, "contextRelations": 1}
+
+    validate.invoke({})
+    removed = json.loads(remove.invoke({"legalRequirementIds": ["LR-RET"], "relationIds": ["REL-1", "REL-missing"]}))
+    assert removed["removed"] == {"legalRequirements": 0, "assessmentRules": 0, "contextRelations": 1}
+    assert removed["refused"] == ["LR-RET"] and removed["unknownLabels"] == ["REL-missing"]
+    assert context.draft_counts() == {"legalRequirements": 1, "assessmentRules": 1, "contextRelations": 0}
+
+
+def test_draft_items_without_a_label_are_rejected_and_nothing_is_added() -> None:
+    packet = _packet()
+    context, tools = _draft_tools()
+    nameless = {k: v for k, v in packet["legalRequirements"][0].items() if k != "legalRequirementId"}
+    result = json.loads(tools["add_to_packet_draft"].invoke(
+        {"legalRequirements": [packet["legalRequirements"][0], nameless]}))
+    assert "Nothing was added" in result["error"] and "legalRequirements[1]" in result["error"]
+    assert context.draft_counts() == {"legalRequirements": 0, "assessmentRules": 0, "contextRelations": 0}
+
+
+def test_a_packet_assembled_from_the_draft_is_what_an_agent_run_submits(tmp_path: Path) -> None:
+    packet = _packet()
+    model = _model([
+        _call("add_to_packet_draft", {"legalRequirements": packet["legalRequirements"]}, "add-1"),
+        _call("add_to_packet_draft", {"assessmentRules": packet["assessmentRules"],
+                                      "contextRelations": packet["contextRelations"]}, "add-2"),
+        _call("validate_compliance_rule_set", {}, "validate"),
+        _call("submit_compliance_rule_set", {}, "submit"),
+        AIMessage(content="DONE"),
+    ])
+    api = FakeApi()
+    result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
+    assert result["state"] == "SUCCEEDED"
+    assert api.names() == ["claim", "validate", "submit"]
+    assert api.calls[1][1][1] == api.calls[2][1][2] == packet
+
+
+def test_stale_hash_feedback_names_the_pinned_identity_so_the_item_is_corrected_not_deleted(tmp_path: Path) -> None:
+    paths = materialize_legal_source(_bundle(), tmp_path)
+    expected = _sha("Records must be retained for five years.")
+    failures = [{"code": "STALE_SOURCE_HASH", "ref": f"legalRequirement:LR-RET|locator:{DOC}::art-1::cl-1",
+                 "detail": "declared hash does not match the pinned legalSource content"},
+                {"code": "STALE_SOURCE_HASH", "ref": f"legalRequirement:LR-X|locator:{DOC}::unknown",
+                 "detail": "declared hash does not match the pinned legalSource content"}]
+
+    class StaleApi(FakeApi):
+        def validate_compliance_rule_set(self, run_id, packet):
+            return {"outcome": "FAILED", "failures": failures}
+
+    context = RuleSetPreparationContext(run_id=RUN_ID, api=StaleApi(), source_root=tmp_path)
+    tool = next(t for t in build_rule_set_tools(context) if t.name == "validate_compliance_rule_set")
+    seen = json.loads(tool.invoke({"packet": _packet()}))["failures"]
+    assert seen[0]["expectedContentSha256"] == expected
+    assert "expectedContentSha256" not in seen[1]  # a locator the INDEX does not pin gets no invented hash
+    assert paths[0] == INDEX_PATH
+
+
+def test_an_unknown_tool_argument_is_ignored_instead_of_crashing_the_run() -> None:
+    """Production: mercury-2.5 sent `note` to add_to_packet_draft; the TypeError ended the whole preparation."""
+    packet = _packet()
+    context, tools = _draft_tools()
+    result = tools["add_to_packet_draft"].invoke({"legalRequirements": packet["legalRequirements"], "note": "x"})
+    assert json.loads(result)["added"]["legalRequirements"] == 1
+    assert json.loads(tools["validate_compliance_rule_set"].invoke({"note": "y"}))["outcome"] == "PASSED"
+    assert json.loads(tools["submit_compliance_rule_set"].invoke({"comment": "z"}))["lifecycleState"] == "ACTIVE"
+    blocked = tools["report_rule_set_source_blocked"].invoke({"reason": "SOURCE_UNREADABLE", "path": INDEX_PATH, "why": "?"})
+    assert json.loads(blocked) == {"alreadySubmitted": True}  # answered, not raised
+
+
+def test_every_few_draft_parts_come_back_with_the_mechanical_validation_attached() -> None:
+    """Production: a weak model kept adding items for ten minutes without ever asking for feedback."""
+    packet = _packet()
+    api = FakeApi()
+    context, tools = _draft_tools(api)
+    add = tools["add_to_packet_draft"]
+    labelled = lambda n: {**packet["legalRequirements"][0], "legalRequirementId": f"LR-{n}"}  # noqa: E731
+    replies = [json.loads(add.invoke({"legalRequirements": [labelled(n)]})) for n in range(5)]
+    assert ["validation" in reply for reply in replies] == [False, False, False, True, False]
+    assert replies[3]["validation"]["outcome"] == "PASSED"
+    assert [name for name in api.names() if name == "validate"] == ["validate"]  # one dry-run, on the 4th part
+    assert context.validation_calls == 1 and context.adds_since_validation == 1
+    repeated = json.loads(add.invoke({"legalRequirements": [labelled(4)]}))
+    assert "already existed" in repeated["note"]

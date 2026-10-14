@@ -231,10 +231,13 @@ def _init_kwargs(config: ResolvedModelConfig) -> dict[str, object]:
     context = options.pop("context_window_tokens", None)
     output = options.pop("max_output_tokens", None)
     kwargs = provider_init_kwargs(config.provider, config.protocol)
+    # Each declared limit stands alone: an output cap must not be dropped for lack of a context window.
+    profile: dict[str, object] = {"name": config.model}
     if context is not None:
-        profile: dict[str, object] = {"name": config.model, "max_input_tokens": context}
-        if output is not None:
-            profile["max_output_tokens"] = output
+        profile["max_input_tokens"] = context
+    if output is not None:
+        profile["max_output_tokens"] = output
+    if len(profile) > 1:
         kwargs["profile"] = profile
     return {**options, **kwargs}  # precedence: options < adapter transport (< credentials, see build_model)
 

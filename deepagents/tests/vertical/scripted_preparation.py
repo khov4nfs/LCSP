@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import json
 import sys
+from contextlib import ExitStack
 from typing import Any
 from unittest.mock import patch
 
 from langchain_core.messages import AIMessage
 
+from rule_set_preparation import runner as runner_module
 from rule_set_preparation.runner import run_rule_set_preparation
 from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
 from tools.common.capabilities.platform.api_client import WorkerApiClient
@@ -114,7 +116,21 @@ def main() -> int:
         ]
     model = RuleSetPreparationScriptedModel(responses=responses)
     # The offline model has no provider route; routing is covered by the SDK-backed governance tests.
-    with patch("rule_set_preparation.agent.MODEL_GOVERNANCE_MIDDLEWARE", ()):
+    with ExitStack() as stack:
+        stack.enter_context(patch("rule_set_preparation.agent.MODEL_GOVERNANCE_MIDDLEWARE", ()))
+        if mode == "no-submit":
+            # A source-blocking claim is only honored when the pinned source really is inconsistent, so
+            # the scripted block is made true: one chunk file stops matching its INDEX pin.
+            real_materialize = runner_module.materialize_legal_source
+
+            def tampered(bundle: dict[str, Any], root: Any) -> list[str]:
+                paths = real_materialize(bundle, root)
+                chunk = root / paths[1].lstrip("/")
+                chunk.write_text(chunk.read_text(encoding="utf-8").replace(
+                    "contentSha256: ", "contentSha256: tampered-", 1), encoding="utf-8")
+                return paths
+
+            stack.enter_context(patch.object(runner_module, "materialize_legal_source", tampered))
         result = run_rule_set_preparation(api, run_id, model=model)
     print(json.dumps(result))
     return 0

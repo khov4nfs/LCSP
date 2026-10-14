@@ -15,8 +15,13 @@ of the legal reading is your responsibility alone.
   document once by issuing all document tasks in the same assistant turn. Give each child its exact
   document ID and `/legal-source/<document-directory>/` scope. The native Deep Agents runtime runs
   independent same-turn tasks concurrently; never delegate per chunk.
-- `validate_compliance_rule_set(packet)` — dry-run of the mechanical checks; nothing is persisted.
-- `submit_compliance_rule_set(packet)` — the single submission. Call it exactly once.
+- `add_to_packet_draft(legalRequirements, assessmentRules, contextRelations)` and
+  `remove_from_packet_draft(...)` — author the packet in parts. An item whose label
+  (`legalRequirementId`, `assessmentRuleId`, `relationId`) is already in the draft replaces it.
+- `validate_compliance_rule_set()` — dry-run of the mechanical checks on the draft (or on a complete
+  `packet` argument); nothing is persisted.
+- `submit_compliance_rule_set()` — the single submission of the draft or packet that last passed
+  validation. Call it exactly once.
 - `report_rule_set_source_blocked(reason, path)` — finish without submission only for an
   unreadable pinned source (`SOURCE_UNREADABLE`) or inconsistent pins (`SOURCE_PINS_INCONSISTENT`).
 - You have no repository, customer, assessment, interview, evidence, applicability, compliance,
@@ -212,6 +217,56 @@ Immediately before `validate_compliance_rule_set`, for every LegalRequirement:
 
 This is private agent reasoning, not a packet field, tool output or deterministic semantic
 oracle. Correct the authored packet yourself before calling the mechanical validator.
+
+## Coverage of the whole pinned source
+
+`/legal-source/INDEX.md` states how many provisions the pinned source has (usually hundreds). The
+mechanical check requires every non-repealed leaf provision to be referenced by the packet, directly
+or through an ancestor chunk that INDEX.md lists (a clause chunk covers its points), in some
+LegalRequirement, AssessmentRule or context relation `sourceRefs`. A packet that cites only the
+provisions you turned into duties is rejected with `INCOMPLETE_SOURCE_COVERAGE`. Plan for this from
+the first packet instead of learning it from feedback:
+
+- Go article by article through every row of INDEX.md. For each article decide its duties, then cite
+  in the sourceRefs of those duties, of their AssessmentRules and of their context relations every
+  provision of that article that states, scopes, defines, limits or qualifies a duty.
+- A provision that imposes nothing and modifies no duty (institutional organisation, tasks of
+  public bodies, policy statements, administrative or procedural text) is still cited once, as
+  supporting source text, in the `sourceRefs` of the LegalRequirement that is closest to it in the
+  same article, chapter or section. That citation records the text you read; it does not make the
+  provision a duty, a rule or a relation, and the proposition must not describe it as one.
+- A large packet is expected and there is no length limit. Never stop, summarise or say that the
+  volume is too large: a normal assistant answer without a tool call does not finish preparation.
+  Write the packet compactly (short `LR-`/`ER-` labels, `[]` for unused arrays, no commentary
+  around the tool call).
+- When validation reports `uncoveredProvisions`, add exactly those provisions (documentId, locator
+  and contentSha256 copied from INDEX.md) to the draft, keep everything already correct, and
+  validate again until it passes.
+
+## Authoring in parts
+
+A rule set for a whole source is far larger than one tool call can carry, so build the packet in
+parts instead of sending one complete packet:
+
+1. Take the source one chapter (or a few related articles) at a time. Read its provisions, decide its
+   duties, and send one `add_to_packet_draft` call with that chapter's LegalRequirements,
+   AssessmentRules and context relations. Make each call substantial: roughly 8-15 items and
+   4,000-12,000 tokens (one item per call is far too slow, and every call re-sends the whole
+   conversation to the provider).
+2. Labels are yours and must stay unique across the whole draft (`LR-<article>-<n>`,
+   `ER-<article>-<n>`, `REL-<article>-<n>`). Resend an item with the same label to correct it;
+   use `remove_from_packet_draft` to delete one. A AssessmentRule may only reference
+   LegalRequirement labels that are in the draft when you validate.
+3. Call `validate_compliance_rule_set()` with no arguments as soon as the first parts are in, and
+   again after every few parts. Its `uncoveredProvisions` is your work list: each listed provision
+   must be cited in the `sourceRefs` of an item you add. Do not wait to finish before validating.
+4. When it returns PASSED, do the final check below on the draft and call
+   `submit_compliance_rule_set()` with no arguments. Any `add_to_packet_draft` or
+   `remove_from_packet_draft` after a PASS revokes it; validate again first.
+
+Sending a complete `packet` to validate/submit still works for a small source. Everything in this
+document about content (duties versus context, exceptions, coverage, exact source identities)
+applies to every part exactly as it applies to a complete packet.
 
 ## Packet contract (JSON, camelCase, no extra fields)
 

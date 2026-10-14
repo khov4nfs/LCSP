@@ -283,7 +283,9 @@ async def test_serialized_gemini_request_preserves_shared_packet_null_alternativ
         if declaration.name == "report_rule_set_source_blocked":
             assert set(declaration.parameters.required) == {"reason", "path"}
             continue
-        packet = declaration.parameters.properties["packet"].properties
+        if declaration.name != "add_to_packet_draft":
+            continue  # only the draft tool carries the item contracts
+        packet = declaration.parameters.properties
         reason = packet["legalRequirements"].items.properties["coverage"].properties["nonAssessableReason"]
         relation = packet["contextRelations"].items.properties
         for field in (reason, relation["toLegalRequirementId"], relation["toSourceRef"]):
@@ -301,9 +303,12 @@ def test_legal_null_translation_keeps_shared_contract_bounds_and_source_unchange
     translated = gemini_nullable_tools(_gemini(), tools)
     assert translated is not None
     for tool in translated:
-        if getattr(tool, "name", None) == "report_rule_set_source_blocked":
-            continue
-        packet = tool["function"]["parameters"]["properties"]["packet"]
+        if not isinstance(tool, dict):
+            continue  # a tool whose schema has no null alternative is passed through untouched
+        parameters = tool["function"]["parameters"]
+        if "legalRequirements" not in parameters["properties"]:
+            continue  # only the draft tool carries the item contracts
+        packet = parameters
         assert packet["additionalProperties"] is False
         assert packet["properties"]["legalRequirements"]["maxItems"] == canonical["properties"]["packet"]["properties"]["legalRequirements"]["maxItems"]
         reason = packet["properties"]["legalRequirements"]["items"]["properties"]["coverage"]["properties"]["nonAssessableReason"]
