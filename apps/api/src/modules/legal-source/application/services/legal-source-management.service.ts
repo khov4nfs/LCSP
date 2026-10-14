@@ -263,6 +263,8 @@ export class LegalSourceManagementService {
             contentSha256: chunk.contentSha256,
             hierarchy: chunk.hierarchy as Prisma.InputJsonObject,
             legalStatus: chunk.legalStatus,
+            legalEffectStatus: chunk.legalEffectStatus,
+            legalStatusSourceRef: chunk.legalStatusSourceRef,
             pageStart: chunk.pageStart,
             pageEnd: chunk.pageEnd,
           })),

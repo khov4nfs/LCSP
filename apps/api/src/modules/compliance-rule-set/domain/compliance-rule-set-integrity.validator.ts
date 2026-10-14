@@ -9,6 +9,7 @@ import {
   type ComplianceRuleSetSourceRef,
   type ComplianceRuleSetValidationFailure,
 } from "@lcsp/contracts/compliance-rule-set";
+import type { LegalEffectStatus } from "@lcsp/contracts/legal-source";
 
 /** Legal status recorded on a chunk whose provision no longer has effect. */
 const REPEALED_LEGAL_STATUS = "REPEALED";
@@ -22,6 +23,8 @@ export interface LegalSourceChunkSnapshot {
   locator: string;
   contentSha256: string;
   legalStatus: string;
+  legalEffectStatus: LegalEffectStatus;
+  legalStatusSourceRef: string | null;
   sourceEffectStatus: string;
 }
 

@@ -40,7 +40,14 @@ export class ComplianceRuleSetReadModelLoader {
           orderBy: { ordinal: "asc" },
           include: {
             toChunk: {
-              select: { documentId: true, locator: true, contentSha256: true },
+              select: {
+                documentId: true,
+                locator: true,
+                contentSha256: true,
+                legalEffectStatus: true,
+                legalStatusSourceRef: true,
+                sourceDocument: { select: { sourceEffectStatus: true } },
+              },
             },
           },
         },
@@ -74,6 +81,8 @@ export class ComplianceRuleSetReadModelLoader {
         documentId: true,
         locator: true,
         contentSha256: true,
+        legalEffectStatus: true,
+        legalStatusSourceRef: true,
         sourceDocument: { select: { sourceEffectStatus: true } },
       },
     });
@@ -104,6 +113,8 @@ export class ComplianceRuleSetReadModelLoader {
           locator: p.locator,
           contentSha256: p.contentSha256,
           sourceEffectStatus: p.sourceEffectStatus,
+          legalEffectStatus: p.legalEffectStatus,
+          legalStatusSourceRef: p.legalStatusSourceRef,
         })),
       })),
       assessmentRules: active.assessmentRules.map((rule) => {
@@ -134,6 +145,8 @@ export class ComplianceRuleSetReadModelLoader {
                     locator: chunk.locator,
                     contentSha256: chunk.contentSha256,
                     sourceEffectStatus: chunk.sourceDocument.sourceEffectStatus,
+                    legalEffectStatus: chunk.legalEffectStatus,
+                    legalStatusSourceRef: chunk.legalStatusSourceRef,
                   },
                 ]
               : [];
@@ -152,6 +165,10 @@ export class ComplianceRuleSetReadModelLoader {
               documentId: relation.toChunk.documentId,
               locator: relation.toChunk.locator,
               contentSha256: relation.toChunk.contentSha256,
+              sourceEffectStatus:
+                relation.toChunk.sourceDocument.sourceEffectStatus,
+              legalEffectStatus: relation.toChunk.legalEffectStatus,
+              legalStatusSourceRef: relation.toChunk.legalStatusSourceRef,
             }
           : null,
       })),

@@ -362,6 +362,8 @@ export class ComplianceRuleSetActivation {
               locator: chunk.locator,
               contentSha256: chunk.contentSha256,
               sourceEffectStatus: chunk.sourceEffectStatus,
+              legalEffectStatus: chunk.legalEffectStatus,
+              legalStatusSourceRef: chunk.legalStatusSourceRef,
               ordinal,
             },
           ];

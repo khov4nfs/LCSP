@@ -7,6 +7,7 @@ import {
 } from "@lcsp/contracts/audit";
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
+  LEGAL_EFFECT_STATUSES,
   LEGAL_SOURCE_CHUNK_STATUSES,
   LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
   LEGAL_SOURCE_INGESTION_OUTCOMES,
@@ -17,6 +18,7 @@ import {
   LEGAL_SOURCE_MANAGEMENT_ERROR_CODES as Errors,
   LEGAL_SOURCE_STRUCTURAL_INDEX,
   LEGAL_SOURCE_STRUCTURE_PROFILES,
+  type LegalEffectStatus,
   type ImportLegalSourceDocumentRequest,
   type LegalSourceChunkPage,
   type LegalSourceChunkQuery,
@@ -119,7 +121,10 @@ export class LegalSourceDocumentService {
       declaredType: input.declaredType,
       origin: Origins.UPLOAD,
       sourceUrl: `upload://${encodeURIComponent(fileName)}`,
-      provenance: { uploadedFileName: fileName },
+      provenance: {
+        uploadedFileName: fileName,
+        provisionStatuses: input.metadata.provisionStatuses ?? {},
+      },
       title: input.metadata.title,
       structureProfile: input.metadata.structureProfile,
       sourceEffectStatus: input.metadata.sourceEffectStatus,
@@ -168,6 +173,7 @@ export class LegalSourceDocumentService {
         etag: fetched.etag,
         lastModified: fetched.lastModified,
         declaredContentType: fetched.contentType,
+        provisionStatuses: input.request.provisionStatuses ?? {},
       },
       title: input.request.title,
       structureProfile: input.request.structureProfile,
@@ -369,6 +375,8 @@ export class LegalSourceDocumentService {
         content: row.content,
         contentSha256: row.contentSha256,
         hierarchy: (row.hierarchy ?? {}) as Record<string, unknown>,
+        legalEffectStatus: row.legalEffectStatus,
+        legalStatusSourceRef: row.legalStatusSourceRef,
         pageStart: row.pageStart,
         pageEnd: row.pageEnd,
       })),
@@ -489,6 +497,19 @@ export class LegalSourceDocumentService {
       }
 
       const chunks = input.result.chunks;
+      const provisionStatuses =
+        document.provenance &&
+        typeof document.provenance === "object" &&
+        !Array.isArray(document.provenance)
+          ? ((
+              document.provenance as {
+                provisionStatuses?: Record<
+                  string,
+                  { status: LegalEffectStatus; sourceRef?: string }
+                >;
+              }
+            ).provisionStatuses ?? {})
+          : {};
       const locators = new Set<string>();
       for (const chunk of chunks) {
         const unique = !locators.has(chunk.locator);
@@ -508,6 +529,18 @@ export class LegalSourceDocumentService {
             },
           );
         }
+      }
+      if (
+        Object.keys(provisionStatuses).some((locator) => !locators.has(locator))
+      ) {
+        throw problemException(
+          Errors.ingestionResultInvalid,
+          input.correlationId,
+          {
+            status: HttpStatus.UNPROCESSABLE_ENTITY,
+            meta: { reason: "STATUS_LOCATOR_NOT_FOUND" },
+          },
+        );
       }
       await tx.legalDocumentChunk.deleteMany({
         where: { legalSourceDocumentId: document.id },
@@ -534,6 +567,11 @@ export class LegalSourceDocumentService {
               contentSha256: chunk.contentSha256,
               hierarchy: chunk.hierarchy as Prisma.InputJsonObject,
               legalStatus: LEGAL_SOURCE_CHUNK_STATUSES.ACTIVE,
+              legalEffectStatus:
+                provisionStatuses[chunk.locator]?.status ??
+                LEGAL_EFFECT_STATUSES.UNKNOWN,
+              legalStatusSourceRef:
+                provisionStatuses[chunk.locator]?.sourceRef ?? null,
               pageStart: chunk.pageStart,
               pageEnd: chunk.pageEnd,
             })),

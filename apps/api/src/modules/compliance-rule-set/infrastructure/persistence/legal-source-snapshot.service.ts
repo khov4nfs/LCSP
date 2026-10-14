@@ -29,6 +29,8 @@ export class LegalSourceSnapshotLoader {
           locator: true,
           contentSha256: true,
           legalStatus: true,
+          legalEffectStatus: true,
+          legalStatusSourceRef: true,
         },
       }),
       this.prisma.legalRetrievalIndex.findFirst({

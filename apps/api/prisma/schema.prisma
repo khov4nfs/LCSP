@@ -670,6 +670,8 @@ model LegalDocumentChunk {
   contentSha256           String
   hierarchy               Json
   legalStatus             String
+  legalEffectStatus       LegalEffectStatus                 @default(UNKNOWN)
+  legalStatusSourceRef    String?
   pageStart               Int?
   pageEnd                 Int?
   createdAt               DateTime                          @default(now())
@@ -784,6 +786,13 @@ enum LegalRetrievalIndexStatus {
   BUILDING
   VALID
   INVALID
+}
+
+enum LegalEffectStatus {
+  EFFECTIVE
+  REPEALED
+  FUTURE
+  UNKNOWN
 }
 
 // Account access and pending provisioning are separate lifecycles.
@@ -1211,6 +1220,8 @@ model LegalRequirementProvenance {
   locator               String
   contentSha256         String
   sourceEffectStatus    String
+  legalEffectStatus     LegalEffectStatus        @default(UNKNOWN)
+  legalStatusSourceRef  String?
   ordinal               Int
   ruleSet               ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict)
   rule                  LegalRequirement         @relation(fields: [legalRequirementRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict)

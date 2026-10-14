@@ -700,6 +700,12 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       [...FIXTURE_LOCATORS].sort(),
     );
     expect(
+      bundle.documents[0].chunks.map((chunk) => [
+        chunk.legalEffectStatus,
+        chunk.legalStatusSourceRef,
+      ]),
+    ).toEqual([...FIXTURE_LOCATORS].sort().map(() => ["UNKNOWN", null]));
+    expect(
       (
         await prisma.ruleSetPreparationRun.findUniqueOrThrow({
           where: { id: run.preparationRunId },

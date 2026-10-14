@@ -39,13 +39,44 @@ export const LEGAL_SOURCE_DOCUMENT_FAILURE_CODES = {
 export type LegalSourceDocumentFailureCode =
   (typeof LEGAL_SOURCE_DOCUMENT_FAILURE_CODES)[keyof typeof LEGAL_SOURCE_DOCUMENT_FAILURE_CODES];
 
-/** Status of one stored provision. Managed ingestion records no repeal tracking, so it stores ACTIVE. */
+/** Legacy ingestion value retained at the persistence boundary. */
 export const LEGAL_SOURCE_CHUNK_STATUSES = {
   ACTIVE: "ACTIVE",
   REPEALED: "REPEALED",
 } as const;
 export type LegalSourceChunkStatus =
   (typeof LEGAL_SOURCE_CHUNK_STATUSES)[keyof typeof LEGAL_SOURCE_CHUNK_STATUSES];
+
+/** Legal effect asserted by metadata in this immutable source version. */
+export const LEGAL_EFFECT_STATUSES = {
+  EFFECTIVE: "EFFECTIVE",
+  REPEALED: "REPEALED",
+  FUTURE: "FUTURE",
+  UNKNOWN: "UNKNOWN",
+} as const;
+export type LegalEffectStatus =
+  (typeof LEGAL_EFFECT_STATUSES)[keyof typeof LEGAL_EFFECT_STATUSES];
+
+const legalEffectStatusSchema = z.enum(
+  Object.values(LEGAL_EFFECT_STATUSES) as [
+    LegalEffectStatus,
+    ...LegalEffectStatus[],
+  ],
+);
+const provisionStatusesSchema = z.record(
+  z.string().trim().min(1).max(300),
+  z
+    .strictObject({
+      status: legalEffectStatusSchema,
+      sourceRef: z.string().trim().min(1).max(500).optional(),
+    })
+    .refine(
+      (entry) =>
+        entry.status === LEGAL_EFFECT_STATUSES.UNKNOWN ||
+        Boolean(entry.sourceRef),
+      { message: "A known legal effect status requires a source reference" },
+    ),
+);
 
 /** The document formats the managed ingestion can read. Anything else is refused at the door. */
 export const LEGAL_SOURCE_MEDIA_TYPES = {
@@ -215,6 +246,14 @@ const documentMetadataShape = {
     .default(LEGAL_SOURCE_STRUCTURE_PROFILES.AUTO),
   sourceEffectStatus: optionalText(LEGAL_SOURCE_LIMITS.maxEffectStatusLength),
   effectiveDate: z.iso.date().optional(),
+  provisionStatuses: z.preprocess((value) => {
+    if (typeof value !== "string") return value;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }, provisionStatusesSchema.optional()),
 };
 
 /** Metadata that accompanies the raw bytes of an upload (the bytes are the request body). */
@@ -372,6 +411,8 @@ export const legalSourceChunkViewSchema = z.strictObject({
   content: z.string(),
   contentSha256: z.string(),
   hierarchy: z.record(z.string(), z.unknown()),
+  legalEffectStatus: legalEffectStatusSchema,
+  legalStatusSourceRef: z.string().nullable(),
   pageStart: z.number().int().nullable(),
   pageEnd: z.number().int().nullable(),
 });
