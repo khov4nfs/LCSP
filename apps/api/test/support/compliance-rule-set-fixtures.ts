@@ -106,7 +106,12 @@ function legalRequirement(
     legalRequirementId,
     title: `Rule ${legalRequirementId}`,
     proposition: `Proposition for ${legalRequirementId}.`,
-    applicabilityConditions: [],
+    applicabilityConditions:
+      coverage === "covered"
+        ? [
+            `Applies to the system that stores the records of ${legalRequirementId}.`,
+          ]
+        : [],
     qualifiers: [],
     exceptions: [],
     nonRepositoryDuty,

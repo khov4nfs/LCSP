@@ -6,7 +6,10 @@ import {
 } from "@lcsp/contracts/evidence";
 import { useEffect, useState } from "react";
 
-export function useRuleSetPreparationActivity(preparationRunId: string | null) {
+export function useRuleSetPreparationActivity(
+  preparationRunId: string | null,
+  terminal: boolean,
+) {
   const [streams, setStreams] = useState<
     Record<string, { events: AssessmentAgentStreamEvent[]; connected: boolean }>
   >({});
@@ -18,6 +21,24 @@ export function useRuleSetPreparationActivity(preparationRunId: string | null) {
     const source = new EventSource(
       `/api/workspace/runtime-events?preparation_run_id=${encodeURIComponent(preparationRunId)}`,
     );
+    let closed = false;
+    let terminalCloseTimer: number | null = null;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      if (terminalCloseTimer !== null) window.clearTimeout(terminalCloseTimer);
+      source.removeEventListener("workspace.runtime", onRuntime);
+      source.close();
+      setStreams((previous) => {
+        const current = previous[preparationRunId];
+        return current
+          ? {
+              ...previous,
+              [preparationRunId]: { ...current, connected: false },
+            }
+          : previous;
+      });
+    };
     const onRuntime = (message: Event) => {
       const data = (message as MessageEvent).data;
       if (typeof data !== "string") return;
@@ -33,9 +54,12 @@ export function useRuleSetPreparationActivity(preparationRunId: string | null) {
           ...previous,
           [preparationRunId]: {
             events,
-            connected: previous[preparationRunId]?.connected ?? true,
+            connected: terminal
+              ? false
+              : (previous[preparationRunId]?.connected ?? true),
           },
         }));
+        if (terminal) close();
       } catch {
         // A malformed telemetry frame must not affect the Admin page.
       }
@@ -57,11 +81,13 @@ export function useRuleSetPreparationActivity(preparationRunId: string | null) {
           connected: false,
         },
       }));
+    if (terminal) terminalCloseTimer = window.setTimeout(close, 1500);
     return () => {
+      if (terminalCloseTimer !== null) window.clearTimeout(terminalCloseTimer);
       source.removeEventListener("workspace.runtime", onRuntime);
       source.close();
     };
-  }, [preparationRunId]);
+  }, [preparationRunId, terminal]);
 
   return {
     events: current?.events ?? [],

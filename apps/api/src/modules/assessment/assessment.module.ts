@@ -52,6 +52,8 @@ import { ASSESSMENT_REPOSITORY } from "./application/ports/persistence/assessmen
 import { ListAssessmentEventsHandler } from "./application/queries/list-assessment-events/list-assessment-events.handler.js";
 import { GetAssessmentHandler } from "./application/queries/get-assessment/get-assessment.handler.js";
 import { GetPinnedRuleSetHandler } from "./application/queries/get-pinned-rule-set/get-pinned-rule-set.handler.js";
+import { GetPinnedLegalSourceTextHandler } from "./application/queries/get-pinned-legal-source-text/get-pinned-legal-source-text.handler.js";
+import { SearchPinnedLegalSourceHandler } from "./application/queries/search-pinned-legal-source/search-pinned-legal-source.handler.js";
 import { GetRootContextHandler } from "./application/queries/get-root-context/get-root-context.handler.js";
 import { ListAssessmentsHandler } from "./application/queries/list-assessments/list-assessments.handler.js";
 import { AssessmentCompletionGate } from "./application/services/assessment-completion-gate.service.js";
@@ -118,6 +120,8 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     StartRuleInvestigationHandler,
     SubmitRuleDecisionHandler,
     GetPinnedRuleSetHandler,
+    GetPinnedLegalSourceTextHandler,
+    SearchPinnedLegalSourceHandler,
     GetRootContextHandler,
     AssessmentRuntimeEventService,
     WorkerApiKeyGuard,

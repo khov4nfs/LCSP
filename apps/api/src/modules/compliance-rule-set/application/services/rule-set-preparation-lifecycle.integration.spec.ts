@@ -18,7 +18,10 @@ import {
   RepositoryScanTriggerSource,
   DecisionResolutionState,
 } from "@prisma/client";
-import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+import {
+  AGENT_EXECUTION_STATES,
+  ARTIFACT_LIFECYCLE_STATES,
+} from "@lcsp/contracts/assessment";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
@@ -450,7 +453,7 @@ describeDatabase(
       );
     });
 
-    it("refuses Retry and hides retryability when a compatible ACTIVE rule set exists", async () => {
+    it("a failed replacement stays retryable while the previous rule set is ACTIVE, which it leaves untouched", async () => {
       const source = await createLegalSource();
       await makeEligibleSource(source);
       await consumer.handle(activation(source.id));
@@ -471,17 +474,27 @@ describeDatabase(
       await claimRun(second.preparationRunId);
       await failRun(second.preparationRunId);
 
-      await expectRefusal(
-        retryRun(second.preparationRunId),
-        COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
-        RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS,
-      );
       const view = await history.load();
       expect(
         view.preparations.find(
           (run) => run.preparationRunId === second.preparationRunId,
         )?.retryable,
-      ).toBe(false);
+      ).toBe(true);
+      expect(view.preparation.canReplace).toBe(true);
+      const retried = await retryRun(second.preparationRunId);
+      expect(retried.preparationRunId).not.toBe(second.preparationRunId);
+      expect(retried.executionState).toBe(AGENT_EXECUTION_STATES.QUEUED);
+      // The ACTIVE rule set was never touched by the failed or the retried replacement.
+      expect(
+        (
+          await prisma.complianceRuleSetVersion.findFirstOrThrow({
+            where: {
+              legalSourceVersionId: source.id,
+              lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+            },
+          })
+        ).preparationRunId,
+      ).toBe(first.id);
     });
 
     it("the operations history exposes version, counts, digest, failures and retryability", async () => {

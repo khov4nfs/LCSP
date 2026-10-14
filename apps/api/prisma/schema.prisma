@@ -1389,6 +1389,10 @@ model AssessmentDecisionCoverage {
   @@index([assessmentId, resolutionState])
 }
 
+// resolvedFactId also carries a raw composite FK (resolvedFactId, assessmentId) ->
+// AssessmentCaseFact(factId, assessmentId) in the migrations (no Prisma relation), next to the
+// AssessmentHumanRequest_resolved_shape CHECK. Restored by
+// 20261014090000_restore_human_request_resolved_fact_fk after re_generate_db dropped it.
 model AssessmentHumanRequest {
   requestId          String                       @id @db.Uuid
   assessmentId       String

@@ -14,8 +14,12 @@ import { PrepareCurrentRuleSetHandler } from "./prepare-current-rule-set.handler
 
 const SOURCE = "5ae8f595-1ae6-44a4-b7c1-ef9d4da37598";
 const RUN = "31e042e8-6b91-4bfd-8853-108bb4436efd";
-const command = () =>
-  new PrepareCurrentRuleSetCommand("owner-admin", "correlation-1");
+const command = (replaceActive = false) =>
+  new PrepareCurrentRuleSetCommand(
+    "owner-admin",
+    "correlation-1",
+    replaceActive,
+  );
 
 function build() {
   const source = {
@@ -117,6 +121,65 @@ describe("Admin current-source preparation", () => {
           code: COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
           meta: {
             reason: RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS,
+          },
+        },
+      },
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("an ACTIVE rule set never blocks an explicit replacement; the new run is a new attempt, not an edit", async () => {
+    const { handler, tx, execute } = build();
+    tx.complianceRuleSetVersion.findFirst.mockResolvedValue({ id: RUN });
+    tx.ruleSetPreparationRun.count.mockResolvedValue(19);
+
+    await handler.execute(command(true));
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    const dispatched = execute.mock
+      .calls[0][0] as StartRuleSetPreparationCommand;
+    expect(dispatched.request).toEqual({
+      legalSourceVersionId: SOURCE,
+      idempotencyKey: ruleSetPreparationIdempotencyKey(SOURCE, 20),
+    });
+  });
+
+  it.each([
+    AGENT_EXECUTION_STATES.QUEUED,
+    AGENT_EXECUTION_STATES.RUNNING,
+    AGENT_EXECUTION_STATES.INTERRUPTED,
+    AGENT_EXECUTION_STATES.PAUSED,
+  ])(
+    "at most one replacement is in progress: a %s one is returned and no second run starts",
+    async (executionState) => {
+      const { handler, tx, execute } = build();
+      tx.complianceRuleSetVersion.findFirst.mockResolvedValue({ id: RUN });
+      tx.ruleSetPreparationRun.findFirst.mockResolvedValue({
+        id: RUN,
+        legalSourceVersionId: SOURCE,
+        executionState,
+        ruleSet: null,
+      });
+
+      expect(await handler.execute(command(true))).toMatchObject({
+        preparationRunId: RUN,
+        executionState,
+      });
+      expect(execute).not.toHaveBeenCalled();
+    },
+  );
+
+  it("an explicit replacement is still refused for an ineligible source", async () => {
+    const { handler, tx, execute } = build();
+    tx.legalSourceVersion.findMany.mockResolvedValue([]);
+    tx.complianceRuleSetVersion.findFirst.mockResolvedValue({ id: RUN });
+    await expect(handler.execute(command(true))).rejects.toMatchObject({
+      response: {
+        problem: {
+          code: COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
+          meta: {
+            reason:
+              RULE_SET_PREPARATION_REFUSAL_REASONS.SOURCE_VERSION_NOT_ELIGIBLE,
           },
         },
       },

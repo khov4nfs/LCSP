@@ -143,6 +143,7 @@ def test_human_blocker_remains_native_interrupted_execution(tmp_path):
         "assessment_rule_id": "ER-1", "question": "Who owns the operational policy?",
         "unresolved_fact": "Operational policy owner", "decision_impact": ["Determines responsibility"],
         "resolution_attempts": ["Reviewed available repository sources"],
+        "criterion_ids": ["C-1"],
     }, "human")])
     result = run_assessment_root(client, ASSESSMENT,
         backend_factory=lambda *_: (FilesystemBackend(root_dir=tmp_path, virtual_mode=True), None),

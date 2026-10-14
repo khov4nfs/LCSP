@@ -4,6 +4,7 @@ import {
   BLOCKER_REASONS,
   DECISION_RESOLUTION_STATES,
   RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionReferences,
   ruleDecisionSchema,
   type RuleDecision,
 } from "@lcsp/contracts/assessment";
@@ -36,6 +37,19 @@ const REQUIRED_INPUT_BLOCKER_REASONS: ReadonlySet<string> = new Set([
   BLOCKER_REASONS.REQUIRED_RUNTIME_INPUT_UNAVAILABLE,
 ]);
 
+/** The repository range an evidence payload cites, or null when it cites none. */
+function citedRange(
+  payload: unknown,
+): { path: string; startLine: number; endLine: number } | null {
+  if (payload === null || typeof payload !== "object") return null;
+  const { path, startLine, endLine } = payload as Record<string, unknown>;
+  return typeof path === "string" &&
+    Number.isInteger(startLine) &&
+    Number.isInteger(endLine)
+    ? { path, startLine: startLine as number, endLine: endLine as number }
+    : null;
+}
+
 export interface AssessmentFinalizationSnapshot {
   caseRevision: number;
   pins: {
@@ -54,6 +68,8 @@ export interface AssessmentFinalizationSnapshot {
     type: string;
     contentSha256: string;
     repositoryCommit: string;
+    /** Repository range the evidence cites, when it cites one (REPOSITORY_SOURCE). */
+    source: { path: string; startLine: number; endLine: number } | null;
   }>;
   facts: Array<{
     factId: string;
@@ -251,6 +267,7 @@ export class AssessmentCompletionGate {
           state: true,
           contentSha256: true,
           repositoryCommit: true,
+          payload: true,
         },
       }),
       tx.assessmentCaseFact.findMany({
@@ -469,10 +486,7 @@ export class AssessmentCompletionGate {
     const referencedEvidenceIds = new Set<string>();
     const referencedFactIds = new Set<string>();
     for (const { decision } of resolvedDecisions) {
-      for (const reference of [
-        ...decision.references,
-        ...decision.criteria.flatMap((criterion) => criterion.references),
-      ]) {
+      for (const reference of ruleDecisionReferences(decision)) {
         if (
           reference.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
         ) {
@@ -495,6 +509,7 @@ export class AssessmentCompletionGate {
                 type: record.type,
                 contentSha256: record.contentSha256,
                 repositoryCommit: record.repositoryCommit,
+                source: citedRange(record.payload),
               },
             ]
           : [];

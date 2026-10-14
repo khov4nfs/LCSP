@@ -1,0 +1,105 @@
+{
+  "ruleSet": {
+    "ruleSetVersionId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "version": "2026.10.p1",
+    "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "ruleSetDigest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "lifecycleState": "ACTIVE",
+    "activatedAt": "2026-10-13T00:10:00.000Z",
+    "legalRequirements": [
+      {
+        "legalRequirementId": "LAW-SEC-001",
+        "title": "Security safeguards",
+        "proposition": "An organization must protect personal data with appropriate safeguards.",
+        "applicabilityConditions": [
+          "The organization processes personal data."
+        ],
+        "qualifiers": ["Safeguards must be appropriate to the risk."],
+        "exceptions": [
+          "This duty does not apply to data that has been irreversibly anonymized."
+        ],
+        "nonRepositoryDuty": true,
+        "coverage": {
+          "state": "COVERED_BY_ASSESSMENT_RULES",
+          "nonAssessableReason": null
+        },
+        "sources": [
+          {
+            "chunkId": "chunk-security-001",
+            "documentId": "LAW-2026-001",
+            "locator": "Article 12(1)",
+            "contentSha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      }
+    ],
+    "assessmentRules": [
+      {
+        "assessmentRuleId": "RULE-SEC-001",
+        "legalRequirementIds": ["LAW-SEC-001"],
+        "concept": "Personal data safeguards",
+        "legalIntent": "Reduce the risk of unauthorized access to personal data.",
+        "applicabilityGuidance": "Check whether the organization processes personal data and whether the evidence describes safeguards proportionate to the processing risk.",
+        "criteria": [
+          {
+            "criterionId": "CRITERION-SEC-001",
+            "statement": "Access to stored personal data is restricted to authorized identities."
+          }
+        ],
+        "investigationGoals": ["Inspect authorization controls."],
+        "startingNodeTypes": [],
+        "targetNodeTypes": [],
+        "edgeStrategies": [],
+        "graphQueries": [],
+        "keywords": [],
+        "commonApis": [],
+        "commonLibraries": [],
+        "patterns": [],
+        "requiredEvidence": ["Role-based access policy"],
+        "supportingEvidence": [],
+        "negativeEvidence": [],
+        "unresolvedConditions": [],
+        "assessmentRuleVersion": "1",
+        "sourceFingerprint": "2222222222222222222222222222222222222222222222222222222222222222",
+        "sources": [
+          {
+            "chunkId": "chunk-security-001",
+            "documentId": "LAW-2026-001",
+            "locator": "Article 12(1)",
+            "contentSha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "sourceEffectStatus": "IN_FORCE"
+          }
+        ]
+      }
+    ],
+    "contextRelations": [
+      {
+        "relationId": "REL-SEC-001",
+        "kind": "SCOPE",
+        "fromLegalRequirementId": "LAW-SEC-001",
+        "toLegalRequirementId": null,
+        "toSourceRef": {
+          "documentId": "LAW-2026-001",
+          "locator": "Article 12(2)",
+          "contentSha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      }
+    ]
+  },
+  "preparationRunId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "createdAt": "2026-10-13T00:09:00.000Z",
+  "supersededAt": null,
+  "legalSourceVersion": {
+    "legalSourceVersionId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "version": "2026.10",
+    "documents": [
+      {
+        "documentId": "LAW-2026-001",
+        "title": "Personal Data Protection Act",
+        "sourceEffectStatus": "IN_FORCE",
+        "chunkCount": 14
+      }
+    ]
+  }
+}

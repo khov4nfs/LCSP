@@ -23,6 +23,7 @@ from pydantic import ValidationError
 from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.provider_schema import ProviderSchemaCompatibilityMiddleware
+from middleware.tool_contracts import request_tool_contracts
 from middleware.token_fallback import TokenFallbackMiddleware
 from middleware.usage_metering import (
     AgentRoleMiddleware,
@@ -132,13 +133,11 @@ _OUTPUT_CAP_FINISH_REASONS = frozenset({"length", "max_tokens", "MAX_TOKENS"})
 
 
 def _malformed_tool_call_reason(request, response) -> str | None:
-    # A tool that answers invalid arguments itself (``handle_validation_error``) gives the model correction
-    # feedback; discarding its sample would only re-roll a mistake the model can fix with that feedback.
-    schemas = {
-        tool.name: tool.tool_call_schema
-        for tool in (getattr(request, "tools", None) or ())
-        if isinstance(tool, BaseTool) and not tool.handle_validation_error
-    }
+    # Tool contracts are read through one normalizer, so a sample is judged the same way whether the
+    # request carries native tools or the dicts a provider middleware rewrote them into (Gemini). A
+    # tool that answers invalid arguments itself (``handle_validation_error``) gives the model
+    # correction feedback; discarding its sample would only re-roll a mistake that feedback fixes.
+    contracts = request_tool_contracts(request)
     for message in response.result:
         if not isinstance(message, AIMessage):
             continue
@@ -153,18 +152,13 @@ def _malformed_tool_call_reason(request, response) -> str | None:
         if message.invalid_tool_calls:
             return "Model emitted unparseable tool-call arguments"
         for call in message.tool_calls:
-            schema = schemas.get(call["name"])
-            if schema is None or not hasattr(schema, "model_validate"):
+            contract = contracts.get(call["name"])
+            if contract is None or contract.answers_invalid_arguments:
                 continue
-            try:
-                schema.model_validate(call["args"])
-            except ValidationError as error:
-                # Field paths and error types only: never the model's argument values.
-                fields = "; ".join(
-                    f"{'.'.join(str(part) for part in item['loc'])}:{item['type']}"
-                    for item in error.errors()[:8]
-                )
-                return f"Model emitted invalid arguments for tool {call['name']} ({fields})"
+            problems = contract.problems(call["args"])
+            if problems:
+                # Field paths and error kinds only: never the model's argument values.
+                return f"Model emitted invalid arguments for tool {call['name']} ({'; '.join(problems)})"
     return None
 
 

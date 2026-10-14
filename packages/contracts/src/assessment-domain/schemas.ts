@@ -446,6 +446,41 @@ export type SubmitAssessmentFinalReportRequest = z.infer<
   typeof submitAssessmentFinalReportRequestSchema
 >;
 
+const reportSourceRefSchema = z.strictObject({
+  documentId: z.string().min(1),
+  locator: z.string().min(1),
+  contentSha256: z.string().min(1),
+});
+const reportLegalBasisSchema = z.strictObject({
+  concept: z.string(),
+  legalIntent: z.string(),
+  applicabilityGuidance: z.string(),
+  legalRequirements: z.array(
+    z.strictObject({
+      legalRequirementId: identifierSchema,
+      title: z.string(),
+      applicabilityConditions: z.array(z.string()),
+      qualifiers: z.array(z.string()),
+      exceptions: z.array(z.string()),
+      sources: z.array(reportSourceRefSchema),
+    }),
+  ),
+});
+const reportEvidenceSchema = z.strictObject({
+  evidenceId: uuidSchema,
+  type: z.string(),
+  repositoryCommit: z.string(),
+  path: z.string().optional(),
+  startLine: z.number().int().optional(),
+  endLine: z.number().int().optional(),
+});
+const reportFactSchema = z.strictObject({
+  factId: uuidSchema,
+  kind: z.string(),
+  authority: z.string(),
+  statement: z.string(),
+});
+
 export const assessmentFinalReportArtifactSchema = z.strictObject({
   schemaVersion: z.literal(ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION),
   artifactId: uuidSchema,
@@ -468,6 +503,14 @@ export const assessmentFinalReportArtifactSchema = z.strictObject({
       decision: ruleDecisionSchema,
       summary: privateTextSchema,
       recommendations: z.array(privateTextSchema).max(20),
+      /**
+       * Server-bound, never Root-authored: the pinned rule and the source-derived elements the
+       * decision was made against, so the file explains itself without the database.
+       */
+      legalBasis: reportLegalBasisSchema.optional(),
+      /** The evidence and facts this decision cites, resolved from accepted state. */
+      evidence: z.array(reportEvidenceSchema).optional(),
+      facts: z.array(reportFactSchema).optional(),
     }),
   ),
   provenance: z.strictObject({
@@ -540,7 +583,9 @@ export const assessmentCaseViewSchema = z.strictObject({
   repositoryScanJobId: identifierSchema.nullable(),
   repositoryCommit: commitSchema.nullable(),
   /** Each pinned AssessmentRule with its customer-readable concept (never an id alone). */
-  coverage: z.array(decisionCoverageSchema.extend({ concept: z.string().min(1) })),
+  coverage: z.array(
+    decisionCoverageSchema.extend({ concept: z.string().min(1) }),
+  ),
   decisions: z.array(ruleDecisionRecordSchema),
   facts: z.array(assessmentCaseFactSchema),
   artifacts: z.array(assessmentArtifactViewSchema),
@@ -671,3 +716,55 @@ export const assessmentEventsPageSchema = z.strictObject({
   nextAfterSequence: revisionSchema.nullable(),
 });
 export type AssessmentEventsPage = z.infer<typeof assessmentEventsPageSchema>;
+
+/**
+ * The Root reads the legal text of the Legal Source Version its rule set was prepared from, and
+ * only that one. Identity is the pinned source's own (documentId, locator).
+ */
+export const pinnedLegalSourceTextRequestSchema = z.strictObject({
+  documentId: z.string().trim().min(1).max(256),
+  locator: z.string().trim().min(1).max(1024),
+});
+export type PinnedLegalSourceTextRequest = z.infer<
+  typeof pinnedLegalSourceTextRequestSchema
+>;
+
+export const pinnedLegalSourceTextSchema = z.strictObject({
+  documentId: z.string().min(1),
+  documentTitle: z.string(),
+  locator: z.string().min(1),
+  contentSha256: z.string().min(1),
+  legalStatus: z.string(),
+  sourceEffectStatus: z.string(),
+  hierarchy: z.unknown(),
+  content: z.string(),
+});
+export type PinnedLegalSourceText = z.infer<typeof pinnedLegalSourceTextSchema>;
+
+export const PINNED_LEGAL_SOURCE_SEARCH_LIMITS = {
+  MAX_TERMS: 6,
+  MAX_RESULTS: 15,
+  SNIPPET_RADIUS: 160,
+} as const;
+
+export const pinnedLegalSourceSearchRequestSchema = z.strictObject({
+  query: z.string().trim().min(2).max(200),
+});
+export type PinnedLegalSourceSearchRequest = z.infer<
+  typeof pinnedLegalSourceSearchRequestSchema
+>;
+
+export const pinnedLegalSourceSearchResultSchema = z.strictObject({
+  matches: z.array(
+    z.strictObject({
+      documentId: z.string().min(1),
+      locator: z.string().min(1),
+      contentSha256: z.string().min(1),
+      snippet: z.string(),
+    }),
+  ),
+  truncated: z.boolean(),
+});
+export type PinnedLegalSourceSearchResult = z.infer<
+  typeof pinnedLegalSourceSearchResultSchema
+>;

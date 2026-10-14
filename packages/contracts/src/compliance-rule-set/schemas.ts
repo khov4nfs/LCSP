@@ -118,9 +118,15 @@ export const legalRequirementSchema = z
     legalRequirementId: idSchema,
     title: shortTextSchema,
     proposition: textSchema,
-    applicabilityConditions: shortTextListSchema,
-    qualifiers: shortTextListSchema,
-    exceptions: shortTextListSchema,
+    applicabilityConditions: shortTextListSchema.describe(
+      "Whom or what the source applies this provision to and what triggers it, as facts that evidence can establish or refute, in the source's own terms (any-of / all-of exactly as written). When the source names a role, class, category, status, threshold or sector and defines or enumerates its criteria, unpack those criteria here and cite the defining provision in sourceRefs; a label is never its own explanation. Required (at least one) when assessment rules cover the requirement; if the source adds no further condition, state the addressee it names.",
+    ),
+    qualifiers: shortTextListSchema.describe(
+      "Timing, actor, modality or degree limits the source places on the duty itself.",
+    ),
+    exceptions: shortTextListSchema.describe(
+      "Each exemption, exclusion or carve-out the source gives for THIS duty, with its own limiting words and the facts that would establish it. Empty when the source gives none.",
+    ),
     /** True for organizational/document duties that repository evidence cannot establish. */
     nonRepositoryDuty: z
       .boolean()
@@ -165,7 +171,9 @@ export const assessmentRuleSchema = z
       ),
     concept: shortTextSchema,
     legalIntent: textSchema,
-    applicabilityGuidance: textSchema,
+    applicabilityGuidance: textSchema.describe(
+      "How an assessor establishes or refutes each applicability condition and exception of the linked requirements from evidence; name the observable facts, not the conclusion. Never just restate the actor or category label.",
+    ),
     criteria: z
       .array(assessmentRuleCriterionSchema)
       .min(1)
@@ -184,7 +192,9 @@ export const assessmentRuleSchema = z
     requiredEvidence: shortTextListSchema,
     supportingEvidence: shortTextListSchema,
     negativeEvidence: shortTextListSchema,
-    unresolvedConditions: shortTextListSchema,
+    unresolvedConditions: shortTextListSchema.describe(
+      "Applicability conditions that repository evidence cannot establish, phrased as customer-answerable facts (never as a legal verdict).",
+    ),
     sourceRefs: sourceRefListSchema,
   })
   .strict();
@@ -307,9 +317,15 @@ export const ruleSetPreparationRunSchema = z
   .strict();
 export type RuleSetPreparationRun = z.infer<typeof ruleSetPreparationRunSchema>;
 
-/** Admin supplies no source, idempotency key or generated rule-set content. */
+/**
+ * Admin supplies no source, idempotency key or generated rule-set content. `replaceActive` is the
+ * explicit intent to author a NEW version that supersedes the ACTIVE one once it validates and is
+ * submitted; without it Prepare keeps refusing while a rule set is ACTIVE, so a stale click or a
+ * racing request can never start paid work by accident. Retry of a failed run is a different
+ * operation and never needs it.
+ */
 export const ruleSetPreparationAdminRequestSchema = z
-  .strictObject({})
+  .strictObject({ replaceActive: z.boolean().optional() })
   .default({});
 export type RuleSetPreparationAdminRequest = z.infer<
   typeof ruleSetPreparationAdminRequestSchema
@@ -318,7 +334,12 @@ export type RuleSetPreparationAdminRequest = z.infer<
 export const ruleSetPreparationAvailabilitySchema = z.strictObject({
   legalSourceVersionId: z.uuid().nullable(),
   legalSourceVersion: z.string().min(1).nullable(),
+  /** The ACTIVE rule set of the current source, which stays ACTIVE until a replacement activates. */
+  activeRuleSetVersionId: z.uuid().nullable(),
+  /** A first preparation may start: no ACTIVE rule set and nothing in progress. */
   canStart: z.boolean(),
+  /** An explicit replacement may start: an ACTIVE rule set exists and nothing is in progress. */
+  canReplace: z.boolean(),
   refusalReason: z.enum(RULE_SET_PREPARATION_REFUSAL_REASONS).nullable(),
   currentRun: ruleSetPreparationRunSchema.nullable(),
 });
@@ -536,4 +557,31 @@ export const complianceRuleSetHistorySchema = z.strictObject({
 });
 export type ComplianceRuleSetHistory = z.infer<
   typeof complianceRuleSetHistorySchema
+>;
+
+/**
+ * Admin "View result": the stored rule set version exactly as persisted (requirements, assessment
+ * rules, context relations, source provenance) plus where it came from. A read-only projection of
+ * the canonical rows; it is never a second copy of rule-set state.
+ */
+export const complianceRuleSetResultSchema = z.strictObject({
+  ruleSet: complianceRuleSetReadModelSchema,
+  preparationRunId: z.uuid().nullable(),
+  createdAt: z.iso.datetime(),
+  supersededAt: z.iso.datetime().nullable(),
+  legalSourceVersion: z.strictObject({
+    legalSourceVersionId: z.uuid(),
+    version: z.string().min(1),
+    documents: z.array(
+      z.strictObject({
+        documentId: z.string().min(1),
+        title: z.string(),
+        sourceEffectStatus: z.string(),
+        chunkCount: z.number().int().nonnegative(),
+      }),
+    ),
+  }),
+});
+export type ComplianceRuleSetResult = z.infer<
+  typeof complianceRuleSetResultSchema
 >;

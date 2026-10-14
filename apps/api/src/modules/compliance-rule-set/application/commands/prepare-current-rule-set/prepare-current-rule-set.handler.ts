@@ -42,7 +42,12 @@ export class PrepareCurrentRuleSetHandler implements ICommandHandler<PrepareCurr
     ) {
       return availability.currentRun;
     }
-    if (!availability.canStart || !availability.legalSourceVersionId) {
+    // An ACTIVE rule set is production history that may need a better successor, so it never
+    // blocks preparation for good: an explicit replacement is allowed. Without that intent the
+    // refusal stays, so a stale or racing request cannot start paid work by accident.
+    const allowed =
+      availability.canStart || (input.replaceActive && availability.canReplace);
+    if (!allowed || !availability.legalSourceVersionId) {
       throw problemException(
         COMPLIANCE_RULE_SET_ERROR_CODES.preparationNotAllowed,
         input.correlationId,

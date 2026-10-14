@@ -114,7 +114,7 @@ def _packet() -> dict[str, Any]:
                 "legalRequirementId": "LR-RET",
                 "title": "Retention",
                 "proposition": retain,
-                "applicabilityConditions": [],
+                "applicabilityConditions": ["Applies to an operator that keeps records."],
                 "qualifiers": [],
                 "exceptions": [anonymised],
                 "nonRepositoryDuty": False,
@@ -850,3 +850,35 @@ def test_every_few_draft_parts_come_back_with_the_mechanical_validation_attached
     assert context.validation_calls == 1 and context.adds_since_validation == 1
     repeated = json.loads(add.invoke({"legalRequirements": [labelled(4)]}))
     assert "already existed" in repeated["note"]
+
+
+def test_instructions_derive_applicability_from_the_source_without_naming_a_legal_ontology() -> None:
+    """LCSP is legal-source-driven: the next legal source may regulate entirely different roles and categories."""
+    from rule_set_preparation.agent import INSTRUCTIONS
+
+    text = " ".join(INSTRUCTIONS.split())
+    assert "Applicability is read from the source, never assumed" in text
+    assert "APPLICABILITY_SCOPE_MISSING" in text
+    assert "Unpack every term the source defines" in text
+    assert "A bare \"applies to <label>\" explains nothing" in text
+    assert "do not assume any role or category exists unless the pinned source states it" in text
+    assert "never as a request for a legal verdict" in text
+    lowered = text.lower()
+    for source_specific in (
+        "high-risk", "medium-risk", "low-risk", "deployer", "provider of", "ai system",
+        "national infrastructure", "134/2025", "71/2025", "quoc hoi",
+    ):
+        assert source_specific not in lowered, source_specific
+
+
+def test_the_model_facing_packet_schema_explains_what_a_good_applicability_condition_is() -> None:
+    import json
+    from pathlib import Path
+
+    schema = json.loads(Path("rule_set_preparation/packet-schema.json").read_text(encoding="utf-8"))
+    requirement = schema["properties"]["packet"]["properties"]["legalRequirements"]["items"]["properties"]
+    rule = schema["properties"]["packet"]["properties"]["assessmentRules"]["items"]["properties"]
+    assert "unpack those criteria" in requirement["applicabilityConditions"]["description"]
+    assert "at least one" in requirement["applicabilityConditions"]["description"]
+    assert "facts" in rule["unresolvedConditions"]["description"]
+    assert "never just restate the actor or category label" in rule["applicabilityGuidance"]["description"].lower()

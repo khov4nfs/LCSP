@@ -24,6 +24,7 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RetryRuleSetPreparationCommand } from "../../application/commands/retry-rule-set-preparation/retry-rule-set-preparation.command.js";
+import { GetComplianceRuleSetResultQuery } from "../../application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.query.js";
 import { ListComplianceRuleSetHistoryQuery } from "../../application/queries/list-compliance-rule-set-history/list-compliance-rule-set-history.query.js";
 import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
@@ -47,6 +48,22 @@ export class ComplianceRuleSetAdminController {
   list() {
     return this.queries
       .execute(new ListComplianceRuleSetHistoryQuery())
+      .then(resultEnvelope);
+  }
+
+  /** View result: one stored rule set version (ACTIVE or SUPERSEDED) with its source provenance. */
+  @Get(":ruleSetVersionId")
+  result(
+    @Param("ruleSetVersionId", new ParseUUIDPipe()) ruleSetVersionId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.queries
+      .execute(
+        new GetComplianceRuleSetResultQuery(
+          ruleSetVersionId,
+          req.correlationId || randomUUID(),
+        ),
+      )
       .then(resultEnvelope);
   }
 
@@ -92,7 +109,7 @@ export class ComplianceRuleSetAdminController {
         COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
       ),
     )
-    _request: RuleSetPreparationAdminRequest,
+    request: RuleSetPreparationAdminRequest,
     @Req() req: AuthenticatedRequest,
   ) {
     return this.commands
@@ -100,6 +117,7 @@ export class ComplianceRuleSetAdminController {
         new PrepareCurrentRuleSetCommand(
           req.rbacContext.userId,
           req.correlationId || randomUUID(),
+          request.replaceActive === true,
         ),
       )
       .then(resultEnvelope);

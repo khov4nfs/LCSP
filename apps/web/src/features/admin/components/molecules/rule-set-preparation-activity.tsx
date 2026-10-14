@@ -1,6 +1,7 @@
 "use client";
 
 import type { MessageKey } from "@lcsp/i18n";
+import { AGENT_EXECUTION_STATES } from "@lcsp/contracts/assessment";
 import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
 import type { AgentExecutionState } from "@lcsp/contracts/assessment";
 import { resolveAppMessage } from "@/lib/i18n";
@@ -40,11 +41,25 @@ export function RuleSetPreparationActivity({
           {resolveAppMessage("pages.complianceRuleSets.activity.title")}
         </h3>
         <span className="text-xs text-muted-foreground">
-          {connected
-            ? resolveAppMessage("pages.complianceRuleSets.activity.live")
-            : resolveAppMessage(
-                "pages.complianceRuleSets.activity.reconnecting",
-              )}
+          {terminal
+            ? resolveAppMessage(
+                executionState === AGENT_EXECUTION_STATES.SUCCEEDED
+                  ? "pages.complianceRuleSets.activity.terminalStatuses.SUCCEEDED"
+                  : executionState === AGENT_EXECUTION_STATES.FAILED
+                    ? "pages.complianceRuleSets.activity.terminalStatuses.FAILED"
+                    : executionState === AGENT_EXECUTION_STATES.CANCELLED
+                      ? "pages.complianceRuleSets.activity.terminalStatuses.CANCELLED"
+                      : executionState === AGENT_EXECUTION_STATES.INTERRUPTED
+                        ? "pages.complianceRuleSets.activity.terminalStatuses.INTERRUPTED"
+                        : executionState === AGENT_EXECUTION_STATES.PAUSED
+                          ? "pages.complianceRuleSets.activity.terminalStatuses.PAUSED"
+                          : "pages.complianceRuleSets.activity.terminalStatuses.FINISHED",
+              )
+            : connected
+              ? resolveAppMessage("pages.complianceRuleSets.activity.live")
+              : resolveAppMessage(
+                  "pages.complianceRuleSets.activity.reconnecting",
+                )}
         </span>
       </div>
       {activities.length === 0 ? (
@@ -62,7 +77,8 @@ export function RuleSetPreparationActivity({
                 <span
                   className={cn(
                     "size-2 rounded-full bg-muted-foreground",
-                    item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running &&
+                    !terminal &&
+                      item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running &&
                       "animate-pulse bg-primary",
                     item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed &&
                       "bg-emerald-600",

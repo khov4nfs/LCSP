@@ -192,6 +192,66 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     );
   });
 
+  it("requires an assessable requirement to declare its applicability scope, in whatever terms the source uses", () => {
+    const withoutScope = validPacket();
+    const covered = withoutScope.legalRequirements.find(
+      (rule) => rule.coverage.state === "COVERED_BY_ASSESSMENT_RULES",
+    );
+    if (!covered) throw new Error("fixture must contain a covered requirement");
+    covered.applicabilityConditions = [];
+    const rejected = validateComplianceRuleSetPacket(
+      withoutScope,
+      fixtureLegalSource(),
+      never,
+    ).failures.filter(
+      (failure) =>
+        failure.code ===
+        COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_SCOPE_MISSING,
+    );
+    expect(rejected).toEqual([
+      expect.objectContaining({
+        ref: `legalRequirement:${covered.legalRequirementId}`,
+      }),
+    ]);
+
+    // Any wording passes: the check never learns which roles, categories or terms a legal source uses.
+    for (const scope of [
+      "Applies to the keeper of a register.",
+      "Gilt für Betreiber von Hochrisikosystemen, sofern sie Daten verarbeiten.",
+      "Every holder of a vessel licence",
+    ]) {
+      covered.applicabilityConditions = [scope];
+      expect(
+        codes(
+          validateComplianceRuleSetPacket(
+            withoutScope,
+            fixtureLegalSource(),
+            never,
+          ).failures,
+        ),
+      ).not.toContain(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_SCOPE_MISSING,
+      );
+    }
+  });
+
+  it("does not ask a non-assessable requirement for an applicability scope", () => {
+    const packet = validPacket();
+    const nonAssessable = packet.legalRequirements.filter(
+      (rule) => rule.coverage.state === "NON_ASSESSABLE",
+    );
+    expect(nonAssessable.length).toBeGreaterThan(0);
+    for (const rule of nonAssessable) rule.applicabilityConditions = [];
+    expect(
+      codes(
+        validateComplianceRuleSetPacket(packet, fixtureLegalSource(), never)
+          .failures,
+      ),
+    ).not.toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_SCOPE_MISSING,
+    );
+  });
+
   it("fails an empty ruleSet and an invalid retrieval index without judging meaning", () => {
     const empty = {
       legalRequirements: [],

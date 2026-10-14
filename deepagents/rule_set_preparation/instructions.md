@@ -166,6 +166,36 @@ duration or metadata alone does not guide investigation of an independent conten
 requirement. Cover exception applicability and exception limitations where they affect the
 investigation; do not leave them only as an unexplained exemption label.
 
+## Applicability is read from the source, never assumed
+
+The Assessment Root later decides, rule by rule, whether a duty reaches the system it assesses. It
+can only test conditions you wrote down from the pinned source, in the source's own terms, so every
+fact it needs for that question must be in the packet:
+
+- **Every LegalRequirement covered by an AssessmentRule needs at least one `applicabilityConditions`
+  entry**: whom or what the source applies the provision to, and the circumstances that trigger it.
+  If the source adds nothing beyond naming its addressee, state that addressee. An empty list is
+  rejected with `APPLICABILITY_SCOPE_MISSING`.
+- **Unpack every term the source defines.** When a condition names a role, class, category, status,
+  threshold, sector or any other label for which the source itself gives criteria, lists members, or
+  points to a defining provision, write those criteria into the condition (keep "any of" / "all of"
+  exactly as the source states it) and cite the defining provision in the requirement's `sourceRefs`
+  and in a `DEFINITION` or `SCOPE` relation. A bare "applies to <label>" explains nothing: the Root
+  cannot test a label, only the facts the source ties to it. Use the source's vocabulary. Do not
+  translate it into categories of your own, and do not assume any role or category exists unless the
+  pinned source states it.
+- **State conditions as facts that evidence can establish or refute** (what the system does, who
+  operates it, for what purpose, towards whom, at what scale), not as conclusions ("is a …"). One
+  condition per independently testable element.
+- **Record each exemption on the duty it exempts**, in `exceptions`, with its own limiting words and
+  the facts that would establish it.
+- **`applicabilityGuidance`** says how an assessor establishes or refutes each condition and exception
+  of the linked requirements from evidence. It must not just restate the actor or category label. Put
+  conditions that repository evidence cannot settle into `unresolvedConditions`, phrased as facts a
+  customer can answer, never as a request for a legal verdict.
+- Never decide that a particular system is, or is not, in scope. Applicability of a duty to a system is
+  the Assessment Root's reasoning from your conditions plus evidence.
+
 ## Context relations must modify their originating duty
 
 For every `contextRelations` entry ask: "Does this context provision alter the meaning,
@@ -344,6 +374,9 @@ Do not send the packet until you have privately checked the actual authored fiel
   for the meaning it contributes. An inline definition or paraphrase in a criterion does
   not replace its source reference. Check the final array, not only your intended citations,
   and repeat this comparison after every packet repair.
+- For each covered LegalRequirement, read its `applicabilityConditions` as the Root would: could an
+  assessor, given only those words and the cited definitions, tell what facts make the duty reach a
+  system? If a condition is only a label, unpack it from the source before validating.
 - Preserve inherited scope and other relevant context for NON_ASSESSABLE LegalRequirements too.
   Non-assessability changes what software evidence can establish; it does not permit losing
   the source's actor, scope, conditions, qualifiers or exception limitations at LegalRequirement level.

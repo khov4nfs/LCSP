@@ -188,6 +188,8 @@ class RootRun:
     decision_revisions: dict[str, int] = field(default_factory=dict)
     rule_versions: dict[str, str] = field(default_factory=dict)
     rule_criteria: dict[str, list[str]] = field(default_factory=dict)
+    # (legalRequirementId, kind, index) -> legal source text, per rule, for anchoring findings and questions.
+    rule_elements: dict[str, dict[tuple[str, str, int], str]] = field(default_factory=dict)
 
     def adopt_context(self, context: dict[str, Any]) -> None:
         self.case_revision = int(context["caseRevision"])
@@ -255,12 +257,48 @@ class CriterionDecisionArgs(_Args):
     references: list[DecisionReference] = Field(min_length=1)
 
 
+class ApplicabilityBasisArgs(_Args):
+    legal_requirement_id: str = Field(description="LegalRequirement that states the element.")
+    kind: Literal["APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"]
+    index: int = Field(ge=0, description="Position of the element in that list, as returned by get_assessment_rule.")
+    finding: Literal["ESTABLISHED", "REFUTED", "NOT_ESTABLISHED"] = Field(
+        description="What the accepted evidence/facts show about this element. NOT_ESTABLISHED when they do not settle it."
+    )
+    rationale: str = Field(min_length=1, description="Why the cited evidence/facts bear on THIS element of THIS rule.")
+    references: list[DecisionReference] = Field(
+        default_factory=list, description="Evidence/facts behind an ESTABLISHED or REFUTED finding."
+    )
+
+
+class ConditionRefArgs(_Args):
+    legal_requirement_id: str
+    kind: Literal["APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION"]
+    index: int = Field(ge=0)
+
+
+class ReadLegalSourceArgs(_Args):
+    document_id: str = Field(description="documentId of a provision, as listed in the rule's legalSources.")
+    locator: str = Field(description="locator of that provision.")
+
+
+class SearchLegalSourceArgs(_Args):
+    query: str = Field(min_length=2, max_length=200, description="Words that must all occur in the provision text.")
+
+
 class SubmitDecisionArgs(_Args):
     assessment_rule_id: str
     applicability: Literal["APPLICABLE", "NOT_APPLICABLE"]
     rationale: str = Field(min_length=1)
     legal_context_ids: list[str] = Field(min_length=1, description="LegalRequirement IDs relied on.")
     references: list[DecisionReference] = Field(min_length=1)
+    applicability_basis: list[ApplicabilityBasisArgs] = Field(
+        default_factory=list,
+        description=(
+            "Element-by-element findings for the applicability conditions, qualifiers and exceptions the linked "
+            "requirements state. NOT_APPLICABLE needs an ESTABLISHED exception or a REFUTED condition, with references; "
+            "APPLICABLE needs an ESTABLISHED condition and no refuting element. NOT_ESTABLISHED never supports either."
+        ),
+    )
     criteria: list[CriterionDecisionArgs] = Field(
         default_factory=list, description="Every criterion, when APPLICABLE; empty when NOT_APPLICABLE."
     )
@@ -276,6 +314,13 @@ class OpenHumanRequestArgs(_Args):
     resolution_attempts: list[str] = Field(min_length=1, description="How you already tried to settle it from sources.")
     control_type: str = "FREE_TEXT"
     choices: list[dict[str, str]] = Field(default_factory=list, description="[{value, label}] when a fixed set applies.")
+    condition_ref: ConditionRefArgs | None = Field(
+        default=None,
+        description=(
+            "The source-stated element of this rule the fact bears on. A request needs this or criterion_ids: "
+            "ask for a fact that settles that element, never for a legal verdict."
+        ),
+    )
 
 
 class ReportUnresolvableHumanFactArgs(OpenHumanRequestArgs):
@@ -329,6 +374,37 @@ def _validation_feedback(error: ValidationError) -> str:
         },
         ensure_ascii=False,
     )
+
+
+# The three lists of a LegalRequirement that state, in the legal source's own words, when a duty reaches a system.
+_ELEMENT_LISTS = (
+    ("APPLICABILITY_CONDITION", "applicabilityConditions"),
+    ("QUALIFIER", "qualifiers"),
+    ("EXCEPTION", "exceptions"),
+)
+
+
+def _applicability_elements(requirements: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every source-stated element of the linked requirements, addressed as the API validates it."""
+    return [
+        {"legalRequirementId": requirement["legalRequirementId"], "kind": kind, "index": index, "text": text}
+        for requirement in requirements
+        for kind, key in _ELEMENT_LISTS
+        for index, text in enumerate(requirement.get(key) or [])
+    ]
+
+
+def _legal_sources(rule: dict[str, Any], requirements: list[dict[str, Any]], relations: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Provisions worth reading for this rule: its own, its requirements' and its context relations'."""
+    found: dict[tuple[str, str], str] = {}
+    for origin, sources in (
+        ("RULE", rule.get("sources") or []),
+        *[("REQUIREMENT", requirement.get("sources") or []) for requirement in requirements],
+        ("RELATION", [r["toSourceRef"] for r in relations if r.get("toSourceRef")]),
+    ):
+        for source in sources:
+            found.setdefault((source["documentId"], source["locator"]), origin)
+    return [{"documentId": doc, "locator": loc, "origin": origin} for (doc, loc), origin in found.items()]
 
 
 def _guard(call):
@@ -421,14 +497,31 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         linked = set(rule["legalRequirementIds"])
         relations = [r for r in rule_set["contextRelations"] if r["fromLegalRequirementId"] in linked]
         related = {r["toLegalRequirementId"] for r in relations if r.get("toLegalRequirementId")}
+        requirements = [lr for lr in rule_set["legalRequirements"] if lr["legalRequirementId"] in linked | related]
+        elements = _applicability_elements([lr for lr in requirements if lr["legalRequirementId"] in linked])
+        run.rule_elements[assessment_rule_id] = {
+            (item["legalRequirementId"], item["kind"], item["index"]): item["text"] for item in elements
+        }
         return {
             "ok": True,
             "assessmentRule": rule,
-            "legalRequirements": [
-                lr for lr in rule_set["legalRequirements"] if lr["legalRequirementId"] in linked | related
-            ],
+            "legalRequirements": requirements,
             "contextRelations": relations,
+            # What the legal source says decides whether this duty reaches a system. Address each element by
+            # (legalRequirementId, kind, index) in applicability_basis and in human questions.
+            "applicabilityElements": elements,
+            # Read these with read_legal_source before concluding what an element means; use
+            # search_legal_source to find the provisions that define or limit a term.
+            "legalSources": _legal_sources(rule, requirements, relations),
         }
+
+    def read_legal_source(document_id: str, locator: str) -> dict[str, Any]:
+        """Read one provision of the legal source this assessment's rule set was prepared from (the pinned legal source)."""
+        return {"ok": True, **client.legal_source_text(document_id, locator)}
+
+    def search_legal_source(query: str) -> dict[str, Any]:
+        """Find provisions of the pinned legal source containing all the given words, e.g. the one that defines a term."""
+        return {"ok": True, **client.legal_source_search(query)}
 
     def start_rule_investigation(assessment_rule_id: str) -> dict[str, Any]:
         """Mark that you are now investigating this AssessmentRule."""
@@ -558,6 +651,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         references: list[dict[str, str]],
         criteria: list[dict[str, Any]] | None = None,
         compliance: str | None = None,
+        applicability_basis: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Submit your decision for one AssessmentRule. Every semantic choice is yours."""
         if assessment_rule_id not in run.rule_versions:
@@ -571,6 +665,7 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 "references": references,
                 "criteria": criteria or [],
                 "compliance": compliance,
+                "applicability_basis": applicability_basis or [],
             }
         )
         decision = {
@@ -595,6 +690,23 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
                 for c in args.criteria
             ],
             "compliance": args.compliance,
+            **(
+                {
+                    "applicabilityBasis": [
+                        {
+                            "legalRequirementId": entry.legal_requirement_id,
+                            "kind": entry.kind,
+                            "index": entry.index,
+                            "finding": entry.finding,
+                            "rationale": entry.rationale,
+                            "references": [_reference(r) for r in entry.references],
+                        }
+                        for entry in args.applicability_basis
+                    ]
+                }
+                if args.applicability_basis
+                else {}
+            ),
         }
         digest = hashlib.sha256(
             json.dumps(decision, sort_keys=True, separators=(",", ":")).encode()
@@ -607,6 +719,41 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         result = client.post_decision(request)
         run.decision_revisions[args.assessment_rule_id] = int(result["decisionRevision"])
         return {"ok": True, **result}
+
+    def anchored_impact(
+        assessment_rule_id: str,
+        criterion_ids: list[str] | None,
+        condition_ref: ConditionRefArgs | dict[str, Any] | None,
+        decision_impact: list[str],
+    ) -> list[str] | dict[str, Any]:
+        """A question must hang on a source-defined element of the rule, never float free as a verdict request.
+
+        Returns the decision impact (extended with the element's own legal source wording) or a feedback dict.
+        """
+        if not criterion_ids and not condition_ref:
+            return {
+                "ok": False,
+                "code": "HUMAN_REQUEST_NOT_ANCHORED",
+                "hint": (
+                    "Name the criterion_ids or the condition_ref (legal_requirement_id, kind, index from "
+                    "get_assessment_rule.applicabilityElements) that the missing fact bears on, and ask for the "
+                    "fact that settles it, not for a legal classification."
+                ),
+            }
+        if not condition_ref:
+            return decision_impact
+        if assessment_rule_id not in run.rule_elements:
+            get_assessment_rule(assessment_rule_id)
+        ref = ConditionRefArgs.model_validate(condition_ref)  # a model from the tool schema, or a plain dict
+        key = (ref.legal_requirement_id, ref.kind, ref.index)
+        text = run.rule_elements.get(assessment_rule_id, {}).get(key)
+        if text is None:
+            return {
+                "ok": False,
+                "code": "UNKNOWN_APPLICABILITY_ELEMENT",
+                "hint": "condition_ref must be one of get_assessment_rule.applicabilityElements for this rule.",
+            }
+        return [*decision_impact, f"Bears on this condition stated in the legal text: {text}"]
 
     def persist_human_request(
         assessment_rule_id: str,
@@ -655,10 +802,14 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         criterion_ids: list[str] | None = None,
         control_type: str = "FREE_TEXT",
         choices: list[dict[str, str]] | None = None,
+        condition_ref: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Ask the customer a material fact only they can supply, after investigating the sources."""
+        """Ask the customer a material FACT that settles a named element of this rule, after investigating the sources."""
+        impact = anchored_impact(assessment_rule_id, criterion_ids, condition_ref, decision_impact)
+        if isinstance(impact, dict):
+            return impact
         result = persist_human_request(assessment_rule_id, question, unresolved_fact,
-            decision_impact, resolution_attempts, criterion_ids, control_type, choices)
+            impact, resolution_attempts, criterion_ids, control_type, choices)
         interrupt({"requestIds": [result["requestId"]]})
         return resolved_human_request(result)
 
@@ -673,10 +824,14 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         criterion_ids: list[str] | None = None,
         control_type: str = "FREE_TEXT",
         choices: list[dict[str, str]] | None = None,
+        condition_ref: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Report a material human fact proven permanently unobtainable under the contract; do not submit an unknown verdict."""
+        impact = anchored_impact(assessment_rule_id, criterion_ids, condition_ref, decision_impact)
+        if isinstance(impact, dict):
+            return impact
         result = persist_human_request(assessment_rule_id, question, unresolved_fact,
-            decision_impact, [*resolution_attempts, unavailability_rationale],
+            impact, [*resolution_attempts, unavailability_rationale],
             criterion_ids, control_type, choices)
         # A later valid answer replays this native tool. Resolution is server-owned and must
         # clear the old dependency instead of reapplying the historical blocker claim.
@@ -740,6 +895,8 @@ def build_root_tools(run: RootRun) -> list[StructuredTool]:
         tool(get_assessment_context, _NoArgs, "get_assessment_context"),
         tool(get_pinned_rule_set, _NoArgs, "get_pinned_rule_set"),
         tool(get_assessment_rule, GetRuleArgs, "get_assessment_rule"),
+        tool(read_legal_source, ReadLegalSourceArgs, "read_legal_source"),
+        tool(search_legal_source, SearchLegalSourceArgs, "search_legal_source"),
         tool(start_rule_investigation, StartInvestigationArgs, "start_rule_investigation"),
         tool(cite_repository_source, CiteRepositorySourceArgs, "cite_repository_source"),
         tool(record_search_coverage, RecordSearchCoverageArgs, "record_search_coverage"),
@@ -757,6 +914,8 @@ ROOT_TOOL_NAMES = (
     "get_assessment_context",
     "get_pinned_rule_set",
     "get_assessment_rule",
+    "read_legal_source",
+    "search_legal_source",
     "start_rule_investigation",
     "cite_repository_source",
     "record_search_coverage",

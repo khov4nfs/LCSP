@@ -76,6 +76,13 @@ export type PagesMessages = {
     confirmCancelDescription: string;
     keepRunning: string;
     confirmCancel: string;
+    prepareNewVersion: string;
+    viewResult: string;
+    confirmReplaceTitle: string;
+    confirmReplaceDescription: string;
+    confirmReplace: string;
+    replacingActiveVersion: string;
+    activeVersionRemainsInUse: string;
     activity: {
       title: string;
       live: string;
@@ -113,6 +120,14 @@ export type PagesMessages = {
       outputTokens: string;
       totalTokens: string;
       sourcePath: string;
+      terminalStatuses: {
+        SUCCEEDED: string;
+        FAILED: string;
+        CANCELLED: string;
+        INTERRUPTED: string;
+        PAUSED: string;
+        FINISHED: string;
+      };
     };
     states: {
       BUILDING: string;
@@ -126,6 +141,54 @@ export type PagesMessages = {
       RULE_SET_VALIDATION_FAILED: string;
       SOURCE_VERSION_UNAVAILABLE: string;
       RUNTIME_ERROR: string;
+    };
+    result: {
+      title: string;
+      backToHistory: string;
+      legalSource: string;
+      chunkCount: string;
+      supersededAt: string;
+      noneStated: string;
+      notFoundTitle: string;
+      notFoundDescription: string;
+      loadErrorTitle: string;
+      loadErrorDescription: string;
+      retry: string;
+      documentId: string;
+      effectStatus: string;
+      proposition: string;
+      applicabilityConditions: string;
+      qualifiers: string;
+      exceptions: string;
+      coverageState: string;
+      coverageStates: {
+        COVERED_BY_ASSESSMENT_RULES: string;
+        NON_ASSESSABLE: string;
+      };
+      nonAssessableReason: string;
+      nonRepositoryDuty: string;
+      yes: string;
+      no: string;
+      sources: string;
+      locator: string;
+      contentHash: string;
+      legalIntent: string;
+      applicabilityGuidance: string;
+      criteria: string;
+      investigationGoals: string;
+      requiredEvidence: string;
+      supportingEvidence: string;
+      negativeEvidence: string;
+      unresolvedConditions: string;
+      linkedRequirementIds: string;
+      contextRelations: string;
+      contextRelationKinds: {
+        DEFINITION: string;
+        SCOPE: string;
+        QUALIFIER: string;
+        EXCEPTION: string;
+        CROSS_REFERENCE: string;
+      };
     };
   };
   assessmentConversation: {

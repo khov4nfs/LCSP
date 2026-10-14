@@ -15,6 +15,7 @@ import { SubmitComplianceRuleSetHandler } from "./application/commands/submit-co
 import { CancelRuleSetPreparationHandler } from "./application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.handler.js";
 import { GetActiveComplianceRuleSetHandler } from "./application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.handler.js";
 import { GetComplianceRuleSetVersionHandler } from "./application/queries/get-compliance-rule-set-version/get-compliance-rule-set-version.handler.js";
+import { GetComplianceRuleSetResultHandler } from "./application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.handler.js";
 import { ValidateComplianceRuleSetHandler } from "./application/queries/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
 import { LegalSourceSnapshotLoader } from "./infrastructure/persistence/legal-source-snapshot.service.js";
 import { ComplianceRuleSetActivation } from "./infrastructure/persistence/compliance-rule-set-activation.service.js";
@@ -48,6 +49,7 @@ import { AgentServerPreparationControl } from "./infrastructure/runtime/agent-se
     ValidateComplianceRuleSetHandler,
     GetActiveComplianceRuleSetHandler,
     GetComplianceRuleSetVersionHandler,
+    GetComplianceRuleSetResultHandler,
   ],
 })
 export class ComplianceRuleSetModule {}

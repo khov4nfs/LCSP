@@ -88,7 +88,7 @@ export class ComplianceRuleSetHistoryLoader {
                 row.legalSourceVersion.status === approved &&
                 row.ruleSet === null &&
                 preparation.legalSourceVersionId === row.legalSourceVersionId &&
-                preparation.canStart,
+                (preparation.canStart || preparation.canReplace),
             };
           }),
         });

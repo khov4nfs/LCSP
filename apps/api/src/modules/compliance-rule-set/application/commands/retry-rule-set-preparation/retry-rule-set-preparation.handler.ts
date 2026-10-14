@@ -121,7 +121,13 @@ export class RetryRuleSetPreparationHandler implements ICommandHandler<RetryRule
     if (availability.currentRun?.preparationRunId !== run.id) {
       throw refuse(RULE_SET_PREPARATION_REFUSAL_REASONS.RUN_NOT_LATEST_ATTEMPT);
     }
-    if (availability.refusalReason !== null) {
+    // Retrying a failed run (first preparation or failed replacement) only needs nothing in
+    // progress; an ACTIVE rule set is no obstacle and stays ACTIVE until a successor activates.
+    if (
+      availability.refusalReason !== null &&
+      availability.refusalReason !==
+        RULE_SET_PREPARATION_REFUSAL_REASONS.ACTIVE_RULE_SET_EXISTS
+    ) {
       throw refuse(availability.refusalReason);
     }
 

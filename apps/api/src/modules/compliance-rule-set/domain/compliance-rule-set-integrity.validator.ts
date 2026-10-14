@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   COMPLIANCE_RULE_SET_FAILURE_CODES,
+  declaresApplicabilityScope,
   type ComplianceRuleSetFailureCode,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSourceRef,
@@ -12,6 +13,8 @@ import {
 /** Legal status recorded on a chunk whose provision no longer has effect. */
 const REPEALED_LEGAL_STATUS = "REPEALED";
 const HIERARCHY_SEPARATOR = "::";
+const APPLICABILITY_SCOPE_MISSING_DETAIL =
+  "applicabilityConditions is empty: state whom or what the source applies this duty to and what triggers it, in the source's own terms, unpacking any defined role, class or category with the source's criteria";
 
 export interface LegalSourceChunkSnapshot {
   id: string;
@@ -257,6 +260,23 @@ export function validateComplianceRuleSetPacket(
       }
     } else if (!linkedRuleIds.has(rule.legalRequirementId)) {
       fail(COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_RULE_COVERAGE, label);
+    }
+  }
+  // An assessable requirement must declare whom or what the source applies it to. Only the
+  // declaration is checked; what the scope means is for the authoring agent and the Assessment
+  // Root to read from the pinned source.
+  for (const rule of packet.legalRequirements) {
+    if (
+      !declaresApplicabilityScope(
+        rule.coverage.state,
+        rule.applicabilityConditions,
+      )
+    ) {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_SCOPE_MISSING,
+        `legalRequirement:${rule.legalRequirementId}`,
+        APPLICABILITY_SCOPE_MISSING_DETAIL,
+      );
     }
   }
   // Every in-scope provision (non-repealed leaf chunk) is covered by a rule,

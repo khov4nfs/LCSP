@@ -64,6 +64,8 @@ class FakeClient:
         self.lifecycle_state = "ACTIVE"
         self.open_requests = open_requests or []
         self.reject_decision: AssessmentApiError | None = None
+        self.rule_set_override: dict[str, Any] | None = None
+        self.legal_texts: dict[tuple[str, str], dict[str, Any]] = {}
 
     def claim(self, assessment_id: str) -> dict[str, Any]:
         self.assessment_id = assessment_id
@@ -107,8 +109,27 @@ class FakeClient:
             **PINS,
         }
 
+    def legal_source_text(self, document_id: str, locator: str) -> dict[str, Any]:
+        self.calls.append(("legal_text", (document_id, locator)))
+        found = self.legal_texts.get((document_id, locator))
+        if found is None:
+            raise AssessmentApiError(404, "ASSESSMENT_DOMAIN_REQUEST_INVALID", {"reason": "LEGAL_SOURCE_PROVISION_NOT_FOUND"})
+        return found
+
+    def legal_source_search(self, query: str) -> dict[str, Any]:
+        self.calls.append(("legal_search", query))
+        words = query.lower().split()
+        matches = [
+            {"documentId": doc, "locator": loc, "contentSha256": text["contentSha256"], "snippet": text["content"][:80]}
+            for (doc, loc), text in self.legal_texts.items()
+            if all(word in text["content"].lower() for word in words)
+        ]
+        return {"matches": matches, "truncated": False}
+
     def rule_set(self) -> dict[str, Any]:
         self.calls.append(("rule_set", None))
+        if self.rule_set_override is not None:
+            return self.rule_set_override
         return {
             "ruleSetVersionId": PINS["ruleSetVersionId"],
             "legalRequirements": [{"legalRequirementId": "LR-1", "title": "t", "proposition": "p"}],
@@ -713,6 +734,7 @@ def test_root_human_tool_uses_native_interrupt_and_replays_the_same_request(tmp_
         "assessment_rule_id": "ER-1", "question": "Who owns the operational policy?",
         "unresolved_fact": "Operational policy owner", "decision_impact": ["Determines responsibility"],
         "resolution_attempts": ["Reviewed the available sources and accepted facts"],
+        "criterion_ids": ["C-1"],
     }, "human-call"), *complete_root_messages()])
     agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=saver, graph_tools=[])
     config = {"configurable": {"thread_id": THREAD}}
@@ -752,6 +774,7 @@ def test_unresolvable_fact_tool_blocks_then_resumes_without_reapplying_the_claim
         "assessment_rule_id": "ER-1", "question": "Who owned the historical operational policy?",
         "unresolved_fact": "Historical policy owner", "decision_impact": ["Determines responsibility"],
         "resolution_attempts": ["Reviewed all accepted sources"],
+        "criterion_ids": ["C-1"],
         "unavailability_rationale": "The records were permanently destroyed and no other source exists under the contract.",
         "evidence_ids": ["66666666-6666-4666-8666-666666666666"],
     }, "blocked-call"), *complete_root_messages()])
@@ -908,3 +931,178 @@ def test_invalid_tool_arguments_come_back_as_feedback_and_do_not_end_the_run(tmp
     feedback = json.loads(next(m.content for m in model.prompts[1] if getattr(m, "name", None) == "accept_case_fact"))
     assert feedback["code"] == "INVALID_TOOL_ARGUMENTS"
     assert feedback["problems"][0].startswith("evidence_ids:")
+
+
+# ---- legal-source-driven applicability --------------------------------------------------------------------
+
+SOURCE_A = {  # one synthetic legal source ...
+    "requirement": "LR-A",
+    "conditions": ["Applies to a keeper of a public register.", "The register is kept in electronic form."],
+    "exceptions": ["Does not apply to a register kept for private use."],
+    "source": ("DOC-A", "art-2::cl-1"),
+}
+SOURCE_B = {  # ... and an unrelated one, in another language and vocabulary
+    "requirement": "LR-B",
+    "conditions": ["Gilt für Betreiber von Anlagen mit mehr als 50 Beschäftigten."],
+    "exceptions": [],
+    "source": ("DOC-B", "par-7"),
+}
+
+
+def _source_rule_set(spec: dict[str, Any]) -> dict[str, Any]:
+    doc, loc = spec["source"]
+    source = {"documentId": doc, "locator": loc, "contentSha256": "sha256:" + "a" * 64}
+    return {
+        "ruleSetVersionId": PINS["ruleSetVersionId"],
+        "legalRequirements": [{
+            "legalRequirementId": spec["requirement"], "title": "t", "proposition": "p",
+            "applicabilityConditions": spec["conditions"], "qualifiers": [], "exceptions": spec["exceptions"],
+            "sources": [source],
+        }],
+        "assessmentRules": [{
+            "assessmentRuleId": "ER-1", "assessmentRuleVersion": "v1", "concept": "c",
+            "legalRequirementIds": [spec["requirement"]], "criteria": [{"criterionId": "C-1", "statement": "s"}],
+            "sources": [source],
+        }],
+        "contextRelations": [],
+    }
+
+
+@pytest.mark.parametrize("source", [SOURCE_A, SOURCE_B], ids=["register-keepers", "betreiber"])
+def test_get_assessment_rule_exposes_each_legal_source_own_elements_and_sources(tmp_path, source) -> None:
+    client = FakeClient()
+    client.rule_set_override = _source_rule_set(source)
+    tools = _tools(_run(tmp_path, client))
+
+    out = json.loads(tools["get_assessment_rule"].invoke({"assessment_rule_id": "ER-1"}))
+
+    texts = [(item["kind"], item["index"], item["text"]) for item in out["applicabilityElements"]]
+    expected = [("APPLICABILITY_CONDITION", i, t) for i, t in enumerate(source["conditions"])] + [
+        ("EXCEPTION", i, t) for i, t in enumerate(source["exceptions"])
+    ]
+    assert texts == expected
+    assert {item["legalRequirementId"] for item in out["applicabilityElements"]} == {source["requirement"]}
+    assert [(s["documentId"], s["locator"]) for s in out["legalSources"]] == [source["source"]]
+
+
+def test_the_pinned_legal_source_is_read_and_searched_through_the_governed_tools(tmp_path) -> None:
+    client = FakeClient()
+    client.legal_texts[("DOC-A", "art-1")] = {
+        "documentId": "DOC-A", "locator": "art-1", "contentSha256": "sha256:" + "b" * 64,
+        "content": "In this instrument a keeper means whoever maintains a public register.",
+    }
+    tools = _tools(_run(tmp_path, client))
+
+    read = json.loads(tools["read_legal_source"].invoke({"document_id": "DOC-A", "locator": "art-1"}))
+    found = json.loads(tools["search_legal_source"].invoke({"query": "keeper register"}))
+    missing = json.loads(tools["read_legal_source"].invoke({"document_id": "DOC-A", "locator": "art-9"}))
+
+    assert read["ok"] and "whoever maintains a public register" in read["content"]
+    assert [(m["documentId"], m["locator"]) for m in found["matches"]] == [("DOC-A", "art-1")]
+    assert missing["ok"] is False and missing["code"] == "ASSESSMENT_DOMAIN_REQUEST_INVALID"
+
+
+def test_submit_rule_decision_carries_the_element_by_element_basis_only_when_given(tmp_path) -> None:
+    client = FakeClient()
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+    reference = {"type": "ASSESSMENT_EVIDENCE", "id": "66666666-6666-4666-8666-666666666666"}
+    base = {
+        "assessment_rule_id": "ER-1", "applicability": "NOT_APPLICABLE", "rationale": "Refuted for this rule.",
+        "legal_context_ids": ["LR-1"], "references": [reference],
+    }
+
+    tools["submit_rule_decision"].invoke(base)
+    tools["submit_rule_decision"].invoke({**base, "applicability_basis": [{
+        "legal_requirement_id": "LR-1", "kind": "APPLICABILITY_CONDITION", "index": 0, "finding": "REFUTED",
+        "rationale": "The cited code shows the register is private.", "references": [reference],
+    }]})
+
+    plain, with_basis = [body for kind, body in client.calls if kind == "decision"]
+    assert "applicabilityBasis" not in plain["decision"]
+    assert with_basis["decision"]["applicabilityBasis"] == [{
+        "legalRequirementId": "LR-1", "kind": "APPLICABILITY_CONDITION", "index": 0, "finding": "REFUTED",
+        "rationale": "The cited code shows the register is private.",
+        "references": [{"type": "ASSESSMENT_EVIDENCE", "evidenceId": "66666666-6666-4666-8666-666666666666"}],
+    }]
+
+
+def test_a_human_question_must_hang_on_a_legal_source_element_or_a_criterion(tmp_path) -> None:
+    client = FakeClient()
+    client.rule_set_override = _source_rule_set(SOURCE_A)
+    run = _run(tmp_path, client)
+    tools = _tools(run)
+    ask = {
+        "assessment_rule_id": "ER-1", "question": "Is the register kept in electronic form?",
+        "unresolved_fact": "Form in which the register is kept", "decision_impact": ["Settles one condition"],
+        "resolution_attempts": ["Searched the repository for storage code"],
+    }
+
+    unanchored = json.loads(tools["open_human_request"].invoke(ask))
+    unknown = json.loads(tools["open_human_request"].invoke({**ask, "condition_ref": {
+        "legal_requirement_id": "LR-A", "kind": "APPLICABILITY_CONDITION", "index": 9,
+    }}))
+
+    assert unanchored["code"] == "HUMAN_REQUEST_NOT_ANCHORED"
+    assert unknown["code"] == "UNKNOWN_APPLICABILITY_ELEMENT"
+    assert not any(kind == "human" for kind, _ in client.calls)  # nothing reached the API
+
+
+def test_an_anchored_human_question_carries_the_legal_source_wording_of_its_element(tmp_path) -> None:
+    from langgraph.types import Command
+
+    class AskingClient(FakeClient):
+        def post_human_request(self, body):
+            result = super().post_human_request(body)
+            if self.case_revision == 0:
+                self.open_requests = [result["requestId"]]
+            return result
+
+    client = AskingClient()
+    client.rule_set_override = _source_rule_set(SOURCE_A)
+    run = _run(tmp_path, client)
+    model = RootScriptedModel(responses=[_call("open_human_request", {
+        "assessment_rule_id": "ER-1", "question": "Is the register kept in electronic form?",
+        "unresolved_fact": "Form in which the register is kept", "decision_impact": ["Settles one condition"],
+        "resolution_attempts": ["Searched the repository for storage code"],
+        "condition_ref": {"legal_requirement_id": "LR-A", "kind": "APPLICABILITY_CONDITION", "index": 1},
+    }, "anchored"), *complete_root_messages()])
+    agent = create_assessment_root_agent(run=run, model=model, governance=(), checkpointer=InMemorySaver(), graph_tools=[])
+    config = {"configurable": {"thread_id": THREAD}}
+
+    result = agent.invoke({"messages": [{"role": "user", "content": "Investigate"}]}, config)
+
+    assert result["__interrupt__"][0].value["requestIds"] == client.open_requests
+    posted = next(body for kind, body in client.calls if kind == "human")
+    assert posted["decisionImpact"][-1] == (
+        "Bears on this condition stated in the legal text: The register is kept in electronic form."
+    )
+    assert "condition_ref" not in posted and "conditionRef" not in posted
+    client.open_requests = []
+    client.case_revision = 1
+    agent.invoke(Command(resume={result["__interrupt__"][0].id: {"resolved": True}}), config)
+
+
+def test_generic_runtime_code_names_no_legal_role_category_or_instrument() -> None:
+    """The legal source defines who is regulated and how; the runtime may not know any of it in advance."""
+    root = Path(__file__).resolve().parents[2]
+    forbidden = (
+        "high-risk", "high risk", "medium-risk", "low-risk", "deployer", "provider of",
+        "134/2025", "71/2025", "134-2025", "71-2025", "qh15", "national infrastructure",
+        "ai database", "ai_provider", "ai_deployer", "high_risk",
+    )
+    generic = [
+        *sorted((root / "deepagents" / "assessment_root").glob("*.py")),
+        root / "deepagents" / "assessment_root" / "instructions.md",
+        *sorted((root / "deepagents" / "rule_set_preparation").glob("*.py")),
+        root / "deepagents" / "rule_set_preparation" / "instructions.md",
+        *sorted((root / "apps" / "api" / "src" / "modules" / "assessment").rglob("*.ts")),
+        *sorted((root / "apps" / "api" / "src" / "modules" / "compliance-rule-set").rglob("*.ts")),
+    ]
+    offenders = []
+    for path in generic:
+        if path.name.endswith((".spec.ts", ".test.ts")):
+            continue
+        text = path.read_text(encoding="utf-8").lower()
+        offenders += [f"{path.relative_to(root)}: {term}" for term in forbidden if term in text]
+    assert offenders == []

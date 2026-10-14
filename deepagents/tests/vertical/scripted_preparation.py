@@ -34,7 +34,7 @@ def _legal(rule_id: str, locators: list[str], hashes: dict[str, str], *, duty: b
         "legalRequirementId": rule_id,
         "title": f"Rule {rule_id}",
         "proposition": f"Proposition {rule_id}.",
-        "applicabilityConditions": [],
+        "applicabilityConditions": [] if duty else ["Applies to the service that stores notices."],
         "qualifiers": [],
         "exceptions": [],
         "nonRepositoryDuty": duty,
