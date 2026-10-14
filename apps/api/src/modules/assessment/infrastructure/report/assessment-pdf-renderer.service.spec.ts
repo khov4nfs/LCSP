@@ -161,7 +161,7 @@ function idFor(index: number): string {
   return `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
 }
 
-function corpusFixture(
+function sourceBackedFixture(
   count: number,
   outcomes: Array<"COMPLIANT" | "NON_COMPLIANT" | "NOT_APPLICABLE">,
 ): AssessmentFinalReportV2 {
@@ -197,8 +197,8 @@ function corpusFixture(
   const legalRequirements = requirementIds.map((requirementId, index) => {
     const requirement = structuredClone(base.legalRequirements[0]);
     requirement.legalRequirementId = requirementId;
-    requirement.title = `Corpus obligation ${index + 1}`;
-    requirement.proposition = `Corpus proposition ${index + 1}`;
+    requirement.title = `Source-backed obligation ${index + 1}`;
+    requirement.proposition = `Source-backed proposition ${index + 1}`;
     requirement.sourceRefs[0].documentId = `doc-${index + 1}`;
     requirement.sourceRefs[0].locator = `article-${index + 1}`;
     return requirement;
@@ -226,7 +226,7 @@ describe("AssessmentPdfRenderer", () => {
   });
 
   it("preserves Vietnamese sections and canonical values in extracted PDF text", async () => {
-    const report = corpusFixture(3, [
+    const report = sourceBackedFixture(3, [
       "COMPLIANT",
       "NON_COMPLIANT",
       "NOT_APPLICABLE",
@@ -246,8 +246,8 @@ describe("AssessmentPdfRenderer", () => {
     expect(extracted.text).toContain("NOT_APPLICABLE");
   });
 
-  it("renders an all-N/A corpus without implying compliance", async () => {
-    const report = corpusFixture(
+  it("renders an all-N/A source-backed fixture without implying compliance", async () => {
+    const report = sourceBackedFixture(
       20,
       Array.from({ length: 20 }, () => "NOT_APPLICABLE"),
     );
