@@ -270,3 +270,26 @@ def test_read_paginates_by_lines_like_the_filesystem_tool_contract(
     (tmp_path / "empty.txt").write_text("")
     assert backend.read("empty.txt").file_data["content"] == ""
     assert "exceeds file length" in backend.read("service.py", offset=99).error
+
+
+def test_large_write_travels_over_stdin_and_stays_exact(tmp_path: Path, monkeypatch) -> None:
+    """A tool result evicted into the sandbox is bigger than one exec argument may be (E2BIG)."""
+    monkeypatch.setattr(docker_sandbox, "REPOSITORY_ROOT", str(tmp_path))
+    argv_sizes: list[int] = []
+
+    def runner(args, input_bytes, timeout):
+        argv_sizes.append(max(len(part) for part in args))
+        if input_bytes is None:
+            return subprocess.run(["bash", "-lc", args[-1]], capture_output=True, timeout=30)
+        assert args[-3:] == ["bash", "-l", "-s"] and "-i" in args
+        return subprocess.run(["bash", "-l", "-s"], input=input_bytes, capture_output=True, timeout=30)
+
+    backend = DockerSandboxBackend(DockerSandboxSpec("thread-large"), runner=runner)
+    backend.ensure_running = lambda: None
+    content = "rule text ✓\n" * 40_000  # ~520 KB, ~700 KB once base64-encoded
+
+    result = backend.write("/large_tool_results/call-1", content)
+
+    assert result.error is None
+    assert (tmp_path / "large_tool_results" / "call-1").read_text(encoding="utf-8") == content
+    assert max(argv_sizes) < docker_sandbox.ARGV_COMMAND_LIMIT

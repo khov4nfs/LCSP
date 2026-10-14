@@ -44,6 +44,10 @@ DEFAULT_MEMORY = "2g"
 DEFAULT_RUNTIME_TMPFS = "1024m"
 DEFAULT_PIDS_LIMIT = "512"
 DEFAULT_EXEC_TIMEOUT = 300
+# Linux rejects a single exec argument over 128 KiB (MAX_ARG_STRLEN) with E2BIG. `write`/`edit` embed the
+# whole file in the command, so a large tool result evicted into the sandbox killed the Root run with
+# `OSError: Argument list too long`. Bigger commands travel over stdin instead.
+ARGV_COMMAND_LIMIT = 96 * 1024
 FORBIDDEN_ENV_PREFIXES = (
     "AWS_",
     "AZURE_",
@@ -358,16 +362,13 @@ class DockerSandboxBackend(SandboxBackendProtocol):
 
     def _exec(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
         self.ensure_running()
-        args = [
-            "exec",
-            "--workdir",
-            REPOSITORY_ROOT,
-            self.spec.container_name,
-            "bash",
-            "-lc",
-            command,
-        ]
-        result = self._docker(args, check=False, timeout=timeout or DEFAULT_EXEC_TIMEOUT)
+        script = command.encode("utf-8")
+        if len(script) > ARGV_COMMAND_LIMIT:
+            args = ["exec", "-i", "--workdir", REPOSITORY_ROOT, self.spec.container_name, "bash", "-l", "-s"]
+            result = self._docker(args, check=False, timeout=timeout or DEFAULT_EXEC_TIMEOUT, input_bytes=script)
+        else:
+            args = ["exec", "--workdir", REPOSITORY_ROOT, self.spec.container_name, "bash", "-lc", command]
+            result = self._docker(args, check=False, timeout=timeout or DEFAULT_EXEC_TIMEOUT)
         output = (result.stdout + result.stderr).decode("utf-8", errors="replace")
         return ExecuteResponse(output=output, exit_code=result.returncode)
 
