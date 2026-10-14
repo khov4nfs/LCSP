@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import json
 import re
 import tempfile
@@ -10,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.runnables.config import var_child_runnable_config
 from langgraph.errors import GraphRecursionError
 from orchestration.agent_stream import publish_agent_stream_event
 from orchestration.graph_execution import agent_graph_config
@@ -186,6 +188,7 @@ def run_rule_set_preparation(
         root = work_dir or Path(scratch)
         try:
             materialize_legal_source(bundle, root)
+            context.source_root = root
             publish_agent_stream_event(
                 "CUSTOM_PROGRESS",
                 status="RUNNING",
@@ -200,7 +203,13 @@ def run_rule_set_preparation(
                 context=context, legal_source_root=root, model=model
             )
             stream_trace = PreparationStreamTrace()
-            agent.invoke(
+            # An independent graph, not a subgraph of the Agent Server run: inheriting that run's
+            # runnable config would make the agent and every legal-source-reader child write
+            # checkpoints into its Postgres saver, which nothing resumes from (see agent.py).
+            isolated = contextvars.copy_context()
+            isolated.run(var_child_runnable_config.set, None)
+            isolated.run(
+                agent.invoke,
                 {"messages": [{"role": "user", "content": _TASK}]},
                 config=agent_graph_config(
                     {"callbacks": [*(callbacks or []), stream_trace]}

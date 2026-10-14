@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import replace
+import traceback
 import uuid
 from typing import Any, Callable
 
@@ -220,7 +221,14 @@ def run_assessment_root(
     except Exception as error:  # noqa: BLE001 - settled as an execution failure below
         final_state = EXECUTION_FAILED
         error_type = type(error).__name__
-        logger.error("ASSESSMENT_ROOT_RUN_FAILED", error_type=error_type, assessment_id=assessment_id)
+        logger.error(
+            "ASSESSMENT_ROOT_RUN_FAILED",
+            error_type=error_type,
+            error_message=str(error)[:300],
+            assessment_id=assessment_id,
+            # Plain frames only: a rich traceback would print local variables such as the lease token.
+            error_traceback="".join(traceback.format_exception(error))[-2500:],
+        )
     if final_state == EXECUTION_INTERRUPTED:
         client.finish(final_state, checkpoint_id=checkpoint_id, request_ids=request_ids)
     elif final_state == EXECUTION_PAUSED:
