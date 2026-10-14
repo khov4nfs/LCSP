@@ -164,6 +164,28 @@ it("projects decision customer-visible rationales to VI while preserving technic
         evidenceLinks: [{ evidenceId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }],
         createdAt: new Date(),
       },
+      {
+        factId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        assessmentId,
+        caseRevision: 1,
+        kind: "FACT",
+        authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+        state: "ACCEPTED",
+        statement: "Legacy unlinked fact: custom user answer",
+        evidenceLinks: [],
+        createdAt: new Date(),
+      },
+      {
+        factId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        assessmentId,
+        caseRevision: 1,
+        kind: "FACT",
+        authority: ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+        state: "ACCEPTED",
+        statement: "Corrupt statement does not match prefix: user answer",
+        evidenceLinks: [],
+        createdAt: new Date(),
+      },
     ],
     humanRequests: [
       {
@@ -183,6 +205,12 @@ it("projects decision customer-visible rationales to VI while preserving technic
             answer: "Singapore",
           },
         ],
+      },
+      {
+        requestId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        resolvedFactId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        unresolvedFact: "Expected prefix that statement does not match",
+        answers: [],
       },
     ],
     artifacts: [],
@@ -265,6 +293,23 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(humanFactVi?.authority).toBe(
       ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
     );
+    // Legacy/corrupt HUMAN_PROVIDED facts fail closed: canonical statement unchanged and absent from projection
+    const legacyFactVi = resultVi.case?.facts[2];
+    expect(legacyFactVi?.statement).toBe(
+      "Legacy unlinked fact: custom user answer",
+    );
+    expect(legacyFactVi?.authority).toBe(
+      ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+    );
+
+    const corruptFactVi = resultVi.case?.facts[3];
+    expect(corruptFactVi?.statement).toBe(
+      "Corrupt statement does not match prefix: user answer",
+    );
+    expect(corruptFactVi?.authority).toBe(
+      ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED,
+    );
+
     // User answer is absent from projection requests; all generated text was requested
     expect(requestedTexts).toContain(
       "Deployment region: whether production is EU-hosted",
@@ -275,6 +320,20 @@ it("projects decision customer-visible rationales to VI while preserving technic
     );
     expect(requestedTexts).not.toContain(
       "Deployment region: whether production is EU-hosted: Singapore",
+    );
+    expect(requestedTexts).not.toContain(
+      "Legacy unlinked fact: custom user answer",
+    );
+    expect(requestedTexts).not.toContain("Legacy unlinked fact");
+    expect(requestedTexts).not.toContain("custom user answer");
+    expect(requestedTexts).not.toContain(
+      "Corrupt statement does not match prefix: user answer",
+    );
+    expect(requestedTexts).not.toContain(
+      "Corrupt statement does not match prefix",
+    );
+    expect(requestedTexts).not.toContain(
+      "Expected prefix that statement does not match",
     );
 
     // 2. Read with EN locale - preserves canonical English
@@ -294,6 +353,14 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(humanFactEn?.statement).toBe(
       "Deployment region: whether production is EU-hosted: Singapore",
     );
+    const legacyFactEn = resultEn.case?.facts[2];
+    expect(legacyFactEn?.statement).toBe(
+      "Legacy unlinked fact: custom user answer",
+    );
+    const corruptFactEn = resultEn.case?.facts[3];
+    expect(corruptFactEn?.statement).toBe(
+      "Corrupt statement does not match prefix: user answer",
+    );
 
     // 3. Switch back to VI locale on same persisted fact row
     const resultVi2 = await loader.load({ ...input, locale: "vi" });
@@ -305,6 +372,14 @@ it("projects decision customer-visible rationales to VI while preserving technic
     expect(humanFactVi2?.statement).toBe(
       "Khu vực triển khai: liệu môi trường production có được lưu trữ tại EU không: Singapore",
     );
+    const legacyFactVi2 = resultVi2.case?.facts[2];
+    expect(legacyFactVi2?.statement).toBe(
+      "Legacy unlinked fact: custom user answer",
+    );
+    const corruptFactVi2 = resultVi2.case?.facts[3];
+    expect(corruptFactVi2?.statement).toBe(
+      "Corrupt statement does not match prefix: user answer",
+    );
 
     // Canonical persisted fact rows remain unchanged
     const storedFacts = (
@@ -315,6 +390,12 @@ it("projects decision customer-visible rationales to VI while preserving technic
     );
     expect(storedFacts[1]?.statement).toBe(
       "Deployment region: whether production is EU-hosted: Singapore",
+    );
+    expect(storedFacts[2]?.statement).toBe(
+      "Legacy unlinked fact: custom user answer",
+    );
+    expect(storedFacts[3]?.statement).toBe(
+      "Corrupt statement does not match prefix: user answer",
     );
   } finally {
     globalThis.fetch = originalFetch;

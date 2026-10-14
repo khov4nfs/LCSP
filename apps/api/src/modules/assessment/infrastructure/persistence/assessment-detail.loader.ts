@@ -230,7 +230,12 @@ export class AssessmentDetailLoader {
                 f.authority === ASSESSMENT_FACT_AUTHORITIES.HUMAN_PROVIDED
               ) {
                 const hr = humanRequestByFactId.get(f.factId);
-                if (hr) {
+                if (
+                  hr &&
+                  typeof hr.unresolvedFact === "string" &&
+                  hr.unresolvedFact.trim().length > 0 &&
+                  f.statement.startsWith(`${hr.unresolvedFact}: `)
+                ) {
                   const prefix = hr.unresolvedFact;
                   let answer: string | null = null;
                   if (Array.isArray(hr.answers)) {
@@ -249,21 +254,10 @@ export class AssessmentDetailLoader {
                       }
                     }
                   }
-                  if (
-                    answer === null &&
-                    f.statement.startsWith(`${prefix}: `)
-                  ) {
+                  if (answer === null) {
                     answer = f.statement.slice(prefix.length + 2);
                   }
-                  if (answer !== null) {
-                    humanProvidedParts.set(f.factId, { prefix, answer });
-                    textsToProject.push(prefix);
-                  }
-                } else {
-                  const sepIdx = f.statement.indexOf(": ");
-                  if (sepIdx !== -1) {
-                    const prefix = f.statement.slice(0, sepIdx);
-                    const answer = f.statement.slice(sepIdx + 2);
+                  if (f.statement === `${prefix}: ${answer}`) {
                     humanProvidedParts.set(f.factId, { prefix, answer });
                     textsToProject.push(prefix);
                   }
