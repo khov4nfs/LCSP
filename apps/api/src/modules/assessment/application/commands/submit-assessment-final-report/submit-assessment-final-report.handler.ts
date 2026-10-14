@@ -9,11 +9,8 @@ import {
 import {
   ASSESSMENT_ARTIFACT_KINDS,
   ASSESSMENT_DOMAIN_ERROR_CODES,
-  ASSESSMENT_EVIDENCE_TYPES,
-  ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
-  assessmentFinalReportArtifactSchema,
+  ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
   assessmentFinalReportResultSchema,
-  type AssessmentFinalReportArtifact,
   type AssessmentFinalReportResult,
 } from "@lcsp/contracts/assessment-domain";
 import { AUDIT_ACTOR_IDS, AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
@@ -33,7 +30,13 @@ import { AssessmentLifecycleCoordinator } from "../../services/assessment-lifecy
 import { AssessmentRuntimeAuthority } from "../../services/assessment-runtime-authority.service.js";
 import { ROOT_AUDIT_ACTOR } from "../../../infrastructure/persistence/assessment-case-support.service.js";
 import { canonicalJson, sha256Hex } from "../../../domain/domain-ids.js";
+import { decisionFingerprint } from "../../../domain/decision-fingerprint.js";
 import { SubmitAssessmentFinalReportCommand } from "./submit-assessment-final-report.command.js";
+import { buildAssessmentFinalReportV2 } from "./assessment-final-report-v2.builder.js";
+import {
+  assessmentFinalReportArtifactVersionedSchema,
+  type AssessmentFinalReportV2,
+} from "@lcsp/contracts/assessment-report";
 
 const ORCHESTRATOR = {
   id: AUDIT_ACTOR_IDS.assessmentOrchestrator,
@@ -54,16 +57,38 @@ function deterministicUuid(value: string): string {
 }
 
 function rejectUnresolvedLanguage(
-  report: AssessmentFinalReportArtifact,
+  report: unknown,
   correlationId: string,
 ): void {
+  const value = report as {
+    summary?: unknown;
+    findings?: Array<{ summary?: unknown; recommendations?: unknown[] }>;
+    boundedNarrative?: { summary?: unknown; actionPlan?: unknown[] };
+    ruleDetails?: Array<{
+      narrative?: { summary?: unknown; recommendations?: unknown[] };
+    }>;
+  };
   const text = [
-    report.summary,
-    ...report.findings.flatMap((finding) => [
-      finding.summary,
-      finding.decision.rationale,
-      ...finding.decision.criteria.map((criterion) => criterion.rationale),
-      ...finding.recommendations,
+    ...(typeof value.summary === "string" ? [value.summary] : []),
+    ...(typeof value.boundedNarrative?.summary === "string"
+      ? [value.boundedNarrative.summary]
+      : []),
+    ...(value.findings ?? []).flatMap((finding) => [
+      ...(typeof finding.summary === "string" ? [finding.summary] : []),
+      ...(finding.recommendations?.filter(
+        (item): item is string => typeof item === "string",
+      ) ?? []),
+    ]),
+    ...(value.boundedNarrative?.actionPlan?.filter(
+      (item): item is string => typeof item === "string",
+    ) ?? []),
+    ...(value.ruleDetails ?? []).flatMap((rule) => [
+      ...(typeof rule.narrative?.summary === "string"
+        ? [rule.narrative.summary]
+        : []),
+      ...(rule.narrative?.recommendations?.filter(
+        (item): item is string => typeof item === "string",
+      ) ?? []),
     ]),
   ];
   if (text.some((value) => unresolvedReportText.test(value))) {
@@ -73,6 +98,23 @@ function rejectUnresolvedLanguage(
       { status: HttpStatus.UNPROCESSABLE_ENTITY },
     );
   }
+}
+
+function decisionFingerprintForReport(report: unknown): string {
+  const value = report as {
+    findings?: Array<{
+      decisionId: string;
+      decisionRevision: number;
+      decision: unknown;
+    }>;
+    ruleDetails?: Array<{
+      decisionId: string;
+      decisionRevision: number;
+      decision: unknown;
+    }>;
+  };
+  const decisions = value.ruleDetails ?? value.findings ?? [];
+  return decisionFingerprint(decisions);
 }
 
 @CommandHandler(SubmitAssessmentFinalReportCommand)
@@ -123,20 +165,37 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           JSON.parse(existing.storageRef) as unknown,
         );
         const stored = await this.storage.readAndReconstruct(manifest);
-        const report = assessmentFinalReportArtifactSchema.parse(
+        const report = assessmentFinalReportArtifactVersionedSchema.parse(
           JSON.parse(stored) as unknown,
         );
-        const expectedFingerprint = `sha256:${sha256Hex(
-          canonicalJson(
-            report.findings.map(
-              ({ decisionId, decisionRevision, decision }) => ({
-                decisionId,
-                decisionRevision,
-                decision,
-              }),
-            ),
-          ),
-        )}`;
+        if ("identity" in report) {
+          const pinnedRuleSet = await tx.complianceRuleSetVersion.findUnique({
+            where: { id: existing.ruleSetVersionId },
+            select: {
+              id: true,
+              version: true,
+              ruleSetDigest: true,
+              legalSourceVersion: { select: { id: true, version: true } },
+            },
+          });
+          if (
+            !pinnedRuleSet ||
+            report.identity.repositorySnapshotId !==
+              report.pins.repositorySnapshotId ||
+            report.identity.repositoryCommit.toLowerCase() !==
+              report.pins.repositoryCommit.toLowerCase() ||
+            report.pins.ruleSetVersionId !== pinnedRuleSet.id ||
+            report.pins.ruleSetVersion !== pinnedRuleSet.version ||
+            report.pins.ruleSetDigest !== pinnedRuleSet.ruleSetDigest ||
+            report.pins.legalSourceVersionId !==
+              pinnedRuleSet.legalSourceVersion.id ||
+            report.pins.legalSourceVersion !==
+              pinnedRuleSet.legalSourceVersion.version
+          ) {
+            throw new Error("Persisted final report pin mismatch");
+          }
+        }
+        const expectedFingerprint = decisionFingerprintForReport(report);
         if (
           manifest.artifact_id !== existing.artifactId ||
           report.artifactId !== existing.artifactId ||
@@ -221,42 +280,23 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
       const artifactId = deterministicUuid(
         `${command.assessmentId}:${requestDigest}`,
       );
-      const decisionFingerprint = `sha256:${sha256Hex(
-        canonicalJson(snapshot.decisions),
-      )}`;
-      const report = assessmentFinalReportArtifactSchema.parse({
-        schemaVersion: ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
-        artifactId,
-        assessmentId: command.assessmentId,
-        kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
-        pins: snapshot.pins,
-        caseRevision: snapshot.caseRevision,
-        decisionFingerprint,
-        summary: command.request.summary,
-        findings: snapshot.decisions.map((item) => {
-          const narrative = narratives.get(item.decision.assessmentRuleId);
-          if (!narrative) {
-            throw new Error(
-              "Completion snapshot and report narratives diverged",
-            );
-          }
-          return {
-            assessmentRuleId: item.decision.assessmentRuleId,
-            ...item,
-            summary: narrative.summary,
-            recommendations: narrative.recommendations,
-          };
-        }),
-        provenance: {
-          evidenceIds: snapshot.evidence.map((item) => item.evidenceId),
-          factIds: snapshot.facts.map((item) => item.factId),
-          searchCoverageEvidenceIds: snapshot.evidence
-            .filter(
-              (item) => item.type === ASSESSMENT_EVIDENCE_TYPES.SEARCH_COVERAGE,
-            )
-            .map((item) => item.evidenceId),
-        },
-      });
+      rejectUnresolvedLanguage(command.request, command.correlationId);
+      let report: AssessmentFinalReportV2;
+      try {
+        report = await buildAssessmentFinalReportV2({
+          tx,
+          assessmentId: command.assessmentId,
+          artifactId,
+          request: command.request,
+          snapshot,
+        });
+      } catch {
+        throw problemException(
+          ASSESSMENT_DOMAIN_ERROR_CODES.FINAL_REPORT_INVALID,
+          command.correlationId,
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
       rejectUnresolvedLanguage(report, command.correlationId);
 
       const content = canonicalJson(report);
@@ -279,7 +319,7 @@ export class SubmitAssessmentFinalReportHandler implements ICommandHandler<Submi
           repositorySnapshotId: snapshot.pins.repositorySnapshotId,
           repositoryCommit: snapshot.pins.repositoryCommit,
           caseRevision: snapshot.caseRevision,
-          schemaVersion: ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+          schemaVersion: ASSESSMENT_FINAL_REPORT_V2_SCHEMA_VERSION,
           reportRequestDigest: requestDigest,
         },
       });

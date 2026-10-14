@@ -1,4 +1,4 @@
-// Run: node tests/assessment-domain-vertical.mjs   (needs a built API: pnpm --dir apps/api run build)
+// Run: node --experimental-strip-types tests/assessment-domain-vertical.mjs (needs a built API: pnpm --dir apps/api run build)
 // ASSESSMENT vertical on REAL components: a fresh migrated PostgreSQL database (loopback test container,
 // default 55441), the REAL built API over HTTP (customer sign-in, assessment creation, repository
 // setup completion, worker tool plane) and the REAL Python Assessment Root graph + governed tools +
@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -16,6 +17,7 @@ import {
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   AGENTIC_ASSESSMENT_EVENT_TYPES,
   AGENT_EXECUTION_STATES,
@@ -32,6 +34,7 @@ import {
   answerAssessmentHumanRequestSchema,
   assessmentHumanRequestsResultSchema,
 } from "@lcsp/contracts/assessment-domain";
+import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 
 import {
   contentHash,
@@ -46,6 +49,7 @@ const {
   ArtifactLifecycleState,
   AssessmentArtifactKind,
 } = requireApi("@prisma/client");
+const { PDFParse } = requireApi("pdf-parse");
 
 const database = "lcsp_assessment_vertical";
 const apiPort = Number(process.env.LCSP_ASSESSMENT_TEST_API_PORT ?? 3413);
@@ -93,10 +97,10 @@ const { q, base, post, stop, seedLegalSource, activateLegalSource, databaseUrl }
   apiPort,
 });
 const { hashSecret } = await import(
-  path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")
+  pathToFileURL(path.join(root, "apps/api/dist/src/platform/security/crypto.utils.js")).href
 );
 const { canonicalJson } = await import(
-  path.join(root, "apps/api/dist/src/modules/assessment/domain/domain-ids.js")
+  pathToFileURL(path.join(root, "apps/api/dist/src/modules/assessment/domain/domain-ids.js")).href
 );
 
 /** HTTP helper for non-rule set routes. */
@@ -535,6 +539,16 @@ try {
     ),
     "pending required rules block finalization",
   );
+  eq(
+    (
+      await q(
+        `SELECT count(*)::int AS n FROM "AssessmentArtifact" WHERE "assessmentId"=$1 AND kind=$2`,
+        [B.id, AssessmentArtifactKind.FINAL_REPORT],
+      )
+    ).rows[0].n,
+    0,
+    "blocked finalization does not publish a final artifact",
+  );
   // B's lease cannot be used on A and vice versa
   eq(
     (
@@ -890,7 +904,7 @@ try {
   ok(!Object.hasOwn(detailRead.body.data, "readiness_state") && !Object.hasOwn(detailRead.body.data, "status"));
   eq((await fetch(`${base}/assessments/${B.id}/artifacts/${artifact.id}/download`, { headers: { authorization: `Bearer ${owner.token}` } })).status, 404);
   eq((await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/download`)).status, 401);
-  const reportArtifact = JSON.parse(content);
+  const reportArtifact = assessmentFinalReportArtifactVersionedSchema.parse(JSON.parse(content));
   eq(
     [
       reportArtifact.artifactId,
@@ -905,23 +919,23 @@ try {
       artifact.schema,
     ],
   );
-  eq(reportArtifact.pins, {
-    ruleSetVersionId: artifact.ruleSet,
-    repositorySnapshotId: artifact.snapshot,
-    repositoryScanJobId: pinned.job,
-    repositoryCommit: COMMIT,
-  });
+  eq(reportArtifact.pins.ruleSetVersionId, artifact.ruleSet);
+  eq(reportArtifact.pins.repositorySnapshotId, artifact.snapshot);
+  eq(reportArtifact.pins.repositoryScanJobId, pinned.job);
+  eq(reportArtifact.pins.repositoryCommit, COMMIT);
+  ok(reportArtifact.pins.legalSourceVersionId && reportArtifact.pins.legalSourceVersion && reportArtifact.pins.ruleSetVersion && reportArtifact.pins.ruleSetDigest, "V2 preserves source/rule-set pins");
   eq(
     [
       reportArtifact.kind,
       reportArtifact.assessmentId,
       reportArtifact.caseRevision,
-      reportArtifact.findings.length,
+      reportArtifact.ruleDetails.length,
       reportArtifact.pins.repositoryCommit,
+      reportArtifact.schemaVersion,
     ],
-    [ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT, A.id, 1, 3, COMMIT],
+    [ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT, A.id, 1, 3, COMMIT, "ASSESSMENT_FINAL_REPORT_V2"],
   );
-  const fingerprintInput = reportArtifact.findings.map(
+  const fingerprintInput = reportArtifact.ruleDetails.map(
     ({ decisionId, decisionRevision, decision }) => ({
       decisionId,
       decisionRevision,
@@ -934,7 +948,7 @@ try {
   );
   const referencedEvidence = new Set();
   const referencedFacts = new Set();
-  for (const { decision } of reportArtifact.findings) {
+  for (const { decision } of reportArtifact.ruleDetails) {
     for (const reference of [
       ...decision.references,
       ...decision.criteria.flatMap((criterion) => criterion.references),
@@ -948,8 +962,35 @@ try {
       }
     }
   }
-  eq(reportArtifact.provenance.evidenceIds, [...referencedEvidence].sort());
-  eq(reportArtifact.provenance.factIds, [...referencedFacts].sort());
+  eq(reportArtifact.evidenceIndex.map(({ evidenceId }) => evidenceId).sort(), [...referencedEvidence].sort());
+  eq(reportArtifact.factIndex.map(({ factId }) => factId).sort(), [...referencedFacts].sort());
+  eq(reportArtifact.outcomeSummary, { totalRules: 3, applicableCompliant: 1, applicableNonCompliant: 1, notApplicable: 1 });
+  eq(reportArtifact.ruleDetails.map(({ assessmentRuleId }) => assessmentRuleId).sort(), ["ER-DEF", "ER-RET", "ER-XREF"]);
+  const notApplicable = reportArtifact.ruleDetails.find(({ assessmentRuleId }) => assessmentRuleId === "ER-DEF");
+  eq([notApplicable.decision.applicability, notApplicable.decision.compliance, notApplicable.decision.criteria], ["NOT_APPLICABLE", null, []]);
+  ok(notApplicable.decisionReferences.every(({ origin }) => origin === "DECISION"), "N/A references remain decision-level");
+  ok(reportArtifact.ruleDetails.filter(({ assessmentRuleId }) => assessmentRuleId !== "ER-DEF").every(({ criteriaDecisions }) => criteriaDecisions.every(({ references }) => references.every(({ origin }) => origin === "CRITERION"))), "criterion references remain criterion-level");
+  ok(reportArtifact.legalRequirements.length >= 3, "V2 preserves normalized LegalRequirements");
+  ok(reportArtifact.ruleDetails.every(({ sourceRefs }) => sourceRefs.every(({ legalSourceVersionId, documentId, locator, contentSha256 }) => legalSourceVersionId && documentId === DOC && locator && /^sha256:[a-f0-9]{64}$/u.test(contentSha256))), "V2 preserves exact legal provenance");
+  ok(reportArtifact.factIndex.every(({ evidenceIds }) => evidenceIds.every((id) => reportArtifact.evidenceIndex.some((evidence) => evidence.evidenceId === id))), "V2 fact/evidence indexes resolve");
+  const pdfResponse = await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/report.pdf`, { headers: { authorization: `Bearer ${owner.token}` } });
+  const pdfBytes = Buffer.from(await pdfResponse.arrayBuffer());
+  eq(pdfResponse.status, 200);
+  eq(pdfResponse.headers.get("content-type"), "application/pdf");
+  eq(pdfResponse.headers.get("cache-control"), "private, no-store");
+  ok(pdfResponse.headers.get("content-disposition")?.includes(`${artifact.id}.pdf`), "PDF filename is bound to artifact identity");
+  eq(pdfResponse.headers.get("x-lcsp-source-artifact-sha256"), artifact.hash.replace(/^sha256:/u, ""));
+  eq(pdfResponse.headers.get("etag"), null);
+  ok(pdfBytes.subarray(0, 5).toString("ascii") === "%PDF-" && pdfBytes.length > 1000, "authorized PDF is non-empty and structurally valid");
+  const pdfParser = new PDFParse({ data: pdfBytes });
+  const pdfText = await pdfParser.getText();
+  await pdfParser.destroy();
+  for (const heading of ["KẾT QUẢ ĐÁNH GIÁ", "DỮ KIỆN LIÊN QUAN ĐIỀU KIỆN ÁP DỤNG", "DANH MỤC NGHĨA VỤ ĐƯỢC ĐÁNH GIÁ", "CHI TIẾT TỪNG NGHĨA VỤ", "KẾ HOẠCH HÀNH ĐỘNG", "PHẠM VI, GIỚI HẠN VÀ NGUỒN TRUY VẾT"]) {
+    ok(pdfText.text.includes(heading) || pdfText.text.includes(heading.normalize("NFD").replace(/[\u0300-\u036f]/gu, "")), `PDF contains section ${heading}`);
+  }
+  for (const id of [A.id, artifact.id, "ER-RET", "LR-RET", "art-1", "source"]) ok(pdfText.text.includes(id), `PDF contains canonical identifier ${id}`);
+  eq((await fetch(`${base}/assessments/${A.id}/artifacts/${artifact.id}/report.pdf`)).status, 401);
+  eq((await fetch(`${base}/assessments/${B.id}/artifacts/${artifact.id}/report.pdf`, { headers: { authorization: `Bearer ${owner.token}` } })).status, 404);
   eq(Boolean(artifact.requestDigest), true);
   await rejects(
     "published final artifact is immutable",
@@ -969,6 +1010,30 @@ try {
     ),
     "final artifact contains no unresolved outcome language",
   );
+
+  // Browser acceptance runs the real Web against this still-live assessment.
+  // The metadata is written outside the repository and contains only a short-lived
+  // synthetic owner token; the harness removes it after the browser exits.
+  const browserFixturePath = process.env.LCSP_BROWSER_FIXTURE_FILE;
+  const browserReleasePath = process.env.LCSP_BROWSER_RELEASE_FILE;
+  if (browserFixturePath && browserReleasePath) {
+    const browserForeign = await customer("assessment-browser-foreign@acme.test");
+    writeFileSync(browserFixturePath, JSON.stringify({
+      apiBase: base,
+      assessmentId: A.id,
+      artifactId: artifact.id,
+      ownerToken: owner.token,
+      foreignToken: browserForeign.token,
+      artifactHash: artifact.hash,
+      ruleIds: reportArtifact.ruleDetails.map((detail) => detail.assessmentRuleId),
+      schemaVersion: reportArtifact.schemaVersion,
+    }), { mode: 0o600 });
+    for (;;) {
+      if (existsSync(browserReleasePath)) break;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+
   const replayedReport = await runtime(A.id, "final-report", {
     lease: finalizer.leaseToken,
     body: reportRequest,
@@ -1100,6 +1165,9 @@ try {
   eq(deletion.status, "PASS", JSON.stringify(deletion));
   console.log(`RELEASE deletion evidence: ${deletion.evidenceDirectory}`);
 
+  console.log(
+    `LCSP-56 V2 acceptance: assessment=${A.id} artifact=${artifact.id} schema=${reportArtifact.schemaVersion} rules=${reportArtifact.ruleDetails.length} decisions=${reportArtifact.ruleDetails.length} jsonSha256=${artifact.hash} jsonBytes=${artifact.size} pdfStatus=${pdfResponse.status} pdfBytes=${pdfBytes.length}`,
+  );
   console.log(
     `PASS: ${checks} ASSESSMENT/ASSESSMENT vertical checks (real API + PostgreSQL + Python Assessment Root; model scripted) on ${database}`,
   );

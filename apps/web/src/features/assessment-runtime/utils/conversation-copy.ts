@@ -11,7 +11,14 @@ export function copy(
   locale?: Locale,
 ): string {
   const activeLocale = locale ?? getAppLocaleSnapshot();
-  let text = resolveMessage(activeLocale, `${PREFIX}${key}` as MessageKey);
+  const conversationKey = `${PREFIX}${key}` as MessageKey;
+  let text = resolveMessage(activeLocale, conversationKey);
+  // Report pages share this helper with the conversation surface, but their
+  // messages live under pages.assessmentConversation.report. Fall back only
+  // when the conversation namespace does not contain the key.
+  if (text === conversationKey) {
+    text = resolveMessage(activeLocale, `${PREFIX}report.${key}` as MessageKey);
+  }
   for (const [name, value] of Object.entries(values))
     text = text.replaceAll(`{${name}}`, String(value));
   return text;
