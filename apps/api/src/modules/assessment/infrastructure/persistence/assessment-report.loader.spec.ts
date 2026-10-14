@@ -1,6 +1,12 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { AssessmentFinalReportArtifact } from "@lcsp/contracts/assessment-domain";
+import {
+  ASSESSMENT_ARTIFACT_KINDS,
+  ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+  assessmentFinalReportArtifactSchema,
+} from "@lcsp/contracts/assessment-domain";
+import { randomUUID } from "node:crypto";
 import { AssessmentReportLoader } from "./assessment-report.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { ArtifactStorageService } from "../../../../platform/storage/artifact-storage.service.js";
@@ -212,5 +218,83 @@ describe("AssessmentReportLoader locale read projection", () => {
       delete process.env.LCSP_AGENT_SERVER_URL;
       delete process.env.WORKER_API_KEY;
     }
+  });
+});
+
+describe("AssessmentReportLoader historical compatibility", () => {
+  it("loads a valid V1 artifact without rewriting its bytes", async () => {
+    const assessmentId = randomUUID();
+    const artifactId = randomUUID();
+    const ruleSetVersionId = randomUUID();
+    const snapshotId = randomUUID();
+    const content = JSON.stringify({
+      schemaVersion: ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+      artifactId,
+      assessmentId,
+      kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+      pins: {
+        ruleSetVersionId,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: "scan-1",
+        repositoryCommit: "a".repeat(40),
+      },
+      caseRevision: 1,
+      decisionFingerprint: `sha256:${sha256Hex(canonicalJson([]))}`,
+      summary: "Historical V1 report.",
+      findings: [],
+      provenance: {
+        evidenceIds: [],
+        factIds: [],
+        searchCoverageEvidenceIds: [],
+      },
+    });
+    const parsed = assessmentFinalReportArtifactSchema.parse(
+      JSON.parse(content),
+    );
+    const raw = JSON.stringify(parsed);
+    const hash = sha256Hex(raw);
+    const loader = new AssessmentReportLoader(
+      {
+        assessmentArtifact: {
+          findUnique: () => ({
+            artifactId,
+            assessmentId,
+            kind: "FINAL_REPORT",
+            lifecycleState: "ACTIVE",
+            ruleSetVersionId,
+            repositorySnapshotId: snapshotId,
+            repositoryCommit: "a".repeat(40),
+            caseRevision: 1,
+            schemaVersion: ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+            contentSha256: `sha256:${hash}`,
+            sizeBytes: Buffer.byteLength(raw),
+            storageRef: JSON.stringify({
+              artifact_id: artifactId,
+              total_size: Buffer.byteLength(raw),
+              hash,
+              chunks: ["chunk-0"],
+            }),
+            assessmentCase: {
+              caseRevision: 1,
+              ruleSetVersionId,
+              repositorySnapshotId: snapshotId,
+              repositoryScanJobId: "scan-1",
+              repositoryCommit: "a".repeat(40),
+              assessment: { lifecycleState: "COMPLETE", ownerId: "owner-1" },
+            },
+          }),
+        },
+      } as never,
+      { readAndReconstruct: () => raw } as never,
+    );
+    const result = await loader.load({
+      assessmentId,
+      artifactId,
+      sessionUserId: "owner-1",
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: randomUUID(),
+    });
+    expect(result.content.toString("utf8")).toBe(raw);
+    expect(result.contentSha256).toBe(hash);
   });
 });

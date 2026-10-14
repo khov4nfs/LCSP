@@ -8,10 +8,12 @@ import { copy } from "../../utils/conversation-copy";
 export function AssessmentReportActions({
   assessmentId,
   artifactId,
+  pdfSupported = false,
   className,
 }: {
   assessmentId: string;
   artifactId: string;
+  pdfSupported?: boolean;
   className?: string;
 }) {
   const id = encodeURIComponent(assessmentId);
@@ -33,14 +35,25 @@ export function AssessmentReportActions({
         <ShieldCheckIcon aria-hidden="true" />
         {copy("completion.viewProvenance")}
       </Link>
+      {pdfSupported ? (
+        <a
+          href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/download`}
+          data-artifact-id={artifactId}
+          data-report-action="download"
+          className={buttonVariants({ size: "sm", variant: "outline" })}
+        >
+          <DownloadIcon aria-hidden="true" />
+          {copy("completion.downloadReport")}
+        </a>
+      ) : null}
       <a
-        href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/download`}
+        href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/report.pdf`}
         data-artifact-id={artifactId}
-        data-report-action="download"
+        data-report-action="download-pdf"
         className={buttonVariants({ size: "sm", variant: "outline" })}
       >
-        <DownloadIcon aria-hidden="true" />
-        {copy("completion.downloadReport")}
+        <FileTextIcon aria-hidden="true" />
+        {copy("completion.downloadPdf")}
       </a>
     </div>
   );

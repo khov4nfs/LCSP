@@ -33,6 +33,7 @@ import { AssessmentProvenanceLoader } from "./infrastructure/persistence/assessm
 import { AssessmentTrackingController } from "./presentation/http/assessment-tracking.controller.js";
 import { AdminTrackingController } from "./presentation/http/admin-tracking.controller.js";
 import { AssessmentTrackingLoader } from "./infrastructure/persistence/assessment-tracking.loader.js";
+import { AssessmentPdfRenderer } from "./infrastructure/report/assessment-pdf-renderer.service.js";
 
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { AssessmentRuntimeControlService } from "../../platform/runtime-events/assessment-runtime-control.service.js";
@@ -168,6 +169,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentDetailLoader,
     AssessmentReportLoader,
     AssessmentProvenanceLoader,
+    AssessmentPdfRenderer,
     AssessmentRepositorySetupLoader,
     GetRepositorySetupHandler,
     GetAssessmentReportHandler,

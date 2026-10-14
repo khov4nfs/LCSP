@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -169,8 +170,8 @@ export async function startStack({
     BILLING_SEPAY_QR_URL_TEMPLATE:
       "https://p.test/qr?amount={amountVnd}&content={paymentCode}",
   };
-  const server = spawn("node", ["dist/src/main.js"], {
-    cwd: apiDir,
+  const server = spawn(process.execPath, ["--experimental-strip-types", path.join(apiDir, "dist/src/main.js")], {
+    cwd: root,
     env: apiEnv,
     stdio: ["ignore", "pipe", "pipe"],
   });
