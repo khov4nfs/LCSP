@@ -59,10 +59,10 @@ function useSafeRouter() {
     return {
       back: () => {},
       forward: () => {},
-      push: (_url: string) => {},
-      replace: (_url: string) => {},
+      push: () => {},
+      replace: () => {},
       refresh: () => {},
-      prefetch: (_url: string) => {},
+      prefetch: () => {},
     };
   }
 }

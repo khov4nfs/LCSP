@@ -2,7 +2,6 @@
 
 import { resolveMessage } from "@lcsp/i18n";
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type Ref } from "react";
-import type { Locale } from "@lcsp/contracts/shared";
 
 import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -150,9 +149,3 @@ function scrollToLatest(viewport: HTMLDivElement) {
   });
 }
 
-function t(key: string, locale?: Locale) {
-  return resolveMessage(
-    locale ?? getAppLocaleSnapshot(),
-    key as Parameters<typeof resolveMessage>[1],
-  );
-}

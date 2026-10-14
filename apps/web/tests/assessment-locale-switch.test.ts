@@ -2,11 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import React, { act, createElement } from "react";
-import {
-  APP_LOCALE_COOKIE,
-  getAppLocaleSnapshot,
-  setAppLocale,
-} from "../src/lib/locale.ts";
+import { setAppLocale } from "../src/lib/locale.ts";
 
 const dom = new JSDOM(
   '<!doctype html><html lang="vi"><body><div id="root"></div></body></html>',

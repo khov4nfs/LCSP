@@ -1,7 +1,6 @@
 import * as React from "react";
 import type { ReactNode } from "react";
 import { resolveMessage } from "@lcsp/i18n";
-import type { Locale } from "@lcsp/contracts/shared";
 
 import { getAppLocaleSnapshot, subscribeToAppLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";

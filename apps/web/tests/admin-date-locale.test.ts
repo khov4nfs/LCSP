@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import React, { createElement } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AUTH_USER_ROLES, AUTH_ACCOUNT_STATUSES } from "@lcsp/contracts/auth";
 import {
