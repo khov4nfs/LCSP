@@ -170,32 +170,36 @@ it("projects decision customer-visible rationales to VI while preserving technic
 
   const originalFetch = globalThis.fetch;
   const requestedTexts: string[] = [];
-  globalThis.fetch = jest.fn().mockImplementation((_url: string, init?: RequestInit) => {
-    if (init?.body) {
-      try {
-        const parsed = JSON.parse(init.body as string) as { texts?: string[] };
-        if (Array.isArray(parsed.texts)) {
-          requestedTexts.push(...parsed.texts);
+  globalThis.fetch = jest
+    .fn()
+    .mockImplementation((_url: string, init?: RequestInit) => {
+      if (init?.body) {
+        try {
+          const parsed = JSON.parse(init.body as string) as {
+            texts?: string[];
+          };
+          if (Array.isArray(parsed.texts)) {
+            requestedTexts.push(...parsed.texts);
+          }
+        } catch {
+          // ignore parse error in test spy
         }
-      } catch {
-        // ignore parse error in test spy
       }
-    }
-    return Promise.resolve({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          projected: {
-            "All access controls are properly implemented in the service.":
-              "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
-            "Token authentication satisfies requirement.":
-              "Xác thực mã thông báo đáp ứng yêu cầu.",
-            "Data retention policy is enforced across all customer records.":
-              "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
-          },
-        }),
-    } as Response);
-  }) as typeof fetch;
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            projected: {
+              "All access controls are properly implemented in the service.":
+                "Tất cả kiểm soát truy cập đều được triển khai đúng cách trong dịch vụ.",
+              "Token authentication satisfies requirement.":
+                "Xác thực mã thông báo đáp ứng yêu cầu.",
+              "Data retention policy is enforced across all customer records.":
+                "Chính sách lưu giữ dữ liệu được thực thi trên tất cả hồ sơ khách hàng.",
+            },
+          }),
+      } as Response);
+    }) as typeof fetch;
 
   process.env.LCSP_AGENT_SERVER_URL = "http://127.0.0.1:2024";
   process.env.WORKER_API_KEY = "test-worker-key";
