@@ -216,6 +216,25 @@ function sourceBackedFixture(
   return assessmentFinalReportV2Schema.parse(report);
 }
 
+async function assertFooterPagination(bytes: Buffer): Promise<void> {
+  const parser = new PDFParse({ data: bytes });
+  const extracted = await parser.getText();
+  await parser.destroy();
+
+  expect(extracted.pages).toHaveLength(extracted.total);
+  const footerPattern = /Page (\d+) of (\d+)/g;
+  const footerMatches = extracted.pages.flatMap((page) => [
+    ...page.text.matchAll(footerPattern),
+  ]);
+  expect(footerMatches).toHaveLength(extracted.total);
+
+  extracted.pages.forEach((page, index) => {
+    expect(page.text).toContain(`Page ${index + 1} of ${extracted.total}`);
+    const withoutFooter = page.text.replace(footerPattern, "").trim();
+    expect(withoutFooter.length).toBeGreaterThan(0);
+  });
+}
+
 describe("AssessmentPdfRenderer", () => {
   it("renders a valid non-empty PDF from the shared V2 projection", async () => {
     const bytes = await new AssessmentPdfRenderer().render(fixture());
@@ -244,6 +263,7 @@ describe("AssessmentPdfRenderer", () => {
     expect(extracted.text).toContain("article-2");
     expect(extracted.text).toContain(sha);
     expect(extracted.text).toContain("NOT_APPLICABLE");
+    await assertFooterPagination(bytes);
   });
 
   it("renders an all-N/A source-backed fixture without implying compliance", async () => {
@@ -265,5 +285,21 @@ describe("AssessmentPdfRenderer", () => {
     expect(extracted.text.match(/Rule: rule-/g)?.length).toBeGreaterThanOrEqual(
       20,
     );
+    await assertFooterPagination(bytes);
+  });
+
+  it("keeps mixed-outcome and permuted reports free of footer-only pages", async () => {
+    const mixed = sourceBackedFixture(3, [
+      "COMPLIANT",
+      "NON_COMPLIANT",
+      "NOT_APPLICABLE",
+    ]);
+    const permuted = structuredClone(mixed);
+    permuted.ruleDetails = [...permuted.ruleDetails].reverse();
+
+    for (const report of [mixed, permuted]) {
+      const bytes = await new AssessmentPdfRenderer().render(report);
+      await assertFooterPagination(bytes);
+    }
   });
 });
