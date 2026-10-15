@@ -473,7 +473,11 @@ def test_model_call_timeout_emits_timeout_event_and_no_usage(monkeypatch):
             ),
         )
 
-    assert [t for t, _ in events] == ["MODEL_CALL_STARTED", "MODEL_CALL_TIMEOUT"]
+    assert [t for t, _ in events] == ["MODEL_CALL_STARTED", "CUSTOM_PROGRESS", "MODEL_CALL_TIMEOUT"]
+    attempt = events[1][1]["data"]
+    assert attempt["activity_kind"] == "MODEL_PROVIDER_ATTEMPT_FAILED"
+    assert attempt["provider"] == "google_genai"
+    assert attempt["error_class"] == "TimeoutError"
     assert events[-1][1]["data"]["provider"] == "google_genai"
     assert events[-1][1]["data"]["error_type"] == "TimeoutError"
     assert client.payloads == []

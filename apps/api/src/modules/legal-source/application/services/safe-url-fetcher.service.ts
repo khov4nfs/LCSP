@@ -239,6 +239,13 @@ export class NodeSafeFetchTransport implements SafeFetchTransport {
           );
         },
       );
+      // The idle timeout alone lets a slow-drip server hold the request open; this is the total.
+      const deadline = setTimeout(() => {
+        req.destroy();
+        settle(new ImportRejectedError(Reasons.TIMED_OUT));
+      }, input.timeoutMs * 2);
+      deadline.unref();
+      req.on("close", () => clearTimeout(deadline));
       req.on("timeout", () => {
         req.destroy();
         settle(new ImportRejectedError(Reasons.TIMED_OUT));

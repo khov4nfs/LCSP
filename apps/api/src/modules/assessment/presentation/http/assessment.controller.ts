@@ -37,6 +37,7 @@ import { GetAssessmentQuery } from "../../application/queries/get-assessment/get
 import { GetRepositorySetupQuery } from "../../application/queries/get-repository-setup/get-repository-setup.query.js";
 import { ListAssessmentEventsQuery } from "../../application/queries/list-assessment-events/list-assessment-events.query.js";
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
+import { ReconcileOrphanedAssessmentCommand } from "../../application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.command.js";
 
 const pipe = (schema: z.ZodType) =>
   new ZodValidationPipe(
@@ -83,6 +84,23 @@ export class AssessmentController {
     return resultEnvelope(
       await this.commandBus.execute(
         new CompleteRepositorySetupCommand(
+          assessmentId,
+          request.rbacContext.userId,
+          request.correlationId || randomUUID(),
+        ),
+      ),
+    );
+  }
+
+  @Post(":assessmentId/reconcile-orphaned")
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async reconcileOrphanedAssessment(
+    @Param("assessmentId", idPipe()) assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ReconcileOrphanedAssessmentCommand(
           assessmentId,
           request.rbacContext.userId,
           request.correlationId || randomUUID(),

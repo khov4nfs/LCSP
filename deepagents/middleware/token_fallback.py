@@ -255,9 +255,12 @@ class TokenFallbackMiddleware(AgentMiddleware):
     def wrap_model_call(self, request, handler):
         provider = model_provider(request.model)
         source = provider_token_source(provider) if provider else None
-        if source is None or len(source[1]) < 2:
+        if source is None:
             return handler(request)
         env_name, tokens = source
+        if len(tokens) < 2:
+            with self._attempt_context(0):
+                return handler(request)
         if provider == "apx":
             self._refresh_pool_identity(provider, env_name, tokens)
         return self._run_with_fallback(
@@ -272,9 +275,12 @@ class TokenFallbackMiddleware(AgentMiddleware):
     async def awrap_model_call(self, request, handler):
         provider = model_provider(request.model)
         source = provider_token_source(provider) if provider else None
-        if source is None or len(source[1]) < 2:
+        if source is None:
             return await handler(request)
         env_name, tokens = source
+        if len(tokens) < 2:
+            with self._attempt_context(0):
+                return await handler(request)
         if provider == "apx":
             self._refresh_pool_identity(provider, env_name, tokens)
         return await self._run_with_fallback(
@@ -290,6 +296,12 @@ class TokenFallbackMiddleware(AgentMiddleware):
         if index == 0:
             return request
         return request.override(model=model_with_token(request.model, provider, token))
+
+    @staticmethod
+    def _attempt_context(index: int):
+        from middleware.usage_metering import provider_attempt_context
+
+        return provider_attempt_context(credential_slot_safe_id=f"CREDENTIAL_SLOT_{index + 1:02d}")
 
     def _dead_slots(self, provider: str, env_name: str) -> set[int]:
         return _DEAD_CREDENTIAL_SLOTS.setdefault((provider, env_name), set())
@@ -686,7 +698,8 @@ class TokenFallbackMiddleware(AgentMiddleware):
                 )
                 attempt_count += 1
                 try:
-                    response = handler(self._candidate_request(request, provider, tokens[index], index))
+                    with self._attempt_context(index):
+                        response = handler(self._candidate_request(request, provider, tokens[index], index))
                 except Exception as error:
                     if not self._record_failure(
                         provider=provider,
@@ -756,7 +769,8 @@ class TokenFallbackMiddleware(AgentMiddleware):
                 )
                 attempt_count += 1
                 try:
-                    response = await handler(self._candidate_request(request, provider, tokens[index], index))
+                    with self._attempt_context(index):
+                        response = await handler(self._candidate_request(request, provider, tokens[index], index))
                 except Exception as error:
                     if not self._record_failure(
                         provider=provider,

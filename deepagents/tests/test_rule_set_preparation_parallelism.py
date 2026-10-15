@@ -47,8 +47,9 @@ def _bundle() -> dict[str, Any]:
                         "locator": "article-1::clause-1",
                         "content": content,
                         "contentSha256": _sha(content),
-                        "legalEffectStatus": "UNKNOWN",
-                        "legalStatusSourceRef": None,
+                        "legalStatus": "IN_FORCE",
+                        "legalEffectStatus": "EFFECTIVE",
+                        "legalStatusSourceRef": "source-metadata:fixture",
                         "hierarchy": {"path": ["article-1", "clause-1"]},
                     }
                 ],

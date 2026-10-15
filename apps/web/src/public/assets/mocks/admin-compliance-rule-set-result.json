@@ -29,7 +29,9 @@
             "documentId": "LAW-2026-001",
             "locator": "Article 12(1)",
             "contentSha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-            "sourceEffectStatus": "IN_FORCE"
+            "sourceEffectStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": null
           }
         ]
       }
@@ -68,7 +70,9 @@
             "documentId": "LAW-2026-001",
             "locator": "Article 12(1)",
             "contentSha256": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-            "sourceEffectStatus": "IN_FORCE"
+            "sourceEffectStatus": "IN_FORCE",
+            "legalEffectStatus": "EFFECTIVE",
+            "legalStatusSourceRef": null
           }
         ]
       }

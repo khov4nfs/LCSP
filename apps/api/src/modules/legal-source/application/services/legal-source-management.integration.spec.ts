@@ -11,7 +11,6 @@ import {
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import {
-  LEGAL_EFFECT_STATUSES,
   LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
   LEGAL_SOURCE_DOCUMENT_INGESTION_STATES as States,
   LEGAL_SOURCE_IMPORT_REJECTION_REASONS as Reasons,
@@ -19,8 +18,8 @@ import {
   LEGAL_SOURCE_MANAGEMENT_ERROR_CODES as Errors,
   LEGAL_SOURCE_STRUCTURE_PROFILES as Profiles,
   LEGAL_SOURCE_VERSION_BLOCKERS as Blockers,
+  type LegalSourceChunkStatus,
   type LegalSourceIngestionResult,
-  type UploadLegalSourceDocumentMetadata,
 } from "@lcsp/contracts/legal-source";
 
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -141,7 +140,10 @@ database("Legal Source management on PostgreSQL", () => {
     fileName: string,
     body: string,
     declaredType: string | null = "text/plain",
-    provisionStatuses: UploadLegalSourceDocumentMetadata["provisionStatuses"] = undefined,
+    provisionStatuses?: Record<
+      string,
+      { status: LegalSourceChunkStatus; sourceRef: string }
+    >,
   ) {
     return documents.addUpload({
       versionId,
@@ -176,12 +178,18 @@ database("Legal Source management on PostgreSQL", () => {
     sourceId: string,
     name: string,
     locators = ["p-1", "p-2"],
+    provisionStatuses?: Record<
+      string,
+      { status: LegalSourceChunkStatus; sourceRef: string }
+    >,
   ) {
     const draft = await newDraft(sourceId);
     const document = await upload(
       draft.id,
       `${name}.txt`,
       `Document ${name} ${randomUUID()}`,
+      "text/plain",
+      provisionStatuses,
     );
     await ingest(document.id, 1, locators);
     return { versionId: draft.id, documentRowId: document.id };
@@ -426,70 +434,6 @@ database("Legal Source management on PostgreSQL", () => {
   });
 
   describe("ingestion results", () => {
-    it("persists locator-keyed legal effect metadata and leaves omissions UNKNOWN", async () => {
-      const source = await newSource();
-      const draft = await newDraft(source.id);
-      const document = await upload(
-        draft.id,
-        "effect.txt",
-        `body ${randomUUID()}`,
-        "text/plain",
-        {
-          "p-effective": {
-            status: LEGAL_EFFECT_STATUSES.EFFECTIVE,
-            sourceRef: "metadata:effective",
-          },
-          "p-repealed": {
-            status: LEGAL_EFFECT_STATUSES.REPEALED,
-            sourceRef: "metadata:repealed",
-          },
-          "p-future": {
-            status: LEGAL_EFFECT_STATUSES.FUTURE,
-            sourceRef: "metadata:future",
-          },
-        },
-      );
-
-      await ingest(document.id, 1, [
-        "p-effective",
-        "p-repealed",
-        "p-future",
-        "p-unknown",
-      ]);
-
-      const chunks = await prisma.legalDocumentChunk.findMany({
-        where: { legalSourceVersionId: draft.id },
-        orderBy: { locator: "asc" },
-        select: {
-          locator: true,
-          legalEffectStatus: true,
-          legalStatusSourceRef: true,
-        },
-      });
-      expect(chunks).toEqual([
-        {
-          locator: "p-effective",
-          legalEffectStatus: "EFFECTIVE",
-          legalStatusSourceRef: "metadata:effective",
-        },
-        {
-          locator: "p-future",
-          legalEffectStatus: "FUTURE",
-          legalStatusSourceRef: "metadata:future",
-        },
-        {
-          locator: "p-repealed",
-          legalEffectStatus: "REPEALED",
-          legalStatusSourceRef: "metadata:repealed",
-        },
-        {
-          locator: "p-unknown",
-          legalEffectStatus: "UNKNOWN",
-          legalStatusSourceRef: null,
-        },
-      ]);
-    });
-
     it("writes version-qualified chunks, marks the document READY and validates the version", async () => {
       const source = await newSource();
       const draft = await newDraft(source.id);
@@ -518,9 +462,60 @@ database("Legal Source management on PostgreSQL", () => {
           (locator) => `${draft.id}::a::${locator}`,
         ),
       );
-      expect(chunks.every((chunk) => chunk.legalStatus === "ACTIVE")).toBe(
+      expect(chunks.every((chunk) => chunk.legalStatus === "UNKNOWN")).toBe(
         true,
       );
+      expect(
+        chunks.every((chunk) => chunk.legalEffectStatus === "UNKNOWN"),
+      ).toBe(true);
+    });
+
+    it("persists per-provision effect only when pinned source metadata supplies it", async () => {
+      const source = await newSource();
+      const draft = await newDraft(source.id);
+      const supplied = {
+        "p-effective": {
+          status: "EFFECTIVE" as const,
+          sourceRef: "metadata:provision-a",
+        },
+        "p-repealed": {
+          status: "REPEALED" as const,
+          sourceRef: "metadata:provision-b",
+        },
+        "p-future": {
+          status: "FUTURE" as const,
+          sourceRef: "metadata:provision-c",
+        },
+      };
+      const document = await upload(
+        draft.id,
+        "effect.txt",
+        `body ${randomUUID()}`,
+        "text/plain",
+        supplied,
+      );
+      await ingest(document.id, 1, [
+        "p-effective",
+        "p-repealed",
+        "p-future",
+        "p-unknown",
+      ]);
+      const chunks = await prisma.legalDocumentChunk.findMany({
+        where: { legalSourceVersionId: draft.id },
+      });
+      expect(
+        Object.fromEntries(
+          chunks.map((chunk) => [
+            chunk.locator,
+            [chunk.legalEffectStatus, chunk.legalStatusSourceRef],
+          ]),
+        ),
+      ).toEqual({
+        "p-effective": ["EFFECTIVE", "metadata:provision-a"],
+        "p-repealed": ["REPEALED", "metadata:provision-b"],
+        "p-future": ["FUTURE", "metadata:provision-c"],
+        "p-unknown": ["UNKNOWN", null],
+      });
     });
 
     it("ignores a stale or duplicated result and keeps the newer outcome", async () => {
@@ -725,6 +720,12 @@ database("Legal Source management on PostgreSQL", () => {
         }),
       ).rejects.toThrow(/LEGAL_SOURCE_VERSION_IMMUTABLE/u);
       await expect(
+        prisma.legalDocumentChunk.updateMany({
+          where: { legalSourceVersionId: first.versionId },
+          data: { legalEffectStatus: "EFFECTIVE" },
+        }),
+      ).rejects.toThrow(/LEGAL_SOURCE_VERSION_IMMUTABLE/u);
+      await expect(
         prisma.legalSourceDocument.update({
           where: { id: first.documentRowId },
           data: { title: "rewritten" },
@@ -749,7 +750,9 @@ database("Legal Source management on PostgreSQL", () => {
 
     it("starts a new draft from an earlier version without touching it, with its own chunk ids", async () => {
       const source = await newSource();
-      const base = await readyDraft(source.id, "carried", ["art-1", "art-2"]);
+      const base = await readyDraft(source.id, "carried", ["art-1", "art-2"], {
+        "art-1": { status: "REPEALED", sourceRef: "metadata:repeal" },
+      });
       await management.activate({
         versionId: base.versionId,
         actorId: ADMIN,
@@ -779,6 +782,19 @@ database("Legal Source management on PostgreSQL", () => {
       expect(nextChunks.map((chunk) => chunk.id).sort()).not.toEqual(
         baseChunks.map((chunk) => chunk.id).sort(),
       );
+      expect(
+        nextChunks
+          .map((chunk) => [chunk.legalEffectStatus, chunk.legalStatusSourceRef])
+          .sort(),
+      ).toEqual(
+        baseChunks
+          .map((chunk) => [chunk.legalEffectStatus, chunk.legalStatusSourceRef])
+          .sort(),
+      );
+      expect(
+        baseChunks.find((chunk) => chunk.locator === "art-1")
+          ?.legalEffectStatus,
+      ).toBe("REPEALED");
       expect(nextChunks.map((chunk) => chunk.contentSha256).sort()).toEqual(
         baseChunks.map((chunk) => chunk.contentSha256).sort(),
       );

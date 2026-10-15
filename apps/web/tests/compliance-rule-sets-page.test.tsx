@@ -431,8 +431,11 @@ test("Prepare sends no source/content and refreshes the running server state", a
     const posts = stub.calls.filter((call) => call.method === "POST");
     assert.equal(posts.length, 1);
     assert.equal(posts[0].url, "/api/admin/compliance-rule-sets/prepare");
-    // Admin supplies no source or content; a first preparation carries no replacement intent.
-    assert.deepEqual(JSON.parse(String(posts[0].body ?? "{}")), {});
+    // Admin supplies no content; a first preparation carries no replacement intent and names only the
+    // version on screen.
+    assert.deepEqual(JSON.parse(String(posts[0].body ?? "{}")), {
+      legalSourceVersionId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    });
     assert.ok(stub.calls.filter((call) => call.method === "GET").length >= 2);
   } finally {
     release();
@@ -754,6 +757,7 @@ test("an explicit replacement sends replaceActive, keeps the active version in u
     assert.equal(posts.length, 1);
     assert.deepEqual(JSON.parse(String(posts[0].body)), {
       replaceActive: true,
+      legalSourceVersionId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
     });
     const text = rendered.textContent ?? "";
     assert.match(text, /2026\.10\.p1/); // the active version is still shown as ACTIVE

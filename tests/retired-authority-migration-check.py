@@ -215,6 +215,10 @@ def preserved_database(conn, state: dict, *, renamed: bool = False) -> str:
                   sql.SQL("(to_jsonb(t)-'approvedAt') || jsonb_build_object('activatedAt',t.\"approvedAt\")"))
     value["LegalSourceVersion"] = list(conn.execute(sql.SQL("SELECT {} AS row FROM {} t ORDER BY id").format(
         source_row, sql.Identifier(source_table))))
+    if renamed:
+        for row in value["LegalSourceVersion"]:
+            for column in ("basedOnVersionId", "createdBy", "legalSourceId"):
+                row["row"].pop(column, None)
     value["LlmUsageEvent"] = list(conn.execute('SELECT to_jsonb(t)-\'assessmentId\' AS row FROM "LlmUsageEvent" t ORDER BY id'))
     value["rootTurns"] = list(conn.execute('SELECT to_jsonb(t) AS row FROM "AssessmentRuntimeTurn" t '
                                          "WHERE boundary='ASSESSMENT_ROOT' ORDER BY id"))
@@ -398,6 +402,7 @@ def main() -> int:
                     assert not db.execute('SELECT 1 FROM "OutboxMessage" WHERE "eventType"=\'command.legal-corpus.recovery.requested.v1\'').fetchone()
                     assert not db.execute('SELECT 1 FROM "AuditEvent" WHERE id=\'old-catalog\'').fetchone()
                     assert db.execute('SELECT "resourceType" FROM "AuditEvent" WHERE id=\'corpus\'').fetchone()["resourceType"] == "LEGAL_SOURCE_VERSION"
+                    assert not db.execute('SELECT 1 FROM "LegalSourceVersion" WHERE "legalSourceId" IS NULL LIMIT 1').fetchone()
                     assert preserved_database(db, state, renamed=True) == preserved, "canonical data changed across final deploy"
                 assert [saver.get_tuple(config) for config in protected] == originals
                 passed("populated synthetic post-CUTOVER upgrade drops 29 V1 tables; canonical owner/Case/Root/accounting/corpus unchanged")

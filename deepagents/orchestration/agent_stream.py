@@ -159,6 +159,20 @@ class AgentStreamSession:
     preparation_run_id: str | None = None
     sequence: int = field(default=0, init=False)
     _sequence_lock: Lock = field(default_factory=Lock, init=False, repr=False)
+
+    _last_completed_model_call: dict[str, Any] | None = field(default=None, init=False, repr=False)
+    _failing_model_call: dict[str, Any] | None = field(default=None, init=False, repr=False)
+    _active_model_call: dict[str, Any] | None = field(default=None, init=False, repr=False)
+
+    def model_call_diagnostics(self) -> dict[str, dict[str, Any] | None]:
+        with self._sequence_lock:
+            return {
+                "last_completed_model_call": dict(self._last_completed_model_call)
+                if self._last_completed_model_call else None,
+                "failing_model_call": dict(self._failing_model_call) if self._failing_model_call else None,
+                "active_model_call": dict(self._active_model_call) if self._active_model_call else None,
+            }
+
     def emit(self, event_type: str, **fields: Any) -> None:
         cancel = active_agent_stream_cancel.get()
         if cancel is not None and cancel.is_set() and event_type != "MODEL_CALL_CANCELLED":
@@ -172,6 +186,49 @@ class AgentStreamSession:
         data = fields.get("data")
         if step_id and (data is None or isinstance(data, dict)) and "model_step_id" not in (data or {}):
             fields = {**fields, "data": {**(data or {}), "model_step_id": step_id}}
+            data = fields["data"]
+        if event_type in {
+            "MODEL_CALL_STARTED",
+            "MODEL_CALL_COMPLETED",
+            "MODEL_CALL_FAILED",
+            "MODEL_CALL_TIMEOUT",
+            "MODEL_CALL_CANCELLED",
+        }:
+            diagnostic = {"event_type": event_type}
+            if isinstance(data, dict):
+                for key in (
+                    "model_step_id",
+                    "invocation_id",
+                    "provider",
+                    "protocol",
+                    "model",
+                    "error_type",
+                    "provider_attempts",
+                    "credential_attempts",
+                    "fallback_used",
+                    "fallback_exhausted",
+                ):
+                    value = data.get(key)
+                    if isinstance(value, (str, int, bool)) and not isinstance(value, float):
+                        diagnostic[key] = value[:160] if isinstance(value, str) else value
+                providers = data.get("providers_attempted")
+                if isinstance(providers, list):
+                    diagnostic["providers_attempted"] = [
+                        item[:80] for item in providers if isinstance(item, str)
+                    ][:8]
+            with self._sequence_lock:
+                if event_type == "MODEL_CALL_STARTED":
+                    self._active_model_call = diagnostic
+                    self._failing_model_call = None
+                elif event_type == "MODEL_CALL_COMPLETED":
+                    self._last_completed_model_call = diagnostic
+                    self._active_model_call = None
+                    self._failing_model_call = None
+                elif event_type in {"MODEL_CALL_FAILED", "MODEL_CALL_TIMEOUT"}:
+                    self._failing_model_call = diagnostic
+                    self._active_model_call = None
+                else:
+                    self._active_model_call = None
         with self._sequence_lock:
             self.sequence += 1
             sequence = self.sequence

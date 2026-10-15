@@ -1,4 +1,5 @@
 """Shared terminal failure classification for model calls and queue delivery."""
+from langchain_anthropic.chat_models import AnthropicModelNotFoundError
 from langchain.agents.structured_output import StructuredOutputError
 from langchain_core.exceptions import (
     ModelAuthenticationError,
@@ -81,6 +82,10 @@ class AgentRunBudgetExceeded(RuntimeError):
     Terminal for retry, credential rotation and queue delivery: replaying the same
     run would walk the same unbounded loop and spend the same budget again.
     """
+
+
+class NoProgressDetected(RuntimeError):
+    """The Agent repeated the same ineffective action after no-progress feedback."""
 
 
 class StructuredOutputRejected(TerminalSchemaError):
@@ -204,6 +209,13 @@ def is_provider_model_unavailable(error: BaseException) -> bool:
     on another provider is expected to succeed. Not retried on the same route
     either — a withdrawn or overloaded model does not come back within a turn.
     """
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, AnthropicModelNotFoundError):
+            return True
+        current = current.__cause__ or current.__context__
     return bool(_error_codes(error) & _PROVIDER_MODEL_UNAVAILABLE_CODES)
 
 
@@ -229,7 +241,7 @@ def is_terminal_task_error(error: BaseException) -> bool:
     current: BaseException | None = error
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        if isinstance(current, (TypeError, ValidationError, StructuredOutputError, TerminalSchemaError, TerminalCredentialError, AgentRunBudgetExceeded)):
+        if isinstance(current, (TypeError, ValidationError, StructuredOutputError, TerminalSchemaError, TerminalCredentialError, AgentRunBudgetExceeded, NoProgressDetected)):
             return True
         # Our own API rejected this payload. The boundary re-runs the model on every
         # redelivery, so requeueing an identical rejected decision is an unbounded spend
@@ -253,6 +265,7 @@ def is_terminal_task_error(error: BaseException) -> bool:
             isinstance(current, ModelError)
             and not current.is_retryable
             and not isinstance(current, _CREDENTIAL_MODEL_ERRORS)
+            and not is_provider_model_unavailable(current)
         ):
             return True
         current = current.__cause__ or current.__context__

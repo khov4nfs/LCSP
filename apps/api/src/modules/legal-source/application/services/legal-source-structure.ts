@@ -4,7 +4,13 @@ import { LEGAL_SOURCE_STRUCTURAL_INDEX } from "@lcsp/contracts/legal-source";
 
 export interface StructuralDocument {
   documentId: string;
-  chunks: Array<{ locator: string; content: string; contentSha256: string }>;
+  chunks: Array<{
+    locator: string;
+    content: string;
+    contentSha256: string;
+    legalEffectStatus?: string;
+    legalStatusSourceRef?: string | null;
+  }>;
 }
 
 export interface StructuralValidation {
@@ -50,7 +56,7 @@ export function validateStructure(
         failures.push(`DUPLICATE_LOCATOR:${document.documentId}`);
       locators.add(chunk.locator);
       lines.push(
-        `${document.documentId}\t${chunk.locator}\t${chunk.contentSha256}`,
+        `${document.documentId}\t${chunk.locator}\t${chunk.contentSha256}\t${chunk.legalEffectStatus ?? "UNKNOWN"}\t${chunk.legalStatusSourceRef ?? ""}`,
       );
     }
   }

@@ -40,14 +40,7 @@ export class ComplianceRuleSetReadModelLoader {
           orderBy: { ordinal: "asc" },
           include: {
             toChunk: {
-              select: {
-                documentId: true,
-                locator: true,
-                contentSha256: true,
-                legalEffectStatus: true,
-                legalStatusSourceRef: true,
-                sourceDocument: { select: { sourceEffectStatus: true } },
-              },
+              select: { documentId: true, locator: true, contentSha256: true },
             },
           },
         },
@@ -165,10 +158,6 @@ export class ComplianceRuleSetReadModelLoader {
               documentId: relation.toChunk.documentId,
               locator: relation.toChunk.locator,
               contentSha256: relation.toChunk.contentSha256,
-              sourceEffectStatus:
-                relation.toChunk.sourceDocument.sourceEffectStatus,
-              legalEffectStatus: relation.toChunk.legalEffectStatus,
-              legalStatusSourceRef: relation.toChunk.legalStatusSourceRef,
             }
           : null,
       })),

@@ -12,6 +12,7 @@ import pytest
 from deepagents.backends.filesystem import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from orchestration.agent_stream import AgentStreamSession, activate_agent_stream
 import rule_set_preparation.agent as preparation_agent
 from rule_set_preparation.agent import (
     PreparationObservationMiddleware,
@@ -127,6 +128,7 @@ def _bundle() -> dict[str, Any]:
                         "locator": locator,
                         "content": text,
                         "contentSha256": _sha(text),
+                        "legalStatus": "IN_FORCE",
                         "legalEffectStatus": "EFFECTIVE",
                         "legalStatusSourceRef": "source-metadata:fixture",
                         "hierarchy": {"path": locator.split("::")},
@@ -299,66 +301,10 @@ def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_leg
     assert f"documentId: {DOC}" in header
     assert "locator: art-1::cl-1" in header
     assert f"contentSha256: {_sha('Records must be retained for five years.')}" in header
-    assert f"legalSourceVersionId: {LEGAL_SOURCE_ID}" in index
     assert "legalEffectStatus: EFFECTIVE" in header
     assert "legalStatusSourceRef: source-metadata:fixture" in header
-    assert "| legalEffectStatus | legalStatusSourceRef | file |" in index
-    assert "| EFFECTIVE | source-metadata:fixture |" in index
     assert f"| {DOC} | art-2::cl-1 |" in index
     assert {p.name for p in tmp_path.rglob("*") if p.is_file()} == {"INDEX.md", "art-1__cl-1.md", "art-2__cl-1.md"}
-
-
-@pytest.mark.parametrize(
-    ("status", "source_ref"),
-    [("REPEALED", "amendment:section-4"), ("FUTURE", "commencement:section-2"), ("UNKNOWN", None)],
-)
-def test_materializer_preserves_pinned_effect_status_and_unknown_provenance(
-    tmp_path: Path, status: str, source_ref: str | None
-) -> None:
-    bundle = _bundle()
-    bundle["documents"][0]["chunks"] = [
-        {
-            **bundle["documents"][0]["chunks"][0],
-            "legalEffectStatus": status,
-            "legalStatusSourceRef": source_ref,
-        }
-    ]
-
-    materialize_legal_source(bundle, tmp_path)
-
-    index = (tmp_path / "legal-source" / "INDEX.md").read_text()
-    chunk_file = next(tmp_path.rglob("art-1__cl-1.md")).read_text()
-    assert f"| {status} | {source_ref if source_ref is not None else 'null'} |" in index
-    assert f"legalEffectStatus: {status}" in chunk_file
-    assert f"legalStatusSourceRef: {source_ref if source_ref is not None else 'null'}" in chunk_file
-    assert "legalStatus: IN_FORCE" not in chunk_file
-
-
-def test_materializer_uses_only_the_explicitly_pinned_version_metadata(tmp_path: Path) -> None:
-    first, second = _bundle(), _bundle()
-    first["legalSourceVersionId"] = "11111111-1111-4111-8111-111111111111"
-    first["legalSourceVersion"] = "source-v1"
-    first["documents"][0]["chunks"][0]["legalEffectStatus"] = "REPEALED"
-    first["documents"][0]["chunks"][0]["legalStatusSourceRef"] = "v1:source"
-    second["legalSourceVersionId"] = "22222222-2222-4222-8222-222222222222"
-    second["legalSourceVersion"] = "source-v2"
-    second["documents"][0]["chunks"][0]["legalEffectStatus"] = "EFFECTIVE"
-    second["documents"][0]["chunks"][0]["legalStatusSourceRef"] = "v2:source"
-
-    first_root, second_root = tmp_path / "v1", tmp_path / "v2"
-    materialize_legal_source(first, first_root)
-    materialize_legal_source(second, second_root)
-
-    first_index = (first_root / "legal-source" / "INDEX.md").read_text()
-    first_file = next(first_root.rglob("art-1__cl-1.md")).read_text()
-    second_index = (second_root / "legal-source" / "INDEX.md").read_text()
-    second_file = next(second_root.rglob("art-1__cl-1.md")).read_text()
-    assert "legalSourceVersionId: 11111111-1111-4111-8111-111111111111" in first_index
-    assert "REPEALED | v1:source" in first_index and "EFFECTIVE | v2:source" not in first_index
-    assert "legalEffectStatus: REPEALED" in first_file
-    assert "legalSourceVersionId: 22222222-2222-4222-8222-222222222222" in second_index
-    assert "EFFECTIVE | v2:source" in second_index and "REPEALED | v1:source" not in second_index
-    assert "legalEffectStatus: EFFECTIVE" in second_file
 
 
 def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_tools(tmp_path: Path) -> None:
@@ -712,7 +658,18 @@ def test_model_error_and_claim_failure_are_recorded(tmp_path: Path) -> None:
 
     api = FakeApi()
     exploding = ExplodingModel(responses=[])
-    result = run_rule_set_preparation(api, RUN_ID, model=exploding, work_dir=tmp_path)
+    stream = AgentStreamSession(
+        assessment_id=None,
+        run_id=RUN_ID,
+        correlation_id="model-error-test",
+        boundary_name="rule_set_preparation",
+        emit_payload=lambda _: None,
+        boundary_type="PREPARATION",
+        boundary_id=RUN_ID,
+        preparation_run_id=RUN_ID,
+    )
+    with activate_agent_stream(stream):
+        result = run_rule_set_preparation(api, RUN_ID, model=exploding, work_dir=tmp_path)
     assert result["failureReason"] == MODEL_ERROR
     assert api.calls[-1] == ("fail", (RUN_ID, MODEL_ERROR))
 

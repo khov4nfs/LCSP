@@ -271,6 +271,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
         # Routing transitions stay in infrastructure logs, never in the assessment stream.
 
     def wrap_model_call(self, request, handler):
+        from middleware.usage_metering import provider_attempt_context
+
         current_provider, routes = self._routes(request)
         first_error: BaseException | None = None
         errors: list[BaseException] = []
@@ -280,8 +282,9 @@ class ProviderFallbackMiddleware(AgentMiddleware):
 
         if not _provider_route_disabled(current_provider):
             try:
-                with further_provider_route(bool(routes)):
-                    return handler(request)
+                with provider_attempt_context(route_ordinal=0):
+                    with further_provider_route(bool(routes)):
+                        return handler(request)
             except Exception as error:
                 if not provider_fallback_failure(error):
                     raise
@@ -302,8 +305,9 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 index=index,
             )
             try:
-                with further_provider_route(index < len(routes)):
-                    response = handler(request.override(model=fallback_model(config)))
+                with provider_attempt_context(route_ordinal=index):
+                    with further_provider_route(index < len(routes)):
+                        response = handler(request.override(model=fallback_model(config)))
             except Exception as error:
                 if not provider_fallback_failure(error):
                     raise
@@ -327,10 +331,16 @@ class ProviderFallbackMiddleware(AgentMiddleware):
             _sleep(delay)
             for config in list(limited):
                 try:
-                    with further_provider_route(False):
-                        response = handler(
-                            request if config is None else request.override(model=fallback_model(config))
-                        )
+                    route_ordinal = next(
+                        (i for i, route in enumerate(routes, start=1)
+                         if config is not None and _config_key(route) == _config_key(config)),
+                        0 if config is None else None,
+                    )
+                    with provider_attempt_context(route_ordinal=route_ordinal):
+                        with further_provider_route(False):
+                            response = handler(
+                                request if config is None else request.override(model=fallback_model(config))
+                            )
                 except Exception as error:
                     if not provider_fallback_failure(error):
                         raise
@@ -349,6 +359,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
         raise exhausted from first_error
 
     async def awrap_model_call(self, request, handler):
+        from middleware.usage_metering import provider_attempt_context
+
         current_provider, routes = self._routes(request)
         first_error: BaseException | None = None
         errors: list[BaseException] = []
@@ -358,8 +370,9 @@ class ProviderFallbackMiddleware(AgentMiddleware):
 
         if not _provider_route_disabled(current_provider):
             try:
-                with further_provider_route(bool(routes)):
-                    return await handler(request)
+                with provider_attempt_context(route_ordinal=0):
+                    with further_provider_route(bool(routes)):
+                        return await handler(request)
             except Exception as error:
                 if not provider_fallback_failure(error):
                     raise
@@ -380,8 +393,9 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 index=index,
             )
             try:
-                with further_provider_route(index < len(routes)):
-                    response = await handler(request.override(model=fallback_model(config)))
+                with provider_attempt_context(route_ordinal=index):
+                    with further_provider_route(index < len(routes)):
+                        response = await handler(request.override(model=fallback_model(config)))
             except Exception as error:
                 if not provider_fallback_failure(error):
                     raise
@@ -405,10 +419,16 @@ class ProviderFallbackMiddleware(AgentMiddleware):
             await _asleep(delay)
             for config in list(limited):
                 try:
-                    with further_provider_route(False):
-                        response = await handler(
-                            request if config is None else request.override(model=fallback_model(config))
-                        )
+                    route_ordinal = next(
+                        (i for i, route in enumerate(routes, start=1)
+                         if config is not None and _config_key(route) == _config_key(config)),
+                        0 if config is None else None,
+                    )
+                    with provider_attempt_context(route_ordinal=route_ordinal):
+                        with further_provider_route(False):
+                            response = await handler(
+                                request if config is None else request.override(model=fallback_model(config))
+                            )
                 except Exception as error:
                     if not provider_fallback_failure(error):
                         raise

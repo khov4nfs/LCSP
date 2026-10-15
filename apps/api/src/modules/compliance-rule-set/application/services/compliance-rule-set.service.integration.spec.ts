@@ -8,6 +8,7 @@ import {
   PrismaClient,
 } from "@prisma/client";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
+import { LEGAL_SOURCE_CHUNK_STATUSES } from "@lcsp/contracts/legal-source";
 import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   COMPLIANCE_RULE_SET_ERROR_CODES,
@@ -704,7 +705,11 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
         chunk.legalEffectStatus,
         chunk.legalStatusSourceRef,
       ]),
-    ).toEqual([...FIXTURE_LOCATORS].sort().map(() => ["UNKNOWN", null]));
+    ).toEqual(
+      [...FIXTURE_LOCATORS]
+        .sort()
+        .map(() => [LEGAL_SOURCE_CHUNK_STATUSES.EFFECTIVE, "source-metadata:fixture"]),
+    );
     expect(
       (
         await prisma.ruleSetPreparationRun.findUniqueOrThrow({

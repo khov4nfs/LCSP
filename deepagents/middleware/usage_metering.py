@@ -72,6 +72,33 @@ _active_agent_role: ContextVar[str | None] = ContextVar(
 # the same step share it, so the live stream shows one row per step instead of
 # folding every model call of a run into a single ever-growing row.
 _active_model_step_id = active_model_step
+_active_provider_route_ordinal: ContextVar[int | None] = ContextVar(
+    "active_provider_route_ordinal", default=None
+)
+_active_credential_slot_safe_id: ContextVar[str | None] = ContextVar(
+    "active_credential_slot_safe_id", default=None
+)
+
+
+@contextmanager
+def provider_attempt_context(
+    *, route_ordinal: int | None = None, credential_slot_safe_id: str | None = None
+) -> Iterator[None]:
+    route_token = _active_provider_route_ordinal.set(route_ordinal) if route_ordinal is not None else None
+    slot_token = _active_credential_slot_safe_id.set(credential_slot_safe_id) if credential_slot_safe_id else None
+    try:
+        yield
+    finally:
+        if slot_token is not None:
+            _active_credential_slot_safe_id.reset(slot_token)
+        if route_token is not None:
+            _active_provider_route_ordinal.reset(route_token)
+
+
+def _active_logical_invocation_id() -> str | None:
+    summary = active_model_step_summary.get()
+    invocation_id = summary.get("invocation_id") if summary else None
+    return invocation_id if isinstance(invocation_id, str) else None
 
 
 @dataclass
@@ -458,7 +485,9 @@ def active_agent_role() -> str | None:
 def activate_model_step(step_id: str | None = None) -> Iterator[str]:
     resolved = step_id or str(uuid4())
     token = _active_model_step_id.set(resolved)
-    summary_token = active_model_step_summary.set({"providers": []})
+    summary_token = active_model_step_summary.set(
+        {"providers": [], "invocation_id": str(uuid4())}
+    )
     try:
         yield resolved
     finally:
@@ -473,11 +502,12 @@ def active_model_step_id() -> str | None:
 class _ModelCallTelemetry:
     """Emit safe progress around one blocking provider call."""
 
-    def __init__(self, model: Any) -> None:
+    def __init__(self, model: Any, *, invocation_id: str | None = None) -> None:
         self.provider, self.model_name = provider_identity(model)
         self.protocol = model_protocol(model) or "unknown"
         self.timeout_seconds = llm_provider_timeout_seconds()
         self.model_step_id = active_model_step_id() or str(uuid4())
+        self.invocation_id = invocation_id or _active_logical_invocation_id()
         self.agent_role = active_agent_role()
         self._started_at = time.monotonic()
         self._stop = Event()
@@ -486,6 +516,7 @@ class _ModelCallTelemetry:
         # Each billed call is one provider-route attempt of the same logical step.
         self._summary = active_model_step_summary.get()
         note_model_step("provider_attempts")
+        self.attempt_ordinal = self._summary.get("provider_attempts") if self._summary else None
         if self._summary is not None:
             self._summary["provider"] = self.provider.lower()
             self._summary["protocol"] = self.protocol
@@ -543,12 +574,18 @@ class _ModelCallTelemetry:
             data_extra=extra,
         )
 
-    def fail(self, error: BaseException) -> None:
+    def fail(self, error: BaseException, *, record_attempt: bool = True) -> None:
         # A failed route attempt is infrastructure: stop the heartbeat only. The one
         # logical failure is published by the step owner if every route fails.
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=0.25)
+        if record_attempt and isinstance(error, Exception):
+            _publish_provider_attempt_failure(
+                error, provider=self.provider.lower(), protocol=self.protocol,
+                model=self.model_name, model_step_id=self.model_step_id,
+                invocation_id=self.invocation_id, attempt_ordinal=self.attempt_ordinal,
+            )
 
     def cancel(self) -> None:
         self._finish("MODEL_CALL_CANCELLED", status="STOPPED", text="Model step interrupted")
@@ -567,6 +604,8 @@ class _ModelCallTelemetry:
         data = self._data(elapsed_seconds=self._elapsed_seconds())
         if data_extra:
             data.update(data_extra)
+        if self.invocation_id:
+            data["invocation_id"] = self.invocation_id
         self._emit(event_type, status=status, text=text, data=data)
 
     def _heartbeat(self) -> None:
@@ -597,6 +636,8 @@ class _ModelCallTelemetry:
             "elapsed_seconds": elapsed_seconds,
             "model_step_id": self.model_step_id,
         }
+        if self.invocation_id:
+            data["invocation_id"] = self.invocation_id
         if self.agent_role:
             data["agent_role"] = self.agent_role
         return data
@@ -703,6 +744,7 @@ def _publish_terminal_model_failure(
         text="model call timed out" if timeout else "model call failed",
         data={
             "model_step_id": step_id,
+            **({"invocation_id": summary["invocation_id"]} if isinstance(summary.get("invocation_id"), str) else {}),
             **({"agent_role": agent_role} if agent_role else {}),
             "provider": summary.get("provider"),
             "protocol": summary.get("protocol"),
@@ -713,6 +755,47 @@ def _publish_terminal_model_failure(
             "providers_attempted": list(summary.get("providers", []))[:8],
         },
     )
+
+
+def _safe_provider_error_code(error: BaseException) -> str | None:
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        values = [getattr(current, key, None) for key in ("error_code", "code", "type")]
+        body = getattr(current, "body", None)
+        nested = body.get("error") if isinstance(body, dict) else None
+        if isinstance(nested, dict):
+            values.extend(nested.get(key) for key in ("code", "type"))
+        for value in values:
+            if isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", value):
+                return value
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def _publish_provider_attempt_failure(
+    error: BaseException, *, provider: str, protocol: str, model: str,
+    model_step_id: str, invocation_id: str | None, attempt_ordinal: int | None,
+) -> None:
+    from middleware.failure_policy import error_status, retry_model_error
+    from middleware.provider_fallback import provider_fallback_failure
+
+    data = {
+        "provider": provider, "protocol": protocol, "model": model,
+        "model_step_id": model_step_id, "attempt_ordinal": attempt_ordinal,
+        "route_ordinal": _active_provider_route_ordinal.get(),
+        "credential_slot_safe_id": _active_credential_slot_safe_id.get(),
+        "error_class": type(error).__name__, "http_status": error_status(error),
+        "provider_error_code": _safe_provider_error_code(error),
+        "retryability": "RETRYABLE" if retry_model_error(error) else "NOT_RETRYABLE",
+        "fallback_eligibility": provider_fallback_failure(error),
+    }
+    if invocation_id:
+        data["invocation_id"] = invocation_id
+    publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={
+        **data, "durability": "DURABLE", "activity_kind": "MODEL_PROVIDER_ATTEMPT_FAILED",
+    })
 
 
 class AgentRoleMiddleware(AgentMiddleware):
@@ -783,17 +866,19 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
     def wrap_model_call(self, request, handler):
         request, model = self._prepare(request)
-        invocation_id = str(uuid4())
-        telemetry = _ModelCallTelemetry(model)
+        invocation_id = _active_logical_invocation_id() or str(uuid4())
+        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
             response = cancellable_sync(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
             self._record(response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            telemetry.fail(error)
+            from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
-            if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
+            cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
+            telemetry.fail(error, record_attempt=not cancelled)
+            if cancelled:
                 telemetry.cancel()
             raise
         self._log_response(response, model)
@@ -802,8 +887,8 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
     async def awrap_model_call(self, request, handler):
         request, model = self._prepare(request)
-        invocation_id = str(uuid4())
-        telemetry = _ModelCallTelemetry(model)
+        invocation_id = _active_logical_invocation_id() or str(uuid4())
+        telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
             response = await cancellable_async(lambda: handler(request), late_result=lambda result: self._record(result, model, invocation_id))
@@ -812,9 +897,11 @@ class UsageMeteringMiddleware(AgentMiddleware):
             await asyncio.to_thread(self._record, response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            telemetry.fail(error)
+            from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
-            if isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError)):
+            cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
+            telemetry.fail(error, record_attempt=not cancelled)
+            if cancelled:
                 telemetry.cancel()
             raise
         self._log_response(response, model)

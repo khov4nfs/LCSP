@@ -18,18 +18,50 @@ import subprocess
 import tempfile
 import time
 from unittest.mock import patch
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from uuid import UUID, uuid4
 
 from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE_EVIDENCE = ROOT / "reports/release-images/20261012054358_c13bae52f1ac"
 OWNER_LABEL = "lcsp.release-staging"
 PROVIDER_KEYS = ("APX_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY")
+SERVICE_ROLES = ("postgres", "rabbitmq", "server", "api", "bridge", "web")
+EXPECTED_QUEUE_BOUNDARIES = frozenset({
+    "lcsp.agent_runtime.boundary.legal_change_detection_requested",
+    "lcsp.agent_runtime.boundary.assessment_root_requested",
+    "lcsp.agent_runtime.boundary.rule_set_preparation_requested",
+    "lcsp.agent_runtime.boundary.legal_source_ingest_requested",
+    "lcsp.agent_runtime.boundary.managed_document_ingest_requested",
+    "lcsp.agent_runtime.boundary.official_text_extraction_requested",
+    "lcsp.agent_runtime.boundary.ocr_fallback_requested",
+    "lcsp.agent_runtime.boundary.ocr_quality_requested",
+    "lcsp.agent_runtime.boundary.reviewed_legal_source_input_requested",
+    "lcsp.agent_runtime.boundary.legal_chunk_build_requested",
+    "lcsp.agent_runtime.boundary.vbpl_effected_chunk_set_requested",
+    "lcsp.agent_runtime.boundary.chunk_integrity_requested",
+    "lcsp.agent_runtime.boundary.legal_retrieval_index_requested",
+    "lcsp.agent_runtime.boundary.audit_export_requested",
+    "lcsp.agent_runtime.boundary.agent_runtime_health_requested",
+})
 HOST_KEYS = ("PATH", "HOME", "USER", "LANG", "LC_ALL", "TMPDIR", "DOCKER_HOST",
              "DOCKER_CONTEXT", "DOCKER_CONFIG", "XDG_RUNTIME_DIR")
+SAFE_FAILURE_REASONS = {
+    "IMAGE_EVIDENCE_INVALID": "The accepted release image evidence did not pass validation.",
+    "INVALID_JSON": "Docker or local API JSON output could not be parsed; raw output is withheld.",
+    "INVALID_HOST_PORT": "Docker did not report a valid loopback host port.",
+    "INVALID_FIXTURE_ACCOUNT_ID": "The local API returned a malformed fixture account identifier.",
+    "INVALID_VALUE": "A value in the isolated launch failed validation; exception text is withheld.",
+    "COMMAND_FAILED": "A local Docker command failed; only its exit code is recorded.",
+    "COMMAND_TIMEOUT": "A local Docker command exceeded its allowed timeout.",
+    "READINESS_TIMEOUT": "A service did not become ready before its configured deadline.",
+    "SERVICE_EXITED_BEFORE_READY": "A service exited before its readiness check passed.",
+    "HARNESS_CHECK_FAILED": "A disposable launch safety or readiness check failed.",
+    "DOCKER_UNAVAILABLE": "The local Docker executable could not be started.",
+    "INTERRUPTED": "The disposable launch was interrupted.",
+    "UNEXPECTED_ERROR": "An unexpected launch error occurred; exception text is withheld.",
+}
 spec = importlib.util.spec_from_file_location("release_release_images", ROOT / "tests/release-images.py")
 assert spec is not None and spec.loader is not None
 images_gate = importlib.util.module_from_spec(spec)
@@ -53,12 +85,32 @@ def write_json(path: Path, value: dict, *, private: bool = False) -> None:
         path.chmod(0o600)
 
 
-def accepted_images() -> dict[str, str]:
-    receipt = json_file(IMAGE_EVIDENCE / "report.json")
+def image_evidence_path(value: str | Path | None = None) -> Path:
+    raw = value or os.environ.get("LCSP_RELEASE_IMAGE_EVIDENCE")
+    require(bool(raw) and len(str(raw)) <= 240, "release image evidence path is required")
+    relative = Path(raw)
+    internal_absolute = isinstance(value, Path) and relative.is_absolute()
+    require(internal_absolute or not relative.is_absolute(), "image evidence path must be repository-relative")
+    require(".." not in relative.parts, "image evidence path must not traverse parent directories")
+    if internal_absolute:
+        require(relative.resolve().is_relative_to(ROOT.resolve()), "image evidence path escaped repository")
+        path = relative
+    else:
+        path = ROOT / relative
+    require(not any(parent.is_symlink() for parent in (path, *path.parents)
+                    if parent == ROOT or ROOT in parent.parents), "image evidence path symlink refused")
+    resolved = path.resolve()
+    require(resolved.is_relative_to(ROOT.resolve()), "image evidence path escaped repository")
+    return resolved
+
+
+def accepted_images(evidence: str | Path) -> dict[str, str]:
+    image_evidence = image_evidence_path(evidence)
+    receipt = json_file(image_evidence / "report.json")
     require(receipt.get("status") == "PASS" and receipt.get("exitCode") == 0,
             "accepted image gate is required")
-    images_gate.check_junit(IMAGE_EVIDENCE / "docker-junit.xml")
-    frozen = json_file(IMAGE_EVIDENCE / "candidate-source.json")
+    images_gate.check_junit(image_evidence / "docker-junit.xml")
+    frozen = json_file(image_evidence / "candidate-source.json")
     require(images_gate.sources() == frozen["source"], "candidate source changed; revalidate images")
     for name, sha in frozen["buildAndPolicyInputs"].items():
         require(images_gate.digest((ROOT / name).read_bytes()) == sha, "candidate build input changed")
@@ -67,7 +119,7 @@ def accepted_images() -> dict[str, str]:
     result = {}
     for role in images_gate.IMAGES:
         item = receipt["images"][role]
-        audit = json_file(IMAGE_EVIDENCE / f"{role}-rootfs.json")
+        audit = json_file(image_evidence / f"{role}-rootfs.json")
         require(item["mergedRootfs"] == audit["status"] == "PASS" and not audit["violations"],
                 "merged-rootfs audit must pass")
         require(bool(re.fullmatch(r"sha256:[0-9a-f]{64}", item["imageId"])), "invalid image ID")
@@ -91,7 +143,7 @@ def queue_names() -> set[str]:
                       and isinstance(node.target, ast.Name) and node.target.id == "AGENT_INVOCATION_BOUNDARIES")
     names = {"lcsp.agent_runtime.boundary." + ast.literal_eval(call.args[0])
              for call in boundaries.elts}
-    require(len(names) == 14, "review changed boundary manifest before staging")
+    require(names == EXPECTED_QUEUE_BOUNDARIES, "review changed boundary manifest before staging")
     return names
 
 
@@ -167,17 +219,90 @@ class Stack:
             require(not any(parent.is_symlink() for parent in [path, *path.parents]), "symlink refused")
         self.host_env = {name: os.environ[name] for name in HOST_KEYS if name in os.environ}
         self.manifest = {}
+        self.failure_context = {}
+        self.set_operation("INITIALIZE_RUN", resource_kind="harness", safe_resource_id=run_id)
+
+    def set_operation(self, operation: str, *, resource_kind: str = "harness",
+                      safe_resource_id: str | None = None, service: str | None = None,
+                      readiness_target: str | None = None) -> None:
+        self.failure_context = {
+            "operation": operation,
+            "resourceKind": resource_kind,
+            "safeResourceId": safe_resource_id,
+            "serviceName": service,
+            "exitCode": None,
+            "readinessTarget": readiness_target,
+            "lastReadinessState": "CHECKING" if readiness_target else None,
+            "elapsedReadinessMs": None,
+            "lastReadinessExceptionClass": None,
+            "boundedSafeErrorCode": None,
+        }
+
+    def update_readiness(self, state: str, started: float, error: Exception | None = None) -> None:
+        self.failure_context.update(
+            lastReadinessState=state,
+            elapsedReadinessMs=max(0, round((time.monotonic() - started) * 1000)),
+            lastReadinessExceptionClass=exception_class(error) if error else None,
+        )
+        if isinstance(error, HTTPError):
+            self.failure_context["readinessHttpStatus"] = error.code
 
     def command(self, args: list[str], *, input: str | None = None, timeout: int = 60) -> str:
-        result = subprocess.run(args, cwd=ROOT, env=self.host_env, input=input, text=True,
-                                capture_output=True, timeout=timeout)
-        # Private diagnostics can contain DB URLs or customer content; never copy them to evidence/stdout.
+        try:
+            result = subprocess.run(args, cwd=ROOT, env=self.host_env, input=input, text=True,
+                                    capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            self.failure_context["boundedSafeErrorCode"] = "COMMAND_TIMEOUT"
+            raise
+        except FileNotFoundError:
+            self.failure_context["boundedSafeErrorCode"] = "DOCKER_UNAVAILABLE"
+            raise
+        if result.returncode != 0:
+            self.failure_context.update(exitCode=result.returncode, boundedSafeErrorCode="COMMAND_FAILED")
+        entry = {key: self.failure_context.get(key) for key in
+                 ("operation", "resourceKind", "safeResourceId", "serviceName", "exitCode", "boundedSafeErrorCode")}
+        # docker inspect output includes container environment values, so command output is never retained.
         with (self.private / "commands.log").open("a") as log:
-            log.write(result.stdout + result.stderr)
-        require(result.returncode == 0, "command failed; see private diagnostics")
+            log.write(json.dumps(entry, sort_keys=True) + "\n")
+        if result.returncode != 0:
+            raise RuntimeError("Docker command failed.")
         return result.stdout.strip()
 
     def docker(self, *args: str, **kwargs) -> str:
+        if not self.failure_context.get("readinessTarget"):
+            command = args[0] if args else ""
+            subcommand = args[1] if len(args) > 1 else ""
+            operation = {
+                ("info", ""): "VERIFY_DOCKER_DAEMON",
+                ("context", "inspect"): "VERIFY_DOCKER_CONTEXT",
+                ("image", "inspect"): "VERIFY_IMAGE",
+                ("image", "ls"): "CHECK_BASE_IMAGE",
+                ("pull", ""): "PULL_BASE_IMAGE",
+                ("network", "create"): "CREATE_NETWORK",
+                ("network", "rm"): "REMOVE_NETWORK",
+                ("create", ""): "CREATE_CONTAINER",
+                ("start", ""): "START_CONTAINER",
+                ("ps", ""): "FIND_OWNED_CONTAINER",
+                ("inspect", ""): "INSPECT_CONTAINER",
+                ("exec", ""): "EXECUTE_CONTAINER_CHECK",
+                ("logs", ""): "CAPTURE_CONTAINER_LOGS",
+                ("stop", ""): "STOP_CONTAINER",
+                ("rm", ""): "REMOVE_CONTAINER",
+            }.get((command, subcommand if command in {"context", "image", "network"} else ""), "DOCKER_OPERATION")
+            service = next((role for role in SERVICE_ROLES
+                            if any(f"{self.prefix}-{role}" in arg for arg in args)), None)
+            if service:
+                resource_kind, resource_id = "container", f"{self.prefix}-{service}"
+            elif args and args[0] == "network":
+                resource_kind, resource_id = "network", self.prefix
+            elif args and args[0] == "image":
+                resource_kind = "image"
+                resource_id = next((arg[:24] for arg in args
+                                    if re.fullmatch(r"sha256:[0-9a-f]{64}", arg)), None)
+            else:
+                resource_kind, resource_id = "harness", self.run_id
+            self.set_operation(operation, resource_kind=resource_kind,
+                               safe_resource_id=resource_id, service=service)
         return self.command(["docker", *args], **kwargs)
 
     def save(self) -> None:
@@ -188,6 +313,8 @@ class Stack:
         return json.loads(self.docker("inspect", ids[0]))[0] if ids else None
 
     def create(self, role: str, env: dict, *, port: int | None = None, mounts: tuple | list = ()) -> None:
+        self.set_operation("WRITE_CONTAINER_ENV", resource_kind="container",
+                           safe_resource_id=f"{self.prefix}-{role}", service=role)
         env_file = self.private / f"{role}.env"
         require(all(not any(c in value for c in "\r\n\0") for value in env.values()), "invalid env-file value")
         env_file.write_text("".join(f"{name}={value}\n" for name, value in env.items()))
@@ -212,23 +339,49 @@ class Stack:
                 "non-loopback port binding refused")
         self.docker("start", name)
 
-    def wait(self, role: str, check, *, seconds: int = 180) -> None:
-        deadline = time.monotonic() + seconds
+    def wait(self, role: str, check, *, target: str, seconds: int = 180) -> None:
+        started = time.monotonic()
+        deadline = started + seconds
+        self.set_operation(f"WAIT_{role.upper()}", resource_kind="service",
+                           safe_resource_id=f"{self.prefix}-{role}", service=role,
+                           readiness_target=target)
         while time.monotonic() < deadline:
-            info = self.inspect(f"{self.prefix}-{role}")
-            require(info is not None and info["State"]["Running"], f"{role} exited before readiness")
+            try:
+                info = self.inspect(f"{self.prefix}-{role}")
+            except Exception as error:
+                self.update_readiness("INSPECT_ERROR", started, error)
+                raise
+            if info is None or not info["State"]["Running"]:
+                self.update_readiness("CONTAINER_EXITED", started)
+                self.failure_context["boundedSafeErrorCode"] = "SERVICE_EXITED_BEFORE_READY"
+                raise RuntimeError(f"{role} exited before readiness")
             try:
                 if check():
+                    self.update_readiness("READY", started)
                     return
-            except (RuntimeError, URLError, ConnectionError, TimeoutError):
-                pass
+                self.update_readiness("NOT_READY", started)
+            except (RuntimeError, URLError, ConnectionError, TimeoutError) as error:
+                self.update_readiness("PROBE_ERROR", started, error)
+            except Exception as error:
+                self.update_readiness("PROBE_ERROR", started, error)
+                raise
             time.sleep(1)
+        self.update_readiness("TIMEOUT", started)
+        self.failure_context["boundedSafeErrorCode"] = "READINESS_TIMEOUT"
         raise RuntimeError(f"{role} readiness timed out")
 
     def url(self, role: str, port: int) -> str:
-        bindings = json.loads(self.docker("inspect", f"{self.prefix}-{role}"))[0]["NetworkSettings"]["Ports"][f"{port}/tcp"]
+        inspection = self.docker("inspect", f"{self.prefix}-{role}")
+        self.set_operation("RESOLVE_SERVICE_ENDPOINT", resource_kind="service",
+                           safe_resource_id=f"{self.prefix}-{role}", service=role)
+        bindings = json.loads(inspection)[0]["NetworkSettings"]["Ports"][f"{port}/tcp"]
         require(len(bindings) == 1 and bindings[0]["HostIp"] == "127.0.0.1", "unexpected published address")
-        return f"http://localhost:{int(bindings[0]['HostPort'])}"
+        try:
+            host_port = int(bindings[0]["HostPort"])
+        except (KeyError, TypeError, ValueError):
+            self.failure_context["boundedSafeErrorCode"] = "INVALID_HOST_PORT"
+            raise
+        return f"http://localhost:{host_port}"
 
     def sql(self, sql: str, database: str = "lcsp_staging") -> str:
         return self.docker("exec", "-i", f"{self.prefix}-postgres", "psql", "-X", "-v", "ON_ERROR_STOP=1",
@@ -240,10 +393,10 @@ class Stack:
             if info and owned_container(info, self.run_id, role, image_id):
                 self.docker("logs", "--tail", "2000", "--timestamps", info["Id"])
 
-    def start(self, image_ids: dict, provider: dict) -> dict:
+    def start(self, image_ids: dict, provider: dict, image_evidence: Path) -> dict:
+        self.set_operation("CREATE_PRIVATE_RUN_DIRECTORY", safe_resource_id=self.run_id)
         self.private.mkdir(parents=True, mode=0o700, exist_ok=False)
         self.private.chmod(0o700)
-        self.evidence.mkdir(parents=True, exist_ok=False)
         (self.private / "commands.log").touch(mode=0o600)
         daemon = self.docker("info", "--format", "{{.ID}}")
         endpoint = (self.host_env.get("DOCKER_HOST") if not self.host_env.get("DOCKER_CONTEXT") else None)
@@ -259,21 +412,28 @@ class Stack:
             infrastructure[role] = json.loads(self.docker("image", "inspect", tag))[0]["Id"]
         self.manifest = {"runId": self.run_id, "daemonId": daemon, "network": self.prefix,
                          "images": {**image_ids, **infrastructure, "bridge": image_ids["worker"]},
+                         "imageEvidence": image_evidence.relative_to(ROOT.resolve()).as_posix(),
                          "baselineContainers": self.docker("ps", "-aq", "--no-trunc").split(), "resources": {}}
         self.save()
         self.docker("network", "create", "--label", f"{OWNER_LABEL}={self.run_id}", self.prefix)
         envs = environment(self.run_id, image_ids, provider)
         self.create("postgres", envs["postgres"], port=5432)
         self.wait("postgres", lambda: self.docker("exec", f"{self.prefix}-postgres", "sh", "-c",
-                  'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -h 127.0.0.1 -U postgres -d lcsp_staging -Atc "SELECT 1"') == "1")
+                  'PGPASSWORD="$POSTGRES_PASSWORD" psql -X -h 127.0.0.1 -U postgres -d lcsp_staging -Atc "SELECT 1"') == "1",
+                  target="PostgreSQL SELECT 1")
+        self.set_operation("VERIFY_EMPTY_DATABASE", resource_kind="database",
+                           safe_resource_id="lcsp_staging", service="postgres")
         require(self.sql("SELECT count(*) FROM information_schema.tables WHERE table_schema='public';") == "0", "fresh DB is not empty")
         self.docker("exec", f"{self.prefix}-postgres", "createdb", "-U", "postgres", "lcsp_langgraph")
         self.create("rabbitmq", envs["rabbitmq"])
-        self.wait("rabbitmq", lambda: self.docker("exec", "--user", "rabbitmq", f"{self.prefix}-rabbitmq", "rabbitmq-diagnostics", "-q", "ping") is not None)
+        self.wait("rabbitmq", lambda: self.docker("exec", "--user", "rabbitmq", f"{self.prefix}-rabbitmq", "rabbitmq-diagnostics", "-q", "ping") is not None,
+                  target="rabbitmq-diagnostics ping")
         mount_map = {}
         for directory, target in (("legal_source", "/app/.legal-source"), ("chroma", "/app/.chroma"),
                                   ("runtime", "/app/tmp"), ("artifacts", "/app/.artifacts"),
                                   ("snapshot-cache", "/app/.snapshot-cache")):
+            self.set_operation("CREATE_PRIVATE_RUNTIME_DIRECTORY", resource_kind="private_directory",
+                               safe_resource_id=directory)
             path = self.private / directory
             path.mkdir(mode=0o700)
             mount_map[directory] = (str(path), target)
@@ -281,12 +441,12 @@ class Stack:
                     mounts=[mount_map[name] for name in ("legal_source", "chroma", "runtime")]
                     + [(endpoint[7:], "/var/run/docker.sock")])
         server_url = self.url("server", 8000)
-        self.wait("server", lambda: http_ok(server_url + "/health"))
+        self.wait("server", lambda: http_ok(server_url + "/health"), target="/health")
         require(self.docker("exec", f"{self.prefix}-server", "docker", "info", "--format", "{{.ID}}") == daemon,
                 "Agent Server Docker daemon differs from owned staging daemon")
         self.create("api", envs["api"], port=8080, mounts=list(mount_map.values()))
         api_url = self.url("api", 8080)
-        self.wait("api", lambda: http_ok(api_url + "/health"), seconds=240)
+        self.wait("api", lambda: http_ok(api_url + "/health"), target="/health", seconds=240)
         # Fresh historical migrations must leave only V2 authority before any account/assessment is written.
         require(self.sql('SELECT count(*) FROM "Assessment";') == "0", "fresh assessment table is not empty")
         retired_names = ",".join("'" + name + "'" for name in dropped_tables())
@@ -302,23 +462,36 @@ class Stack:
             queues = {parts[0]: int(parts[1]) for line in output.splitlines()
                       if len(parts := line.split()) == 2 and parts[1].isdigit()}
             return all(queues.get(name, 0) == 1 for name in queue_names())
-        self.wait("bridge", consumers_ready)
+        self.wait("bridge", consumers_ready, target="required RabbitMQ queue consumers")
         self.create("web", envs["web"], port=8080)
         web_url = self.url("web", 8080)
-        self.wait("web", lambda: http_ok(web_url + "/sign-in"))
+        self.wait("web", lambda: http_ok(web_url + "/sign-in"), target="/sign-in")
         accounts = {}
         for role in ("owner", "other", "admin"):
+            self.set_operation("CREATE_FIXTURE_ACCOUNT", resource_kind="service",
+                               safe_resource_id=f"{self.prefix}-api", service="api")
             password = "RELEASE!" + secrets.token_hex(20)
             email = f"release-{role}-{self.run_id}@staging.invalid"
             request = Request(api_url + "/auth/sign-up", data=json.dumps({"email": email,
                               "password": password, "display_name": f"RELEASE {role}"}).encode(),
                               headers={"content-type": "application/json"}, method="POST")
             with urlopen(request, timeout=30) as response:
+                self.set_operation("PARSE_FIXTURE_ACCOUNT_RESPONSE", resource_kind="service",
+                                   safe_resource_id=f"{self.prefix}-api", service="api")
                 body = json.load(response)
             require(body.get("ok") is True, "fixture account registration failed")
             user_id = body["data"]["user_id"]
-            require(str(UUID(user_id)) == user_id, "invalid fixture user identity")
+            self.set_operation("VALIDATE_FIXTURE_ACCOUNT_ID", resource_kind="service",
+                               safe_resource_id=f"{self.prefix}-api", service="api")
+            try:
+                valid_user_id = str(UUID(user_id)) == user_id
+            except (TypeError, ValueError):
+                self.failure_context["boundedSafeErrorCode"] = "INVALID_FIXTURE_ACCOUNT_ID"
+                raise
+            require(valid_user_id, "invalid fixture user identity")
             if role == "admin":
+                self.set_operation("PROMOTE_FIXTURE_ADMIN", resource_kind="database",
+                                   safe_resource_id="lcsp_staging", service="api")
                 require(self.sql(f'UPDATE "User" SET role=\'ADMIN\', "updatedAt"=now() WHERE id=\'{user_id}\' AND role=\'CUSTOMER\' RETURNING id;').splitlines()[0] == user_id,
                         "fixture admin promotion failed")
             accounts[role] = {"email": email, "password": password, "userId": user_id}
@@ -326,12 +499,16 @@ class Stack:
         access = {"runId": self.run_id, "api": api_url, "web": web_url, "agentServer": server_url,
                   "databaseUrl": envs["api"]["DATABASE_URL"].replace(f"{self.prefix}-postgres:5432", f"127.0.0.1:{pg_port}"),
                   "workerKey": "[REDACTED]", "accounts": accounts}
+        self.set_operation("WRITE_PRIVATE_ACCESS_FILE", resource_kind="private_file",
+                           safe_resource_id="access.json")
         write_json(self.private / "access.json", access, private=True)
-        require(accepted_images() == image_ids, "candidate inputs changed during staging launch")
+        self.set_operation("VERIFY_IMAGE_RECEIPT", resource_kind="image_receipt",
+                           safe_resource_id=image_evidence.relative_to(ROOT.resolve()).as_posix())
+        require(accepted_images(image_evidence) == image_ids, "candidate inputs changed during staging launch")
         return {"scope": "RELEASE_ISOLATED_VERIFIED_IMAGE_STAGING_READINESS", "status": "READY_FOR_ACCEPTANCE",
-                "runId": self.run_id, "imageReceipt": str(IMAGE_EVIDENCE.relative_to(ROOT) / "report.json"),
+                "runId": self.run_id, "imageReceipt": str(image_evidence.relative_to(ROOT.resolve()) / "report.json"),
                 "images": self.manifest["images"], "api": api_url, "web": web_url, "agentServer": server_url,
-                "readyBoundaryConsumers": 14, "retiredTablesAbsent": 29, "fixtureAccounts": 3,
+                "readyBoundaryConsumers": len(queue_names()), "retiredTablesAbsent": 29, "fixtureAccounts": 3,
                 "liveModelAcceptance": "NOT_RUN",
                 "stagingAcceptance": "NOT_PROVEN", "browserAcceptance": "NOT_PROVEN",
                 "productionDeployment": False, "releaseEligible": False}
@@ -362,7 +539,8 @@ class Stack:
         if "postgres" in owned:
             if not owned["postgres"]["State"]["Running"]:
                 self.docker("start", owned["postgres"]["Id"])
-                self.wait("postgres", lambda: self.docker("exec", f"{self.prefix}-postgres", "pg_isready", "-U", "postgres") is not None)
+                self.wait("postgres", lambda: self.docker("exec", f"{self.prefix}-postgres", "pg_isready", "-U", "postgres") is not None,
+                          target="pg_isready")
             checkpoint_db_exists = self.sql("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname='lcsp_langgraph');") == "t"
             if checkpoint_db_exists and self.sql("SELECT to_regclass('public.checkpoints') IS NOT NULL;", "lcsp_langgraph") == "t":
                 threads.update(self.sql("SELECT DISTINCT thread_id FROM checkpoints;", "lcsp_langgraph").splitlines())
@@ -393,8 +571,84 @@ def http_ok(url: str) -> bool:
         return response.status == 200
 
 
-def self_check() -> None:
-    image_ids = accepted_images()
+def validate_api_image_config(image_id: str, api_env: dict[str, str]) -> None:
+    script = """
+const fs = require('node:fs');
+const {createConfigValidationSchema} = require('./apps/api/dist/src/config/config.js');
+const {signUpSchema} = require('@lcsp/contracts/auth');
+const env = JSON.parse(fs.readFileSync(0, 'utf8'));
+if (createConfigValidationSchema().validate(env).error) process.exit(1);
+signUpSchema.parse({email: 'release-owner@staging.invalid', display_name: 'RELEASE owner', password: 'RELEASE!01234567890123456789'});
+"""
+    result = subprocess.run(
+        ["docker", "run", "--rm", "-i", "--network", "none", "--read-only", "--workdir", "/app",
+         "--entrypoint", "node", image_id, "-e", script],
+        cwd=ROOT, env={name: os.environ[name] for name in HOST_KEYS if name in os.environ},
+        input=json.dumps(api_env), text=True, capture_output=True, timeout=30,
+    )
+    require(result.returncode == 0, "production API image configuration/account schema self-check failed")
+
+
+def exception_class(error: BaseException) -> str:
+    name = type(error).__name__
+    return name if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,47}", name) else "Exception"
+
+
+def safe_failure_report(stack: Stack, stage: str, error: BaseException) -> dict:
+    context = dict(stack.failure_context)
+    code = context.get("boundedSafeErrorCode")
+    if not code:
+        if isinstance(error, json.JSONDecodeError):
+            code = "INVALID_JSON"
+        elif isinstance(error, ValueError):
+            code = {
+                "RESOLVE_SERVICE_ENDPOINT": "INVALID_HOST_PORT",
+                "VALIDATE_FIXTURE_ACCOUNT_ID": "INVALID_FIXTURE_ACCOUNT_ID",
+            }.get(context.get("operation"), "INVALID_VALUE")
+        elif context.get("operation") == "VERIFY_ACCEPTED_IMAGE_RECEIPT":
+            code = "IMAGE_EVIDENCE_INVALID"
+        elif isinstance(error, subprocess.TimeoutExpired):
+            code = "COMMAND_TIMEOUT"
+        elif isinstance(error, FileNotFoundError):
+            code = "DOCKER_UNAVAILABLE"
+        elif isinstance(error, KeyboardInterrupt):
+            code = "INTERRUPTED"
+        elif isinstance(error, RuntimeError):
+            code = "HARNESS_CHECK_FAILED"
+        else:
+            code = "UNEXPECTED_ERROR"
+    if code not in SAFE_FAILURE_REASONS:
+        code = "UNEXPECTED_ERROR"
+    resource_id = context.get("safeResourceId")
+    report = {
+        "scope": "RELEASE_ISOLATED_STAGING",
+        "status": "FAIL",
+        "runId": stack.run_id,
+        "failedStage": stage,
+        "operation": context.get("operation"),
+        "resourceKind": context.get("resourceKind"),
+        "safeResourceId": resource_id,
+        "serviceName": context.get("serviceName"),
+        "containerName": resource_id if context.get("resourceKind") in {"container", "service"} else None,
+        "exceptionClass": exception_class(error),
+        "errorType": exception_class(error),
+        "boundedSafeErrorCode": code,
+        "safeReason": SAFE_FAILURE_REASONS[code],
+        "exitCode": context.get("exitCode"),
+        "readinessTarget": context.get("readinessTarget"),
+        "lastReadinessState": context.get("lastReadinessState"),
+        "lastReadinessExceptionClass": context.get("lastReadinessExceptionClass"),
+        "elapsedReadinessMs": context.get("elapsedReadinessMs"),
+        "productionDeployment": False,
+    }
+    if isinstance(context.get("readinessHttpStatus"), int):
+        report["readinessHttpStatus"] = context["readinessHttpStatus"]
+    return report
+
+
+def self_check(image_evidence: str | Path) -> None:
+    image_evidence = image_evidence_path(image_evidence)
+    image_ids = accepted_images(image_evidence)
     provider = provider_credentials({"APX_API_KEY": "self-check-only", "DATABASE_URL": "must-not-inherit"},
                                     {"GOOGLE_API_KEY": "fallback", "WORKER_API_KEY": "must-not-inherit"})
     require(set(provider) == {"APX_API_KEY", "GOOGLE_API_KEY"}, "credential allowlist failed")
@@ -402,7 +656,8 @@ def self_check() -> None:
     require(envs["bridge"]["LCSP_AGENT_RUNTIME_ROLE"] == "bridge"
             and envs["bridge"]["LCSP_REPOSITORY_SANDBOX_CLEANUP_ON_START"] == "false", "unsafe bridge configuration")
     require("APX_API_KEY" not in envs["api"] and "DATABASE_URL" not in envs["web"], "credential leakage")
-    require("lcsp-release-staging-" in envs["api"]["DATABASE_URL"] and len(queue_names()) == 14, "isolation failed")
+    require("lcsp-release-staging-" in envs["api"]["DATABASE_URL"]
+            and queue_names() == EXPECTED_QUEUE_BOUNDARIES, "isolation or invocation boundary manifest failed")
     require(len(dropped_tables()) == 29, "retired table manifest failed")
     # Root CLI probes can create a root-only Erlang cookie before broker startup.
     broker_calls = [node for node in ast.walk(ast.parse(Path(__file__).read_text()))
@@ -412,15 +667,7 @@ def self_check() -> None:
     require(len(broker_calls) == 2 and all([arg.value if isinstance(arg, ast.Constant) else None
             for arg in call.args[:3]] == ["exec", "--user", "rabbitmq"] for call in broker_calls),
             "broker CLI must run as rabbitmq to preserve cookie ownership")
-    validation = subprocess.run(["node", "-e", """
-const fs = require('node:fs');
-const {createConfigValidationSchema} = require('./apps/api/dist/src/config/config.js');
-const {signUpSchema} = require('@lcsp/contracts/auth');
-const env = JSON.parse(fs.readFileSync(0, 'utf8'));
-if (createConfigValidationSchema().validate(env).error) process.exit(1);
-signUpSchema.parse({email: 'release-owner@staging.invalid', display_name: 'RELEASE owner', password: 'RELEASE!01234567890123456789'});
-"""], cwd=ROOT, input=json.dumps(envs["api"]), text=True, capture_output=True, timeout=30)
-    require(validation.returncode == 0, "production API configuration/account schema self-check failed")
+    validate_api_image_config(image_ids["api"], envs["api"])
     info = {"Id": "new", "Name": "/lcsp-release-staging-" + "0" * 16 + "-api",
             "Config": {"Labels": {OWNER_LABEL: "0" * 16}}, "Image": image_ids["api"]}
     require(owned_container(info, "0" * 16, "api", image_ids["api"]), "owned container rejected")
@@ -448,15 +695,15 @@ signUpSchema.parse({email: 'release-owner@staging.invalid', display_name: 'RELEA
                 raise RuntimeError("public binding accepted")
             require(len(commands) == 1 and commands[0][0] == "create", "unsafe container started")
         with patch.object(stack, "inspect", return_value={"State": {"Running": True}}), \
-                patch.object(time, "sleep"), patch.object(time, "monotonic", side_effect=[0, 0, 1]), \
+                patch.object(time, "sleep"), patch.object(time, "monotonic", side_effect=[0, 0, 1, 1, 2]), \
                 patch(__name__ + ".http_ok", side_effect=[ConnectionResetError("starting"), True]) as probe:
-            stack.wait("server", lambda: http_ok("http://localhost/health"), seconds=2)
+            stack.wait("server", lambda: http_ok("http://localhost/health"), target="/health", seconds=2)
             require(probe.call_count == 2, "startup connection reset was not retried")
         with patch.object(stack, "inspect", return_value={"State": {"Running": True}}), \
-                patch.object(time, "sleep"), patch.object(time, "monotonic", side_effect=[0, 0, 1, 2]), \
+                patch.object(time, "sleep"), patch.object(time, "monotonic", side_effect=[0, 0, 1, 2, 2]), \
                 patch(__name__ + ".http_ok", side_effect=ConnectionResetError("starting")):
             try:
-                stack.wait("server", lambda: http_ok("http://localhost/health"), seconds=2)
+                stack.wait("server", lambda: http_ok("http://localhost/health"), target="/health", seconds=2)
             except RuntimeError as error:
                 require(str(error) == "server readiness timed out", "unexpected readiness failure")
             else:
@@ -464,7 +711,7 @@ signUpSchema.parse({email: 'release-owner@staging.invalid', display_name: 'RELEA
         with patch.object(stack, "inspect", return_value={"State": {"Running": False}}), \
                 patch(__name__ + ".http_ok") as probe:
             try:
-                stack.wait("server", lambda: http_ok("http://localhost/health"))
+                stack.wait("server", lambda: http_ok("http://localhost/health"), target="/health")
             except RuntimeError as error:
                 require(str(error) == "server exited before readiness", "unexpected container exit failure")
             else:
@@ -472,7 +719,7 @@ signUpSchema.parse({email: 'release-owner@staging.invalid', display_name: 'RELEA
             require(probe.call_count == 0, "exited service was probed")
     with patch.object(images_gate, "sources", return_value={}):
         try:
-            accepted_images()
+            accepted_images(image_evidence)
         except RuntimeError:
             pass
         else:
@@ -498,7 +745,7 @@ signUpSchema.parse({email: 'release-owner@staging.invalid', display_name: 'RELEA
         pass
     else:
         raise RuntimeError("unowned path accepted")
-    print("PASS — accepted hashes/JUnit/rootfs, stale-candidate rejection, isolated env, credential allowlist, production API/account schemas, boundary/drop manifests, broker CLI user, readiness reset/recovery/deadline/exit, loopback/image planner, private files, cleanup ownership mutations; no Docker/model operation")
+    print("PASS — accepted hashes/JUnit/rootfs, stale-candidate rejection, isolated env, credential allowlist, API image config/account schemas, exact boundary/drop manifests, broker CLI user, readiness reset/recovery/deadline/exit, loopback/image planner, private files, cleanup ownership mutations; Docker image check only, no service stack/model call")
 
 
 def main() -> int:
@@ -506,21 +753,34 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--self-check", action="store_true")
     mode.add_argument("--stop", metavar="RUN_ID")
+    parser.add_argument("--image-evidence", help="repository-relative accepted release image evidence directory")
     args = parser.parse_args()
     if args.self_check:
-        self_check()
+        self_check(args.image_evidence)
         return 0
     stack = Stack(args.stop or uuid4().hex[:16])
     stage = "preflight"
+    evidence_created = False
     try:
         if args.stop:
             stage = "owned teardown"
             report = stack.stop()
         else:
-            image_ids = accepted_images()
+            stack.set_operation("CREATE_EVIDENCE_DIRECTORY", resource_kind="evidence",
+                                safe_resource_id=stack.run_id)
+            stack.evidence.mkdir(parents=True, exist_ok=False)
+            evidence_created = True
+            stack.set_operation("SELECT_IMAGE_EVIDENCE", resource_kind="image_receipt",
+                                safe_resource_id=stack.run_id)
+            image_evidence = image_evidence_path(args.image_evidence)
+            stack.set_operation("VERIFY_ACCEPTED_IMAGE_RECEIPT", resource_kind="image_receipt",
+                                safe_resource_id=image_evidence.relative_to(ROOT.resolve()).as_posix())
+            image_ids = accepted_images(image_evidence)
+            stack.set_operation("LOAD_PROVIDER_CREDENTIALS", resource_kind="configuration",
+                                safe_resource_id=stack.run_id)
             provider = provider_credentials(dict(os.environ), dotenv_values(ROOT / ".env", interpolate=False))
             stage = "isolated launch and readiness"
-            report = stack.start(image_ids, provider)
+            report = stack.start(image_ids, provider, image_evidence)
         write_json(stack.evidence / ("teardown.json" if args.stop else "report.json"), report)
         print(json.dumps(report, indent=2))
         if not args.stop:
@@ -529,20 +789,16 @@ def main() -> int:
         print(f"Evidence directory: {stack.evidence}")
         return 0
     except (Exception, KeyboardInterrupt) as error:
+        report = safe_failure_report(stack, stage, error)
         if stack.manifest:
             try:
                 stack.capture_logs()
             except Exception:
                 pass
-        report = {"scope": "RELEASE_ISOLATED_STAGING", "status": "FAIL", "runId": stack.run_id,
-                  "failedStage": stage, "errorType": type(error).__name__, "productionDeployment": False}
-        if isinstance(error, RuntimeError):
-            report["reason"] = str(error)
-        if stack.evidence.is_dir():
+        if evidence_created or (args.stop and stack.evidence.is_dir()):
             write_json(stack.evidence / ("teardown.json" if args.stop else "report.json"), report)
-        print(f"FAIL — {stage} ({type(error).__name__}); private diagnostics: {stack.private}")
-        if "reason" in report:
-            print(report["reason"])
+        print(f"FAIL — {stage} / {report['operation']} ({report['exceptionClass']}); "
+              f"{report['boundedSafeErrorCode']}: {report['safeReason']}; private diagnostics: {stack.private}")
         if stack.manifest:
             print(f"Owned cleanup: rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --stop {stack.run_id}")
         return 1

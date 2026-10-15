@@ -12,9 +12,9 @@ from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.runnables.config import var_child_runnable_config
-from langgraph.errors import GraphRecursionError
-from middleware.failure_policy import AgentRunBudgetExceeded
-from orchestration.agent_stream import publish_agent_stream_event
+from langgraph.errors import GraphRecursionError, NodeCancelledError
+from middleware.failure_policy import AgentRunBudgetExceeded, NoProgressDetected
+from orchestration.agent_stream import DURABLE, active_agent_stream, publish_agent_stream_event
 from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
@@ -156,6 +156,10 @@ class PreparationStreamTrace(BaseCallbackHandler):
             data=data,
         )
 
+    def active_tool_names(self) -> list[str]:
+        with self._lock:
+            return sorted(set(self._names.values()))[:20]
+
 
 def run_rule_set_preparation(
     api: Any,
@@ -188,6 +192,8 @@ def run_rule_set_preparation(
     context = RuleSetPreparationContext(run_id=run_id, api=api)
     with tempfile.TemporaryDirectory(prefix="lcsp-rule-set-preparation-") as scratch:
         root = work_dir or Path(scratch)
+        failure_stage = "SOURCE_MATERIALIZATION"
+        stream_trace: PreparationStreamTrace | None = None
         try:
             materialize_legal_source(bundle, root)
             context.source_root = root
@@ -202,6 +208,7 @@ def run_rule_set_preparation(
                     else None,
                 },
             )
+            failure_stage = "AGENT_CONSTRUCTION"
             agent = create_rule_set_preparation_agent(
                 context=context, legal_source_root=root, model=model
             )
@@ -212,30 +219,55 @@ def run_rule_set_preparation(
             isolated = contextvars.copy_context()
             isolated.run(var_child_runnable_config.set, None)
 
+            failure_stage = "AGENT_GRAPH"
             isolated.run(
                 agent.invoke,
                 {"messages": [{"role": "user", "content": _TASK}]},
                 config=agent_graph_config({"callbacks": [*(callbacks or []), stream_trace]}),
             )
-        except Exception as error:  # noqa: BLE001 - classify provider/runtime failures
-            logger.warning(
-                "RULE_SET_PREPARATION_AGENT_FAILED",
-                run_id=run_id,
-                error_type=type(error).__name__,
-                error_message=str(error)[:500],
-            )
+        except NodeCancelledError:
+            raise
+        except Exception as error:  # noqa: BLE001 - classify only proven model failures
             if context.submission is None:
-                reason = (
-                    RUNTIME_ERROR
-                    if isinstance(error, (GraphRecursionError, AgentRunBudgetExceeded))
-                    else MODEL_ERROR
-                )
+                active_tool_names = stream_trace.active_tool_names() if stream_trace else []
+                session = active_agent_stream.get()
+                model_call_diagnostics = session.model_call_diagnostics() if session else {}
+                failing_model_call = model_call_diagnostics.get("failing_model_call")
+                last_completed_model_call = model_call_diagnostics.get("last_completed_model_call")
+                reason = MODEL_ERROR if failing_model_call else RUNTIME_ERROR
+                category = "MODEL_ERROR" if failing_model_call else "RUNTIME_ERROR"
+                if isinstance(error, (GraphRecursionError, AgentRunBudgetExceeded, NoProgressDetected)):
+                    reason = RUNTIME_ERROR
+                    category = "RUNTIME_ERROR"
+                diagnostic = {
+                    "durability": DURABLE,
+                    "activity_kind": "PREPARATION_FAILURE",
+                    "failure_reason": reason,
+                    "terminal_stage": failure_stage,
+                    "safe_error_category": category,
+                    "exception_class": type(error).__name__,
+                    "active_tool_names": active_tool_names,
+                }
+                if failing_model_call:
+                    diagnostic["failing_model_call"] = failing_model_call
+                if last_completed_model_call:
+                    diagnostic["last_completed_model_call"] = last_completed_model_call
+                if model_call_diagnostics.get("active_model_call"):
+                    diagnostic["active_model_call"] = model_call_diagnostics["active_model_call"]
+                try:
+                    publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data=diagnostic)
+                except Exception:  # noqa: BLE001 - diagnostics must not mask execution failure
+                    pass
+                logger.warning("RULE_SET_PREPARATION_AGENT_FAILED", run_id=run_id, **diagnostic)
                 _fail(api, run_id, reason)
+                safe_error = {"type": type(error).__name__, "stage": failure_stage}
+                if isinstance(error, NoProgressDetected):
+                    safe_error["message"] = "NO_PROGRESS_DETECTED"
                 return {
                     "state": "FAILED",
                     "submission": None,
                     "failureReason": reason,
-                    "error": {"type": type(error).__name__, "message": str(error)[:300]},
+                    "error": safe_error,
                     "trace": context.trace,
                 }
 
