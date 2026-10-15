@@ -89,8 +89,14 @@ def image_evidence_path(value: str | Path | None = None) -> Path:
     raw = value or os.environ.get("LCSP_RELEASE_IMAGE_EVIDENCE")
     require(bool(raw) and len(str(raw)) <= 240, "release image evidence path is required")
     relative = Path(raw)
-    require(not relative.is_absolute() and ".." not in relative.parts, "image evidence path must be repository-relative")
-    path = ROOT / relative
+    internal_absolute = isinstance(value, Path) and relative.is_absolute()
+    require(internal_absolute or not relative.is_absolute(), "image evidence path must be repository-relative")
+    require(".." not in relative.parts, "image evidence path must not traverse parent directories")
+    if internal_absolute:
+        require(relative.resolve().is_relative_to(ROOT.resolve()), "image evidence path escaped repository")
+        path = relative
+    else:
+        path = ROOT / relative
     require(not any(parent.is_symlink() for parent in (path, *path.parents)
                     if parent == ROOT or ROOT in parent.parents), "image evidence path symlink refused")
     resolved = path.resolve()

@@ -165,6 +165,14 @@ class StagingStackTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             staging.image_evidence_path("../receipt")
 
+    def test_image_evidence_path_accepts_only_validated_internal_absolute_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.object(staging, "ROOT", Path(temporary)):
+                resolved = staging.image_evidence_path("reports/release-images/test-receipt")
+                self.assertEqual(staging.image_evidence_path(resolved), resolved)
+                with self.assertRaises(RuntimeError):
+                    staging.image_evidence_path(str(resolved))
+
 
 if __name__ == "__main__":
     unittest.main()
