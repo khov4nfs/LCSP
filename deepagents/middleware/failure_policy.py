@@ -1,4 +1,5 @@
 """Shared terminal failure classification for model calls and queue delivery."""
+from langchain_anthropic.chat_models import AnthropicModelNotFoundError
 from langchain.agents.structured_output import StructuredOutputError
 from langchain_core.exceptions import (
     ModelAuthenticationError,
@@ -204,6 +205,13 @@ def is_provider_model_unavailable(error: BaseException) -> bool:
     on another provider is expected to succeed. Not retried on the same route
     either — a withdrawn or overloaded model does not come back within a turn.
     """
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, AnthropicModelNotFoundError):
+            return True
+        current = current.__cause__ or current.__context__
     return bool(_error_codes(error) & _PROVIDER_MODEL_UNAVAILABLE_CODES)
 
 
@@ -253,6 +261,7 @@ def is_terminal_task_error(error: BaseException) -> bool:
             isinstance(current, ModelError)
             and not current.is_retryable
             and not isinstance(current, _CREDENTIAL_MODEL_ERRORS)
+            and not is_provider_model_unavailable(current)
         ):
             return True
         current = current.__cause__ or current.__context__

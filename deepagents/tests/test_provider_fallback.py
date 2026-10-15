@@ -1097,6 +1097,33 @@ def test_rate_limited_primary_waits_out_its_cooldown_instead_of_ending_the_task(
     assert calls == [("apx", True), ("google_genai", False), ("apx", False)]
 
 
+def test_apx_model_not_found_falls_back_to_google_without_provider_call(monkeypatch):
+    from langchain_anthropic.chat_models import AnthropicModelNotFoundError
+
+    _install_routes(monkeypatch)
+    response = httpx.Response(
+        404,
+        request=httpx.Request("POST", "https://provider.invalid/messages"),
+    )
+    error = AnthropicModelNotFoundError(
+        "synthetic not-found response",
+        response=response,
+        body={"type": "error", "error": {"type": "not_found_error"}},
+    )
+    providers = []
+
+    def handler(request):
+        providers.append(request.model.provider)
+        if request.model.provider == "apx":
+            raise error
+        return ModelResponse(result=[])
+
+    result = ProviderFallbackMiddleware().wrap_model_call(_RouteRequest("apx"), handler)
+
+    assert isinstance(result, ModelResponse)
+    assert providers == ["apx", "google_genai"]
+
+
 
 def test_a_pool_that_is_rate_limited_on_every_route_is_waited_out_not_ended(monkeypatch, provider_pauses):
     """Production shape: APX allowance gone, Gemini failing, Inception 429 on every slot."""
