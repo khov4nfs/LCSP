@@ -112,6 +112,7 @@ class StagingStackTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     stack.docker("exec", f"{stack.prefix}-api", "healthcheck")
 
+            log = (stack.private / "commands.log").read_text()
             report = staging.safe_failure_report(stack, "isolated launch and readiness", RuntimeError("private detail"))
             self.assertEqual(report["operation"], "EXECUTE_CONTAINER_CHECK")
             self.assertEqual(report["serviceName"], "api")
@@ -119,6 +120,10 @@ class StagingStackTests(unittest.TestCase):
             self.assertEqual(report["boundedSafeErrorCode"], "COMMAND_FAILED")
             self.assertNotIn("private:secret", json.dumps(report))
             self.assertNotIn("private output", json.dumps(report))
+            self.assertIn('"operation": "EXECUTE_CONTAINER_CHECK"', log)
+            self.assertIn('"exitCode": 17', log)
+            self.assertNotIn("private:secret", log)
+            self.assertNotIn("private output", log)
 
     def test_invalid_host_port_reports_endpoint_resolution(self) -> None:
         stack = staging.Stack("0123456789abcdef")

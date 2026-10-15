@@ -257,12 +257,15 @@ class Stack:
         except FileNotFoundError:
             self.failure_context["boundedSafeErrorCode"] = "DOCKER_UNAVAILABLE"
             raise
-        # Private diagnostics can contain DB URLs or customer content; never copy them to evidence/stdout.
-        with (self.private / "commands.log").open("a") as log:
-            log.write(result.stdout + result.stderr)
         if result.returncode != 0:
             self.failure_context.update(exitCode=result.returncode, boundedSafeErrorCode="COMMAND_FAILED")
-            raise RuntimeError("Docker command failed; raw output remains in private diagnostics.")
+        entry = {key: self.failure_context.get(key) for key in
+                 ("operation", "resourceKind", "safeResourceId", "serviceName", "exitCode", "boundedSafeErrorCode")}
+        # docker inspect output includes container environment values, so command output is never retained.
+        with (self.private / "commands.log").open("a") as log:
+            log.write(json.dumps(entry, sort_keys=True) + "\n")
+        if result.returncode != 0:
+            raise RuntimeError("Docker command failed.")
         return result.stdout.strip()
 
     def docker(self, *args: str, **kwargs) -> str:
