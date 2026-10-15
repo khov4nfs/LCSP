@@ -25,7 +25,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.messages import ToolMessage
 from langgraph.runtime import Runtime
 from middleware.failure_policy import NoProgressDetected
-from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, governed_summarization_middleware
 from middleware.usage_metering import AgentRoleMiddleware
 from orchestration.agent_stream import publish_agent_stream_event
 from orchestration.graph_execution import agent_graph_config
@@ -294,6 +294,9 @@ def create_rule_set_preparation_agent(
                 observation_middleware,
                 PreparationCompletionMiddleware(context),
                 DraftHistoryMiddleware(),
+                governed_summarization_middleware(
+                    model, backend=backend, role=RULE_SET_PREPARATION_ROLE
+                ),
                 AgentRoleMiddleware(RULE_SET_PREPARATION_ROLE),
                 *MODEL_GOVERNANCE_MIDDLEWARE,
             ],

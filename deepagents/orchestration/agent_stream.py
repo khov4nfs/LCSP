@@ -202,11 +202,22 @@ class AgentStreamSession:
                     "provider",
                     "protocol",
                     "model",
+                    "operation_type",
                     "error_type",
+                    "http_status",
+                    "retryability",
+                    "fallback_eligibility",
                     "provider_attempts",
                     "credential_attempts",
                     "fallback_used",
                     "fallback_exhausted",
+                    "attempt_ordinal",
+                    "route_ordinal",
+                    "credential_slot_safe_id",
+                    "last_attempt_error_class",
+                    "last_attempt_http_status",
+                    "last_attempt_retryability",
+                    "last_attempt_fallback_eligibility",
                 ):
                     value = data.get(key)
                     if isinstance(value, (str, int, bool)) and not isinstance(value, float):

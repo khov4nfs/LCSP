@@ -68,6 +68,9 @@ class ModelIdentityMismatch(RuntimeError):
 _active_agent_role: ContextVar[str | None] = ContextVar(
     "active_agent_role", default=None
 )
+_active_model_operation_type: ContextVar[str | None] = ContextVar(
+    "active_model_operation_type", default=None
+)
 # One logical agent step. Retries, credential rotation and provider fallback of
 # the same step share it, so the live stream shows one row per step instead of
 # folding every model call of a run into a single ever-growing row.
@@ -482,6 +485,20 @@ def active_agent_role() -> str | None:
 
 
 @contextmanager
+def activate_model_operation(operation_type: str) -> Iterator[str]:
+    """Classify one logical model operation without retaining model input/output."""
+    token = _active_model_operation_type.set(operation_type)
+    try:
+        yield operation_type
+    finally:
+        _active_model_operation_type.reset(token)
+
+
+def active_model_operation() -> str | None:
+    return _active_model_operation_type.get()
+
+
+@contextmanager
 def activate_model_step(step_id: str | None = None) -> Iterator[str]:
     resolved = step_id or str(uuid4())
     token = _active_model_step_id.set(resolved)
@@ -509,6 +526,7 @@ class _ModelCallTelemetry:
         self.model_step_id = active_model_step_id() or str(uuid4())
         self.invocation_id = invocation_id or _active_logical_invocation_id()
         self.agent_role = active_agent_role()
+        self.operation_type = active_model_operation()
         self._started_at = time.monotonic()
         self._stop = Event()
         self._context = copy_context()
@@ -640,6 +658,8 @@ class _ModelCallTelemetry:
             data["invocation_id"] = self.invocation_id
         if self.agent_role:
             data["agent_role"] = self.agent_role
+        if self.operation_type:
+            data["operation_type"] = self.operation_type
         return data
 
     def _emit(self, event_type: str, **fields: Any) -> None:
@@ -738,6 +758,9 @@ def _publish_terminal_model_failure(
         return
     attempts = summary.get("provider_attempts", 1)
     timeout = _is_timeout_error(error)
+    from middleware.failure_policy import error_status, retry_model_error
+    from middleware.provider_fallback import provider_fallback_failure
+
     publish_agent_stream_event(
         "MODEL_CALL_TIMEOUT" if timeout else "MODEL_CALL_FAILED",
         status="FAILED",
@@ -749,10 +772,23 @@ def _publish_terminal_model_failure(
             "provider": summary.get("provider"),
             "protocol": summary.get("protocol"),
             "model": summary.get("model"),
+            "operation_type": active_model_operation(),
             "error_type": type(error).__name__,
+            "http_status": error_status(error),
+            "retryability": "RETRYABLE" if retry_model_error(error) else "NOT_RETRYABLE",
+            "fallback_eligibility": provider_fallback_failure(error),
             "provider_attempts": attempts,
             "credential_attempts": attempts + summary.get("credential_rotations", 0),
             "providers_attempted": list(summary.get("providers", []))[:8],
+            "attempt_ordinal": summary.get("last_attempt_ordinal"),
+            "route_ordinal": summary.get("last_route_ordinal"),
+            "credential_slot_safe_id": summary.get("last_credential_slot_safe_id"),
+            "last_attempt_error_class": summary.get("last_error_class"),
+            "last_attempt_http_status": summary.get("last_http_status"),
+            "last_attempt_retryability": summary.get("last_retryability"),
+            "last_attempt_fallback_eligibility": summary.get(
+                "last_fallback_eligibility"
+            ),
         },
     )
 
@@ -788,11 +824,25 @@ def _publish_provider_attempt_failure(
         "credential_slot_safe_id": _active_credential_slot_safe_id.get(),
         "error_class": type(error).__name__, "http_status": error_status(error),
         "provider_error_code": _safe_provider_error_code(error),
+        "operation_type": active_model_operation(),
         "retryability": "RETRYABLE" if retry_model_error(error) else "NOT_RETRYABLE",
         "fallback_eligibility": provider_fallback_failure(error),
     }
     if invocation_id:
         data["invocation_id"] = invocation_id
+    summary = active_model_step_summary.get()
+    if summary is not None:
+        summary.update(
+            {
+                "last_attempt_ordinal": attempt_ordinal,
+                "last_route_ordinal": data["route_ordinal"],
+                "last_credential_slot_safe_id": data["credential_slot_safe_id"],
+                "last_error_class": data["error_class"],
+                "last_http_status": data["http_status"],
+                "last_retryability": data["retryability"],
+                "last_fallback_eligibility": data["fallback_eligibility"],
+            }
+        )
     publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={
         **data, "durability": "DURABLE", "activity_kind": "MODEL_PROVIDER_ATTEMPT_FAILED",
     })
@@ -801,11 +851,12 @@ def _publish_provider_attempt_failure(
 class AgentRoleMiddleware(AgentMiddleware):
     """Attach the canonical policy role to every model call of one agent."""
 
-    def __init__(self, agent_role: str):
+    def __init__(self, agent_role: str, *, operation_type: str = "AGENT_MODEL"):
         self.agent_role = agent_role
+        self.operation_type = operation_type
 
     def wrap_model_call(self, request, handler):
-        with activate_agent_role(self.agent_role), activate_model_step() as step_id:
+        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step() as step_id:
             try:
                 return handler(request)
             except Exception as error:
@@ -813,7 +864,7 @@ class AgentRoleMiddleware(AgentMiddleware):
                 raise
 
     async def awrap_model_call(self, request, handler):
-        with activate_agent_role(self.agent_role), activate_model_step() as step_id:
+        with activate_agent_role(self.agent_role), activate_model_operation(self.operation_type), activate_model_step() as step_id:
             try:
                 return await handler(request)
             except Exception as error:

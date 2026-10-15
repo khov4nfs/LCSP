@@ -44,6 +44,18 @@ class _FailingAgent:
                 "invocation_id": "provider-attempt-8",
                 "provider": "inception",
                 "model": "mercury-2.5",
+                "operation_type": "SUMMARIZATION",
+                "error_type": "RateLimitError",
+                "http_status": 429,
+                "retryability": "RETRYABLE",
+                "fallback_eligibility": True,
+                "attempt_ordinal": 2,
+                "route_ordinal": 1,
+                "credential_slot_safe_id": "CREDENTIAL_SLOT_02",
+                "last_attempt_error_class": "RateLimitError",
+                "last_attempt_http_status": 429,
+                "last_attempt_retryability": "RETRYABLE",
+                "last_attempt_fallback_eligibility": True,
                 "provider_attempts": 2,
                 "fallback_used": True,
                 "providers_attempted": ["inception", "gemini"],
@@ -117,8 +129,18 @@ def test_exhausted_model_call_remains_model_error_with_safe_route_context(monkey
     failure = next(event for event in events if event.get("data", {}).get("activity_kind") == "PREPARATION_FAILURE")
     assert failure["data"]["terminal_stage"] == "AGENT_GRAPH"
     assert failure["data"]["failing_model_call"]["event_type"] == "MODEL_CALL_FAILED"
-    assert failure["data"]["failing_model_call"]["provider"] == "inception"
-    assert failure["data"]["failing_model_call"]["providers_attempted"] == ["inception", "gemini"]
+    failing = failure["data"]["failing_model_call"]
+    assert failing["provider"] == "inception"
+    assert failing["operation_type"] == "SUMMARIZATION"
+    assert failing["http_status"] == 429
+    assert failing["retryability"] == "RETRYABLE"
+    assert failing["fallback_eligibility"] is True
+    assert failing["attempt_ordinal"] == 2
+    assert failing["route_ordinal"] == 1
+    assert failing["credential_slot_safe_id"] == "CREDENTIAL_SLOT_02"
+    assert failing["last_attempt_error_class"] == "RateLimitError"
+    assert failing["last_attempt_http_status"] == 429
+    assert failing["providers_attempted"] == ["inception", "gemini"]
     assert "raw provider response" not in str(events)
     assert result["error"] == {"type": "RuntimeError", "stage": "AGENT_GRAPH"}
 
@@ -165,6 +187,10 @@ def test_stream_session_retains_only_allowlisted_model_call_metadata() -> None:
             "model_step_id": "step-1",
             "provider": "inception",
             "model": "mercury-2.5",
+            "operation_type": "SUMMARIZATION",
+            "http_status": 429,
+            "retryability": "RETRYABLE",
+            "fallback_eligibility": True,
             "usage": {"input_tokens": 99},
             "prompt": "not retained",
         },
@@ -175,4 +201,8 @@ def test_stream_session_retains_only_allowlisted_model_call_metadata() -> None:
         "model_step_id": "step-1",
         "provider": "inception",
         "model": "mercury-2.5",
+        "operation_type": "SUMMARIZATION",
+        "http_status": 429,
+        "retryability": "RETRYABLE",
+        "fallback_eligibility": True,
     }

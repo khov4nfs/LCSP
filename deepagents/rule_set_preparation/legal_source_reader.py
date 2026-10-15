@@ -6,7 +6,8 @@ from typing import Any
 
 from deepagents.backends.protocol import BackendProtocol
 from deepagents.middleware.filesystem import FilesystemMiddleware, FilesystemPermission
-from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, governed_summarization_middleware
+from middleware.usage_metering import AgentRoleMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
@@ -88,6 +89,10 @@ def legal_source_reader_subagent(
                 _permissions=permissions,
             ),
             *([observation_middleware] if observation_middleware is not None else []),
+            governed_summarization_middleware(
+                model, backend=backend, role="rule-set-preparation"
+            ),
+            AgentRoleMiddleware("rule-set-preparation"),
             *MODEL_GOVERNANCE_MIDDLEWARE,
         ],
         "permissions": permissions,

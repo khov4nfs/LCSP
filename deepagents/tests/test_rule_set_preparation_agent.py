@@ -12,6 +12,7 @@ import pytest
 from deepagents.backends.filesystem import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.usage_metering import AgentRoleMiddleware
 from orchestration.agent_stream import AgentStreamSession, activate_agent_stream
 import rule_set_preparation.agent as preparation_agent
 from rule_set_preparation.agent import (
@@ -58,12 +59,17 @@ def _fast_model_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_legal_source_reader_uses_shared_model_governance_middleware(tmp_path):
+    model = RuleSetPreparationScriptedModel(responses=[AIMessage(content="fixture")])
     subagent = legal_source_reader_subagent(
-        model=object(),
+        model=model,
         backend=FilesystemBackend(root_dir=tmp_path, virtual_mode=True),
     )
 
-    assert subagent["middleware"][1:] == list(MODEL_GOVERNANCE_MIDDLEWARE)
+    middleware = subagent["middleware"]
+    assert middleware[1].name == "SummarizationMiddleware"
+    assert isinstance(middleware[2], AgentRoleMiddleware)
+    assert middleware[2].agent_role == "rule-set-preparation"
+    assert middleware[3:] == list(MODEL_GOVERNANCE_MIDDLEWARE)
     assert subagent["tools"] == []
     assert subagent["response_format"] is LegalSourceReaderResult
 
@@ -84,8 +90,9 @@ def test_preparation_and_reader_share_observation_state_without_work_budgets(mon
     monkeypatch.setattr(preparation_agent, "_lookup_profile_key", lambda _: "test:model")
     context = RuleSetPreparationContext(RUN_ID, FakeApi())
 
+    model = RuleSetPreparationScriptedModel(responses=[AIMessage(content="fixture")])
     preparation_agent.create_rule_set_preparation_agent(
-        context=context, legal_source_root=tmp_path, model=object()
+        context=context, legal_source_root=tmp_path, model=model
     )
 
     parent_observations = next(

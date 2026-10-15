@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from langchain.agents import create_agent
 from langchain.agents.middleware import (
     AgentMiddleware,
     ModelRetryMiddleware,
@@ -17,7 +18,7 @@ from langchain.agents.structured_output import (
     ProviderStrategy,
     ToolStrategy,
 )
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import BaseTool
 from pydantic import ValidationError
 from deepagents.middleware.subagents import GENERAL_PURPOSE_SUBAGENT
@@ -230,6 +231,70 @@ MODEL_GOVERNANCE_MIDDLEWARE = (
     # expose their actual downstream response to one governed billing boundary.
     UsageMeteringMiddleware(),
 )
+
+
+
+class _GovernedInternalModelRunnable:
+    """Runnable for framework-owned LLM work through the exact LCSP agent stack."""
+
+    def __init__(self, model, *, role: str, operation_type: str) -> None:
+        # Use LangChain's own agent middleware composer rather than reimplementing
+        # wrap/before/after hook semantics. This graph has no tools and therefore
+        # performs exactly one governed model operation per summary request.
+        self._agent = create_agent(
+            model,
+            tools=[],
+            middleware=[
+                AgentRoleMiddleware(role, operation_type=operation_type),
+                *MODEL_GOVERNANCE_MIDDLEWARE,
+            ],
+            name=f"lcsp-internal-{operation_type.lower()}",
+        )
+
+    @staticmethod
+    def _message(result) -> AIMessage:
+        messages = result.get("messages", []) if isinstance(result, dict) else []
+        message = next(
+            (item for item in reversed(messages) if isinstance(item, AIMessage)), None
+        )
+        if message is None:
+            raise RuntimeError("governed internal model call returned no AI message")
+        return message
+
+    def invoke(self, prompt, config=None, **_kwargs):
+        if not isinstance(prompt, str):
+            raise TypeError("governed internal model prompt must be text")
+        result = self._agent.invoke(
+            {"messages": [HumanMessage(content=prompt)]}, config=config
+        )
+        return self._message(result)
+
+    async def ainvoke(self, prompt, config=None, **_kwargs):
+        if not isinstance(prompt, str):
+            raise TypeError("governed internal model prompt must be text")
+        result = await self._agent.ainvoke(
+            {"messages": [HumanMessage(content=prompt)]}, config=config
+        )
+        return self._message(result)
+
+
+def governed_summarization_middleware(model, *, backend, role: str):
+    """Route Deep Agents' framework-owned summary call through LCSP governance."""
+    from deepagents.middleware.summarization import create_summarization_middleware
+
+    middleware = create_summarization_middleware(model, backend)
+    helper = getattr(middleware, "_lc_helper", None)
+    if helper is None or not hasattr(helper, "_summary_model"):
+        raise RuntimeError(
+            "Deep Agents summarization internals changed; governance cannot be guaranteed"
+        )
+    # LangChain normally installs model.with_retry() here. Replace that direct
+    # provider runnable with the complete LCSP stack; ModelRetryMiddleware now owns
+    # bounded retry together with credential/provider fallback and usage metering.
+    helper._summary_model = _GovernedInternalModelRunnable(
+        model, role=role, operation_type="SUMMARIZATION"
+    )
+    return middleware
 
 
 

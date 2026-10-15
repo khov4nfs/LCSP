@@ -32,6 +32,7 @@ def test_adapter_kwargs_are_transport_only(monkeypatch) -> None:
     assert mp.provider_init_kwargs("google_genai")["request_timeout"] == 7
     assert mp.provider_init_kwargs("openai")["use_responses_api"] is True
     assert mp.provider_init_kwargs("inception")["use_responses_api"] is False
+    assert mp.provider_init_kwargs("inception")["stream_usage"] is True
     assert mp.provider_init_kwargs("apx")["base_url"] == "https://api.apmix.ai"
     assert "use_responses_api" not in mp.provider_init_kwargs("apx")
     assert mp.provider_init_kwargs("apx", "openai")["base_url"] == "https://api.apmix.ai/v1"

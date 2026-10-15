@@ -78,6 +78,10 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
         lambda: {
             "base_url": inception_base_url(),
             "use_responses_api": False,
+            # Inception supports OpenAI stream_options.include_usage. LangChain
+            # disables stream usage by default for custom base URLs, so opt in
+            # explicitly or successful streamed completions lose provider usage.
+            "stream_usage": True,
             "timeout": llm_provider_timeout_seconds(),
         },
     ),
