@@ -9,13 +9,13 @@ Use purpose-based automation from the repository root:
 ```bash
 rtk proxy deepagents/.venv/bin/python tests/release-images.py --self-check
 rtk proxy deepagents/.venv/bin/python tests/release-images.py
-rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --self-check
-rtk proxy deepagents/.venv/bin/python tests/staging-stack.py
-rtk proxy deepagents/.venv/bin/python tests/staging-rule-set-preparation.py <owned-run-id>
+rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --self-check --image-evidence reports/release-images/<candidate>
+rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --image-evidence reports/release-images/<candidate>
+rtk proxy deepagents/.venv/bin/python tests/staging-rule-set-preparation.py <owned-run-id> --image-evidence reports/release-images/<candidate>
 rtk proxy deepagents/.venv/bin/python tests/staging-stack.py --stop <owned-run-id>
 ```
 
-The launcher must point to the just-passed `reports/release-images/<candidate>/report.json`.
+Pass the same repository-relative image-evidence directory to each self-check, launch, and preparation command; the selected receipt is recorded in the owned stack manifest and reused by downstream checks.
 Require all four merged-rootfs audits and seven Docker integrations, with no skips, before launch.
 Use only those immutable image IDs; instruction/build-input changes make earlier receipts historical.
 Keep access files and provider diagnostics under private `tmp/staging/<owned-run-id>`; publish only
