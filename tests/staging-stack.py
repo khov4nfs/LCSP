@@ -578,7 +578,7 @@ if (createConfigValidationSchema().validate(env).error) process.exit(1);
 signUpSchema.parse({email: 'release-owner@staging.invalid', display_name: 'RELEASE owner', password: 'RELEASE!01234567890123456789'});
 """
     result = subprocess.run(
-        ["docker", "run", "--rm", "--network", "none", "--read-only", "--workdir", "/app",
+        ["docker", "run", "--rm", "-i", "--network", "none", "--read-only", "--workdir", "/app",
          "--entrypoint", "node", image_id, "-e", script],
         cwd=ROOT, env={name: os.environ[name] for name in HOST_KEYS if name in os.environ},
         input=json.dumps(api_env), text=True, capture_output=True, timeout=30,

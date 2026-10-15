@@ -146,6 +146,7 @@ class StagingStackTests(unittest.TestCase):
 
         args = run.call_args.args[0]
         self.assertEqual(args[:2], ["docker", "run"])
+        self.assertIn("-i", args)
         self.assertIn("--network", args)
         self.assertEqual(args[args.index("--network") + 1], "none")
         self.assertIn("--read-only", args)
