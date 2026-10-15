@@ -426,7 +426,8 @@ class NativeStack(staging.Stack):
             env["RABBITMQ_URL"] = env["RABBITMQ_URL"].replace(f"{self.prefix}-rabbitmq:5672", f"127.0.0.1:{mq_port}")
             env["LANGGRAPH_CHECKPOINT_DATABASE_URL"] = env["DATABASE_URL"].replace("/lcsp_staging?schema=public", "/lcsp_langgraph")
             env.update(NESTJS_API_BASE_URL=api_url, LCSP_AGENT_SERVER_URL=server_url,
-                       LCSP_AGENT_RUNTIME_HOST="127.0.0.1")
+                       LCSP_AGENT_RUNTIME_HOST="127.0.0.1",
+                       LCSP_AGENT_RUNTIME_RECONCILE_STALE_RUNS="false")
             env["PORT"] = (api_url if role == "api" else server_url).rsplit(":", 1)[1]
             for key, name in (("LEGAL_SOURCE_STORAGE_ROOT", "legal-source"), ("LEGAL_CHROMA_PATH", "chroma"),
                               ("LCSP_ARTIFACT_STORAGE_PATH", "artifacts"), ("LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR", "snapshot-cache")):
