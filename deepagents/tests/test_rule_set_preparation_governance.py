@@ -12,6 +12,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from middleware import token_fallback, usage_metering
 from middleware.usage_metering import AgentRunState, activate_agent_run_state
+from orchestration.agent_stream import AgentStreamSession, activate_agent_stream, publish_agent_stream_event
 from rule_set_preparation.runner import MODEL_ERROR, run_rule_set_preparation
 from test_rule_set_preparation_agent import RUN_ID, FakeApi, _call, _packet
 
@@ -48,8 +49,11 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
     waits = []
     monkeypatch.setattr(token_fallback, "_sleep", waits.append)
     events, attempts, settled = [], [], []
-    monkeypatch.setattr(usage_metering, "publish_agent_stream_event",
-                        lambda event, **kwargs: events.append((event, kwargs["data"])))
+    def record_event(event, **kwargs):
+        events.append((event, kwargs["data"]))
+        publish_agent_stream_event(event, **kwargs)
+
+    monkeypatch.setattr(usage_metering, "publish_agent_stream_event", record_event)
 
     def generate(model, messages, **kwargs):
         provider = token_fallback.model_provider(model)
@@ -88,12 +92,22 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
         monkeypatch.setattr(client, "_stream", stream)
     api = FakeApi()
     state = AgentRunState(run_id=RUN_ID, agent_role="rule-set-preparation")
+    stream = AgentStreamSession(
+        assessment_id=None,
+        run_id=RUN_ID,
+        correlation_id="provider-fallback-test",
+        boundary_name="rule_set_preparation",
+        emit_payload=lambda _: None,
+        boundary_type="PREPARATION",
+        boundary_id=RUN_ID,
+        preparation_run_id=RUN_ID,
+    )
     # Observe the canonical usage port without assigning Preparation usage to a customer assessment.
     monkeypatch.setattr(state, "record", lambda response, model, invocation_id, **kwargs:
                         settled.append((usage_metering.provider_identity(model), invocation_id,
                                         usage_metering.extract_provider_usage(response, model))))
     try:
-        with activate_agent_run_state(state):
+        with activate_agent_stream(stream), activate_agent_run_state(state):
             result = run_rule_set_preparation(api, RUN_ID, work_dir=tmp_path)
     finally:
         token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
@@ -116,8 +130,7 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
                    for identity, _, usage in settled)
     else:
         assert result["state"] == "FAILED" and result["failureReason"] == MODEL_ERROR
-        assert result["error"] == {"type": "TerminalCredentialError",
-                                   "message": "All configured LLM provider routes exhausted; task stopped"}
+        assert result["error"] == {"type": "TerminalCredentialError", "stage": "AGENT_GRAPH"}
         assert api.names() == ["claim", "fail"]
         assert len(starts) == len(failed) == 1
         assert failed[0]["provider_attempts"] == len(expected)

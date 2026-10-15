@@ -12,6 +12,7 @@ import pytest
 from deepagents.backends.filesystem import FilesystemBackend
 from langchain_core.messages import AIMessage, ToolMessage
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from orchestration.agent_stream import AgentStreamSession, activate_agent_stream
 import rule_set_preparation.agent as preparation_agent
 from rule_set_preparation.agent import (
     PreparationObservationMiddleware,
@@ -712,7 +713,18 @@ def test_model_error_and_claim_failure_are_recorded(tmp_path: Path) -> None:
 
     api = FakeApi()
     exploding = ExplodingModel(responses=[])
-    result = run_rule_set_preparation(api, RUN_ID, model=exploding, work_dir=tmp_path)
+    stream = AgentStreamSession(
+        assessment_id=None,
+        run_id=RUN_ID,
+        correlation_id="model-error-test",
+        boundary_name="rule_set_preparation",
+        emit_payload=lambda _: None,
+        boundary_type="PREPARATION",
+        boundary_id=RUN_ID,
+        preparation_run_id=RUN_ID,
+    )
+    with activate_agent_stream(stream):
+        result = run_rule_set_preparation(api, RUN_ID, model=exploding, work_dir=tmp_path)
     assert result["failureReason"] == MODEL_ERROR
     assert api.calls[-1] == ("fail", (RUN_ID, MODEL_ERROR))
 
