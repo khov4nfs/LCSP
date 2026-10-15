@@ -73,6 +73,8 @@ for (const file of paths) {
       classification = "HISTORICAL_REPORT"; reason = "explicitly historical design, planning artifact or preserved receipt";
     } else if (line.includes("reports/legal-corpus-")) {
       classification = "HISTORICAL_REPORT"; reason = "reference to immutable historical source/artifact bytes";
+    } else if (matches.every((match) => match === "corpus") && line.includes("fix/LCSP-360-corpus-driven-applicability")) {
+      classification = "HISTORICAL_REPORT"; reason = "canonical Git branch retains its original identifier";
     }
     hits.push({ file, line: index + 1, matches, classification, reason });
   }
