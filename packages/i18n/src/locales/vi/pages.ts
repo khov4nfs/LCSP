@@ -60,6 +60,12 @@ export const viPages = {
       reconnecting: "Đang kết nối lại",
       empty: "Chưa ghi nhận hoạt động nào.",
       technicalDetails: "Chi tiết kỹ thuật",
+      statuses: {
+        RUNNING: "Đang chạy",
+        COMPLETED: "Đã hoàn tất",
+        FAILED: "Thất bại",
+        CANCELLED: "Đã hủy",
+      },
       started: "Đã bắt đầu chuẩn bị",
       loadedSource: "Đã nạp Nguồn pháp lý được ghim",
       readerStarted: "Đang phân tích nguồn pháp lý",

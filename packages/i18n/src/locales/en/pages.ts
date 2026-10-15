@@ -59,6 +59,12 @@ export const enPages = {
       reconnecting: "Reconnecting",
       empty: "No activity has been recorded yet.",
       technicalDetails: "Technical details",
+      statuses: {
+        RUNNING: "Running",
+        COMPLETED: "Completed",
+        FAILED: "Failed",
+        CANCELLED: "Cancelled",
+      },
       started: "Started preparation",
       loadedSource: "Loaded pinned Legal Source",
       readerStarted: "Analyzing legal source",
