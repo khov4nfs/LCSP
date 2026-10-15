@@ -27,6 +27,11 @@ export const ADMIN_NAV_ITEMS = [
     labelKey: "pages.admin.sidebar.navComplianceRuleSets",
     icon: BookOpenIcon,
   },
+  {
+    href: "/admin/legal-sources",
+    labelKey: "pages.admin.sidebar.navLegalSources",
+    icon: BookOpenIcon,
+  },
 ] satisfies { href: string; labelKey: MessageKey; icon: typeof BookOpenIcon }[];
 
 export const ADMIN_DESKTOP_MEDIA_QUERY = "(min-width: 64rem)";

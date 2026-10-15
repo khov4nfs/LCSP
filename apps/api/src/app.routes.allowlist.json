@@ -63,6 +63,7 @@
   "GET /workspace/runtime-events",
   "PATCH /admin/billing/reconciliation/:paymentId/reject",
   "PATCH /admin/billing/reconciliation/:paymentId/resolve",
+  "PATCH /admin/legal-source-versions/:versionId/documents/:documentRowId/effect",
   "PATCH /admin/legal-sources/:sourceId",
   "PATCH /assessments/:assessmentId",
   "PATCH /auth/profile",

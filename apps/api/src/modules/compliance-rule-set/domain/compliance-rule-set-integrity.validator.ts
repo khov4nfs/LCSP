@@ -9,7 +9,7 @@ import {
   type ComplianceRuleSetSourceRef,
   type ComplianceRuleSetValidationFailure,
 } from "@lcsp/contracts/compliance-rule-set";
-import type { LegalEffectStatus } from "@lcsp/contracts/legal-source";
+import type { LegalSourceChunkStatus } from "@lcsp/contracts/legal-source";
 
 /** Legal status recorded on a chunk whose provision no longer has effect. */
 const REPEALED_LEGAL_STATUS = "REPEALED";
@@ -23,7 +23,7 @@ export interface LegalSourceChunkSnapshot {
   locator: string;
   contentSha256: string;
   legalStatus: string;
-  legalEffectStatus: LegalEffectStatus;
+  legalEffectStatus: LegalSourceChunkStatus;
   legalStatusSourceRef: string | null;
   sourceEffectStatus: string;
 }
@@ -154,6 +154,17 @@ export function validateComplianceRuleSetPacket(
   const chunkByKey = new Map(
     legalSource.chunks.map((chunk) => [sourceClaimKey(chunk), chunk] as const),
   );
+  for (const chunk of legalSource.chunks) {
+    if (
+      chunk.legalEffectStatus !== "UNKNOWN" &&
+      !chunk.legalStatusSourceRef?.trim()
+    ) {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.SOURCE_STATUS_PROVENANCE_MISSING,
+        `locator:${sourceClaimKey(chunk)}`,
+      );
+    }
+  }
   let cleanClaims = 0;
   let foreignClaims = 0;
   const checkedClaims = new Set<string>();
@@ -177,9 +188,23 @@ export function validateComplianceRuleSetPacket(
       );
       return;
     }
-    if (chunk.legalStatus === REPEALED_LEGAL_STATUS) {
+    if (chunk.legalEffectStatus === REPEALED_LEGAL_STATUS) {
       fail(
         COMPLIANCE_RULE_SET_FAILURE_CODES.REPEALED_SOURCE_REFERENCE,
+        refLabel,
+      );
+      return;
+    }
+    if (chunk.legalEffectStatus === "FUTURE") {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.NON_CURRENT_SOURCE_REFERENCE,
+        refLabel,
+      );
+      return;
+    }
+    if (chunk.legalEffectStatus === "UNKNOWN") {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.UNDETERMINED_SOURCE_STATUS,
         refLabel,
       );
       return;
@@ -296,7 +321,7 @@ export function validateComplianceRuleSetPacket(
   }
   for (const chunk of legalSource.chunks) {
     const key = sourceClaimKey(chunk);
-    if (chunk.legalStatus === REPEALED_LEGAL_STATUS || nonLeafKeys.has(key))
+    if (chunk.legalEffectStatus !== "EFFECTIVE" || nonLeafKeys.has(key))
       continue;
     const covered = [chunk.locator, ...ancestorLocators(chunk.locator)].some(
       (locator) =>

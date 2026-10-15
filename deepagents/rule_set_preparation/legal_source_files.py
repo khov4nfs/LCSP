@@ -39,10 +39,6 @@ def materialize_legal_source(bundle: dict[str, Any], root: Path) -> list[str]:
             target = root / virtual.lstrip("/")
             target.parent.mkdir(parents=True, exist_ok=True)
             hierarchy = json.dumps(chunk.get("hierarchy"), ensure_ascii=False, sort_keys=True)
-            status_source_ref = chunk.get("legalStatusSourceRef")
-            status_source_ref_value = (
-                status_source_ref if status_source_ref is not None else "null"
-            )
             target.write_text(
                 "\n".join(
                     [
@@ -50,7 +46,7 @@ def materialize_legal_source(bundle: dict[str, Any], root: Path) -> list[str]:
                         f"locator: {chunk['locator']}",
                         f"contentSha256: {chunk['contentSha256']}",
                         f"legalEffectStatus: {chunk['legalEffectStatus']}",
-                        f"legalStatusSourceRef: {status_source_ref_value}",
+                        f"legalStatusSourceRef: {chunk.get('legalStatusSourceRef') or 'UNKNOWN'}",
                         f"sourceEffectStatus: {document['sourceEffectStatus']}",
                         f"hierarchy: {hierarchy}",
                         "---",
@@ -63,7 +59,7 @@ def materialize_legal_source(bundle: dict[str, Any], root: Path) -> list[str]:
             paths.append(virtual)
             rows.append(
                 f"| {document_id} | {chunk['locator']} | {chunk['contentSha256']} "
-                f"| {chunk['legalEffectStatus']} | {status_source_ref_value} | {virtual} |"
+                f"| {chunk['legalEffectStatus']} | {virtual} |"
             )
     header = [
         f"# Pinned legal_source {bundle['legalSourceVersion']}",
@@ -74,7 +70,7 @@ def materialize_legal_source(bundle: dict[str, Any], root: Path) -> list[str]:
         "",
         "Cite a source exactly as `documentId` + `locator` + `contentSha256` from this table.",
         "",
-        "| documentId | locator | contentSha256 | legalEffectStatus | legalStatusSourceRef | file |",
+        "| documentId | locator | contentSha256 | legalEffectStatus | file |",
         "|---|---|---|---|---|",
     ]
     (legal_source_dir / "INDEX.md").write_text("\n".join([*header, *rows, ""]), encoding="utf-8")
@@ -93,8 +89,8 @@ def _index_rows(index: str) -> dict[str, tuple[str, str, str]]:
     rows: dict[str, tuple[str, str, str]] = {}
     for line in index.splitlines():
         cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        if len(cells) == 6 and cells[5].startswith(f"{LEGAL_SOURCE_ROOT}/"):
-            rows[cells[5]] = (cells[0], cells[1], cells[2])
+        if len(cells) == 5 and cells[4].startswith(f"{LEGAL_SOURCE_ROOT}/"):
+            rows[cells[4]] = (cells[0], cells[1], cells[2])
     return rows
 
 

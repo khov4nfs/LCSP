@@ -65,6 +65,8 @@ describe("Pinned legal source text for the Root", () => {
       contentSha256: "sha256:" + "a".repeat(64),
       hierarchy: { article: "4" },
       legalStatus: "ACTIVE",
+      legalEffectStatus: "UNKNOWN",
+      legalStatusSourceRef: null,
       sourceDocument: {
         title: "First instrument",
         sourceEffectStatus: "IN_FORCE",
@@ -78,6 +80,8 @@ describe("Pinned legal source text for the Root", () => {
       documentTitle: "First instrument",
       locator: "art-4::cl-2",
       content: "Text of the provision.",
+      legalEffectStatus: "UNKNOWN",
+      legalStatusSourceRef: null,
       sourceEffectStatus: "IN_FORCE",
     });
     expect(authorizeInTx).toHaveBeenCalledWith(

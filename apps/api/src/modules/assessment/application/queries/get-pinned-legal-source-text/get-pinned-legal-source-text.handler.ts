@@ -59,6 +59,8 @@ export class GetPinnedLegalSourceTextHandler implements IQueryHandler<GetPinnedL
           contentSha256: true,
           hierarchy: true,
           legalStatus: true,
+          legalEffectStatus: true,
+          legalStatusSourceRef: true,
           sourceDocument: {
             select: { title: true, sourceEffectStatus: true },
           },
@@ -80,6 +82,8 @@ export class GetPinnedLegalSourceTextHandler implements IQueryHandler<GetPinnedL
         locator: chunk.locator,
         contentSha256: chunk.contentSha256,
         legalStatus: chunk.legalStatus,
+        legalEffectStatus: chunk.legalEffectStatus,
+        legalStatusSourceRef: chunk.legalStatusSourceRef,
         sourceEffectStatus: chunk.sourceDocument.sourceEffectStatus,
         hierarchy: chunk.hierarchy,
         content: chunk.content,

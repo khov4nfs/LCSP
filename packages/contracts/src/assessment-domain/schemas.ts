@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  LEGAL_SOURCE_CHUNK_STATUSES,
+  type LegalSourceChunkStatus,
+} from "../legal-source/management.ts";
 
 import {
   ASSESSMENT_ACTIVITY_KINDS,
@@ -698,6 +702,12 @@ export const completeAssessmentRepositorySetupResultSchema = z.strictObject({
   commit_sha: commitSchema,
 });
 
+export const reconcileOrphanedAssessmentResultSchema = z.strictObject({
+  assessmentId: z.uuid(),
+  state: z.literal(ASSESSMENT_LIFECYCLE_STATES.CANCELLED),
+  reconciled: z.boolean(),
+});
+
 /** Cursor page of one assessment's canonical events in ascending sequence (the conversation's only source). */
 export const assessmentEventsQuerySchema = z.strictObject({
   afterSequence: z.coerce.number().int().min(0).default(0),
@@ -735,6 +745,13 @@ export const pinnedLegalSourceTextSchema = z.strictObject({
   locator: z.string().min(1),
   contentSha256: z.string().min(1),
   legalStatus: z.string(),
+  legalEffectStatus: z.enum(
+    Object.values(LEGAL_SOURCE_CHUNK_STATUSES) as [
+      LegalSourceChunkStatus,
+      ...LegalSourceChunkStatus[],
+    ],
+  ),
+  legalStatusSourceRef: z.string().nullable(),
   sourceEffectStatus: z.string(),
   hierarchy: z.unknown(),
   content: z.string(),

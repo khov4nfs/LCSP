@@ -7,7 +7,6 @@ import {
 } from "@lcsp/contracts/audit";
 import { AGENTIC_TOOL_STATUSES } from "@lcsp/contracts/evidence";
 import {
-  LEGAL_EFFECT_STATUSES,
   LEGAL_SOURCE_CHUNK_STATUSES,
   LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
   LEGAL_SOURCE_INGESTION_OUTCOMES,
@@ -18,19 +17,23 @@ import {
   LEGAL_SOURCE_MANAGEMENT_ERROR_CODES as Errors,
   LEGAL_SOURCE_STRUCTURAL_INDEX,
   LEGAL_SOURCE_STRUCTURE_PROFILES,
-  type LegalEffectStatus,
   type ImportLegalSourceDocumentRequest,
   type LegalSourceChunkPage,
   type LegalSourceChunkQuery,
   type LegalSourceDocumentView,
   type LegalSourceIngestionResult,
+  type UpdateLegalSourceDocumentEffect,
   type UploadLegalSourceDocumentMetadata,
 } from "@lcsp/contracts/legal-source";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { LegalRetrievalIndexStatus, Prisma } from "@prisma/client";
+import {
+  LegalEffectStatus,
+  LegalRetrievalIndexStatus,
+  Prisma,
+} from "@prisma/client";
 
 import {
   toPrismaLegalSourceDocumentIngestionState,
@@ -295,6 +298,137 @@ export class LegalSourceDocumentService {
     });
   }
 
+  async updateEffect(input: {
+    versionId: string;
+    documentRowId: string;
+    actorId: string;
+    correlationId: string;
+    request: UpdateLegalSourceDocumentEffect;
+  }): Promise<LegalSourceDocumentView> {
+    return this.prisma.$transaction(async (tx) => {
+      const version = await this.lockDraft(
+        tx,
+        input.versionId,
+        input.correlationId,
+      );
+      const document = await tx.legalSourceDocument.findFirst({
+        where: {
+          id: input.documentRowId,
+          legalSourceVersionId: version.id,
+          ingestionState: toPrismaLegalSourceDocumentIngestionState(
+            States.READY,
+          ),
+        },
+        include: { chunks: { select: { locator: true } } },
+      });
+      if (!document) {
+        throw problemException(Errors.documentNotFound, input.correlationId, {
+          status: HttpStatus.NOT_FOUND,
+        });
+      }
+      const locators = new Set(document.chunks.map((chunk) => chunk.locator));
+      if (
+        Object.keys(input.request.provisionStatuses).some(
+          (locator) => !locators.has(locator),
+        )
+      ) {
+        throw problemException(
+          Errors.ingestionResultInvalid,
+          input.correlationId,
+          {
+            status: HttpStatus.UNPROCESSABLE_ENTITY,
+            meta: { reason: "STATUS_LOCATOR_NOT_FOUND" },
+          },
+        );
+      }
+
+      await tx.legalDocumentChunk.updateMany({
+        where: { legalSourceDocumentId: document.id },
+        data: {
+          legalEffectStatus: input.request.status,
+          legalStatusSourceRef: input.request.sourceRef ?? null,
+        },
+      });
+      const overrideGroups = new Map<
+        string,
+        {
+          status: LegalEffectStatus;
+          sourceRef: string | null;
+          locators: string[];
+        }
+      >();
+      for (const [locator, entry] of Object.entries(
+        input.request.provisionStatuses,
+      )) {
+        const status = entry.status;
+        const sourceRef = entry.sourceRef ?? null;
+        const key = JSON.stringify([status, sourceRef]);
+        const group = overrideGroups.get(key) ?? {
+          status,
+          sourceRef,
+          locators: [],
+        };
+        group.locators.push(locator);
+        overrideGroups.set(key, group);
+      }
+      for (const group of overrideGroups.values()) {
+        await tx.legalDocumentChunk.updateMany({
+          where: {
+            legalSourceDocumentId: document.id,
+            locator: { in: group.locators },
+          },
+          data: {
+            legalEffectStatus: group.status,
+            legalStatusSourceRef: group.sourceRef,
+          },
+        });
+      }
+
+      const previous =
+        document.provenance &&
+        typeof document.provenance === "object" &&
+        !Array.isArray(document.provenance)
+          ? document.provenance
+          : {};
+      await tx.legalSourceDocument.update({
+        where: { id: document.id },
+        data: {
+          sourceEffectStatus: input.request.status,
+          ...(input.request.effectiveDate !== undefined
+            ? {
+                effectiveDate: input.request.effectiveDate
+                  ? new Date(`${input.request.effectiveDate}T00:00:00.000Z`)
+                  : null,
+              }
+            : {}),
+          provenance: {
+            ...previous,
+            provisionStatuses: input.request.provisionStatuses,
+            legalEffectMetadata: {
+              status: input.request.status,
+              sourceRef: input.request.sourceRef ?? null,
+            },
+          },
+        },
+      });
+      await this.ensureStructuralIndex(tx, version);
+      await this.record(
+        tx,
+        "LEGAL_SOURCE_DOCUMENT_EFFECT_UPDATED",
+        input,
+        version.id,
+        {
+          documentRowId: document.id,
+          documentId: document.documentId,
+          status: input.request.status,
+          statusOverrideCount: Object.keys(input.request.provisionStatuses)
+            .length,
+        },
+      );
+      return this.view(tx, document.id, true);
+    });
+  }
+
   async readOriginal(
     documentRowId: string,
     scope: { versionId?: string; activeOnly?: boolean },
@@ -497,19 +631,6 @@ export class LegalSourceDocumentService {
       }
 
       const chunks = input.result.chunks;
-      const provisionStatuses =
-        document.provenance &&
-        typeof document.provenance === "object" &&
-        !Array.isArray(document.provenance)
-          ? ((
-              document.provenance as {
-                provisionStatuses?: Record<
-                  string,
-                  { status: LegalEffectStatus; sourceRef?: string }
-                >;
-              }
-            ).provisionStatuses ?? {})
-          : {};
       const locators = new Set<string>();
       for (const chunk of chunks) {
         const unique = !locators.has(chunk.locator);
@@ -530,6 +651,15 @@ export class LegalSourceDocumentService {
           );
         }
       }
+      const provisionStatuses =
+        (
+          document.provenance as {
+            provisionStatuses?: Record<
+              string,
+              { status: LegalEffectStatus; sourceRef?: string }
+            >;
+          } | null
+        )?.provisionStatuses ?? {};
       if (
         Object.keys(provisionStatuses).some((locator) => !locators.has(locator))
       ) {
@@ -566,10 +696,10 @@ export class LegalSourceDocumentService {
               content: chunk.content,
               contentSha256: chunk.contentSha256,
               hierarchy: chunk.hierarchy as Prisma.InputJsonObject,
-              legalStatus: LEGAL_SOURCE_CHUNK_STATUSES.ACTIVE,
+              legalStatus: "UNKNOWN",
               legalEffectStatus:
                 provisionStatuses[chunk.locator]?.status ??
-                LEGAL_EFFECT_STATUSES.UNKNOWN,
+                LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN,
               legalStatusSourceRef:
                 provisionStatuses[chunk.locator]?.sourceRef ?? null,
               pageStart: chunk.pageStart,

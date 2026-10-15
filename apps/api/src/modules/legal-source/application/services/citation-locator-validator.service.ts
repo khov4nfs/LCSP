@@ -55,6 +55,7 @@ export class CitationLocatorValidatorService {
           documentId: ref.documentId,
           locator: ref.locator,
         },
+        select: { legalEffectStatus: true },
       });
 
       if (!chunk) {
@@ -65,7 +66,7 @@ export class CitationLocatorValidatorService {
         );
       }
 
-      if (chunk.legalStatus === "REPEALED") {
+      if (chunk.legalEffectStatus === "REPEALED") {
         throw problemException(
           LEGAL_SOURCE_ERROR_CODES.citationRepealed,
           "citation-locator-validation",

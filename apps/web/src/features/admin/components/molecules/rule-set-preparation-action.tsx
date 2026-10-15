@@ -89,7 +89,15 @@ export function RuleSetPreparationAction({
               disabled={running || !canPrepare}
               onClick={() => {
                 setConfirming(false);
-                prepare.mutate(replaceActive ? { replaceActive: true } : {});
+                // Name the version on screen so a stale page cannot prepare a newer one by accident.
+                prepare.mutate({
+                  ...(replaceActive ? { replaceActive: true } : {}),
+                  ...(availability.legalSourceVersionId
+                    ? {
+                        legalSourceVersionId: availability.legalSourceVersionId,
+                      }
+                    : {}),
+                });
               }}
             >
               {resolveAppMessage(

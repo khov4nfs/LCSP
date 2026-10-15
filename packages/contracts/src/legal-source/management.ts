@@ -21,6 +21,14 @@ export const LEGAL_SOURCE_DOCUMENT_INGESTION_STATES = {
 export type LegalSourceDocumentIngestionState =
   (typeof LEGAL_SOURCE_DOCUMENT_INGESTION_STATES)[keyof typeof LEGAL_SOURCE_DOCUMENT_INGESTION_STATES];
 
+export const LEGAL_RETRIEVAL_INDEX_STATUSES = {
+  BUILDING: "BUILDING",
+  VALID: "VALID",
+  INVALID: "INVALID",
+} as const;
+export type LegalRetrievalIndexStatus =
+  (typeof LEGAL_RETRIEVAL_INDEX_STATUSES)[keyof typeof LEGAL_RETRIEVAL_INDEX_STATUSES];
+
 /** What the ingestion runtime reports for one attempt. */
 export const LEGAL_SOURCE_INGESTION_OUTCOMES = {
   READY: "READY",
@@ -39,44 +47,15 @@ export const LEGAL_SOURCE_DOCUMENT_FAILURE_CODES = {
 export type LegalSourceDocumentFailureCode =
   (typeof LEGAL_SOURCE_DOCUMENT_FAILURE_CODES)[keyof typeof LEGAL_SOURCE_DOCUMENT_FAILURE_CODES];
 
-/** Legacy ingestion value retained at the persistence boundary. */
+/** Legal effect is source metadata, separate from ingestion/index lifecycle. */
 export const LEGAL_SOURCE_CHUNK_STATUSES = {
-  ACTIVE: "ACTIVE",
-  REPEALED: "REPEALED",
-} as const;
-export type LegalSourceChunkStatus =
-  (typeof LEGAL_SOURCE_CHUNK_STATUSES)[keyof typeof LEGAL_SOURCE_CHUNK_STATUSES];
-
-/** Legal effect asserted by metadata in this immutable source version. */
-export const LEGAL_EFFECT_STATUSES = {
   EFFECTIVE: "EFFECTIVE",
   REPEALED: "REPEALED",
   FUTURE: "FUTURE",
   UNKNOWN: "UNKNOWN",
 } as const;
-export type LegalEffectStatus =
-  (typeof LEGAL_EFFECT_STATUSES)[keyof typeof LEGAL_EFFECT_STATUSES];
-
-const legalEffectStatusSchema = z.enum(
-  Object.values(LEGAL_EFFECT_STATUSES) as [
-    LegalEffectStatus,
-    ...LegalEffectStatus[],
-  ],
-);
-const provisionStatusesSchema = z.record(
-  z.string().trim().min(1).max(300),
-  z
-    .strictObject({
-      status: legalEffectStatusSchema,
-      sourceRef: z.string().trim().min(1).max(500).optional(),
-    })
-    .refine(
-      (entry) =>
-        entry.status === LEGAL_EFFECT_STATUSES.UNKNOWN ||
-        Boolean(entry.sourceRef),
-      { message: "A known legal effect status requires a source reference" },
-    ),
-);
+export type LegalSourceChunkStatus =
+  (typeof LEGAL_SOURCE_CHUNK_STATUSES)[keyof typeof LEGAL_SOURCE_CHUNK_STATUSES];
 
 /** The document formats the managed ingestion can read. Anything else is refused at the door. */
 export const LEGAL_SOURCE_MEDIA_TYPES = {
@@ -234,6 +213,34 @@ export type CreateLegalSourceVersionRequest = z.infer<
   typeof createLegalSourceVersionRequestSchema
 >;
 
+export const legalSourceProvisionStatusesSchema = z.record(
+  z.string().trim().min(1).max(300),
+  z
+    .strictObject({
+      status: z.enum(
+        Object.values(LEGAL_SOURCE_CHUNK_STATUSES) as [
+          LegalSourceChunkStatus,
+          ...LegalSourceChunkStatus[],
+        ],
+      ),
+      sourceRef: optionalText(500),
+    })
+    .refine(
+      (entry) =>
+        entry.status === LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN ||
+        Boolean(entry.sourceRef),
+      { message: "A known legal effect status requires a source reference" },
+    ),
+);
+const provisionStatusesInputSchema = z.preprocess((value) => {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}, legalSourceProvisionStatusesSchema.optional());
+
 const documentMetadataShape = {
   title: optionalText(LEGAL_SOURCE_LIMITS.maxTitleLength),
   structureProfile: z
@@ -246,14 +253,8 @@ const documentMetadataShape = {
     .default(LEGAL_SOURCE_STRUCTURE_PROFILES.AUTO),
   sourceEffectStatus: optionalText(LEGAL_SOURCE_LIMITS.maxEffectStatusLength),
   effectiveDate: z.iso.date().optional(),
-  provisionStatuses: z.preprocess((value) => {
-    if (typeof value !== "string") return value;
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value;
-    }
-  }, provisionStatusesSchema.optional()),
+  /** Per-provision status asserted by the pinned source metadata; omissions remain UNKNOWN. */
+  provisionStatuses: provisionStatusesInputSchema,
 };
 
 /** Metadata that accompanies the raw bytes of an upload (the bytes are the request body). */
@@ -271,6 +272,28 @@ export const importLegalSourceDocumentRequestSchema = z.strictObject({
 });
 export type ImportLegalSourceDocumentRequest = z.infer<
   typeof importLegalSourceDocumentRequestSchema
+>;
+
+export const updateLegalSourceDocumentEffectSchema = z
+  .strictObject({
+    status: z.enum(
+      Object.values(LEGAL_SOURCE_CHUNK_STATUSES) as [
+        LegalSourceChunkStatus,
+        ...LegalSourceChunkStatus[],
+      ],
+    ),
+    sourceRef: optionalText(500),
+    effectiveDate: z.union([z.iso.date(), z.null()]).optional(),
+    provisionStatuses: legalSourceProvisionStatusesSchema.default({}),
+  })
+  .refine(
+    (input) =>
+      input.status === LEGAL_SOURCE_CHUNK_STATUSES.UNKNOWN ||
+      Boolean(input.sourceRef),
+    { message: "A known legal effect status requires a source reference" },
+  );
+export type UpdateLegalSourceDocumentEffect = z.infer<
+  typeof updateLegalSourceDocumentEffectSchema
 >;
 
 export const legalSourceChunkQuerySchema = z.strictObject({
@@ -339,7 +362,12 @@ export type LegalSourceDocumentView = z.infer<
 
 export const legalSourceIndexViewSchema = z.strictObject({
   version: z.string(),
-  status: z.string(),
+  status: z.enum(
+    Object.values(LEGAL_RETRIEVAL_INDEX_STATUSES) as [
+      LegalRetrievalIndexStatus,
+      ...LegalRetrievalIndexStatus[],
+    ],
+  ),
   contentHash: z.string(),
   validatedAt: z.string().nullable(),
 });
@@ -411,7 +439,12 @@ export const legalSourceChunkViewSchema = z.strictObject({
   content: z.string(),
   contentSha256: z.string(),
   hierarchy: z.record(z.string(), z.unknown()),
-  legalEffectStatus: legalEffectStatusSchema,
+  legalEffectStatus: z.enum(
+    Object.values(LEGAL_SOURCE_CHUNK_STATUSES) as [
+      LegalSourceChunkStatus,
+      ...LegalSourceChunkStatus[],
+    ],
+  ),
   legalStatusSourceRef: z.string().nullable(),
   pageStart: z.number().int().nullable(),
   pageEnd: z.number().int().nullable(),

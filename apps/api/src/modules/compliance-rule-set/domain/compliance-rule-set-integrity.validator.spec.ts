@@ -95,7 +95,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
   it("rejects a repealed source reference", () => {
     const legalSource = fixtureLegalSource(
       {},
-      { "art-2::cl-1": { legalStatus: "REPEALED" } },
+      { "art-2::cl-1": { legalEffectStatus: "REPEALED" } },
     );
     const { failures } = validateComplianceRuleSetPacket(
       validPacket(),
@@ -104,6 +104,81 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     );
     expect(codes(failures)).toContain(
       COMPLIANCE_RULE_SET_FAILURE_CODES.REPEALED_SOURCE_REFERENCE,
+    );
+  });
+
+  it("does not require a provision explicitly marked repealed as a current obligation", () => {
+    const packet = validPacket();
+    packet.legalRequirements.forEach((rule) => {
+      rule.sourceRefs = rule.sourceRefs.filter(
+        (source) => source.locator !== "art-2::cl-1",
+      );
+    });
+    packet.assessmentRules.forEach((rule) => {
+      rule.sourceRefs = rule.sourceRefs.filter(
+        (source) => source.locator !== "art-2::cl-1",
+      );
+    });
+    packet.contextRelations = packet.contextRelations.filter(
+      (relation) => relation.toSourceRef?.locator !== "art-2::cl-1",
+    );
+    const { failures } = validateComplianceRuleSetPacket(
+      packet,
+      fixtureLegalSource(
+        {},
+        { "art-2::cl-1": { legalEffectStatus: "REPEALED" } },
+      ),
+      never,
+    );
+    expect(codes(failures)).not.toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_SOURCE_COVERAGE,
+    );
+    expect(codes(failures)).not.toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.REPEALED_SOURCE_REFERENCE,
+    );
+  });
+
+  it("keeps unknown source effect explicitly undetermined", () => {
+    const source = fixtureLegalSource(
+      {},
+      {
+        "art-2::cl-1": {
+          legalEffectStatus: "UNKNOWN",
+          legalStatusSourceRef: null,
+        },
+      },
+    );
+    const chunk = source.chunks.find((item) => item.locator === "art-2::cl-1");
+    expect(chunk).toMatchObject({
+      legalEffectStatus: "UNKNOWN",
+      legalStatusSourceRef: null,
+    });
+    const { failures } = validateComplianceRuleSetPacket(
+      validPacket(),
+      source,
+      never,
+    );
+    expect(codes(failures)).toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.UNDETERMINED_SOURCE_STATUS,
+    );
+  });
+
+  it("does not accept a future-effective provision as a current source", () => {
+    const { failures } = validateComplianceRuleSetPacket(
+      validPacket(),
+      fixtureLegalSource(
+        {},
+        {
+          "art-1::cl-1": {
+            legalEffectStatus: "FUTURE",
+            legalStatusSourceRef: "metadata:future",
+          },
+        },
+      ),
+      never,
+    );
+    expect(codes(failures)).toContain(
+      COMPLIANCE_RULE_SET_FAILURE_CODES.NON_CURRENT_SOURCE_REFERENCE,
     );
   });
 

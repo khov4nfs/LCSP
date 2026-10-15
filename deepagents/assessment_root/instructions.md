@@ -44,6 +44,9 @@ what you submit. Nothing you are not told by a governed tool is a fact.
       term the elements use. What a term means comes from that text, never from your own knowledge of law,
       from a label in a rule title, or from another rule. The legal source may regulate roles and categories you
       have never seen; do not assume any exists.
+      Check each source's pinned `legalEffectStatus` and `legalStatusSourceRef`: only `EFFECTIVE` supports
+      treating the cited provision as a current obligation. `REPEALED` and `FUTURE` are not current, and
+      `UNKNOWN` stays undetermined; never infer current effect from document metadata or missing status.
    b. For every element, find out whether it holds for the assessed system: investigate the repository,
       reuse accepted facts, or ask (below). Decompose a legal category into the facts the text ties to it
       and establish those facts one by one.
