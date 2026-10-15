@@ -6,6 +6,7 @@ import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
 import type { AgentExecutionState } from "@lcsp/contracts/assessment";
 import { resolveAppMessage } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { WorkDisclosure } from "@/components/molecules/work-disclosure";
 import {
   preparationTokenUsage,
   projectPreparationActivity,
@@ -73,35 +74,43 @@ export function RuleSetPreparationActivity({
               key={item.id}
               className="rounded-md border border-border/60 bg-background p-3"
             >
-              <div className="flex items-center gap-2 text-sm">
-                <span
-                  className={cn(
-                    "size-2 rounded-full bg-muted-foreground",
-                    !terminal &&
-                      item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running &&
-                      "animate-pulse bg-primary",
-                    item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed &&
-                      "bg-emerald-600",
-                    item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed &&
-                      "bg-destructive",
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="font-medium">
-                  {resolveAppMessage(item.labelKey as MessageKey)}
-                </span>
-                {item.details.sourcePath ? (
-                  <span className="truncate text-xs text-muted-foreground">
-                    {item.details.sourcePath}
+              <WorkDisclosure
+                summary={resolveAppMessage(item.labelKey)}
+                running={
+                  !terminal &&
+                  item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+                }
+                defaultExpanded={false}
+                meta={
+                  <span
+                    className={cn(
+                      "text-xs",
+                      item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed &&
+                        "text-destructive",
+                      item.status ===
+                        ASSESSMENT_RUNTIME_RUN_STATUSES.completed &&
+                        "text-emerald-700 dark:text-emerald-400",
+                    )}
+                  >
+                    {resolveAppMessage(
+                      item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+                        ? "pages.complianceRuleSets.activity.statuses.RUNNING"
+                        : item.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed
+                          ? "pages.complianceRuleSets.activity.statuses.FAILED"
+                          : item.status ===
+                              ASSESSMENT_RUNTIME_RUN_STATUSES.completed
+                            ? "pages.complianceRuleSets.activity.statuses.COMPLETED"
+                            : "pages.complianceRuleSets.activity.statuses.CANCELLED",
+                    )}
+                    {item.details.provider || item.details.model
+                      ? ` · ${[item.details.provider, item.details.model]
+                          .filter(Boolean)
+                          .join(" / ")}`
+                      : null}
                   </span>
-                ) : null}
-              </div>
-              <details className="mt-2 text-xs text-muted-foreground">
-                <summary className="cursor-pointer">
-                  {resolveAppMessage(
-                    "pages.complianceRuleSets.activity.technicalDetails",
-                  )}
-                </summary>
+                }
+                className="text-foreground"
+              >
                 <dl className="mt-2 grid gap-1 sm:grid-cols-2">
                   <Detail
                     labelKey="pages.complianceRuleSets.activity.agent"
@@ -152,7 +161,7 @@ export function RuleSetPreparationActivity({
                     value={item.details.sourcePath}
                   />
                 </dl>
-              </details>
+              </WorkDisclosure>
             </li>
           ))}
         </ol>

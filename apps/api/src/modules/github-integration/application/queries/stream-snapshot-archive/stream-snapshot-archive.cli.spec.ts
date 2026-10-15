@@ -115,6 +115,11 @@ describe("StreamSnapshotArchiveHandler CLI archive routing", () => {
       cache,
       { resolveForConnection, markInvalid } as never,
       { downloadArchive },
+      {
+        isHydrationTicket: () => false,
+        claim: jest.fn(),
+        finalizeDelivery: jest.fn(),
+      } as never,
     );
     return {
       handler,

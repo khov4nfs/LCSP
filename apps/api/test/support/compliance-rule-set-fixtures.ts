@@ -55,9 +55,9 @@ export function fixtureChunks(
       locator,
       variant === "v2" && locator === "art-5::cl-1" ? "v2" : "v1",
     ),
-    legalStatus: "IN_FORCE",
-    legalEffectStatus: "UNKNOWN",
-    legalStatusSourceRef: null,
+    legalStatus: "ACTIVE",
+    legalEffectStatus: "EFFECTIVE",
+    legalStatusSourceRef: "source-metadata:fixture",
     sourceEffectStatus: "IN_FORCE",
     ...overrides[locator],
   }));
@@ -250,9 +250,9 @@ export function legalSourceFactory(prisma: LegalSourcePrisma, runTag: string) {
           changed && locator === "art-5::cl-1" ? "v2" : "v1",
         ),
         hierarchy: {},
-        legalStatus: "IN_FORCE",
-        legalEffectStatus: "UNKNOWN",
-        legalStatusSourceRef: null,
+        legalStatus: "ACTIVE",
+        legalEffectStatus: "EFFECTIVE",
+        legalStatusSourceRef: "source-metadata:fixture",
       })),
     });
     await prisma.legalRetrievalIndex.create({

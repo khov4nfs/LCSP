@@ -650,6 +650,8 @@ export class LegalSourceService {
         contentSha256: chunk.contentSha256,
         hierarchy: chunk.hierarchy,
         legalStatus: chunk.legalStatus,
+        legalEffectStatus: chunk.legalEffectStatus,
+        legalStatusSourceRef: chunk.legalStatusSourceRef,
         pageStart: chunk.pageStart,
         pageEnd: chunk.pageEnd,
       })),

@@ -15,8 +15,8 @@ import {
   RULE_SET_PREPARATION_REFUSAL_REASONS,
 } from "./constants.ts";
 import {
-  LEGAL_EFFECT_STATUSES,
-  type LegalEffectStatus,
+  LEGAL_SOURCE_CHUNK_STATUSES,
+  type LegalSourceChunkStatus,
 } from "../legal-source/management.ts";
 
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
@@ -422,26 +422,14 @@ export const complianceRuleSetResolvedSourceSchema = z
     contentSha256: contentHashSchema,
     sourceEffectStatus: z.string().min(1),
     legalEffectStatus: z.enum(
-      Object.values(LEGAL_EFFECT_STATUSES) as [
-        LegalEffectStatus,
-        ...LegalEffectStatus[],
+      Object.values(LEGAL_SOURCE_CHUNK_STATUSES) as [
+        LegalSourceChunkStatus,
+        ...LegalSourceChunkStatus[],
       ],
     ),
     legalStatusSourceRef: z.string().nullable(),
   })
   .strict();
-
-const complianceRuleSetResolvedSourceRefSchema =
-  complianceRuleSetSourceRefSchema.extend({
-    sourceEffectStatus: z.string().min(1),
-    legalEffectStatus: z.enum(
-      Object.values(LEGAL_EFFECT_STATUSES) as [
-        LegalEffectStatus,
-        ...LegalEffectStatus[],
-      ],
-    ),
-    legalStatusSourceRef: z.string().nullable(),
-  });
 
 /** The single runtime reader contract: the explicit ACTIVE rule set. */
 export const complianceRuleSetReadModelSchema = z
@@ -464,11 +452,7 @@ export const complianceRuleSetReadModelSchema = z
         sources: z.array(complianceRuleSetResolvedSourceSchema),
       }),
     ),
-    contextRelations: z.array(
-      legalContextRelationSchema.extend({
-        toSourceRef: complianceRuleSetResolvedSourceRefSchema.nullable(),
-      }),
-    ),
+    contextRelations: z.array(legalContextRelationSchema),
   })
   .strict();
 export type ComplianceRuleSetReadModel = z.infer<
@@ -528,10 +512,11 @@ export const ruleSetPreparationLegalSourceBundleSchema = z
                 locator: z.string().min(1),
                 content: z.string(),
                 contentSha256: contentHashSchema,
+                legalStatus: z.string(),
                 legalEffectStatus: z.enum(
-                  Object.values(LEGAL_EFFECT_STATUSES) as [
-                    LegalEffectStatus,
-                    ...LegalEffectStatus[],
+                  Object.values(LEGAL_SOURCE_CHUNK_STATUSES) as [
+                    LegalSourceChunkStatus,
+                    ...LegalSourceChunkStatus[],
                   ],
                 ),
                 legalStatusSourceRef: z.string().nullable(),

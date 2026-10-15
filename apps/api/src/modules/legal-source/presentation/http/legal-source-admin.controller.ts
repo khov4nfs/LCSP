@@ -28,12 +28,14 @@ import {
   LEGAL_SOURCE_MANAGEMENT_ERROR_CODES as Errors,
   legalSourceChunkQuerySchema,
   updateLegalSourceRequestSchema,
+  updateLegalSourceDocumentEffectSchema,
   uploadLegalSourceDocumentMetadataSchema,
   type CreateLegalSourceRequest,
   type CreateLegalSourceVersionRequest,
   type ImportLegalSourceDocumentRequest,
   type LegalSourceChunkQuery,
   type UpdateLegalSourceRequest,
+  type UpdateLegalSourceDocumentEffect,
   type UploadLegalSourceDocumentMetadata,
 } from "@lcsp/contracts/legal-source";
 
@@ -225,6 +227,25 @@ export class LegalSourceAdminController {
       actorId: req.rbacContext.userId,
       correlationId: this.correlation(req),
     });
+  }
+
+  @Patch("legal-source-versions/:versionId/documents/:documentRowId/effect")
+  updateDocumentEffect(
+    @Param("versionId", uuid()) versionId: string,
+    @Param("documentRowId", uuid()) documentRowId: string,
+    @Body(validated(updateLegalSourceDocumentEffectSchema))
+    request: UpdateLegalSourceDocumentEffect,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.documents
+      .updateEffect({
+        versionId,
+        documentRowId,
+        actorId: req.rbacContext.userId,
+        correlationId: this.correlation(req),
+        request,
+      })
+      .then(resultEnvelope);
   }
 
   @Get("legal-source-versions/:versionId/documents/:documentRowId/chunks")

@@ -3,6 +3,7 @@ import {
   RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS,
   type RuleSetPreparationLegalSourceBundle,
 } from "@lcsp/contracts/compliance-rule-set";
+import type { LegalSourceChunkStatus } from "@lcsp/contracts/legal-source";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { AgentExecutionState as PrismaAgentExecutionState } from "@prisma/client";
@@ -94,6 +95,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
                 locator: true,
                 content: true,
                 contentSha256: true,
+                legalStatus: true,
                 legalEffectStatus: true,
                 legalStatusSourceRef: true,
                 hierarchy: true,
@@ -113,6 +115,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         chunks: document.chunks.map(({ id, ...chunk }) => ({
           chunkId: id,
           ...chunk,
+          legalEffectStatus: chunk.legalEffectStatus as LegalSourceChunkStatus,
         })),
       })),
     };

@@ -1106,3 +1106,11 @@ def test_generic_runtime_code_names_no_legal_role_category_or_instrument() -> No
         text = path.read_text(encoding="utf-8").lower()
         offenders += [f"{path.relative_to(root)}: {term}" for term in forbidden if term in text]
     assert offenders == []
+
+
+def test_root_keeps_unknown_or_noncurrent_source_effect_out_of_current_obligation_reasoning() -> None:
+    root = Path(__file__).resolve().parents[2]
+    instructions = (root / "deepagents" / "assessment_root" / "instructions.md").read_text(encoding="utf-8")
+    assert "only `EFFECTIVE` supports" in instructions
+    assert "`UNKNOWN` stays undetermined" in instructions
+    assert "`REPEALED` and `FUTURE` are not current" in instructions
