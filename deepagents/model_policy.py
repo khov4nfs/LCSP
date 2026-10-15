@@ -39,7 +39,7 @@ from langsmith_bootstrap import disable_langsmith_tracing_by_default
 
 disable_langsmith_tracing_by_default()
 
-from langchain.chat_models import init_chat_model
+from anthropic_stream_usage import init_chat_model
 
 from model_routes_config import APX_PROTOCOLS, PROTOCOLS, read_model_routes
 from provider_credentials import (

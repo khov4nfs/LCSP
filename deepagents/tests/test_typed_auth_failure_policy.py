@@ -315,12 +315,10 @@ async def test_exhausted_google_pool_with_typed_auth_moves_to_next_provider(monk
 
     assert result is response
     models = [call.args[0].model for call in handler.call_args_list]
-    assert [type(model).__name__ for model in models] == [
-        "ChatGoogleGenerativeAI",
-        "ChatGoogleGenerativeAI",
-        "ChatGoogleGenerativeAI",
-        "ChatAnthropic",
-    ]
+    from langchain_anthropic import ChatAnthropic
+    assert len(models) == 4
+    assert all(isinstance(model, ChatGoogleGenerativeAI) for model in models[:-1])
+    assert isinstance(models[-1], ChatAnthropic)
     assert models[-1].anthropic_api_key.get_secret_value() == "apx-only-test-token"
 
 
