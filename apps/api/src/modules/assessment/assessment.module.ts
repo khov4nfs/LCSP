@@ -68,6 +68,7 @@ import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-
 import { AssessmentDomainController } from "./presentation/http/assessment-domain.controller.js";
 import { AssessmentRuntimeControlController } from "./presentation/http/assessment-runtime-control.controller.js";
 import { AssessmentController } from "./presentation/http/assessment.controller.js";
+import { ReconcileOrphanedAssessmentHandler } from "./application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.js";
 
 /**
  * Wires RBAC-protected assessment commands and queries to Prisma-backed persistence and HTTP endpoints.
@@ -129,6 +130,7 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     TransitionAssessmentLifecycleHandler,
     CompleteRepositorySetupHandler,
     DeleteAssessmentHandler,
+    ReconcileOrphanedAssessmentHandler,
     AgentServerAssessmentErasure,
     {
       provide: ASSESSMENT_RUNTIME_ERASURE,
