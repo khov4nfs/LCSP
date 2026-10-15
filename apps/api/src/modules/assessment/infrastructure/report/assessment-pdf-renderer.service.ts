@@ -225,7 +225,10 @@ export class AssessmentPdfRenderer {
         document
           .fontSize(8)
           .text(`LCSP · Page ${index + 1} of ${range.count}`, 48, 806, {
+            width: 500,
+            height: 10,
             align: "center",
+            lineBreak: false,
           });
       }
       document.end();

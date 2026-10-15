@@ -180,6 +180,12 @@ test("renders the real V2 report and downloads verified JSON/PDF", async ({
   expect(pdfText.text).toContain(data.assessmentId);
   expect(pdfText.text).toContain(data.artifactId);
   for (const ruleId of data.ruleIds) expect(pdfText.text).toContain(ruleId);
+  expect(pdfText.pages).toHaveLength(pdfText.total);
+  pdfText.pages.forEach((page, index) => {
+    expect(page.text.match(/Page \d+ of \d+/g) ?? []).toHaveLength(1);
+    expect(page.text).toContain(`Page ${index + 1} of ${pdfText.total}`);
+    expect(page.text.replace(/Page \d+ of \d+/g, "").trim()).not.toBe("");
+  });
   expect(consoleErrors).toEqual([]);
 });
 
