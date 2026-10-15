@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import re
 import threading
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
+from uuid import uuid4
 
 from langchain_core.tools import tool
 
+from middleware.failure_policy import NoProgressDetected
+from orchestration.agent_stream import DURABLE, publish_agent_stream_event
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
@@ -102,6 +107,9 @@ class RuleSetPreparationContext:
     # add_to_packet_draft calls since the last validation: past a few, the result asks for one.
     adds_since_validation: int = 0
     progress_revision: int = 0
+    completion_submission_ordinal: int = 0
+    last_completion_state_fingerprint: str | None = None
+    completion_feedback_state_fingerprint: str | None = None
     pinned_source_version_id: str | None = None
     progress_state: dict[str, Any] = field(default_factory=lambda: {
         "establishedFindings": [],
@@ -219,6 +227,92 @@ def _packet_stats(packet: dict) -> dict[str, int]:
     }
 
 
+_PROVENANCE_GAP_CODES = frozenset({
+    "RETRIEVAL_INDEX_NOT_VALID", "UNRESOLVED_SOURCE_REFERENCE", "STALE_SOURCE_HASH",
+    "REPEALED_SOURCE_REFERENCE", "NON_CURRENT_SOURCE_REFERENCE",
+    "UNDETERMINED_SOURCE_STATUS", "MIXED_SOURCE_VERSION", "SOURCE_STATUS_PROVENANCE_MISSING",
+})
+
+
+def _fingerprint(value: Any) -> str:
+    encoded = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
+    return hashlib.sha256(encoded.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _completion_gap_projection(gate: dict | None) -> tuple[list[str], list[str], str]:
+    structural: set[str] = set()
+    provenance: set[str] = set()
+    fingerprints: list[tuple[str, str | None]] = []
+    failures = gate.get("failures") if isinstance(gate, dict) else None
+    for failure in failures or ():
+        if not isinstance(failure, dict):
+            continue
+        code = failure.get("code")
+        if not isinstance(code, str) or not re.fullmatch(r"[A-Z0-9_]{1,80}", code):
+            continue
+        (provenance if code in _PROVENANCE_GAP_CODES else structural).add(code)
+        ref = failure.get("ref")
+        fingerprints.append((code, _fingerprint(ref) if isinstance(ref, str) else None))
+    uncovered = gate.get("uncoveredProvisions") if isinstance(gate, dict) else None
+    if isinstance(uncovered, dict) and isinstance(uncovered.get("count"), int) and uncovered["count"] > 0:
+        structural.add(COVERAGE_FAILURE)
+        locators = uncovered.get("locatorsByDocumentId")
+        if isinstance(locators, dict):
+            fingerprints.extend(
+                (COVERAGE_FAILURE, _fingerprint((doc_id, locator)))
+                for doc_id, values in locators.items() if isinstance(doc_id, str) and isinstance(values, list)
+                for locator in values if isinstance(locator, str)
+            )
+    return sorted(structural), sorted(provenance), _fingerprint(sorted(fingerprints))
+
+
+def _record_completion_submission(
+    context: RuleSetPreparationContext, candidate: Any, gate: dict | None, *, accepted: bool,
+    gate_rejected: bool,
+) -> tuple[bool, bool]:
+    structural, provenance, gap_fingerprint = _completion_gap_projection(gate)
+    candidate_fingerprint = _fingerprint(candidate) if isinstance(candidate, dict) else None
+    feedback = detected = False
+    with context.observation_lock:
+        context.completion_submission_ordinal += 1
+        ordinal = context.completion_submission_ordinal
+        state_fingerprint = _fingerprint({
+            "candidate": candidate_fingerprint, "gaps": gap_fingerprint,
+            "progressRevision": context.progress_revision,
+        })
+        if gate_rejected and candidate_fingerprint is not None:
+            if state_fingerprint == context.last_completion_state_fingerprint:
+                if context.completion_feedback_state_fingerprint == state_fingerprint:
+                    detected = True
+                else:
+                    feedback = True
+                    context.completion_feedback_state_fingerprint = state_fingerprint
+            else:
+                context.completion_feedback_state_fingerprint = None
+            context.last_completion_state_fingerprint = state_fingerprint
+        elif accepted:
+            context.last_completion_state_fingerprint = None
+            context.completion_feedback_state_fingerprint = None
+    publish_agent_stream_event(
+        "CUSTOM_PROGRESS", status="COMPLETED" if accepted else "RUNNING",
+        data={
+            "durability": DURABLE, "activity_kind": "COMPLETION_SUBMISSION",
+            "submission_id": str(uuid4()), "submission_ordinal": ordinal,
+            "candidate_fingerprint": candidate_fingerprint, "accepted": accepted,
+            "structural_gap_codes": structural, "provenance_gap_codes": provenance,
+            "gap_fingerprint": gap_fingerprint,
+            "completion_gate_outcome": (gate or {}).get("outcome"),
+        },
+    )
+    if detected:
+        publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={
+            "durability": DURABLE, "activity_kind": "NO_PROGRESS_DETECTED",
+            "source": "COMPLETION_SUBMISSION", "submission_ordinal": ordinal,
+            "candidate_fingerprint": candidate_fingerprint, "gap_fingerprint": gap_fingerprint,
+        })
+    return feedback, detected
+
+
 def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
     """Bind validation, submission and explicit source-blocking to one run."""
 
@@ -255,6 +349,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             return json.dumps({"sourceBlocked": context.source_blocked})
         context.validation_calls += 1
         context.adds_since_validation = 0
+        previous_validation = context.last_validation
         context.validated_packet = None
         context.last_validation = None
         try:
@@ -273,7 +368,6 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             logger.warning("RULE_SET_PREPARATION_VALIDATION_ERROR", run_id=context.run_id,
                            validation_call=context.validation_calls, error=str(error)[:300])
             return json.dumps({"error": str(error)})
-        previous_validation = context.last_validation
         context.last_validation = result
         if result != previous_validation:
             context.progress_revision += 1
@@ -404,11 +498,14 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             return json.dumps({**context.submission, "alreadySubmitted": True}, ensure_ascii=False)
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
+        candidate: Any = packet
+        gate: dict | None = None
         try:
             if packet is None:
                 packet = context.validated_packet or context.draft_packet()
             else:
                 packet = _as_packet(packet)
+            candidate = packet
             gate = (
                 _model_view(context.last_validation, context)
                 if packet == context.validated_packet
@@ -417,9 +514,19 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             )
             if gate.get("outcome") != "PASSED":
                 context.trace.append({"tool": "completion_claim", "outcome": "REJECTED"})
-                return json.dumps(
-                    {"completionClaim": "REJECTED", "gaps": gate}, ensure_ascii=False
+                feedback, detected = _record_completion_submission(
+                    context, candidate, gate, accepted=False, gate_rejected=True
                 )
+                result = {"completionClaim": "REJECTED", "gaps": gate}
+                if feedback:
+                    result["NO_PROGRESS"] = (
+                        "The same candidate, mechanical gate gaps, and preparation progress "
+                        "were submitted again. Change the candidate, resolve a listed gap, "
+                        "or advance source-backed preparation before submitting again."
+                    )
+                if detected:
+                    raise NoProgressDetected("NO_PROGRESS_DETECTED")
+                return json.dumps(result, ensure_ascii=False)
             packet = context.validated_packet
             result = context.api.submit_compliance_rule_set(
                 context.run_id, context.idempotency_key, packet
@@ -427,10 +534,12 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         except (ValueError, WorkerCallbackError) as error:
             context.errors.append(str(error))
             context.trace.append({"tool": "completion_claim", "outcome": "REJECTED"})
+            _record_completion_submission(context, candidate, gate, accepted=False, gate_rejected=False)
             return json.dumps({"error": str(error)})
         context.submission = result
         context.progress_revision += 1
         context.trace.append({"tool": "submit", "outcome": (result.get("validation") or {}).get("outcome")})
+        _record_completion_submission(context, packet, gate, accepted=True, gate_rejected=False)
         return json.dumps(result, ensure_ascii=False)
 
     @tool(args_schema={

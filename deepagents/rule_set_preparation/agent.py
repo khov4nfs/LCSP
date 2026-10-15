@@ -24,7 +24,7 @@ from langchain.agents.middleware import (
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.messages import ToolMessage
 from langgraph.runtime import Runtime
-from middleware.failure_policy import AgentRunBudgetExceeded
+from middleware.failure_policy import NoProgressDetected
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.usage_metering import AgentRoleMiddleware
 from orchestration.agent_stream import publish_agent_stream_event
@@ -132,7 +132,7 @@ class PreparationObservationMiddleware(AgentMiddleware):
                 status="FAILED",
                 data={"activity_kind": "NO_PROGRESS_DETECTED", "tool_name": name},
             )
-            raise AgentRunBudgetExceeded("NO_PROGRESS_DETECTED")
+            raise NoProgressDetected("NO_PROGRESS_DETECTED")
         return result.model_copy(update={"content": _with_observation_feedback(content, feedback)})
 
 

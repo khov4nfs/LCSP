@@ -13,7 +13,7 @@ from typing import Any
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.runnables.config import var_child_runnable_config
 from langgraph.errors import GraphRecursionError, NodeCancelledError
-from middleware.failure_policy import AgentRunBudgetExceeded
+from middleware.failure_policy import AgentRunBudgetExceeded, NoProgressDetected
 from orchestration.agent_stream import DURABLE, active_agent_stream, publish_agent_stream_event
 from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
@@ -236,7 +236,7 @@ def run_rule_set_preparation(
                 last_completed_model_call = model_call_diagnostics.get("last_completed_model_call")
                 reason = MODEL_ERROR if failing_model_call else RUNTIME_ERROR
                 category = "MODEL_ERROR" if failing_model_call else "RUNTIME_ERROR"
-                if isinstance(error, (GraphRecursionError, AgentRunBudgetExceeded)):
+                if isinstance(error, (GraphRecursionError, AgentRunBudgetExceeded, NoProgressDetected)):
                     reason = RUNTIME_ERROR
                     category = "RUNTIME_ERROR"
                 diagnostic = {
@@ -261,7 +261,7 @@ def run_rule_set_preparation(
                 logger.warning("RULE_SET_PREPARATION_AGENT_FAILED", run_id=run_id, **diagnostic)
                 _fail(api, run_id, reason)
                 safe_error = {"type": type(error).__name__, "stage": failure_stage}
-                if isinstance(error, AgentRunBudgetExceeded) and str(error) == "NO_PROGRESS_DETECTED":
+                if isinstance(error, NoProgressDetected):
                     safe_error["message"] = "NO_PROGRESS_DETECTED"
                 return {
                     "state": "FAILED",

@@ -84,6 +84,10 @@ class AgentRunBudgetExceeded(RuntimeError):
     """
 
 
+class NoProgressDetected(RuntimeError):
+    """The Agent repeated the same ineffective action after no-progress feedback."""
+
+
 class StructuredOutputRejected(TerminalSchemaError):
     """A provider model's own structured output failed the contract.
 
@@ -237,7 +241,7 @@ def is_terminal_task_error(error: BaseException) -> bool:
     current: BaseException | None = error
     while current is not None and id(current) not in seen:
         seen.add(id(current))
-        if isinstance(current, (TypeError, ValidationError, StructuredOutputError, TerminalSchemaError, TerminalCredentialError, AgentRunBudgetExceeded)):
+        if isinstance(current, (TypeError, ValidationError, StructuredOutputError, TerminalSchemaError, TerminalCredentialError, AgentRunBudgetExceeded, NoProgressDetected)):
             return True
         # Our own API rejected this payload. The boundary re-runs the model on every
         # redelivery, so requeueing an identical rejected decision is an unbounded spend

@@ -303,3 +303,47 @@ def test_terminal_exhaustion_is_one_logical_failure(monkeypatch):
     assert failures[0]["data"]["provider_attempts"] == 3
     assert failures[0]["data"]["error_type"] == "RuntimeError"
     assert not _completed(events)
+
+
+def test_failed_provider_attempts_share_identity_and_emit_only_safe_metadata(monkeypatch):
+    from middleware.usage_metering import provider_attempt_context
+
+    class ApiError(RuntimeError):
+        status_code = 503
+        body = {"error": {"code": "upstream_unavailable", "message": "PRIVATE_BODY"}}
+
+    def fail(_request):
+        raise ApiError("PRIVATE_EXCEPTION")
+
+    with provider_attempt_context(route_ordinal=2, credential_slot_safe_id="CREDENTIAL_SLOT_04"):
+        events = _stepped([fail], monkeypatch)
+    started = next(fields["data"] for event, fields in events if event == "MODEL_CALL_STARTED")
+    failed = next(fields["data"] for event, fields in events if event == "MODEL_CALL_FAILED")
+    attempt = next(fields["data"] for event, fields in events
+                   if event == "CUSTOM_PROGRESS" and fields["data"].get("activity_kind") == "MODEL_PROVIDER_ATTEMPT_FAILED")
+    assert started["invocation_id"] == failed["invocation_id"] == attempt["invocation_id"]
+    assert attempt["http_status"] == 503
+    assert attempt["provider_error_code"] == "upstream_unavailable"
+    assert attempt["route_ordinal"] == 2
+    assert attempt["credential_slot_safe_id"] == "CREDENTIAL_SLOT_04"
+    assert "PRIVATE_BODY" not in json.dumps(events, default=str)
+    assert "PRIVATE_EXCEPTION" not in json.dumps(events, default=str)
+
+
+def test_twelve_provider_attempts_are_distinguishable_with_one_logical_id(monkeypatch):
+    class ApiError(RuntimeError):
+        status_code = 503
+
+    def fail(_request):
+        raise ApiError("unpersisted provider text")
+
+    events = _stepped([fail for _ in range(12)], monkeypatch)
+    attempts = [fields["data"] for event, fields in events
+                if event == "CUSTOM_PROGRESS" and fields["data"].get("activity_kind") == "MODEL_PROVIDER_ATTEMPT_FAILED"]
+    terminal = next(fields["data"] for event, fields in events if event == "MODEL_CALL_FAILED")
+    assert [attempt["attempt_ordinal"] for attempt in attempts] == list(range(1, 13))
+    assert len({attempt["invocation_id"] for attempt in attempts}) == 1
+    assert all(attempt["http_status"] == 503 for attempt in attempts)
+    assert terminal["invocation_id"] == attempts[0]["invocation_id"]
+    assert terminal["provider_attempts"] == 12
+    assert "unpersisted provider text" not in json.dumps(events, default=str)

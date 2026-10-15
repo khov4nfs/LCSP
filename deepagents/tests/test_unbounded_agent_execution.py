@@ -12,7 +12,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.messages import AIMessage
 from langgraph.config import get_config
 from langgraph.errors import GraphRecursionError
-from middleware.failure_policy import AgentRunBudgetExceeded
+from middleware.failure_policy import NoProgressDetected
 from pydantic import Field
 
 from assessment_root.runner import run_assessment_root
@@ -205,7 +205,7 @@ def test_framework_exhaustion_is_runtime_error_not_model_error(monkeypatch, tmp_
 def test_no_progress_execution_failure_is_runtime_error_not_model_error(monkeypatch, tmp_path: Path) -> None:
     class ExhaustedGraph:
         def invoke(self, *args, **kwargs):
-            raise AgentRunBudgetExceeded(
+            raise NoProgressDetected(
                 "NO_PROGRESS_DETECTED"
             )
 
@@ -213,7 +213,7 @@ def test_no_progress_execution_failure_is_runtime_error_not_model_error(monkeypa
     api = FakeApi()
     result = preparation_runner.run_rule_set_preparation(api, RUN_ID, work_dir=tmp_path)
     assert result["failureReason"] == preparation_runner.RUNTIME_ERROR
-    assert result["error"]["type"] == "AgentRunBudgetExceeded"
+    assert result["error"]["type"] == "NoProgressDetected"
     assert "NO_PROGRESS_DETECTED" in result["error"]["message"]
     assert api.calls[-1] == ("fail", (RUN_ID, preparation_runner.RUNTIME_ERROR))
 
