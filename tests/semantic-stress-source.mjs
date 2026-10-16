@@ -38,10 +38,10 @@ assert.deepEqual(
   control.legalSource.provisions.map((p) => p.locator),
   Array.from(
     { length: control.legalSource.provisions.length },
-    (_, i) => `SEM-00${i + 1}`,
+    (_, i) => `SEM-${String(i + 1).padStart(3, "0")}`,
   ),
 );
-assert([7, 8].includes(control.legalSource.provisions.length));
+assert([7, 8, 12].includes(control.legalSource.provisions.length));
 const prisma = new PrismaService();
 const audit = new AuditWriterService(prisma);
 const outbox = new OutboxRepository(prisma);
@@ -174,8 +174,11 @@ try {
     console.log(
       JSON.stringify({
         SEMANTIC_STRESS_INPUT_CONTRACT: "PASS",
-        ...(chunks.length === 8
+        ...(chunks.length >= 8
           ? { ACTOR_FIDELITY_INPUT_CONTRACT: "PASS" }
+          : {}),
+        ...(chunks.length === 12
+          ? { SEMANTIC_CLOSURE_INPUT_CONTRACT: "PASS" }
           : {}),
         sourceId: source.id,
         versionId: version.id,

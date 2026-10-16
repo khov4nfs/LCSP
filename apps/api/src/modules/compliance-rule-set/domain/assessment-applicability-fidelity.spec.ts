@@ -7,6 +7,7 @@ import {
 import {
   fixtureLegalSource,
   validPacket,
+  withDerivedAssessmentSemantics,
 } from "../../../../test/support/compliance-rule-set-fixtures.js";
 import { validateComplianceRuleSetPacket } from "./compliance-rule-set-integrity.validator.js";
 
@@ -45,7 +46,7 @@ function delegationPacket() {
     for (const criterion of rule.criteria)
       criterion.statement = rule.applicabilityGuidance;
   }
-  return packet;
+  return withDerivedAssessmentSemantics(packet);
 }
 const failures = (packet: ReturnType<typeof validPacket>) =>
   validateComplianceRuleSetPacket(packet, fixtureLegalSource(), () => false)
@@ -53,8 +54,10 @@ const failures = (packet: ReturnType<typeof validPacket>) =>
 const omitGuidance = (packet: ReturnType<typeof validPacket>) => ({
   ...packet,
   assessmentRules: packet.assessmentRules.map(
-    ({ applicabilityGuidance, ...rule }) => {
+    ({ applicabilityGuidance, legalIntent, contextRelationIds, ...rule }) => {
       void applicabilityGuidance;
+      void legalIntent;
+      void contextRelationIds;
       return {
         ...rule,
         criteria: rule.criteria.map(({ statement, ...criterion }) => {

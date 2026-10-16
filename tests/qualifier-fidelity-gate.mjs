@@ -93,8 +93,17 @@ print(json.dumps(result))
   const good = {
     ...packet,
     assessmentRules: packet.assessmentRules.map(
-      ({ applicabilityGuidance, ...rule }) => {
+      ({
+        applicabilityGuidance,
+        legalIntent,
+        contextRelationIds,
+        unresolvedConditions,
+        ...rule
+      }) => {
         void applicabilityGuidance;
+        void legalIntent;
+        void contextRelationIds;
+        void unresolvedConditions;
         return {
           ...rule,
           criteria: rule.criteria.map(({ statement, ...criterion }) => {

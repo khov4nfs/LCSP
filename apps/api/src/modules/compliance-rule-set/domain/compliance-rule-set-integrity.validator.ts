@@ -5,6 +5,9 @@ import {
   COMPLIANCE_RULE_SET_FAILURE_CODES,
   declaresApplicabilityScope,
   deriveAssessmentApplicabilityGuidance,
+  deriveAssessmentLegalIntent,
+  assessmentSemanticContext,
+  resolveAssessmentContextBinding,
   type ComplianceRuleSetFailureCode,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSourceRef,
@@ -127,10 +130,73 @@ export function validateComplianceRuleSetPacket(
       );
       return parent ? [parent] : [];
     });
+    const semanticContext = assessmentSemanticContext(
+      parents,
+      packet.contextRelations,
+      packet.legalRequirements,
+    );
+    const inheritedSources = new Set(
+      [
+        ...semanticContext.requirements.flatMap((parent) => parent.sourceRefs),
+        ...semanticContext.relations.flatMap((edge) =>
+          edge.toSourceRef ? [edge.toSourceRef] : [],
+        ),
+      ].map((source) => canonicalJson(source)),
+    );
+    if (
+      rule.sourceRefs.some(
+        (source) => !inheritedSources.has(canonicalJson(source)),
+      )
+    )
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
+        `assessmentRule:${rule.assessmentRuleId}|field:sourceRefs`,
+        "AssessmentRule provenance must bind its inherited parent propositions or directed context, not unrelated source material; a narrower evidence focus may select a subset of inherited sources",
+      );
+    const bindings = rule.unresolvedConditionBindings ?? [];
+    const facts = bindings.map((binding) =>
+      resolveAssessmentContextBinding(binding, semanticContext.requirements),
+    );
+    const expectedFields = {
+      legalIntent: deriveAssessmentLegalIntent(parents),
+      contextRelationIds: semanticContext.relations.map(
+        (edge) => edge.relationId,
+      ),
+      unresolvedConditions: facts.filter(
+        (fact): fact is string => fact !== null,
+      ),
+    };
+    for (const field of Object.keys(
+      expectedFields,
+    ) as (keyof typeof expectedFields)[]) {
+      if (
+        canonicalJson(rule[field] ?? []) !==
+        canonicalJson(expectedFields[field])
+      )
+        fail(
+          COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
+          `assessmentRule:${rule.assessmentRuleId}|field:${field}`,
+          `${field} must derive from linked parent semantic bindings; omit derived prose/IDs and use unresolvedConditionBindings for parent context selection`,
+        );
+    }
+    if (
+      facts.some((fact) => fact === null) ||
+      new Set(bindings.map((binding) => canonicalJson(binding))).size !==
+        bindings.length
+    )
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
+        `assessmentRule:${rule.assessmentRuleId}|field:unresolvedConditionBindings`,
+        "Each unresolved context binding must uniquely reference an existing inherited parent condition, qualifier or exception",
+      );
     if (
       parents.length === rule.legalRequirementIds.length &&
       rule.applicabilityGuidance !==
-        deriveAssessmentApplicabilityGuidance(parents)
+        deriveAssessmentApplicabilityGuidance(
+          parents,
+          packet.contextRelations,
+          packet.legalRequirements,
+        )
     ) {
       fail(
         COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
@@ -158,7 +224,11 @@ export function validateComplianceRuleSetPacket(
         new Set(ids).size !== ids.length ||
         boundParents.length !== ids.length ||
         criterion.statement !==
-          deriveAssessmentApplicabilityGuidance(boundParents)
+          deriveAssessmentApplicabilityGuidance(
+            boundParents,
+            packet.contextRelations,
+            packet.legalRequirements,
+          )
       ) {
         fail(
           COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,

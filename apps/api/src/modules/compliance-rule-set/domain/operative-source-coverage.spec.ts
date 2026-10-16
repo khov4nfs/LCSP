@@ -11,6 +11,7 @@ import {
   semanticStressSource,
 } from "../../../../test/support/semantic-stress-fixtures.js";
 import { validateComplianceRuleSetPacket } from "./compliance-rule-set-integrity.validator.js";
+import { withDerivedAssessmentSemantics } from "../../../../test/support/compliance-rule-set-fixtures.js";
 
 const validate = (
   packet = semanticStressPacket(),
@@ -88,7 +89,7 @@ describe("operative source accounting", () => {
         criterion.statement = rule.applicabilityGuidance;
       }
     }
-    expect(validate(packet)).toEqual([]);
+    expect(validate(withDerivedAssessmentSemantics(packet))).toEqual([]);
     expect(packet.legalRequirements.length).toBeLessThan(
       semanticStressSource().chunks.length,
     );

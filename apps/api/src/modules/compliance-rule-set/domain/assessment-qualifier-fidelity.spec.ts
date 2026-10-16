@@ -8,6 +8,7 @@ import {
 import {
   fixtureLegalSource,
   validPacket,
+  withDerivedAssessmentSemantics,
 } from "../../../../test/support/compliance-rule-set-fixtures.js";
 import { validateComplianceRuleSetPacket } from "./compliance-rule-set-integrity.validator.js";
 
@@ -29,8 +30,10 @@ function candidate() {
   const input = {
     ...packet,
     assessmentRules: packet.assessmentRules.map(
-      ({ applicabilityGuidance, ...rule }) => {
+      ({ applicabilityGuidance, legalIntent, contextRelationIds, ...rule }) => {
         void applicabilityGuidance;
+        void legalIntent;
+        void contextRelationIds;
         return {
           ...rule,
           criteria: rule.criteria.map(({ statement, ...criterion }) => {
@@ -114,9 +117,11 @@ describe("parent-bound criterion predicate fidelity", () => {
     const packet = candidate();
     const rule = packet.assessmentRules[1];
     rule.criteria[0].legalRequirementIds = [rule.legalRequirementIds[0]];
-    rule.criteria[0].statement = deriveAssessmentApplicabilityGuidance([
-      packet.legalRequirements[1],
-    ]);
+    rule.criteria[0].statement = deriveAssessmentApplicabilityGuidance(
+      [packet.legalRequirements[1]],
+      packet.contextRelations,
+      packet.legalRequirements,
+    );
     expect(failures(packet)).toContainEqual(
       expect.objectContaining({
         code: Gaps.APPLICABILITY_BINDING_MISMATCH,
@@ -142,7 +147,7 @@ describe("parent-bound criterion predicate fidelity", () => {
     const expected = deriveAssessmentApplicabilityGuidance([parent]);
     packet.assessmentRules[0].applicabilityGuidance = expected;
     packet.assessmentRules[0].criteria[0].statement = expected;
-    expect(failures(packet)).toEqual([]);
+    expect(failures(withDerivedAssessmentSemantics(packet))).toEqual([]);
     expect(expected).not.toContain("Qualifier");
   });
   it("round trips binding identity and focus; historical criterion reads remain unchanged", () => {

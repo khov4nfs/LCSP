@@ -31,6 +31,7 @@ import {
   validPacket,
 } from "../../../../../test/support/compliance-rule-set-fixtures.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { semanticFidelityPair } from "../../../../../test/support/semantic-fidelity-fixtures.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
@@ -343,8 +344,17 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     const input = {
       ...packet,
       assessmentRules: packet.assessmentRules.map(
-        ({ applicabilityGuidance, ...rule }) => {
+        ({
+          applicabilityGuidance,
+          legalIntent,
+          contextRelationIds,
+          unresolvedConditions,
+          ...rule
+        }) => {
           void applicabilityGuidance;
+          void legalIntent;
+          void contextRelationIds;
+          void unresolvedConditions;
           return {
             ...rule,
             criteria: rule.criteria.map(({ statement, ...criterion }) => {
@@ -385,6 +395,26 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       read.assessmentRules.find((rule) => rule.assessmentRuleId === "ER-DEF")
         ?.criteria,
     ).toEqual(stored.criteria);
+  });
+
+  it("persists inherited dependency direction and unresolved fact identity through the read model", async () => {
+    const source = await createLegalSource();
+    const run = await startRun(source.id);
+    const packet = semanticFidelityPair();
+    const result = await submit(run.preparationRunId, packet);
+    expect(result.validation.failures).toEqual([]);
+    const read = await service.getActiveRuleSet(randomUUID());
+    const expected = packet.assessmentRules[0];
+    const actual = read.assessmentRules.find(
+      (rule) => rule.assessmentRuleId === expected.assessmentRuleId,
+    )!;
+    expect(actual.contextRelationIds).toEqual(expected.contextRelationIds);
+    expect(actual.unresolvedConditionBindings).toEqual(
+      expected.unresolvedConditionBindings,
+    );
+    expect(actual.unresolvedConditions).toEqual(expected.unresolvedConditions);
+    expect(actual.criteria).toEqual(expected.criteria);
+    expect(actual.legalIntent).toEqual(expected.legalIntent);
   });
 
   it("reports contradictory downstream guidance as a deterministic gap before canonical submission", async () => {

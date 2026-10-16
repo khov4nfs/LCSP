@@ -3,6 +3,7 @@ import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   LEGAL_OPERATIVE_MODALITIES,
   deriveAssessmentApplicabilityGuidance,
+  complianceRuleSetPacketSchema,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSourceRef,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -219,7 +220,37 @@ export function validPacket(): ComplianceRuleSetPacket {
       criterion.statement = rule.applicabilityGuidance;
     }
   }
-  return packet;
+  return withDerivedAssessmentSemantics(packet);
+}
+
+/** Fixture authoring uses omitted derived fields; negative tests mutate the resulting bindings. */
+export function withDerivedAssessmentSemantics(
+  packet: ComplianceRuleSetPacket,
+): ComplianceRuleSetPacket {
+  return complianceRuleSetPacketSchema.parse({
+    ...packet,
+    assessmentRules: packet.assessmentRules.map(
+      ({
+        applicabilityGuidance,
+        legalIntent,
+        contextRelationIds,
+        unresolvedConditions,
+        ...rule
+      }) => {
+        void applicabilityGuidance;
+        void legalIntent;
+        void contextRelationIds;
+        void unresolvedConditions;
+        return {
+          ...rule,
+          criteria: rule.criteria.map(({ statement, ...criterion }) => {
+            void statement;
+            return criterion;
+          }),
+        };
+      },
+    ),
+  });
 }
 
 export const FIXTURE_LEAVES = LEAVES;

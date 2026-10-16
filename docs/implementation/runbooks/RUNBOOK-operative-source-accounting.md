@@ -1,5 +1,34 @@
 # Operative source accounting
 
+## Complete downstream semantic fidelity
+
+`legalRequirementIds` bind the child to Agent-authored parent meaning. Canonical guidance and
+criterion statements include the complete actor/modality/action, conditions, qualifiers,
+exceptions, operative provenance, and the directed transitive context dependency closure.
+Cycles are visited once by identity. `contextRelationIds` explicitly retain inherited dependency
+identities; removing or reversing a dependency cannot leave an unchanged child accepted.
+`legalIntent` is rendered from parent propositions. Omit these derived fields during authoring;
+supplied contradictory fields are retained and rejected with `APPLICABILITY_BINDING_MISMATCH`.
+
+`unresolvedConditionBindings` select parent context facts by requirement ID, field
+(`APPLICABILITY_CONDITION`, `QUALIFIER`, `EXCEPTION`) and zero-based index. The server renders
+`unresolvedConditions` from those exact facts. No selection means no separate unresolved facts,
+not unconditional applicability. The complete inherited context remains authoritative.
+
+Preserve actor direction, polarity, action/object/scope, purpose, triggers, exceptions,
+temporal/transition limits, incorporated dependencies and source bindings. A child may narrow
+its technical investigation through `investigationFocus` or evidence strategy within those
+anchors. It may not substitute another legal predicate. Evidence hints are not legal authority.
+The Gate compares authored structure and canonical projections, never interprets raw law or
+tries to prove NLP equivalence. Correct source interpretation remains the Agent's responsibility.
+
+The permanent semantic matrix covers positive specialization/aggregation, negative semantic
+mutations, historical placeholder/actor/qualifier classes, dependency cycles/order and durable
+read-model round trips. `tests/semantic-fidelity-gate.mjs` exercises negative cases through the
+real provider-free Completion Gate and worker HTTP API. The 12-provision synthetic fixture
+`tests/fixtures/semantic-closure-source.json` requires separate one-run authorization for live
+acceptance. Historical accepted contracts and digests are not rewritten; no migration is needed.
+
 ## Parent-bound assessment criteria
 
 New AssessmentRule criteria explicitly bind `legalRequirementIds`, restricted to their rule's

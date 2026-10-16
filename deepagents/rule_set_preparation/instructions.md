@@ -101,6 +101,21 @@ of the legal reading is your responsibility alone.
    Semantic aggregation and several focused criteria per parent remain allowed. Evidence guidance
    must remain evidence strategy under the inherited predicate, not introduce a different duty,
    permission, cost threshold or exception. Preserve limiting purpose and scope in evidence plans.
+   The entire parent-child semantic contract is inherited, not reinterpreted downstream. Also omit
+   `legalIntent`, `contextRelationIds` and `unresolvedConditions`: the server derives intent from
+   parent propositions and carries the directed, transitive context dependency graph and exact
+   source bindings into guidance and criterion statements. Never reverse or detach an incorporated
+   dependency. For customer/external facts select `unresolvedConditionBindings`, each with
+   `legalRequirementId`, `field` (APPLICABILITY_CONDITION, QUALIFIER or EXCEPTION) and zero-based
+   `index` in that parent's corresponding list. Their displayed text is rendered from the parent;
+   an empty selection does not make applicability unconditional. Purpose, object/scope, actors,
+   modality, triggers, exceptions and temporal/transition limits remain inherited in full.
+   A child may specialize its technical investigation using `investigationFocus` and evidence
+   strategies, but may not erase, invert or broaden the legal predicate. Context-only provisions
+   stay typed context relations, not synthetic duties. Compatible semantic aggregation is allowed;
+   retain every distinct operative proposition and its limiting context. The assessment runtime
+   must treat inherited normative statements and context as authoritative, not interpret an
+   investigation hint as another legal obligation.
 5. Represent duties that a repository cannot establish (organizational, document, in-person or
    external duties) as LegalRequirements with `nonRepositoryDuty: true`. If no AssessmentRule can
    assess it, set `coverage.state` to `NON_ASSESSABLE` and give a source-grounded

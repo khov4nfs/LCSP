@@ -1,3 +1,4 @@
+import { withDerivedAssessmentSemantics } from "./compliance-rule-set-fixtures.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
@@ -230,7 +231,7 @@ export function semanticStressPacket(): ComplianceRuleSetPacket {
       criterion.statement = rule.applicabilityGuidance;
     }
   }
-  return packet;
+  return withDerivedAssessmentSemantics(packet);
 }
 
 /** The historical mechanism: one actual duty plus provenance-only NON_ASSESSABLE context. */

@@ -295,6 +295,10 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
         assert {"assessmentRuleId", "criteria", "supportingEvidence", "sourceRefs"} <= set(engineering["required"])
         assert "applicabilityGuidance" not in engineering["required"]
         assert "server derives guidance" in engineering["properties"]["applicabilityGuidance"]["description"]
+        assert "legalIntent" not in engineering["required"]
+        assert "unresolvedConditions" not in engineering["required"]
+        assert "zero-based index" in engineering["properties"]["unresolvedConditionBindings"]["description"]
+        assert "directed context dependency" in engineering["properties"]["contextRelationIds"]["description"]
         criterion = engineering["properties"]["criteria"]["items"]
         assert "statement" not in criterion["required"]
         assert "Required for new authoring" in criterion["properties"]["legalRequirementIds"]["description"]

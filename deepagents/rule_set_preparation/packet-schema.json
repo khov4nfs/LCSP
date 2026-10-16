@@ -239,9 +239,55 @@
                 "maxLength": 512
               },
               "legalIntent": {
+                "description": "Omit. Server derives intent from linked parent propositions; supplied contradictions return APPLICABILITY_BINDING_MISMATCH.",
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 8000
+                "minLength": 1
+              },
+              "contextRelationIds": {
+                "description": "Canonical inherited directed context dependency IDs, including incorporation. Omit to derive; supplied omissions or reversals return APPLICABILITY_BINDING_MISMATCH.",
+                "maxItems": 20000,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                }
+              },
+              "unresolvedConditionBindings": {
+                "description": "Select parent context facts that require external/customer evidence using stable requirement ID, field and zero-based index. The server renders unresolvedConditions from these facts; no independently paraphrased actor, trigger, qualifier or exception.",
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "legalRequirementId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                    },
+                    "field": {
+                      "type": "string",
+                      "enum": [
+                        "APPLICABILITY_CONDITION",
+                        "QUALIFIER",
+                        "EXCEPTION"
+                      ]
+                    },
+                    "index": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "legalRequirementId",
+                    "field",
+                    "index"
+                  ],
+                  "additionalProperties": false
+                }
               },
               "applicabilityGuidance": {
                 "description": "Omit this field. The server derives guidance from all linked legalRequirementIds, preserving their actors, direction, conditions, qualifiers and exceptions. Supplied text must equal that canonical rendering or returns APPLICABILITY_BINDING_MISMATCH; it is never silently replaced.",
@@ -458,13 +504,12 @@
                 }
               },
               "unresolvedConditions": {
-                "description": "Applicability conditions that repository evidence cannot establish, phrased as customer-answerable facts (never as a legal verdict).",
+                "description": "Omit. Select unresolvedConditionBindings instead; server renders the exact parent facts. An empty binding list means no separate unresolved facts, not unconditional applicability; complete parent context remains mandatory.",
                 "maxItems": 64,
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "minLength": 1,
-                  "maxLength": 512
+                  "minLength": 1
                 }
               },
               "sourceRefs": {
@@ -503,7 +548,6 @@
               "assessmentRuleId",
               "legalRequirementIds",
               "concept",
-              "legalIntent",
               "criteria",
               "investigationGoals",
               "startingNodeTypes",
@@ -517,7 +561,6 @@
               "requiredEvidence",
               "supportingEvidence",
               "negativeEvidence",
-              "unresolvedConditions",
               "sourceRefs"
             ],
             "additionalProperties": false

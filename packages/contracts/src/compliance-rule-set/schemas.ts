@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { deriveAssessmentApplicabilityGuidance } from "./applicability.ts";
+import {
+  deriveAssessmentApplicabilityGuidance,
+  assessmentSemanticContext,
+  deriveAssessmentLegalIntent,
+  resolveAssessmentContextBinding,
+} from "./applicability.ts";
 
 import {
   agentExecutionStateSchema,
@@ -10,6 +15,7 @@ import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   LEGAL_OPERATIVE_MODALITIES,
+  LEGAL_REQUIREMENT_CONTEXT_FIELDS,
   COMPLIANCE_RULE_SET_FAILURE_CODES,
   COMPLIANCE_RULE_SET_LIMITS,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES,
@@ -43,6 +49,10 @@ const textSchema = z
   .max(COMPLIANCE_RULE_SET_LIMITS.maxTextLength);
 const shortTextListSchema = z
   .array(shortTextSchema)
+  .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems);
+// Parent text is already bounded; rendering its binding identity must not truncate that text.
+const derivedTextListSchema = z
+  .array(z.string().trim().min(1))
   .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems);
 /** Raw hex digest computed by the server (rule set digest, source fingerprint). */
 const sha256Schema = z.string().regex(SHA256_PATTERN);
@@ -223,7 +233,35 @@ export const assessmentRuleSchema = z
         "LegalRequirement IDs covered by this AssessmentRule; never reference a LegalRequirement declared NON_ASSESSABLE.",
       ),
     concept: shortTextSchema,
-    legalIntent: textSchema,
+    legalIntent: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        "Canonical intent from linked parent propositions; not independently reinterpreted.",
+      ),
+    contextRelationIds: z
+      .array(idSchema)
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxContextRelations)
+      .optional()
+      .describe(
+        "Canonical inherited directed context dependency IDs, including incorporation. Omit to derive; supplied omissions or reversals return APPLICABILITY_BINDING_MISMATCH.",
+      ),
+    unresolvedConditionBindings: z
+      .array(
+        z
+          .object({
+            legalRequirementId: idSchema,
+            field: z.enum(LEGAL_REQUIREMENT_CONTEXT_FIELDS),
+            index: z.number().int().min(0),
+          })
+          .strict(),
+      )
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems)
+      .optional()
+      .describe(
+        "Select parent context facts that require external/customer evidence using stable requirement ID, field and zero-based index. The server renders unresolvedConditions from these facts; no independently paraphrased actor, trigger, qualifier or exception.",
+      ),
     // Derived output is bounded by its parent fields, not a second lossy text cap.
     applicabilityGuidance: z
       .string()
@@ -250,7 +288,7 @@ export const assessmentRuleSchema = z
     requiredEvidence: shortTextListSchema,
     supportingEvidence: shortTextListSchema,
     negativeEvidence: shortTextListSchema,
-    unresolvedConditions: shortTextListSchema.describe(
+    unresolvedConditions: derivedTextListSchema.describe(
       "Applicability conditions that repository evidence cannot establish, phrased as customer-answerable facts (never as a legal verdict).",
     ),
     sourceRefs: sourceRefListSchema,
@@ -259,6 +297,19 @@ export const assessmentRuleSchema = z
 export type AssessmentRuleInput = z.infer<typeof assessmentRuleSchema>;
 
 const assessmentRuleAuthoringSchema = assessmentRuleSchema.extend({
+  legalIntent: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      "Omit. Server derives intent from linked parent propositions; supplied contradictions return APPLICABILITY_BINDING_MISMATCH.",
+    ),
+  unresolvedConditions: derivedTextListSchema
+    .optional()
+    .describe(
+      "Omit. Select unresolvedConditionBindings instead; server renders the exact parent facts. An empty binding list means no separate unresolved facts, not unconditional applicability; complete parent context remains mandatory.",
+    ),
   criteria: z
     .array(
       assessmentRuleCriterionSchema.extend({
@@ -384,6 +435,38 @@ export const complianceRuleSetPacketSchema = z
       ...packet,
       assessmentRules: packet.assessmentRules.map((rule) => ({
         ...rule,
+        legalIntent:
+          rule.legalIntent ??
+          deriveAssessmentLegalIntent(
+            packet.legalRequirements.filter((parent) =>
+              rule.legalRequirementIds.includes(parent.legalRequirementId),
+            ),
+          ),
+        contextRelationIds:
+          rule.contextRelationIds ??
+          assessmentSemanticContext(
+            packet.legalRequirements.filter((parent) =>
+              rule.legalRequirementIds.includes(parent.legalRequirementId),
+            ),
+            packet.contextRelations,
+            packet.legalRequirements,
+          ).relations.map((edge) => edge.relationId),
+        unresolvedConditions:
+          rule.unresolvedConditions ??
+          (rule.unresolvedConditionBindings ?? []).flatMap((binding) => {
+            const context = assessmentSemanticContext(
+              packet.legalRequirements.filter((parent) =>
+                rule.legalRequirementIds.includes(parent.legalRequirementId),
+              ),
+              packet.contextRelations,
+              packet.legalRequirements,
+            );
+            const value = resolveAssessmentContextBinding(
+              binding,
+              context.requirements,
+            );
+            return value === null ? [] : [value];
+          }),
         criteria: rule.criteria.map((criterion) => ({
           ...criterion,
           statement:
@@ -395,6 +478,8 @@ export const complianceRuleSetPacketSchema = z
                 );
                 return parent ? [parent] : [];
               }),
+              packet.contextRelations,
+              packet.legalRequirements,
             ),
         })),
         applicabilityGuidance:
@@ -406,6 +491,8 @@ export const complianceRuleSetPacketSchema = z
               );
               return parent ? [parent] : [];
             }),
+            packet.contextRelations,
+            packet.legalRequirements,
           ),
       })),
     }),
