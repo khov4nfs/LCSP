@@ -1,3 +1,5 @@
+# LCSP-359: keep routine version updates small enough for meaningful human review.
+# Security updates remain enabled; framework/runtime majors are explicit migration work.
 version: 2
 
 updates:
