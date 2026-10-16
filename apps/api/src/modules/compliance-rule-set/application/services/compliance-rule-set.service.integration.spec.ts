@@ -332,12 +332,26 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     parent.applicabilityConditions = [
       "Organization A delegates fulfillment to Organization B, which performs on behalf of A without releasing A",
     ];
+    parent.qualifiers = [
+      "Only actions intended to prevent the defined transfer",
+    ];
+    parent.exceptions = [
+      "Only while a documented specific security threat exists",
+    ];
+    packet.assessmentRules[0].criteria[0].investigationFocus =
+      "Repository billing endpoint only";
     const input = {
       ...packet,
       assessmentRules: packet.assessmentRules.map(
         ({ applicabilityGuidance, ...rule }) => {
           void applicabilityGuidance;
-          return rule;
+          return {
+            ...rule,
+            criteria: rule.criteria.map(({ statement, ...criterion }) => {
+              void statement;
+              return criterion;
+            }),
+          };
         },
       ),
     };
@@ -351,6 +365,14 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     });
     const expected = deriveAssessmentApplicabilityGuidance([parent]);
     expect(stored.applicabilityGuidance).toBe(expected);
+    expect(stored.criteria).toEqual([
+      {
+        criterionId: "C-1",
+        legalRequirementIds: [parent.legalRequirementId],
+        statement: expected,
+        investigationFocus: "Repository billing endpoint only",
+      },
+    ]);
     expect(
       (stored.contract as Record<string, unknown>).applicabilityGuidance,
     ).toBe(expected);
@@ -359,6 +381,10 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       read.assessmentRules.find((rule) => rule.assessmentRuleId === "ER-DEF")
         ?.applicabilityGuidance,
     ).toBe(expected);
+    expect(
+      read.assessmentRules.find((rule) => rule.assessmentRuleId === "ER-DEF")
+        ?.criteria,
+    ).toEqual(stored.criteria);
   });
 
   it("reports contradictory downstream guidance as a deterministic gap before canonical submission", async () => {

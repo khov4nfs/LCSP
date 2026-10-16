@@ -90,6 +90,17 @@ of the legal reading is your responsibility alone.
    condition keeps its subject and recipient; operational fulfillment does not by itself transfer
    legal responsibility. Preserve these distinctions in the parent source-grounded actor/action and
    applicability conditions, and in all derived criteria, intent and evidence guidance.
+   Each criterion must explicitly name its parent `legalRequirementIds` (a subset of the
+   AssessmentRule's parent IDs); collectively the criteria must bind every claimed parent.
+   Omit criterion `statement`: the server derives it from those complete parent propositions,
+   including purpose/object restrictions embedded in an action, conditions, qualifiers and
+   exceptions. Supplied statements that broaden or otherwise differ from those bindings return
+   `APPLICABILITY_BINDING_MISMATCH`; remove the statement and validate again. Do not independently
+   rewrite a qualified prohibition as an unqualified one. Use optional `investigationFocus` for
+   a narrower technical evidence slice; it does not replace the inherited legal predicate.
+   Semantic aggregation and several focused criteria per parent remain allowed. Evidence guidance
+   must remain evidence strategy under the inherited predicate, not introduce a different duty,
+   permission, cost threshold or exception. Preserve limiting purpose and scope in evidence plans.
 5. Represent duties that a repository cannot establish (organizational, document, in-person or
    external duties) as LegalRequirements with `nonRepositoryDuty: true`. If no AssessmentRule can
    assess it, set `coverage.state` to `NON_ASSESSABLE` and give a source-grounded
@@ -361,8 +372,8 @@ when coverage is `COVERED_BY_ASSESSMENT_RULES`; never omit those keys. Use `[]` 
   }],
   "assessmentRules": [{
     "assessmentRuleId": "ER-…", "legalRequirementIds": ["LR-…"],
-    "concept": "…", "legalIntent": "…", "applicabilityGuidance": "…",
-    "criteria": [{"criterionId": "C-1", "statement": "…"}],
+    "concept": "…", "legalIntent": "…",
+    "criteria": [{"criterionId": "C-1", "legalRequirementIds": ["LR-…"], "investigationFocus": "…"}],
     "investigationGoals": ["…"], "startingNodeTypes": [], "targetNodeTypes": [],
     "edgeStrategies": [], "graphQueries": [], "keywords": [], "commonApis": [],
     "commonLibraries": [], "patterns": [], "requiredEvidence": ["…"],

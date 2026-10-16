@@ -1,5 +1,20 @@
 # Operative source accounting
 
+## Parent-bound assessment criteria
+
+New AssessmentRule criteria explicitly bind `legalRequirementIds`, restricted to their rule's
+parents; collectively they represent all claimed parents. Omit `statement` when authoring:
+the server derives the complete parent normative predicate using the same renderer as
+applicability guidance. Purpose or object restrictions embedded in an operative action are
+retained along with conditions, qualifiers and exceptions. Contradictory supplied statements,
+missing bindings and foreign parent IDs return `APPLICABILITY_BINDING_MISMATCH`.
+
+Optional `investigationFocus` selects a narrower technical evidence surface without replacing
+the inherited legal predicate. Several focused criteria may bind the same parent, and one
+criterion may aggregate several parents. The Gate checks references and canonical rendering;
+it does not infer legal importance from raw source text or interpret evidence prose. Historical
+stored criterion contracts remain readable without rewriting their statements or digests.
+
 The Agent owns legal interpretation. A resolved citation proves provenance, not representation of an operative proposition. New Rule Set authoring must supply `operativePropositions` on every LegalRequirement, including NON_ASSESSABLE non-repository duties. Each proposition declares the source's actor, modality (DUTY, PROHIBITION, PERMISSION), action with object/scope, and exact source bindings. Related propositions and multiple provisions may remain aggregated in one requirement.
 
 The deterministic validator resolves all identities/hashes as before, but coverage is discharged only by explicit operative bindings or typed context relations attached to operative requirements. AssessmentRule citations and extra requirement citations do not independently discharge source coverage. An ancestor reference no longer automatically covers its leaf descendants. Definitions, conditions, timing, exceptions and incorporated references use the existing relation model. Incorporation into an independently operative requirement uses CROSS_REFERENCE to that target requirement and must retain its operative meaning in the Agent-authored text and assessment guidance.

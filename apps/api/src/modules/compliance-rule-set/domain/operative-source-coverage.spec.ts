@@ -77,12 +77,17 @@ describe("operative source accounting", () => {
     for (const relation of packet.contextRelations)
       if (relation.fromLegalRequirementId === prohibition.legalRequirementId)
         relation.fromLegalRequirementId = direct.legalRequirementId;
-    for (const rule of packet.assessmentRules)
+    for (const rule of packet.assessmentRules) {
       rule.applicabilityGuidance = deriveAssessmentApplicabilityGuidance(
         packet.legalRequirements.filter((parent) =>
           rule.legalRequirementIds.includes(parent.legalRequirementId),
         ),
       );
+      for (const criterion of rule.criteria) {
+        criterion.legalRequirementIds = [...rule.legalRequirementIds];
+        criterion.statement = rule.applicabilityGuidance;
+      }
+    }
     expect(validate(packet)).toEqual([]);
     expect(packet.legalRequirements.length).toBeLessThan(
       semanticStressSource().chunks.length,

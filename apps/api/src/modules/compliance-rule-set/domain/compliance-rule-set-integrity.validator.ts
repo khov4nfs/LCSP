@@ -146,7 +146,27 @@ export function validateComplianceRuleSetPacket(
     }
     assessmentRuleIds.add(rule.assessmentRuleId);
     const criterionIds = new Set<string>();
+    const criterionParentIds = new Set<string>();
     for (const criterion of rule.criteria) {
+      const ids = criterion.legalRequirementIds ?? [];
+      const boundParents = ids.flatMap((id) => {
+        const parent = parents.find((item) => item.legalRequirementId === id);
+        return parent ? [parent] : [];
+      });
+      if (
+        ids.length === 0 ||
+        new Set(ids).size !== ids.length ||
+        boundParents.length !== ids.length ||
+        criterion.statement !==
+          deriveAssessmentApplicabilityGuidance(boundParents)
+      ) {
+        fail(
+          COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
+          `assessmentRule:${rule.assessmentRuleId}|criterion:${criterion.criterionId}`,
+          "criterion must bind existing parent legalRequirementIds and retain their complete normative predicate, scope, conditions and exceptions; omit statement for canonical rendering and use investigationFocus only for a narrower evidence strategy",
+        );
+      }
+      for (const id of ids) criterionParentIds.add(id);
       if (criterionIds.has(criterion.criterionId)) {
         fail(
           COMPLIANCE_RULE_SET_FAILURE_CODES.DUPLICATE_ASSESSMENT_RULE_ID,
@@ -155,6 +175,14 @@ export function validateComplianceRuleSetPacket(
         );
       }
       criterionIds.add(criterion.criterionId);
+    }
+    for (const id of rule.legalRequirementIds) {
+      if (!criterionParentIds.has(id))
+        fail(
+          COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
+          `assessmentRule:${rule.assessmentRuleId}`,
+          `parent ${id} is not bound by any criterion; bind each claimed parent without replacing its normative predicate`,
+        );
     }
   }
   const relationIds = new Set<string>();

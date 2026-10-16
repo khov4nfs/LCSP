@@ -225,6 +225,10 @@ export function semanticStressPacket(): ComplianceRuleSetPacket {
         rule.legalRequirementIds.includes(parent.legalRequirementId),
       ),
     );
+    for (const criterion of rule.criteria) {
+      criterion.legalRequirementIds = [...rule.legalRequirementIds];
+      criterion.statement = rule.applicabilityGuidance;
+    }
   }
   return packet;
 }

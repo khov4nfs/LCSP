@@ -186,7 +186,27 @@ export const engineeringGraphQuerySchema = z
 export const assessmentRuleCriterionSchema = z
   .object({
     criterionId: idSchema,
-    statement: textSchema,
+    // Optional only for historical read models; the Gate requires explicit bindings for new authoring.
+    legalRequirementIds: z
+      .array(idSchema)
+      .min(1)
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems)
+      .optional()
+      .describe(
+        "Required for new authoring: parent LegalRequirement IDs whose complete normative propositions this criterion evaluates. Must be a subset of the AssessmentRule legalRequirementIds. All parent scope, purpose, conditions and exceptions are inherited; never independently rewrite a broader obligation.",
+      ),
+    statement: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        "Canonical normative statement derived from this criterion's legalRequirementIds, including the complete parent predicate and its limits. Not an independently authored technical obligation.",
+      ),
+    investigationFocus: textSchema
+      .optional()
+      .describe(
+        "Optional narrower evidence focus within the inherited normative statement, such as one storage surface or control. An investigation strategy, never a replacement legal predicate or a new obligation, exception or threshold.",
+      ),
   })
   .strict();
 
@@ -239,6 +259,21 @@ export const assessmentRuleSchema = z
 export type AssessmentRuleInput = z.infer<typeof assessmentRuleSchema>;
 
 const assessmentRuleAuthoringSchema = assessmentRuleSchema.extend({
+  criteria: z
+    .array(
+      assessmentRuleCriterionSchema.extend({
+        statement: z
+          .string()
+          .trim()
+          .min(1)
+          .optional()
+          .describe(
+            "Omit this field. The server derives the complete normative statement from this criterion's legalRequirementIds, retaining purpose/scope restrictions, conditions and exceptions. Supplied text must equal that rendering or returns APPLICABILITY_BINDING_MISMATCH. Put a narrower technical evidence focus in investigationFocus.",
+          ),
+      }),
+    )
+    .min(1)
+    .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems),
   applicabilityGuidance: z
     .string()
     .trim()
@@ -349,6 +384,19 @@ export const complianceRuleSetPacketSchema = z
       ...packet,
       assessmentRules: packet.assessmentRules.map((rule) => ({
         ...rule,
+        criteria: rule.criteria.map((criterion) => ({
+          ...criterion,
+          statement:
+            criterion.statement ??
+            deriveAssessmentApplicabilityGuidance(
+              (criterion.legalRequirementIds ?? []).flatMap((id) => {
+                const parent = packet.legalRequirements.find(
+                  (item) => item.legalRequirementId === id,
+                );
+                return parent ? [parent] : [];
+              }),
+            ),
+        })),
         applicabilityGuidance:
           rule.applicabilityGuidance ??
           deriveAssessmentApplicabilityGuidance(

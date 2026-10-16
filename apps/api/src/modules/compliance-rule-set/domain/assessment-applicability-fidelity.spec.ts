@@ -36,12 +36,15 @@ function delegationPacket() {
     toLegalRequirementId: owner.legalRequirementId,
     toSourceRef: null,
   });
-  for (const rule of packet.assessmentRules)
+  for (const rule of packet.assessmentRules) {
     rule.applicabilityGuidance = deriveAssessmentApplicabilityGuidance(
       packet.legalRequirements.filter((parent) =>
         rule.legalRequirementIds.includes(parent.legalRequirementId),
       ),
     );
+    for (const criterion of rule.criteria)
+      criterion.statement = rule.applicabilityGuidance;
+  }
   return packet;
 }
 const failures = (packet: ReturnType<typeof validPacket>) =>
@@ -52,7 +55,13 @@ const omitGuidance = (packet: ReturnType<typeof validPacket>) => ({
   assessmentRules: packet.assessmentRules.map(
     ({ applicabilityGuidance, ...rule }) => {
       void applicabilityGuidance;
-      return rule;
+      return {
+        ...rule,
+        criteria: rule.criteria.map(({ statement, ...criterion }) => {
+          void statement;
+          return criterion;
+        }),
+      };
     },
   ),
 });

@@ -261,15 +261,32 @@
                       "maxLength": 128,
                       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
                     },
+                    "legalRequirementIds": {
+                      "description": "Required for new authoring: parent LegalRequirement IDs whose complete normative propositions this criterion evaluates. Must be a subset of the AssessmentRule legalRequirementIds. All parent scope, purpose, conditions and exceptions are inherited; never independently rewrite a broader obligation.",
+                      "minItems": 1,
+                      "maxItems": 64,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                      }
+                    },
                     "statement": {
+                      "description": "Omit this field. The server derives the complete normative statement from this criterion's legalRequirementIds, retaining purpose/scope restrictions, conditions and exceptions. Supplied text must equal that rendering or returns APPLICABILITY_BINDING_MISMATCH. Put a narrower technical evidence focus in investigationFocus.",
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "investigationFocus": {
+                      "description": "Optional narrower evidence focus within the inherited normative statement, such as one storage surface or control. An investigation strategy, never a replacement legal predicate or a new obligation, exception or threshold.",
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 8000
                     }
                   },
                   "required": [
-                    "criterionId",
-                    "statement"
+                    "criterionId"
                   ],
                   "additionalProperties": false
                 }

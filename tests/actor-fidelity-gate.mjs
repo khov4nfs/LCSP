@@ -78,7 +78,13 @@ print(json.dumps(result))
     assessmentRules: packet.assessmentRules.map(
       ({ applicabilityGuidance, ...rule }) => {
         void applicabilityGuidance;
-        return rule;
+        return {
+          ...rule,
+          criteria: rule.criteria.map(({ statement, ...criterion }) => {
+            void statement;
+            return criterion;
+          }),
+        };
       },
     ),
   };
