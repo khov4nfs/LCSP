@@ -1123,27 +1123,29 @@ model RuleSetPreparationRun {
 }
 
 model ComplianceRuleSetVersion {
-  id                      String                              @id @default(uuid())
-  version                 String                              @unique
+  id                      String                                @id @default(uuid())
+  version                 String                                @unique
   legalSourceVersionId    String
-  preparationRunId        String                              @unique
-  lifecycleState          ArtifactLifecycleState              @default(BUILDING)
+  preparationRunId        String                                @unique
+  lifecycleState          ArtifactLifecycleState                @default(BUILDING)
   ruleSetDigest           String
   validationOutcome       ComplianceRuleSetValidationOutcome?
-  validationFailures      Json                                @default("[]")
-  createdAt               DateTime                            @default(now())
+  validationFailures      Json                                  @default("[]")
+  createdAt               DateTime                              @default(now())
   validatedAt             DateTime?
   activatedAt             DateTime?
   supersededAt            DateTime?
-  legalSourceVersion      LegalSourceVersion                  @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
-  preparationRun          RuleSetPreparationRun               @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
+  legalSourceVersion      LegalSourceVersion                    @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict)
+  preparationRun          RuleSetPreparationRun                 @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
   rules                   LegalRequirement[]
   assessmentRules         AssessmentRule[]
   provenance              LegalRequirementProvenance[]
   contextRelations        LegalRequirementContextRelation[]
-  activation              ComplianceRuleSetActivationRecord?  @relation("ActivationTarget")
-  supersededByActivations ComplianceRuleSetActivationRecord[] @relation("ActivationPrevious")
+  activation              ComplianceRuleSetActivationRecord?    @relation("ActivationTarget")
+  supersededByActivations ComplianceRuleSetActivationRecord[]   @relation("ActivationPrevious")
   assessmentCases         AssessmentCase[]
+  reactivationsAsTarget   ComplianceRuleSetReactivationRecord[] @relation("ReactivationTarget")
+  reactivationsAsPrevious ComplianceRuleSetReactivationRecord[] @relation("ReactivationPrevious")
 
   // Lets child rows prove they share the rule set's legal source version (composite FK).
   @@unique([id, legalSourceVersionId])
@@ -1271,6 +1273,35 @@ model ComplianceRuleSetActivationRecord {
   preparationRun                 RuleSetPreparationRun              @relation(fields: [preparationRunId], references: [id], onDelete: Restrict)
 
   @@index([previousActiveRuleSetVersionId])
+}
+
+enum RuleSetReactivationReason {
+  SEMANTIC_AUTHORITY_CONTAINMENT
+}
+
+// Repeated authority transitions are distinct from the original Preparation acceptance.
+model ComplianceRuleSetReactivationRecord {
+  id                         String                    @id @default(uuid())
+  targetRuleSetVersionId     String
+  previousRuleSetVersionId   String
+  targetRuleSetDigest        String
+  previousRuleSetDigest      String
+  targetPreviousActivatedAt  DateTime
+  targetPreviousSupersededAt DateTime
+  previousActiveActivatedAt  DateTime
+  actorId                    String
+  reason                     RuleSetReactivationReason
+  idempotencyKey             String                    @unique
+  requestDigest              String
+  correlationId              String
+  auditEventId               String                    @unique
+  outboxEventId              String                    @unique
+  createdAt                  DateTime                  @default(now())
+  target                     ComplianceRuleSetVersion  @relation("ReactivationTarget", fields: [targetRuleSetVersionId], references: [id], onDelete: Restrict, map: "CRSReactivation_target_fkey")
+  previous                   ComplianceRuleSetVersion  @relation("ReactivationPrevious", fields: [previousRuleSetVersionId], references: [id], onDelete: Restrict, map: "CRSReactivation_previous_fkey")
+
+  @@index([targetRuleSetVersionId, createdAt], map: "CRSReactivation_target_created_idx")
+  @@index([previousRuleSetVersionId], map: "CRSReactivation_previous_idx")
 }
 
 // ---------------------------------------------------------------------------------------------

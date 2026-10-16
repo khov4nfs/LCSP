@@ -23,6 +23,7 @@ import { ComplianceRuleSetReadModelLoader } from "./infrastructure/persistence/c
 import { LegalSourceActivatedConsumer } from "./infrastructure/messaging/legal-source-activated.consumer.js";
 import { ComplianceRuleSetController } from "./presentation/http/compliance-rule-set.controller.js";
 import { AgentServerPreparationControl } from "./infrastructure/runtime/agent-server-preparation-control.js";
+import { ReactivateComplianceRuleSetHandler } from "./application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.handler.js";
 
 /**
  * Source activation and an explicit Admin action start Rule Set Preparation; only a validated
@@ -36,6 +37,7 @@ import { AgentServerPreparationControl } from "./infrastructure/runtime/agent-se
     ListComplianceRuleSetHistoryHandler,
     ComplianceRuleSetHistoryLoader,
     ComplianceRuleSetActivation,
+    ReactivateComplianceRuleSetHandler,
     ComplianceRuleSetReadModelLoader,
     StartRuleSetPreparationHandler,
     PrepareCurrentRuleSetHandler,

@@ -136,6 +136,7 @@ export function ruleSetPreparationIdempotencyKey(
 export const COMPLIANCE_RULE_SET_EVENT_TYPES = {
   preparationRequested: "command.compliance-rule-set.preparation.requested.v1",
   ruleSetActivated: "event.compliance-rule-set.activated.v1",
+  ruleSetReactivated: "event.compliance-rule-set.reactivated.v1",
   ruleSetValidationFailed: "event.compliance-rule-set.validation-failed.v1",
 } as const;
 

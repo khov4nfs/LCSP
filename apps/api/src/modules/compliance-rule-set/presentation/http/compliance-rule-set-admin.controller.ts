@@ -15,6 +15,9 @@ import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  RULE_SET_REACTIVATION_ERROR_CODES,
+  complianceRuleSetReactivationRequestSchema,
+  type ComplianceRuleSetReactivationRequest,
   ruleSetPreparationAdminRequestSchema,
   type RuleSetPreparationAdminRequest,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -28,6 +31,7 @@ import { GetComplianceRuleSetResultQuery } from "../../application/queries/get-c
 import { ListComplianceRuleSetHistoryQuery } from "../../application/queries/list-compliance-rule-set-history/list-compliance-rule-set-history.query.js";
 import { PrepareCurrentRuleSetCommand } from "../../application/commands/prepare-current-rule-set/prepare-current-rule-set.command.js";
 import { CancelRuleSetPreparationCommand } from "../../application/commands/cancel-rule-set-preparation/cancel-rule-set-preparation.command.js";
+import { ReactivateComplianceRuleSetCommand } from "../../application/commands/reactivate-compliance-rule-set/reactivate-compliance-rule-set.command.js";
 
 /**
  * Operations view of the shared Compliance Rule Sets. Preparation starts automatically with a
@@ -119,6 +123,32 @@ export class ComplianceRuleSetAdminController {
           req.correlationId || randomUUID(),
           request.replaceActive === true,
           request.legalSourceVersionId,
+        ),
+      )
+      .then(resultEnvelope);
+  }
+
+  @Post(":ruleSetVersionId/reactivate")
+  @HttpCode(HttpStatus.OK)
+  reactivate(
+    @Param("ruleSetVersionId", new ParseUUIDPipe())
+    targetRuleSetVersionId: string,
+    @Body(
+      new ZodValidationPipe(
+        complianceRuleSetReactivationRequestSchema,
+        RULE_SET_REACTIVATION_ERROR_CODES.REQUEST_INVALID,
+      ),
+    )
+    request: ComplianceRuleSetReactivationRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.commands
+      .execute(
+        new ReactivateComplianceRuleSetCommand(
+          targetRuleSetVersionId,
+          request,
+          req.rbacContext.userId,
+          req.correlationId || randomUUID(),
         ),
       )
       .then(resultEnvelope);
