@@ -19,7 +19,7 @@ jobs:
     name: Require Jira issue key
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Validate Jira issue key, link Jira issues, prefill Summary/Test plan, and close comment
         uses: actions/github-script@v9
