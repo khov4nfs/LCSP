@@ -312,6 +312,28 @@ def test_operative_coverage_gaps_reject_completion_and_keep_canonical_no_progres
     assert "submit" not in api.names()
 
 
+def test_actor_binding_mismatch_rejects_gate_before_persistence() -> None:
+    class ActorBindingApi(FakeApi):
+        def validate_compliance_rule_set(self, run_id, packet):
+            self.calls.append(("validate", (run_id, packet)))
+            return {"outcome": "FAILED", "failures": [{
+                "code": "APPLICABILITY_BINDING_MISMATCH",
+                "ref": "assessmentRule:ER-DELEGATE",
+                "detail": "Omit independently authored guidance; derive it from parent bindings",
+            }]}
+
+    api = ActorBindingApi()
+    context = RuleSetPreparationContext(RUN_ID, api)
+    submit = next(t for t in build_rule_set_tools(context) if t.name == "submit_compliance_rule_set")
+    packet = _packet()
+    packet["assessmentRules"][0]["applicabilityGuidance"] = "The fulfillment actor delegates to the obligation holder"
+    rejected = json.loads(submit.invoke({"packet": packet}))
+    assert rejected["completionClaim"] == "REJECTED"
+    assert rejected["gaps"]["failures"][0]["code"] == "APPLICABILITY_BINDING_MISMATCH"
+    assert context.submission is None
+    assert api.names() == ["validate"]
+
+
 @pytest.mark.parametrize("gives_up_with_source_blocked", [False, True])
 def test_validation_failed_then_normal_stop_is_observable_and_not_terminal(
     tmp_path: Path, gives_up_with_source_blocked: bool

@@ -2,6 +2,7 @@ import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   LEGAL_OPERATIVE_MODALITIES,
+  deriveAssessmentApplicabilityGuidance,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSourceRef,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -173,7 +174,7 @@ function assessmentRule(
 
 /** A complete packet: every leaf provision cited, one non-repository duty, one context relation. */
 export function validPacket(): ComplianceRuleSetPacket {
-  return {
+  const packet: ComplianceRuleSetPacket = {
     legalRequirements: [
       legalRequirement("LR-DEF", ["art-1::cl-1"]),
       legalRequirement("LR-RET", ["art-5::cl-1::pt-a", "art-5::cl-1::pt-b"]),
@@ -207,6 +208,14 @@ export function validPacket(): ComplianceRuleSetPacket {
       },
     ],
   };
+  for (const rule of packet.assessmentRules) {
+    rule.applicabilityGuidance = deriveAssessmentApplicabilityGuidance(
+      packet.legalRequirements.filter((parent) =>
+        rule.legalRequirementIds.includes(parent.legalRequirementId),
+      ),
+    );
+  }
+  return packet;
 }
 
 export const FIXTURE_LEAVES = LEAVES;

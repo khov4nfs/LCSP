@@ -292,7 +292,9 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
         assert "NON_ASSESSABLE requires none" in coverage["properties"]["state"]["description"]
         engineering = packet["properties"]["assessmentRules"]["items"]
         assert "never reference a LegalRequirement declared NON_ASSESSABLE" in engineering["properties"]["legalRequirementIds"]["description"]
-        assert {"assessmentRuleId", "criteria", "applicabilityGuidance", "supportingEvidence", "sourceRefs"} <= set(engineering["required"])
+        assert {"assessmentRuleId", "criteria", "supportingEvidence", "sourceRefs"} <= set(engineering["required"])
+        assert "applicabilityGuidance" not in engineering["required"]
+        assert "server derives guidance" in engineering["properties"]["applicabilityGuidance"]["description"]
         relation = packet["properties"]["contextRelations"]["items"]
         assert {"toLegalRequirementId", "toSourceRef"} <= set(relation["required"])
         assert "independently operative LegalRequirement only" in relation["properties"]["toLegalRequirementId"]["description"]
@@ -1071,4 +1073,5 @@ def test_the_model_facing_packet_schema_explains_what_a_good_applicability_condi
     assert "unpack those criteria" in requirement["applicabilityConditions"]["description"]
     assert "at least one" in requirement["applicabilityConditions"]["description"]
     assert "facts" in rule["unresolvedConditions"]["description"]
-    assert "never just restate the actor or category label" in rule["applicabilityGuidance"]["description"].lower()
+    assert "linked legalrequirementids" in rule["applicabilityGuidance"]["description"].lower()
+    assert "APPLICABILITY_BINDING_MISMATCH" in rule["applicabilityGuidance"]["description"]

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { deriveAssessmentApplicabilityGuidance } from "./applicability.ts";
 
 import {
   agentExecutionStateSchema,
@@ -203,9 +204,14 @@ export const assessmentRuleSchema = z
       ),
     concept: shortTextSchema,
     legalIntent: textSchema,
-    applicabilityGuidance: textSchema.describe(
-      "How an assessor establishes or refutes each applicability condition and exception of the linked requirements from evidence; name the observable facts, not the conclusion. Never just restate the actor or category label.",
-    ),
+    // Derived output is bounded by its parent fields, not a second lossy text cap.
+    applicabilityGuidance: z
+      .string()
+      .trim()
+      .min(1)
+      .describe(
+        "Canonical rendering of linked LegalRequirement actor/action/condition/qualifier/exception bindings; never independently paraphrased. Evidence strategy belongs in investigationGoals and evidence fields.",
+      ),
     criteria: z
       .array(assessmentRuleCriterionSchema)
       .min(1)
@@ -231,6 +237,17 @@ export const assessmentRuleSchema = z
   })
   .strict();
 export type AssessmentRuleInput = z.infer<typeof assessmentRuleSchema>;
+
+const assessmentRuleAuthoringSchema = assessmentRuleSchema.extend({
+  applicabilityGuidance: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      "Omit this field. The server derives guidance from all linked legalRequirementIds, preserving their actors, direction, conditions, qualifiers and exceptions. Supplied text must equal that canonical rendering or returns APPLICABILITY_BINDING_MISMATCH; it is never silently replaced.",
+    ),
+});
 
 /** Relationship meaning between a rule and its context (definition, scope, qualifier, exception, cross-reference). */
 export const legalContextRelationSchema = z
@@ -272,7 +289,7 @@ export const complianceRuleSetPacketSchema = z
         "Operative duties, prohibitions or permissions only. Context-only definitions, scope, exceptions and interpretive cross-references belong in contextRelations with toSourceRef, not standalone LegalRequirements. Source coverage does not require a LegalRequirement for every provision.",
       ),
     assessmentRules: z
-      .array(assessmentRuleSchema)
+      .array(assessmentRuleAuthoringSchema)
       .max(COMPLIANCE_RULE_SET_LIMITS.maxAssessmentRules),
     contextRelations: z
       .array(legalContextRelationSchema)
@@ -320,7 +337,31 @@ export const complianceRuleSetPacketSchema = z
         });
       }
     });
-  });
+  })
+  .transform(
+    (
+      packet,
+    ): {
+      legalRequirements: LegalRequirementInput[];
+      assessmentRules: AssessmentRuleInput[];
+      contextRelations: LegalContextRelationInput[];
+    } => ({
+      ...packet,
+      assessmentRules: packet.assessmentRules.map((rule) => ({
+        ...rule,
+        applicabilityGuidance:
+          rule.applicabilityGuidance ??
+          deriveAssessmentApplicabilityGuidance(
+            rule.legalRequirementIds.flatMap((id) => {
+              const parent = packet.legalRequirements.find(
+                (item) => item.legalRequirementId === id,
+              );
+              return parent ? [parent] : [];
+            }),
+          ),
+      })),
+    }),
+  );
 export type ComplianceRuleSetPacket = z.infer<
   typeof complianceRuleSetPacketSchema
 >;

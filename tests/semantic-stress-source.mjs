@@ -36,8 +36,12 @@ assert(
 );
 assert.deepEqual(
   control.legalSource.provisions.map((p) => p.locator),
-  Array.from({ length: 7 }, (_, i) => `SEM-00${i + 1}`),
+  Array.from(
+    { length: control.legalSource.provisions.length },
+    (_, i) => `SEM-00${i + 1}`,
+  ),
 );
+assert([7, 8].includes(control.legalSource.provisions.length));
 const prisma = new PrismaService();
 const audit = new AuditWriterService(prisma);
 const outbox = new OutboxRepository(prisma);
@@ -147,10 +151,16 @@ try {
       where: { legalSourceVersionId: version.id },
       orderBy: { locator: "asc" },
     });
-    assert.equal(chunks.length, 7);
+    assert.equal(chunks.length, control.legalSource.provisions.length);
     for (const [index, chunk] of chunks.entries()) {
-      assert.equal(chunk.locator, control.legalSource.provisions[index].locator);
-      assert.equal(chunk.content, control.legalSource.provisions[index].content);
+      assert.equal(
+        chunk.locator,
+        control.legalSource.provisions[index].locator,
+      );
+      assert.equal(
+        chunk.content,
+        control.legalSource.provisions[index].content,
+      );
       assert.equal(chunk.contentSha256, hash(chunk.content));
       assert.equal(
         chunk.legalEffectStatus,
@@ -164,16 +174,19 @@ try {
     console.log(
       JSON.stringify({
         SEMANTIC_STRESS_INPUT_CONTRACT: "PASS",
+        ...(chunks.length === 8
+          ? { ACTOR_FIDELITY_INPUT_CONTRACT: "PASS" }
+          : {}),
         sourceId: source.id,
         versionId: version.id,
         version: version.version,
         documentId: stored.documentId,
         documentRowId: document.id,
         correlationId,
-        chunks: 7,
-        effective: 7,
+        chunks: chunks.length,
+        effective: chunks.length,
         unknown: 0,
-        provenance: 7,
+        provenance: chunks.length,
         hashes: "PASS",
         structuralIntegrity: "PASS",
         preparations: 0,

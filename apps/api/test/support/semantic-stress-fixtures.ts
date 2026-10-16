@@ -4,6 +4,7 @@ import {
   LEGAL_CONTEXT_RELATION_KINDS as Relations,
   LEGAL_OPERATIVE_MODALITIES as Modalities,
   LEGAL_REQUIREMENT_COVERAGE_STATES as Coverage,
+  deriveAssessmentApplicabilityGuidance,
   type ComplianceRuleSetPacket,
   type LegalRequirementInput,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -23,11 +24,13 @@ export const semanticStressSourceInput = JSON.parse(
   provenance: string;
   provisions: Array<{ locator: string; content: string }>;
 };
-export const semanticStressRefs = semanticStressSourceInput.provisions.map((p) => ({
-  documentId: semanticStressSourceInput.documentId,
-  locator: p.locator,
-  contentSha256: `sha256:${createHash("sha256").update(p.content).digest("hex")}`,
-}));
+export const semanticStressRefs = semanticStressSourceInput.provisions.map(
+  (p) => ({
+    documentId: semanticStressSourceInput.documentId,
+    locator: p.locator,
+    contentSha256: `sha256:${createHash("sha256").update(p.content).digest("hex")}`,
+  }),
+);
 const refs = (...ordinals: number[]) =>
   ordinals.map((n) => semanticStressRefs[n - 1]);
 
@@ -171,7 +174,7 @@ export function semanticStressPacket(): ComplianceRuleSetPacket {
     toLegalRequirementId: direct.legalRequirementId,
     toSourceRef: null,
   });
-  return {
+  const packet: ComplianceRuleSetPacket = {
     legalRequirements: [direct, prohibition, compensation, delegated],
     assessmentRules: [
       ar("AR-DIRECT", direct.legalRequirementId, direct.proposition, [1, 2, 5]),
@@ -216,6 +219,14 @@ export function semanticStressPacket(): ComplianceRuleSetPacket {
       incorporation("REL-INCORPORATES-DIRECT", delegated.legalRequirementId),
     ],
   };
+  for (const rule of packet.assessmentRules) {
+    rule.applicabilityGuidance = deriveAssessmentApplicabilityGuidance(
+      packet.legalRequirements.filter((parent) =>
+        rule.legalRequirementIds.includes(parent.legalRequirementId),
+      ),
+    );
+  }
+  return packet;
 }
 
 /** The historical mechanism: one actual duty plus provenance-only NON_ASSESSABLE context. */

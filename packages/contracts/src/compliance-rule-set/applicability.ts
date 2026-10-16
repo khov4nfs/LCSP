@@ -2,6 +2,43 @@ import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   type LegalRequirementCoverageState,
 } from "./constants.ts";
+import type { LegalRequirementInput } from "./schemas.ts";
+
+/** Copy parent bindings, never re-author actor roles or conditions in downstream prose. */
+export function deriveAssessmentApplicabilityGuidance(
+  requirements: readonly LegalRequirementInput[],
+): string {
+  return [...requirements]
+    .sort((a, b) =>
+      a.legalRequirementId < b.legalRequirementId
+        ? -1
+        : a.legalRequirementId > b.legalRequirementId
+          ? 1
+          : 0,
+    )
+    .map((rule) =>
+      [
+        `LegalRequirement: ${rule.legalRequirementId}`,
+        `Proposition: ${rule.proposition}`,
+        ...(rule.operativePropositions ?? []).flatMap((operative, index) => [
+          `Operative proposition ${index + 1}:`,
+          `Actor: ${operative.actor}`,
+          `Modality: ${operative.modality}`,
+          `Action: ${operative.action}`,
+        ]),
+        ...rule.applicabilityConditions.map(
+          (value, index) => `Applicability condition ${index + 1}: ${value}`,
+        ),
+        ...rule.qualifiers.map(
+          (value, index) => `Qualifier ${index + 1}: ${value}`,
+        ),
+        ...rule.exceptions.map(
+          (value, index) => `Exception ${index + 1}: ${value}`,
+        ),
+      ].join("\n"),
+    )
+    .join("\n\n");
+}
 
 /**
  * Structural completeness of a prepared LegalRequirement: one that assessment rules cover must

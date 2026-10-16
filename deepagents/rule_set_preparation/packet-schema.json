@@ -244,10 +244,9 @@
                 "maxLength": 8000
               },
               "applicabilityGuidance": {
-                "description": "How an assessor establishes or refutes each applicability condition and exception of the linked requirements from evidence; name the observable facts, not the conclusion. Never just restate the actor or category label.",
+                "description": "Omit this field. The server derives guidance from all linked legalRequirementIds, preserving their actors, direction, conditions, qualifiers and exceptions. Supplied text must equal that canonical rendering or returns APPLICABILITY_BINDING_MISMATCH; it is never silently replaced.",
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 8000
+                "minLength": 1
               },
               "criteria": {
                 "minItems": 1,
@@ -488,7 +487,6 @@
               "legalRequirementIds",
               "concept",
               "legalIntent",
-              "applicabilityGuidance",
               "criteria",
               "investigationGoals",
               "startingNodeTypes",

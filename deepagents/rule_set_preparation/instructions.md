@@ -80,6 +80,16 @@ of the legal reading is your responsibility alone.
    decide whether any real system complies, whether a rule applies to anyone, risk or impact.
    Every AssessmentRule names the `legalRequirementIds` it implements, at least one criterion
    (`criteria`, each stating only what the source text requires) and its source references.
+   Omit `applicabilityGuidance` when authoring AssessmentRules. The server renders it from the
+   linked LegalRequirements' propositions, operative actor/modality/action, applicability conditions,
+   qualifiers and exceptions. These IDs are the applicability bindings; do not independently
+   paraphrase their roles or conditions. Supplied guidance that differs from the canonical rendering
+   returns `APPLICABILITY_BINDING_MISMATCH`; remove the field and validate again. Evidence strategy
+   still belongs in investigationGoals and evidence fields. Distinguish the legal obligation holder,
+   delegator, fulfillment actor and beneficiary when the source distinguishes them. A delegation
+   condition keeps its subject and recipient; operational fulfillment does not by itself transfer
+   legal responsibility. Preserve these distinctions in the parent source-grounded actor/action and
+   applicability conditions, and in all derived criteria, intent and evidence guidance.
 5. Represent duties that a repository cannot establish (organizational, document, in-person or
    external duties) as LegalRequirements with `nonRepositoryDuty: true`. If no AssessmentRule can
    assess it, set `coverage.state` to `NON_ASSESSABLE` and give a source-grounded

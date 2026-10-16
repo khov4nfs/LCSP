@@ -1,6 +1,7 @@
 import {
   COMPLIANCE_RULE_SET_FAILURE_CODES as Errors,
   complianceRuleSetPacketSchema,
+  deriveAssessmentApplicabilityGuidance,
   LEGAL_OPERATIVE_MODALITIES as Modalities,
   LEGAL_REQUIREMENT_COVERAGE_STATES as Coverage,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -76,6 +77,12 @@ describe("operative source accounting", () => {
     for (const relation of packet.contextRelations)
       if (relation.fromLegalRequirementId === prohibition.legalRequirementId)
         relation.fromLegalRequirementId = direct.legalRequirementId;
+    for (const rule of packet.assessmentRules)
+      rule.applicabilityGuidance = deriveAssessmentApplicabilityGuidance(
+        packet.legalRequirements.filter((parent) =>
+          rule.legalRequirementIds.includes(parent.legalRequirementId),
+        ),
+      );
     expect(validate(packet)).toEqual([]);
     expect(packet.legalRequirements.length).toBeLessThan(
       semanticStressSource().chunks.length,

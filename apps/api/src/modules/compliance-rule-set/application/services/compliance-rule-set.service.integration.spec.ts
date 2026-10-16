@@ -21,6 +21,7 @@ import {
   ruleSetPreparationLegalSourceBundleSchema,
   ruleSetPreparationFailRequestSchema,
   ruleSetPreparationStartRequestSchema,
+  deriveAssessmentApplicabilityGuidance,
 } from "@lcsp/contracts/compliance-rule-set";
 
 import {
@@ -319,6 +320,71 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     );
     expect(person?.nonRepositoryDuty).toBe(true);
     expect(person?.coverage.state).toBe("NON_ASSESSABLE");
+  });
+
+  it("derives omitted applicability once and preserves parent roles through persistence and the reader", async () => {
+    const source = await createLegalSource();
+    const run = await startRun(source.id);
+    const packet = validPacket();
+    const parent = packet.legalRequirements[0];
+    parent.operativePropositions![0].actor =
+      "Organization A remains the obligation holder";
+    parent.applicabilityConditions = [
+      "Organization A delegates fulfillment to Organization B, which performs on behalf of A without releasing A",
+    ];
+    const input = {
+      ...packet,
+      assessmentRules: packet.assessmentRules.map(
+        ({ applicabilityGuidance, ...rule }) => {
+          void applicabilityGuidance;
+          return rule;
+        },
+      ),
+    };
+    const accepted = await submit(run.preparationRunId, input);
+    expect(accepted.validation.failures).toEqual([]);
+    const stored = await prisma.assessmentRule.findFirstOrThrow({
+      where: {
+        ruleSetVersionId: accepted.ruleSetVersionId,
+        assessmentRuleId: "ER-DEF",
+      },
+    });
+    const expected = deriveAssessmentApplicabilityGuidance([parent]);
+    expect(stored.applicabilityGuidance).toBe(expected);
+    expect(
+      (stored.contract as Record<string, unknown>).applicabilityGuidance,
+    ).toBe(expected);
+    const read = await service.getActiveRuleSet(randomUUID());
+    expect(
+      read.assessmentRules.find((rule) => rule.assessmentRuleId === "ER-DEF")
+        ?.applicabilityGuidance,
+    ).toBe(expected);
+  });
+
+  it("reports contradictory downstream guidance as a deterministic gap before canonical submission", async () => {
+    const source = await createLegalSource();
+    const run = await startRun(source.id);
+    const packet = validPacket();
+    packet.legalRequirements[0].applicabilityConditions = [
+      "Organization A delegates fulfillment to Organization B",
+    ];
+    packet.assessmentRules[0].applicabilityGuidance =
+      "Organization B delegates fulfillment to Organization A";
+    const result = await service.validate({
+      body: { preparationRunId: run.preparationRunId, packet },
+      correlationId: randomUUID(),
+    });
+    expect(result.failures).toContainEqual(
+      expect.objectContaining({
+        code: COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
+        ref: "assessmentRule:ER-DEF",
+      }),
+    );
+    expect(
+      await prisma.complianceRuleSetVersion.count({
+        where: { preparationRunId: run.preparationRunId },
+      }),
+    ).toBe(0);
   });
 
   it("replays the same idempotency key without a second activation, audit row or event", async () => {
@@ -708,7 +774,10 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     ).toEqual(
       [...FIXTURE_LOCATORS]
         .sort()
-        .map(() => [LEGAL_SOURCE_CHUNK_STATUSES.EFFECTIVE, "source-metadata:fixture"]),
+        .map(() => [
+          LEGAL_SOURCE_CHUNK_STATUSES.EFFECTIVE,
+          "source-metadata:fixture",
+        ]),
     );
     expect(
       (

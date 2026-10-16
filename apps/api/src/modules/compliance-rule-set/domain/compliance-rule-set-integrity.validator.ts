@@ -4,6 +4,7 @@ import {
   LEGAL_REQUIREMENT_COVERAGE_STATES,
   COMPLIANCE_RULE_SET_FAILURE_CODES,
   declaresApplicabilityScope,
+  deriveAssessmentApplicabilityGuidance,
   type ComplianceRuleSetFailureCode,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSourceRef,
@@ -120,6 +121,23 @@ export function validateComplianceRuleSetPacket(
   }
   const assessmentRuleIds = new Set<string>();
   for (const rule of packet.assessmentRules) {
+    const parents = rule.legalRequirementIds.flatMap((id) => {
+      const parent = packet.legalRequirements.find(
+        (item) => item.legalRequirementId === id,
+      );
+      return parent ? [parent] : [];
+    });
+    if (
+      parents.length === rule.legalRequirementIds.length &&
+      rule.applicabilityGuidance !==
+        deriveAssessmentApplicabilityGuidance(parents)
+    ) {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.APPLICABILITY_BINDING_MISMATCH,
+        `assessmentRule:${rule.assessmentRuleId}`,
+        "applicabilityGuidance differs from its canonical parent bindings; omit the field so the server derives it from linked LegalRequirements without paraphrasing actors or conditions",
+      );
+    }
     if (assessmentRuleIds.has(rule.assessmentRuleId)) {
       fail(
         COMPLIANCE_RULE_SET_FAILURE_CODES.DUPLICATE_ASSESSMENT_RULE_ID,
