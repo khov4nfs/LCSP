@@ -26,6 +26,11 @@ export class ComplianceRuleSetReadModelLoader {
     const active = await this.prisma.complianceRuleSetVersion.findFirst({
       where,
       include: {
+        preparationRun: {
+          include: {
+            claimInventories: { orderBy: { revision: "desc" }, take: 1 },
+          },
+        },
         semanticGraph: { include: semanticGraphInclude },
         rules: {
           orderBy: { ordinal: "asc" },
@@ -89,7 +94,16 @@ export class ComplianceRuleSetReadModelLoader {
     });
     const chunkById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
 
+    const frozen = active.preparationRun?.claimInventories?.[0];
     return complianceRuleSetReadModelSchema.parse({
+      ...(frozen
+        ? {
+            claimInventory: {
+              revision: frozen.revision,
+              fingerprint: frozen.fingerprint,
+            },
+          }
+        : {}),
       ...(active.semanticGraph
         ? { semanticGraph: readSemanticGraph(active.semanticGraph) }
         : {}),
@@ -101,6 +115,12 @@ export class ComplianceRuleSetReadModelLoader {
       activatedAt: active.activatedAt?.toISOString() ?? null,
       legalRequirements: active.rules.map((rule) => ({
         legalRequirementId: rule.legalRequirementId,
+        ...(active.preparationRun?.claimInventories?.[0]
+          ? {
+              claimInventoryRevision:
+                active.preparationRun?.claimInventories?.[0].revision,
+            }
+          : {}),
         title: rule.title,
         proposition: rule.proposition,
         ...(active.semanticGraph

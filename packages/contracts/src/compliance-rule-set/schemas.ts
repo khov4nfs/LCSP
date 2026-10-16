@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  claimInventoryBindingSchema,
+  type ClaimInventoryBinding,
+} from "./preparation-inventory.ts";
 import { legalDocumentGraphSchema } from "../legal-source/document-graph.ts";
 import {
   legalClaimBindingSchema,
@@ -161,6 +165,7 @@ export const legalRequirementCoverageSchema = z
 export const legalRequirementSchema = z
   .object({
     legalRequirementId: idSchema,
+    claimInventoryRevision: z.number().int().positive().optional(),
     claimBindings: z.array(legalClaimBindingSchema).max(256).optional(),
     semanticContext: shortTextListSchema.optional(),
     title: shortTextSchema,
@@ -385,6 +390,7 @@ export type LegalContextRelationInput = z.infer<
 export const complianceRuleSetPacketSchema = z
   .object({
     semanticGraph: legalSemanticGraphSchema.optional(),
+    claimInventory: claimInventoryBindingSchema.optional(),
     legalRequirements: z
       .array(legalRequirementSchema)
       .max(COMPLIANCE_RULE_SET_LIMITS.maxLegalRequirements)
@@ -449,6 +455,7 @@ export const complianceRuleSetPacketSchema = z
       assessmentRules: AssessmentRuleInput[];
       contextRelations: LegalContextRelationInput[];
       semanticGraph?: LegalSemanticGraph;
+      claimInventory?: ClaimInventoryBinding;
     } => ({
       ...packet,
       assessmentRules: packet.assessmentRules.map((rule) => ({
@@ -692,6 +699,7 @@ export const complianceRuleSetResolvedSourceSchema = z
 /** The single runtime reader contract: the explicit ACTIVE rule set. */
 export const complianceRuleSetReadModelSchema = z
   .object({
+    claimInventory: claimInventoryBindingSchema.optional(),
     semanticGraph: legalSemanticGraphSchema.optional(),
     ruleSetVersionId: z.string().uuid(),
     version: z.string().min(1),
@@ -718,7 +726,7 @@ export type ComplianceRuleSetReadModel = z.infer<
   typeof complianceRuleSetReadModelSchema
 >;
 
-/** Dry-run: same mechanical validation as submit, nothing is persisted. */
+/** Same mechanical validation as submit; records phase readiness without publishing authority. */
 export const complianceRuleSetValidateRequestSchema = z
   .object({
     preparationRunId: z.string().uuid(),

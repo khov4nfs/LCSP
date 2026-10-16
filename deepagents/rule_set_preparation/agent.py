@@ -59,7 +59,7 @@ class PreparationObservationMiddleware(AgentMiddleware):
 
     def _observe(self, request, result):
         call = getattr(request, "tool_call", None)
-        if not isinstance(call, dict) or call.get("name") not in {*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES}:
+        if not isinstance(call, dict) or call.get("name") not in {*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "get_claim_inventory"}:
             return result
         if not isinstance(result, ToolMessage):
             return result
@@ -197,8 +197,9 @@ class PreparationCompletionMiddleware(AgentMiddleware):
         return {
             "messages": [HumanMessage(content=(
                 "Preparation is not finished. Continue the same pinned-source work and preserve "
-                "your existing reading and draft. Use actual tool calls, not tool-call text in "
-                "an assistant response: add_to_packet_draft for the next part, "
+                "your existing reading and inventory. Use actual tool calls, not tool-call text in "
+                "an assistant response: get_claim_inventory to inspect the current phase, "
+                "register/review claims and finalize_semantic_claim_inventory before Rule authoring; "
                 "validate_compliance_rule_set until PASSED, then submit_compliance_rule_set once "
                 "for the exact validated draft. There is no length limit. If the pinned source "
                 "is truly unreadable or its pins inconsistent, use report_rule_set_source_blocked "
@@ -294,7 +295,7 @@ def create_rule_set_preparation_agent(
                 read_only,
                 observation_middleware,
                 PreparationCompletionMiddleware(context),
-                DraftHistoryMiddleware(),
+                DraftHistoryMiddleware(context),
                 governed_summarization_middleware(
                     model, backend=backend, role=RULE_SET_PREPARATION_ROLE
                 ),

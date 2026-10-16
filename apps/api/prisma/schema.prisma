@@ -1244,6 +1244,10 @@ model LlmUsageEvent {
 // ---------------------------------------------------------------------------
 
 model RuleSetPreparationRun {
+  claimPhase ClaimPreparationPhase @default(CLAIM_DISCOVERY)
+  claimInventoryRevision Int @default(1)
+  claimInventoryReopenReason String?
+  claimInventories RuleSetPreparationClaimInventory[]
   id                   String                             @id @default(uuid())
   idempotencyKey       String                             @unique
   legalSourceVersionId String
@@ -1857,4 +1861,30 @@ enum AuthorizationReasonCode {
   TEMPORARY_LOCKED
   UNSUPPORTED_PROVIDER
   VALIDATION_FAILED
+}
+
+
+enum ClaimPreparationPhase {
+  CLAIM_DISCOVERY
+  CLAIM_INVENTORY_VALIDATION
+  CLAIM_INVENTORY_READY
+  RULE_AUTHORING
+  RULE_VALIDATION
+  SUBMISSION_READY
+  COMPLETION
+}
+
+model RuleSetPreparationClaimInventory {
+  preparationRunId String
+  revision         Int
+  fingerprint      String
+  graphDigest      String
+  graph            Json
+  identities       Json
+  reopenReason     String?
+  createdAt        DateTime              @default(now())
+  preparation      RuleSetPreparationRun @relation(fields: [preparationRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([preparationRunId, revision])
+  @@index([preparationRunId, fingerprint])
 }

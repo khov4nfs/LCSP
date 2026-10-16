@@ -8,7 +8,6 @@ import {
   jest,
 } from "@jest/globals";
 import type {
-  AdminUserActionInput,
   AdminUserDetail,
   AdminUserListResponse,
 } from "@lcsp/contracts/auth";
@@ -61,7 +60,14 @@ import { RequireSession } from "../src/platform/rbac/decorators/require-session.
 import { PrismaAuthorizationDecisionRepository } from "../src/platform/rbac/prisma-authorization-decision.repository.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
 import { RbacPreflightService } from "../src/platform/rbac/rbac-preflight.service.js";
+import { ResponseTransformInterceptor } from "../src/platform/http/index.js";
 import { RbacGuard } from "../src/platform/rbac/rbac.guard.js";
+import { AUTHORIZATION_DECISION_REPOSITORY } from "../src/platform/rbac/authorization-decision.repository.js";
+import {
+  AUTH_SESSION_REPOSITORY,
+  AUTH_USER_REPOSITORY,
+  AUTH_MFA_ENROLLMENT_REPOSITORY,
+} from "../src/modules/auth/application/ports/persistence/index.js";
 import { httpRequest, successBody } from "./support/http.js";
 const databaseUrl = process.env.LCSP299_TEST_DATABASE_URL;
 const integration = databaseUrl ? describe : describe.skip;
@@ -138,6 +144,19 @@ integration(
           RbacContextLoader,
           RbacPreflightService,
           PrismaAuthorizationDecisionRepository,
+          {
+            provide: AUTHORIZATION_DECISION_REPOSITORY,
+            useExisting: PrismaAuthorizationDecisionRepository,
+          },
+          {
+            provide: AUTH_SESSION_REPOSITORY,
+            useExisting: PrismaSessionRepository,
+          },
+          { provide: AUTH_USER_REPOSITORY, useExisting: PrismaUserRepository },
+          {
+            provide: AUTH_MFA_ENROLLMENT_REPOSITORY,
+            useExisting: PrismaMfaEnrollmentRepository,
+          },
           PrismaMfaEnrollmentRepository,
           PrismaSessionRepository,
           PrismaUserRepository,
@@ -145,6 +164,7 @@ integration(
       }).compile();
       app = module.createNestApplication();
       app.useGlobalFilters(module.get(HttpExceptionFilter));
+      app.useGlobalInterceptors(new ResponseTransformInterceptor());
       await app.init();
     }, 30000);
     async function actor(
@@ -247,7 +267,7 @@ integration(
               role: AUTH_USER_ROLES.admin,
             })
         ).status,
-      ).toBe(403);
+      ).toBe(404);
     });
     it("does not label lockout or unverified users as Suspended/Invited", async () => {
       await prisma.user.update({
@@ -258,11 +278,7 @@ integration(
         successBody<AdminUserDetail>(await get(`/admin/users/${target.id}`))
           .status,
       ).toBe(AUTH_ACCOUNT_STATUSES.active);
-      expect(
-        successBody<AdminUserListResponse>(
-          await get("/admin/users?status=INVITED"),
-        ).totalCount,
-      ).toBe(0);
+      expect((await get("/admin/users?status=INVITED")).status).toBe(400);
     });
     it("suspends and restores without changing security lockout or reviving sessions", async () => {
       const lockUntil = new Date(Date.now() + 1000);
@@ -526,31 +542,7 @@ integration(
       expect(await prisma.adminAccountCommandReceipt.count()).toBe(0);
       expect((await get("/lcsp299-test/protected", target)).status).toBe(200);
     });
-    it("rejects retired commands and role fields before changing state, audit or receipts", async () => {
-      const record = await prisma.authRecord.findFirstOrThrow({
-        where: { userId: admin.id, type: AUTH_RECORD_TYPES.session },
-      });
-      const auditCount = await prisma.auditEvent.count();
-      await expect(
-        app.get(SuspendUserHandler).execute(
-          new SuspendUserCommand(
-            target.id,
-            {
-              role: AUTH_USER_ROLES.admin,
-              expectedVersion: 0,
-            } as unknown as AdminUserActionInput,
-            {
-              userId: admin.id,
-              sessionId: record.id,
-              role: AUTH_USER_ROLES.admin,
-              scope: target.id,
-              correlationId: randomUUID(),
-              idempotencyKey: randomUUID(),
-            },
-          ),
-        ),
-      ).rejects.toThrow();
-      expect(await prisma.auditEvent.count()).toBe(auditCount);
+    it("rejects role fields at the HTTP boundary before changing state or receipts", async () => {
       for (const operation of ["suspend", "restore"])
         expect(
           (

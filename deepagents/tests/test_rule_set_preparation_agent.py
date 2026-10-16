@@ -43,6 +43,23 @@ DOC = "SYNTHETIC-NOTICE-INSTRUMENT"
 
 
 @pytest.fixture(autouse=True)
+def _legacy_packet_unit_tools(monkeypatch):
+    """Keep pre-inventory packet/provider regressions as unit tests of the retained legacy adapter.
+
+    New production graph/phase wiring is exercised without this adapter in test_claim_inventory_protocol.
+    """
+    original = preparation_agent.build_rule_set_tools
+    def legacy_tools(context):
+        graph = context.source_graph
+        context.source_graph = None
+        try:
+            return original(context)
+        finally:
+            context.source_graph = graph
+    monkeypatch.setattr(preparation_agent, "build_rule_set_tools", legacy_tools)
+
+
+@pytest.fixture(autouse=True)
 def _fast_model_retry_backoff(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep the retry behavior under test but not its real exponential sleeps."""
     from langchain.agents.middleware import ModelRetryMiddleware
@@ -822,7 +839,7 @@ def test_instructions_state_the_authority_boundary() -> None:
 
     lowered = " ".join(INSTRUCTIONS.lower().split())
     assert "nobody reviews or" in lowered and "approves your output" in lowered
-    assert "nonrepositoryduty" in lowered
+    assert "non_repository_duty" in lowered
     for required in ("definition", "exception", "qualifier", "cross-reference"):
         assert required in lowered
     assert "regular expressions" in lowered
@@ -872,8 +889,8 @@ def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_
 def test_instructions_require_operative_accounting_without_citation_buckets() -> None:
     from rule_set_preparation.agent import INSTRUCTIONS
     text = " ".join(INSTRUCTIONS.split())
-    for required in ("A single node can contain zero, one or several claims", "claimRelations",
-                     "sourceAccounting", "referenceAccounting", "all relevant claims", "INTENTIONALLY_NON_OPERATIVE",
+    for required in ("A single node can contain zero, one or several claims", "link_semantic_claims",
+                     "review_source_node", "review_source_reference", "all relevant claims", "INTENTIONALLY_NON_OPERATIVE",
                      "NON_ASSESSABLE never excuses omission", "Chunks are retrieval and citation aids"):
         assert required.lower() in text.lower()
     assert "Every EFFECTIVE leaf in INDEX" not in text

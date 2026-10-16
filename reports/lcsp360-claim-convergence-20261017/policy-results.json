@@ -1,0 +1,30 @@
+[
+  {
+    "check": "imports",
+    "exitCode": 0
+  },
+  {
+    "check": "contracts",
+    "exitCode": 0
+  },
+  {
+    "check": "retired",
+    "exitCode": 0
+  },
+  {
+    "check": "schema-export",
+    "exitCode": 0
+  },
+  {
+    "check": "compileall",
+    "exitCode": 0
+  },
+  {
+    "check": "diff-check",
+    "exitCode": 0
+  },
+  {
+    "check": "terminology",
+    "exitCode": 0
+  }
+]

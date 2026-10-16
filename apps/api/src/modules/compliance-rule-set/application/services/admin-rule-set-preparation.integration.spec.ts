@@ -402,6 +402,12 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
       ),
     );
 
+    const submissionRequest = await pinFixtureRequest(prisma, {
+      preparationRunId: running.preparationRunId,
+      idempotencyKey: `submit-${randomUUID()}`,
+      packet: validPacket(),
+    });
+
     let nativeCancelStarted!: () => void;
     const nativeStarted = new Promise<void>((resolve) => {
       nativeCancelStarted = resolve;
@@ -432,11 +438,7 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
 
     const submission = submit.execute(
       new SubmitComplianceRuleSetCommand(
-        await pinFixtureRequest(prisma, {
-          preparationRunId: running.preparationRunId,
-          idempotencyKey: `submit-${randomUUID()}`,
-          packet: validPacket(),
-        }),
+        submissionRequest,
         "test-worker",
         randomUUID(),
       ),

@@ -25,7 +25,7 @@ from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
 from test_assessment_root_agent import complete_root_messages, ASSESSMENT, THREAD, FakeClient, RootScriptedModel
-from test_rule_set_preparation_agent import DOC, FakeApi, RUN_ID, _bundle, _call, _model, _packet, _sha
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools, DOC, FakeApi, RUN_ID, _bundle, _call, _model, _packet, _sha
 from legal_graph_fixture import document_graph_for_bundle
 from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
 from tools.common.capabilities.agent_runtime.local_server import _runtime_config

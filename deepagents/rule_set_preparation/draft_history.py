@@ -13,10 +13,16 @@ from typing import Any
 from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from rule_set_preparation.tools import ITEM_ID_KEYS
+from rule_set_preparation.tools import ITEM_ID_KEYS, RuleSetPreparationContext
 
 ADD_TOOL = "add_to_packet_draft"
-CHECK_TOOLS = frozenset({"validate_compliance_rule_set", "remove_from_packet_draft"})
+INCREMENTAL_TOOLS = frozenset({
+    "register_semantic_claim", "update_semantic_claim", "remove_semantic_claim", "link_semantic_claims",
+    "remove_semantic_relation", "review_source_node", "review_source_reference", "author_legal_requirement",
+    "author_assessment_rule", "remove_rule_candidate", "get_claim_inventory",
+})
+CHECK_TOOLS = frozenset({"validate_compliance_rule_set", "remove_from_packet_draft",
+                         "validate_semantic_claim_inventory"})
 KEEP_RECENT_ADDS = 3
 KEEP_RECENT_CHECKS = 2
 _GIST_KEYS = ("title", "concept", "kind")
@@ -38,9 +44,9 @@ def _kind(message: Any) -> str | None:
     if not isinstance(message, AIMessage) or not message.tool_calls:
         return None
     names = {call["name"] for call in message.tool_calls}
-    if not names <= CHECK_TOOLS | {ADD_TOOL}:
+    if not names <= CHECK_TOOLS | INCREMENTAL_TOOLS | {ADD_TOOL}:
         return None
-    return "add" if ADD_TOOL in names else "check"
+    return "add" if ADD_TOOL in names or names & INCREMENTAL_TOOLS else "check"
 
 
 def compact_draft_history(
@@ -68,7 +74,12 @@ def compact_draft_history(
     summary = HumanMessage(content=(
         "Draft parts you already added (stored in the draft; do not resend them, resend an item only to "
         "correct it):\n" + "\n".join(lines)
-    )) if lines else None
+    )) if lines else HumanMessage(content=(
+        "Earlier incremental claim/review/Rule operations remain stored in the run context. "
+        "Use get_claim_inventory with STATUS, CLAIMS, RELATIONS, REQUIREMENTS, UNREVIEWED_SOURCE_NODES "
+        "or UNACCOUNTED_CLAIMS and pagination to recover exact current IDs and revision. "
+        "Do not recreate claims from forgotten tool history. Frozen inventory changes require explicit reopening."
+    ))
 
     compacted: list[Any] = []
     for i, message in enumerate(messages):
@@ -83,8 +94,13 @@ def compact_draft_history(
 class DraftHistoryMiddleware(AgentMiddleware):
     """Applied to every model request; the stored draft and the full message state are untouched."""
 
+    def __init__(self, context: RuleSetPreparationContext):
+        self.context = context
+
     def wrap_model_call(self, request, handler):
+        self.context.model_turn = (self.context.model_turn or 0) + 1
         return handler(request.override(messages=compact_draft_history(list(request.messages))))
 
     async def awrap_model_call(self, request, handler):
+        self.context.model_turn = (self.context.model_turn or 0) + 1
         return await handler(request.override(messages=compact_draft_history(list(request.messages))))

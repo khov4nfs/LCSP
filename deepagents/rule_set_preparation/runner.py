@@ -36,7 +36,8 @@ logger = get_logger(__name__)
 
 _TASK = (
     "Prepare the complete compliance rule set for the pinned Legal Source. Read /legal-source/INDEX.md first, "
-    "inspect the Legal Document AST and explicit references, author all semantic claims and their accounting, "
+    "inspect the Legal Document AST and explicit references, discover/review semantic claims, explicitly finalize "
+    "the frozen claim inventory, then enter Rule authoring against that revision. "
     "then derive LegalRequirements and AssessmentRules, validate until the packet "
     "passes, then submit it once."
 )
@@ -51,6 +52,10 @@ _ACTIVITY_TOOLS = frozenset(
         "validate_compliance_rule_set",
         "submit_compliance_rule_set",
         "record_preparation_progress",
+        "remove_rule_candidate", "register_semantic_claim", "remove_semantic_claim", "remove_semantic_relation", "update_semantic_claim", "link_semantic_claims", "review_source_node",
+        "review_source_reference", "get_claim_inventory", "validate_semantic_claim_inventory",
+        "finalize_semantic_claim_inventory", "reopen_semantic_claim_inventory", "start_rule_authoring",
+        "author_legal_requirement", "author_assessment_rule",
         "report_rule_set_source_blocked",
     }
 ) | GRAPH_TOOL_NAMES

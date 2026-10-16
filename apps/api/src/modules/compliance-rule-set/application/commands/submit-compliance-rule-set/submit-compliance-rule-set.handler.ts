@@ -3,6 +3,8 @@ import {
   type ComplianceRuleSetSubmitResult,
 } from "@lcsp/contracts/compliance-rule-set";
 import { HttpStatus } from "@nestjs/common";
+import { validateFrozenInventory } from "../../../domain/claim-inventory.js";
+import { frozenInventoryForRun } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
@@ -73,6 +75,17 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
         legalSource.foreignHashes.has(
           `${sourceClaimKey(claim)}|${claim.contentSha256}`,
         ),
+    );
+    validation.failures.push(
+      ...validateFrozenInventory(
+        request.packet,
+        await frozenInventoryForRun(
+          this.prisma,
+          run.id,
+          run.claimInventoryRevision,
+        ),
+        run.claimInventoryRevision,
+      ),
     );
 
     const context: SubmitContext = {

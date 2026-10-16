@@ -16,6 +16,7 @@ class InternalPath(StrEnum):
     LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-sources/source-snapshots"
     COMPLIANCE_RULE_SET_CLAIMS = "/internal/compliance-rule-set/claims"
     COMPLIANCE_RULE_SET_VALIDATIONS = "/internal/compliance-rule-set/validations"
+    COMPLIANCE_RULE_SET_CLAIM_INVENTORIES = "/internal/compliance-rule-set/claim-inventories"
     COMPLIANCE_RULE_SET_SUBMISSIONS = "/internal/compliance-rule-set/submissions"
     COMPLIANCE_RULE_SET_FAILURES = "/internal/compliance-rule-set/failures"
     COMPLIANCE_RULE_SET_ACTIVE = "/internal/compliance-rule-set/active"

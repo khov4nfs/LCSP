@@ -157,7 +157,7 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
     assert.equal(problemCode(foreignNull), ASSESSMENT_ERROR_CODES.notFound);
   });
 
-  it("scopes snapshot, SSE, and history to the authenticated owner", async () => {
+  it("scopes workspace snapshots to the authenticated owner", async () => {
     const ownerSnapshotResult = await readSseEvent(
       `/workspace/runtime-events?agent_stream_only=0`,
       ownerAToken,
@@ -192,70 +192,9 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
       [OWNER_B_ASSESSMENT_EVENT_ID],
     );
 
-    const ownerStreamResult = await readSseEvent(
-      `/workspace/runtime-events?agent_stream_only=1&assessment_id=${OWNER_A_PRESENT_ASSESSMENT_ID}`,
-      ownerAToken,
-      "workspace.agent-stream",
-    );
-    assert.equal(ownerStreamResult.statusCode, 200);
-    const ownerStream = ownerStreamResult.frame;
-    assert.ok(ownerStream);
-    assert.equal(ownerStream.data.assessment_id, OWNER_A_PRESENT_ASSESSMENT_ID);
-    assert.equal(ownerStream.data.event_id, OWNER_A_RUNTIME_EVENT_ID);
-
-    const foreignStream = await readSseEvent(
-      `/workspace/runtime-events?agent_stream_only=1&assessment_id=${OWNER_A_PRESENT_ASSESSMENT_ID}`,
-      ownerBToken,
-      "workspace.agent-stream",
-      1_000,
-    );
-    assert.equal(foreignStream.statusCode, 200);
-    assert.equal(foreignStream.frame, null);
-
-    const ownerHistory = await httpRequest(app)
-      .get("/workspace/runtime-events/agent-stream-history")
-      .query({ assessment_id: OWNER_A_PRESENT_ASSESSMENT_ID })
-      .set("Authorization", `Bearer ${ownerAToken}`);
-    const ownerHistoryBody = successBody<{
-      events: Array<Record<string, unknown>>;
-    }>(ownerHistory);
-    assert.equal(ownerHistory.status, 200);
-    assert.equal(ownerHistoryBody.events.length, 1);
-    assert.equal(
-      ownerHistoryBody.events[0]?.assessment_id,
-      OWNER_A_PRESENT_ASSESSMENT_ID,
-    );
-    assert.equal(
-      ownerHistoryBody.events[0]?.event_id,
-      OWNER_A_RUNTIME_EVENT_ID,
-    );
-
-    const foreignHistory = await httpRequest(app)
-      .get("/workspace/runtime-events/agent-stream-history")
-      .query({ assessment_id: OWNER_A_PRESENT_ASSESSMENT_ID })
-      .set("Authorization", `Bearer ${ownerBToken}`);
-    const foreignHistoryBody = successBody<{
-      events: Array<Record<string, unknown>>;
-    }>(foreignHistory);
-    assert.equal(foreignHistory.status, 200);
-    assert.deepEqual(foreignHistoryBody.events, []);
-
-    const ownerBHistory = await httpRequest(app)
-      .get("/workspace/runtime-events/agent-stream-history")
-      .query({ assessment_id: OWNER_B_ASSESSMENT_ID })
-      .set("Authorization", `Bearer ${ownerBToken}`);
-    const ownerBHistoryBody = successBody<{
-      events: Array<Record<string, unknown>>;
-    }>(ownerBHistory);
-    assert.equal(ownerBHistory.status, 200);
-    assert.equal(
-      ownerBHistoryBody.events[0]?.assessment_id,
-      OWNER_B_ASSESSMENT_ID,
-    );
-    assert.equal(
-      ownerBHistoryBody.events[0]?.event_id,
-      OWNER_B_RUNTIME_EVENT_ID,
-    );
+    // Assessment agent replay uses its assessment boundary, not the workspace snapshot.
+    assert.deepEqual(ownerSnapshot.data.agent_stream_events, []);
+    assert.deepEqual(foreignSnapshot.data.agent_stream_events, []);
   });
 
   it("keeps unauthorized reads pure", async () => {
@@ -266,21 +205,18 @@ integration("CANONICAL canonical read isolation (e2e preparation)", () => {
       .set("Authorization", `Bearer ${ownerBToken}`);
     assert.equal(assessment.status, 404);
 
-    const history = await httpRequest(app)
-      .get("/workspace/runtime-events/agent-stream-history")
-      .query({ assessment_id: OWNER_A_PRESENT_ASSESSMENT_ID })
-      .set("Authorization", `Bearer ${ownerBToken}`);
-    assert.equal(history.status, 200);
-    assert.deepEqual(successBody<{ events: unknown[] }>(history).events, []);
-
     const snapshot = await readSseEvent(
-      `/workspace/runtime-events?agent_stream_only=1&assessment_id=${OWNER_A_PRESENT_ASSESSMENT_ID}`,
+      "/workspace/runtime-events",
       ownerBToken,
-      "workspace.agent-stream",
-      1_000,
+      "workspace.runtime",
     );
     assert.equal(snapshot.statusCode, 200);
-    assert.equal(snapshot.frame, null);
+    assert.ok(snapshot.frame);
+    assert.deepEqual(
+      idsFromSnapshot(snapshot.frame.data.canonical_assessments),
+      [OWNER_B_ASSESSMENT_ID],
+    );
+    assert.deepEqual(snapshot.frame.data.agent_stream_events, []);
 
     const after = await readAuthorityRows();
     assert.deepEqual(after, before);

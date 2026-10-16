@@ -54,6 +54,9 @@ export type ComplianceRuleSetValidationOutcome =
 
 /** Structured mechanical failure codes attached to an INVALID candidate. */
 export const COMPLIANCE_RULE_SET_FAILURE_CODES = {
+  claimInventoryRequired: "CLAIM_INVENTORY_REQUIRED",
+  staleInventoryBinding: "STALE_INVENTORY_BINDING",
+  claimPhaseInvalid: "CLAIM_PHASE_INVALID",
   SOURCE_STRUCTURE_REQUIRED: "SOURCE_STRUCTURE_REQUIRED",
   SEMANTIC_GRAPH_REQUIRED: "SEMANTIC_GRAPH_REQUIRED",
   SEMANTIC_CLAIM_INVALID: "SEMANTIC_CLAIM_INVALID",

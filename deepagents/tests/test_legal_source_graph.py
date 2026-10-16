@@ -114,16 +114,17 @@ def test_claim_draft_binds_pinned_graph_and_known_claims_cannot_disappear(source
             self.calls += 1
             return {"outcome": "FAILED", "failures": []}
     api = Api()
+    source.version = source.graph["legalSourceVersionId"] = "00000000-0000-4000-8000-000000000001"
+    for node in source.nodes.values(): node["legalSourceVersionId"] = source.version
     context = RuleSetPreparationContext("synthetic-run", api, source_graph=source)
     tools = {tool.name: tool for tool in build_rule_set_tools(context)}
-    claim = {"claimId": "duty-one", "legalSourceVersionId": source.version, "sourceNodeIds": [f"{3:064x}"],
-             "claimType": "DUTY", "statement": "Synthetic duty", "operative": {"actor": "Keeper", "modality": "DUTY", "action": "Keep records"},
-             "state": "RELEVANT", "nonOperativeReason": None}
-    tools["add_to_packet_draft"].invoke({"semanticClaims": [claim]})
+    result = json.loads(tools["register_semantic_claim"].invoke({"identity_key": "retention-duty", "source_node_ids": [f"{3:064x}"],
+        "claim_type": "DUTY", "statement": "Synthetic duty", "actor": "Keeper", "action": "Keep records"}))
+    claim = result["claim"]
     drafted = context.draft_packet()
     assert drafted["semanticGraph"]["claims"] == [claim]
     assert drafted["semanticGraph"]["materializationId"] == source.graph["materializationId"]
-    rejected = json.loads(tools["validate_compliance_rule_set"].invoke({"packet": {"semanticGraph": {"claims": []}}}))
-    assert rejected["failures"][0]["code"] == "UNACCOUNTED_SEMANTIC_CLAIM"
+    # Rule validation cannot precede a frozen inventory, even with valid source anchors.
+    rejected = json.loads(tools["validate_compliance_rule_set"].invoke({}))
+    assert "CLAIM_PHASE_INVALID" in rejected["gaps"]
     assert api.calls == 0
-    assert context.last_validation["outcome"] == "FAILED"

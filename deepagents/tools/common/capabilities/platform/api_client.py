@@ -466,6 +466,17 @@ class WorkerApiClient:
             raise WorkerCallbackError("Compliance rule set validation response was invalid.")
         return data
 
+    def claim_inventory_operation(self, preparation_run_id: str, action: str, revision: int, **fields) -> dict:
+        """Validate/freeze/reopen the one Preparation's claim inventory; never creates a Preparation."""
+        data = self._post_with_retry(
+            InternalPath.COMPLIANCE_RULE_SET_CLAIM_INVENTORIES,
+            {"preparationRunId": preparation_run_id, "action": action, "revision": revision, **fields},
+            redact=False,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Claim inventory response was invalid.")
+        return data
+
     def submit_compliance_rule_set(
         self, preparation_run_id: str, idempotency_key: str, packet: dict
     ) -> dict:

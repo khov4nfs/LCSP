@@ -6,6 +6,7 @@ import json
 import hashlib
 import re
 import threading
+from functools import wraps
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
@@ -21,6 +22,8 @@ from tools.common.capabilities.platform.logging import get_logger
 
 from rule_set_preparation.legal_source_files import read_pins, refute_source_block
 from rule_set_preparation.source_graph import PinnedSourceGraph
+from rule_set_preparation.claim_inventory import ClaimInventory, AUTHORING, RULE_VALIDATION, SUBMISSION_READY, COMPLETION, grouped_gaps
+from rule_set_preparation.claim_tools import build_claim_tools
 
 logger = get_logger(__name__)
 
@@ -85,6 +88,8 @@ PREPARATION_PROGRESS_SCHEMA = {
 class RuleSetApi(Protocol):
     """The slice of the worker API client the agent tools use."""
 
+    def claim_inventory_operation(self, run_id: str, action: str, revision: int, **fields: Any) -> dict: ...
+
     def validate_compliance_rule_set(self, preparation_run_id: str, packet: dict) -> dict: ...
 
     def submit_compliance_rule_set(
@@ -102,6 +107,9 @@ class RuleSetPreparationContext:
     source_root: Path | None = None
     source_graph: PinnedSourceGraph | None = None
     authored_claim_ids: set[str] = field(default_factory=set)
+    inventory: ClaimInventory | None = None
+    mutation_lock: Any = field(default_factory=threading.RLock, repr=False)
+    model_turn: int | None = None
     submission: dict[str, Any] | None = None
     validation_calls: int = 0
     last_validation: dict[str, Any] | None = None
@@ -139,6 +147,9 @@ class RuleSetPreparationContext:
         if self.source_graph is not None:
             packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V2", **self.source_graph.base(),
                                        **{field: list(self.draft[key].values()) for key, field in GRAPH_SECTIONS.items()}}
+        if self.inventory is not None and self.inventory.frozen is not None:
+            packet["semanticGraph"] = deepcopy(self.inventory.frozen)
+            packet["claimInventory"] = self.inventory.binding()
         return packet
 
     def draft_counts(self) -> dict[str, int]:
@@ -337,6 +348,9 @@ def _record_completion_submission(
 def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
     """Bind validation, submission and explicit source-blocking to one run."""
 
+    if context.source_graph is not None and context.inventory is None:
+        context.inventory = ClaimInventory(context)
+
     @tool(args_schema=PREPARATION_PROGRESS_SCHEMA)
     def record_preparation_progress(
         establishedFindings: list[str],
@@ -369,6 +383,11 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
         context.validation_calls += 1
+        if context.inventory is not None:
+            inventory = context.inventory
+            if inventory.frozen is None or inventory.phase not in {AUTHORING, RULE_VALIDATION, SUBMISSION_READY}:
+                return json.dumps(inventory.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize inventory and start Rule authoring first"))
+            inventory.transition(RULE_VALIDATION)
         context.adds_since_validation = 0
         previous_validation = context.last_validation
         context.validated_packet = None
@@ -395,7 +414,15 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             context.trace.append({"tool": "validate", "error": str(error)[:160]})
             logger.warning("RULE_SET_PREPARATION_VALIDATION_ERROR", run_id=context.run_id,
                            validation_call=context.validation_calls, error=str(error)[:300])
-            return json.dumps({"error": str(error)})
+            if context.inventory is None:
+                return json.dumps({"error": str(error)})
+            if isinstance(error, WorkerCallbackError) and error.status_code != 400:
+                raise
+            result = {"outcome": "FAILED", "failures": [{"code": "CLAIM_SCHEMA_INVALID", "ref": path, "detail": "Repair this candidate field using the typed authoring tool"}
+                      for path in sorted(set(re.findall(r"packet\.[A-Za-z0-9_.]+", str(error))))[:20]] or [{"code": "CLAIM_SCHEMA_INVALID", "ref": "packet", "detail": str(error)[:200]}]}
+        if context.inventory is not None:
+            result = context.inventory.observe_validation(result, RULE_VALIDATION, packet)
+            context.inventory.transition(SUBMISSION_READY if result.get("outcome") == "PASSED" else AUTHORING)
         context.last_validation = result
         if result.get("coverage"):
             publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
@@ -414,7 +441,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         logger.info("RULE_SET_PREPARATION_VALIDATED", run_id=context.run_id,
                     validation_call=context.validation_calls, outcome=result.get("outcome"),
                     failure_codes=counts, packet=_packet_stats(packet), from_draft=from_draft)
-        return json.dumps(_model_view(result, context), ensure_ascii=False)
+        return json.dumps(grouped_gaps(result, context.draft["semanticClaims"]) if context.inventory else _model_view(result, context), ensure_ascii=False)
 
     @tool(args_schema=DRAFT_PART_SCHEMA)
     def add_to_packet_draft(
@@ -435,6 +462,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         """
         if context.submission is not None or context.source_blocked is not None:
             return json.dumps({"error": "Preparation is already finished."})
+        if context.inventory is not None:
+            return json.dumps(context.inventory.rejected("CLAIM_PHASE_INVALID", "draft", "Use typed claim/review tools during discovery and typed Requirement/AssessmentRule tools after freeze"))
         part = {"legalRequirements": legalRequirements, "assessmentRules": assessmentRules,
                 "contextRelations": contextRelations, "semanticClaims": semanticClaims, "claimRelations": claimRelations,
                 "sourceAccounting": sourceAccounting, "referenceAccounting": referenceAccounting}
@@ -526,6 +555,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         detail, and uncovered source provisions are listed under "uncoveredProvisions". Fix every
         failure and validate again before the single submission.
         """
+        if context.inventory is not None and (packet is not None or ignored):
+            return json.dumps(context.inventory.rejected("CLAIM_SCHEMA_INVALID", "validate_compliance_rule_set", "No arguments: use typed authoring tools and validate the current frozen-inventory draft"))
         return run_validation(packet)
 
     @tool(args_schema=OPTIONAL_PACKET_INPUT_SCHEMA)
@@ -536,6 +567,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         checks structure and provenance only; this agent owns legal interpretation and completeness.
         A passing claim is submitted through the canonical atomic activation operation.
         """
+        if context.inventory is not None and (packet is not None or ignored):
+            return json.dumps(context.inventory.rejected("CLAIM_SCHEMA_INVALID", "submit_compliance_rule_set", "No arguments: explicitly submit the exact validated draft"))
         if context.submission is not None:
             return json.dumps({**context.submission, "alreadySubmitted": True}, ensure_ascii=False)
         if context.source_blocked is not None:
@@ -579,6 +612,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             _record_completion_submission(context, candidate, gate, accepted=False, gate_rejected=False)
             return json.dumps({"error": str(error)})
         context.submission = result
+        if context.inventory is not None:
+            context.inventory.transition(COMPLETION)
         context.progress_revision += 1
         context.trace.append({"tool": "submit", "outcome": (result.get("validation") or {}).get("outcome")})
         _record_completion_submission(context, packet, gate, accepted=True, gate_rejected=False)
@@ -628,7 +663,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         context.trace.append({"tool": "source_blocked", **context.source_blocked})
         return json.dumps({"sourceBlocked": context.source_blocked})
 
-    return [
+    common = [
         record_preparation_progress,
         validate_compliance_rule_set,
         submit_compliance_rule_set,
@@ -636,3 +671,20 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         add_to_packet_draft,
         remove_from_packet_draft,
     ]
+    if context.inventory is not None:
+        # Runtime authoring is incremental; giant independently mutable packet tools are not exposed.
+        validate_compliance_rule_set.description = "Validate current Rule candidates against the frozen inventory revision, returning grouped claim/provenance/fidelity gaps. No arguments or replacement packet. A pass enters SUBMISSION_READY without publishing authority."
+        submit_compliance_rule_set.description = "Explicitly submit the exact validated frozen-inventory draft once through the Completion Gate. No arguments or replacement packet."
+        validate_compliance_rule_set.args_schema = {"type": "object", "properties": {}, "additionalProperties": False}
+        submit_compliance_rule_set.args_schema = {"type": "object", "properties": {}, "additionalProperties": False}
+        def serialize(function):
+            @wraps(function)
+            def invoke(*args, **kwargs):
+                with context.mutation_lock:
+                    return function(*args, **kwargs)
+            return invoke
+        for governed in common[:4]:
+            governed.func = serialize(governed.func)
+        return common[:4] + build_claim_tools(context)
+    # Isolated legacy tool unit tests have no source graph. The real runner always supplies one.
+    return common

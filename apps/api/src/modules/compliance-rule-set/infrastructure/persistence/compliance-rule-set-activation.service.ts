@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { validateFrozenInventory } from "../../domain/claim-inventory.js";
+import { frozenInventoryForRun } from "./preparation-inventory.persistence.js";
 
 import {
   AUDIT_ACTOR_TYPES,
@@ -21,6 +23,7 @@ import {
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
   Prisma,
+  ClaimPreparationPhase,
   AgentExecutionState as PrismaAgentExecutionState,
   ArtifactLifecycleState as PrismaArtifactLifecycleState,
   RuleSetPreparationFailureReason as PrismaRuleSetPreparationFailureReason,
@@ -130,9 +133,13 @@ export class ComplianceRuleSetActivation {
     actorId: string,
   ): Promise<ComplianceRuleSetSubmitResult> {
     const [preparation] = await tx.$queryRaw<
-      Array<{ executionState: PrismaAgentExecutionState }>
+      Array<{
+        executionState: PrismaAgentExecutionState;
+        claimInventoryRevision: number;
+        claimPhase: ClaimPreparationPhase;
+      }>
     >(
-      Prisma.sql`SELECT "executionState" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
+      Prisma.sql`SELECT "executionState", "claimInventoryRevision", "claimPhase" FROM "RuleSetPreparationRun" WHERE "id" = ${ctx.runId} FOR UPDATE`,
     );
     if (!preparation) {
       throw problemException(
@@ -158,6 +165,30 @@ export class ComplianceRuleSetActivation {
         { status: HttpStatus.CONFLICT },
       );
     }
+
+    // Reopening and publication serialize on the same row; a pre-lock validation cannot publish stale claims.
+    const inventoryGaps = validateFrozenInventory(
+      ctx.packet,
+      await frozenInventoryForRun(
+        tx,
+        ctx.runId,
+        preparation.claimInventoryRevision,
+      ),
+      preparation.claimInventoryRevision,
+    );
+    if (
+      ctx.failures.length === 0 &&
+      (inventoryGaps.length ||
+        preparation.claimPhase !== ClaimPreparationPhase.SUBMISSION_READY)
+    )
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.preparationRunConflict,
+        ctx.correlationId,
+        {
+          status: HttpStatus.CONFLICT,
+          meta: { gaps: inventoryGaps.map((g) => g.code).join(",") },
+        },
+      );
 
     // Cancel and publication serialize on the preparation row; only one can become terminal.
     await acquireComplianceRuleSetActivationLock(tx);
@@ -211,6 +242,7 @@ export class ComplianceRuleSetActivation {
       data: valid
         ? {
             executionState: PrismaAgentExecutionState.SUCCEEDED,
+            claimPhase: ClaimPreparationPhase.COMPLETION,
             completedAt: now,
           }
         : {

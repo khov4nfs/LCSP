@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ClaimInventoryHandler } from "./application/commands/claim-inventory/claim-inventory.handler.js";
 import { LegalSourceModule } from "../legal-source/legal-source.module.js";
 import { CqrsModule } from "@nestjs/cqrs";
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
@@ -17,7 +18,7 @@ import { CancelRuleSetPreparationHandler } from "./application/commands/cancel-r
 import { GetActiveComplianceRuleSetHandler } from "./application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.handler.js";
 import { GetComplianceRuleSetVersionHandler } from "./application/queries/get-compliance-rule-set-version/get-compliance-rule-set-version.handler.js";
 import { GetComplianceRuleSetResultHandler } from "./application/queries/get-compliance-rule-set-result/get-compliance-rule-set-result.handler.js";
-import { ValidateComplianceRuleSetHandler } from "./application/queries/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
+import { ValidateComplianceRuleSetHandler } from "./application/commands/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
 import { LegalSourceSnapshotLoader } from "./infrastructure/persistence/legal-source-snapshot.service.js";
 import { ComplianceRuleSetActivation } from "./infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { ComplianceRuleSetReadModelLoader } from "./infrastructure/persistence/compliance-rule-set-read-model.service.js";
@@ -34,6 +35,7 @@ import { ReactivateComplianceRuleSetHandler } from "./application/commands/react
   imports: [CqrsModule, OutboxModule, RbacModule, LegalSourceModule],
   controllers: [ComplianceRuleSetController, ComplianceRuleSetAdminController],
   providers: [
+    ClaimInventoryHandler,
     LegalSourceSnapshotLoader,
     ListComplianceRuleSetHistoryHandler,
     ComplianceRuleSetHistoryLoader,

@@ -11,8 +11,10 @@ import {
 
 export const reactivationTargetInclude = {
   activation: true,
-  preparationRun: true,
   legalSourceVersion: true,
+  preparationRun: {
+    include: { claimInventories: { orderBy: { revision: "desc" }, take: 1 } },
+  },
   semanticGraph: { include: semanticGraphInclude },
   rules: {
     orderBy: { ordinal: "asc" },
@@ -47,6 +49,7 @@ export function storedRuleSetIntegrityValid(
       row.rules.map((rule) => [rule.id, rule.legalRequirementId]),
     );
     const hash = (value: unknown) => sha256Hex(canonicalJson(value));
+    const inventory = row.preparationRun?.claimInventories[0];
     const semanticGraph = row.semanticGraph
       ? readSemanticGraph(row.semanticGraph)
       : null;
@@ -75,6 +78,7 @@ export function storedRuleSetIntegrityValid(
       );
       const requirement = {
         legalRequirementId: rule.legalRequirementId,
+        ...(inventory ? { claimInventoryRevision: inventory.revision } : {}),
         title: rule.title,
         proposition: rule.proposition,
         ...(semanticGraph
@@ -175,6 +179,14 @@ export function storedRuleSetIntegrityValid(
         assessmentRules,
         contextRelations,
         ...(semanticGraph ? { semanticGraph } : {}),
+        ...(inventory
+          ? {
+              claimInventory: {
+                revision: inventory.revision,
+                fingerprint: inventory.fingerprint,
+              },
+            }
+          : {}),
       }) === row.ruleSetDigest
     );
   } catch {

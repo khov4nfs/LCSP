@@ -1,6 +1,8 @@
 """Provider-free regression for native document-level preparation parallelism."""
 
 from __future__ import annotations
+
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - explicit legacy packet unit adapter
 from legal_graph_fixture import document_graph_for_bundle
 
 import hashlib

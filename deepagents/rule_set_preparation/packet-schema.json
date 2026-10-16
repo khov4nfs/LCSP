@@ -284,6 +284,22 @@
           ],
           "additionalProperties": false
         },
+        "claimInventory": {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "fingerprint": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": ["revision", "fingerprint"],
+          "additionalProperties": false
+        },
         "legalRequirements": {
           "description": "Operative duties, prohibitions or permissions only. Context-only definitions, scope, exceptions and interpretive cross-references belong in contextRelations with toSourceRef, not standalone LegalRequirements. Source coverage does not require a LegalRequirement for every provision.",
           "maxItems": 5000,
@@ -296,6 +312,11 @@
                 "minLength": 1,
                 "maxLength": 128,
                 "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              },
+              "claimInventoryRevision": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
               },
               "claimBindings": {
                 "maxItems": 256,

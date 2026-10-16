@@ -47,8 +47,8 @@ import { SubmitComplianceRuleSetCommand } from "../commands/submit-compliance-ru
 import { SubmitComplianceRuleSetHandler } from "../commands/submit-compliance-rule-set/submit-compliance-rule-set.handler.js";
 import { GetActiveComplianceRuleSetHandler } from "../queries/get-active-compliance-rule-set/get-active-compliance-rule-set.handler.js";
 import { GetActiveComplianceRuleSetQuery } from "../queries/get-active-compliance-rule-set/get-active-compliance-rule-set.query.js";
-import { ValidateComplianceRuleSetHandler } from "../queries/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
-import { ValidateComplianceRuleSetQuery } from "../queries/validate-compliance-rule-set/validate-compliance-rule-set.query.js";
+import { ValidateComplianceRuleSetHandler } from "../commands/validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
+import { ValidateComplianceRuleSetCommand } from "../commands/validate-compliance-rule-set/validate-compliance-rule-set.command.js";
 import { LegalSourceSnapshotLoader } from "../../infrastructure/persistence/legal-source-snapshot.service.js";
 import { ComplianceRuleSetActivation } from "../../infrastructure/persistence/compliance-rule-set-activation.service.js";
 import { ComplianceRuleSetReadModelLoader } from "../../infrastructure/persistence/compliance-rule-set-read-model.service.js";
@@ -138,7 +138,7 @@ function buildRuleSetUseCases(
       ),
     validate: async (i: Body) =>
       validate.execute(
-        new ValidateComplianceRuleSetQuery(
+        new ValidateComplianceRuleSetCommand(
           parse(
             complianceRuleSetValidateRequestSchema,
             await pinFixtureRequest(prisma, i.body),
@@ -326,6 +326,10 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
       await service.getActiveRuleSet(randomUUID()),
     );
     expect(read.ruleSetVersionId).toBe(result.ruleSetVersionId);
+    expect(read.claimInventory?.revision).toBe(1);
+    expect(
+      read.legalRequirements.every((r) => r.claimInventoryRevision === 1),
+    ).toBe(true);
     expect(read.legalSourceVersionId).toBe(legalSource.id);
     expect(read.legalRequirements).toHaveLength(5);
     expect(
@@ -961,7 +965,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     );
   });
 
-  it("validates a packet as a dry-run without persisting anything", async () => {
+  it("validates against a frozen inventory without publishing Rule artifacts", async () => {
     const source = await createLegalSource();
     await new LegalDocumentGraphService(prisma as PrismaService).materialize(
       source.id,
@@ -971,6 +975,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
     const bad = validPacket();
     bad.assessmentRules[0].legalRequirementIds.push("LR-MISSING");
 
+    await claimBeforeSubmit(run.preparationRunId);
     const failed = await service.validate({
       body: { preparationRunId: run.preparationRunId, packet: bad },
       correlationId: randomUUID(),
@@ -993,7 +998,7 @@ describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
           where: { id: run.preparationRunId },
         })
       ).executionState,
-    ).toBe("QUEUED");
+    ).toBe("RUNNING");
   });
 
   it("records an execution failure once and refuses to fail a finished run", async () => {

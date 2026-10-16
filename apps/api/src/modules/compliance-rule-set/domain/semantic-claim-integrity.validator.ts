@@ -58,6 +58,7 @@ const requirementRelationKind = {
 export function validateSemanticClaimGraph(
   packet: ComplianceRuleSetPacket,
   source: LegalSourceSnapshot,
+  inventoryOnly = false,
 ) {
   const failures: ComplianceRuleSetValidationFailure[] = [];
   const fail = (
@@ -271,7 +272,7 @@ export function validateSemanticClaimGraph(
     else coverage.structuralSource.accounted += 1;
   }
   const bound = new Map<string, Set<string>>();
-  for (const requirement of packet.legalRequirements) {
+  for (const requirement of inventoryOnly ? [] : packet.legalRequirements) {
     const ref = `legalRequirement:${requirement.legalRequirementId}`;
     const seen = new Set<string>();
     const boundFields = new Set<string>();
@@ -382,11 +383,12 @@ export function validateSemanticClaimGraph(
     coverage.semanticClaims.relevant += 1;
     if (!bound.get(claim.claimId)?.size) {
       coverage.semanticClaims.unaccounted += 1;
-      fail(
-        F.UNACCOUNTED_SEMANTIC_CLAIM,
-        `claim:${claim.claimId}`,
-        "Relevant claim has no valid explicit Requirement accounting path",
-      );
+      if (!inventoryOnly)
+        fail(
+          F.UNACCOUNTED_SEMANTIC_CLAIM,
+          `claim:${claim.claimId}`,
+          "Relevant claim has no valid explicit Requirement accounting path",
+        );
     } else coverage.semanticClaims.accounted += 1;
   }
   const relations = new Map(semantic.relations.map((r) => [r.relationId, r]));
@@ -396,6 +398,14 @@ export function validateSemanticClaimGraph(
       "semanticGraph",
       "Duplicate claim relation identity",
     );
+  const requirementDependencies = new Map<string, Set<string>>();
+  for (const relation of packet.contextRelations) {
+    if (!relation.toLegalRequirementId) continue;
+    const key = `${relation.kind}|${relation.fromLegalRequirementId}`;
+    const targets = requirementDependencies.get(key) ?? new Set<string>();
+    targets.add(relation.toLegalRequirementId);
+    requirementDependencies.set(key, targets);
+  }
   for (const relation of semantic.relations) {
     const from = claims.get(relation.fromClaimId),
       to = claims.get(relation.toClaimId);
@@ -412,13 +422,11 @@ export function validateSemanticClaimGraph(
       const targets = bound.get(to.claimId) ?? new Set<string>();
       if (
         !targets.has(origin) &&
-        !packet.contextRelations.some(
-          (r) =>
-            r.kind === requirementRelationKind[relation.kind] &&
-            r.fromLegalRequirementId === origin &&
-            r.toLegalRequirementId !== null &&
-            targets.has(r.toLegalRequirementId),
-        )
+        ![
+          ...(requirementDependencies.get(
+            `${requirementRelationKind[relation.kind]}|${origin}`,
+          ) ?? []),
+        ].some((target) => targets.has(target))
       )
         fail(
           F.SEMANTIC_DEPENDENCY_DETACHED,
@@ -479,7 +487,7 @@ export function validateSemanticClaimGraph(
         "A material unresolved or ambiguous reference blocks completion",
       );
   }
-  for (const rule of packet.assessmentRules) {
+  for (const rule of inventoryOnly ? [] : packet.assessmentRules) {
     const ref = `assessmentRule:${rule.assessmentRuleId}`;
     const criteria = new Set(rule.criteria.map((c) => c.criterionId));
     const bindings = rule.evidenceBindings ?? [];

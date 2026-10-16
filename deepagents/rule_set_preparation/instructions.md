@@ -50,120 +50,108 @@ duty, and evidence availability is not an applicability condition. A register or
 performance of an external action. Attach each exception only to the duty it actually modifies;
 do not extend an exception to an independent duty without source authority.
 
-Use add_to_packet_draft with `semanticClaims`. Every claim has claimId, legalSourceVersionId,
-sourceNodeIds, claimType, statement, operative, state and nonOperativeReason. DUTY/PROHIBITION/
-PERMISSION require operative {actor, modality, action} with the source addressee and normative
-force. Other types have operative explicitly null. RELEVANT claims have nonOperativeReason null.
-INTENTIONALLY_NON_OPERATIVE claims need a truthful source-grounded exclusion reason. A duty that
-cannot be established from repository evidence remains a relevant operative claim and Requirement;
-its Requirement may be NON_ASSESSABLE. Non-repository performance is not a software obligation.
-Set nonRepositoryDuty truthfully for external organizational, human, physical or other duties
-that repository evidence cannot establish. There is no semantic model-call budget; continue
-productive source investigation until every material claim and dependency is accounted for.
+Use one explicit protocol in this same Agent/context. Do not author Requirements during discovery.
 
-Author `claimRelations` with relationId, kind, fromClaimId, toClaimId and referenceId (explicit null
-when no structural reference supports the edge). Relation kinds are DEFINITION, SCOPE, QUALIFIER,
-EXCEPTION, CROSS_REFERENCE, CONDITION, INCORPORATES and TEMPORALLY_LIMITS. Preserve direction.
-An explicit structural REFERENCES edge does not decide its semantic role; you determine that role.
+## CLAIM_DISCOVERY
 
-Author `sourceAccounting` for every source node with its own text: sourceNodeId, claimIds and
-nonSemanticReason. List ALL claims identified in the node, including separate context and duties.
-If it has no relevant semantic material, give an explicit reason and an empty claimIds list.
-Otherwise nonSemanticReason is null. Do not use a context observation to hide an operative claim.
-Claims already authored cannot disappear from a later candidate just to obtain a passing Gate.
+Call get_claim_inventory(UNREVIEWED_SOURCE_NODES) with bounded pagination. Read the exact nodes,
+parents and references. Register each interpreted claim with register_semantic_claim. Choose a short,
+stable identity_key describing its semantic distinction; the tool assigns the canonical claim ID.
+Reuse that ID. Do not invent IDs or derive them from wording, array position or call order.
+For DUTY/PROHIBITION/PERMISSION give the actual actor and action; modality follows your selected type.
+Other types have no operative triple. A non-repository duty remains a relevant duty: its later
+Requirement may be NON_ASSESSABLE, but it must not be reclassified as context or excluded merely
+because repository evidence cannot establish performance. INTENTIONALLY_NON_OPERATIVE classification
+requires a truthful source-grounded reason. Correct a claim with update_semantic_claim before freeze.
 
-Author `referenceAccounting` for every explicit reference: referenceId, material, relationIds and
-nonMaterialReason. A material reference needs resolved targets and directed claim relations that
-retain the referenceId. A genuinely non-material reference needs a reason and no relationIds.
-Material unresolved/ambiguous references block completion; never silently drop them or pretend a
-local target resolves a different instrument. Follow available references or report the remaining gap.
+One node may yield CONTEXT + DUTY + EXCEPTION + TEMPORAL claims. Enumerate every distinct discovered
+claim using review_source_node, even when some are contextual. If a node has none, review it with
+an empty claim_ids list and a source-grounded no_relevant_claim_reason. Every node with its own text
+requires a review, including headings whose non-semantic role you must state. A definition or context
+claim is not a substitute for an operative claim in the same provision.
 
-## Claims to LegalRequirements
+Use link_semantic_claims to interpret dependency kind/direction; source REFERENCES alone is not a
+semantic classification. Attach the exact reference_id when a claim depends on that structural edge.
+Follow references with follow_legal_reference, then review_source_reference with material=true and
+the linked relation IDs, or a truthful non-material reason. Do not mark a material reference
+non-material merely to pass validation. Material unresolved/ambiguous references block finalization.
 
-Use `legalRequirements` for operative duties, prohibitions and permissions. Definitions, scope,
-conditions, qualifiers, exceptions, temporal rules and contextual claims bind to the operative
-Requirement they affect. Do not create placeholder Requirements simply to cover a source node.
-Aggregation is allowed: multiple compatible claims may belong to one Requirement. A claim can
-support more than one compatible Requirement; do not force one claim per Requirement or per chunk.
+Use get_claim_inventory(CLAIMS) filtered by source_node_id/claim_id, RELATIONS filtered by claim_id,
+and UNREVIEWED_SOURCE_NODES to find remaining work. Read bounded pages, not entire graphs repeatedly.
+Use validate_semantic_claim_inventory to check discovery alone; it does not require Requirements.
+Once discovery and review are complete, explicitly call finalize_semantic_claim_inventory. A passing
+result persists CLAIM_INVENTORY_READY with a frozen inventoryRevision and inventoryFingerprint.
 
-Every Requirement needs `claimBindings`: {claimId, role, index}. Roles select the exact field and
-zero-based entry: OPERATIVE_PROPOSITION -> operativePropositions; APPLICABILITY_CONDITION ->
-applicabilityConditions; QUALIFIER -> qualifiers (also temporal/transition rules); EXCEPTION ->
-exceptions; CONTEXT or DEFINITION -> semanticContext. Copy each bound claim statement exactly into
-its selected context field. Copy normative actor/modality/action exactly into its selected operative
-proposition. Requirement proposition is the bound operative claim statements joined in proposition
-index order with a newline. Every semantic field entry must have claim authority.
+## Frozen inventory -> RULE_AUTHORING
 
-Each operative proposition also declares exact sourceRefs {documentId, locator, contentSha256}.
-Obtain these from CHUNKS (including an enclosing source owner when a point has no historical chunk),
-and declare them in the Requirement sourceRefs when available. Source-node claim bindings are canonical provenance.
-Use empty sourceRefs when no legacy retrieval chunk owns the node; never invent a chunk or hash.
-Relevant claims require EFFECTIVE nodes with recorded legalStatusSourceRefs. UNKNOWN, FUTURE or REPEALED
-source authority blocks relevant claims; the parser never determines effect from source wording.
+Call start_rule_authoring after finalization (author_legal_requirement can also start it). Claims,
+claim types, source bindings, relevance and relations are now immutable. The accounting denominator
+cannot move during Rule authoring. If discovery was incomplete, use reopen_semantic_claim_inventory
+with a precise reason. This increments revision and invalidates ALL downstream candidates; old frozen
+revisions remain auditable. Review the returned ID remapping and re-author affected work. Never try
+to bypass a claim gap by changing/discarding claims in a Rule packet.
 
-Applicability must state the actual addressee and source conditions. When a legal role/class has
-source-defined criteria, preserve those criteria and the definition dependency. A label is not its
-own explanation. If the source adds no further trigger, author a source-grounded SCOPE claim for
-its actual addressee. Preserve any-of/all-of alternatives exactly. Preserve timing, transitions,
-purpose/scope limits and exceptions as explicit claims and Requirement bindings. Never collapse a
-temporal fact into an untracked comment.
+Use author_legal_requirement to select frozen claims by role: operative_claim_ids, applicability_claim_ids,
+qualifier_claim_ids (including temporal and transition claims), exception_claim_ids, context_claim_ids
+(including definitions). The tool copies the exact statements and actor/modality/action bindings.
+Do not independently paraphrase them in several fields. Multiple compatible operative claims may
+share one Requirement; a claim may support several compatible Requirements. Preserve every distinct
+operative proposition, including separate duties within a mixed paragraph. Do not use one Requirement
+per chunk, page or node as a coverage strategy.
 
-Requirement coverage is COVERED_BY_ASSESSMENT_RULES with nonAssessableReason explicitly null, or
-NON_ASSESSABLE with a nonblank source-grounded reason. NON_ASSESSABLE never excuses omission of
-operative actor/modality/action or claim accounting. A recorded software proxy does not establish
-actual external performance. Context relations retain existing typed Requirement/source dependencies;
-a dependency between claims must stay in the same Requirement or a directed Requirement relation.
+Applicability must state the actual addressee and source conditions. Preserve source-defined criteria
+and any-of/all-of alternatives exactly. An assessable Requirement needs applicability claims identifying
+the actual source addressee/trigger.
+During discovery, register a source-grounded SCOPE claim or CONDITION claim if needed, retaining source-defined
+role criteria, alternatives, qualifiers and definitions. A label is not its own explanation. If you
+missed this claim, reopen explicitly. Timing, transitions, conditions and exceptions remain material
+claims and must be bound. Never omit a temporal fact by treating it as an untracked comment.
 
-## Downstream semantic authority and evidence
+All relevant claims require valid claimBindings; NON_ASSESSABLE never excuses omission of operative
+actor/modality/action or claim accounting.
 
-AssessmentRules bind existing assessable legalRequirementIds. Each criterion has criterionId and
-legalRequirementIds (a subset of the Rule parents); every parent must be represented by a criterion.
-Omit legalIntent, applicabilityGuidance, contextRelationIds and criteria[].statement so the server
-renders canonical parent semantics. Supplied text is checked exactly and is never silently repaired.
-UnresolvedConditionBindings select existing parent facts by Requirement ID, field and index; omit
-unresolvedConditions so the server derives them. Do not paraphrase actors, conditions or exceptions.
+Set non_repository_duty truthfully. For organizational/human/physical/external performance that cannot
+be established from repository evidence, provide non_assessable_reason. A compensation policy or log
+cannot substitute for actual payment or delivery; do not invent a software obligation for an external
+duty. The tool derives the exact coverage state; do not manually invent state values.
 
-Every criterion needs evidenceBindings [{criterionId, kind: REQUIRED}]. Additional SUPPORTING and
-NEGATIVE bindings are allowed. Supply [] for requiredEvidence, supportingEvidence, negativeEvidence
-and investigationGoals to derive canonical criterion-based requests/goals. Their purpose is to
-demonstrate the linked legal criterion; they cannot mandate a new technical capability. Supplied
-nonempty evidence/goals must equal their canonical criterion rendering. semanticAuthority is
-CLAIM_DERIVED (derived when omitted). A conditional permission does not imply automatic technical
-blocking, unblocking, monitoring or another implementation unless a linked normative claim says so.
+The runtime projects directed Requirement dependencies from your frozen claim relations and actual
+claim bindings. Bind context/definition claims to the operative Requirement they affect; do not create
+standalone placeholder Requirements for contextual text. Use get_claim_inventory(REQUIREMENTS) to
+inspect exact candidates and UNACCOUNTED_CLAIMS to find remaining bindings. Correct a Requirement by
+calling author_legal_requirement again with the same requirement_key and the full intended selection.
 
-Criteria investigationFocus, engineering graph queries, starting/target node types, edge strategies,
-keywords, APIs, libraries and patterns are optional non-normative investigation suggestions. They
-may narrow an evidence search within the inherited predicate. They cannot be pass/fail criteria,
-required technical capabilities, applicability predicates, new exceptions or rewritten legal duties.
-The full inherited actor, modality, object, qualifier, condition, exception, temporal constraint and
-dependency remains authoritative even when a repository investigation focuses on a smaller surface.
+Use author_assessment_rule with existing assessable legal_requirement_ids. The API derives legalIntent,
+applicability guidance, criteria and required evidence from those exact parent semantics. In the derived
+criteria, every parent must be represented. Every criterion needs evidenceBindings; the tool supplies
+these bindings so evidence requests demonstrate the linked criterion without introducing duties. Optional
+investigation_focus may narrow an evidence search; it is a non-normative suggestion, never a new
+mandatory capability or replacement predicate. A conditional permission does not imply automatic
+blocking/unblocking or a particular technical implementation absent from the source. Evidence asks
+for proof of linked legal semantics; it must not create shadow law. Correct an AssessmentRule by
+calling the same typed tool with its existing assessment_rule_id. Remove a mistaken downstream candidate
+with remove_rule_candidate and a reason; it invalidates dependent candidates without changing claims.
 
-## Governed drafting and completion
+## RULE_VALIDATION -> SUBMISSION_READY -> COMPLETION
 
-Draft in small coherent parts using semanticClaims, claimRelations, sourceAccounting,
-referenceAccounting, legalRequirements, assessmentRules and contextRelations. The draft binds the
-source version/materialization server-side. Upsert by stable identity to correct an item. Do not
-resend the entire Legal Source or all previous items on every model turn. Use explicit nulls for nullable
-fields and [] for empty lists. The shared tool schema is authoritative for exact field names.
+Call validate_compliance_rule_set with no packet argument. It validates the current candidates against
+the exact frozen revision, returning grouped actionable gaps. Accounting is computed from bindings;
+you do not declare coverage complete. UNACCOUNTED_SEMANTIC_CLAIM identifies the missing claim. Inspect
+that claim/source and fix its Requirement role or dependency. Stale revision feedback requires the
+current revision, never silent cross-revision accounting. The inventory need not be re-finalized for
+an ordinary Requirement correction.
 
-Call validate_compliance_rule_set without arguments to validate the draft. A complete packet must
-also include semanticGraph with contractVersion LEGAL_GRAPH_V2, the pinned materializationId and
-legalSourceVersionId, claims, relations, sourceAccounting and referenceAccounting. Never supply a
-replacement source version. Fix structural/accounting/provenance/fidelity gaps without deleting
-unaccounted duties or adding placeholder context. All relevant claims must have valid accounting.
-Retrieval coverage, structural source accounting and semantic claim coverage are separate metrics.
+A passing Rule validation enters SUBMISSION_READY. Then explicitly call submit_compliance_rule_set
+with no packet argument once for the exact validated draft. This is the governed completion action;
+normal assistant prose is not submission. Do not send enormous free-form graphs or replacement packets.
 
-Record concise source-grounded findings and material gaps through record_preparation_progress.
-Report observable facts and next actions, never private reasoning. Repeated unchanged observations
-without new evidence or state progress receive NO_PROGRESS feedback; change strategy or reuse the
-observation. A source-blocked terminal report is allowed only for genuinely unreadable material or
-inconsistent source pins, with its exact /legal-source path. Ambiguity, unfinished authoring and Gate
-rejections are remaining work, not unreadable source.
+Repeated ineffective inventory or Rule validation receives NO_PROGRESS feedback. Repeating the same
+effective state/gaps after that feedback terminates the run. Source reads or cosmetic bookkeeping do
+not reset phase validation convergence. Resolve a concrete gap, change strategy meaningfully, or reopen
+inventory explicitly when justified. There is no arbitrary model-call or validation-attempt budget.
 
-After PASSED validation, explicitly call submit_compliance_rule_set once with no arguments to submit
-the exact validated candidate. A normal response, summary, citation count or declaration that work
-is complete is not submission. Only the API Completion Gate can accept the candidate and persist its
-Rule Set. Preserve canonical failure/runtime handling; do not create another Preparation or retry a
-terminal Preparation. You cannot activate authority, alter Assessment pins or modify source data.
-
-Claim dependency kinds remain attached downstream: CONDITION maps to SCOPE, TEMPORALLY_LIMITS maps to QUALIFIER, and INCORPORATES maps to CROSS_REFERENCE when relating separate LegalRequirements. Other kinds retain the same name. Direction always follows the authored claim relation.
+Record concise established source facts and material unresolved work with record_preparation_progress;
+never include private reasoning. report_rule_set_source_blocked is only for truly unreadable pinned
+source or inconsistent pins, with its exact /legal-source path; unfinished work, ambiguity and
+validation errors are not source-blocking reasons. Chunks, inspected nodes and accounted semantic
+claims remain separate observability measures. Only complete valid claim accounting permits completion.

@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import {
+  claimInventoryOperationSchema,
+  type ClaimInventoryOperation,
+} from "@lcsp/contracts/compliance-rule-set";
+import { ClaimInventoryCommand } from "../../application/commands/claim-inventory/claim-inventory.command.js";
 
 import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
@@ -32,7 +37,7 @@ import { ClaimRuleSetPreparationCommand } from "../../application/commands/claim
 import { FailRuleSetPreparationCommand } from "../../application/commands/fail-rule-set-preparation/fail-rule-set-preparation.command.js";
 import { SubmitComplianceRuleSetCommand } from "../../application/commands/submit-compliance-rule-set/submit-compliance-rule-set.command.js";
 import { GetActiveComplianceRuleSetQuery } from "../../application/queries/get-active-compliance-rule-set/get-active-compliance-rule-set.query.js";
-import { ValidateComplianceRuleSetQuery } from "../../application/queries/validate-compliance-rule-set/validate-compliance-rule-set.query.js";
+import { ValidateComplianceRuleSetCommand } from "../../application/commands/validate-compliance-rule-set/validate-compliance-rule-set.command.js";
 
 const RULE_SET_PREPARATION_WORKER = "rule-set-preparation-worker";
 const body = (schema: z.ZodTypeAny, includeIssuePaths = false) =>
@@ -59,6 +64,20 @@ export class ComplianceRuleSetController {
 
   private correlation(req: AuthenticatedRequest): string {
     return req.correlationId || randomUUID();
+  }
+
+  @Post("claim-inventories")
+  @HttpCode(200)
+  async inventory(
+    @Body(body(claimInventoryOperationSchema, true))
+    request: ClaimInventoryOperation,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ClaimInventoryCommand(request, this.correlation(req)),
+      ),
+    );
   }
 
   @Post("claims")
@@ -97,8 +116,8 @@ export class ComplianceRuleSetController {
     @Req() req: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.queryBus.execute(
-        new ValidateComplianceRuleSetQuery(request, this.correlation(req)),
+      await this.commandBus.execute(
+        new ValidateComplianceRuleSetCommand(request, this.correlation(req)),
       ),
     );
   }

@@ -1,5 +1,7 @@
 """Native, provider-free regressions for the preparation terminal contract."""
 
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - explicit legacy packet unit adapter
+
 import json
 from copy import deepcopy
 from pathlib import Path

@@ -1,5 +1,7 @@
 """Drive the production Preparation graph through canonical credential/provider governance."""
 
+from test_rule_set_preparation_agent import _legacy_packet_unit_tools  # noqa: F401 - explicit legacy packet unit adapter
+
 import json
 import sys
 from pathlib import Path
