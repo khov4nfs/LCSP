@@ -1,0 +1,157 @@
+name: Security and Quality
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: security-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  trivy:
+    name: Trivy repository scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan repository with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Upload Trivy SARIF
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-repository
+
+  secureai:
+    name: SecureAI-Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan AI/LLM/MCP/RAG boundaries
+        continue-on-error: true
+        uses: akanthed/SecureAI-Scan@v0.12.0
+        with:
+          scanner-version: 0.12.0
+          path: .
+          paranoid: false
+          upload-sarif: true
+
+  trustabl:
+    name: Trustabl agent reliability
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan agent framework reliability
+        continue-on-error: true
+        uses: trustabl/trustabl-action@v0.4.3
+        with:
+          target: .
+          detectors: mcp,langchain
+          severity-threshold: none
+          upload-sarif: true
+          upload-artifact: true
+          artifact-retention-days: "14"
+          comment-on-pr: false
+          enrich: false
+          auto-enrich: false
+          create-fix-pr: false
+
+  api-coverage:
+    name: API coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lcsp_api_test
+        ports:
+          - 55435:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lcsp_api_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55435/lcsp_api_test?schema=public
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build runtime packages
+        run: pnpm run build:runtime-packages
+
+      - name: Generate Prisma client
+        run: pnpm --filter @lcsp/api prisma:generate
+
+      - name: Apply Prisma migrations
+        run: pnpm --filter @lcsp/api exec prisma migrate deploy
+
+      - name: Run API unit coverage
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
+        run: pnpm --filter @lcsp/api exec jest --config ./jest.config.ts --coverage --runInBand
+
+      - name: Upload API coverage to Codecov
+        uses: codecov/codecov-action@v7.1.1
+        with:
+          files: apps/coverage/lcov.info
+          flags: api
+          name: lcsp-api
+          disable_search: true
+          use_oidc: true
+          fail_ci_if_error: false
