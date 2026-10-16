@@ -217,6 +217,7 @@ export type PagesMessages = {
       notApplicable: string;
       viewReport: string;
       downloadReport: string;
+      downloadPdf: string;
     };
     bar: {
       working: string;
@@ -277,6 +278,46 @@ export type PagesMessages = {
       basedOn: string;
       loading: string;
       failed: string;
+      sections: {
+        result: string;
+        applicabilityFacts: string;
+        obligationCatalog: string;
+        obligationDetails: string;
+        actionPlan: string;
+        scopeTraceability: string;
+      };
+      labels: {
+        assessmentId: string;
+        artifactId: string;
+        schemaVersion: string;
+        repository: string;
+        commit: string;
+        legalSource: string;
+        ruleSet: string;
+        total: string;
+        compliant: string;
+        nonCompliant: string;
+        notApplicable: string;
+        na: string;
+        noFindings: string;
+        conditions: string;
+        facts: string;
+        evidence: string;
+        obligation: string;
+        rule: string;
+        applicability: string;
+        compliance: string;
+        rationale: string;
+        legalBasis: string;
+        observedFacts: string;
+        references: string;
+        actions: string;
+        limitations: string;
+        unavailable: string;
+        empty: string;
+        published: string;
+      };
+      v1Compatibility: string;
     };
   };
   agenticAssessment: {

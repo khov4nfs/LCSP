@@ -2,9 +2,9 @@ import { type NextRequest } from "next/server";
 import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
-  assessmentFinalReportArtifactSchema,
   claimAssessmentRootRequestSchema,
 } from "@lcsp/contracts/assessment-domain";
+import { assessmentFinalReportArtifactVersionedSchema } from "@lcsp/contracts/assessment-report";
 import { requireSessionToken } from "@/lib/server/session-token";
 import { problemJson, successJson } from "@/lib/server/problem-json";
 import {
@@ -32,7 +32,7 @@ export async function GET(
     { bearerToken: session.token, locale },
   );
   if (!upstream.ok || !upstream.body) return upstreamJson(upstream);
-  const parsed = assessmentFinalReportArtifactSchema.safeParse(
+  const parsed = assessmentFinalReportArtifactVersionedSchema.safeParse(
     JSON.parse(new TextDecoder().decode(upstream.body)),
   );
   return parsed.success
