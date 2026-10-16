@@ -50,15 +50,15 @@
     "@lcsp/contracts": "workspace:*",
     "@lcsp/i18n": "workspace:*",
     "@lcsp/web": "workspace:*",
-    "@playwright/test": "^1.63.0",
-    "@tanstack/ai": "^0.14.0",
+    "@playwright/test": "^1.64.0",
+    "@tanstack/ai": "^0.68.0",
     "@types/node": "^22.15.30",
     "dotenv": "16.6.1",
     "dotenv-expand": "12.0.3",
     "husky": "^9.1.7",
-    "likec4": "^1.49.0",
-    "prettier": "^3.9.4",
-    "tsx": "^4.23.1",
+    "likec4": "^1.59.4",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
     "typescript": "^5.8.0"
   }
 }
