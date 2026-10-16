@@ -37,7 +37,7 @@
   "dependencies": {
     "@lcsp/contracts": "file:../../packages/contracts",
     "@lcsp/i18n": "file:../../packages/i18n",
-    "@nestjs/common": "^11.0.1",
+    "@nestjs/common": "^12.1.3",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/cqrs": "^11.0.0",
