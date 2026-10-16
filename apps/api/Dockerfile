@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim
+FROM node:25-bookworm-slim
 
 ARG GITHUB_CLI_VERSION=2.98.0
 ARG GITLAB_CLI_VERSION=1.113.0
