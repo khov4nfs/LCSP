@@ -1,0 +1,26 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    steps:
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5.0.0
+        with:
+          fail-on-severity: high
+          vulnerability-check: true
+          license-check: true
+          show-openssf-scorecard: true
+          warn-on-openssf-scorecard-level: 3
+          show-patched-versions: true
+          retry-on-snapshot-warnings: true
