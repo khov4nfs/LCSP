@@ -1,74 +1,148 @@
 # Security Policy
 
+LCSP is a compliance-assessment platform that processes repository evidence, legal-source material, model output, authentication state, and administrative workflows. Security reports are handled as engineering incidents and should be disclosed privately.
+
 ## Supported versions
 
-LCSP does not publish a formal version support matrix. Security fixes are applied to the actively maintained `develop` and date-based release line. Older commits and package metadata versions are not separate supported product versions.
+Security fixes are applied to the actively maintained `develop` branch and to the currently supported release/deployment line derived from reviewed commits. Historical commits, abandoned branches, and old local builds are not supported product versions.
 
 ## Reporting a vulnerability
 
-The repository does not publish a security email address or dedicated intake process. A private maintainer contact is required. Do not post vulnerability details, exploit steps, credentials, or customer data in a public issue. Include the affected component, impact, and a minimal reproduction when contacting a maintainer privately.
+**Do not open a public GitHub issue, discussion, pull request, or commit containing vulnerability details, exploit steps, credentials, customer data, or other sensitive evidence.**
 
-## Scope
+Use GitHub's private security reporting flow:
 
-Security reports may concern:
+- Security Advisories: https://github.com/khov4nfs/LCSP/security/advisories
+- New private report/advisory: https://github.com/khov4nfs/LCSP/security/advisories/new
 
-- authentication, session handling, authorization, and Admin operations;
-- legal-source and Compliance Rule Set access or provenance;
-- repository connections, tokens, snapshots, and evidence handling;
-- provider credentials, model routing, and usage attribution;
-- the internal Agent Runtime, checkpoints, cancellation, and activity/event transport;
-- API and database access, migrations, logging, and production configuration.
+If the private report control is unavailable to you, contact a repository maintainer through an existing private channel and ask for a private security-reporting path before sharing technical details.
 
-Third-party model providers, identity providers, repository hosts, payment services, and hosting infrastructure are outside LCSP's control. Reports about them should explain the LCSP integration impact without sending third-party secrets.
+A useful report includes:
+
+- affected component, endpoint, workflow, or commit;
+- impact and realistic attack preconditions;
+- the smallest safe reproduction or proof of concept;
+- whether secrets, personal data, tenant data, legal-source data, or repository content may be exposed;
+- affected versions/SHAs when known;
+- suggested remediation or compensating controls, if available.
+
+Do not include real third-party credentials or customer data in a proof of concept. Redact secrets and use synthetic fixtures whenever possible.
+
+## Response targets
+
+These are service targets, not guarantees:
+
+| Stage | Target |
+| --- | --- |
+| Acknowledge private report | within 3 business days |
+| Initial severity/ownership triage | within 7 business days |
+| Status update after triage | at least every 14 days while open |
+| Coordinated disclosure | after a fix or adequate mitigation is available |
+
+Critical issues may be handled out of sequence when containment is more urgent than normal release flow.
+
+## Security advisory lifecycle
+
+Maintainers should use a **draft GitHub Security Advisory** for confirmed vulnerabilities that require coordinated remediation.
+
+1. Keep exploit details and affected code paths private during triage.
+2. Confirm scope, severity, affected versions/SHAs, and exploitability.
+3. Prepare and review the fix without exposing the vulnerability publicly.
+4. Add regression tests or deterministic security checks where practical.
+5. Rotate or revoke exposed credentials before disclosure when applicable.
+6. Request a CVE through GitHub when the issue warrants one.
+7. Publish the advisory only after remediation/mitigation and release guidance are ready.
+8. Link the public advisory to the fixing commit/release without publishing secrets or customer data.
+
+Public issues may be created after disclosure for non-sensitive follow-up work, but the private advisory remains the source of truth for the vulnerability record.
+
+## Safe-harbor expectations
+
+Good-faith research that avoids privacy violations, service disruption, persistence, destructive actions, social engineering, and unnecessary data access is welcome. Stop testing and report privately if you encounter credentials, personal data, cross-tenant data, or production-only evidence.
+
+This policy does not authorize testing against infrastructure or accounts that the reporter does not own or have permission to test.
+
+## In scope
+
+Security reports may concern, among other areas:
+
+- authentication, sessions, OAuth, authorization, PBAC/RBAC boundaries, and Admin operations;
+- tenant isolation and cross-assessment/cross-customer access;
+- repository connections, tokens, snapshots, evidence handling, and commit pinning;
+- legal-source and Compliance Rule Set provenance/integrity;
+- provider credentials, model routing, usage attribution, and fallback behavior;
+- prompt injection, tool misuse, RAG/vector-store isolation, MCP/agent boundaries, and unsafe model-output handling;
+- the internal Agent Runtime, checkpoints, cancellation, activity/event transport, and human approval boundaries;
+- API, database, migrations, queues, logging, observability, and production configuration;
+- dependency, container, CI/CD, and software-supply-chain weaknesses in LCSP-owned code/configuration.
+
+## Out of scope
+
+Third-party model providers, identity providers, repository hosts, payment services, package registries, and hosting platforms are outside LCSP's control unless the report demonstrates a vulnerability in LCSP's integration or configuration.
+
+Do not perform denial-of-service testing, destructive data modification, credential stuffing, phishing/social engineering, or broad automated scanning against systems you do not own.
 
 ## Secret management
 
-Provider keys and deployment credentials are supplied through environment-managed secrets and must never be committed. Raw credentials must not appear in logs, activity streams, issue reports, or release artifacts. Operational logs may use request identifiers and non-secret credential fingerprints.
+Provider keys and deployment credentials are environment-managed secrets and must never be committed or copied into issues, PRs, logs, activity streams, screenshots, test artifacts, or reports.
 
-Supported provider credential names include `APX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, and `INCEPTION_API_KEY`. A comma-separated `APX_API_KEY` pool is secret material: treat every slot and the complete value as credentials, not safe configuration. Repository tokens, OAuth secrets, encryption keys, webhook secrets, database URLs, and worker keys are also secret material.
+Sensitive values include, but are not limited to:
 
-## Proxy-provider security model
+- `APX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, and `INCEPTION_API_KEY`;
+- repository/OAuth tokens and client secrets;
+- encryption/signing keys and webhook secrets;
+- database URLs and passwords;
+- worker/runtime credentials and deployment keys.
 
-Canonical provider identity and transport protocol are separate. A route can select `provider: apx` with either `protocol: anthropic` or `protocol: openai`. The canonical provider determines credential authority and usage identity; the protocol selects the client family. An APX route always uses `APX_API_KEY`. Selecting an Anthropic or OpenAI client family for APX must never switch it to `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. Direct Anthropic, OpenAI, Google GenAI, and Inception routes retain their own credential sources.
+A comma-separated `APX_API_KEY` pool is entirely secret material; every slot and the complete value must be protected.
 
-## Model-route trust boundary
+## Application trust boundaries
 
-[`deepagents/config/model_routes.yaml`](deepagents/config/model_routes.yaml) is trusted, source-controlled runtime routing configuration. Its route-level `provider`, `protocol`, and `model` fields define trusted model identity; validated `options` contain inference settings only. The route validator rejects unknown route fields and disallowed credential, endpoint, and header-like option keys. User input and model output are not routing configuration and must not supply provider credentials or endpoints.
+### Model routing
 
-## Credential rotation and fallback
+Canonical provider identity and transport protocol are separate. Trusted, source-controlled model-route configuration determines provider identity, protocol, model, and allowed options. User input and model output are not trusted routing configuration and must not provide credentials, endpoints, or privileged headers.
 
-For an APX pool, LCSP selects one key per request. Permanent allowance exhaustion retires only the affected slot; transient rate limits use cooldown handling. Provider fallback follows same-provider credential handling and uses the configured route chain, currently APX to Google GenAI to Inception. SDK clients receive an individual key, not the comma-separated pool. Logs may contain provider, model, protocol, request identifiers, and safe fingerprints, but never raw key values.
+### Agent Runtime
 
-## Agent Runtime safety
+Agents and models perform semantic reasoning. The API/domain layer owns persisted lifecycle state, authorization, validation, privileged transitions, and human-approval requirements. Model output is not authoritative merely because it was produced by an approved model.
 
-The Agent Runtime is an internal service. Agents and models perform semantic reasoning; the API and domain layer own persisted lifecycle state, authorization, validation, and privileged transitions. Stop and cancellation requests are checked against persisted execution state, checkpoints are bound to server-owned run identity, and runtime events are validated before they are projected to activity views.
+### Repository and evidence inputs
 
-These controls do not make model output authoritative, and LCSP does not claim isolation or sandbox guarantees beyond the permissions and execution boundaries implemented in the current code.
+Fetched repository content, legal-source material, uploaded evidence, external web content, and model/tool output are untrusted inputs. They must not gain execution or authorization authority simply by being included in agent context.
 
-## Authorization and repository integrations
+### Tenant and assessment isolation
 
-Admin-only operations are authorized by the server. Browser state and identifiers supplied by a client do not grant authority; the API resolves them against canonical persisted state and the authenticated request context.
-
-Repository access should use least-privilege credentials. Integration tokens must not be logged. Fetched repository content is untrusted evidence input, not executable control. Repository evidence and provider credentials are separate trust domains.
-
-## Legal-source and source-version integrity
-
-Legal Source Versions, pinned source inputs, and rule-set/assessment references support provenance across preparation and assessment. Historical source references must not be silently replaced. These application-level references do not constitute a cryptographic integrity guarantee or a legal correctness guarantee.
+Assessment, repository, vector/RAG, evidence, checkpoint, and report access must remain bound to server-owned tenant/user/assessment identity. Client-supplied identifiers are selectors, not authorization grants.
 
 ## Database and migrations
 
-Prisma migrations are source-controlled. Do not rewrite historical applied migrations or place credentials in migration files. Production schema changes must use the reviewed migration workflow; manual production data changes are exceptional and must be auditable. A rollback plan must account for destructive operations and retained data before a migration is applied.
+Prisma migrations are source-controlled. Do not rewrite historical applied migrations or place secrets in migration files. Production schema/data changes must use reviewed, auditable workflows with explicit destructive-change and rollback consideration.
 
 ## Logging and observability
 
-Logs may contain technical metadata, provider/model/protocol identity, correlation identifiers, and safe credential fingerprints. Raw secrets must never be emitted. Operator-visible logs and Agent Stream activity must remain sanitized and must not contain credential material.
+Logs may contain non-secret technical metadata, correlation identifiers, provider/model/protocol identity, and safe fingerprints. Raw credentials, tokens, sensitive prompt payloads, private repository data, and customer evidence must not be emitted unnecessarily.
 
-## Production deployment and dependencies
+## Dependency and CI security
 
-Deploy from reviewed, merged source and verify the exact target SHA. Keep secrets outside Git and scope service restarts to the affected release. Do not modify shared infrastructure or other tenants as part of an LCSP release. `pnpm-lock.yaml` and `deepagents/uv.lock` are the dependency authorities; review dependency changes and require the repository's CI checks before merge. LCSP does not claim formal SBOM, artifact-signing, or SLSA controls.
+`pnpm-lock.yaml` and `deepagents/uv.lock` are dependency authorities. Dependency and CI changes must remain reviewable and reproducible.
+
+The repository security baseline includes:
+
+- Dependabot for npm/pnpm, Python, GitHub Actions, and Docker dependency updates;
+- Dependency Review on pull requests to prevent newly introduced high/critical vulnerable dependencies;
+- CodeQL for JavaScript/TypeScript and Python semantic analysis;
+- Trivy repository/dependency/config/secret scanning;
+- SecureAI-Scan for AI/LLM/MCP/RAG-specific risks;
+- Trustabl for agent-framework reliability findings;
+- SonarQube analysis when repository Sonar variables/secrets are configured;
+- Codecov coverage reporting for generated test coverage.
+
+Security scanners supplement LCSP's domain-specific release gates; they do not replace authorization, legal-source integrity, lifecycle, tenant-isolation, or human-in-the-loop tests.
+
+## Production deployment
+
+Deploy only reviewed source and verify the exact target SHA. Keep secrets outside Git, scope service restarts to the intended release, and do not mutate unrelated/shared infrastructure as part of an LCSP deployment.
 
 ## Security limitations
 
-LCSP assists compliance assessment; it is not a legal authority or certification service. Model output can be incorrect and requires application validation and human review. Provider availability and quota are external. Legal-source and repository content are untrusted inputs and must be interpreted within the application's validated lifecycle.
-
-For the current migration and production verification status, see the [release report](reports/releases/2026-10-14-production-release.md).
+LCSP assists compliance assessment; it is not a legal authority, certification service, or proof that a target system is secure. Model output can be incorrect and requires application validation and human review. External provider availability, security, and quota remain external dependencies.
