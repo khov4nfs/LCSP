@@ -7,6 +7,10 @@ import {
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSourceRef,
 } from "@lcsp/contracts/compliance-rule-set";
+import {
+  fixtureDocumentGraph,
+  authorFixtureClaims,
+} from "./legal-graph-fixtures.js";
 
 import type {
   LegalSourceChunkSnapshot,
@@ -72,10 +76,13 @@ export function fixtureLegalSource(
     Record<string, Partial<LegalSourceChunkSnapshot>>
   > = {},
 ): LegalSourceSnapshot {
+  const version = "00000000-0000-4000-8000-000000000001";
+  const chunks = fixtureChunks("v1", chunkOverrides);
   return {
-    legalSourceVersionId: "legalSource-v1",
+    legalSourceVersionId: version,
     retrievalIndexValid: true,
-    chunks: fixtureChunks("v1", chunkOverrides),
+    chunks,
+    documentGraph: fixtureDocumentGraph(version, chunks),
     ...overrides,
   };
 }
@@ -226,7 +233,14 @@ export function validPacket(): ComplianceRuleSetPacket {
 /** Fixture authoring uses omitted derived fields; negative tests mutate the resulting bindings. */
 export function withDerivedAssessmentSemantics(
   packet: ComplianceRuleSetPacket,
+  source: LegalSourceSnapshot = fixtureLegalSource(),
 ): ComplianceRuleSetPacket {
+  authorFixtureClaims(
+    packet,
+    source.documentGraph ??
+      fixtureDocumentGraph(source.legalSourceVersionId, source.chunks),
+    source.chunks,
+  );
   return complianceRuleSetPacketSchema.parse({
     ...packet,
     assessmentRules: packet.assessmentRules.map(

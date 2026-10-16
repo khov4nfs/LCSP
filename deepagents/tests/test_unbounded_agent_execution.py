@@ -26,6 +26,7 @@ from rule_set_preparation.legal_source_files import materialize_legal_source
 from rule_set_preparation.tools import RuleSetPreparationContext
 from test_assessment_root_agent import complete_root_messages, ASSESSMENT, THREAD, FakeClient, RootScriptedModel
 from test_rule_set_preparation_agent import DOC, FakeApi, RUN_ID, _bundle, _call, _model, _packet, _sha
+from legal_graph_fixture import document_graph_for_bundle
 from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
 from tools.common.capabilities.agent_runtime.local_server import _runtime_config
 
@@ -125,6 +126,7 @@ def test_large_productive_preparation_exceeds_old_call_assumptions(tmp_path: Pat
             f"source-{index}",
         ))
     bundle["documents"][0]["chunks"] = chunks
+    bundle["documentGraph"] = document_graph_for_bundle(bundle)
     class LargeApi(FakeApi):
         def claim_rule_set_preparation(self, run_id: str) -> dict:
             self.calls.append(("claim", (run_id,)))

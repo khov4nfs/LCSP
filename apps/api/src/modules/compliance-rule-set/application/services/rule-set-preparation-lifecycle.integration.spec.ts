@@ -1,3 +1,4 @@
+import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 import { randomUUID } from "node:crypto";
 
 import {
@@ -86,11 +87,17 @@ describeDatabase(
       const service = prisma as unknown as PrismaService;
       const outbox = new OutboxRepository(service);
       start = new StartRuleSetPreparationHandler(service, outbox);
-      claim = new ClaimRuleSetPreparationHandler(service);
+      claim = new ClaimRuleSetPreparationHandler(
+        service,
+        new LegalDocumentGraphService(service),
+      );
       fail = new FailRuleSetPreparationHandler(service);
       submit = new SubmitComplianceRuleSetHandler(
         service,
-        new LegalSourceSnapshotLoader(service),
+        new LegalSourceSnapshotLoader(
+          service,
+          new LegalDocumentGraphService(service),
+        ),
         new ComplianceRuleSetActivation(
           outbox,
           new AuditWriterService(service),
@@ -177,14 +184,17 @@ describeDatabase(
           randomUUID(),
         ),
       );
-    const submitPacket = (preparationRunId: string, packet = validPacket()) =>
+    const submitPacket = async (
+      preparationRunId: string,
+      packet = validPacket(),
+    ) =>
       submit.execute(
         new SubmitComplianceRuleSetCommand(
-          {
+          await pinFixtureRequest(prisma, {
             preparationRunId,
             idempotencyKey: `submit-${randomUUID()}`,
             packet,
-          },
+          }),
           "test-worker",
           randomUUID(),
         ),
@@ -747,3 +757,4 @@ describeDatabase(
     });
   },
 );
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";

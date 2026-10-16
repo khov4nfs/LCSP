@@ -3,7 +3,6 @@ import {
   RULE_SET_PREPARATION_CLAIM_LEASE_SECONDS,
   type RuleSetPreparationLegalSourceBundle,
 } from "@lcsp/contracts/compliance-rule-set";
-import type { LegalSourceChunkStatus } from "@lcsp/contracts/legal-source";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { AgentExecutionState as PrismaAgentExecutionState } from "@prisma/client";
@@ -11,6 +10,7 @@ import { AgentExecutionState as PrismaAgentExecutionState } from "@prisma/client
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.command.js";
+import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
 
 /**
  * Claims a run for exactly one worker: QUEUED -> RUNNING. A duplicated or redelivered command
@@ -20,7 +20,10 @@ import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.com
  */
 @CommandHandler(ClaimRuleSetPreparationCommand)
 export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRuleSetPreparationCommand> {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly graph: LegalDocumentGraphService,
+  ) {}
 
   async execute(
     input: ClaimRuleSetPreparationCommand,
@@ -106,6 +109,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
       },
     });
     return {
+      documentGraph: await this.graph.materialize(legalSource.id),
       preparationRunId: run.id,
       executionState: state,
       legalSourceVersionId: legalSource.id,
@@ -115,7 +119,7 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         chunks: document.chunks.map(({ id, ...chunk }) => ({
           chunkId: id,
           ...chunk,
-          legalEffectStatus: chunk.legalEffectStatus as LegalSourceChunkStatus,
+          legalEffectStatus: chunk.legalEffectStatus,
         })),
       })),
     };

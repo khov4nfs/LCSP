@@ -1,3 +1,4 @@
+import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 import { randomUUID } from "node:crypto";
 import {
   afterAll,
@@ -109,12 +110,18 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
         },
       } as unknown as CommandBus,
     );
-    claim = new ClaimRuleSetPreparationHandler(service);
+    claim = new ClaimRuleSetPreparationHandler(
+      service,
+      new LegalDocumentGraphService(service),
+    );
     fail = new FailRuleSetPreparationHandler(service);
     const outbox = new OutboxRepository(service);
     submit = new SubmitComplianceRuleSetHandler(
       service,
-      new LegalSourceSnapshotLoader(service),
+      new LegalSourceSnapshotLoader(
+        service,
+        new LegalDocumentGraphService(service),
+      ),
       new ComplianceRuleSetActivation(outbox, new AuditWriterService(service)),
     );
   });
@@ -350,11 +357,11 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     await expect(
       submit.execute(
         new SubmitComplianceRuleSetCommand(
-          {
+          await pinFixtureRequest(prisma, {
             preparationRunId: running.preparationRunId,
             idempotencyKey: `submit-${randomUUID()}`,
             packet: validPacket(),
-          },
+          }),
           "test-worker",
           randomUUID(),
         ),
@@ -425,11 +432,11 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
 
     const submission = submit.execute(
       new SubmitComplianceRuleSetCommand(
-        {
+        await pinFixtureRequest(prisma, {
           preparationRunId: running.preparationRunId,
           idempotencyKey: `submit-${randomUUID()}`,
           packet: validPacket(),
-        },
+        }),
         "test-worker",
         randomUUID(),
       ),
@@ -481,11 +488,11 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     );
     const result = await submit.execute(
       new SubmitComplianceRuleSetCommand(
-        {
+        await pinFixtureRequest(prisma, {
           preparationRunId: running.preparationRunId,
           idempotencyKey: `submit-${randomUUID()}`,
           packet: validPacket(),
-        },
+        }),
         "test-worker",
         randomUUID(),
       ),
@@ -723,11 +730,11 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     );
     const published = await submit.execute(
       new SubmitComplianceRuleSetCommand(
-        {
+        await pinFixtureRequest(prisma, {
           preparationRunId: run.preparationRunId,
           idempotencyKey: `submit-${randomUUID()}`,
           packet: validPacket(),
-        },
+        }),
         "test-worker",
         randomUUID(),
       ),
@@ -751,14 +758,14 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     claim.execute(
       new ClaimRuleSetPreparationCommand({ preparationRunId }, randomUUID()),
     );
-  const submitFor = (preparationRunId: string) =>
+  const submitFor = async (preparationRunId: string) =>
     submit.execute(
       new SubmitComplianceRuleSetCommand(
-        {
+        await pinFixtureRequest(prisma, {
           preparationRunId,
           idempotencyKey: `submit-${randomUUID()}`,
           packet: validPacket(),
-        },
+        }),
         "test-worker",
         randomUUID(),
       ),
@@ -961,3 +968,4 @@ database("Admin preparation PostgreSQL concurrency without models", () => {
     await expect(prepare()).rejects.toMatchObject({ status: 409 });
   });
 });
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";

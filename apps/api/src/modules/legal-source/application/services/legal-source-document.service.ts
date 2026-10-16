@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
+import { discardDraftDocumentGraphs } from "./discard-draft-document-graph.js";
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
@@ -225,6 +226,7 @@ export class LegalSourceDocumentService {
         );
       }
       const attempt = document.ingestionAttempt + 1;
+      await this.dropStructuralIndex(tx, version);
       await tx.legalDocumentChunk.deleteMany({
         where: { legalSourceDocumentId: document.id },
       });
@@ -240,7 +242,6 @@ export class LegalSourceDocumentService {
           ingestedAt: null,
         },
       });
-      await this.dropStructuralIndex(tx, version);
       await this.enqueueIngestion(tx, {
         version,
         document,
@@ -281,8 +282,8 @@ export class LegalSourceDocumentService {
         input.documentRowId,
         input.correlationId,
       );
-      await tx.legalSourceDocument.delete({ where: { id: document.id } });
       await this.dropStructuralIndex(tx, version);
+      await tx.legalSourceDocument.delete({ where: { id: document.id } });
       await this.deleteOrphanBlobs(tx, document.blobSha256);
       await this.record(
         tx,
@@ -411,6 +412,7 @@ export class LegalSourceDocumentService {
           },
         },
       });
+      await discardDraftDocumentGraphs(tx, version.id);
       await this.ensureStructuralIndex(tx, version);
       await this.record(
         tx,
@@ -631,6 +633,21 @@ export class LegalSourceDocumentService {
       }
 
       const chunks = input.result.chunks;
+      const pages = input.result.extraction.pages;
+      if (
+        pages &&
+        (pages.some((page) => page.includes("\u0000")) ||
+          sha256Ref(pages.join("\n")) !== input.result.extraction.textSha256)
+      ) {
+        throw problemException(
+          Errors.ingestionResultInvalid,
+          input.correlationId,
+          {
+            status: HttpStatus.UNPROCESSABLE_ENTITY,
+            meta: { reason: "EXTRACTED_TEXT_HASH_MISMATCH" },
+          },
+        );
+      }
       const locators = new Set<string>();
       for (const chunk of chunks) {
         const unique = !locators.has(chunk.locator);
@@ -672,6 +689,7 @@ export class LegalSourceDocumentService {
           },
         );
       }
+      await discardDraftDocumentGraphs(tx, version.id);
       await tx.legalDocumentChunk.deleteMany({
         where: { legalSourceDocumentId: document.id },
       });
@@ -944,6 +962,7 @@ export class LegalSourceDocumentService {
   }
 
   private async dropStructuralIndex(tx: Tx, version: LockedVersion) {
+    await discardDraftDocumentGraphs(tx, version.id);
     await tx.legalRetrievalIndex.deleteMany({
       where: {
         legalSourceVersionId: version.id,

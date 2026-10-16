@@ -40,6 +40,9 @@ function fixture(
       update: updateDocument,
     },
     legalDocumentChunk: { updateMany: updateChunks },
+    legalDocumentMaterialization: {
+      findFirst: jest.fn(() => Promise.resolve(null)),
+    },
   };
   const prisma = {
     $transaction: jest.fn((work: (client: unknown) => unknown) => work(tx)),

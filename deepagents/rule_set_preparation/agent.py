@@ -36,6 +36,7 @@ from rule_set_preparation.draft_history import DraftHistoryMiddleware
 from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
 from rule_set_preparation.legal_source_reader import legal_source_reader_subagent
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
+from rule_set_preparation.source_graph import GRAPH_TOOL_NAMES, build_source_graph_tools
 
 INSTRUCTIONS = (Path(__file__).with_name("instructions.md")).read_text(encoding="utf-8")
 RULE_SET_PREPARATION_ROLE = "rule-set-preparation"
@@ -58,7 +59,7 @@ class PreparationObservationMiddleware(AgentMiddleware):
 
     def _observe(self, request, result):
         call = getattr(request, "tool_call", None)
-        if not isinstance(call, dict) or call.get("name") not in READ_ONLY_TOOLS:
+        if not isinstance(call, dict) or call.get("name") not in {*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES}:
             return result
         if not isinstance(result, ToolMessage):
             return result
@@ -288,7 +289,7 @@ def create_rule_set_preparation_agent(
             model=model,
             backend=backend,
             system_prompt=INSTRUCTIONS,
-            tools=build_rule_set_tools(context),
+            tools=[*build_rule_set_tools(context), *(build_source_graph_tools(context.source_graph) if context.source_graph else [])],
             middleware=[
                 read_only,
                 observation_middleware,
@@ -305,6 +306,7 @@ def create_rule_set_preparation_agent(
                     model=model,
                     backend=backend,
                     observation_middleware=observation_middleware,
+                    source_graph=context.source_graph,
                 )
             ],
             # False, not None: None would inherit the Agent Server run's Postgres checkpointer, and

@@ -1,6 +1,7 @@
 """Provider-free regression for native document-level preparation parallelism."""
 
 from __future__ import annotations
+from legal_graph_fixture import document_graph_for_bundle
 
 import hashlib
 import json
@@ -55,13 +56,15 @@ def _bundle() -> dict[str, Any]:
                 ],
             }
         )
-    return {
+    bundle = {
         "preparationRunId": RUN_ID,
         "executionState": "RUNNING",
         "legalSourceVersionId": LEGAL_SOURCE_ID,
         "legalSourceVersion": "SYNTHETIC-TWO-DOCUMENT-V1",
         "documents": documents,
     }
+    bundle["documentGraph"] = document_graph_for_bundle(bundle)
+    return bundle
 
 
 class _Api:

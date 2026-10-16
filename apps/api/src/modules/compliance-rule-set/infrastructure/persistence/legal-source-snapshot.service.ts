@@ -1,5 +1,6 @@
 import type { ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
 import { Injectable } from "@nestjs/common";
+import { LegalDocumentGraphService } from "../../../legal-source/application/services/legal-document-graph.service.js";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import {
@@ -10,7 +11,10 @@ import {
 /** Reads the pinned legalSource facts the deterministic integrity validator checks a packet against. */
 @Injectable()
 export class LegalSourceSnapshotLoader {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly graph: LegalDocumentGraphService,
+  ) {}
 
   async load(
     legalSourceVersionId: string,
@@ -86,6 +90,7 @@ export class LegalSourceSnapshotLoader {
     }
     return {
       snapshot: {
+        documentGraph: await this.graph.export(legalSourceVersionId),
         legalSourceVersionId,
         retrievalIndexValid: validIndex !== null,
         chunks: chunks.map((chunk) => ({

@@ -12,6 +12,7 @@ import {
 } from "../../../../test/support/semantic-stress-fixtures.js";
 import { validateComplianceRuleSetPacket } from "./compliance-rule-set-integrity.validator.js";
 import { withDerivedAssessmentSemantics } from "../../../../test/support/compliance-rule-set-fixtures.js";
+import { fixtureDocumentGraph } from "../../../../test/support/legal-graph-fixtures.js";
 
 const validate = (
   packet = semanticStressPacket(),
@@ -32,9 +33,9 @@ describe("operative source accounting", () => {
           ref: "legalRequirement:LR-CONTEXT",
         }),
         expect.objectContaining({
-          code: Errors.UNACCOUNTED_REQUIREMENT_SOURCE,
+          code: Errors.UNACCOUNTED_SEMANTIC_CLAIM,
         }),
-        expect.objectContaining({ code: Errors.INCOMPLETE_SOURCE_COVERAGE }),
+        expect.objectContaining({ code: Errors.CLAIM_REQUIREMENT_MISMATCH }),
       ]),
     );
   });
@@ -89,7 +90,9 @@ describe("operative source accounting", () => {
         criterion.statement = rule.applicabilityGuidance;
       }
     }
-    expect(validate(withDerivedAssessmentSemantics(packet))).toEqual([]);
+    expect(
+      validate(withDerivedAssessmentSemantics(packet, semanticStressSource())),
+    ).toEqual([]);
     expect(packet.legalRequirements.length).toBeLessThan(
       semanticStressSource().chunks.length,
     );
@@ -100,7 +103,7 @@ describe("operative source accounting", () => {
       ...packet.legalRequirements[1].sourceRefs,
     );
     expect(validate(packet)).toContainEqual(
-      expect.objectContaining({ code: Errors.INCOMPLETE_SOURCE_COVERAGE }),
+      expect.objectContaining({ code: Errors.UNACCOUNTED_SEMANTIC_CLAIM }),
     );
   });
   it("requires operative bindings to be declared by their owner", () => {
@@ -131,8 +134,7 @@ describe("operative source accounting", () => {
     });
     expect(validate(semanticStressPacket(), source)).toContainEqual(
       expect.objectContaining({
-        code: Errors.INCOMPLETE_SOURCE_COVERAGE,
-        ref: "locator:SYNTHETIC-SEMANTIC-STRESS::SEM-002::child",
+        code: Errors.SOURCE_STRUCTURE_REQUIRED,
       }),
     );
   });
@@ -141,11 +143,18 @@ describe("operative source accounting", () => {
     source.chunks.push({
       ...source.chunks[1],
       id: "repealed",
-      locator: "REPEALED",
+      locator: "art-999",
       legalEffectStatus: "REPEALED",
     });
-    expect(validate(semanticStressPacket(), source)).toEqual([]);
-    const packet = semanticStressPacket();
+    source.documentGraph = fixtureDocumentGraph(
+      source.legalSourceVersionId,
+      source.chunks,
+    );
+    const packet = withDerivedAssessmentSemantics(
+      semanticStressPacket(),
+      source,
+    );
+    expect(validate(packet, source)).toEqual([]);
     packet.legalRequirements[0].operativePropositions![0].sourceRefs.push({
       ...source.chunks.at(-1)!,
     });

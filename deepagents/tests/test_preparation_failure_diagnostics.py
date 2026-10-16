@@ -9,6 +9,7 @@ from orchestration.agent_stream import (
     publish_agent_stream_event,
 )
 from rule_set_preparation import runner
+from test_rule_set_preparation_agent import _bundle
 
 
 RUN_ID = "11111111-1111-4111-8111-111111111111"
@@ -19,7 +20,7 @@ class _Api:
         self.failure_reason: str | None = None
 
     def claim_rule_set_preparation(self, run_id: str) -> dict:
-        return {"chunks": [], "legalSourceVersionId": "pinned-source"}
+        return _bundle()
 
     def fail_rule_set_preparation(self, run_id: str, reason: str) -> dict:
         self.failure_reason = reason

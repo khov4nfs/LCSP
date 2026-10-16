@@ -1,4 +1,5 @@
 import { withDerivedAssessmentSemantics } from "./compliance-rule-set-fixtures.js";
+import { fixtureDocumentGraph } from "./legal-graph-fixtures.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
@@ -36,8 +37,8 @@ const refs = (...ordinals: number[]) =>
   ordinals.map((n) => semanticStressRefs[n - 1]);
 
 export function semanticStressSource(): LegalSourceSnapshot {
-  return {
-    legalSourceVersionId: "synthetic-semantic-stress-version",
+  const source: LegalSourceSnapshot = {
+    legalSourceVersionId: "00000000-0000-4000-8000-000000000003",
     retrievalIndexValid: true,
     chunks: semanticStressRefs.map((ref) => ({
       ...ref,
@@ -48,6 +49,11 @@ export function semanticStressSource(): LegalSourceSnapshot {
       sourceEffectStatus: "IN_FORCE",
     })),
   };
+  source.documentGraph = fixtureDocumentGraph(
+    source.legalSourceVersionId,
+    source.chunks,
+  );
+  return source;
 }
 
 export function semanticStressPacket(): ComplianceRuleSetPacket {
@@ -231,7 +237,7 @@ export function semanticStressPacket(): ComplianceRuleSetPacket {
       criterion.statement = rule.applicabilityGuidance;
     }
   }
-  return withDerivedAssessmentSemantics(packet);
+  return withDerivedAssessmentSemantics(packet, semanticStressSource());
 }
 
 /** The historical mechanism: one actual duty plus provenance-only NON_ASSESSABLE context. */

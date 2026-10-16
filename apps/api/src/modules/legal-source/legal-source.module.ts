@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { LegalDocumentGraphService } from "./application/services/legal-document-graph.service.js";
+import { LegalDocumentGraphController } from "./presentation/http/legal-document-graph.controller.js";
 import { CqrsModule } from "@nestjs/cqrs";
 
 import { LegalLibraryController } from "./presentation/http/legal-library.controller.js";
@@ -22,12 +24,14 @@ const Handlers = [GetActiveLegalSourceHandler];
 @Module({
   imports: [CqrsModule, OutboxModule],
   controllers: [
+    LegalDocumentGraphController,
     LegalSourceController,
     LegalSourceAdminController,
     LegalLibraryController,
     LegalSourceIngestionController,
   ],
   providers: [
+    LegalDocumentGraphService,
     ...Handlers,
     CitationLocatorValidatorService,
     LegalSourceService,
@@ -37,5 +41,6 @@ const Handlers = [GetActiveLegalSourceHandler];
     OfficialSourceSnapshotService,
     SafeUrlFetcherService,
   ],
+  exports: [LegalDocumentGraphService],
 })
 export class LegalSourceModule {}

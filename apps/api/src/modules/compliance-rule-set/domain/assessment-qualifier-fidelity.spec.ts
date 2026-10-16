@@ -44,7 +44,9 @@ function candidate() {
       },
     ),
   };
-  return complianceRuleSetPacketSchema.parse(input);
+  return withDerivedAssessmentSemantics(
+    complianceRuleSetPacketSchema.parse(input),
+  );
 }
 const failures = (packet: ReturnType<typeof candidate>) =>
   validateComplianceRuleSetPacket(packet, fixtureLegalSource(), () => false)
@@ -83,7 +85,7 @@ describe("parent-bound criterion predicate fidelity", () => {
       criterionId: "C-STORAGE",
       investigationFocus: "Examine the export queue storage surface",
     });
-    expect(failures(packet)).toEqual([]);
+    expect(failures(withDerivedAssessmentSemantics(packet))).toEqual([]);
     expect(rule.criteria[0].statement).toBe(rule.criteria[1].statement);
   });
   it("keeps conditional duties and exception ownership bound to the parent", () => {
@@ -96,10 +98,11 @@ describe("parent-bound criterion predicate fidelity", () => {
     const expected = deriveAssessmentApplicabilityGuidance([parent]);
     packet.assessmentRules[0].applicabilityGuidance = expected;
     packet.assessmentRules[0].criteria[0].statement = expected;
-    expect(failures(packet)).toEqual([]);
-    packet.assessmentRules[0].criteria[0].statement =
+    const bound = withDerivedAssessmentSemantics(packet);
+    expect(failures(bound)).toEqual([]);
+    bound.assessmentRules[0].criteria[0].statement =
       "B delegates fulfillment to A";
-    expect(failures(packet)).toContainEqual(
+    expect(failures(bound)).toContainEqual(
       expect.objectContaining({ code: Gaps.APPLICABILITY_BINDING_MISMATCH }),
     );
   });
@@ -135,7 +138,7 @@ describe("parent-bound criterion predicate fidelity", () => {
         packet.legalRequirements[2],
       ]),
     });
-    expect(failures(packet)).toEqual([]);
+    expect(failures(withDerivedAssessmentSemantics(packet))).toEqual([]);
   });
   it("does not introduce a qualifier for a direct unqualified prohibition", () => {
     const packet = candidate();

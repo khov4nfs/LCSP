@@ -1,8 +1,8 @@
 """Split extracted text into addressable chunks using a configured structure profile.
 
 The heading vocabulary of every profile lives in ``config/legal_structure_profiles.json``; this
-module only applies the patterns it is given. A locator is a ``::``-separated path (the ancestor of
-``art-10::cl-1`` is ``art-10``), which is what the rule-set coverage check reads as hierarchy.
+module only applies the patterns it is given. Legacy locators remain retrieval/provenance addresses.
+Canonical legal hierarchy and semantic accounting use the derived document AST and Agent claim graph.
 """
 
 from __future__ import annotations

@@ -145,7 +145,7 @@ describe("complete semantic fidelity matrix", () => {
         r.fromLegalRequirementId = direct.legalRequirementId;
     expect(
       validateComplianceRuleSetPacket(
-        withDerivedAssessmentSemantics(packet),
+        withDerivedAssessmentSemantics(packet, semanticStressSource()),
         semanticStressSource(),
         () => false,
       ).failures,

@@ -1,4 +1,14 @@
 import { z } from "zod";
+import { legalDocumentGraphSchema } from "../legal-source/document-graph.ts";
+import {
+  legalClaimBindingSchema,
+  legalSemanticGraphSchema,
+  legalEvidenceBindingSchema,
+  DOWNSTREAM_SEMANTIC_AUTHORITIES,
+  LEGAL_EVIDENCE_REQUEST_KINDS,
+  deriveEvidenceRequests,
+  type LegalSemanticGraph,
+} from "./semantic-graph.ts";
 import {
   deriveAssessmentApplicabilityGuidance,
   assessmentSemanticContext,
@@ -77,8 +87,8 @@ export type ComplianceRuleSetSourceRef = z.infer<
 
 const sourceRefListSchema = z
   .array(complianceRuleSetSourceRefSchema)
-  .min(1)
-  .max(COMPLIANCE_RULE_SET_LIMITS.maxSourceRefsPerRule);
+  .max(COMPLIANCE_RULE_SET_LIMITS.maxSourceRefsPerRule)
+  .default([]);
 
 export const legalOperativePropositionSchema = z
   .object({
@@ -94,7 +104,7 @@ export const legalOperativePropositionSchema = z
       "The operative action and object/scope: what must, must not, or may be done. Preserve distinct propositions; do not describe citation coverage or generic context.",
     ),
     sourceRefs: sourceRefListSchema.describe(
-      "Exact provisions supporting THIS operative proposition, also declared in the owning LegalRequirement sourceRefs. Cite each applicable leaf explicitly; parent citations do not account for unread descendants.",
+      "Optional exact legacy retrieval citations, also declared in the owning LegalRequirement sourceRefs. Claim bindings to immutable source nodes are the canonical provenance; use [] when a structural node has no legacy chunk.",
     ),
   })
   .strict();
@@ -151,6 +161,8 @@ export const legalRequirementCoverageSchema = z
 export const legalRequirementSchema = z
   .object({
     legalRequirementId: idSchema,
+    claimBindings: z.array(legalClaimBindingSchema).max(256).optional(),
+    semanticContext: shortTextListSchema.optional(),
     title: shortTextSchema,
     proposition: textSchema,
     // Historical read models omit this field; new authoring is enforced by the deterministic Gate.
@@ -224,6 +236,10 @@ export const assessmentRuleCriterionSchema = z
 export const assessmentRuleSchema = z
   .object({
     assessmentRuleId: idSchema,
+    evidenceBindings: z.array(legalEvidenceBindingSchema).max(256).optional(),
+    semanticAuthority: z
+      .literal(DOWNSTREAM_SEMANTIC_AUTHORITIES.CLAIM_DERIVED)
+      .optional(),
     /** Every AssessmentRule belongs to at least one submitted LegalRequirement. */
     legalRequirementIds: z
       .array(idSchema)
@@ -274,7 +290,7 @@ export const assessmentRuleSchema = z
       .array(assessmentRuleCriterionSchema)
       .min(1)
       .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems),
-    investigationGoals: shortTextListSchema,
+    investigationGoals: derivedTextListSchema,
     startingNodeTypes: shortTextListSchema,
     targetNodeTypes: shortTextListSchema,
     edgeStrategies: shortTextListSchema,
@@ -285,9 +301,9 @@ export const assessmentRuleSchema = z
     commonApis: shortTextListSchema,
     commonLibraries: shortTextListSchema,
     patterns: shortTextListSchema,
-    requiredEvidence: shortTextListSchema,
-    supportingEvidence: shortTextListSchema,
-    negativeEvidence: shortTextListSchema,
+    requiredEvidence: derivedTextListSchema,
+    supportingEvidence: derivedTextListSchema,
+    negativeEvidence: derivedTextListSchema,
     unresolvedConditions: derivedTextListSchema.describe(
       "Applicability conditions that repository evidence cannot establish, phrased as customer-answerable facts (never as a legal verdict).",
     ),
@@ -368,6 +384,7 @@ export type LegalContextRelationInput = z.infer<
 
 export const complianceRuleSetPacketSchema = z
   .object({
+    semanticGraph: legalSemanticGraphSchema.optional(),
     legalRequirements: z
       .array(legalRequirementSchema)
       .max(COMPLIANCE_RULE_SET_LIMITS.maxLegalRequirements)
@@ -431,6 +448,7 @@ export const complianceRuleSetPacketSchema = z
       legalRequirements: LegalRequirementInput[];
       assessmentRules: AssessmentRuleInput[];
       contextRelations: LegalContextRelationInput[];
+      semanticGraph?: LegalSemanticGraph;
     } => ({
       ...packet,
       assessmentRules: packet.assessmentRules.map((rule) => ({
@@ -496,7 +514,43 @@ export const complianceRuleSetPacketSchema = z
           ),
       })),
     }),
-  );
+  )
+  .transform((packet) => ({
+    ...packet,
+    assessmentRules: packet.assessmentRules.map((rule) => {
+      if (!packet.semanticGraph) return rule;
+      return {
+        ...rule,
+        semanticAuthority:
+          rule.semanticAuthority ??
+          DOWNSTREAM_SEMANTIC_AUTHORITIES.CLAIM_DERIVED,
+        requiredEvidence: rule.requiredEvidence.length
+          ? rule.requiredEvidence
+          : deriveEvidenceRequests(
+              rule.criteria,
+              rule.evidenceBindings ?? [],
+              LEGAL_EVIDENCE_REQUEST_KINDS.REQUIRED,
+            ),
+        supportingEvidence: rule.supportingEvidence.length
+          ? rule.supportingEvidence
+          : deriveEvidenceRequests(
+              rule.criteria,
+              rule.evidenceBindings ?? [],
+              LEGAL_EVIDENCE_REQUEST_KINDS.SUPPORTING,
+            ),
+        negativeEvidence: rule.negativeEvidence.length
+          ? rule.negativeEvidence
+          : deriveEvidenceRequests(
+              rule.criteria,
+              rule.evidenceBindings ?? [],
+              LEGAL_EVIDENCE_REQUEST_KINDS.NEGATIVE,
+            ),
+        investigationGoals: rule.investigationGoals.length
+          ? rule.investigationGoals
+          : rule.criteria.map((c) => c.statement),
+      };
+    }),
+  }));
 export type ComplianceRuleSetPacket = z.infer<
   typeof complianceRuleSetPacketSchema
 >;
@@ -638,6 +692,7 @@ export const complianceRuleSetResolvedSourceSchema = z
 /** The single runtime reader contract: the explicit ACTIVE rule set. */
 export const complianceRuleSetReadModelSchema = z
   .object({
+    semanticGraph: legalSemanticGraphSchema.optional(),
     ruleSetVersionId: z.string().uuid(),
     version: z.string().min(1),
     legalSourceVersionId: z.string().uuid(),
@@ -678,6 +733,24 @@ export const complianceRuleSetValidateResultSchema = z
   .object({
     outcome: z.enum(COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES),
     failures: z.array(complianceRuleSetValidationFailureSchema),
+    coverage: z
+      .strictObject({
+        retrieval: z.strictObject({
+          total: z.number().int(),
+          cited: z.number().int(),
+          derivedUnits: z.number().int(),
+        }),
+        structuralSource: z.strictObject({
+          total: z.number().int(),
+          accounted: z.number().int(),
+        }),
+        semanticClaims: z.strictObject({
+          relevant: z.number().int(),
+          accounted: z.number().int(),
+          unaccounted: z.number().int(),
+        }),
+      })
+      .optional(),
   })
   .strict();
 export type ComplianceRuleSetValidateResult = z.infer<
@@ -697,6 +770,7 @@ export type RuleSetPreparationClaimRequest = z.infer<
  */
 export const ruleSetPreparationLegalSourceBundleSchema = z
   .object({
+    documentGraph: legalDocumentGraphSchema,
     preparationRunId: z.string().uuid(),
     executionState: agentExecutionStateSchema,
     legalSourceVersionId: z.string().uuid(),

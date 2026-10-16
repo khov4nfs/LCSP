@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { discardDraftDocumentGraphs } from "./discard-draft-document-graph.js";
 
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
@@ -453,6 +454,7 @@ export class LegalSourceManagementService {
         where: { legalSourceVersionId: version.id },
         select: { blobSha256: true },
       });
+      await discardDraftDocumentGraphs(tx, version.id);
       await tx.legalSourceVersion.delete({ where: { id: version.id } });
       const orphanCandidates = blobs
         .map((blob) => blob.blobSha256)

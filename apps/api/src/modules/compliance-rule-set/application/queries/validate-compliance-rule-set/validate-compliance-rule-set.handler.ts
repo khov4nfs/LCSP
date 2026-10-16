@@ -42,7 +42,7 @@ export class ValidateComplianceRuleSetHandler implements IQueryHandler<ValidateC
       run.legalSourceVersionId,
       input.request.packet,
     );
-    const { failures } = validateComplianceRuleSetPacket(
+    const { failures, coverage } = validateComplianceRuleSetPacket(
       input.request.packet,
       legalSource.snapshot,
       (claim) =>
@@ -51,6 +51,7 @@ export class ValidateComplianceRuleSetHandler implements IQueryHandler<ValidateC
         ),
     );
     return {
+      coverage,
       outcome:
         failures.length === 0
           ? COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES.PASSED

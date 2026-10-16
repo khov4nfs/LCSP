@@ -30,6 +30,21 @@ def materialize_legal_source(bundle: dict[str, Any], root: Path) -> list[str]:
     """
     legal_source_dir = root / LEGAL_SOURCE_ROOT.lstrip("/")
     legal_source_dir.mkdir(parents=True, exist_ok=True)
+    graph = bundle.get("documentGraph")
+    if graph is not None:
+        nodes_dir = legal_source_dir / "nodes"
+        nodes_dir.mkdir(exist_ok=True)
+        node_rows = []
+        for node in graph["nodes"]:
+            identity = {key: value for key, value in node.items() if key != "content"}
+            (nodes_dir / f"{node['nodeId']}.md").write_text(
+                json.dumps(identity, ensure_ascii=False, sort_keys=True) + "\n---\n" + node["content"], encoding="utf-8"
+            )
+            node_rows.append(f"{node['nodeId']} | {node['documentId']} | {node['structuralPath']}")
+        (legal_source_dir / "NODES.md").write_text(
+            f"materializationId: {graph['materializationId']}\nparserRevision: {graph['parserRevision']}\n"
+            f"materializationRevision: {graph['materializationRevision']}\n" + "\n".join(node_rows), encoding="utf-8"
+        )
     paths: list[str] = [INDEX_PATH]
     rows: list[str] = []
     for document in bundle["documents"]:

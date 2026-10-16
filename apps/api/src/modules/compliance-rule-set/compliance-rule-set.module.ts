@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { LegalSourceModule } from "../legal-source/legal-source.module.js";
 import { CqrsModule } from "@nestjs/cqrs";
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { ComplianceRuleSetAdminController } from "./presentation/http/compliance-rule-set-admin.controller.js";
@@ -30,7 +31,7 @@ import { ReactivateComplianceRuleSetHandler } from "./application/commands/react
  * result becomes the shared ACTIVE rule set. Other modules use its public queries.
  */
 @Module({
-  imports: [CqrsModule, OutboxModule, RbacModule],
+  imports: [CqrsModule, OutboxModule, RbacModule, LegalSourceModule],
   controllers: [ComplianceRuleSetController, ComplianceRuleSetAdminController],
   providers: [
     LegalSourceSnapshotLoader,

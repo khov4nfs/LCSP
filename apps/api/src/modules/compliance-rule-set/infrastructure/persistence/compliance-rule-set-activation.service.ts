@@ -37,6 +37,7 @@ import {
   type LegalSourceChunkSnapshot,
 } from "../../domain/compliance-rule-set-integrity.validator.js";
 import { toSubmitResult } from "./compliance-rule-set.mappers.js";
+import { writeSemanticGraph } from "./semantic-graph.persistence.js";
 
 const RULE_SET_SERVICE = "compliance-rule-set-service";
 
@@ -314,6 +315,11 @@ export class ComplianceRuleSetActivation {
     ctx: SubmitContext,
   ): Promise<void> {
     const { packet, resolved, legalSource } = ctx;
+    if (!packet.semanticGraph)
+      throw new Error(
+        "Validated new Rule Set must have a semantic claim graph",
+      );
+    await writeSemanticGraph(tx, ruleSetVersionId, packet.semanticGraph);
     const ruleRowId = new Map(
       packet.legalRequirements.map((rule) => [
         rule.legalRequirementId,
@@ -335,6 +341,7 @@ export class ComplianceRuleSetActivation {
         title: rule.title,
         proposition: rule.proposition,
         operativePropositions: rule.operativePropositions,
+        semanticContext: rule.semanticContext,
         applicabilityConditions: rule.applicabilityConditions,
         qualifiers: rule.qualifiers,
         exceptions: rule.exceptions,
@@ -344,6 +351,17 @@ export class ComplianceRuleSetActivation {
         contentDigest: sha256Hex(canonicalJson(rule)),
         ordinal,
       })),
+    });
+
+    await tx.legalRequirementClaimBinding.createMany({
+      data: packet.legalRequirements.flatMap((rule) =>
+        (rule.claimBindings ?? []).map((binding, ordinal) => ({
+          ...binding,
+          ordinal,
+          ruleSetVersionId,
+          legalRequirementRowId: ruleRowId.get(rule.legalRequirementId)!,
+        })),
+      ),
     });
 
     await tx.legalRequirementProvenance.createMany({

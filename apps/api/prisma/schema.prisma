@@ -570,6 +570,7 @@ model LegalSourceVersion {
   retrievalIndexes       LegalRetrievalIndex[]
   ruleSetPreparationRuns RuleSetPreparationRun[]
   ruleSetVersions        ComplianceRuleSetVersion[]
+  documentMaterializations LegalDocumentMaterialization[]
 
   @@index([status, createdAt])
   @@index([legalSourceId, createdAt])
@@ -679,11 +680,152 @@ model LegalDocumentChunk {
   sourceDocument          LegalSourceDocument               @relation(fields: [legalSourceDocumentId], references: [id], onDelete: Cascade)
   ruleSetProvenance       LegalRequirementProvenance[]
   ruleSetContextRelations LegalRequirementContextRelation[]
+  documentNodeMappings    LegalDocumentChunkNode[]
 
   @@unique([id, legalSourceVersionId])
   @@unique([legalSourceVersionId, documentId, locator])
   @@index([legalSourceVersionId, documentId])
   @@index([legalSourceVersionId, legalStatus])
+}
+
+enum LegalDocumentNodeType {
+  DOCUMENT
+  PART
+  TITLE
+  CHAPTER
+  SUBCHAPTER
+  SECTION
+  SUBSECTION
+  ARTICLE
+  CLAUSE
+  PARAGRAPH
+  SUBPARAGRAPH
+  POINT
+  ITEM
+  ANNEX
+  SCHEDULE
+  TABLE
+  DEFINITION_BLOCK
+  UNSTRUCTURED_BLOCK
+}
+
+enum LegalReferenceResolutionState {
+  RESOLVED
+  AMBIGUOUS
+  UNRESOLVED
+}
+
+/// Derived data only. No activation, preparation, assessment or provider side effects.
+model LegalDocumentMaterialization {
+  id                      String @id
+  legalSourceVersionId    String
+  parserRevision         String
+  materializationRevision String
+  sourceDigest           String
+  graphDigest            String
+  inputModes             Json
+  createdAt              DateTime @default(now())
+  legalSourceVersion     LegalSourceVersion @relation(fields: [legalSourceVersionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  nodes                  LegalDocumentNode[]
+  references             LegalDocumentReference[]
+  chunkMappings          LegalDocumentChunkNode[]
+  retrievalUnits         LegalDocumentRetrievalUnit[]
+  semanticGraphs         LegalSemanticGraph[]
+
+  @@unique([id, legalSourceVersionId])
+  @@unique([legalSourceVersionId, parserRevision, materializationRevision, sourceDigest], map: "LegalMaterialization_revision_key")
+}
+
+/// Node identity excludes pages, chunk windows and parser revision. Membership pins a revision.
+model LegalDocumentNode {
+  nodeId                 String
+  materializationId      String
+  legalSourceVersionId   String
+  documentId             String
+  nodeType               LegalDocumentNodeType
+  parentNodeId           String?
+  ordinal                Int
+  label                  String
+  title                  String
+  structuralPath         String
+  sourcePath             String
+  content                String
+  contentFingerprint     String
+  legalEffectStatus      LegalEffectStatus
+  legalStatusSourceRefs  Json
+  pageStart              Int?
+  pageEnd                Int?
+  charStart              Int?
+  charEnd                Int?
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  parent                 LegalDocumentNode? @relation("DocumentHierarchy", fields: [parentNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: NoAction, onUpdate: Restrict, map: "LegalNode_parent_fkey")
+  children               LegalDocumentNode[] @relation("DocumentHierarchy")
+  outgoingReferences     LegalDocumentReference[] @relation("DocumentReferenceFrom")
+  incomingReferences     LegalDocumentReference[] @relation("DocumentReferenceTo")
+  chunks                 LegalDocumentChunkNode[]
+  retrievalUnits         LegalDocumentRetrievalUnit[]
+  semanticClaims         LegalSemanticClaimSource[]
+
+  @@id([nodeId, materializationId])
+  @@unique([nodeId, materializationId, legalSourceVersionId], map: "LegalNode_source_key")
+  @@unique([materializationId, documentId, structuralPath], map: "LegalNode_path_key")
+  @@index([materializationId, parentNodeId, ordinal], map: "LegalNode_children_idx")
+  @@index([materializationId, documentId, nodeType, label], map: "LegalNode_locator_idx")
+}
+
+model LegalDocumentReference {
+  referenceId            String
+  materializationId      String
+  legalSourceVersionId   String
+  fromNodeId             String
+  toNodeId               String?
+  text                   String
+  charStart              Int
+  charEnd                Int
+  resolutionState        LegalReferenceResolutionState
+  candidateNodeIds       Json
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  fromNode               LegalDocumentNode @relation("DocumentReferenceFrom", fields: [fromNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  toNode                 LegalDocumentNode? @relation("DocumentReferenceTo", fields: [toNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  semanticRelations      LegalSemanticClaimRelation[]
+
+  @@id([referenceId, materializationId])
+  @@index([materializationId, fromNodeId], map: "LegalReference_outbound_idx")
+  @@index([materializationId, toNodeId], map: "LegalReference_inbound_idx")
+  @@index([materializationId, resolutionState], map: "LegalReference_resolution_idx")
+}
+
+/// Additive mapping preserves historical immutable chunk IDs and existing provenance FKs.
+model LegalDocumentChunkNode {
+  materializationId      String
+  legalSourceVersionId   String
+  chunkId                String
+  legalDocumentNodeId    String
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  chunk                  LegalDocumentChunk @relation(fields: [chunkId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  node                   LegalDocumentNode @relation(fields: [legalDocumentNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([materializationId, chunkId])
+  @@index([materializationId, legalDocumentNodeId], map: "LegalChunkNode_node_idx")
+  @@index([chunkId, legalSourceVersionId], map: "LegalChunkNode_source_idx")
+}
+
+/// Regenerable retrieval windows. Historical LegalDocumentChunk rows remain immutable provenance.
+model LegalDocumentRetrievalUnit {
+  unitId                 String
+  materializationId      String
+  legalSourceVersionId   String
+  legalDocumentNodeId    String
+  ordinal                Int
+  contentStart           Int
+  contentEnd             Int
+  content                String
+  contentSha256          String
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  node                   LegalDocumentNode @relation(fields: [legalDocumentNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([unitId, materializationId])
+  @@unique([materializationId, legalDocumentNodeId, ordinal], map: "LegalRetrievalUnit_node_key")
 }
 
 model LegalSourceActivationRecord {
@@ -1141,6 +1283,7 @@ model ComplianceRuleSetVersion {
   assessmentRules         AssessmentRule[]
   provenance              LegalRequirementProvenance[]
   contextRelations        LegalRequirementContextRelation[]
+  semanticGraph           LegalSemanticGraph?
   activation              ComplianceRuleSetActivationRecord?    @relation("ActivationTarget")
   supersededByActivations ComplianceRuleSetActivationRecord[]   @relation("ActivationPrevious")
   assessmentCases         AssessmentCase[]
@@ -1160,6 +1303,7 @@ model LegalRequirement {
   title                   String
   proposition             String
   operativePropositions   Json?
+  semanticContext         Json?
   applicabilityConditions Json
   qualifiers              Json
   exceptions              Json
@@ -1172,9 +1316,136 @@ model LegalRequirement {
   assessmentRuleLinks     AssessmentRuleLegalRequirement[]
   provenance              LegalRequirementProvenance[]
   outgoingRelations       LegalRequirementContextRelation[] @relation("RelationFrom")
+  claimBindings           LegalRequirementClaimBinding[]
 
   @@unique([ruleSetVersionId, legalRequirementId])
   @@unique([id, ruleSetVersionId])
+}
+
+enum LegalSemanticClaimType {
+  DUTY
+  PROHIBITION
+  PERMISSION
+  DEFINITION
+  SCOPE
+  QUALIFIER
+  EXCEPTION
+  CROSS_REFERENCE
+  CONDITION
+  TEMPORAL_RULE
+  TRANSITION_RULE
+  CONTEXT
+}
+enum LegalSemanticClaimState {
+  RELEVANT
+  INTENTIONALLY_NON_OPERATIVE
+}
+enum LegalClaimAccountingRole {
+  OPERATIVE_PROPOSITION
+  APPLICABILITY_CONDITION
+  QUALIFIER
+  EXCEPTION
+  CONTEXT
+  DEFINITION
+}
+enum LegalSemanticRelationKind {
+  DEFINITION
+  SCOPE
+  QUALIFIER
+  EXCEPTION
+  CROSS_REFERENCE
+  CONDITION
+  INCORPORATES
+  TEMPORALLY_LIMITS
+}
+
+/// Agent-authored semantic authority for a new Rule Set; no retroactive graph for historical rows.
+model LegalSemanticGraph {
+  ruleSetVersionId        String @id
+  legalSourceVersionId    String
+  materializationId      String
+  contractVersion        String
+  sourceAccounting       Json
+  referenceAccounting    Json
+  graphDigest            String
+  ruleSet                ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  claims                 LegalSemanticClaim[]
+  relations              LegalSemanticClaimRelation[]
+
+  @@unique([ruleSetVersionId, materializationId, legalSourceVersionId], map: "LegalClaimGraph_source_key")
+  @@unique([ruleSetVersionId, legalSourceVersionId], map: "LegalClaimGraph_version_key")
+}
+
+model LegalSemanticClaim {
+  claimId                String
+  ruleSetVersionId       String
+  materializationId      String
+  legalSourceVersionId   String
+  claimType              LegalSemanticClaimType
+  statement              String
+  operative              Json?
+  state                  LegalSemanticClaimState
+  nonOperativeReason     String?
+  candidateFingerprint   String
+  ordinal                Int
+  graph                  LegalSemanticGraph @relation(fields: [ruleSetVersionId, materializationId, legalSourceVersionId], references: [ruleSetVersionId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  sources                LegalSemanticClaimSource[]
+  bindings               LegalRequirementClaimBinding[]
+  outgoingRelations      LegalSemanticClaimRelation[] @relation("SemanticRelationFrom")
+  incomingRelations      LegalSemanticClaimRelation[] @relation("SemanticRelationTo")
+
+  @@id([claimId, ruleSetVersionId])
+  @@unique([claimId, ruleSetVersionId, materializationId, legalSourceVersionId], map: "LegalClaim_source_key")
+  @@index([ruleSetVersionId, state], map: "LegalClaim_accounting_idx")
+}
+
+model LegalSemanticClaimSource {
+  claimId                String
+  ruleSetVersionId       String
+  materializationId      String
+  legalSourceVersionId   String
+  sourceNodeId           String
+  ordinal                Int
+  claim                  LegalSemanticClaim @relation(fields: [claimId, ruleSetVersionId, materializationId, legalSourceVersionId], references: [claimId, ruleSetVersionId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  sourceNode             LegalDocumentNode @relation(fields: [sourceNodeId, materializationId, legalSourceVersionId], references: [nodeId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([claimId, ruleSetVersionId, sourceNodeId])
+  @@index([materializationId, sourceNodeId], map: "LegalClaimSource_node_idx")
+}
+
+model LegalSemanticClaimRelation {
+  relationId             String
+  ruleSetVersionId       String
+  kind                   LegalSemanticRelationKind
+  fromClaimId            String
+  toClaimId              String
+  referenceId            String?
+  ordinal                Int
+  materializationId      String
+  legalSourceVersionId   String
+  graph                  LegalSemanticGraph @relation(fields: [ruleSetVersionId, materializationId, legalSourceVersionId], references: [ruleSetVersionId, materializationId, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  sourceReference        LegalDocumentReference? @relation(fields: [referenceId, materializationId], references: [referenceId, materializationId], onDelete: Restrict, onUpdate: Restrict)
+  fromClaim              LegalSemanticClaim @relation("SemanticRelationFrom", fields: [fromClaimId, ruleSetVersionId], references: [claimId, ruleSetVersionId], onDelete: Restrict, onUpdate: Restrict)
+  toClaim                LegalSemanticClaim @relation("SemanticRelationTo", fields: [toClaimId, ruleSetVersionId], references: [claimId, ruleSetVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([relationId, ruleSetVersionId])
+  @@index([ruleSetVersionId, fromClaimId], map: "LegalClaimRelation_out_idx")
+  @@index([ruleSetVersionId, toClaimId], map: "LegalClaimRelation_in_idx")
+}
+
+model LegalRequirementClaimBinding {
+  ruleSetVersionId        String
+  legalRequirementRowId   String
+  claimId                String
+  role                   LegalClaimAccountingRole
+  index                  Int
+  ordinal                Int
+  requirement            LegalRequirement @relation(fields: [legalRequirementRowId, ruleSetVersionId], references: [id, ruleSetVersionId], onDelete: Restrict, onUpdate: Restrict)
+  claim                  LegalSemanticClaim @relation(fields: [claimId, ruleSetVersionId], references: [claimId, ruleSetVersionId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([legalRequirementRowId, claimId, role, index])
+  @@index([ruleSetVersionId, claimId], map: "LegalRequirementClaim_claim_idx")
 }
 
 model AssessmentRule {

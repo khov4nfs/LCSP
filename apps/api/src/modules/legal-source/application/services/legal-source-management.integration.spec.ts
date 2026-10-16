@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { LegalDocumentGraphService } from "./legal-document-graph.service.js";
 import {
   afterAll,
   beforeAll,
@@ -12,6 +13,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import {
   LEGAL_SOURCE_DOCUMENT_INGEST_COMMAND,
+  LEGAL_SOURCE_INGESTION_OUTCOMES as Outcomes,
   LEGAL_SOURCE_DOCUMENT_INGESTION_STATES as States,
   LEGAL_SOURCE_IMPORT_REJECTION_REASONS as Reasons,
   LEGAL_SOURCE_LIFECYCLE_STATUSES as Lifecycle,
@@ -50,7 +52,7 @@ const text = (value: string) => Buffer.from(value, "utf8");
 function readyResult(
   attempt: number,
   chunks: Array<{ locator: string; content: string }>,
-): LegalSourceIngestionResult {
+): Extract<LegalSourceIngestionResult, { outcome: typeof Outcomes.READY }> {
   return {
     outcome: "READY",
     attempt,
@@ -434,6 +436,33 @@ database("Legal Source management on PostgreSQL", () => {
   });
 
   describe("ingestion results", () => {
+    it("rejects retained structural text whose hash differs from the extraction receipt", async () => {
+      const source = await newSource();
+      const draft = await newDraft(source.id);
+      const document = await upload(
+        draft.id,
+        "hash.txt",
+        `body ${randomUUID()}`,
+      );
+      const result = readyResult(1, [
+        { locator: "art-1", content: "Article 1. Text" },
+      ]);
+      result.extraction.pages = ["A different immutable extracted text"];
+      await expect(
+        documents.recordIngestionResult({
+          documentRowId: document.id,
+          correlationId: correlation(),
+          result,
+        }),
+      ).rejects.toMatchObject({
+        response: { problem: { code: Errors.ingestionResultInvalid } },
+      });
+      expect(
+        await prisma.legalDocumentChunk.count({
+          where: { legalSourceVersionId: draft.id },
+        }),
+      ).toBe(0);
+    });
     it("writes version-qualified chunks, marks the document READY and validates the version", async () => {
       const source = await newSource();
       const draft = await newDraft(source.id);
@@ -638,6 +667,9 @@ database("Legal Source management on PostgreSQL", () => {
       expect(
         (await management.getVersion(versionId, correlation())).index?.status,
       ).toBe("VALID");
+      await new LegalDocumentGraphService(
+        prisma as unknown as PrismaService,
+      ).materialize(versionId);
 
       await documents.remove({
         versionId,
@@ -649,6 +681,11 @@ database("Legal Source management on PostgreSQL", () => {
       const detail = await management.getVersion(versionId, correlation());
       expect(detail.documents).toEqual([]);
       expect(detail.index).toBeNull();
+      expect(
+        await prisma.legalDocumentMaterialization.count({
+          where: { legalSourceVersionId: versionId },
+        }),
+      ).toBe(0);
       expect(
         await prisma.legalDocumentChunk.count({
           where: { legalSourceVersionId: versionId },
@@ -830,6 +867,9 @@ database("Legal Source management on PostgreSQL", () => {
     it("deletes an unreferenced draft and its orphaned originals", async () => {
       const source = await newSource();
       const { versionId, documentRowId } = await readyDraft(source.id, "temp");
+      await new LegalDocumentGraphService(
+        prisma as unknown as PrismaService,
+      ).materialize(versionId);
       const document = await prisma.legalSourceDocument.findUniqueOrThrow({
         where: { id: documentRowId },
       });
@@ -850,6 +890,11 @@ database("Legal Source management on PostgreSQL", () => {
           where: { id: versionId },
         }),
       ).toBeNull();
+      expect(
+        await prisma.legalDocumentMaterialization.count({
+          where: { legalSourceVersionId: versionId },
+        }),
+      ).toBe(0);
       expect(
         await prisma.legalDocumentChunk.count({
           where: { legalSourceVersionId: versionId },

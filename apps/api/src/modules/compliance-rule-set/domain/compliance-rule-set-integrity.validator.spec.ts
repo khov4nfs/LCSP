@@ -8,6 +8,7 @@ import {
   fixtureHash,
   ref,
   validPacket,
+  withDerivedAssessmentSemantics,
 } from "../../../../test/support/compliance-rule-set-fixtures.js";
 import {
   canonicalJson,
@@ -127,12 +128,13 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     packet.contextRelations = packet.contextRelations.filter(
       (relation) => relation.toSourceRef?.locator !== "art-2::cl-1",
     );
+    const source = fixtureLegalSource(
+      {},
+      { "art-2::cl-1": { legalEffectStatus: "REPEALED" } },
+    );
     const { failures } = validateComplianceRuleSetPacket(
-      packet,
-      fixtureLegalSource(
-        {},
-        { "art-2::cl-1": { legalEffectStatus: "REPEALED" } },
-      ),
+      withDerivedAssessmentSemantics(packet, source),
+      source,
       never,
     );
     expect(codes(failures)).not.toContain(
@@ -235,10 +237,10 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     const coverage = failures.filter(
       (failure) =>
         failure.code ===
-        COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_SOURCE_COVERAGE,
+        COMPLIANCE_RULE_SET_FAILURE_CODES.UNACCOUNTED_SEMANTIC_CLAIM,
     );
     expect(coverage.map((failure) => failure.ref)).toEqual([
-      "locator:SYNTHETIC-NOTICE-INSTRUMENT::art-6::cl-1",
+      "claim:LR-PERSON.OPERATIVE_PROPOSITION.0",
     ]);
   });
 
@@ -248,6 +250,7 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     packet.legalRequirements[1].operativePropositions![0].sourceRefs = [
       ref("art-5::cl-1"),
     ];
+    packet.legalRequirements[1].claimBindings = [];
     const { failures } = validateComplianceRuleSetPacket(
       packet,
       fixtureLegalSource(),
@@ -258,12 +261,12 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
         .filter(
           (failure) =>
             failure.code ===
-            COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_SOURCE_COVERAGE,
+            COMPLIANCE_RULE_SET_FAILURE_CODES.UNACCOUNTED_SEMANTIC_CLAIM,
         )
         .map((failure) => failure.ref),
     ).toEqual([
-      "locator:SYNTHETIC-NOTICE-INSTRUMENT::art-5::cl-1::pt-a",
-      "locator:SYNTHETIC-NOTICE-INSTRUMENT::art-5::cl-1::pt-b",
+      "claim:LR-RET.APPLICABILITY_CONDITION.0",
+      "claim:LR-RET.OPERATIVE_PROPOSITION.0",
     ]);
   });
 

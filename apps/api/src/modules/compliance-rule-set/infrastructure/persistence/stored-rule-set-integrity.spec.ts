@@ -12,6 +12,16 @@ import { storedRuleSetIntegrityValid } from "./stored-rule-set-integrity.js";
 const hash = (value: unknown) => sha256Hex(canonicalJson(value));
 function fixture(legacy = false) {
   const packet = validPacket();
+  // Historical packets predate claims; do not manufacture a retroactive graph for this receipt.
+  delete packet.semanticGraph;
+  for (const rule of packet.legalRequirements) {
+    delete rule.claimBindings;
+    delete rule.semanticContext;
+  }
+  for (const rule of packet.assessmentRules) {
+    delete rule.evidenceBindings;
+    delete rule.semanticAuthority;
+  }
   if (legacy)
     for (const rule of packet.legalRequirements)
       delete rule.operativePropositions;

@@ -11,6 +11,7 @@ from middleware.usage_metering import AgentRoleMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
+from rule_set_preparation.source_graph import PinnedSourceGraph, build_source_graph_tools
 
 LEGAL_SOURCE_READER_NAME = "legal-source-reader"
 READ_ONLY_TOOLS = ["ls", "glob", "grep", "read_file"]
@@ -33,6 +34,7 @@ class LegalSourceReaderFinding(BaseModel):
 
     statement: str
     sourceRefs: list[LegalSourceReaderSourceRef] = Field(default_factory=list)
+    sourceNodeIds: list[str] = Field(default_factory=list)
 
 
 class LegalSourceReaderResult(BaseModel):
@@ -43,15 +45,18 @@ class LegalSourceReaderResult(BaseModel):
     documentId: str
     findings: list[LegalSourceReaderFinding] = Field(default_factory=list)
     gaps: list[str] = Field(default_factory=list)
+    unresolvedReferenceIds: list[str] = Field(default_factory=list)
 
 
 LEGAL_SOURCE_READER_PROMPT = """You are the read-only legal-source-reader subagent.
 
-The parent assigns exactly one document from the pinned `/legal-source` tree and gives you its
-exact document directory. Read and interpret only that assigned document. Use only `ls`, `glob`,
-`grep`, and `read_file`; never write files or access repository, assessment, customer, or runtime
-data. Return the required structured result with candidate findings and exact
-`documentId`/`locator`/`contentSha256` references from the files you actually read.
+The parent assigns one document from the pinned Legal Document AST and `/legal-source` tree.
+Read and interpret the assigned document using the bounded structural tools and read-only files.
+Use parent/child/ancestor/sibling and explicit reference traversal to preserve source context.
+Never write files or access repository, assessment, customer or runtime data. Return every distinct
+candidate semantic finding with sourceNodeIds and exact documentId/locator/contentSha256 provenance
+from the nodes and derived/legacy chunks you inspected. A node may contain several distinct claims;
+context does not erase an operative duty, and temporal facts remain distinct candidates.
 
 Your findings are candidates for the Preparation Root. Do not reconcile documents, decide the
 complete rule set, validate a packet, submit a packet, activate anything, or call another agent.
@@ -61,7 +66,8 @@ document's scope. The parent alone resolves cross-document meaning and owns vali
 
 
 def legal_source_reader_subagent(
-    *, model: Any, backend: BackendProtocol, observation_middleware: Any | None = None
+    *, model: Any, backend: BackendProtocol, observation_middleware: Any | None = None,
+    source_graph: PinnedSourceGraph | None = None,
 ) -> dict[str, Any]:
     """Return the native ``SubAgent`` declaration used by the Preparation Root."""
 
@@ -80,7 +86,7 @@ def legal_source_reader_subagent(
             "findings with exact pinned source references. It cannot validate or submit."
         ),
         "model": model,
-        "tools": [],
+        "tools": build_source_graph_tools(source_graph) if source_graph else [],
         # Deep Agents compiles inline subagents from their own middleware spec.
         "middleware": [
             FilesystemMiddleware(

@@ -282,6 +282,7 @@ class TestIngestResult:
             "textSha256",
             "characterCount",
             "frontMatterCharacters",
+            "pages",
         }
         assert result["extraction"]["structureProfile"] == "ARTICLES"
         assert set(result["chunks"][0]) == {
@@ -405,3 +406,11 @@ class TestLawAgnostic:
     def test_structure_profiles_define_headings_not_instruments(self):
         text = CONFIG_PATH.read_text(encoding="utf-8")
         assert not self.IDENTITY.search(text)
+
+
+def test_architecture_acceptance_pdf_matches_provider_free_extraction_receipt():
+    import json
+    fixture = Path(__file__).resolve().parents[2] / "tests/fixtures/legal-graph"
+    actual = ingest_document(data=(fixture / "source.pdf").read_bytes(), media_type="application/pdf", structure_profile="ARTICLES", attempt=1)
+    assert actual == json.loads((fixture / "extraction.json").read_text())
+    assert actual["extraction"]["pageCount"] == 3

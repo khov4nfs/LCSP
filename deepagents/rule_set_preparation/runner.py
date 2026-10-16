@@ -21,6 +21,7 @@ from tools.common.capabilities.platform.logging import get_logger
 
 from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.legal_source_files import materialize_legal_source
+from rule_set_preparation.source_graph import GRAPH_TOOL_NAMES, PinnedSourceGraph
 from rule_set_preparation.tools import RuleSetPreparationContext
 
 # Reasons mirror packages/contracts RULE_SET_PREPARATION_FAILURE_REASONS.
@@ -35,7 +36,8 @@ logger = get_logger(__name__)
 
 _TASK = (
     "Prepare the complete compliance rule set for the pinned Legal Source. Read /legal-source/INDEX.md first, "
-    "author the LegalRequirements, AssessmentRules and context relations, validate until the packet "
+    "inspect the Legal Document AST and explicit references, author all semantic claims and their accounting, "
+    "then derive LegalRequirements and AssessmentRules, validate until the packet "
     "passes, then submit it once."
 )
 
@@ -51,7 +53,7 @@ _ACTIVITY_TOOLS = frozenset(
         "record_preparation_progress",
         "report_rule_set_source_blocked",
     }
-)
+) | GRAPH_TOOL_NAMES
 _SOURCE_PATH_RE = re.compile(r"/legal-source/[A-Za-z0-9._/-]{1,200}")
 
 
@@ -195,6 +197,10 @@ def run_rule_set_preparation(
         failure_stage = "SOURCE_MATERIALIZATION"
         stream_trace: PreparationStreamTrace | None = None
         try:
+            context.source_graph = PinnedSourceGraph(bundle["documentGraph"], [
+                {**chunk, "documentId": document["documentId"], "legalSourceVersionId": bundle["legalSourceVersionId"]}
+                for document in bundle["documents"] for chunk in document["chunks"]
+            ])
             materialize_legal_source(bundle, root)
             context.source_root = root
             context.pinned_source_version_id = bundle.get("legalSourceVersionId")
@@ -203,9 +209,8 @@ def run_rule_set_preparation(
                 status="RUNNING",
                 data={
                     "activity_kind": "SOURCE_MATERIALIZED",
-                    "source_chunk_count": len(bundle.get("chunks", []))
-                    if isinstance(bundle, dict)
-                    else None,
+                    "source_chunk_count": sum(len(d["chunks"]) for d in bundle["documents"]),
+                    "source_node_count": len(bundle["documentGraph"]["nodes"]),
                 },
             )
             failure_stage = "AGENT_CONSTRUCTION"

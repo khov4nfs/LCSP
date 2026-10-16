@@ -114,6 +114,9 @@ export function deriveAssessmentApplicabilityGuidance(
         ...rule.exceptions.map(
           (value, index) => `Exception ${index + 1}: ${value}`,
         ),
+        ...(rule.semanticContext ?? []).map(
+          (value, index) => `Semantic context ${index + 1}: ${value}`,
+        ),
         ...rule.sourceRefs.map((ref) => `Source binding: ${source(ref)}`),
       ].join("\n"),
     )

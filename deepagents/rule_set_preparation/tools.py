@@ -20,6 +20,7 @@ from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
 from rule_set_preparation.legal_source_files import read_pins, refute_source_block
+from rule_set_preparation.source_graph import PinnedSourceGraph
 
 logger = get_logger(__name__)
 
@@ -30,7 +31,13 @@ ITEM_ID_KEYS = {
     "legalRequirements": "legalRequirementId",
     "assessmentRules": "assessmentRuleId",
     "contextRelations": "relationId",
+    "semanticClaims": "claimId",
+    "claimRelations": "relationId",
+    "sourceAccounting": "sourceNodeId",
+    "referenceAccounting": "referenceId",
 }
+GRAPH_SECTIONS = {"semanticClaims": "claims", "claimRelations": "relations",
+                  "sourceAccounting": "sourceAccounting", "referenceAccounting": "referenceAccounting"}
 _PACKET_PROPERTIES = RULE_SET_INPUT_SCHEMA["properties"]["packet"]["properties"]
 # validate/submit take a complete packet or nothing (nothing = the draft / the validated draft). The
 # item contracts are carried once, by add_to_packet_draft; repeating the ~8k-token packet schema on both
@@ -46,7 +53,8 @@ OPTIONAL_PACKET_INPUT_SCHEMA = {
 }
 DRAFT_PART_SCHEMA = {
     "type": "object",
-    "properties": {key: _PACKET_PROPERTIES[key] for key in ITEM_ID_KEYS},
+    "properties": {key: (_PACKET_PROPERTIES["semanticGraph"]["properties"][GRAPH_SECTIONS[key]]
+                         if key in GRAPH_SECTIONS else _PACKET_PROPERTIES[key]) for key in ITEM_ID_KEYS},
     "additionalProperties": False,
 }
 DRAFT_REMOVAL_SCHEMA = {
@@ -92,6 +100,8 @@ class RuleSetPreparationContext:
     api: RuleSetApi
     # Materialized pinned source; a source-blocking claim is checked against it when set.
     source_root: Path | None = None
+    source_graph: PinnedSourceGraph | None = None
+    authored_claim_ids: set[str] = field(default_factory=set)
     submission: dict[str, Any] | None = None
     validation_calls: int = 0
     last_validation: dict[str, Any] | None = None
@@ -124,11 +134,15 @@ class RuleSetPreparationContext:
     # and which mechanical failure codes came back. Lets a failed run be diagnosed.
     trace: list[dict[str, Any]] = field(default_factory=list)
 
-    def draft_packet(self) -> dict[str, list[dict[str, Any]]]:
-        return {key: list(items.values()) for key, items in self.draft.items()}
+    def draft_packet(self) -> dict[str, Any]:
+        packet = {key: list(items.values()) for key, items in self.draft.items() if key not in GRAPH_SECTIONS}
+        if self.source_graph is not None:
+            packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V2", **self.source_graph.base(),
+                                       **{field: list(self.draft[key].values()) for key, field in GRAPH_SECTIONS.items()}}
+        return packet
 
     def draft_counts(self) -> dict[str, int]:
-        return {key: len(items) for key, items in self.draft.items()}
+        return {key: len(items) for key, items in self.draft.items() if key not in GRAPH_SECTIONS or self.source_graph is not None or items}
 
     @property
     def idempotency_key(self) -> str:
@@ -171,6 +185,11 @@ def _model_view(result: dict, context: "RuleSetPreparationContext | None" = None
     failures = result.get("failures") or []
     uncovered = [f for f in failures if f.get("code") == COVERAGE_FAILURE]
     view = result
+    if len(failures) > UNCOVERED_LISTED and any(f.get("code") in {"INCOMPLETE_STRUCTURAL_ACCOUNTING", "UNACCOUNTED_SEMANTIC_CLAIM"} for f in failures):
+        counts: dict[str, int] = {}
+        for failure in failures:
+            counts[failure["code"]] = counts.get(failure["code"], 0) + 1
+        view = {**result, "failures": failures[:UNCOVERED_LISTED], "gapCounts": counts, "omittedFailureCount": len(failures) - UNCOVERED_LISTED}
     if uncovered:
         by_document: dict[str, list[str]] = {}
         for failure in uncovered[:UNCOVERED_LISTED]:
@@ -363,7 +382,14 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                     )})
                 packet = context.draft_packet()
             packet = _as_packet(packet)
-            result = context.api.validate_compliance_rule_set(context.run_id, packet)
+            known = context.authored_claim_ids | set(context.draft["semanticClaims"])
+            declared = {claim.get("claimId") for claim in (packet.get("semanticGraph") or {}).get("claims", [])}
+            if known - declared:
+                result = {"outcome": "FAILED", "failures": [{"code": "UNACCOUNTED_SEMANTIC_CLAIM", "ref": f"claim:{cid}",
+                    "detail": "An authored claim cannot disappear from a candidate; explicitly account for or classify it."} for cid in sorted(known - declared)]}
+            else:
+                context.authored_claim_ids.update(cid for cid in declared if isinstance(cid, str))
+                result = context.api.validate_compliance_rule_set(context.run_id, packet)
         except (ValueError, WorkerCallbackError) as error:
             context.errors.append(str(error))
             context.trace.append({"tool": "validate", "error": str(error)[:160]})
@@ -371,6 +397,11 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                            validation_call=context.validation_calls, error=str(error)[:300])
             return json.dumps({"error": str(error)})
         context.last_validation = result
+        if result.get("coverage"):
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                "activity_kind": "SEMANTIC_CLAIM_COVERAGE", "coverage": result["coverage"],
+                "gap_categories": sorted({f.get("code") for f in result.get("failures", []) if f.get("code")}),
+            })
         if result != previous_validation:
             context.progress_revision += 1
         context.removable = _items_named_by(result.get("failures") or [])
@@ -390,6 +421,10 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         legalRequirements: list | None = None,
         assessmentRules: list | None = None,
         contextRelations: list | None = None,
+        semanticClaims: list | None = None,
+        claimRelations: list | None = None,
+        sourceAccounting: list | None = None,
+        referenceAccounting: list | None = None,
         **ignored: Any,
     ) -> str:
         """Add one PART of the rule set packet to the draft, so a large source is authored in
@@ -401,7 +436,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         if context.submission is not None or context.source_blocked is not None:
             return json.dumps({"error": "Preparation is already finished."})
         part = {"legalRequirements": legalRequirements, "assessmentRules": assessmentRules,
-                "contextRelations": contextRelations}
+                "contextRelations": contextRelations, "semanticClaims": semanticClaims, "claimRelations": claimRelations,
+                "sourceAccounting": sourceAccounting, "referenceAccounting": referenceAccounting}
         problems = [
             f"{key}[{index}] has no {ITEM_ID_KEYS[key]} label"
             for key, items in part.items()
@@ -423,6 +459,10 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                 context.draft[key][label] = deepcopy(item)
         if changed:
             context.progress_revision += 1
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                "activity_kind": "SEMANTIC_CLAIMS_AUTHORED", "semantic_claim_count": len(context.draft["semanticClaims"]),
+                "requirement_count": len(context.draft["legalRequirements"]),
+            })
         # Any change to the draft revokes an earlier PASSED: the validated packet no longer exists.
         context.validated_packet = None
         context.last_validation = None

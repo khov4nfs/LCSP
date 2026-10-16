@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import type { Prisma } from "@prisma/client";
 import {
+  semanticGraphInclude,
+  readSemanticGraph,
+} from "./semantic-graph.persistence.js";
+import {
   canonicalJson,
   sha256Hex,
 } from "../../domain/compliance-rule-set-integrity.validator.js";
@@ -9,9 +13,13 @@ export const reactivationTargetInclude = {
   activation: true,
   preparationRun: true,
   legalSourceVersion: true,
+  semanticGraph: { include: semanticGraphInclude },
   rules: {
     orderBy: { ordinal: "asc" },
-    include: { provenance: { orderBy: { ordinal: "asc" } } },
+    include: {
+      provenance: { orderBy: { ordinal: "asc" } },
+      claimBindings: { orderBy: { ordinal: "asc" } },
+    },
   },
   assessmentRules: {
     orderBy: { ordinal: "asc" },
@@ -39,6 +47,18 @@ export function storedRuleSetIntegrityValid(
       row.rules.map((rule) => [rule.id, rule.legalRequirementId]),
     );
     const hash = (value: unknown) => sha256Hex(canonicalJson(value));
+    const semanticGraph = row.semanticGraph
+      ? readSemanticGraph(row.semanticGraph)
+      : null;
+    if (semanticGraph) {
+      assert(semanticGraph.legalSourceVersionId === row.legalSourceVersionId);
+      assert(hash(semanticGraph) === row.semanticGraph!.graphDigest);
+      for (const [index, claim] of semanticGraph.claims.entries())
+        assert(
+          hash({ ...claim, sourceNodeIds: [...claim.sourceNodeIds].sort() }) ===
+            row.semanticGraph!.claims[index].candidateFingerprint,
+        );
+    }
     const source = (id: string) => {
       const chunk = byId.get(id);
       assert(chunk?.legalSourceVersionId === row.legalSourceVersionId);
@@ -49,11 +69,24 @@ export function storedRuleSetIntegrityValid(
       };
     };
     const legalRequirements = row.rules.map((rule, ordinal) => {
-      assert(rule.ordinal === ordinal && rule.provenance.length > 0);
+      assert(
+        rule.ordinal === ordinal &&
+          (semanticGraph || rule.provenance.length > 0),
+      );
       const requirement = {
         legalRequirementId: rule.legalRequirementId,
         title: rule.title,
         proposition: rule.proposition,
+        ...(semanticGraph
+          ? {
+              claimBindings: rule.claimBindings.map(
+                ({ claimId, role, index }) => ({ claimId, role, index }),
+              ),
+            }
+          : {}),
+        ...(rule.semanticContext != null
+          ? { semanticContext: rule.semanticContext }
+          : {}),
         ...(rule.operativePropositions != null
           ? { operativePropositions: rule.operativePropositions }
           : {}),
@@ -85,7 +118,10 @@ export function storedRuleSetIntegrityValid(
         string,
         Prisma.JsonValue
       >;
-      assert(Array.isArray(sourceChunkIds) && sourceChunkIds.length > 0);
+      assert(
+        Array.isArray(sourceChunkIds) &&
+          (semanticGraph || sourceChunkIds.length > 0),
+      );
       assert(
         sourceChunkIds.every((id): id is string => typeof id === "string"),
       );
@@ -134,8 +170,12 @@ export function storedRuleSetIntegrityValid(
       return authored;
     });
     return (
-      hash({ legalRequirements, assessmentRules, contextRelations }) ===
-      row.ruleSetDigest
+      hash({
+        legalRequirements,
+        assessmentRules,
+        contextRelations,
+        ...(semanticGraph ? { semanticGraph } : {}),
+      }) === row.ruleSetDigest
     );
   } catch {
     return false;

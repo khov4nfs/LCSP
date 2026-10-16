@@ -496,6 +496,8 @@ export const legalSourceIngestionResultSchema = z.discriminatedUnion(
         characterCount: z.number().int().min(1),
         /** Text before the first heading of a structured document; kept out of the chunks, never lost. */
         frontMatterCharacters: z.number().int().min(0).optional(),
+        /** Immutable extracted text for parser rebuilds, including front matter and page boundaries. */
+        pages: z.array(z.string().max(8000000)).min(1).max(3000).optional(),
       }),
       chunks: z
         .array(

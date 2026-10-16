@@ -32,6 +32,7 @@ from rule_set_preparation.runner import (
     run_rule_set_preparation,
 )
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
+from legal_graph_fixture import document_graph_for_bundle
 from test_rule_set_preparation_native_isolation_preparation import (
     RuleSetPreparationScriptedModel,
 )
@@ -117,7 +118,7 @@ def _bundle() -> dict[str, Any]:
         ("art-1::cl-1", "Records must be retained for five years."),
         ("art-2::cl-1", "Retention does not apply to anonymised records."),
     ]
-    return {
+    bundle = {
         "preparationRunId": RUN_ID,
         "executionState": "RUNNING",
         "legalSourceVersionId": LEGAL_SOURCE_ID,
@@ -145,6 +146,8 @@ def _bundle() -> dict[str, Any]:
             }
         ],
     }
+    bundle["documentGraph"] = document_graph_for_bundle(bundle)
+    return bundle
 
 
 def _ref(locator: str, text: str) -> dict[str, str]:
@@ -292,7 +295,8 @@ def test_rule_set_tools_expose_required_nested_contract_to_the_provider() -> Non
         assert "NON_ASSESSABLE requires none" in coverage["properties"]["state"]["description"]
         engineering = packet["properties"]["assessmentRules"]["items"]
         assert "never reference a LegalRequirement declared NON_ASSESSABLE" in engineering["properties"]["legalRequirementIds"]["description"]
-        assert {"assessmentRuleId", "criteria", "supportingEvidence", "sourceRefs"} <= set(engineering["required"])
+        assert {"assessmentRuleId", "criteria", "supportingEvidence"} <= set(engineering["required"])
+        assert engineering["properties"]["sourceRefs"]["default"] == []
         assert "applicabilityGuidance" not in engineering["required"]
         assert "server derives guidance" in engineering["properties"]["applicabilityGuidance"]["description"]
         assert "legalIntent" not in engineering["required"]
@@ -322,7 +326,10 @@ def test_legal_source_files_carry_exact_citation_headers_and_only_the_pinned_leg
     assert "legalEffectStatus: EFFECTIVE" in header
     assert "legalStatusSourceRef: source-metadata:fixture" in header
     assert f"| {DOC} | art-2::cl-1 |" in index
-    assert {p.name for p in tmp_path.rglob("*") if p.is_file()} == {"INDEX.md", "art-1__cl-1.md", "art-2__cl-1.md"}
+    assert {p.name for p in tmp_path.rglob("*") if p.is_file()} == {
+        "INDEX.md", "NODES.md", "art-1__cl-1.md", "art-2__cl-1.md",
+        *(f"{node['nodeId']}.md" for node in _bundle()["documentGraph"]["nodes"]),
+    }
 
 
 def test_agent_has_only_read_only_legal_source_tools_and_governed_preparation_tools(tmp_path: Path) -> None:
@@ -830,54 +837,16 @@ def test_instructions_state_the_authority_boundary() -> None:
 
 def test_instructions_require_general_semantic_completeness_before_validation() -> None:
     from rule_set_preparation.agent import INSTRUCTIONS
-
-    # Prompt wiring/policy guard only; generated legal meaning requires reasoned live review.
     text = " ".join(INSTRUCTIONS.split())
-    assert "An AssessmentRule must not be a lossy summary" in text
-    assert "every semantic component of **all** linked LegalRequirements and their relevant context relations" in text
-    for component in (
-        "actor", "modality", "action", "object", "scope", "conditions",
-        "triggering event and its meaning", "timing start and end", "duration", "ordering",
-        "qualifiers", "exceptions and exception limitations", "required retained content",
-        "content-integrity or preservation requirements", "required associated metadata",
-        "cross-reference-derived conditions",
-    ):
+    for component in ("actor direction", "modality", "action/object/purpose", "triggering event and its meaning",
+                      "timing start and end", "duration", "ordering", "required retained content",
+                      "content-integrity or preservation requirements", "associated metadata", "cross-reference conditions",
+                      "missing implementation does not remove an applicable duty", "every parent must be represented",
+                      "Every criterion needs evidenceBindings", "explicitly call submit_compliance_rule_set"):
         assert component in text
-    assert "one criterion per sentence is not required" in text
-    assert "Keep applicability separate from the behavior required for compliance" in text
-    assert "Missing or incorrect implementation does not itself remove an applicable duty" in text
-    assert "evidence availability was promoted into a condition" in text
-    assert "Do not create one LegalRequirement per provision or per citation" in text
-    assert "A register or log is not performance of the action itself" in text
-    assert "do not repair the graph by adding AssessmentRule coverage to context" in text
-    assert "Mechanical coverage must never motivate a semantically false link" in text
-    assert "attach the exception only to the first duty" in text
-    assert "Apply the same target restriction to the LegalRequirement `exceptions` array" in text
-    assert "it must have no EXCEPTION relation to that provision" in text
-    assert "cite those material child clauses explicitly" in text
-    assert "does not replace references to the provisions it incorporates" in text
-    assert "complete criteria alone do not excuse incomplete evidence guidance" in text
-    assert "If it changes nothing, delete it" in text
-    assert "Correct the reported shape failures without dropping previously correct fields" in text
-    assert "Every context relation includes BOTH `toLegalRequirementId` and `toSourceRef`" in text
-    assert "Compare the relevant `contextRelations.toSourceRef` identities" in text
-    assert "insert every missing identity into the actual AssessmentRule `sourceRefs` array" in text
-    assert "An inline definition or paraphrase in a criterion does not replace its source reference" in text
-    assert "repeat this comparison after every packet repair" in text
-    assert "explicitly claim completion" in text
-    assert "completionClaim: REJECTED" in text
-    assert "The gate checks structure and provenance, not legal meaning" in text
-    assert "Preserve inherited scope and other relevant context for NON_ASSESSABLE LegalRequirements too" in text
-    assert "A LegalRequirement declared `NON_ASSESSABLE` must have no AssessmentRule referencing its `legalRequirementId`" in text
-    assert "Never mark the entire duty `NON_ASSESSABLE` while also authoring an AssessmentRule to assess it" in text
-    assert "it does not decide legal assessability for you" in text
-    assert "Immediately before `validate_compliance_rule_set`, for every LegalRequirement" in text
-    assert "private agent reasoning, not a packet field" in text
-    for fixture_detail in (
-        "Article 1", "Article 3", "Article 4", "Article 5", "Article 6",
-        "seven days", "temporary test record", "notice text",
-    ):
-        assert fixture_detail not in text
+    assert "complete criteria alone" not in text  # canonical evidence bindings now enforce this in code
+    assert "semantic claims" in text and "claimBindings" in text
+
 
 
 def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_each(tmp_path: Path) -> None:
@@ -902,14 +871,13 @@ def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_
 
 def test_instructions_require_operative_accounting_without_citation_buckets() -> None:
     from rule_set_preparation.agent import INSTRUCTIONS
-
     text = " ".join(INSTRUCTIONS.split())
-    assert "## Operative accounting of the whole pinned source" in text
-    assert "Every EFFECTIVE leaf in INDEX must be explicitly accounted for" in text
-    assert "A clean reference in `sourceRefs` alone earns no coverage" in text
-    assert "one requirement may contain several related operative propositions" in text
-    assert "NON_ASSESSABLE organizational or payment duties" in text
-    assert "no semantic model-call budget" in text
+    for required in ("A single node can contain zero, one or several claims", "claimRelations",
+                     "sourceAccounting", "referenceAccounting", "all relevant claims", "INTENTIONALLY_NON_OPERATIVE",
+                     "NON_ASSESSABLE never excuses omission", "Chunks are retrieval and citation aids"):
+        assert required.lower() in text.lower()
+    assert "Every EFFECTIVE leaf in INDEX" not in text
+
 
 
 def _draft_tools(api: FakeApi | None = None) -> tuple[RuleSetPreparationContext, dict[str, Any]]:
@@ -1002,7 +970,10 @@ def test_a_packet_assembled_from_the_draft_is_what_an_agent_run_submits(tmp_path
     result = run_rule_set_preparation(api, RUN_ID, model=model, work_dir=tmp_path)
     assert result["state"] == "SUCCEEDED"
     assert api.names() == ["claim", "validate", "submit"]
-    assert api.calls[1][1][1] == api.calls[2][1][2] == packet
+    validated = api.calls[1][1][1]
+    assert validated == api.calls[2][1][2]
+    assert {key: validated[key] for key in packet} == packet
+    assert validated["semanticGraph"]["materializationId"] == _bundle()["documentGraph"]["materializationId"]
 
 
 def test_stale_hash_feedback_names_the_pinned_identity_so_the_item_is_corrected_not_deleted(tmp_path: Path) -> None:
@@ -1054,22 +1025,16 @@ def test_every_few_draft_parts_come_back_with_the_mechanical_validation_attached
 
 
 def test_instructions_derive_applicability_from_the_source_without_naming_a_legal_ontology() -> None:
-    """LCSP is legal-source-driven: the next legal source may regulate entirely different roles and categories."""
     from rule_set_preparation.agent import INSTRUCTIONS
-
     text = " ".join(INSTRUCTIONS.split())
-    assert "Applicability is read from the source, never assumed" in text
-    assert "APPLICABILITY_SCOPE_MISSING" in text
-    assert "Unpack every term the source defines" in text
-    assert "A bare \"applies to <label>\" explains nothing" in text
-    assert "do not assume any role or category exists unless the pinned source states it" in text
-    assert "never as a request for a legal verdict" in text
+    for required in ("Applicability must state the actual addressee and source conditions", "source-defined criteria",
+                     "A label is not its own explanation", "source-grounded SCOPE claim", "any-of/all-of alternatives"):
+        assert required in text
     lowered = text.lower()
-    for source_specific in (
-        "high-risk", "medium-risk", "low-risk", "deployer", "provider of", "ai system",
-        "national infrastructure", "134/2025", "71/2025", "quoc hoi",
-    ):
-        assert source_specific not in lowered, source_specific
+    for source_specific in ("high-risk", "medium-risk", "low-risk", "deployer", "provider of", "ai system",
+                            "national infrastructure", "134/2025", "71/2025", "quoc hoi"):
+        assert source_specific not in lowered
+
 
 
 def test_the_model_facing_packet_schema_explains_what_a_good_applicability_condition_is() -> None:

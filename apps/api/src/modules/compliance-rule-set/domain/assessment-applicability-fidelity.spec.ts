@@ -147,9 +147,7 @@ describe("parent-bound Assessment Rule applicability", () => {
         (gap) => gap.code === Gaps.APPLICABILITY_BINDING_MISMATCH,
       ),
     ).toBe(true);
-    expect(
-      failures(complianceRuleSetPacketSchema.parse(omitGuidance(packet))),
-    ).toEqual([]);
+    expect(failures(withDerivedAssessmentSemantics(packet))).toEqual([]);
   });
   it("retains all parent qualifiers and exception limits", () => {
     const packet = delegationPacket();
@@ -157,7 +155,7 @@ describe("parent-bound Assessment Rule applicability", () => {
     packet.legalRequirements[0].exceptions = [
       "Only while a documented specific threat exists; no transfer of the obligation",
     ];
-    const parsed = complianceRuleSetPacketSchema.parse(omitGuidance(packet));
+    const parsed = withDerivedAssessmentSemantics(packet);
     expect(parsed.assessmentRules[0].applicabilityGuidance).toContain(
       packet.legalRequirements[0].exceptions[0],
     );

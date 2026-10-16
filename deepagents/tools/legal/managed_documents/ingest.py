@@ -50,6 +50,7 @@ def ingest_document(*, data: bytes, media_type: str, structure_profile: str, att
             "textSha256": sha256_ref(text),
             "characterCount": len(text),
             "frontMatterCharacters": result.front_matter_characters,
+            "pages": extracted.pages,
         },
         "chunks": result.chunks,
     }

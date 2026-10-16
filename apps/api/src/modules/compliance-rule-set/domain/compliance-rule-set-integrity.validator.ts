@@ -13,7 +13,11 @@ import {
   type ComplianceRuleSetSourceRef,
   type ComplianceRuleSetValidationFailure,
 } from "@lcsp/contracts/compliance-rule-set";
-import type { LegalSourceChunkStatus } from "@lcsp/contracts/legal-source";
+import type {
+  LegalSourceChunkStatus,
+  LegalDocumentGraph,
+} from "@lcsp/contracts/legal-source";
+import { validateSemanticClaimGraph } from "./semantic-claim-integrity.validator.js";
 
 /** Legal status recorded on a chunk whose provision no longer has effect. */
 const REPEALED_LEGAL_STATUS = "REPEALED";
@@ -36,6 +40,7 @@ export interface LegalSourceSnapshot {
   legalSourceVersionId: string;
   chunks: LegalSourceChunkSnapshot[];
   retrievalIndexValid: boolean;
+  documentGraph?: LegalDocumentGraph | null;
 }
 
 /** True when `documentId` + `locator` carries `contentSha256` in a legalSource other than the pinned one. */
@@ -47,6 +52,9 @@ export interface RuleSetValidationResult {
   failures: ComplianceRuleSetValidationFailure[];
   /** Server-resolved bindings keyed by sourceClaimKey; present only for refs that resolved cleanly. */
   resolved: Map<string, LegalSourceChunkSnapshot>;
+  coverage: ReturnType<typeof validateSemanticClaimGraph>["coverage"] & {
+    retrieval: { total: number; cited: number; derivedUnits: number };
+  };
 }
 
 export function sourceClaimKey(ref: {
@@ -71,16 +79,6 @@ export function canonicalJson(value: unknown): string {
 
 export function sha256Hex(value: string): string {
   return createHash("sha256").update(value).digest("hex");
-}
-
-/** "art-5::cl-1::pt-a" -> ["art-5::cl-1", "art-5"]. */
-function ancestorLocators(locator: string): string[] {
-  const parts = locator.split(HIERARCHY_SEPARATOR);
-  const ancestors: string[] = [];
-  for (let length = parts.length - 1; length > 0; length -= 1) {
-    ancestors.push(parts.slice(0, length).join(HIERARCHY_SEPARATOR));
-  }
-  return ancestors;
 }
 
 /**
@@ -436,7 +434,6 @@ export function validateComplianceRuleSetPacket(
       .filter((rule) => rule.operativePropositions?.length)
       .map((rule) => rule.legalRequirementId),
   );
-  const accountedKeys = new Set<string>();
   const requirementById = new Map(
     packet.legalRequirements.map((rule) => [rule.legalRequirementId, rule]),
   );
@@ -474,7 +471,6 @@ export function validateComplianceRuleSetPacket(
     for (const ref of contextRefs) {
       const key = cleanKey(ref);
       if (key) {
-        if (relation.toSourceRef) accountedKeys.add(key);
         const keys =
           contextByRule.get(relation.fromLegalRequirementId) ??
           new Set<string>();
@@ -507,7 +503,6 @@ export function validateComplianceRuleSetPacket(
           );
         } else if (key) {
           operativeKeys.add(key);
-          accountedKeys.add(key);
         }
       }
     }
@@ -515,6 +510,7 @@ export function validateComplianceRuleSetPacket(
       const key = cleanKey(ref);
       if (
         key &&
+        !packet.semanticGraph &&
         !operativeKeys.has(key) &&
         !contextByRule.get(rule.legalRequirementId)?.has(key)
       ) {
@@ -526,28 +522,8 @@ export function validateComplianceRuleSetPacket(
       }
     }
   }
-  const nonLeafKeys = new Set<string>();
-  for (const chunk of legalSource.chunks) {
-    for (const ancestor of ancestorLocators(chunk.locator)) {
-      nonLeafKeys.add(
-        sourceClaimKey({ documentId: chunk.documentId, locator: ancestor }),
-      );
-    }
-  }
-  for (const chunk of legalSource.chunks) {
-    const key = sourceClaimKey(chunk);
-    if (chunk.legalEffectStatus !== "EFFECTIVE" || nonLeafKeys.has(key))
-      continue;
-    // Explicit leaf bindings preserve aggregation without treating an ancestor citation
-    // as an assertion that all subordinate propositions have been authored.
-    if (!accountedKeys.has(key)) {
-      fail(
-        COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_SOURCE_COVERAGE,
-        `locator:${key}`,
-        "Account for this exact leaf through an operative proposition or a typed context relation; additional citations on requirements/AssessmentRules do not discharge coverage",
-      );
-    }
-  }
+  const semantic = validateSemanticClaimGraph(packet, legalSource);
+  failures.push(...semantic.failures);
 
   const seen = new Set<string>();
   const unique = failures
@@ -562,5 +538,16 @@ export function validateComplianceRuleSetPacket(
         `${b.code}|${b.ref}|${b.detail}`,
       ),
     );
-  return { failures: unique, resolved };
+  return {
+    failures: unique,
+    resolved,
+    coverage: {
+      ...semantic.coverage,
+      retrieval: {
+        total: legalSource.chunks.length,
+        cited: resolved.size,
+        derivedUnits: legalSource.documentGraph?.retrievalUnits.length ?? 0,
+      },
+    },
+  };
 }

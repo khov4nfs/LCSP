@@ -9,6 +9,10 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { contractChunkIds } from "./compliance-rule-set.mappers.js";
+import {
+  semanticGraphInclude,
+  readSemanticGraph,
+} from "./semantic-graph.persistence.js";
 
 /** Builds the validated read model of one stored rule set version. */
 @Injectable()
@@ -22,9 +26,13 @@ export class ComplianceRuleSetReadModelLoader {
     const active = await this.prisma.complianceRuleSetVersion.findFirst({
       where,
       include: {
+        semanticGraph: { include: semanticGraphInclude },
         rules: {
           orderBy: { ordinal: "asc" },
-          include: { provenance: { orderBy: { ordinal: "asc" } } },
+          include: {
+            provenance: { orderBy: { ordinal: "asc" } },
+            claimBindings: { orderBy: { ordinal: "asc" } },
+          },
         },
         assessmentRules: {
           orderBy: { ordinal: "asc" },
@@ -82,6 +90,9 @@ export class ComplianceRuleSetReadModelLoader {
     const chunkById = new Map(chunks.map((chunk) => [chunk.id, chunk]));
 
     return complianceRuleSetReadModelSchema.parse({
+      ...(active.semanticGraph
+        ? { semanticGraph: readSemanticGraph(active.semanticGraph) }
+        : {}),
       ruleSetVersionId: active.id,
       version: active.version,
       legalSourceVersionId: active.legalSourceVersionId,
@@ -92,6 +103,14 @@ export class ComplianceRuleSetReadModelLoader {
         legalRequirementId: rule.legalRequirementId,
         title: rule.title,
         proposition: rule.proposition,
+        ...(active.semanticGraph
+          ? {
+              claimBindings: rule.claimBindings.map(
+                ({ claimId, role, index }) => ({ claimId, role, index }),
+              ),
+              semanticContext: rule.semanticContext ?? [],
+            }
+          : {}),
         ...(rule.operativePropositions != null
           ? { operativePropositions: rule.operativePropositions }
           : {}),
