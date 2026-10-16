@@ -9,15 +9,76 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Asia/Ho_Chi_Minh"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 4
     rebase-strategy: "auto"
     groups:
-      npm-minor-and-patch:
+      npm-tooling:
+        applies-to: "version-updates"
         patterns:
-          - "*"
+          - "@playwright/test"
+          - "likec4"
+          - "prettier"
+          - "tsx"
+          - "@eslint/eslintrc"
+          - "globals"
+          - "@jest/*"
+          - "jest"
+          - "ts-jest"
+          - "typescript-eslint"
         update-types:
           - "minor"
           - "patch"
+      npm-api:
+        applies-to: "version-updates"
+        patterns:
+          - "@prisma/*"
+          - "prisma"
+          - "pg"
+          - "@types/pg"
+          - "amqplib"
+          - "express"
+          - "joi"
+          - "supertest"
+          - "@types/supertest"
+          - "zod"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-web:
+        applies-to: "version-updates"
+        patterns:
+          - "@base-ui/react"
+          - "@hookform/resolvers"
+          - "@tanstack/react-query"
+          - "input-otp"
+          - "lucide-react"
+          - "next"
+          - "react"
+          - "@types/react"
+          - "react-dom"
+          - "@types/react-dom"
+          - "react-hook-form"
+          - "shadcn"
+          - "sonner"
+          - "tailwind-merge"
+          - "zustand"
+          - "@tailwindcss/postcss"
+          - "eslint-config-next"
+          - "jsdom"
+          - "tailwindcss"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Framework/runtime major upgrades are migration work, not routine upkeep.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+      # @tanstack/ai is pre-1.0; minor jumps can contain large API/behavior changes.
+      - dependency-name: "@tanstack/ai"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
 
   - package-ecosystem: "pip"
     directory: "/deepagents"
@@ -27,15 +88,31 @@ updates:
       day: "monday"
       time: "09:30"
       timezone: "Asia/Ho_Chi_Minh"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 4
     rebase-strategy: "auto"
     groups:
-      python-minor-and-patch:
+      python-support:
+        applies-to: "version-updates"
         patterns:
-          - "*"
+          - "pika"
+          - "psycopg"
+          - "pytest"
+          - "pytest-*"
+          - "hatchling"
+          - "certifi"
+          - "jsonschema"
+          - "python-dotenv"
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # Logging major upgrades should be tested as an intentional migration.
+      - dependency-name: "structlog"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "pydantic"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -45,12 +122,21 @@ updates:
       day: "monday"
       time: "10:00"
       timezone: "Asia/Ho_Chi_Minh"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 2
     rebase-strategy: "auto"
     groups:
-      github-actions:
+      github-actions-minor-and-patch:
+        applies-to: "version-updates"
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Major action upgrades can change runner/runtime/security semantics.
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: "docker"
     directory: "/apps/api"
@@ -60,7 +146,12 @@ updates:
       day: "monday"
       time: "10:30"
       timezone: "Asia/Ho_Chi_Minh"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    ignore:
+      # Keep the API on the Node 24 runtime line until an explicit migration.
+      - dependency-name: "node"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: "docker"
     directory: "/apps/web"
@@ -70,7 +161,12 @@ updates:
       day: "monday"
       time: "10:45"
       timezone: "Asia/Ho_Chi_Minh"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    ignore:
+      # Keep the web app on the Node 24 runtime line until an explicit migration.
+      - dependency-name: "node"
+        update-types:
+          - "version-update:semver-major"
 
   - package-ecosystem: "docker"
     directory: "/deepagents"
@@ -80,7 +176,18 @@ updates:
       day: "monday"
       time: "11:00"
       timezone: "Asia/Ho_Chi_Minh"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    ignore:
+      # Python 3.11 is the supported runtime baseline for the agent image.
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
+      # uv is deliberately pinned with release/test tooling; upgrade intentionally.
+      - dependency-name: "astral-sh/uv"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
 
   - package-ecosystem: "docker"
     directory: "/deepagents-langgraph"
@@ -90,4 +197,14 @@ updates:
       day: "monday"
       time: "11:15"
       timezone: "Asia/Ho_Chi_Minh"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 1
+    ignore:
+      # Match the primary agent runtime baseline; test newer Python separately.
+      - dependency-name: "python"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
+      - dependency-name: "astral-sh/uv"
+        update-types:
+          - "version-update:semver-minor"
+          - "version-update:semver-major"
