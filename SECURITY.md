@@ -130,11 +130,10 @@ The repository security baseline includes:
 
 - Dependabot for npm/pnpm, Python, GitHub Actions, and Docker dependency updates;
 - Dependency Review on pull requests to prevent newly introduced high/critical vulnerable dependencies;
-- CodeQL for JavaScript/TypeScript and Python semantic analysis;
+- GitHub-native CodeQL for JavaScript/TypeScript and Python semantic analysis;
 - Trivy repository/dependency/config/secret scanning;
 - SecureAI-Scan for AI/LLM/MCP/RAG-specific risks;
-- Trustabl for agent-framework reliability findings;
-- SonarQube analysis when repository Sonar variables/secrets are configured;
+- Trustabl static agent-framework reliability scanning without LLM enrichment or auto-fix;
 - Codecov coverage reporting for generated test coverage.
 
 Security scanners supplement LCSP's domain-specific release gates; they do not replace authorization, legal-source integrity, lifecycle, tenant-isolation, or human-in-the-loop tests.
