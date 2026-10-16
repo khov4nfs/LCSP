@@ -113,6 +113,11 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
       rule.sourceRefs = rule.sourceRefs.filter(
         (source) => source.locator !== "art-2::cl-1",
       );
+      for (const proposition of rule.operativePropositions ?? []) {
+        proposition.sourceRefs = proposition.sourceRefs.filter(
+          (source) => source.locator !== "art-2::cl-1",
+        );
+      }
     });
     packet.assessmentRules.forEach((rule) => {
       rule.sourceRefs = rule.sourceRefs.filter(
@@ -237,15 +242,29 @@ describe("validateComplianceRuleSetPacket (mechanical integrity only)", () => {
     ]);
   });
 
-  it("counts a cited ancestor as covering its descendants", () => {
+  it("does not discharge operative descendant accounting with a cited ancestor", () => {
     const packet = validPacket();
-    packet.legalRequirements[1].sourceRefs = [ref("art-5::cl-1")]; // parent covers pt-a and pt-b
+    packet.legalRequirements[1].sourceRefs = [ref("art-5::cl-1")];
+    packet.legalRequirements[1].operativePropositions![0].sourceRefs = [
+      ref("art-5::cl-1"),
+    ];
     const { failures } = validateComplianceRuleSetPacket(
       packet,
       fixtureLegalSource(),
       never,
     );
-    expect(failures).toEqual([]);
+    expect(
+      failures
+        .filter(
+          (failure) =>
+            failure.code ===
+            COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_SOURCE_COVERAGE,
+        )
+        .map((failure) => failure.ref),
+    ).toEqual([
+      "locator:SYNTHETIC-NOTICE-INSTRUMENT::art-5::cl-1::pt-a",
+      "locator:SYNTHETIC-NOTICE-INSTRUMENT::art-5::cl-1::pt-b",
+    ]);
   });
 
   it("requires every covered rule to have an AssessmentRule and every non-assessable rule a reason", () => {

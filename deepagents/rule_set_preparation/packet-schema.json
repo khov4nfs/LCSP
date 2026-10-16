@@ -29,6 +29,76 @@
                 "minLength": 1,
                 "maxLength": 8000
               },
+              "operativePropositions": {
+                "description": "Required for new Rule Set authoring, including NON_ASSESSABLE duties: at least one explicit actor/modality/action with pinned source bindings. Multiple propositions may be aggregated in one LegalRequirement. Context-only sources belong in typed contextRelations, never a placeholder requirement. Missing structure returns OPERATIVE_PROPOSITION_REQUIRED.",
+                "maxItems": 64,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "actor": {
+                      "description": "The source's actual addressee/subject, including a defined role's criteria. Non-repository and public-body duties still have an actor.",
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 8000
+                    },
+                    "modality": {
+                      "description": "Agent's interpretation of the normative force, not repository assessability.",
+                      "type": "string",
+                      "enum": [
+                        "DUTY",
+                        "PROHIBITION",
+                        "PERMISSION"
+                      ]
+                    },
+                    "action": {
+                      "description": "The operative action and object/scope: what must, must not, or may be done. Preserve distinct propositions; do not describe citation coverage or generic context.",
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 8000
+                    },
+                    "sourceRefs": {
+                      "description": "Exact provisions supporting THIS operative proposition, also declared in the owning LegalRequirement sourceRefs. Cite each applicable leaf explicitly; parent citations do not account for unread descendants.",
+                      "minItems": 1,
+                      "maxItems": 64,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "documentId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                          },
+                          "locator": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 512
+                          },
+                          "contentSha256": {
+                            "type": "string",
+                            "pattern": "^sha256:[a-f0-9]{64}$"
+                          }
+                        },
+                        "required": [
+                          "documentId",
+                          "locator",
+                          "contentSha256"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "actor",
+                    "modality",
+                    "action",
+                    "sourceRefs"
+                  ],
+                  "additionalProperties": false
+                }
+              },
               "applicabilityConditions": {
                 "description": "Whom or what the source applies this provision to and what triggers it, as facts that evidence can establish or refute, in the source's own terms (any-of / all-of exactly as written). When the source names a role, class, category, status, threshold or sector and defines or enumerates its criteria, unpack those criteria here and cite the defining provision in sourceRefs; a label is never its own explanation. Required (at least one) when assessment rules cover the requirement; if the source adds no further condition, state the addressee it names.",
                 "maxItems": 64,
@@ -86,7 +156,11 @@
                       "pattern": "^sha256:[a-f0-9]{64}$"
                     }
                   },
-                  "required": ["documentId", "locator", "contentSha256"],
+                  "required": [
+                    "documentId",
+                    "locator",
+                    "contentSha256"
+                  ],
                   "additionalProperties": false
                 }
               },
@@ -96,7 +170,10 @@
                   "state": {
                     "description": "COVERED_BY_ASSESSMENT_RULES requires at least one AssessmentRule legalRequirementIds reference; NON_ASSESSABLE requires none. The model decides legal assessability.",
                     "type": "string",
-                    "enum": ["COVERED_BY_ASSESSMENT_RULES", "NON_ASSESSABLE"]
+                    "enum": [
+                      "COVERED_BY_ASSESSMENT_RULES",
+                      "NON_ASSESSABLE"
+                    ]
                   },
                   "nonAssessableReason": {
                     "description": "Must be null when state is COVERED_BY_ASSESSMENT_RULES; must be a non-blank reason when state is NON_ASSESSABLE.",
@@ -111,7 +188,10 @@
                     ]
                   }
                 },
-                "required": ["state", "nonAssessableReason"],
+                "required": [
+                  "state",
+                  "nonAssessableReason"
+                ],
                 "additionalProperties": false
               }
             },
@@ -188,7 +268,10 @@
                       "maxLength": 8000
                     }
                   },
-                  "required": ["criterionId", "statement"],
+                  "required": [
+                    "criterionId",
+                    "statement"
+                  ],
                   "additionalProperties": false
                 }
               },
@@ -250,7 +333,11 @@
                     },
                     "direction": {
                       "type": "string",
-                      "enum": ["FORWARD", "BACKWARD", "BOTH"]
+                      "enum": [
+                        "FORWARD",
+                        "BACKWARD",
+                        "BOTH"
+                      ]
                     },
                     "followEdges": {
                       "maxItems": 64,
@@ -387,7 +474,11 @@
                       "pattern": "^sha256:[a-f0-9]{64}$"
                     }
                   },
-                  "required": ["documentId", "locator", "contentSha256"],
+                  "required": [
+                    "documentId",
+                    "locator",
+                    "contentSha256"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -481,7 +572,11 @@
                         "pattern": "^sha256:[a-f0-9]{64}$"
                       }
                     },
-                    "required": ["documentId", "locator", "contentSha256"],
+                    "required": [
+                      "documentId",
+                      "locator",
+                      "contentSha256"
+                    ],
                     "additionalProperties": false
                   },
                   {
@@ -501,10 +596,16 @@
           }
         }
       },
-      "required": ["legalRequirements", "assessmentRules", "contextRelations"],
+      "required": [
+        "legalRequirements",
+        "assessmentRules",
+        "contextRelations"
+      ],
       "additionalProperties": false
     }
   },
-  "required": ["packet"],
+  "required": [
+    "packet"
+  ],
   "additionalProperties": false
 }

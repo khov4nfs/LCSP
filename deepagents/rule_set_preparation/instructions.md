@@ -266,30 +266,44 @@ Immediately before `validate_compliance_rule_set`, for every LegalRequirement:
 This is private agent reasoning, not a packet field, tool output or deterministic semantic
 oracle. Correct the authored packet yourself before calling the mechanical validator.
 
-## Coverage of the whole pinned source
+## Operative accounting of the whole pinned source
 
-`/legal-source/INDEX.md` states how many provisions the pinned source has (usually hundreds). The
-mechanical check requires every non-repealed leaf provision to be referenced by the packet, directly
-or through an ancestor chunk that INDEX.md lists (a clause chunk covers its points), in some
-LegalRequirement, AssessmentRule or context relation `sourceRefs`. A packet that cites only the
-provisions you turned into duties is rejected with `INCOMPLETE_SOURCE_COVERAGE`. Plan for this from
-the first packet instead of learning it from feedback:
+A LegalRequirement is an independently operative duty, prohibition or permission, never a bucket
+for provenance. Every new requirement, including NON_ASSESSABLE organizational or payment duties,
+must expose `operativePropositions`: actual `actor`, `modality` (DUTY, PROHIBITION or PERMISSION),
+`action` including its object/scope, and exact supporting `sourceRefs`. The action states what the
+actor must, must not or may do. A statement that context applies or that citations are covered is
+not an operative action. `NON_ASSESSABLE` describes evidence limits; it does not mean non-normative.
+Keep full conditions, timing, qualifiers and exception limits in the requirement's existing fields.
 
-- Go article by article through every row of INDEX.md. For each article decide its duties, then cite
-  in the sourceRefs of those duties, of their AssessmentRules and of their context relations every
-  provision of that article that states, scopes, defines, limits or qualifies a duty.
-- A provision that imposes nothing and modifies no duty (institutional organisation, tasks of
-  public bodies, policy statements, administrative or procedural text) is still cited once, as
-  supporting source text, in the `sourceRefs` of the LegalRequirement that is closest to it in the
-  same article, chapter or section. That citation records the text you read; it does not make the
-  provision a duty, a rule or a relation, and the proposition must not describe it as one.
-- A large packet is expected and there is no length limit. Never stop, summarise or say that the
-  volume is too large: a normal assistant answer without a tool call does not finish preparation.
-  Write the packet compactly (short `LR-`/`ER-` labels, `[]` for unused arrays, no commentary
-  around the tool call).
-- When validation reports `uncoveredProvisions`, add exactly those provisions (documentId, locator
-  and contentSha256 copied from INDEX.md) to the draft, keep everything already correct, and
-  validate again until it passes.
+Semantic aggregation is allowed: one requirement may contain several related operative
+propositions, and a proposition may cite multiple provisions. Do not create one requirement per
+chunk. Preserve every distinct operative component when grouping. Read the actual provision text,
+not just INDEX titles, citation hashes or a coverage work list, before classifying it.
+
+The deterministic Gate checks explicit source accounting:
+
+- A clean reference in `sourceRefs` alone earns no coverage, including an AssessmentRule reference.
+  Each operative proposition must bind its exact supporting source identities, also declared in
+  its owning requirement's `sourceRefs`.
+- Definitions, scope, timing, qualifiers and exceptions belong in appropriately typed
+  `contextRelations` on the operative requirement they affect. These references are contextual
+  accounting, not an assertion of an additional obligation. Do not invent a relation or duty to
+  discharge coverage. State public-body and non-repository duties faithfully even when no software
+  AssessmentRule can establish their performance.
+- For incorporation, read the referenced provisions and author their operative meaning. Use the
+  existing CROSS_REFERENCE relation to the independently operative target requirement, and retain
+  the incorporated action/condition in the originating requirement and relevant AssessmentRules.
+  A source-only reference or an Article label is not a substitute for incorporated meaning.
+- Every EFFECTIVE leaf in INDEX must be explicitly accounted for by an operative proposition or a
+  typed context relation. Parent citations do not automatically discharge descendant leaves.
+  Preserve valid aggregation by listing the supporting leaves, not by copying uninterpreted
+  article-wide provenance behind a placeholder. REPEALED material must not become a current duty.
+- `OPERATIVE_PROPOSITION_REQUIRED`, `UNACCOUNTED_REQUIREMENT_SOURCE` and
+  `INCOMPLETE_SOURCE_COVERAGE` require authoring or contextual accounting, not merely more citations.
+  Inspect each reported provision and repair the real draft, keeping correct existing content.
+- A large packet is expected. Continue semantic work until explicit submission and Gate acceptance;
+  an ordinary final answer does not finish Preparation. There is no semantic model-call budget.
 
 ## Authoring in parts
 
@@ -306,8 +320,8 @@ parts instead of sending one complete packet:
    use `remove_from_packet_draft` to delete one. A AssessmentRule may only reference
    LegalRequirement labels that are in the draft when you validate.
 3. Call `validate_compliance_rule_set()` with no arguments as soon as the first parts are in, and
-   again after every few parts. Its `uncoveredProvisions` is your work list: each listed provision
-   must be cited in the `sourceRefs` of an item you add. Do not wait to finish before validating.
+   again after every few parts. Its `uncoveredProvisions` is your work list: read each listed provision
+   and preserve its operative meaning or attach its actual context through a typed relation. Do not wait to finish before validating.
 4. When it returns PASSED, do the final check below on the draft and call
    `submit_compliance_rule_set()` with no arguments. Any `add_to_packet_draft` or
    `remove_from_packet_draft` after a PASS revokes it; validate again first.
@@ -327,6 +341,8 @@ when coverage is `COVERED_BY_ASSESSMENT_RULES`; never omit those keys. Use `[]` 
   "legalRequirements": [{
     "legalRequirementId": "LR-…",            // your stable label, unique in the packet
     "title": "…", "proposition": "…",
+    "operativePropositions": [{"actor": "…", "modality": "DUTY|PROHIBITION|PERMISSION",
+      "action": "…", "sourceRefs": [{"documentId": "…", "locator": "…", "contentSha256": "sha256:<64 hex>"}]}],
     "applicabilityConditions": ["…"], "qualifiers": ["…"], "exceptions": ["…"],
     "nonRepositoryDuty": false,
     "sourceRefs": [{"documentId": "…", "locator": "…", "contentSha256": "sha256:<64 hex>"}],
@@ -364,8 +380,9 @@ file; never from memory. Every `graphQueries` entry is
   expressions or a classifier for reading the text.
 - Deterministic code only checks identity, version, hash, citation, locator, provenance, shape
   and completeness. It may reject a packet; it does not interpret or correct legal meaning.
-- If validation or submission fails, the previous ACTIVE rule set stays untouched. A failed
-  submission ends this run; never retry by weakening the content.
+- If validation or submission fails, the previous ACTIVE rule set stays untouched. A rejected
+  submission returns actionable gaps to this same Agent. Repair and resubmit without weakening
+  content. Unchanged candidate/gaps/progress still receive NO_PROGRESS and then NoProgressDetected.
 - Do not mention approval, signoff, publication, review or discard: none exists.
 
 ## Final check before either rule set tool

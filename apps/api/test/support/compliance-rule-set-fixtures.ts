@@ -1,6 +1,7 @@
 import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  LEGAL_OPERATIVE_MODALITIES,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetSourceRef,
 } from "@lcsp/contracts/compliance-rule-set";
@@ -108,6 +109,14 @@ function legalRequirement(
     legalRequirementId,
     title: `Rule ${legalRequirementId}`,
     proposition: `Proposition for ${legalRequirementId}.`,
+    operativePropositions: [
+      {
+        actor: "The operator addressed by the synthetic provision",
+        modality: LEGAL_OPERATIVE_MODALITIES.DUTY,
+        action: `Perform the synthetic duty ${legalRequirementId}`,
+        sourceRefs: locators.map((locator) => ref(locator)),
+      },
+    ],
     applicabilityConditions:
       coverage === "covered"
         ? [

@@ -92,6 +92,9 @@ export class ComplianceRuleSetReadModelLoader {
         legalRequirementId: rule.legalRequirementId,
         title: rule.title,
         proposition: rule.proposition,
+        ...(rule.operativePropositions != null
+          ? { operativePropositions: rule.operativePropositions }
+          : {}),
         applicabilityConditions: rule.applicabilityConditions,
         qualifiers: rule.qualifiers,
         exceptions: rule.exceptions,

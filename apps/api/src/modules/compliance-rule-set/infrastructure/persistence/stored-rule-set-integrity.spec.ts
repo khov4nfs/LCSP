@@ -10,8 +10,11 @@ import {
 import { storedRuleSetIntegrityValid } from "./stored-rule-set-integrity.js";
 
 const hash = (value: unknown) => sha256Hex(canonicalJson(value));
-function fixture() {
+function fixture(legacy = false) {
   const packet = validPacket();
+  if (legacy)
+    for (const rule of packet.legalRequirements)
+      delete rule.operativePropositions;
   const chunks = fixtureChunks().map((c) => ({
     ...c,
     legalSourceVersionId: "source",
@@ -70,6 +73,11 @@ function fixture() {
 describe("Historical stored Rule Set integrity", () => {
   it("reconstructs exact accepted packet and child digests without current semantic reauthoring", () => {
     const { row, chunks } = fixture();
+    expect(storedRuleSetIntegrityValid(row, chunks)).toBe(true);
+  });
+  it("preserves pre-contract historical digests when the additive column is null", () => {
+    const { row, chunks } = fixture(true);
+    for (const rule of row.rules) rule.operativePropositions = null;
     expect(storedRuleSetIntegrityValid(row, chunks)).toBe(true);
   });
   it.each([

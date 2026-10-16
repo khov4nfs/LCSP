@@ -3,17 +3,18 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { startStack, apiDir } from "./support/compliance-rule-set-stack.mjs";
 import {
   validPacket,
   legalSourceFactory,
 } from "../apps/api/test/support/compliance-rule-set-fixtures.ts";
-import { hashSecret } from "../apps/api/dist/src/platform/security/crypto.utils.js";
 import {
   RULE_SET_REACTIVATION_REASONS,
   COMPLIANCE_RULE_SET_EVENT_TYPES,
 } from "@lcsp/contracts/compliance-rule-set";
 const require = createRequire(path.join(apiDir, "package.json"));
+const { hashSecret } = await import(pathToFileURL(require.resolve("@lcsp/api/security")).href);
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const stack = await startStack({

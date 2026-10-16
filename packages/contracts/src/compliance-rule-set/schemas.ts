@@ -8,6 +8,7 @@ import {
   ENGINEERING_GRAPH_QUERY_DIRECTIONS,
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_REQUIREMENT_COVERAGE_STATES,
+  LEGAL_OPERATIVE_MODALITIES,
   COMPLIANCE_RULE_SET_FAILURE_CODES,
   COMPLIANCE_RULE_SET_LIMITS,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES,
@@ -68,6 +69,25 @@ const sourceRefListSchema = z
   .min(1)
   .max(COMPLIANCE_RULE_SET_LIMITS.maxSourceRefsPerRule);
 
+export const legalOperativePropositionSchema = z
+  .object({
+    actor: textSchema.describe(
+      "The source's actual addressee/subject, including a defined role's criteria. Non-repository and public-body duties still have an actor.",
+    ),
+    modality: z
+      .enum(LEGAL_OPERATIVE_MODALITIES)
+      .describe(
+        "Agent's interpretation of the normative force, not repository assessability.",
+      ),
+    action: textSchema.describe(
+      "The operative action and object/scope: what must, must not, or may be done. Preserve distinct propositions; do not describe citation coverage or generic context.",
+    ),
+    sourceRefs: sourceRefListSchema.describe(
+      "Exact provisions supporting THIS operative proposition, also declared in the owning LegalRequirement sourceRefs. Cite each applicable leaf explicitly; parent citations do not account for unread descendants.",
+    ),
+  })
+  .strict();
+
 /**
  * Structural invariant shared with the database CHECK LegalRequirement_coverage_reason_check:
  * a rule covered by assessment rules carries no reason; a non-assessable rule carries a
@@ -122,6 +142,14 @@ export const legalRequirementSchema = z
     legalRequirementId: idSchema,
     title: shortTextSchema,
     proposition: textSchema,
+    // Historical read models omit this field; new authoring is enforced by the deterministic Gate.
+    operativePropositions: z
+      .array(legalOperativePropositionSchema)
+      .max(COMPLIANCE_RULE_SET_LIMITS.maxListItems)
+      .optional()
+      .describe(
+        "Required for new Rule Set authoring, including NON_ASSESSABLE duties: at least one explicit actor/modality/action with pinned source bindings. Multiple propositions may be aggregated in one LegalRequirement. Context-only sources belong in typed contextRelations, never a placeholder requirement. Missing structure returns OPERATIVE_PROPOSITION_REQUIRED.",
+      ),
     applicabilityConditions: shortTextListSchema.describe(
       "Whom or what the source applies this provision to and what triggers it, as facts that evidence can establish or refute, in the source's own terms (any-of / all-of exactly as written). When the source names a role, class, category, status, threshold or sector and defines or enumerates its criteria, unpack those criteria here and cite the defining provision in sourceRefs; a label is never its own explanation. Required (at least one) when assessment rules cover the requirement; if the source adds no further condition, state the addressee it names.",
     ),

@@ -1159,6 +1159,7 @@ model LegalRequirement {
   legalRequirementId      String
   title                   String
   proposition             String
+  operativePropositions   Json?
   applicabilityConditions Json
   qualifiers              Json
   exceptions              Json

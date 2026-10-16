@@ -889,14 +889,16 @@ def test_validation_feedback_groups_uncovered_provisions_instead_of_one_failure_
     assert context.last_validation["failures"] == failures  # the run keeps the full API result
 
 
-def test_instructions_require_covering_the_whole_source_in_one_large_packet() -> None:
+def test_instructions_require_operative_accounting_without_citation_buckets() -> None:
     from rule_set_preparation.agent import INSTRUCTIONS
 
     text = " ".join(INSTRUCTIONS.split())
-    assert "## Coverage of the whole pinned source" in text
-    assert "every non-repealed leaf provision to be referenced" in text
-    assert "Never stop, summarise or say that the volume is too large" in text
-    assert "add exactly those provisions" in text and "`uncoveredProvisions`" in text
+    assert "## Operative accounting of the whole pinned source" in text
+    assert "Every EFFECTIVE leaf in INDEX must be explicitly accounted for" in text
+    assert "A clean reference in `sourceRefs` alone earns no coverage" in text
+    assert "one requirement may contain several related operative propositions" in text
+    assert "NON_ASSESSABLE organizational or payment duties" in text
+    assert "no semantic model-call budget" in text
 
 
 def _draft_tools(api: FakeApi | None = None) -> tuple[RuleSetPreparationContext, dict[str, Any]]:

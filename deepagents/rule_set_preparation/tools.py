@@ -183,8 +183,10 @@ def _model_view(result: dict, context: "RuleSetPreparationContext | None" = None
                 "count": len(uncovered),
                 "listed": min(len(uncovered), UNCOVERED_LISTED),
                 "locatorsByDocumentId": by_document,
-                "how": "Cite each of these (or an ancestor chunk listed in INDEX.md) in sourceRefs of "
-                       "items you add, then validate again; more are listed as these are covered.",
+                "how": "Read each exact leaf in the pinned source. Preserve its actor/modality/action "
+                       "in operativePropositions with exact sourceRefs, or attach its actual context "
+                       "through a typed relation on an operative requirement. Citation attachment "
+                       "or an ancestor citation alone does not discharge coverage. Validate the repaired draft.",
             },
         }
     if context is not None and context.source_root is not None:

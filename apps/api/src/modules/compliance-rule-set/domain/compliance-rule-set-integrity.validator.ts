@@ -218,6 +218,12 @@ export function validateComplianceRuleSetPacket(
   for (const rule of packet.legalRequirements) {
     for (const ref of rule.sourceRefs)
       checkClaim(ref, `legalRequirement:${rule.legalRequirementId}`);
+    for (const [ordinal, proposition] of (
+      rule.operativePropositions ?? []
+    ).entries()) {
+      for (const ref of proposition.sourceRefs)
+        checkClaim(ref, `operative:${rule.legalRequirementId}:${ordinal}`);
+    }
   }
   for (const rule of packet.assessmentRules) {
     for (const ref of rule.sourceRefs) {
@@ -307,10 +313,103 @@ export function validateComplianceRuleSetPacket(
       );
     }
   }
-  // Every in-scope provision (non-repealed leaf chunk) is covered by a rule,
-  // an AssessmentRule or a context relation: it or one of its ancestors must be
-  // referenced. A NON_ASSESSABLE rule that cites it counts as covered.
-  const referencedKeys = new Set(resolved.keys());
+  // Citation resolution is not operative accounting. The Agent owns the classification;
+  // this checks explicit structure and exact source bindings, never the meaning of the text.
+  const operativeRuleIds = new Set(
+    packet.legalRequirements
+      .filter((rule) => rule.operativePropositions?.length)
+      .map((rule) => rule.legalRequirementId),
+  );
+  const accountedKeys = new Set<string>();
+  const requirementById = new Map(
+    packet.legalRequirements.map((rule) => [rule.legalRequirementId, rule]),
+  );
+  const contextByRule = new Map<string, Set<string>>();
+  const cleanKey = (ref: ComplianceRuleSetSourceRef) => {
+    const key = sourceClaimKey(ref);
+    const chunk = resolved.get(key);
+    return chunk?.contentSha256 === ref.contentSha256 &&
+      chunk.legalEffectStatus === "EFFECTIVE"
+      ? key
+      : null;
+  };
+  for (const relation of packet.contextRelations) {
+    const originOperative = operativeRuleIds.has(
+      relation.fromLegalRequirementId,
+    );
+    const targetOperative =
+      relation.toLegalRequirementId === null ||
+      operativeRuleIds.has(relation.toLegalRequirementId);
+    if (!originOperative || !targetOperative) {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.UNRESOLVED_OPERATIVE_CONTEXT,
+        `relation:${relation.relationId}`,
+        "Context must attach to an authored operative requirement; a requirement target must also retain operative structure",
+      );
+      continue;
+    }
+    const contextRefs = relation.toSourceRef
+      ? [relation.toSourceRef]
+      : (requirementById
+          .get(relation.toLegalRequirementId!)
+          ?.operativePropositions?.flatMap(
+            (proposition) => proposition.sourceRefs,
+          ) ?? []);
+    for (const ref of contextRefs) {
+      const key = cleanKey(ref);
+      if (key) {
+        if (relation.toSourceRef) accountedKeys.add(key);
+        const keys =
+          contextByRule.get(relation.fromLegalRequirementId) ??
+          new Set<string>();
+        keys.add(key);
+        contextByRule.set(relation.fromLegalRequirementId, keys);
+      }
+    }
+  }
+  for (const rule of packet.legalRequirements) {
+    const label = `legalRequirement:${rule.legalRequirementId}`;
+    if (!operativeRuleIds.has(rule.legalRequirementId)) {
+      fail(
+        COMPLIANCE_RULE_SET_FAILURE_CODES.OPERATIVE_PROPOSITION_REQUIRED,
+        label,
+        "Author actor, modality, action and exact operative sourceRefs, including for NON_ASSESSABLE duties; move context-only material to typed relations on the duty it affects",
+      );
+    }
+    const ownRefs = new Map(
+      rule.sourceRefs.map((ref) => [sourceClaimKey(ref), ref.contentSha256]),
+    );
+    const operativeKeys = new Set<string>();
+    for (const proposition of rule.operativePropositions ?? []) {
+      for (const ref of proposition.sourceRefs) {
+        const key = cleanKey(ref);
+        if (ownRefs.get(sourceClaimKey(ref)) !== ref.contentSha256) {
+          fail(
+            COMPLIANCE_RULE_SET_FAILURE_CODES.OPERATIVE_SOURCE_NOT_DECLARED,
+            label,
+            `Declare operative source ${sourceClaimKey(ref)} in the owning requirement sourceRefs`,
+          );
+        } else if (key) {
+          operativeKeys.add(key);
+          accountedKeys.add(key);
+        }
+      }
+    }
+    for (const ref of rule.sourceRefs) {
+      const key = cleanKey(ref);
+      if (
+        key &&
+        !operativeKeys.has(key) &&
+        !contextByRule.get(rule.legalRequirementId)?.has(key)
+      ) {
+        fail(
+          COMPLIANCE_RULE_SET_FAILURE_CODES.UNACCOUNTED_REQUIREMENT_SOURCE,
+          `${label}|locator:${key}`,
+          "A citation alone does not account for this provision: bind it to an operative proposition or a typed context relation on this requirement",
+        );
+      }
+    }
+  }
   const nonLeafKeys = new Set<string>();
   for (const chunk of legalSource.chunks) {
     for (const ancestor of ancestorLocators(chunk.locator)) {
@@ -323,16 +422,13 @@ export function validateComplianceRuleSetPacket(
     const key = sourceClaimKey(chunk);
     if (chunk.legalEffectStatus !== "EFFECTIVE" || nonLeafKeys.has(key))
       continue;
-    const covered = [chunk.locator, ...ancestorLocators(chunk.locator)].some(
-      (locator) =>
-        referencedKeys.has(
-          sourceClaimKey({ documentId: chunk.documentId, locator }),
-        ),
-    );
-    if (!covered) {
+    // Explicit leaf bindings preserve aggregation without treating an ancestor citation
+    // as an assertion that all subordinate propositions have been authored.
+    if (!accountedKeys.has(key)) {
       fail(
         COMPLIANCE_RULE_SET_FAILURE_CODES.INCOMPLETE_SOURCE_COVERAGE,
         `locator:${key}`,
+        "Account for this exact leaf through an operative proposition or a typed context relation; additional citations on requirements/AssessmentRules do not discharge coverage",
       );
     }
   }

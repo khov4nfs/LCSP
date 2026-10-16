@@ -285,6 +285,33 @@ def test_failed_revalidation_revokes_previous_packet_pass() -> None:
     assert context.submission is None
 
 
+def test_operative_coverage_gaps_reject_completion_and_keep_canonical_no_progress() -> None:
+    from middleware.failure_policy import NoProgressDetected
+
+    class OperativeCoverageApi(FakeApi):
+        def validate_compliance_rule_set(self, run_id, packet):
+            self.calls.append(("validate", (run_id, packet)))
+            return {"outcome": "FAILED", "failures": [
+                {"code": "OPERATIVE_PROPOSITION_REQUIRED", "ref": "legalRequirement:LR-CONTEXT", "detail": "Author actor/modality/action and exact source bindings"},
+                {"code": "INCOMPLETE_SOURCE_COVERAGE", "ref": f"locator:{DOC}::art-1::cl-1", "detail": "Citation attachment alone does not discharge coverage"},
+            ]}
+
+    api = OperativeCoverageApi()
+    context = RuleSetPreparationContext(RUN_ID, api)
+    submit = next(t for t in build_rule_set_tools(context) if t.name == "submit_compliance_rule_set")
+    rejected = json.loads(submit.invoke({"packet": _packet()}))
+    assert rejected["completionClaim"] == "REJECTED"
+    assert rejected["gaps"]["failures"][0]["code"] == "OPERATIVE_PROPOSITION_REQUIRED"
+    assert "operativePropositions" in rejected["gaps"]["uncoveredProvisions"]["how"]
+    assert "ancestor citation alone does not discharge coverage" in rejected["gaps"]["uncoveredProvisions"]["how"]
+    feedback = json.loads(submit.invoke({"packet": _packet()}))
+    assert feedback["NO_PROGRESS"]
+    with pytest.raises(NoProgressDetected):
+        submit.invoke({"packet": _packet()})
+    assert context.submission is None
+    assert "submit" not in api.names()
+
+
 @pytest.mark.parametrize("gives_up_with_source_blocked", [False, True])
 def test_validation_failed_then_normal_stop_is_observable_and_not_terminal(
     tmp_path: Path, gives_up_with_source_blocked: bool
