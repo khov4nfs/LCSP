@@ -29,6 +29,10 @@ import { ClaimRuleSetPreparationHandler } from "../claim-rule-set-preparation/cl
 import { ClaimRuleSetPreparationCommand } from "../claim-rule-set-preparation/claim-rule-set-preparation.command.js";
 import { ValidateComplianceRuleSetHandler } from "../validate-compliance-rule-set/validate-compliance-rule-set.handler.js";
 import { ValidateComplianceRuleSetCommand } from "../validate-compliance-rule-set/validate-compliance-rule-set.command.js";
+import { SourceReviewHandler } from "../source-review/source-review.handler.js";
+import { SourceReviewCommand } from "../source-review/source-review.command.js";
+import { sourceReviewUnits } from "../../../domain/source-review-frontier.js";
+import { SOURCE_REVIEW_ACTIONS as SR } from "@lcsp/contracts/legal-source";
 import { ClaimInventoryHandler } from "./claim-inventory.handler.js";
 import { ClaimInventoryCommand } from "./claim-inventory.command.js";
 const url = process.env.DATABASE_URL ?? "";
@@ -244,6 +248,152 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       ).fingerprint,
     ).toBe(frozen.fingerprint);
     // No submission, activation or provider is invoked by this protocol persistence test.
+    await db.legalSourceVersion.update({
+      where: { id: source.id },
+      data: { status: "SUPERSEDED" },
+    });
+  }, 30000);
+
+  it("refuses to freeze an inventory no Rule Set can be authored from, then freezes once the owning unit is reopened and repaired", async () => {
+    const source = await legalSourceFactory(db, "readiness-" + randomUUID())();
+    const start = await new StartRuleSetPreparationHandler(
+      service,
+      new OutboxRepository(service),
+    ).execute(
+      new StartRuleSetPreparationCommand(
+        { legalSourceVersionId: source.id, idempotencyKey: randomUUID() },
+        "test-worker",
+        randomUUID(),
+      ),
+    );
+    const id = start.preparationRunId;
+    await new ClaimRuleSetPreparationHandler(
+      service,
+      new LegalDocumentGraphService(service),
+    ).execute(
+      new ClaimRuleSetPreparationCommand(
+        { preparationRunId: id },
+        randomUUID(),
+      ),
+    );
+    // The retained live shape: operative claims, but every applicability-bearing claim is missing (re-typed as context).
+    const packet = validPacket();
+    const applicabilityKeys = new Set(
+      packet
+        .semanticGraph!.claims.filter((c) =>
+          ["SCOPE", "CONDITION"].includes(c.claimType),
+        )
+        .map((c) => c.claimId),
+    );
+    const originalTypes = new Map(
+      packet.semanticGraph!.claims.map((c) => [c.claimId, c.claimType]),
+    );
+    expect(applicabilityKeys.size).toBeGreaterThan(0);
+    for (const c of packet.semanticGraph!.claims)
+      if (applicabilityKeys.has(c.claimId)) c.claimType = "CONTEXT";
+    const request = await pinFixtureRequest(db, {
+      preparationRunId: id,
+      packet,
+    });
+    const frontierKey = { preparationRunId: id, inventoryRevision: 1 };
+    const reviews = await db.ruleSetPreparationSourceReview.findMany({
+      where: frontierKey,
+    });
+    const identities = Object.assign(
+      {},
+      ...reviews.map(
+        (r) =>
+          (r.payload as { identities?: Record<string, string> } | null)
+            ?.identities ?? {},
+      ),
+    ) as Record<string, string>;
+    const lacking = request.packet.semanticGraph!;
+    const operation = (action: (typeof A)[keyof typeof A], graph = lacking) =>
+      handler.execute(
+        new ClaimInventoryCommand(
+          { preparationRunId: id, action, revision: 1, graph, identities },
+          randomUUID(),
+        ),
+      );
+    const refused = await operation(A.FINALIZE);
+    expect(refused.outcome).toBe(O.FAILED);
+    expect(
+      ((refused as { failures?: { code: string }[] }).failures ?? []).filter(
+        (f) => f.code === "APPLICABILITY_AUTHORITY_MISSING",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      await db.ruleSetPreparationClaimInventory.count({
+        where: { preparationRunId: id },
+      }),
+    ).toBe(0);
+    expect(
+      (await db.ruleSetPreparationRun.findUniqueOrThrow({ where: { id } }))
+        .claimPhase,
+    ).not.toBe(ClaimPreparationPhase.CLAIM_INVENTORY_READY);
+
+    // Repair through the real queue: reopen the units that own the missing claims, re-review them with the real types.
+    const sourceGraph = (await new LegalDocumentGraphService(service).export(
+      source.id,
+    ))!;
+    const units = sourceReviewUnits(sourceGraph);
+    const repaired = structuredClone(lacking);
+    const owners = new Set<string>();
+    for (const c of repaired.claims)
+      if (applicabilityKeys.has(identities[c.claimId])) {
+        c.claimType = originalTypes.get(identities[c.claimId])!;
+        owners.add(
+          units.find((n) => c.sourceNodeIds.includes(n.nodeId))!.nodeId,
+        );
+      }
+    expect(owners.size).toBeGreaterThan(0);
+    const frontier =
+      await db.ruleSetPreparationReviewFrontier.findUniqueOrThrow({
+        where: { preparationRunId_inventoryRevision: frontierKey },
+      });
+    const queue = new SourceReviewHandler(
+      service,
+      new LegalDocumentGraphService(service),
+    );
+    const operationId = randomUUID();
+    for (const sourceNodeId of owners)
+      expect(
+        (
+          await queue.execute(
+            new SourceReviewCommand(
+              {
+                preparationRunId: id,
+                inventoryRevision: 1,
+                operationId,
+                action: SR.REOPEN,
+                sourceNodeId,
+                reason:
+                  "Register the omitted source-grounded applicability claim",
+                sourceRevision: sourceGraph.materializationId,
+                frontierRevision: frontier.revision,
+              },
+              "fixture-review",
+            ),
+          )
+        ).outcome,
+      ).toBe(O.PASSED);
+    const reviewed = await completeFixtureFrontier(
+      service,
+      id,
+      1,
+      sourceGraph,
+      repaired,
+      identities,
+    );
+    expect(reviewed.outcome).toBe(O.PASSED);
+    expect(await operation(A.FINALIZE, repaired)).toMatchObject({
+      outcome: O.PASSED,
+    });
+    expect(
+      await db.ruleSetPreparationClaimInventory.count({
+        where: { preparationRunId: id },
+      }),
+    ).toBe(1);
     await db.legalSourceVersion.update({
       where: { id: source.id },
       data: { status: "SUPERSEDED" },

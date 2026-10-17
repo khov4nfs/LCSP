@@ -71,6 +71,20 @@ DUTY/PROHIBITION/PERMISSION need the actual actor and action; modality follows t
 no operative triple. Exclusion uses relevant=false and a truthful non_operative_reason, persisted as
 INTENTIONALLY_NON_OPERATIVE; never exclude a real claim merely to satisfy accounting.
 
+Applicability is claim-authoritative and is decided HERE, before the freeze. Only SCOPE and CONDITION claims can
+ground a Requirement's applicability; a duty's actor field is just its addressee label and is not applicability.
+- SCOPE: a source-grounded SCOPE claim for whom or what a provision applies to: each addressee class, subject matter or
+  application scope the source states or defines, with the source-defined criteria unpacked (A label is not its own explanation).
+- CONDITION: each trigger the source states ("if", "when", "only while", "after a request") in its own terms.
+Register them as separate claims beside the duty they qualify. Example shape: "If X happens, the provider must Y"
+is a CONDITION "X happens" plus a DUTY "the provider must Y"; never leave the trigger only inside the DUTY text.
+A DEFINITION, CONTEXT, TEMPORAL_RULE or any normative claim never counts as applicability, and no later phase can
+add a missing one. finalize_semantic_claim_inventory refuses an inventory that cannot support any Rule Set
+(APPLICABILITY_AUTHORITY_MISSING when duties exist but no SCOPE/CONDITION claim does; OPERATIVE_CLAIM_MISSING when no
+duty exists). The refusal lists the duties and their units: reopen_source_review each owning unit, register the
+claim, complete the unit, call get_next_review_unit until the queue is empty, then finalize again. complete_source_review
+warns early (advisory) while no SCOPE/CONDITION claim exists but duties do.
+
 One unit may contain CONTEXT + DUTY + EXCEPTION + TEMPORAL claims. Register each distinct claim.
 Call complete_source_review with disposition CLAIMS_AUTHORED or CONTEXT_ONLY as appropriate. Canonical
 claim IDs authored in THIS review are collected automatically; normally omit claim_ids. If you provide
@@ -123,9 +137,13 @@ with a precise reason. This increments revision and invalidates ALL downstream c
 revisions remain auditable. Review the returned ID remapping and re-author affected work. Never try
 to bypass a claim gap by changing/discarding claims in a Rule packet.
 
-Use author_legal_requirement to select frozen claims by role: operative_claim_ids, applicability_claim_ids,
+Use author_legal_requirement to select frozen claims by role: operative_claim_ids, applicability_claim_ids
+(SCOPE/CONDITION claims only),
 qualifier_claim_ids (including temporal and transition claims), exception_claim_ids, context_claim_ids
-(including definitions). The tool copies the exact statements and actor/modality/action bindings.
+(including definitions). A claim's role follows its type: get_claim_inventory rows show accountingRole, and a
+rejection names the claim, its accountingRole and the argument it belongs in. A tool rejection is not a Rule
+validation and consumes no validation attempt; only validate_compliance_rule_set runs the Rule Validator.
+The tool copies the exact statements and actor/modality/action bindings.
 Do not independently paraphrase them in several fields. Multiple compatible operative claims may
 share one Requirement; a claim may support several compatible Requirements. Preserve every distinct
 operative proposition, including separate duties within a mixed paragraph. Do not use one Requirement
@@ -133,11 +151,7 @@ per chunk, page or node as a coverage strategy.
 
 Applicability must state the actual addressee and source conditions. Preserve source-defined criteria
 and any-of/all-of alternatives exactly. An assessable Requirement needs applicability claims identifying
-the actual source addressee/trigger.
-During discovery, register a source-grounded SCOPE claim or CONDITION claim if needed, retaining source-defined
-role criteria, alternatives, qualifiers and definitions. A label is not its own explanation. If you
-missed this claim, reopen explicitly. Timing, transitions, conditions and exceptions remain material
-claims and must be bound. Never omit a temporal fact by treating it as an untracked comment.
+the actual source addressee/trigger, and only SCOPE and CONDITION claims can be that authority.
 
 All relevant claims require valid claimBindings; NON_ASSESSABLE never excuses omission of operative
 actor/modality/action or claim accounting.

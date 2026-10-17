@@ -53,7 +53,7 @@ def runtime(small=False, target_descendant=False):
 def call(tools,name,**args):
     return json.loads(tools[name].invoke(args))
 
-def discover(seed,ctx,tools,record=None):
+def discover(seed,ctx,tools,record=None,finalize=True,completions=None):
     remap={};pending_relations=deepcopy(seed["packet"]["semanticGraph"]["relations"])
     def action(name,**args):
         if record:record(name,args)
@@ -83,7 +83,9 @@ def discover(seed,ctx,tools,record=None):
         result=action("complete_source_review",disposition="CLAIMS_AUTHORED" if owned else "NO_RELEVANT_SEMANTIC_CLAIMS",
             **({} if owned else {"reason":"Scripted source unit has no independent claim in this fixture"}))
         assert result["outcome"]=="PASSED",result
+        if completions is not None:completions.append(result)
     assert not pending_relations,pending_relations
+    if not finalize:return None
     result=action("finalize_semantic_claim_inventory");assert result["outcome"]=="PASSED",result
     assert ctx.inventory.phase=="CLAIM_INVENTORY_READY" and ctx.submission is None
     return result

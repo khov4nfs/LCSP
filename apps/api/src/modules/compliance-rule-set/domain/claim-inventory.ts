@@ -1,13 +1,18 @@
 import { createHash } from "node:crypto";
 import {
   COMPLIANCE_RULE_SET_FAILURE_CODES as F,
+  LEGAL_CLAIM_ACCOUNTING_ROLES as ROLE,
+  LEGAL_CLAIM_STATES as STATE,
   type ClaimInventoryBinding,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetValidationFailure,
   type LegalSemanticGraph,
 } from "@lcsp/contracts/compliance-rule-set";
 import type { LegalSourceSnapshot } from "./compliance-rule-set-integrity.validator.js";
-import { validateSemanticClaimGraph } from "./semantic-claim-integrity.validator.js";
+import {
+  claimTypesForRole,
+  validateSemanticClaimGraph,
+} from "./semantic-claim-integrity.validator.js";
 
 export function inventoryCanonical(value: unknown): string {
   if (Array.isArray(value))
@@ -61,6 +66,43 @@ export function inventoryFingerprint(
 ) {
   return inventoryHash({ revision, graph: normalizeInventory(graph) });
 }
+/**
+ * Necessary conditions for ANY valid Rule Set, so a frozen inventory that fails them can never be authored:
+ * a Rule Set needs an AssessmentRule, hence an assessable Requirement, hence an operative proposition and a
+ * non-empty applicabilityConditions list whose every entry has claim authority in the applicability role.
+ * Decides capability from the role matrix only; it never reads or classifies source prose.
+ */
+export function authoringReadinessGaps(
+  graph: LegalSemanticGraph,
+): ComplianceRuleSetValidationFailure[] {
+  const relevant = graph.claims.filter((c) => c.state === STATE.RELEVANT);
+  const bearing = (role: string) => {
+    const types = claimTypesForRole(role);
+    return {
+      types,
+      claims: relevant.filter((c) => types.includes(c.claimType)),
+    };
+  };
+  const operative = bearing(ROLE.OPERATIVE_PROPOSITION);
+  if (!operative.claims.length)
+    return [
+      {
+        code: F.OPERATIVE_CLAIM_MISSING,
+        ref: "claimInventory",
+        detail: `No relevant operative claim (${operative.types.join(", ")}) exists, so no Requirement can be authored from this inventory`,
+      },
+    ];
+  const applicability = bearing(ROLE.APPLICABILITY_CONDITION);
+  if (applicability.claims.length) return [];
+  return operative.claims
+    .map((c) => c.claimId)
+    .sort()
+    .map((claimId) => ({
+      code: F.APPLICABILITY_AUTHORITY_MISSING,
+      ref: `claim:${claimId}`,
+      detail: `No claim of type ${applicability.types.join(" or ")} exists, so no assessable Requirement can state whom or what this duty applies to. Author a source-grounded one in the review unit that owns this duty's addressee, trigger or scope`,
+    }));
+}
 export function validateClaimInventory(
   runId: string,
   revision: number,
@@ -81,6 +123,9 @@ export function validateClaimInventory(
     true,
     diagnosticReviewScope,
   );
+  // A scoped diagnostic inspects part of the source and cannot prove whole-Rule-Set capability.
+  if (!diagnosticReviewScope)
+    result.failures.push(...authoringReadinessGaps(graph));
   if (!source.retrievalIndexValid)
     result.failures.push({
       code: F.RETRIEVAL_INDEX_NOT_VALID,

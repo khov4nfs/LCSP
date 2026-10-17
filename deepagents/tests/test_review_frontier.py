@@ -305,3 +305,29 @@ def test_target_scheduling_inspection_atomic_binding_and_native_managed_inventor
     bound_tools = {name for names in model.bound_tool_names for name in names}
     assert "bind_semantic_reference" in bound_tools and "review_source_reference" not in bound_tools
     assert ctx.submission is None
+
+
+def test_scoped_discovery_diagnostic_is_not_subject_to_the_authoring_readiness_gate():
+    """A claim-discovery diagnostic inspects part of the source, so it cannot prove whole-Rule-Set capability.
+
+    The production (non-diagnostic) refusal and repair is covered against real PostgreSQL by
+    claim-inventory.integration.spec.ts and, with the real tools, by test_retained_rule_authoring_failure.py.
+    """
+    seed,ctx,tools=runtime()
+    for claim in seed["packet"]["semanticGraph"]["claims"]:
+        if claim["claimType"] in {"CONDITION","SCOPE"}:claim["claimType"]="CONTEXT"
+    discover(seed,ctx,tools,finalize=False)
+    ready=call(tools,"finalize_semantic_claim_inventory")
+    assert ready["outcome"]=="PASSED",ready
+    assert ctx.inventory.phase=="CLAIM_INVENTORY_READY"
+
+
+def test_completing_a_duty_unit_warns_early_while_no_claim_can_ground_applicability():
+    seed,ctx,tools=runtime()
+    for claim in seed["packet"]["semanticGraph"]["claims"]:
+        if claim["claimType"] in {"CONDITION","SCOPE"}:claim["claimType"]="CONTEXT"
+    completions=[]
+    discover(seed,ctx,tools,finalize=False,completions=completions)
+    advised=[c for c in completions if "advisory" in c]
+    assert advised and "SCOPE or CONDITION" in advised[0]["advisory"]
+    assert all(c["outcome"]=="PASSED" for c in completions), "the advisory never changes an outcome"

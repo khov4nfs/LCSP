@@ -42,6 +42,11 @@ const allowedRoles: Record<string, readonly string[]> = {
   [C.CONTEXT]: [ROLE.CONTEXT],
   [C.CROSS_REFERENCE]: [ROLE.CONTEXT],
 };
+/** Claim types the role matrix lets ground `role`; the single source for readiness gates. */
+export const claimTypesForRole = (role: string): string[] =>
+  Object.entries(allowedRoles)
+    .filter(([, roles]) => roles.includes(role))
+    .map(([type]) => type);
 const fields = {
   [ROLE.APPLICABILITY_CONDITION]: "applicabilityConditions",
   [ROLE.QUALIFIER]: "qualifiers",

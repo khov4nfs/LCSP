@@ -6,6 +6,7 @@ import {
 } from "../../../../test/support/compliance-rule-set-fixtures.js";
 import { canonicalInventoryFixture } from "../../../../test/support/canonical-claim-inventory-fixture.js";
 import {
+  authoringReadinessGaps,
   canonicalClaimId,
   inventoryFingerprint,
   validateClaimInventory,
@@ -150,8 +151,12 @@ describe("Frozen Preparation claim inventory", () => {
       f.graph.claims.push({
         ...seed,
         claimId: id,
-        claimType: "CONTEXT",
-        operative: null,
+        // One operative and one applicability claim keep the scale fixture authoring-ready.
+        claimType: i === 0 ? "DUTY" : i === 1 ? "CONDITION" : "CONTEXT",
+        operative:
+          i === 0
+            ? { actor: "operator", modality: "DUTY", action: "perform" }
+            : null,
         statement: key,
       });
       if (i)
@@ -177,5 +182,113 @@ describe("Frozen Preparation claim inventory", () => {
       validateClaimInventory(RUN, 1, f.graph, identities, f.source).failures,
     ).toEqual([]);
     expect(performance.now() - started).toBeLessThan(3000);
+  });
+  describe("authoring readiness (CLAIM_INVENTORY_READY must be authorable)", () => {
+    const operative = (f: ReturnType<typeof fixture>) =>
+      f.graph.claims.filter((c) => c.operative && c.state === "RELEVANT");
+    const withoutApplicability = (f: ReturnType<typeof fixture>) => {
+      // Re-type every applicability-bearing claim as context so only the role matrix decides.
+      for (const c of f.graph.claims)
+        if (["SCOPE", "CONDITION"].includes(c.claimType))
+          c.claimType = "CONTEXT";
+      return f;
+    };
+    it("accepts an inventory carrying operative and applicability-bearing claims", () => {
+      const f = fixture();
+      expect(authoringReadinessGaps(f.graph)).toEqual([]);
+    });
+    it("rejects the retained shape: normative claims but no claim able to ground applicability", () => {
+      const f = withoutApplicability(fixture());
+      const gaps = authoringReadinessGaps(f.graph);
+      expect(gaps.map((g) => g.code)).toEqual(
+        operative(f).map(() => F.APPLICABILITY_AUTHORITY_MISSING),
+      );
+      expect(gaps.map((g) => g.ref).sort()).toEqual(
+        operative(f)
+          .map((c) => `claim:${c.claimId}`)
+          .sort(),
+      );
+      expect(gaps[0].detail).toMatch(/CONDITION or SCOPE/);
+      // The authoritative gate that freezes the inventory reports the same machine-readable gaps.
+      expect(
+        validateClaimInventory(RUN, 1, f.graph, f.identities, f.source)
+          .failures,
+      ).toEqual(expect.arrayContaining(gaps));
+    });
+    it.each([
+      "DEFINITION",
+      "CONTEXT",
+      "TEMPORAL_RULE",
+      "TRANSITION_RULE",
+      "QUALIFIER",
+      "EXCEPTION",
+      "CROSS_REFERENCE",
+      "DUTY",
+      "PROHIBITION",
+      "PERMISSION",
+    ])("%s never satisfies applicability merely by existing", (claimType) => {
+      const f = withoutApplicability(fixture());
+      const seed = f.graph.claims.find((c) => c.claimType === "CONTEXT")!;
+      f.graph.claims.push({
+        ...seed,
+        claimId: "extra",
+        claimType: claimType as typeof seed.claimType,
+        operative: null,
+      });
+      expect(authoringReadinessGaps(f.graph).map((g) => g.code)).toContain(
+        F.APPLICABILITY_AUTHORITY_MISSING,
+      );
+    });
+    it.each(["SCOPE", "CONDITION"])(
+      "%s satisfies applicability",
+      (claimType) => {
+        const f = withoutApplicability(fixture());
+        const seed = f.graph.claims.find((c) => c.claimType === "CONTEXT")!;
+        f.graph.claims.push({
+          ...seed,
+          claimId: "extra",
+          claimType: claimType as typeof seed.claimType,
+          operative: null,
+        });
+        expect(authoringReadinessGaps(f.graph)).toEqual([]);
+      },
+    );
+    it("an excluded applicability claim grants nothing", () => {
+      const f = fixture();
+      for (const c of f.graph.claims)
+        if (["SCOPE", "CONDITION"].includes(c.claimType)) {
+          c.state = "INTENTIONALLY_NON_OPERATIVE";
+          c.nonOperativeReason = "excluded";
+        }
+      expect(authoringReadinessGaps(f.graph).map((g) => g.code)).toContain(
+        F.APPLICABILITY_AUTHORITY_MISSING,
+      );
+    });
+    it("rejects an inventory with no relevant operative claim", () => {
+      const f = fixture();
+      for (const c of f.graph.claims)
+        if (c.operative) {
+          c.claimType = "CONTEXT";
+          c.operative = null;
+        }
+      expect(authoringReadinessGaps(f.graph).map((g) => g.code)).toEqual([
+        F.OPERATIVE_CLAIM_MISSING,
+      ]);
+    });
+    it("a scoped diagnostic cannot prove whole-Rule-Set capability and skips the gate", () => {
+      const f = withoutApplicability(fixture());
+      const scope = new Set(
+        f.graph.sourceAccounting.map((r) => r.sourceNodeId),
+      );
+      const codes = validateClaimInventory(
+        RUN,
+        1,
+        f.graph,
+        f.identities,
+        f.source,
+        scope,
+      ).failures.map((g) => g.code);
+      expect(codes).not.toContain(F.APPLICABILITY_AUTHORITY_MISSING);
+    });
   });
 });

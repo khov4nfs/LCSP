@@ -95,7 +95,8 @@ class ReviewFrontier:
                 "reviewedFingerprint": self.snapshot.get("reviewedFrontierFingerprint") or self.snapshot["frontierStateFingerprint"]}
 
     def failure(self, result):
-        result = self.inventory.observe_validation(result, "CLAIM_INVENTORY_VALIDATION")
+        # A refused queue operation or an early finalize is not an inventory validation run.
+        result = self.inventory.observe_validation(result, self.inventory.phase, kind="CLAIM_DISCOVERY_TOOL_REJECTED")
         from rule_set_preparation.claim_inventory import grouped_gaps
         return grouped_gaps(result, self.context.draft["semanticClaims"])
 
@@ -212,7 +213,21 @@ class ReviewFrontier:
         restored = self.restore(force=True)
         if restored: return self.failure(restored)
         self.inventory.rebuild_node_index()
-        return result
+        advisory = self.applicability_advisory(owned)
+        return {**result, "advisory": advisory} if advisory else result
+
+    def applicability_advisory(self, completed):
+        """Non-blocking nudge while the freeze would still be refused: duties exist but no claim can ground applicability yet."""
+        from rule_set_preparation.claim_inventory import CLAIM_ROLES
+        relevant = [c for c in self.context.draft["semanticClaims"].values() if c["state"] == "RELEVANT"]
+        if any(CLAIM_ROLES[c["claimType"]] == "APPLICABILITY_CONDITION" for c in relevant):
+            return None
+        duties = sum(CLAIM_ROLES[c["claimType"]] == "OPERATIVE_PROPOSITION" for c in completed if c["state"] == "RELEVANT")
+        if not duties:
+            return None
+        return ("No SCOPE or CONDITION claim exists yet. Applicability can only be grounded by those claims and the inventory cannot be finalized without one. "
+                "Where a unit states whom or what a provision applies to, or a trigger (if/when/only while), register it as its own SCOPE/CONDITION claim in that unit "
+                "(reopen_source_review first if the unit is already complete).")
 
     def expand(self, reference_ids, reason):
         if not self.active:

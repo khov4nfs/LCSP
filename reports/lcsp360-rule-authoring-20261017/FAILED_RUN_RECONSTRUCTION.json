@@ -1,0 +1,270 @@
+{
+ "identity": {
+  "preparationId": "de491791-2e5a-45da-9ff4-2b915de42f07",
+  "legalSourceVersionId": "6a03921d-97dd-4d6b-ba9a-aa70f331ccfc",
+  "correlationId": "e4c32da8-0174-4719-8b7f-a339a673fc8a",
+  "idempotencyKey": "rule-set-preparation:6a03921d-97dd-4d6b-ba9a-aa70f331ccfc:attempt:1",
+  "outboxEventId": "outbox:4e23ec64260ac83b44a8e6e8616a9514c2a8498c24b2495be3866b9dd9676edf",
+  "nativeRunId": "1e70fd92-b1d9-4e38-b3f6-d365e8467e93",
+  "threadId": "0359b796-9b7f-545e-b471-5885eb6bc1b6",
+  "checkpoints": [
+   "1f1ca063-42e5-6b83-bfff-3f28132fc0a1",
+   "1f1ca063-42ed-6647-8000-08bd9fede9d4",
+   "1f1ca063-42f0-6958-8001-c6df9e00c17c",
+   "1f1ca079-3f99-6dfc-8002-7dc8b67a46cf"
+  ],
+  "isolatedStackRun": "733efa6a76efab54",
+  "deployedSha": "920d7b3ff08feb9eace81a6264bdbcc57f2c9ac0"
+ },
+ "lifecycle": {
+  "createdAt": "2026-10-17T08:39:00.934",
+  "startedAt": "2026-10-17T08:39:02.024",
+  "completedAt": "2026-10-17T08:48:52.097",
+  "executionState": "FAILED",
+  "failureReason": "RUNTIME_ERROR",
+  "terminalClaimPhase": "RULE_AUTHORING",
+  "terminalException": "NoProgressDetected (terminal_stage AGENT_GRAPH)",
+  "nativeRunStatus": "success"
+ },
+ "handoffProof": {
+  "claimInventoryReadyReached": true,
+  "inventoryRevisionCount": 1,
+  "reviewFrontier": {
+   "blocked": 0,
+   "discoveryCompleteEligible": true,
+   "inReview": 0,
+   "pending": 0,
+   "persistedClaims": 38,
+   "reviewedNoClaims": 0,
+   "reviewedWithClaims": 11,
+   "total": 11
+  },
+  "frozenInventoryFingerprint": "5ebcc5cf95b3d0100b7da80bbd15ae424ac83b7d6392a6769c8f0b0ee1fc6964",
+  "claims": 38,
+  "relations": 14,
+  "ruleSetVersions": 0,
+  "persistedRequirements": 0,
+  "persistedAssessmentRules": 0
+ },
+ "accounting": {
+  "logicalCalls": 160,
+  "logicalCompletions": 160,
+  "observedPhysicalProviderAttempts": 436,
+  "failedProviderAttempts": 276,
+  "fallbackCalls": 88,
+  "summarizationCalls": 0,
+  "usage": {
+   "usageBearing": 160,
+   "inputTokens": 2736748,
+   "outputTokens": 26493,
+   "knownTotalTokens": 2763241,
+   "cacheReadTokens": 1982711,
+   "cacheWriteTokens": 0
+  },
+  "accounting": "PARTIAL"
+ },
+ "toolCounts": {
+  "read_file": 5,
+  "get_next_review_unit": 19,
+  "record_preparation_progress": 4,
+  "register_semantic_claim": 44,
+  "complete_source_review": 26,
+  "inspect_semantic_reference_binding": 17,
+  "get_claim_inventory": 19,
+  "get_review_progress": 3,
+  "bind_semantic_reference": 14,
+  "follow_legal_reference": 3,
+  "finalize_semantic_claim_inventory": 1,
+  "start_rule_authoring": 1,
+  "author_legal_requirement": 5
+ },
+ "ruleAuthoringTools": [
+  {
+   "sequence": 920,
+   "tool": "get_claim_inventory",
+   "argumentKeys": [
+    "kind",
+    "limit"
+   ],
+   "argumentChars": 31
+  },
+  {
+   "sequence": 930,
+   "tool": "get_claim_inventory",
+   "argumentKeys": [
+    "kind",
+    "limit"
+   ],
+   "argumentChars": 31
+  },
+  {
+   "sequence": 935,
+   "tool": "get_claim_inventory",
+   "argumentKeys": [
+    "kind",
+    "limit",
+    "offset"
+   ],
+   "argumentChars": 45
+  },
+  {
+   "sequence": 948,
+   "tool": "start_rule_authoring",
+   "argumentKeys": [],
+   "argumentChars": 2
+  },
+  {
+   "sequence": 955,
+   "tool": "author_legal_requirement",
+   "argumentKeys": [
+    "applicability_claim_ids",
+    "context_claim_ids",
+    "operative_claim_ids",
+    "qualifier_claim_ids",
+    "requirement_key",
+    "title"
+   ],
+   "argumentChars": 741
+  },
+  {
+   "sequence": 959,
+   "tool": "author_legal_requirement",
+   "argumentKeys": [
+    "applicability_claim_ids",
+    "context_claim_ids",
+    "operative_claim_ids",
+    "qualifier_claim_ids",
+    "requirement_key",
+    "title"
+   ],
+   "argumentChars": 607
+  },
+  {
+   "sequence": 966,
+   "tool": "get_claim_inventory",
+   "argumentKeys": [
+    "kind",
+    "limit",
+    "offset"
+   ],
+   "argumentChars": 44
+  },
+  {
+   "sequence": 971,
+   "tool": "get_claim_inventory",
+   "argumentKeys": [
+    "kind",
+    "limit",
+    "offset"
+   ],
+   "argumentChars": 44
+  },
+  {
+   "sequence": 975,
+   "tool": "author_legal_requirement",
+   "argumentKeys": [
+    "applicability_claim_ids",
+    "context_claim_ids",
+    "operative_claim_ids",
+    "requirement_key",
+    "title"
+   ],
+   "argumentChars": 514
+  },
+  {
+   "sequence": 980,
+   "tool": "author_legal_requirement",
+   "argumentKeys": [
+    "applicability_claim_ids",
+    "context_claim_ids",
+    "operative_claim_ids",
+    "requirement_key",
+    "title"
+   ],
+   "argumentChars": 378
+  },
+  {
+   "sequence": 984,
+   "tool": "author_legal_requirement",
+   "argumentKeys": [
+    "applicability_claim_ids",
+    "operative_claim_ids",
+    "requirement_key",
+    "title"
+   ],
+   "argumentChars": 287
+  },
+  {
+   "sequence": 988,
+   "tool": "get_claim_inventory",
+   "argumentKeys": [
+    "kind",
+    "limit"
+   ],
+   "argumentChars": 31
+  }
+ ],
+ "rootCause": {
+  "id": "RULE_AUTHORING_ROOT_CAUSE",
+  "status": "PROVEN",
+  "statement": "CLAIM_INVENTORY_READY froze an inventory from which no Rule Set could ever be authored (0 of 38 claims can ground applicability; 17 normative claims), and the Agent tools then rejected every authoring attempt with feedback that was misclassified as Rule Validation and pointed at a discovery tool.",
+  "coupledCauses": [
+   {
+    "n": 1,
+    "layer": "INVENTORY_FREEZE",
+    "cause": "validateClaimInventory checked structure, identity and accounting only; it did not check the necessary conditions for any valid Rule Set. Proof of necessity in APPLICABILITY_CONTRACT_ANALYSIS.json."
+   },
+   {
+    "n": 2,
+    "layer": "CLAIM_DISCOVERY",
+    "cause": "The Agent authored no SCOPE or CONDITION claim; instructions said \"if needed\"."
+   },
+   {
+    "n": 3,
+    "layer": "OBSERVABILITY",
+    "cause": "ClaimInventory.rejected labelled every post-freeze tool rejection RULE_VALIDATION (and every discovery one CLAIM_INVENTORY_VALIDATION), so 8 rejections read as 8 validator failures with attempt counter 0."
+   },
+   {
+    "n": 4,
+    "layer": "FEEDBACK",
+    "cause": "Rejections carried requiredAction get_next_review_unit, no claim role, no expected argument and no applicability candidates. The rejected claims were a DEFINITION, a CONTEXT and a TEMPORAL_RULE claim (which argument each was placed in is not retained; every authoring call carried applicability_claim_ids), and the last call reference is consistent with an empty applicability list, which the pre-fix tool rejects."
+   }
+  ],
+  "whyDeterministicTestsMissed": "No test asked whether a frozen inventory could be authored from; fixtures always carried a CONDITION claim, and tool rejections were never counted separately from validator runs."
+ },
+ "persistedCountsAreZeroBecause": {
+  "proven": "C: every authoring mutation was rejected inside the tool before the draft was stored (draft candidate fingerprint constant at 4da65c9a… across all eight events; requirement fingerprint constant at the digest of the empty list). The draft is Agent run-context state until submission, so the monitor (persisted rows) and the draft agree: 0.",
+  "notThe": [
+   "A: no draft requirement existed in checkpoint state",
+   "B: not repeated structurally invalid packets; the tools are typed and incremental, not a packet",
+   "D: not a monitor-only artefact"
+  ]
+ },
+ "noProgress": {
+  "classification": "VALID mechanical detection, root-caused upstream; not weakened",
+  "fingerprint": "d71eaf10b6a78d99410a6e946422e175174a90b24134bafd55367a4df15c5824",
+  "gapFingerprint": "ee15770b510dfbaf78a250391bf71640002b9516b54f5f031eb09196b1b5529c",
+  "candidateFingerprint": "4da65c9acf00557de2544b0d93a669f6cbfdd786a5d015e2b594cffaf23d3dee",
+  "occurrences": "identical state at events 1, 4 and 8; warned at 4, terminal at 8",
+  "draftBeforeAndAfter": "unchanged (no mutation had been accepted)",
+  "agentActionAfterFeedback": "repeated the same malformed get_claim_inventory call shape (2 keys, 31 chars)",
+  "note": "The repeated read is not a wrongly detected loop: same gap, same unchanged draft, one warning. The defect is that the Agent could not make progress by any other route."
+ },
+ "contractAnswers": {
+  "packetSize": "No giant packet: author_legal_requirement/author_assessment_rule are typed incremental upserts by key. The failures are not whole-packet repair instability.",
+  "feedbackLocality": "Local (ref = the offending claim) but not actionable: no role, no expected argument, wrong requiredAction.",
+  "draftMutationModel": "incremental canonical mutation, keyed upsert, rejected before storage",
+  "monotonicValidation": "Not applicable: the real validator never ran; accepted requirements are stored untouched by later rejections (tested).",
+  "semanticVsBookkeeping": "Role bucket choice is bookkeeping derivable from claim type and is now reported by get_claim_inventory (accountingRole) and in every mismatch; which claims aggregate into a Requirement and applicability grounding stay Agent decisions."
+ },
+ "evidence": {
+  "logs": [
+   "raw/server.log",
+   "raw/api.log",
+   "raw/bridge.log"
+  ],
+  "observation": "reports/lcsp360-reference-liveness-20261017/disposable-observation.json",
+  "retainedLimits": "The retained telemetry keeps tool names, argument KEYS and sizes but not argument values or tool result text; the exact limit/kind values of the three malformed reads and the requirement_key of ordinal 7 are therefore not recoverable and are marked as such."
+ },
+ "timelineFile": "RULE_VALIDATION_TIMELINE.json"
+}

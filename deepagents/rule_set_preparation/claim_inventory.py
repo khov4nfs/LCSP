@@ -29,6 +29,10 @@ CLAIM_ROLES = {**{k: "OPERATIVE_PROPOSITION" for k in NORMATIVE}, "CONDITION": "
                "SCOPE": "APPLICABILITY_CONDITION", "QUALIFIER": "QUALIFIER", "TEMPORAL_RULE": "QUALIFIER",
                "TRANSITION_RULE": "QUALIFIER", "EXCEPTION": "EXCEPTION", "DEFINITION": "DEFINITION",
                "CONTEXT": "CONTEXT", "CROSS_REFERENCE": "CONTEXT"}
+# Inspection tools never change state; a malformed call is a rejected READ, not a validation of anything.
+READ_TOOLS = frozenset({"get_claim_inventory", "get_review_progress", "get_next_review_unit", "inspect_semantic_reference_binding"})
+# Frozen-inventory gaps only Claim Discovery can close: the same tool path closes them in either discovery mode.
+READINESS_CODES = frozenset({"APPLICABILITY_AUTHORITY_MISSING", "OPERATIVE_CLAIM_MISSING"})
 RELATION_KINDS = {"DEFINITION", "SCOPE", "QUALIFIER", "EXCEPTION", "CROSS_REFERENCE", "CONDITION", "INCORPORATES", "TEMPORALLY_LIMITS"}
 REQUIREMENT_KINDS = {"CONDITION": "SCOPE", "INCORPORATES": "CROSS_REFERENCE", "TEMPORALLY_LIMITS": "QUALIFIER"}
 SCHEMA = json.loads(Path(__file__).with_name("packet-schema.json").read_text())["properties"]["packet"]
@@ -61,14 +65,14 @@ def grouped_gaps(result: dict, claims: dict | None = None) -> dict:
         group = groups.setdefault(failure["code"], {"count": 0, "examples": []})
         group["count"] += 1
         if len(group["examples"]) < 6:
-            example = {k: failure[k] for k in ("ref", "detail", "referenceId", "sourceNodeId", "targetNodeId", "suppliedFromClaimId", "suppliedToClaimId", "sourceClaimIds", "targetClaimIds", "requiredAction") if k in failure}
+            example = {k: failure[k] for k in ("ref", "detail", "referenceId", "sourceNodeId", "targetNodeId", "suppliedFromClaimId", "suppliedToClaimId", "sourceClaimIds", "targetClaimIds", "requiredAction", "expectedRole", "suppliedField", "expectedField", "candidateCount", "candidates") if k in failure}
             ref = failure.get("ref")
             claim = (claims or {}).get(ref.removeprefix("claim:")) if isinstance(ref, str) else None
             if claim:
                 example.update(claimType=claim["claimType"], sourceNodeIds=claim["sourceNodeIds"][:3], sourceNodeCount=len(claim["sourceNodeIds"]))
             group["examples"].append(example)
     return {"outcome": result.get("outcome", "FAILED"), "gaps": groups,
-            **{k: result[k] for k in ("phase", "revision", "fingerprint", "coverage", "NO_PROGRESS", "requiredAction", "expectedClaimIds", "missingClaimIds", "pendingCount", "nextReviewUnitIds", "progress") if k in result}}
+            **{k: result[k] for k in ("phase", "revision", "fingerprint", "coverage", "NO_PROGRESS", "requiredAction", "guidance", "expectedClaimIds", "missingClaimIds", "pendingCount", "nextReviewUnitIds", "progress") if k in result}}
 
 
 @dataclass
@@ -85,6 +89,7 @@ class ClaimInventory:
     frontier: Any = field(init=False, default=None)
     required_nodes: set[str] = field(init=False)
     reviewed_nodes: set[str] = field(default_factory=set)
+    current_tool: str | None = field(init=False, default=None)
 
     def __post_init__(self):
         if self.context.frontier_enabled:
@@ -139,7 +144,8 @@ class ClaimInventory:
         return {"node_review_ledger_fingerprint": fingerprint(graph["sourceAccounting"]), "frontier_state_fingerprint": self.frontier.snapshot.get("frontierStateFingerprint") if self.frontier else None, "candidate_fingerprint": fingerprint(packet), "claim_inventory_fingerprint": fingerprint({"revision": self.revision, "graph": graph}),
                 "requirement_fingerprint": fingerprint(requirements), "accounting_fingerprint": fingerprint(accounting)}
 
-    def observe_validation(self, result: dict, phase: str, packet: dict | None = None) -> dict:
+    def observe_validation(self, result: dict, phase: str, packet: dict | None = None, *, kind: str = "CLAIM_PHASE_VALIDATION") -> dict:
+        """Record one outcome. Only kind CLAIM_PHASE_VALIDATION is a validator run; tool rejections use their own kind."""
         identities = self.state_fingerprints(packet)
         gaps = sorted({(f.get("code"), f.get("ref")) for f in result.get("failures", [])})
         gap_hash = fingerprint(gaps)
@@ -173,7 +179,7 @@ class ClaimInventory:
         turn = self.context.model_turn
         terminal = feedback and previous["feedback"] and (turn is None or previous["feedback_turn"] is None or turn > previous["feedback_turn"])
         self.validation_observations[state_hash] = {"feedback": feedback, "feedback_turn": previous["feedback_turn"] if previous and previous["feedback"] else turn}
-        data = {"durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "CLAIM_PHASE_VALIDATION", "phase": phase, "inventory_revision": self.revision,
+        data = {"durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": kind, "validation_executed": kind == "CLAIM_PHASE_VALIDATION", "phase": phase, "inventory_revision": self.revision,
                 **identities, "effective_state_fingerprint": state_hash, "gap_fingerprint": gap_hash,
                 "gap_counts": {k: v["count"] for k, v in grouped_gaps(result)["gaps"].items()},
                 "outcome": result.get("outcome"), "claim_count": len(self.identities), "claim_relation_count": len(self.context.draft["claimRelations"]), "coverage": result.get("coverage"),
@@ -181,15 +187,25 @@ class ClaimInventory:
         publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data=data)
         self.context.trace.append(data)
         if terminal:
-            publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={**data, "activity_kind": "NO_PROGRESS_DETECTED"})
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="FAILED", data={**data, "activity_kind": "NO_PROGRESS_DETECTED", "trigger_activity_kind": kind})
             raise NoProgressDetected("NO_PROGRESS_DETECTED")
         if feedback:
             result = {**result, "NO_PROGRESS": "The same effective phase state and gaps repeated. Resolve a listed gap or reopen explicitly; repeating this ineffective state after this feedback terminates the run."}
         return result
 
-    def rejected(self, code: str, ref: str, detail: str) -> dict:
-        result = {"outcome": "FAILED", "phase": self.phase, "revision": self.revision, "failures": [{"code": code, "ref": ref, "detail": detail}], "requiredAction": "update_semantic_claim" if code == "CLAIM_IDENTITY_CONFLICT" else "get_next_review_unit" if self.frontier else "get_claim_inventory"}
-        return grouped_gaps(self.observe_validation(result, INVENTORY_VALIDATION if self.phase == DISCOVERY else RULE_VALIDATION), self.context.draft["semanticClaims"])
+    def rejection_kind(self) -> str:
+        if self.current_tool in READ_TOOLS:
+            return "CLAIM_INVENTORY_READ_REJECTED"
+        return "CLAIM_DISCOVERY_TOOL_REJECTED" if self.phase in {DISCOVERY, INVENTORY_VALIDATION} else "RULE_AUTHORING_TOOL_REJECTED"
+
+    def rejected(self, code: str, ref: str, detail: str, **extra) -> dict:
+        """A tool refused its input before any validator ran; the state hash still detects ineffective repetition."""
+        action = extra.pop("requiredAction", None) or (
+            "update_semantic_claim" if code == "CLAIM_IDENTITY_CONFLICT"
+            else "get_next_review_unit" if self.frontier and self.phase in {DISCOVERY, INVENTORY_VALIDATION}
+            else "get_claim_inventory")
+        result = {"outcome": "FAILED", "phase": self.phase, "revision": self.revision, "failures": [{"code": code, "ref": ref, "detail": detail, **extra}], "requiredAction": action}
+        return grouped_gaps(self.observe_validation(result, self.phase, kind=self.rejection_kind()), self.context.draft["semanticClaims"])
 
     def discovery_allowed(self) -> bool:
         return self.phase == DISCOVERY and self.frozen is None
@@ -243,6 +259,14 @@ class ClaimInventory:
         else:
             result = self.context.api.claim_inventory_operation(self.context.run_id, "FINALIZE" if finalize else "VALIDATE", self.revision,
                                                                 graph=graph, identities=self.identities)
+        codes = {f.get("code") for f in result.get("failures", [])}
+        if READINESS_CODES & codes:
+            result = {**result, "requiredAction": "reopen_source_review" if self.frontier else "register_semantic_claim",
+                      "guidance": "The inventory cannot support any Rule Set. " + (
+                          "No relevant duty, prohibition or permission exists: reopen the unit that states one and register it with its actor and action. "
+                          if "OPERATIVE_CLAIM_MISSING" in codes else
+                          "In the review unit that owns the duty's addressee, trigger or scope, register a source-grounded SCOPE or CONDITION claim (reopen that unit first), "
+                          "complete it, then finalize again. A duty's actor, a DEFINITION or a CONTEXT claim never substitutes for it.")}
         result = self.observe_validation({"phase": self.phase, "revision": self.revision, **result}, INVENTORY_VALIDATION)
         if result.get("outcome") == "PASSED" and finalize:
             expected = fingerprint({"revision": self.revision, "graph": graph})
@@ -263,7 +287,11 @@ class ClaimInventory:
             self.transition(AUTHORING)
         if self.phase not in {AUTHORING, RULE_VALIDATION, SUBMISSION_READY}:
             return self.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize discovery before Rule authoring")
-        return {"outcome": "PASSED", "phase": self.phase, **self.binding()}
+        roles: dict[str, int] = {}
+        for claim in (self.frozen or {}).get("claims", []):
+            if claim["state"] == "RELEVANT":
+                roles[CLAIM_ROLES[claim["claimType"]]] = roles.get(CLAIM_ROLES[claim["claimType"]], 0) + 1
+        return {"outcome": "PASSED", "phase": self.phase, **self.binding(), "relevantClaimsByAccountingRole": roles}
 
     def reopen(self, reason: str) -> dict:
         if not self.frozen or not reason.strip():

@@ -35,7 +35,7 @@ def main():
     trace=SafeTrace(args.output/"live-tools.ndjson");events=[]
     def emit(event):
         data=event.get("data",{})
-        if event["event_type"].startswith("MODEL_CALL") or data.get("activity_kind") in {"CLAIM_INVENTORY_PROGRESS","CLAIM_PHASE_TRANSITION","CLAIM_PHASE_VALIDATION","NO_PROGRESS_DETECTED"}:
+        if event["event_type"].startswith("MODEL_CALL") or data.get("activity_kind") in {"CLAIM_INVENTORY_PROGRESS","CLAIM_PHASE_TRANSITION","CLAIM_PHASE_VALIDATION","NO_PROGRESS_DETECTED","CLAIM_DISCOVERY_TOOL_REJECTED","CLAIM_INVENTORY_READ_REJECTED","RULE_AUTHORING_TOOL_REJECTED","RULE_VALIDATION_STARTED","RULE_VALIDATION_PASSED","RULE_VALIDATION_FAILED"}:
             safe={k:event[k] for k in ["event_type","emitted_at","client_sequence"]}
             safe["data"]={k:v for k,v in data.items() if k in {"activity_kind","phase","previous_phase","inventory_revision","inventory_fingerprint","review_frontier","source_nodes_reviewed","source_nodes_remaining","claim_count","claim_relation_count","effective_state_fingerprint","gap_fingerprint","gap_counts","outcome","provider","model","usage","duration_ms","inventory_validation_attempt","provider_attempts","credential_attempts","fallback_used"}}
             events.append(safe)

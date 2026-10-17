@@ -1,0 +1,104 @@
+{
+  "gates": {
+    "APPLICABILITY_DOMAIN_MODEL": "PROVEN (Model A, claim-authoritative; APPLICABILITY_CONTRACT_ANALYSIS.md)",
+    "EVENT_CLASSIFICATION": "CORRECT (5 authoring rejects + 3 malformed reads => RULE_VALIDATION_STARTED = 0)",
+    "RETAINED_RULE_AUTHORING_FAILURE_REPRODUCED": "YES (6 of 6 compared live events matched on gap/state/candidate/requirement fingerprints at 920d7b3ff)",
+    "RETAINED_38_CLAIM_REPLAY": "PASS (finalize refuses with 17 APPLICABILITY_AUTHORITY_MISSING; scripted repair freezes, authors, real validator PASS, submits)",
+    "INVENTORY_AUTHORING_READINESS_GATE": "PASS",
+    "AUTHOR_LEGAL_REQUIREMENT": "PASS",
+    "REAL_RULE_VALIDATOR_ATTEMPT_GT_0_IN_REPLAY": "PASS",
+    "RULE_VALIDATION": "PASS (replay)",
+    "REFERENCE_LIVENESS_PRESERVED": "PASS",
+    "FULL_TEST_SUITE": "PASS"
+  },
+  "idealAgentInfeasibilityAtHead": {
+    "applicabilityRoleClaims": 0,
+    "claimTypes": {
+      "OPERATIVE_PROPOSITION": 17,
+      "CONTEXT": 5,
+      "DEFINITION": 7,
+      "QUALIFIER": 8,
+      "EXCEPTION": 1
+    },
+    "normativeClaims": 17,
+    "assessableRequirementsAccepted": 0
+  },
+  "falseDeadlocks": "NONE_FOUND",
+  "model": {
+    "graphs": 4165,
+    "states": 1085691,
+    "transitions": 1486154,
+    "terminals": 4165
+  },
+  "agent": {
+    "passed": 1420,
+    "skipped": 8,
+    "failures": 0,
+    "newTests": "tests/test_retained_rule_authoring_failure.py (12), test_review_frontier.py (+2)"
+  },
+  "api": {
+    "src": {
+      "passed": 1150,
+      "pending": 76,
+      "failed": 0
+    },
+    "tests": {
+      "passed": 64,
+      "pending": 0,
+      "failed": 0
+    },
+    "service": {
+      "passed": 22,
+      "pending": 0,
+      "failed": 0
+    },
+    "lifecycle": {
+      "passed": 15,
+      "pending": 0,
+      "failed": 0
+    },
+    "e2e": {
+      "passed": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "graph": {
+      "passed": 11,
+      "pending": 0,
+      "failed": 0
+    },
+    "admin": {
+      "passed": 18,
+      "pending": 0,
+      "failed": 0
+    },
+    "mgmt": {
+      "passed": 22,
+      "pending": 0,
+      "failed": 0
+    },
+    "reactivation": {
+      "passed": 17,
+      "pending": 0,
+      "failed": 0
+    },
+    "inventory": {
+      "passed": 2,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "repositoryChecks": {
+    "typecheck": 0,
+    "api-build": 0,
+    "imports": 0,
+    "contract-literals": 0,
+    "legal-v1-retired": 0,
+    "terminology": 0,
+    "compileall": 0,
+    "diff-check": 0,
+    "api-lint": 0
+  },
+  "note": "graph/admin/mgmt/reactivation only execute on database names and ports their gates require; an earlier pass with other names SKIPPED all 68 tests and was rejected, then rerun for real.",
+  "exactReplay94773fa8": "PASS"
+}

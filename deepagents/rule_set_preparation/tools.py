@@ -16,7 +16,7 @@ from uuid import uuid4
 from langchain_core.tools import tool
 
 from middleware.failure_policy import NoProgressDetected
-from orchestration.agent_stream import DURABLE, publish_agent_stream_event
+from orchestration.agent_stream import DURABLE, SEMANTIC_SCHEMA_VERSION, publish_agent_stream_event
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 
@@ -388,12 +388,19 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
     def run_validation(packet: dict | None = None) -> str:
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
-        context.validation_calls += 1
-        if context.inventory is not None:
+        if context.inventory is None:
+            context.validation_calls += 1
+        else:
             inventory = context.inventory
             if inventory.frozen is None or inventory.phase not in {AUTHORING, RULE_VALIDATION, SUBMISSION_READY}:
                 return json.dumps(inventory.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize inventory and start Rule authoring first"))
+            # An attempt exists only once the real Rule Validator is about to run; a refused call is not one.
+            context.validation_calls += 1
             inventory.transition(RULE_VALIDATION)
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                "durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "RULE_VALIDATION_STARTED",
+                "rule_validation_attempt": context.validation_calls, "inventory_revision": inventory.revision,
+                "claim_inventory_fingerprint": inventory.frozen_fingerprint})
         context.adds_since_validation = 0
         previous_validation = context.last_validation
         context.validated_packet = None
@@ -428,7 +435,12 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
                       for path in sorted(set(re.findall(r"packet\.[A-Za-z0-9_.]+", str(error))))[:20]] or [{"code": "CLAIM_SCHEMA_INVALID", "ref": "packet", "detail": str(error)[:200]}]}
         if context.inventory is not None:
             result = context.inventory.observe_validation(result, RULE_VALIDATION, packet)
-            context.inventory.transition(SUBMISSION_READY if result.get("outcome") == "PASSED" else AUTHORING)
+            passed = result.get("outcome") == "PASSED"
+            publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
+                "durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "RULE_VALIDATION_PASSED" if passed else "RULE_VALIDATION_FAILED",
+                "rule_validation_attempt": context.validation_calls, "inventory_revision": context.inventory.revision,
+                "gap_counts": {k: v["count"] for k, v in grouped_gaps(result)["gaps"].items()}})
+            context.inventory.transition(SUBMISSION_READY if passed else AUTHORING)
         context.last_validation = result
         if result.get("coverage"):
             publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
