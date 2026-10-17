@@ -10,7 +10,7 @@ from rule_set_preparation.claim_inventory import (
     AUTHORING, CLAIM_ROLES, CLAIM_SCHEMA, DISCOVERY, GRAPH_SECTIONS, RELATION_KINDS,
     REQUIREMENT_KINDS, ROLE_FIELDS, SCHEMA, ClaimInventory, fingerprint,
 )
-from rule_set_preparation.reference_binding import valid_binding, side_claims, project_reference_accounting
+from rule_set_preparation.reference_binding import valid_binding, side_claims, project_reference_accounting, endpoint_fingerprint
 
 TEXT = {"type": "string", "minLength": 1, "maxLength": 8000}
 IDS = {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems": 128, "uniqueItems": True}
@@ -79,18 +79,29 @@ def build_claim_tools(context):
             return ledger.rejected("CLAIM_SOURCE_BINDING_INVALID", "relation", "Link a claim from this active review unit to its related claim")
         if reference_id and ledger.frontier and reference_id not in ledger.frontier.active["referenceIds"]:
             return ledger.rejected("CLAIM_SOURCE_BINDING_INVALID", reference_id, "Bind the reference in its active source review")
-        if reference_id and ledger.frontier:
-            unfinished = [cid for cid in (from_claim_id, to_claim_id)
-                          if ledger.frontier.claim_owners.get(cid) != ledger.frontier.active["sourceNodeId"]
-                          and ledger.frontier.claim_owners.get(cid) not in context.draft["sourceAccounting"]]
-            if unfinished:
-                return {**ledger.rejected("SOURCE_REVIEW_REFERENCE_BLOCKED", reference_id, "Complete the referenced claim's review before binding its canonical endpoint"),
-                        "referenceId": reference_id, "targetNodeId": context.source_graph.references[reference_id]["toNodeId"],
-                        "targetReviewState": "TARGET_REVIEW_REQUIRED", "requiredAction": "inspect_semantic_reference_binding"}
+        dependencies = {}
+        if ledger.frontier:
+            foreign = [cid for cid in (from_claim_id, to_claim_id)
+                       if ledger.frontier.claim_owners.get(cid) != ledger.frontier.active["sourceNodeId"]]
+            if foreign:
+                authority = ledger.frontier.request("PROGRESS", claimIds=foreign, sourceRevision=context.source_graph.graph["materializationId"])
+                if authority.get("outcome") != "PASSED": return ledger.frontier.failure(authority)
+                endpoints = {e["claim"]["claimId"]: e for e in authority["endpoints"]}
+                for cid in foreign:
+                    if cid not in endpoints:
+                        return {**ledger.rejected("TARGET_CLAIMS_NOT_AVAILABLE", cid, "A cross-review endpoint must be a valid committed canonical claim; uncommitted drafts are unavailable"),
+                                "targetClaimAvailability": "NOT_AVAILABLE", "requiredAction": "inspect_semantic_reference_binding"}
+                    if endpoint_fingerprint(context.draft["semanticClaims"][cid]) != endpoints[cid]["fingerprint"]:
+                        return {**ledger.rejected("SEMANTIC_ENDPOINT_CHANGED", cid, "Inspect the changed durable target and reconsider the semantic binding"),
+                                "requiredAction": "inspect_semantic_reference_binding"}
+                    dependencies[cid] = endpoints[cid]["fingerprint"]
         row["relationId"] = fingerprint(row)
         ledger.changed(context.draft["claimRelations"].get(row["relationId"]), row)
         context.draft["claimRelations"][row["relationId"]] = row
-        if ledger.frontier: ledger.frontier.relation_owners.setdefault(row["relationId"],ledger.frontier.active["sourceNodeId"])
+        if ledger.frontier:
+            ledger.frontier.relation_owners.setdefault(row["relationId"],ledger.frontier.active["sourceNodeId"])
+            ledger.frontier.relation_dependencies[row["relationId"]] = dependencies
+            ledger.frontier.invalidated_relations.pop(row["relationId"], None)
         accounting = project_reference_accounting(context)
         return {"outcome": "PASSED", "inventoryRevision": ledger.revision, "relation": row,
                 **({"referenceAccounting": accounting[reference_id]} if reference_id else {})}
@@ -117,36 +128,50 @@ def build_claim_tools(context):
             return binding_failure(reference_id, None, None)
         origin = side_claims(source, context.draft["semanticClaims"], ref["fromNodeId"])
         targets = side_claims(source, context.draft["semanticClaims"], ref["toNodeId"])
-        target_review = {"reviewReady": bool(targets), "inScope": True}
+        target_review = {"targetReviewComplete": bool(targets), "bindingCanProceed": bool(targets),
+                         "targetClaimAvailability": "AVAILABLE" if targets else "NOT_AVAILABLE", "targetReviewState": None, "inScope": True}
+        target_count, target_more = len(targets), offset + limit < len(targets)
         if ledger.frontier:
-            state = ledger.frontier.request("PROGRESS", referenceIds=[reference_id])
+            state = ledger.frontier.request("PROGRESS", referenceIds=[reference_id], offset=offset, limit=limit,
+                sourceRevision=source.graph["materializationId"])
             if state.get("outcome") != "PASSED": return ledger.frontier.failure(state)
-            target_review = next((t for t in state["referenceTargets"] if t["referenceId"] == reference_id), {"reviewReady": False, "inScope": False})
-        ready = target_review["reviewReady"]
+            target_review = state["referenceTargets"][0]
+            targets = [e["claim"] for e in target_review["targetClaims"]]
+            target_count, target_more = target_review["targetClaimCount"], target_review["hasMore"]
+            for endpoint in target_review["targetClaims"]:
+                claim = endpoint["claim"]
+                if ledger.frontier.claim_owners.get(claim["claimId"]) != (ledger.frontier.active or {}).get("sourceNodeId"):
+                    context.draft["semanticClaims"][claim["claimId"]] = deepcopy(claim)
+                    ledger.identities[claim["claimId"]] = endpoint["identityKey"]
+                    ledger.frontier.claim_owners[claim["claimId"]] = endpoint["owner"]
+        ready = target_review["bindingCanProceed"]
         if ref["resolutionState"] != "RESOLVED":
-            action, next_action = "report_rule_set_source_blocked", "A material dependency requires structural reference resolution before binding"
+            action, next_action = "report_rule_set_source_blocked", "Resolve the structural dependency before material binding"
         elif not target_review["inScope"]:
-            action, next_action = "expand_review_frontier", "Explicitly expand this referenced target into scope before blocking the active unit"
+            action, next_action = "expand_review_frontier", "Explicitly expand the target scope before blocking"
+        elif not ready and not target_review["targetReviewComplete"]:
+            action, next_action = "complete_source_review", "TARGET_CLAIMS_NOT_AVAILABLE: publish this unit's claims with REQUIRES_REFERENCE_RESOLUTION; the runtime schedules target work"
         elif not ready:
-            action, next_action = "complete_source_review", "Block this unit with REQUIRES_REFERENCE_RESOLUTION and this reference ID; the runtime schedules its target"
-        elif not targets:
-            action, next_action = "reopen_source_review", "The target is reviewed but has no semantic claim; revisit the target review if this reference is legally material. Never invent a claim ID"
+            action, next_action = "reopen_source_review", "TARGET_CLAIMS_NOT_AVAILABLE: the target is complete but has no compatible canonical endpoint; explicitly revisit its semantic review if material"
         else:
-            action, next_action = "bind_semantic_reference", "Choose the legal dependency among these candidates"
-        def bounded(rows):
-            return [{"claimId": c["claimId"], "claimType": c["claimType"], "sourceNodeIds": c["sourceNodeIds"][:3], "sourceNodeCount": len(c["sourceNodeIds"]), "statement": c["statement"][:512], "statementTruncated": len(c["statement"]) > 512} for c in rows[offset:offset + limit]]
+            action, next_action = "bind_semantic_reference", "Choose the legal dependency among durable candidates; target review completion is independent"
+        def bounded(rows, start=offset):
+            return [{"claimId": c["claimId"], "claimType": c["claimType"], "sourceNodeIds": c["sourceNodeIds"][:3], "sourceNodeCount": len(c["sourceNodeIds"]), "statement": c["statement"][:512], "statementTruncated": len(c["statement"]) > 512} for c in rows[start:start + limit]]
         def node_info(nid):
             node = source.nodes.get(nid)
             return {k: node[k] for k in ("nodeId", "title", "structuralPath")} if node else None
         return {"outcome": "PASSED", **source.base(), "reference": deepcopy(ref), "resolutionState": ref["resolutionState"],
                 "sourceNode": node_info(ref["fromNodeId"]), "targetNode": node_info(ref["toNodeId"]),
-                "sourceClaims": bounded(origin), "targetClaims": bounded(targets),
-                "sourceClaimCount": len(origin), "targetClaimCount": len(targets), "offset": offset,
-                "hasMore": offset + limit < max(len(origin), len(targets)),
-                "relations": [deepcopy(r) for r in context.draft["claimRelations"].values() if r["referenceId"] == reference_id][:20],
+                "sourceClaims": bounded(origin), "targetClaims": bounded(targets, 0 if ledger.frontier else offset),
+                "sourceClaimCount": len(origin), "targetClaimCount": target_count, "offset": offset,
+                "hasMore": target_more or offset + limit < len(origin),
+                "relations": ([deepcopy(r) for r in context.draft["claimRelations"].values() if r["referenceId"] == reference_id]
+                    + ([{**deepcopy(r), "invalidated": True} for r in ledger.frontier.invalidated_relations.values() if r["referenceId"] == reference_id] if ledger.frontier else []))[:20],
                 "referenceAccounting": deepcopy(context.draft["referenceAccounting"].get(reference_id)),
-                "targetReviewReady": ready, "targetReviewState": "REVIEWED" if ready else "TARGET_REVIEW_REQUIRED",
-                "targetReview": target_review,
+                "targetReviewState": target_review["targetReviewState"], "targetClaimAvailability": target_review["targetClaimAvailability"],
+                "targetReviewComplete": target_review["targetReviewComplete"], "bindingCanProceed": ready,
+                "targetReviews": target_review.get("targetReviews", [])[:20], "targetReviewCount": len(target_review.get("targetReviews", [])),
+                "targetReview": {k: v for k, v in target_review.items() if k not in {"targetClaims", "targetReviews"}},
                 "requiredAction": action, "referenceIds": [reference_id] if not ready else [],
                 "nextAction": next_action}
 
@@ -158,12 +183,6 @@ def build_claim_tools(context):
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", claim_id, "Remove a mistaken discovery claim only before freeze, with a reason")
         if ledger.frontier and not ledger.frontier.allowed(claim_id=claim_id):
             return ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",claim_id,"Reopen the owning review unit before changing its claim")
-        if ledger.frontier:
-            affected = {ledger.frontier.relation_owners.get(rid) for rid, relation in context.draft["claimRelations"].items()
-                        if claim_id in (relation["fromClaimId"], relation["toClaimId"]) and ledger.frontier.relation_owners.get(rid) != ledger.frontier.active["sourceNodeId"]}
-            if affected:
-                return {**ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",claim_id,"Complete the current review, reopen the dependent review units and remove their relations before deleting this claim"),
-                        "requiredAction":"reopen_source_review","sourceNodeIds":sorted(node for node in affected if node)}
         old = context.draft["semanticClaims"].pop(claim_id)
         ledger.changed(old, None)
         del ledger.identities[claim_id]
@@ -172,7 +191,8 @@ def build_claim_tools(context):
             if not ledger.frontier: context.draft["sourceAccounting"].pop(node_id, None)
             ledger.claims_by_node.get(node_id, set()).discard(claim_id)
             ledger.reviewed_nodes.discard(node_id)
-        detached = [rid for rid, r in context.draft["claimRelations"].items() if claim_id in (r["fromClaimId"], r["toClaimId"])]
+        detached = [rid for rid, r in context.draft["claimRelations"].items() if claim_id in (r["fromClaimId"], r["toClaimId"])
+                    and (not ledger.frontier or ledger.frontier.relation_owners.get(rid) == ledger.frontier.active["sourceNodeId"])]
         for rid in detached:
             del context.draft["claimRelations"][rid]
             if ledger.frontier: ledger.frontier.relation_owners.pop(rid, None)
@@ -186,8 +206,10 @@ def build_claim_tools(context):
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", relation_id, "Correct relations only before freeze, with a reason")
         if ledger.frontier and (not ledger.frontier.active or ledger.frontier.relation_owners.get(relation_id)!=ledger.frontier.active["sourceNodeId"]):
             return {**ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",relation_id,"Reopen the owning review unit before changing its relation"),"requiredAction":"reopen_source_review","sourceNodeId":ledger.frontier.relation_owners.get(relation_id)}
-        ledger.changed(context.draft["claimRelations"][relation_id], None)
-        del context.draft["claimRelations"][relation_id]
+        old = context.draft["claimRelations"].pop(relation_id, None)
+        if ledger.frontier: old = old or ledger.frontier.invalidated_relations.pop(relation_id, None)
+        if old is None: return ledger.rejected("CLAIM_SCHEMA_INVALID", relation_id, "Inspect the existing relation before removing it")
+        ledger.changed(old, None)
         if ledger.frontier: ledger.frontier.relation_owners.pop(relation_id, None)
         project_reference_accounting(context)
         return {"outcome": "PASSED", "inventoryRevision": ledger.revision, "removedRelationId": relation_id, "reason": reason}
@@ -344,7 +366,7 @@ def build_claim_tools(context):
         ("update_semantic_claim", "Correct an existing claim during discovery, preserving its canonical ID/source anchors. Frozen claims require explicit reopening.", update, object_schema({"claim_id": TEXT, **claim_properties}, ["claim_id", "claim_type", "statement"])),
         ("remove_semantic_claim", "Remove a mistaken claim BEFORE inventory freeze, recording why and invalidating affected source/reference reviews. Never omit a real duty merely to pass coverage.", remove, object_schema({"claim_id": TEXT, "reason": TEXT}, ["claim_id", "reason"])),
         ("link_semantic_claims", "Declare the legal role/direction between claims. Attach a structural reference edge when the dependency relies on it.", link, object_schema({"from_claim_id": TEXT, "to_claim_id": TEXT, "kind": {"type": "string", "enum": sorted(RELATION_KINDS)}, "reference_id": TEXT}, ["from_claim_id", "to_claim_id", "kind"])),
-        ("inspect_semantic_reference_binding", "Inspect one structural edge and bounded exact source/target claim candidates, review readiness and accounting. Does not choose legal materiality or a semantic target.", inspect_binding, object_schema({"reference_id": TEXT, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}}, ["reference_id"])),
+        ("inspect_semantic_reference_binding", "Inspect one structural edge, bounded durable canonical targets, targetClaimAvailability and independent targetReviewComplete. A blocked target can expose usable committed claims. Does not choose legal materiality or a semantic target.", inspect_binding, object_schema({"reference_id": TEXT, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}}, ["reference_id"])),
         ("bind_semantic_reference", "Atomically bind your legal dependency from the structural source subtree to its resolved target subtree. Runtime generates the relation ID and derives material accounting. Identical bindings are idempotent.", bind, object_schema({"reference_id": TEXT, "from_claim_id": TEXT, "to_claim_id": TEXT, "kind": {"type": "string", "enum": sorted(RELATION_KINDS)}}, ["reference_id", "from_claim_id", "to_claim_id", "kind"])),
         ("mark_reference_non_material", "Declare this active reference non-material with a truthful legal reason. Existing semantic bindings must be removed explicitly first.", non_material, object_schema({"reference_id": TEXT, "reason": TEXT}, ["reference_id", "reason"])),
         ("remove_semantic_relation", "Correct a mistaken discovery relation before freeze, recording why and invalidating its reference review.", unlink, object_schema({"relation_id": TEXT, "reason": TEXT}, ["relation_id", "reason"])),

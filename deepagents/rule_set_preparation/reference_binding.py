@@ -8,6 +8,19 @@ from __future__ import annotations
 from rule_set_preparation.claim_inventory import RELATION_KINDS
 
 
+def endpoint_fingerprint(claim):
+    import unicodedata
+    from rule_set_preparation.claim_inventory import fingerprint
+    def text(value):
+        return " ".join(unicodedata.normalize("NFC", value).split())
+    operative = claim["operative"]
+    return fingerprint({"claimId": claim["claimId"], "legalSourceVersionId": claim["legalSourceVersionId"],
+        "claimType": claim["claimType"], "statement": text(claim["statement"]),
+        "operative": {"actor": text(operative["actor"]), "modality": operative["modality"], "action": text(operative["action"])} if operative else None,
+        "sourceNodeIds": sorted(claim["sourceNodeIds"]), "state": claim["state"],
+        "nonOperativeReason": text(claim["nonOperativeReason"]) if claim["nonOperativeReason"] is not None else None})
+
+
 def within(source, node_id, ancestor_id):
     node, ancestor = source.nodes.get(node_id), source.nodes.get(ancestor_id)
     return bool(node and ancestor and node["legalSourceVersionId"] == ancestor["legalSourceVersionId"] == source.version

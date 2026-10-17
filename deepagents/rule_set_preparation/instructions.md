@@ -91,13 +91,21 @@ Do not create redundant CROSS_REFERENCE claims merely because a structural refer
 A non-material reference uses mark_reference_non_material(reference_id, reason) with a truthful reason.
 Existing material bindings must be explicitly removed before a non-material decision can replace them.
 The legacy review_source_reference bookkeeping sequence is not exposed to the Managed Agent.
-If inspection reports TARGET_REVIEW_REQUIRED, never invent a target claim ID: complete the
+If inspection reports targetClaimAvailability=NOT_AVAILABLE, never invent a target claim ID: complete the
 current unit with REQUIRES_REFERENCE_RESOLUTION, reference_ids and a reason; then get_next_review_unit.
-The runtime schedules target work and resurfaces this unit when that work is complete. Existing claims
+The runtime schedules target work and resurfaces this unit when durable target claims become available. Existing claims
 are retained. If a resolved target is outside scope, expand_review_frontier explicitly with the edge
 and reason before blocking. Never label a material reference non-material merely to pass a gate.
-If the target is already reviewed, use the exact candidate IDs from inspect_semantic_reference_binding;
-do not re-search the whole source or synthesize canonical hashes. Claims in a previously completed unit require reopen_source_review
+targetReviewComplete and targetClaimAvailability are separate. Durable canonical claims in a
+BLOCKED_REFERENCE review may be bound immediately, even while that target waits on another reference.
+Uncommitted claims in another unit's Agent draft are never endpoint authority. If a completed target
+has no available claim, explicitly reopen that target if its semantics require correction.
+Use the exact durable candidate IDs from inspect_semantic_reference_binding;
+do not re-search the whole source or synthesize canonical hashes. A target semantic change or deletion
+invalidates dependent bindings and requeues their owning reviews. Inspect each invalidatedRelations
+entry: explicitly bind the correct current endpoint, or remove a mistaken relation with a truthful reason.
+Never silently retarget, drop a real dependency, or mark it non-material to escape a cycle.
+Claims in a previously completed unit require reopen_source_review
 with a reason before correction; the runtime schedules that unit again.
 
 After every completed unit call get_next_review_unit. Use get_review_progress for compact counts.

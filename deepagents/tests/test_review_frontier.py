@@ -88,6 +88,7 @@ def test_references_block_expand_reuse_and_wake_without_returning_same_unit_fore
     for _ in range(3):
         work=call(tools,"get_next_review_unit");assert no_claim(tools,work)["outcome"]=="PASSED"
     work=call(tools,"get_next_review_unit");assert work["unit"]["sourceNodeId"]==nodes[3]["nodeId"]
+    origin=register(tools,"transfer-scope","SCOPE")["claim"]["claimId"]
     refs=work["unit"]["references"];target6=next(r for r in refs if r["toNodeId"]==nodes[5]["nodeId"])
     for ref in refs:
         if ref!=target6:call(tools,"review_source_reference",reference_id=ref["referenceId"],material=False,relation_ids=[],non_material_reason="Context reference only in this scripted scope")
@@ -99,9 +100,11 @@ def test_references_block_expand_reuse_and_wake_without_returning_same_unit_fore
     blocked=call(tools,"complete_source_review",disposition="REQUIRES_REFERENCE_RESOLUTION",reason="Inspect target definition first",reference_ids=[target6["referenceId"]])
     assert blocked["progress"]["blocked"]==1
     following=call(tools,"get_next_review_unit");assert following["unit"]["sourceNodeId"]==nodes[5]["nodeId"]
-    assert no_claim(tools,following)["outcome"]=="PASSED"
+    target=register(tools,"transfer-definition","DEFINITION")["claim"]["claimId"]
+    assert call(tools,"complete_source_review",disposition="CONTEXT_ONLY")["outcome"]=="PASSED"
     reopened=call(tools,"get_next_review_unit");assert reopened["unit"]["sourceNodeId"]==nodes[3]["nodeId"]
-    assert no_claim(tools,reopened)["outcome"]=="PASSED"
+    assert call(tools,"bind_semantic_reference",reference_id=target6["referenceId"],from_claim_id=origin,to_claim_id=target,kind="DEFINITION")["outcome"]=="PASSED"
+    assert call(tools,"complete_source_review",disposition="CLAIMS_AUTHORED")["outcome"]=="PASSED"
     result=call(tools,"finalize_semantic_claim_inventory");assert result["outcome"]=="PASSED",result
     assert ctx.inventory.phase=="CLAIM_INVENTORY_READY"
 
@@ -164,15 +167,19 @@ def test_native_managed_agent_stops_at_inventory_ready_without_rule_tools(tmp_pa
     assert not {"author_legal_requirement","author_assessment_rule","validate_compliance_rule_set","submit_compliance_rule_set"}&bound
 
 
-def test_already_reviewed_reference_cannot_create_unwakeable_block():
+def test_completed_target_without_claim_is_not_endpoint_ready():
     seed,ctx,tools=runtime(small=True)
     for _ in range(3):
         work=call(tools,"get_next_review_unit");assert no_claim(tools,work)["outcome"]=="PASSED"
     work=call(tools,"get_next_review_unit")
     ref=next(r for r in work["unit"]["references"] if r["toNodeId"] in ctx.draft["sourceAccounting"])
-    result=call(tools,"complete_source_review",disposition="REQUIRES_REFERENCE_RESOLUTION",reason="Target inspection requested",reference_ids=[ref["referenceId"]])
-    assert result["outcome"]=="FAILED" and result["requiredAction"]=="inspect_semantic_reference_binding"
-    assert ctx.inventory.frontier.snapshot["progress"]["blocked"]==0
+    status=call(tools,"inspect_semantic_reference_binding",reference_id=ref["referenceId"])
+    assert status["targetReviewComplete"] and not status["bindingCanProceed"]
+    assert status["targetClaimAvailability"]=="NOT_AVAILABLE" and status["requiredAction"]=="reopen_source_review"
+    for other in work["unit"]["references"]:
+        if other!=ref: assert call(tools,"mark_reference_non_material",reference_id=other["referenceId"],reason="No dependency in this scripted scope")["outcome"]=="PASSED"
+    result=call(tools,"complete_source_review",disposition="REQUIRES_REFERENCE_RESOLUTION",reason="The material endpoint requires explicit semantic target review",reference_ids=[ref["referenceId"]])
+    assert result["outcome"]=="PASSED" and result["progress"]["blocked"]==1
 
 
 def test_completed_relation_requires_owning_review_reopen_before_mutation():
@@ -220,7 +227,7 @@ def test_exact_retained_six_completed_reopen_once_repair_restore_and_freeze():
     assert call(tools, "reopen_source_review", source_node_id=SOURCE, reason="Repair the retained wrong structural target")["outcome"] == "PASSED"
     assert call(tools, "get_next_review_unit")["unit"]["sourceNodeId"] == SOURCE
     inspected = call(tools, "inspect_semantic_reference_binding", reference_id=REFERENCE)
-    assert inspected["targetReviewReady"]
+    assert inspected["bindingCanProceed"]
     assert [c["claimId"] for c in inspected["targetClaims"]] == [definition]
     bad = FIXTURE["reviews"][3]["payload"]["relations"][0]
     assert call(tools, "remove_semantic_relation", relation_id=seed["relationIds"][bad["relationId"]], reason="This source-side cross-reference claim is not the resolved target")["outcome"] == "PASSED"
@@ -288,9 +295,10 @@ def test_target_scheduling_inspection_atomic_binding_and_native_managed_inventor
     graph = create_rule_set_preparation_agent(context=ctx, legal_source_root=tmp_path, model=model)
     result = graph.invoke({"messages": [{"role": "user", "content": "Review the target definition, bind the material reference atomically, complete all work and freeze the inventory."}]})
     inspections = [json.loads(m.content) for m in result["messages"] if getattr(m, "name", None) == "inspect_semantic_reference_binding"]
-    assert inspections[0]["targetReviewReady"] is False
-    assert inspections[0]["targetReviewState"] == "TARGET_REVIEW_REQUIRED"
-    assert inspections[1]["targetReviewReady"] is True
+    assert inspections[0]["bindingCanProceed"] is False
+    assert inspections[0]["targetReviewState"] == "PENDING"
+    assert inspections[0]["targetClaimAvailability"] == "NOT_AVAILABLE" and not inspections[0]["targetReviewComplete"]
+    assert inspections[1]["bindingCanProceed"] is True
     assert inspections[1]["targetClaims"][0]["sourceNodeIds"] == [target_unit["nodeId"]]
     assert ctx.inventory.phase == "CLAIM_INVENTORY_READY"
     assert len(ctx.inventory.frozen["relations"]) == 1

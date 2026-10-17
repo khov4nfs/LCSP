@@ -29,6 +29,8 @@ import {
 } from "./compliance-rule-set-fixtures.js";
 import { seedRetainedReferenceBinding } from "./seed-retained-reference-binding.js";
 import { sourceReviewUnits } from "../../src/modules/compliance-rule-set/domain/source-review-frontier.js";
+import { seedReferenceDependencies } from "./seed-reference-dependencies.js";
+import type { ModelEdge } from "./reference-dependency-model.js";
 
 const url = process.env.DATABASE_URL ?? "";
 if (
@@ -42,13 +44,63 @@ type BridgeInput = {
   request: unknown;
   small?: boolean;
   targetDescendant?: boolean;
+  nodes?: number;
+  edges?: ModelEdge[];
+  requests?: unknown[];
 };
 const db = new PrismaClient({ adapter: new PrismaPg(url) });
 const service = db as PrismaService;
 const graphs = new LegalDocumentGraphService(service);
 async function invoke(input: BridgeInput) {
   let result: unknown;
-  if (input.action === "SEED_RETAINED") {
+  if (
+    input.action === "SEED_DEPENDENCIES" ||
+    input.action === "SEED_FAILED_LIVE"
+  ) {
+    result = await seedReferenceDependencies(
+      db,
+      input.nodes,
+      input.edges,
+      input.action === "SEED_FAILED_LIVE",
+    );
+  } else if (input.action === "RACE") {
+    result = await Promise.all(
+      (input.requests ?? []).map((request) =>
+        new SourceReviewHandler(service, graphs).execute(
+          new SourceReviewCommand(
+            sourceReviewOperationSchema.parse(request),
+            "concurrency-probe",
+          ),
+        ),
+      ),
+    );
+  } else if (input.action === "STATE") {
+    const { preparationRunId } = input.request as { preparationRunId: string };
+    result = {
+      rows: await db.ruleSetPreparationSourceReview.findMany({
+        where: { preparationRunId },
+        orderBy: { ordinal: "asc" },
+      }),
+      frontier: await db.ruleSetPreparationReviewFrontier.findFirst({
+        where: { preparationRunId },
+      }),
+    };
+  } else if (input.action === "EXPIRE_LEASE") {
+    const { preparationRunId, sourceNodeId } = input.request as {
+      preparationRunId: string;
+      sourceNodeId: string;
+    };
+    result = await db.ruleSetPreparationSourceReview.update({
+      where: {
+        preparationRunId_inventoryRevision_sourceNodeId: {
+          preparationRunId,
+          inventoryRevision: 1,
+          sourceNodeId,
+        },
+      },
+      data: { leaseExpiresAt: new Date(0) },
+    });
+  } else if (input.action === "SEED_RETAINED") {
     result = await seedRetainedReferenceBinding(db);
   } else if (input.action === "SEED") {
     let source: { id: string };

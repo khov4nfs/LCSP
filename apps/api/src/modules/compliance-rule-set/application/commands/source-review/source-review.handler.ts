@@ -11,6 +11,7 @@ import {
   SOURCE_REVIEW_DISPOSITIONS as D,
   SOURCE_REVIEW_GAPS as G,
   LEGAL_REFERENCE_RESOLUTION_STATES as R,
+  REFERENCE_DEPENDENCY_STATES as DEP,
   type LegalDocumentGraph,
   type LegalDocumentNode,
 } from "@lcsp/contracts/legal-source";
@@ -37,8 +38,16 @@ import {
   xorReviewHash,
   zeroReviewAccumulator,
   normalizeReviewPayload,
+  reviewCompletionFingerprint,
 } from "../../../domain/source-review-frontier.js";
 import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
+import {
+  claimEndpointFingerprint,
+  referenceDependencyView,
+  referenceDependencyWake,
+  referenceDependencyWaits,
+  invalidateDependentPayload,
+} from "../../../domain/reference-dependencies.js";
 import {
   SourceReviewCommand,
   StartClaimDiscoveryDiagnosticCommand,
@@ -343,115 +352,119 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             },
           });
         };
-        const wakeBlocked = async (completedNodeId: string) => {
-          const completedTargets: string[] = [completedNodeId];
-          let node = await tx.legalDocumentNode.findUniqueOrThrow({
-            where: {
-              nodeId_materializationId: {
-                nodeId: completedNodeId,
-                materializationId: frontier!.materializationId,
-              },
-            },
+        let dependencySnapshot:
+          Awaited<ReturnType<typeof loadDependencies>> | undefined;
+        const loadDependencies = async () => {
+          const graph = await this.graph.export(run.legalSourceVersionId);
+          if (!graph || graph.materializationId !== frontier!.materializationId)
+            throw new Error("Pinned structural materialization is unavailable");
+          const rows = await tx.ruleSetPreparationSourceReview.findMany({
+            where: key,
           });
-          const visited = new Set<string>();
-          while (node.parentNodeId && !visited.has(node.nodeId)) {
-            visited.add(node.nodeId);
-            node = await tx.legalDocumentNode.findUniqueOrThrow({
+          return {
+            graph,
+            rows,
+            view: referenceDependencyView(
+              graph,
+              rows,
+              run.id,
+              input.inventoryRevision,
+            ),
+          };
+        };
+        const dependencies = async () =>
+          (dependencySnapshot ??= await loadDependencies());
+        const reconcileBlocked = async () => {
+          if (
+            !frontier!.blockedCount ||
+            frontier!.frozenAt ||
+            run.claimPhase !== P.CLAIM_DISCOVERY ||
+            run.executionState !== AgentExecutionState.RUNNING
+          )
+            return;
+          const { rows, view } = await dependencies();
+          for (const item of rows.filter(
+            (r) => r.state === SourceReviewState.BLOCKED_REFERENCE,
+          )) {
+            if (!referenceDependencyWake(item, view).wake) continue;
+            await tx.ruleSetPreparationSourceReview.update({
               where: {
-                nodeId_materializationId: {
-                  nodeId: node.parentNodeId,
-                  materializationId: frontier!.materializationId,
-                },
+                preparationRunId_inventoryRevision_sourceNodeId: itemKey(
+                  item.sourceNodeId,
+                ),
+              },
+              data: {
+                state: SourceReviewState.REOPENED,
+                operationId: null,
+                leaseExpiresAt: null,
               },
             });
-            const unfinished =
-              await tx.ruleSetPreparationSourceReview.findFirst({
-                where: {
-                  ...key,
-                  structuralPath: { startsWith: node.structuralPath + "/" },
-                  state: { notIn: completedReviewStates },
-                },
-                select: { sourceNodeId: true },
-              });
-            if (unfinished) break;
-            completedTargets.push(node.nodeId);
+            await changed(
+              { node: item.sourceNodeId, endpointPublication: true },
+              item,
+            );
           }
-          const incoming = await tx.legalDocumentReference.findMany({
-            where: {
-              materializationId: frontier!.materializationId,
-              toNodeId: { in: completedTargets },
-            },
-            select: { referenceId: true },
-          });
-          if (!incoming.length) return;
-          const waiting = await tx.ruleSetPreparationSourceReview.findMany({
-            where: {
-              ...key,
-              state: SourceReviewState.BLOCKED_REFERENCE,
-              blockedReferenceIds: {
-                hasSome: incoming.map((r) => r.referenceId),
-              },
-            },
-          });
-          for (const item of waiting) {
-            const references = await tx.legalDocumentReference.findMany({
+          dependencySnapshot = undefined;
+        };
+        const invalidateDependents = async (
+          previous: RuleSetPreparationSourceReview,
+          payload: NonNullable<typeof input.payload>,
+        ) => {
+          const old = new Map(
+            reviewPayload(previous).claims.map((c) => [
+              c.claimId,
+              claimEndpointFingerprint(c),
+            ]),
+          );
+          const current = new Map(
+            payload.claims.map((c) => [c.claimId, claimEndpointFingerprint(c)]),
+          );
+          const changedIds = new Set(
+            [...old]
+              .filter(([id, fingerprint]) => current.get(id) !== fingerprint)
+              .map(([id]) => id),
+          );
+          if (!changedIds.size) return [];
+          dependencySnapshot = undefined;
+          const { rows } = await dependencies();
+          const invalidated: string[] = [];
+          for (const row of rows) {
+            if (row.sourceNodeId === previous.sourceNodeId) continue;
+            const before = reviewPayload(row);
+            const affected = new Set(
+              [...changedIds].filter(
+                (id) =>
+                  !current.has(id) ||
+                  before.dependencyFingerprints?.[id] !== current.get(id),
+              ),
+            );
+            const after = invalidateDependentPayload(before, affected);
+            if (!after || inventoryHash(after) === inventoryHash(before))
+              continue;
+            await tx.ruleSetPreparationSourceReview.update({
               where: {
-                materializationId: frontier!.materializationId,
-                referenceId: { in: item.blockedReferenceIds },
+                preparationRunId_inventoryRevision_sourceNodeId: itemKey(
+                  row.sourceNodeId,
+                ),
+              },
+              data: {
+                state: SourceReviewState.REOPENED,
+                payload: after,
+                reason:
+                  "Committed semantic endpoint changed; reconsider the invalidated bindings",
+                completedAt: null,
+                operationId: null,
+                leaseExpiresAt: null,
               },
             });
-            let ready = references.length === item.blockedReferenceIds.length;
-            for (const ref of references) {
-              if (!ref.toNodeId || ref.resolutionState !== R.RESOLVED) {
-                ready = false;
-                break;
-              }
-              const target = await tx.legalDocumentNode.findUniqueOrThrow({
-                where: {
-                  nodeId_materializationId: {
-                    nodeId: ref.toNodeId,
-                    materializationId: frontier!.materializationId,
-                  },
-                },
-              });
-              const targetItems =
-                await tx.ruleSetPreparationSourceReview.findMany({
-                  where: {
-                    ...key,
-                    OR: [
-                      { sourceNodeId: target.nodeId },
-                      {
-                        structuralPath: {
-                          startsWith: target.structuralPath + "/",
-                        },
-                      },
-                    ],
-                  },
-                  select: { state: true },
-                });
-              if (
-                !targetItems.length ||
-                targetItems.some(
-                  (t) => !completedReviewStates.includes(t.state as never),
-                )
-              )
-                ready = false;
-            }
-            if (ready) {
-              await tx.ruleSetPreparationSourceReview.update({
-                where: {
-                  preparationRunId_inventoryRevision_sourceNodeId: itemKey(
-                    item.sourceNodeId,
-                  ),
-                },
-                data: { state: SourceReviewState.REOPENED },
-              });
-              await changed(
-                { node: item.sourceNodeId, state: S.REOPENED },
-                item,
-              );
-            }
+            await changed(
+              { node: row.sourceNodeId, endpointInvalidation: true },
+              row,
+            );
+            invalidated.push(row.sourceNodeId);
           }
+          dependencySnapshot = undefined;
+          return invalidated;
         };
         const reply = async (extra = {}) => {
           const currentProgress = progress();
@@ -474,69 +487,47 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             ...extra,
           };
         };
-        if (input.action === A.PROGRESS && input.referenceIds?.length) {
-          if (input.referenceIds.length > 20)
+        if (
+          input.sourceRevision &&
+          input.sourceRevision !== frontier.materializationId
+        )
+          return failed(
+            G.STALE,
+            "sourceRevision",
+            "Reload the pinned structural materialization",
+          );
+        if (input.action === A.NEXT || input.action === A.PROGRESS)
+          await reconcileBlocked();
+        if (
+          input.action === A.PROGRESS &&
+          (input.referenceIds?.length || input.claimIds?.length)
+        ) {
+          if (
+            (input.referenceIds?.length ?? 0) > 20 ||
+            (input.claimIds?.length ?? 0) > 128
+          )
             return failed(
               G.REFERENCE,
               "referenceIds",
-              "Inspect at most twenty structural references at once",
+              "Inspect at most twenty references or 128 endpoints at once",
             );
-          const references = await tx.legalDocumentReference.findMany({
-            where: {
-              materializationId: frontier.materializationId,
-              legalSourceVersionId: run.legalSourceVersionId,
-              referenceId: { in: input.referenceIds },
-            },
+          const { view } = await dependencies();
+          const offset = input.offset ?? 0,
+            limit = input.limit ?? 10;
+          return reply({
+            referenceTargets: (input.referenceIds ?? []).map((id) => {
+              const { claims, ...target } = view.target(id);
+              return {
+                ...target,
+                targetClaims: claims.slice(offset, offset + limit),
+                targetClaimCount: claims.length,
+                hasMore: offset + limit < claims.length,
+              };
+            }),
+            endpoints: (input.claimIds ?? []).flatMap((id) =>
+              view.endpoints.has(id) ? [view.endpoints.get(id)!] : [],
+            ),
           });
-          const targets: {
-            referenceId: string;
-            targetNodeId: string | null;
-            inScope: boolean;
-            reviewReady: boolean;
-            pending: number;
-          }[] = [];
-          for (const ref of references) {
-            const node = ref.toNodeId
-              ? await tx.legalDocumentNode.findUnique({
-                  where: {
-                    nodeId_materializationId: {
-                      nodeId: ref.toNodeId,
-                      materializationId: frontier.materializationId,
-                    },
-                  },
-                })
-              : null;
-            const items = node
-              ? await tx.ruleSetPreparationSourceReview.findMany({
-                  where: {
-                    ...key,
-                    OR: [
-                      { sourceNodeId: node.nodeId },
-                      {
-                        structuralPath: {
-                          startsWith: node.structuralPath + "/",
-                        },
-                      },
-                    ],
-                  },
-                  select: { state: true },
-                })
-              : [];
-            targets.push({
-              referenceId: ref.referenceId,
-              targetNodeId: ref.toNodeId,
-              inScope: items.length > 0,
-              reviewReady:
-                items.length > 0 &&
-                items.every((item) =>
-                  completedReviewStates.includes(item.state as never),
-                ),
-              pending: items.filter(
-                (item) => !completedReviewStates.includes(item.state as never),
-              ).length,
-            });
-          }
-          return reply({ referenceTargets: targets });
         }
         if (input.action === A.INIT || input.action === A.PROGRESS)
           return reply();
@@ -574,6 +565,32 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               },
             })
           : null;
+        const quarantined = new Set(
+          input.payload?.invalidatedRelationIds ?? [],
+        );
+        if (quarantined.size) {
+          const previous = existing ? reviewPayload(existing) : null;
+          if (
+            input.disposition !== D.REQUIRES_REFERENCE_RESOLUTION ||
+            [...quarantined].some(
+              (id) =>
+                !previous?.invalidatedRelationIds?.includes(id) ||
+                inventoryHash(
+                  previous.relations.find((r) => r.relationId === id) ?? null,
+                ) !==
+                  inventoryHash(
+                    input.payload!.relations.find((r) => r.relationId === id) ??
+                      null,
+                  ),
+            )
+          )
+            return failed(
+              G.DEPENDENCY,
+              input.sourceNodeId ?? "unit",
+              "Only unchanged previously invalidated decisions may be retained as blocked repair evidence",
+              "inspect_semantic_reference_binding",
+            );
+        }
         if (
           input.action === A.COMPLETE &&
           input.payload?.relations.some((r) => r.referenceId)
@@ -585,24 +602,10 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               "sourceRevision",
               "Reload the pinned structural materialization",
             );
-          const ids = [
-            ...new Set(
-              input.payload.relations.flatMap((r) => [
-                r.fromClaimId,
-                r.toClaimId,
-              ]),
-            ),
-          ];
-          const rows = await tx.ruleSetPreparationSourceReview.findMany({
-            where: {
-              ...key,
-              state: { in: completedReviewStates },
-              claimIds: { hasSome: ids },
-            },
-          });
+          const { view } = await dependencies();
           const claims = new Map(
             [
-              ...rows.flatMap((row) => reviewPayload(row).claims),
+              ...[...view.endpoints.values()].map((e) => e.claim),
               ...input.payload.claims,
             ].map((c) => [c.claimId, c]),
           );
@@ -612,7 +615,8 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             frontier.materializationId,
           );
           for (const relation of input.payload.relations) {
-            if (!relation.referenceId) continue;
+            if (!relation.referenceId || quarantined.has(relation.relationId))
+              continue;
             const detached = binding.failure(relation, claims);
             if (detached)
               return { outcome: O.FAILED, failures: [detached], ...detached };
@@ -624,15 +628,10 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           input.payload &&
           input.disposition &&
           input.claimIds &&
-          completedReviewStates.includes(existing.state as never) &&
+          (completedReviewStates.includes(existing.state as never) ||
+            existing.state === S.BLOCKED_REFERENCE) &&
           existing.completionFingerprint ===
-            inventoryHash({
-              disposition: input.disposition,
-              reason: input.reason ?? null,
-              claimIds: [...input.claimIds].sort(),
-              payload: input.payload,
-              referenceIds: input.referenceIds ?? [],
-            })
+            reviewCompletionFingerprint({ ...input, payload: input.payload })
         )
           return reply({
             alreadyCompleted: true,
@@ -671,13 +670,35 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             item = await tx.ruleSetPreparationSourceReview.findFirst({
               where: {
                 ...key,
-                state: {
-                  in: [SourceReviewState.PENDING, SourceReviewState.REOPENED],
-                },
+                state: SourceReviewState.PENDING,
               },
               orderBy: { ordinal: "asc" },
             });
           if (!item) {
+            const repairs = await tx.ruleSetPreparationSourceReview.findMany({
+              where: { ...key, state: SourceReviewState.REOPENED },
+              orderBy: { ordinal: "asc" },
+            });
+            if (repairs.length) {
+              const { view } = await dependencies();
+              // Publish fresh units first; completed targets only prioritize already eligible repairs.
+              item =
+                repairs.find(
+                  (r) =>
+                    r.blockedReferenceIds.length > 0 &&
+                    r.blockedReferenceIds.every(
+                      (id) => view.target(id).targetReviewComplete,
+                    ),
+                ) ?? repairs[0];
+            }
+          }
+          if (!item) {
+            const { rows, view } = await dependencies();
+            const diagnosis = referenceDependencyWaits(rows, view);
+            if (diagnosis.falseDeadlock)
+              throw new Error(
+                "FALSE_DEADLOCK: durable endpoint reconciliation left runnable blocked work",
+              );
             const blockedUnits =
               await tx.ruleSetPreparationSourceReview.findMany({
                 where: { ...key, state: SourceReviewState.BLOCKED_REFERENCE },
@@ -692,7 +713,21 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             return reply({
               unit: null,
               ...(blockedUnits.length
-                ? { blockedUnits, requiredAction: "inspect_legal_node" }
+                ? {
+                    blockedUnits,
+                    dependencyWaits: {
+                      ...diagnosis,
+                      cycles: diagnosis.cycles.slice(0, 3).map((nodes) => ({
+                        nodes: nodes.slice(0, 20),
+                        nodeCount: nodes.length,
+                      })),
+                      units: diagnosis.units.slice(0, 3).map((u) => ({
+                        ...u,
+                        blockers: u.blockers.slice(0, 20),
+                      })),
+                    },
+                    requiredAction: "inspect_semantic_reference_binding",
+                  }
                 : {}),
             });
           }
@@ -756,6 +791,11 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           return reply({
             unit: {
               ...item,
+              leaseReacquired:
+                previousState !== S.IN_REVIEW ||
+                previous.operationId !== input.operationId ||
+                !previous.leaseExpiresAt ||
+                previous.leaseExpiresAt <= new Date(),
               node: { ...node, content: node.content.slice(0, 12000) },
               contentLength: node.content.length,
               contentTruncated: node.content.length > 12000,
@@ -798,6 +838,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             data: {
               state: SourceReviewState.REOPENED,
               reason: input.reason,
+              completionFingerprint: null,
               completedAt: null,
               operationId: null,
               leaseExpiresAt: null,
@@ -810,6 +851,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
                 ...(frontier.expansions as Prisma.JsonArray),
                 {
                   kind: "SOURCE_REOPEN",
+                  previousCompletionFingerprint: existing.completionFingerprint,
                   sourceNodeId: existing.sourceNodeId,
                   reason: input.reason,
                   revision: frontier.revision,
@@ -957,12 +999,9 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             "complete_source_review",
           );
         const payload = input.payload;
-        const completionFingerprint = inventoryHash({
-          disposition: input.disposition,
-          reason: input.reason ?? null,
-          claimIds: [...input.claimIds].sort(),
+        const completionFingerprint = reviewCompletionFingerprint({
+          ...input,
           payload,
-          referenceIds: input.referenceIds ?? [],
         });
         if (
           existing.completionFingerprint === completionFingerprint &&
@@ -1118,28 +1157,44 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
         const endpoints = [
           ...new Set(
             payload.relations
+              .filter((r) => !quarantined.has(r.relationId))
               .flatMap((r) => [r.fromClaimId, r.toClaimId])
               .filter((id) => !owned.has(id)),
           ),
         ];
-        const endpointRows = endpoints.length
-          ? await tx.ruleSetPreparationSourceReview.findMany({
-              where: { ...key, claimIds: { hasSome: endpoints } },
-            })
-          : [];
-        const endpointClaims = new Set(
-          endpointRows.flatMap((r) =>
-            reviewPayload(r).claims.map((c) => c.claimId),
-          ),
-        );
+        const { view: endpointView } = await dependencies();
         if (
-          payload.relations.some((r) => r.fromClaimId === r.toClaimId) ||
-          endpoints.some((id) => !endpointClaims.has(id))
+          payload.invalidatedRelationIds?.length &&
+          input.disposition !== D.REQUIRES_REFERENCE_RESOLUTION
         )
+          return failed(
+            G.DEPENDENCY,
+            existing.sourceNodeId,
+            "Explicitly repair invalidated semantic bindings before completion",
+            "inspect_semantic_reference_binding",
+          );
+        for (const id of endpoints) {
+          const endpoint = endpointView.endpoints.get(id);
+          if (!endpoint)
+            return failed(
+              G.ENDPOINT,
+              id,
+              "The cross-review endpoint must be a valid committed canonical claim",
+              "inspect_semantic_reference_binding",
+            );
+          if (payload.dependencyFingerprints?.[id] !== endpoint.fingerprint)
+            return failed(
+              G.DEPENDENCY,
+              id,
+              "The committed target meaning changed or was not inspected; reconsider this binding",
+              "inspect_semantic_reference_binding",
+            );
+        }
+        if (payload.relations.some((r) => r.fromClaimId === r.toClaimId))
           return failed(
             G.BINDING,
             existing.sourceNodeId,
-            "Relation endpoints must be existing canonical claims",
+            "Relation endpoints must be distinct canonical claims",
             "link_semantic_claims",
           );
         const refs = await tx.legalDocumentReference.findMany({
@@ -1149,51 +1204,28 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           },
         });
         const blocked = input.disposition === D.REQUIRES_REFERENCE_RESOLUTION;
-        let waitingForTarget = false;
-        if (blocked)
-          for (const ref of refs.filter(
-            (r) =>
-              input.referenceIds?.includes(r.referenceId) &&
-              r.toNodeId &&
-              r.resolutionState === R.RESOLVED,
-          )) {
-            const target = await tx.legalDocumentNode.findUniqueOrThrow({
-              where: {
-                nodeId_materializationId: {
-                  nodeId: ref.toNodeId!,
-                  materializationId: frontier.materializationId,
-                },
-              },
-            });
-            const targetItems =
-              await tx.ruleSetPreparationSourceReview.findMany({
-                where: {
-                  ...key,
-                  OR: [
-                    { sourceNodeId: target.nodeId },
-                    {
-                      structuralPath: {
-                        startsWith: target.structuralPath + "/",
-                      },
-                    },
-                  ],
-                },
-                select: { state: true },
-              });
-            if (!targetItems.length)
+        if (blocked) {
+          payload.blockedEndpointFingerprints = {};
+          for (const id of input.referenceIds ?? []) {
+            const target = endpointView.target(id);
+            if (target.classification === DEP.OUTSIDE_SCOPE)
               return failed(
                 G.REFERENCE,
-                ref.referenceId,
+                id,
                 "The resolved target is outside scope; explicitly expand before blocking",
                 "expand_review_frontier",
               );
-            if (
-              targetItems.some(
-                (item) => !completedReviewStates.includes(item.state as never),
-              )
-            )
-              waitingForTarget = true;
+            payload.blockedEndpointFingerprints[id] =
+              target.endpointFingerprint;
+            if (target.bindingCanProceed)
+              return failed(
+                G.REFERENCE,
+                id,
+                "Durable target claims are available; bind them, or explicitly reopen a target that needs semantic correction",
+                "inspect_semantic_reference_binding",
+              );
           }
+        }
         if (
           blocked &&
           (!input.reason ||
@@ -1207,22 +1239,6 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             existing.sourceNodeId,
             "Blocking needs specific outgoing reference IDs and a reason",
             "complete_source_review",
-          );
-        if (
-          blocked &&
-          !waitingForTarget &&
-          input.referenceIds!.every((id) =>
-            refs.some(
-              (ref) =>
-                ref.referenceId === id && ref.resolutionState === R.RESOLVED,
-            ),
-          )
-        )
-          return failed(
-            G.REFERENCE,
-            existing.sourceNodeId,
-            "Referenced review work is already complete; inspect the target claims and account for the reference instead of blocking",
-            "inspect_semantic_reference_binding",
           );
         for (const ref of refs) {
           const accounting = payload.referenceAccounting.find(
@@ -1286,9 +1302,15 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           { node: existing.sourceNodeId, state, completionFingerprint },
           existing,
         );
-        if (!blocked) await wakeBlocked(existing.sourceNodeId);
+        dependencySnapshot = undefined;
+        const invalidatedSourceReviews = await invalidateDependents(
+          existing,
+          payload,
+        );
+        await reconcileBlocked();
         return reply({
           completedSourceNodeId: existing.sourceNodeId,
+          invalidatedSourceReviews,
           state,
           claimIds: input.claimIds,
         });

@@ -19,6 +19,10 @@ export const sourceReviewPayloadSchema = z.strictObject({
   identities: z.record(id, z.string().trim().min(1).max(128)),
   relations: legalSemanticGraphSchema.shape.relations,
   referenceAccounting: legalSemanticGraphSchema.shape.referenceAccounting,
+  // Runtime-owned authority snapshots; Agent intent remains in claims/relations.
+  dependencyFingerprints: z.record(id, hash).optional(),
+  blockedEndpointFingerprints: z.record(id, hash).optional(),
+  invalidatedRelationIds: z.array(id).max(20000).optional(),
 });
 export const sourceReviewOperationSchema = z.strictObject({
   preparationRunId: z.string().uuid(),

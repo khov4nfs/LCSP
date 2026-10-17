@@ -17,6 +17,7 @@ import {
   type LegalSemanticGraph,
   type SourceReviewOperation,
   type SourceReviewPayload,
+  type LegalSemanticClaim,
 } from "@lcsp/contracts/compliance-rule-set";
 
 /** Historical semantic fixtures traverse the real queue; no review or freeze database rows are patched. */
@@ -66,11 +67,16 @@ export async function completeFixtureFrontier(
           .filter((id): id is string => !!id)
           .sort((a, b) => positions.get(b)! - positions.get(a)!)[0];
   await invoke({ action: A.INIT });
-  for (let index = 0; index < units.length; index++) {
+  const seen = new Set<string>();
+  while (true) {
     const work = await invoke({ action: A.NEXT });
     if (work.outcome !== O.PASSED) return work;
     const item = work.unit as { sourceNodeId: string };
     if (!item) break;
+    const state = `${String(work.frontierStateFingerprint)}:${item.sourceNodeId}`;
+    if (seen.has(state))
+      throw new Error("Fixture dependency review made no durable progress");
+    seen.add(state);
     const id = item.sourceNodeId;
     const claims = graph.claims.filter((c) => owners.get(c.claimId) === id);
     const payload: SourceReviewPayload = {
@@ -83,6 +89,42 @@ export async function completeFixtureFrontier(
         (r) => referenceOwners.get(r.referenceId) === id,
       ),
     };
+    const foreign = [
+      ...new Set(
+        payload.relations
+          .flatMap((r) => [r.fromClaimId, r.toClaimId])
+          .filter((cid) => owners.get(cid) !== id),
+      ),
+    ];
+    const endpoints = new Map<string, string>();
+    for (let offset = 0; offset < foreign.length; offset += 128) {
+      const authority = await invoke({
+        action: A.PROGRESS,
+        claimIds: foreign.slice(offset, offset + 128),
+      });
+      if (authority.outcome !== O.PASSED) return authority;
+      for (const endpoint of authority.endpoints as {
+        claim: LegalSemanticClaim;
+        fingerprint: string;
+      }[])
+        endpoints.set(endpoint.claim.claimId, endpoint.fingerprint);
+    }
+    payload.dependencyFingerprints = Object.fromEntries(endpoints);
+    const waiting = new Set<string>();
+    payload.relations = payload.relations.filter((r) => {
+      const ready = [r.fromClaimId, r.toClaimId].every(
+        (cid) => owners.get(cid) === id || endpoints.has(cid),
+      );
+      if (!ready && r.referenceId) waiting.add(r.referenceId);
+      if (!ready && !r.referenceId)
+        throw new Error(
+          "Unbound fixture relation must be authored after its durable endpoints",
+        );
+      return ready;
+    });
+    payload.referenceAccounting = payload.referenceAccounting.filter(
+      (r) => !waiting.has(r.referenceId),
+    );
     const claimIds = graph.claims
       .filter((c) => c.sourceNodeIds.includes(id))
       .map((c) => c.claimId);
@@ -92,11 +134,20 @@ export async function completeFixtureFrontier(
       sourceNodeId: id,
       sourceRevision: source.materializationId,
       frontierRevision: work.frontierRevision as number,
-      disposition: claimIds.length
-        ? D.CLAIMS_AUTHORED
-        : D.NO_RELEVANT_SEMANTIC_CLAIMS,
+      disposition: waiting.size
+        ? D.REQUIRES_REFERENCE_RESOLUTION
+        : claimIds.length
+          ? D.CLAIMS_AUTHORED
+          : D.NO_RELEVANT_SEMANTIC_CLAIMS,
       claimIds,
       payload,
+      ...(waiting.size
+        ? {
+            referenceIds: [...waiting],
+            reason:
+              "Publish fixture claims while waiting for durable reference endpoints",
+          }
+        : {}),
       ...(claimIds.length
         ? {}
         : {

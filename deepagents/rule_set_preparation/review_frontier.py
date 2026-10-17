@@ -15,6 +15,8 @@ class ReviewFrontier:
     last_completion: dict | None = None
     claim_owners: dict[str, str] = field(default_factory=dict)
     relation_owners: dict[str, str] = field(default_factory=dict)
+    relation_dependencies: dict[str, dict[str, str]] = field(default_factory=dict)
+    invalidated_relations: dict[str, dict] = field(default_factory=dict)
     loaded: bool = False
 
     @property
@@ -30,26 +32,45 @@ class ReviewFrontier:
             self.snapshot = {k: v for k, v in result.items() if k not in {"unit", "records", "nextOffset"}}
         return result
 
-    def restore(self):
-        """Load committed review evidence once; the model never receives this ledger."""
-        if self.loaded:
+    def restore(self, force=False):
+        """Reconstruct committed evidence without promoting the active local draft to authority."""
+        if self.loaded and not force:
             return None
         result=self.request("INIT")
         if result.get("outcome") != "PASSED": return result
+        active = self.active["sourceNodeId"] if self.active else None
+        draft = self.context.draft
+        draft["semanticClaims"] = {cid: c for cid, c in draft["semanticClaims"].items() if active is not None and self.claim_owners.get(cid) == active}
+        self.inventory.identities = {cid: key for cid, key in self.inventory.identities.items() if cid in draft["semanticClaims"]}
+        draft["claimRelations"] = {rid: r for rid, r in draft["claimRelations"].items() if active is not None and self.relation_owners.get(rid) == active}
+        draft["sourceAccounting"] = {}
+        draft["referenceAccounting"] = {rid: r for rid, r in draft["referenceAccounting"].items() if active and rid in self.active["referenceIds"]}
+        self.invalidated_relations = {rid: r for rid, r in self.invalidated_relations.items() if active and self.relation_owners.get(rid) == active}
+        self.claim_owners = {cid: active for cid in draft["semanticClaims"]}
+        self.relation_owners = {rid: active for rid in draft["claimRelations"].keys() | self.invalidated_relations.keys()}
+        self.relation_dependencies = {rid: values for rid, values in self.relation_dependencies.items() if rid in draft["claimRelations"]}
         offset=0
+        legacy_relations = set()
         while True:
             result=self.request("LOAD",offset=offset,limit=20)
             if result.get("outcome") != "PASSED": return result
             for item in result["records"]:
                 node_id=item["sourceNodeId"]
                 payload=item["payload"]
+                if node_id == active: continue
                 for claim in payload["claims"]:
                     self.context.draft["semanticClaims"][claim["claimId"]]=claim
                     self.inventory.identities[claim["claimId"]]=payload["identities"][claim["claimId"]]
                     self.claim_owners[claim["claimId"]]=node_id
                 for relation in payload["relations"]:
-                    self.context.draft["claimRelations"][relation["relationId"]]=relation
-                    self.relation_owners[relation["relationId"]]=node_id
+                    rid = relation["relationId"]
+                    self.relation_owners[rid]=node_id
+                    if rid in payload.get("invalidatedRelationIds", []):
+                        self.invalidated_relations[rid] = relation
+                    else:
+                        self.context.draft["claimRelations"][rid]=relation
+                        self.relation_dependencies[rid] = {cid: value for cid, value in payload.get("dependencyFingerprints", {}).items() if cid in (relation["fromClaimId"], relation["toClaimId"])}
+                        if "dependencyFingerprints" not in payload: legacy_relations.add(rid)
                 for reference in payload["referenceAccounting"]:
                     self.context.draft["referenceAccounting"][reference["referenceId"]]=reference
                 if item["state"] in {"REVIEWED_WITH_CLAIMS","REVIEWED_NO_CLAIMS"}:
@@ -57,7 +78,12 @@ class ReviewFrontier:
             if result["nextOffset"] is None: break
             offset=result["nextOffset"]
         self.inventory.rebuild_node_index()
-        from rule_set_preparation.reference_binding import project_reference_accounting
+        from rule_set_preparation.reference_binding import project_reference_accounting, endpoint_fingerprint
+        for rid in legacy_relations:
+            relation = draft["claimRelations"][rid]
+            self.relation_dependencies[rid] = {cid: endpoint_fingerprint(draft["semanticClaims"][cid])
+                for cid in (relation["fromClaimId"], relation["toClaimId"])
+                if cid in draft["semanticClaims"] and self.claim_owners[cid] != self.relation_owners[rid]}
         project_reference_accounting(self.context)
         self.loaded=True
         return None
@@ -76,14 +102,18 @@ class ReviewFrontier:
     def next(self):
         if not self.inventory.discovery_allowed():
             return self.inventory.rejected("CLAIM_INVENTORY_FROZEN", "frontier", "Discovery is frozen; inspect inventory or reopen explicitly")
-        restored=self.restore()
+        restored=self.restore(force=True)
         if restored: return self.failure(restored)
         result = self.request("NEXT", sourceRevision=self.context.source_graph.graph["materializationId"])
         if result.get("outcome") != "PASSED":
             return self.failure(result)
         unit = result.get("unit")
         if unit:
-            same_unit = self.active is not None and self.active["sourceNodeId"] == unit["sourceNodeId"]
+            same_unit = self.active is not None and self.active["sourceNodeId"] == unit["sourceNodeId"] and not unit.get("leaseReacquired", False)
+            if self.active and not same_unit:
+                self.active = None
+                restored = self.restore(force=True)
+                if restored: return self.failure(restored)
             self.active = unit
             node_id = unit["sourceNodeId"]
             self.context.draft["sourceAccounting"].pop(node_id, None)
@@ -93,8 +123,14 @@ class ReviewFrontier:
                 self.inventory.identities[claim["claimId"]] = payload["identities"][claim["claimId"]]
                 self.claim_owners[claim["claimId"]] = node_id
             for relation in payload["relations"]:
-                self.context.draft["claimRelations"][relation["relationId"]] = relation
-                self.relation_owners[relation["relationId"]] = node_id
+                rid = relation["relationId"]
+                self.relation_owners[rid] = node_id
+                if rid in payload.get("invalidatedRelationIds", []):
+                    self.invalidated_relations[rid] = relation
+                else:
+                    self.context.draft["claimRelations"][rid] = relation
+                    if "dependencyFingerprints" in payload:
+                        self.relation_dependencies[rid] = {cid: value for cid, value in payload["dependencyFingerprints"].items() if cid in (relation["fromClaimId"], relation["toClaimId"])}
             for review in payload["referenceAccounting"]:
                 self.context.draft["referenceAccounting"][review["referenceId"]] = review
             self.inventory.rebuild_node_index()
@@ -104,11 +140,12 @@ class ReviewFrontier:
             result["unit"] = {k: unit[k] for k in ["sourceNodeId", "node", "structuralPath", "ancestors", "references", "moreReferences", "contentLength", "contentTruncated"]}
             result["unit"]["existingClaims"] = self.owned_claims()[:12]
             result["unit"]["existingClaimCount"] = len(self.owned_claims())
+            result["unit"]["invalidatedRelations"] = [r for rid, r in self.invalidated_relations.items() if self.relation_owners.get(rid) == node_id][:20]
             result["unit"]["action"] = "Interpret this unit, register its distinct claims, then complete_source_review with a typed disposition. Canonical IDs are collected automatically unless you explicitly supply claim_ids."
         return result
 
     def progress(self):
-        restored=self.restore()
+        restored=self.restore(force=True)
         if restored: return self.failure(restored)
         result = self.request("PROGRESS")
         if result.get("outcome") != "PASSED":
@@ -135,6 +172,10 @@ class ReviewFrontier:
                 return self.request("COMPLETE", **previous)
             return self.inventory.rejected("SOURCE_REVIEW_INCOMPLETE", "unit", "Call get_next_review_unit to acquire bounded work")
         node_id = self.active["sourceNodeId"]
+        invalid = [rid for rid in self.invalidated_relations if self.relation_owners.get(rid) == node_id]
+        if invalid and disposition != "REQUIRES_REFERENCE_RESOLUTION":
+            return {**self.inventory.rejected("SEMANTIC_ENDPOINT_CHANGED", node_id, "Reconsider each invalidated relation: explicitly bind a current endpoint or remove the mistaken relation with a reason"),
+                    "invalidatedRelationIds": invalid[:20], "requiredAction": "inspect_semantic_reference_binding"}
         owned = self.owned_claims()
         expected = sorted(c["claimId"] for c in owned)
         claim_ids = expected if claim_ids is None else sorted(claim_ids)
@@ -153,6 +194,11 @@ class ReviewFrontier:
         payload = {"claims": owned, "identities": {cid: self.inventory.identities[cid] for cid in expected},
                    "relations": [r for rid, r in self.context.draft["claimRelations"].items() if self.relation_owners.get(rid) == node_id],
                    "referenceAccounting": [r for rid, r in self.context.draft["referenceAccounting"].items() if rid in references]}
+        payload["dependencyFingerprints"] = {cid: value for r in payload["relations"] for cid, value in self.relation_dependencies.get(r["relationId"], {}).items()
+                                             if self.claim_owners.get(cid) != node_id}
+        if invalid:
+            payload["relations"].extend(self.invalidated_relations[rid] for rid in invalid)
+            payload["invalidatedRelationIds"] = invalid
         arguments = dict(sourceNodeId=node_id, sourceRevision=self.snapshot["sourceRevision"],
             frontierRevision=self.snapshot["frontierRevision"], disposition=disposition, claimIds=claim_ids,
             payload=payload, **({"reason": reason} if reason else {}), **({"referenceIds": reference_ids} if reference_ids else {}))
@@ -163,6 +209,8 @@ class ReviewFrontier:
             self.context.draft["sourceAccounting"][node_id] = {"sourceNodeId": node_id, "claimIds": claim_ids, "nonSemanticReason": None if claim_ids else reason}
         self.last_completion = deepcopy(arguments)
         self.active = None
+        restored = self.restore(force=True)
+        if restored: return self.failure(restored)
         self.inventory.rebuild_node_index()
         return result
 

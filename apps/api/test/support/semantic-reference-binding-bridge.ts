@@ -3,10 +3,12 @@ import { readFileSync } from "node:fs";
 import type { LegalDocumentGraph } from "@lcsp/contracts/legal-source";
 import type { LegalSemanticGraph } from "@lcsp/contracts/compliance-rule-set";
 import { semanticReferenceBindings } from "../../src/modules/compliance-rule-set/domain/semantic-reference-binding.js";
+import { claimEndpointFingerprint } from "../../src/modules/compliance-rule-set/domain/reference-dependencies.js";
 
 const input = JSON.parse(readFileSync(0, "utf8")) as {
   graph: LegalDocumentGraph;
   semantic: LegalSemanticGraph;
+  fingerprints?: boolean;
 };
 const binding = semanticReferenceBindings(
   input.graph,
@@ -16,6 +18,8 @@ const binding = semanticReferenceBindings(
 const claims = new Map(input.semantic.claims.map((c) => [c.claimId, c]));
 console.log(
   JSON.stringify(
-    input.semantic.relations.map((r) => binding.failure(r, claims)),
+    input.fingerprints
+      ? input.semantic.claims.map(claimEndpointFingerprint)
+      : input.semantic.relations.map((r) => binding.failure(r, claims)),
   ),
 );

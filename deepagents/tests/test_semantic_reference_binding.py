@@ -48,7 +48,7 @@ def test_inspect_exact_retained_definition_and_atomic_idempotent_binding():
     inspection = call(tools, "inspect_semantic_reference_binding", reference_id=REFERENCE)
     assert ctx.draft == before
     assert inspection == call(tools, "inspect_semantic_reference_binding", reference_id=REFERENCE)
-    assert inspection["targetReviewReady"]
+    assert inspection["bindingCanProceed"]
     assert [c["claimId"] for c in inspection["targetClaims"]] == [DEFINITION]
     args = dict(reference_id=REFERENCE, from_claim_id=SCOPE, to_claim_id=DEFINITION, kind="DEFINITION")
     result = call(tools, "bind_semantic_reference", **args)
@@ -72,18 +72,25 @@ def test_remove_relation_and_claim_reprojects_remaining_bindings():
     assert not ctx.draft["referenceAccounting"][REFERENCE]["material"]
 
 
-def test_binding_waits_for_external_endpoint_review_without_mutating_draft():
+def test_binding_requires_durable_endpoint_but_not_completed_target_review():
+    from types import SimpleNamespace
     from rule_set_preparation.review_frontier import ReviewFrontier
+    from rule_set_preparation.reference_binding import endpoint_fingerprint
     ctx, tools = retained_runtime()
     frontier = ctx.inventory.frontier = ReviewFrontier(ctx.inventory)
     frontier.active = {"sourceNodeId": SOURCE, "referenceIds": [REFERENCE]}
     frontier.claim_owners.update({SCOPE: SOURCE, DEFINITION: TARGET})
+    endpoints = []
+    ctx.api = SimpleNamespace(source_review_operation=lambda *args, **kwargs: {"outcome": "PASSED", "endpoints": endpoints, "frontierRevision": 1, "frontierFingerprint": "a" * 64, "frontierStateFingerprint": "b" * 64})
     before = deepcopy(ctx.draft)
     args = dict(reference_id=REFERENCE, from_claim_id=SCOPE, to_claim_id=DEFINITION, kind="DEFINITION")
     rejected = call(tools, "bind_semantic_reference", **args)
-    assert rejected["targetReviewState"] == "TARGET_REVIEW_REQUIRED"
+    assert rejected["targetClaimAvailability"] == "NOT_AVAILABLE"
     assert ctx.draft == before
-    ctx.draft["sourceAccounting"][TARGET] = {"sourceNodeId": TARGET, "claimIds": [DEFINITION], "nonSemanticReason": None}
+    # The claim is committed in a blocked review; completion accounting is absent.
+    assert TARGET not in ctx.draft["sourceAccounting"]
+    endpoints.append({"claim": ctx.draft["semanticClaims"][DEFINITION], "owner": TARGET,
+                      "fingerprint": endpoint_fingerprint(ctx.draft["semanticClaims"][DEFINITION])})
     accepted = call(tools, "bind_semantic_reference", **args)
     assert accepted["outcome"] == "PASSED"
     assert frontier.relation_owners[accepted["relation"]["relationId"]] == SOURCE
@@ -121,3 +128,18 @@ def test_direction_subtree_version_resolution_and_api_parity():
                    lambda: graph.references[REFERENCE].update(materializationId="f" * 64)]:
         mutate()
         assert not valid_binding(graph, claims, valid)
+
+
+def test_endpoint_semantic_fingerprints_have_cross_runtime_unicode_and_field_parity():
+    from rule_set_preparation.reference_binding import endpoint_fingerprint
+    ctx, _ = retained_runtime()
+    claim = deepcopy(ctx.draft["semanticClaims"][SCOPE])
+    whitespace = "".join(chr(i) for i in range(0x110000) if chr(i).isspace())
+    cases = [claim, {**claim, "statement": whitespace + "Cafe\u0301" + whitespace + "meaning" + whitespace},
+             {**claim, "statement": "\ufeffMeaning with BOM retained\ufeff"},
+             {**claim, "claimType": "DUTY", "operative": {"actor": whitespace + "operator", "modality": "DUTY", "action": "keep" + whitespace + "records"}},
+             {**claim, "state": "INTENTIONALLY_NON_OPERATIVE", "nonOperativeReason": "Explicit" + whitespace + "exclusion"}]
+    payload = {"graph": ctx.source_graph.graph, "semantic": {**ctx.source_graph.base(), "claims": cases, "relations": []}, "fingerprints": True}
+    result = subprocess.run(["pnpm", "exec", "tsx", "apps/api/test/support/semantic-reference-binding-bridge.ts"],
+        cwd=Path(__file__).resolve().parents[2], input=json.dumps(payload), capture_output=True, text=True, check=True)
+    assert json.loads(result.stdout) == [endpoint_fingerprint(c) for c in cases]

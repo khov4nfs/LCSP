@@ -177,6 +177,7 @@ export async function seedRetainedReferenceBinding(db: PrismaClient) {
           .filter((ref) => ref.fromNodeId === r.sourceNodeId)
           .map((ref) => ref.referenceId),
         completedAt: new Date(),
+        completionFingerprint: inventoryHash(r.payload),
       };
       return { ...row, stateFingerprint: reviewItemStateFingerprint(row) };
     });

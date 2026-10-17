@@ -180,8 +180,13 @@ export function reviewItemStateFingerprint(item: {
 export function normalizeReviewPayload(
   payload: SourceReviewPayload,
 ): SourceReviewPayload {
+  const invalid = new Set(payload.invalidatedRelationIds ?? []);
+  const relations = payload.relations.filter((r) => !invalid.has(r.relationId));
   return {
     ...payload,
+    dependencyFingerprints: payload.dependencyFingerprints ?? {},
+    blockedEndpointFingerprints: payload.blockedEndpointFingerprints ?? {},
+    invalidatedRelationIds: [...invalid].sort(),
     claims: payload.claims
       .map((c) => ({ ...c, sourceNodeIds: [...c.sourceNodeIds].sort() }))
       .sort((a, b) => a.claimId.localeCompare(b.claimId)),
@@ -192,9 +197,7 @@ export function normalizeReviewPayload(
       ...payload.referenceAccounting.filter((r) => !r.material),
       ...[
         ...new Set(
-          payload.relations.flatMap((r) =>
-            r.referenceId ? [r.referenceId] : [],
-          ),
+          relations.flatMap((r) => (r.referenceId ? [r.referenceId] : [])),
         ),
       ]
         .filter(
@@ -203,9 +206,28 @@ export function normalizeReviewPayload(
               (r) => r.referenceId === id && !r.material,
             ),
         )
-        .map((id) => materialReferenceAccounting(id, payload.relations)!),
+        .map((id) => materialReferenceAccounting(id, relations)!),
     ]
       .map((r) => ({ ...r, relationIds: [...r.relationIds].sort() }))
       .sort((a, b) => a.referenceId.localeCompare(b.referenceId)),
   };
+}
+
+export function reviewCompletionFingerprint(input: {
+  disposition?: string;
+  reason?: string;
+  claimIds?: string[];
+  payload: SourceReviewPayload;
+  referenceIds?: string[];
+}) {
+  const intent = { ...input.payload };
+  delete intent.blockedEndpointFingerprints;
+  delete intent.invalidatedRelationIds;
+  return inventoryHash({
+    disposition: input.disposition,
+    reason: input.reason ?? null,
+    claimIds: [...(input.claimIds ?? [])].sort(),
+    payload: intent,
+    referenceIds: input.referenceIds ?? [],
+  });
 }

@@ -12,6 +12,7 @@ import {
 import { SourceReviewHandler } from "./source-review.handler.js";
 import { SourceReviewCommand } from "./source-review.command.js";
 import { retainedBindingCase } from "../../../../../../test/support/retained-reference-binding-fixture.js";
+import { inventoryHash } from "../../../domain/claim-inventory.js";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
 
@@ -51,7 +52,19 @@ describe("COMPLETE retained live payload persistence guard", () => {
             state: SourceReviewState.REVIEWED_WITH_CLAIMS,
           }),
         findMany: () =>
-          Promise.resolve(fixture.reviews.filter((r) => r !== sourceReview)),
+          Promise.resolve(
+            fixture.reviews
+              .filter((r) => r !== sourceReview)
+              .map((r) => ({
+                ...r,
+                preparationRunId: "a6a2e411-d6e6-423d-b124-5c4eb427fe38",
+                inventoryRevision: 1,
+                legalSourceVersionId: fixture.graph.legalSourceVersionId,
+                materializationId: fixture.graph.materializationId,
+                completionFingerprint: inventoryHash(r.payload),
+                state: SourceReviewState.REVIEWED_WITH_CLAIMS,
+              })),
+          ),
         update,
       },
     };
