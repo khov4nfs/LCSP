@@ -1,4 +1,7 @@
 "use client";
+import Link from "next/link";
+import { ShieldCheckIcon } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { ARTIFACT_LIFECYCLE_STATES } from "@lcsp/contracts/assessment";
 import { cn } from "@/lib/utils";
 import {
@@ -163,6 +166,19 @@ export function AssessmentContextPanel({
         <Fact label={copy("context.report")}>
           {copy(reportReady ? "context.reportReady" : "context.reportNotReady")}
         </Fact>
+        <div className="pt-1">
+          <Link
+            href={`/assessments/${encodeURIComponent(assessmentId)}/provenance`}
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className: "w-full justify-start text-xs",
+            })}
+          >
+            <ShieldCheckIcon className="size-3.5" aria-hidden="true" />
+            {copy("provenance.viewProvenance")}
+          </Link>
+        </div>
       </dl>
       <details className="text-sm" data-slot="run-details">
         <summary className="cursor-pointer list-none rounded-md text-muted-foreground select-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
