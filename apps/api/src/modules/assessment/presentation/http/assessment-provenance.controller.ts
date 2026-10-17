@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   Controller,
   Get,
@@ -11,11 +11,17 @@ import {
 } from "@nestjs/common";
 import type { Response } from "express";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import {
+  AUDIT_DECISIONS,
+  AUDIT_EVENT_RESULTS,
+  AUDIT_RESOURCE_TYPES,
+  type AuditEventResult,
+} from "@lcsp/contracts/audit";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   claimAssessmentRootRequestSchema,
   type AssessmentProvenanceArtifact,
+  type AssessmentProvenanceExport,
 } from "@lcsp/contracts/assessment-domain";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
@@ -31,6 +37,25 @@ function idPipe() {
     ASSESSMENT_DOMAIN_ERROR_CODES.REQUEST_INVALID,
     HttpStatus.UNPROCESSABLE_ENTITY,
   );
+}
+
+function resolveLoaderFailureReason(error: unknown): {
+  result: AuditEventResult;
+  reason: string;
+} {
+  const status =
+    (error as { getStatus?: () => number })?.getStatus?.() ??
+    (error as { status?: number })?.status;
+  if (status === HttpStatus.CONFLICT) {
+    return {
+      result: AUDIT_EVENT_RESULTS.failed,
+      reason: "PROVENANCE_INTEGRITY_MISMATCH",
+    };
+  }
+  return {
+    result: AUDIT_EVENT_RESULTS.denied,
+    reason: "ACCESS_DENIED_OR_NOT_FOUND",
+  };
 }
 
 @Controller("assessments/:assessmentId/provenance")
@@ -57,6 +82,7 @@ export class AssessmentProvenanceController {
         correlationId,
       });
     } catch (error) {
+      const failure = resolveLoaderFailureReason(error);
       await this.auditWriter.write({
         eventType: "assessment.provenance.viewed",
         actorId: req.rbacContext.userId,
@@ -65,9 +91,9 @@ export class AssessmentProvenanceController {
         resourceId: assessmentId,
         decision: AUDIT_DECISIONS.deny,
         correlationId,
-        result: "DENIED",
+        result: failure.result,
         payload: {
-          reason: "ACCESS_DENIED_OR_NOT_FOUND",
+          reason: failure.reason,
         },
       });
       throw error;
@@ -81,8 +107,9 @@ export class AssessmentProvenanceController {
       resourceId: assessmentId,
       decision: AUDIT_DECISIONS.allow,
       correlationId,
-      result: "SUCCESS",
+      result: AUDIT_EVENT_RESULTS.success,
       payload: {
+        contentFingerprintSha256: artifact.contentFingerprintSha256,
         checksumSha256: artifact.checksumSha256,
       },
     });
@@ -106,6 +133,7 @@ export class AssessmentProvenanceController {
         correlationId,
       });
     } catch (error) {
+      const failure = resolveLoaderFailureReason(error);
       await this.auditWriter.write({
         eventType: "assessment.provenance.exported",
         actorId: req.rbacContext.userId,
@@ -114,13 +142,47 @@ export class AssessmentProvenanceController {
         resourceId: assessmentId,
         decision: AUDIT_DECISIONS.deny,
         correlationId,
-        result: "DENIED",
+        result: failure.result,
         payload: {
-          reason: "ACCESS_DENIED_OR_NOT_FOUND",
+          reason: failure.reason,
         },
       });
       throw error;
     }
+
+    const deterministicExport: AssessmentProvenanceExport = {
+      schemaVersion: artifact.schemaVersion,
+      assessmentId: artifact.assessmentId,
+      name: artifact.name,
+      ownerId: artifact.ownerId,
+      contentFingerprintSha256: artifact.contentFingerprintSha256,
+      checksumSha256: artifact.checksumSha256,
+      lifecycle: artifact.lifecycle,
+      pins: artifact.pins,
+      runtime: artifact.runtime,
+      acceptedFacts: artifact.acceptedFacts,
+      acceptedEvidence: artifact.acceptedEvidence,
+      humanResolutions: artifact.humanResolutions,
+      decisions: artifact.decisions,
+      coverage: artifact.coverage,
+      events: artifact.events,
+      artifacts: artifact.artifacts,
+    };
+    const fileBuffer = Buffer.from(
+      JSON.stringify(deterministicExport, null, 2),
+      "utf8",
+    );
+    const exportChecksumSha256 = createHash("sha256")
+      .update(fileBuffer)
+      .digest("hex");
+
+    response.setHeader("Cache-Control", "private, no-store");
+    response.setHeader("ETag", `"${exportChecksumSha256}"`);
+    response.setHeader("X-Checksum-Sha256", exportChecksumSha256);
+    response.setHeader(
+      "X-Content-Fingerprint-Sha256",
+      artifact.contentFingerprintSha256,
+    );
 
     await this.auditWriter.write({
       eventType: "assessment.provenance.exported",
@@ -130,16 +192,14 @@ export class AssessmentProvenanceController {
       resourceId: assessmentId,
       decision: AUDIT_DECISIONS.allow,
       correlationId,
-      result: "SUCCESS",
+      result: AUDIT_EVENT_RESULTS.success,
       payload: {
-        checksumSha256: artifact.checksumSha256,
+        contentFingerprintSha256: artifact.contentFingerprintSha256,
+        exportChecksumSha256,
+        checksumSha256: exportChecksumSha256,
       },
     });
 
-    const fileBuffer = Buffer.from(JSON.stringify(artifact, null, 2), "utf8");
-
-    response.setHeader("Cache-Control", "private, no-store");
-    response.setHeader("ETag", `"${artifact.checksumSha256}"`);
     return new StreamableFile(fileBuffer, {
       type: "application/json",
       disposition: `attachment; filename="assessment-${assessmentId}-provenance.json"`,

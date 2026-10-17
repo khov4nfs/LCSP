@@ -858,7 +858,11 @@ describe("AssessmentProvenanceLoader", () => {
     });
 
     // Content fingerprint is identical despite volatile correlationId
+    expect(result1.contentFingerprintSha256).toBe(
+      result2.contentFingerprintSha256,
+    );
     expect(result1.checksumSha256).toBe(result2.checksumSha256);
+    expect(result1.contentFingerprintSha256).toBe(result1.checksumSha256);
     expect(result1.correlationId).not.toBe(result2.correlationId);
 
     // Now change canonical state: add an accepted fact
@@ -888,6 +892,9 @@ describe("AssessmentProvenanceLoader", () => {
       correlationId: "correlation-attempt-3",
     });
 
+    expect(result3.contentFingerprintSha256).not.toBe(
+      result1.contentFingerprintSha256,
+    );
     expect(result3.checksumSha256).not.toBe(result1.checksumSha256);
   });
 });

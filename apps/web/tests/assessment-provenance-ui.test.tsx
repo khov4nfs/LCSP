@@ -22,6 +22,7 @@ const mockProvenance: AssessmentProvenanceArtifact = {
   name: "SOC 2 Type II Assessment",
   ownerId: "user-1",
   generatedAt: "2026-10-17T12:00:00.000Z",
+  contentFingerprintSha256: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   checksumSha256: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   correlationId: "corr-test-123",
   lifecycle: {

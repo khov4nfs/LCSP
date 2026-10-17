@@ -621,7 +621,7 @@ export class AssessmentProvenanceLoader {
       artifacts,
     };
 
-    const checksumSha256 = createHash("sha256")
+    const contentFingerprintSha256 = createHash("sha256")
       .update(JSON.stringify(stableProvenancePayload))
       .digest("hex");
 
@@ -629,7 +629,8 @@ export class AssessmentProvenanceLoader {
       ...stableProvenancePayload,
       generatedAt,
       correlationId: input.correlationId,
-      checksumSha256,
+      contentFingerprintSha256,
+      checksumSha256: contentFingerprintSha256,
     };
 
     return assessmentProvenanceArtifactSchema.parse(provenanceArtifact);

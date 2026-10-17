@@ -685,6 +685,7 @@ export const assessmentProvenanceArtifactSchema = z.strictObject({
   name: z.string().trim().min(1),
   ownerId: z.string().min(1),
   generatedAt: z.iso.datetime(),
+  contentFingerprintSha256: z.string().regex(/^[a-f0-9]{64}$/),
   checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
   correlationId: z.string(),
   lifecycle: assessmentLifecycleSchema.nullable(),
@@ -710,4 +711,37 @@ export const assessmentProvenanceArtifactSchema = z.strictObject({
 });
 export type AssessmentProvenanceArtifact = z.infer<
   typeof assessmentProvenanceArtifactSchema
+>;
+
+/** Canonical deterministic downloaded export payload. Excludes request-volatile transport metadata. */
+export const assessmentProvenanceExportSchema = z.strictObject({
+  schemaVersion: z.literal(ASSESSMENT_PROVENANCE_SCHEMA_VERSION),
+  assessmentId: uuidSchema,
+  name: z.string().trim().min(1),
+  ownerId: z.string().min(1),
+  contentFingerprintSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  lifecycle: assessmentLifecycleSchema.nullable(),
+  pins: z
+    .strictObject({
+      ruleSet: assessmentRuleSetSummarySchema.nullable(),
+      repositorySnapshotId: identifierSchema.nullable(),
+      repositoryScanJobId: identifierSchema.nullable(),
+      repositoryCommit: commitSchema.nullable(),
+      pinnedAt: z.iso.datetime().nullable(),
+    })
+    .nullable(),
+  runtime: assessmentRuntimeSchema.nullable(),
+  acceptedFacts: z.array(assessmentCaseFactSchema),
+  acceptedEvidence: z.array(assessmentEvidenceSchema),
+  humanResolutions: z.array(assessmentHumanRequestViewSchema),
+  decisions: z.array(ruleDecisionRecordSchema),
+  coverage: z.array(
+    decisionCoverageSchema.extend({ concept: z.string().min(1) }),
+  ),
+  events: z.array(assessmentEventSchema),
+  artifacts: z.array(assessmentArtifactViewSchema),
+});
+export type AssessmentProvenanceExport = z.infer<
+  typeof assessmentProvenanceExportSchema
 >;
