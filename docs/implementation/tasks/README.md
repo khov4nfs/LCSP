@@ -23,8 +23,8 @@ This is the active implementation task catalog. The previous coarse-grained `mod
 
 | Status | Count |
 |---|---:|
-| `DONE` | 7 |
-| `READY_FOR_DEV` | 84 |
+| `DONE` | 9 |
+| `READY_FOR_DEV` | 82 |
 
 Recounted 2026-07-05 directly from `docs/implementation/tasks/modules/**` frontmatter (91 task files total) after the Phase 5.2M task-sync audit found this table stale (previously 80 `READY_FOR_DEV`).
 
@@ -34,7 +34,7 @@ Recounted 2026-07-05 directly from `docs/implementation/tasks/modules/**` frontm
 |---|---|---:|---:|---:|---:|---:|
 | `ai-usage-flow` | nestjs-api | 1 | 0 | 0 | 1 | 1 |
 | `assessment` | nestjs-api | 3 | 0 | 0 | 3 | 3 |
-| `audit` | nestjs-api | 0 | 2 | 0 | 2 | 2 |
+| `audit` | nestjs-api | 0 | 2 | 2 | 0 | 2 |
 | `auth-workspace` | nestjs-api | 14 | 0 | 7 | 7 | 14 |
 | `classification` | nestjs-api | 2 | 0 | 0 | 2 | 2 |
 | `document` | nestjs-api | 0 | 3 | 0 | 3 | 3 |
@@ -95,6 +95,6 @@ Recounted 2026-07-05 directly from `docs/implementation/tasks/modules/**` frontm
 | `8.1` | Story 8.1: Generate GapAnalysis From Classification and Evidence | 0 | 2 | 0 | 2 |
 | `8.3` | Story 8.3: Generate Guarded Final Report | 0 | 2 | 0 | 2 |
 | `8.6` | Story 8.6: Record Immutable Assessment Audit Trail | 0 | 1 | 0 | 1 |
-| `8.7` | Story 8.7: View and Export Redacted Audit Trail | 0 | 2 | 0 | 2 |
+| `8.7` | Story 8.7: View and Export Redacted Audit Trail | 0 | 0 | 2 | 2 |
 
 Titles for `6.1`–`8.7` corrected against `docs/developer/jira-lcsp-story-task-mapping.csv` (the prior table listed placeholder titles for `7.1`/`7.2`/`8.2` that do not correspond to any current task file's `epic_story` value). `6.3` is new (Phase 5.2M, `MW-lrc-001`).

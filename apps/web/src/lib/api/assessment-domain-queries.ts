@@ -6,6 +6,7 @@ import {
   assessmentEventsPageSchema,
   assessmentFinalReportArtifactSchema,
   assessmentHumanRequestsResultSchema,
+  assessmentProvenanceArtifactSchema,
   assessmentRepositorySetupSchema,
   answerAssessmentHumanRequestSchema,
   answerAssessmentHumanRequestResultSchema,
@@ -19,6 +20,7 @@ export const assessmentDomainKeys = {
   requests: (id: string) => ["assessment", id, "human-requests"] as const,
   setup: (id: string) => ["assessment", id, "repository-setup"] as const,
   events: (id: string) => ["assessment", id, "events"] as const,
+  provenance: (id: string) => ["assessment", id, "provenance"] as const,
 };
 export function useAssessmentDetailQuery(id: string) {
   return useQuery({
@@ -116,5 +118,18 @@ export function useAssessmentReportQuery(id: string, artifactId: string | null) 
         assessmentFinalReportArtifactSchema,
       ),
     enabled: Boolean(id) && artifactId !== null,
+  });
+}
+
+/** The immutable, validated provenance artifact of one assessment. */
+export function useAssessmentProvenanceQuery(id: string) {
+  return useQuery({
+    queryKey: assessmentDomainKeys.provenance(id),
+    queryFn: () =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/provenance`,
+        assessmentProvenanceArtifactSchema,
+      ),
+    enabled: Boolean(id),
   });
 }

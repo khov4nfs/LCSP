@@ -119,5 +119,5 @@ development_status:
   8-4-generate-evidence-readiness-report-when-final-evidence-is-missing: ready-for-dev
   8-5-download-versioned-artifacts: ready-for-dev
   8-6-record-immutable-assessment-audit-trail: ready-for-dev
-  8-7-view-and-export-redacted-audit-trail: ready-for-dev
+  8-7-view-and-export-redacted-audit-trail: review
   epic-8-retrospective: optional
