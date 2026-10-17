@@ -11,6 +11,7 @@ from rule_set_preparation.claim_inventory import (
     REQUIREMENT_KINDS, ROLE_FIELDS, SCHEMA, ClaimInventory, fingerprint,
 )
 from rule_set_preparation.reference_binding import valid_binding, side_claims, project_reference_accounting, endpoint_fingerprint
+from rule_set_preparation.authoring_state import normalize_page
 
 BUCKET_ARGS = {"OPERATIVE_PROPOSITION": "operative_claim_ids", "APPLICABILITY_CONDITION": "applicability_claim_ids", "QUALIFIER": "qualifier_claim_ids",
                "EXCEPTION": "exception_claim_ids", "CONTEXT": "context_claim_ids", "DEFINITION": "context_claim_ids"}
@@ -247,11 +248,11 @@ def build_claim_tools(context):
     def non_material(reference_id, reason):
         return review_reference(reference_id, False, non_material_reason=reason)
 
-    def inspect(kind="STATUS", source_node_id=None, claim_id=None, offset=0, limit=10):
+    def inspect(kind="STATUS", source_node_id=None, claim_id=None, offset=0, limit=None):
         if ledger.frontier and kind in {"STATUS","UNREVIEWED_SOURCE_NODES"}:
             return ledger.frontier.progress()
-        if offset < 0 or not 1 <= limit <= 20:
-            return {"error": "Use nonnegative offset and limit 1..20"}
+        # A harmless oversized, missing or non-positive page size is normalized and reported, never rejected.
+        applied, offset = normalize_page(limit, offset)
         required = [n for n in context.source_graph.nodes.values() if n["content"].strip()]
         reviewed = context.draft["sourceAccounting"]
         bound = {b["claimId"] for r in context.draft["legalRequirements"].values() for b in r.get("claimBindings", [])}
@@ -269,15 +270,22 @@ def build_claim_tools(context):
                     if (not claim_id or c["claimId"] == claim_id) and (not source_node_id or source_node_id in c["sourceNodeIds"])
                     and (kind != "UNACCOUNTED_CLAIMS" or (c["state"] == "RELEVANT" and c["claimId"] not in bound))] if kind != "STATUS" else []
         selected, chars = [], 0
-        for row in rows[offset:offset + limit]:
+        for row in rows[offset:offset + applied]:
             size = len(json.dumps(row, ensure_ascii=False))
             if chars + size > 24000:
                 break
             selected.append(row); chars += size
+        more = offset + len(selected) < len(rows)
         return {"phase": ledger.phase, "inventoryRevision": ledger.revision, "inventoryFingerprint": ledger.frozen_fingerprint,
                 "sourceNodesReviewed": len(reviewed), "sourceNodesRemaining": sum(n["nodeId"] not in reviewed for n in required),
                 "claimCount": len(ledger.identities), "relationCount": len(context.draft["claimRelations"]),
-                "total": len(rows), "items": deepcopy(selected), "nextOffset": offset + len(selected) if offset + len(selected) < len(rows) else None}
+                "total": len(rows), "items": deepcopy(selected), "requestedLimit": limit, "appliedLimit": applied, "offset": offset,
+                "returnedCount": len(selected), "hasMore": more, "nextOffset": offset + len(selected) if more else None, "endReached": not more}
+
+    def authoring_context(role=None, offset=0, limit=None):
+        if context.authoring is None or not context.authoring.active():
+            return ledger.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize the claim inventory first; this view reads the frozen revision")
+        return context.authoring.page_view(role, offset, limit)
 
     def requirement(requirement_key, title, operative_claim_ids, applicability_claim_ids, qualifier_claim_ids=None,
                     exception_claim_ids=None, context_claim_ids=None, non_repository_duty=False, non_assessable_reason=None):
@@ -393,7 +401,8 @@ def build_claim_tools(context):
         ("remove_semantic_relation", "Correct a mistaken discovery relation before freeze, recording why and invalidating its reference review.", unlink, object_schema({"relation_id": TEXT, "reason": TEXT}, ["relation_id", "reason"])),
         ("review_source_node", "Record discovery review: enumerate ALL discovered claims in this node, or an explicit reason it has none. A context claim never hides a separate duty.", review_node, object_schema({"source_node_id": TEXT, "claim_ids": IDS, "no_relevant_claim_reason": TEXT}, ["source_node_id", "claim_ids"])),
         ("review_source_reference", "Account for an explicit reference with its semantic relation IDs or an Agent-authored non-material reason.", review_reference, object_schema({"reference_id": TEXT, "material": {"type": "boolean"}, "relation_ids": IDS, "non_material_reason": TEXT}, ["reference_id", "material", "relation_ids"])),
-        ("get_claim_inventory", "Read bounded inventory status, unreviewed nodes, claims by node/ID, related claims, unaccounted claims or Requirements. Paginate rather than loading the full graph.", inspect, object_schema({"kind": {"type": "string", "enum": ["STATUS", "UNREVIEWED_SOURCE_NODES", "CLAIMS", "RELATIONS", "UNACCOUNTED_CLAIMS", "REQUIREMENTS"]}, "source_node_id": TEXT, "claim_id": TEXT, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}})),
+        ("get_claim_inventory", "Read exact claims (statement, actor/action, provenance), relations, unaccounted claims or Requirements, one bounded page at a time. The reply states requestedLimit, appliedLimit, offset, returnedCount, hasMore and nextOffset; a page size above 20 is capped at 20 and reported, never rejected. Use claim_id to fetch one exact claim.", inspect, object_schema({"kind": {"type": "string", "enum": ["STATUS", "UNREVIEWED_SOURCE_NODES", "CLAIMS", "RELATIONS", "UNACCOUNTED_CLAIMS", "REQUIREMENTS"]}, "source_node_id": TEXT, "claim_id": TEXT, "offset": {"type": "integer", "description": "Zero-based start; negative values start at 0"}, "limit": {"type": "integer", "description": "Page size; default and maximum 20"}})),
+        ("get_rule_authoring_context", "Bounded navigation index over the FROZEN inventory for Rule authoring: relevant claims grouped by accounting role (summary plus exact claimId), which Requirements already bind each claim, and what is authored. Not a second authority: fetch an exact claim with get_claim_inventory(kind=CLAIMS, claim_id=...). Pages of at most 40; the reply states requestedLimit, appliedLimit, offset, returnedCount, total, hasMore and nextOffset.", authoring_context, object_schema({"role": {"type": "string", "enum": ["OPERATIVE_PROPOSITION", "APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION", "CONTEXT", "DEFINITION", "UNACCOUNTED"], "description": "Omit for all roles"}, "offset": {"type": "integer"}, "limit": {"type": "integer", "description": "Default and maximum 40"}})),
         ("validate_semantic_claim_inventory", "Validate discovery and source/reference review WITHOUT requiring Requirements. Reports the same authoring-readiness gaps as finalization (APPLICABILITY_AUTHORITY_MISSING). Fix grouped gaps before finalization.", lambda: ledger.validate_inventory(False), object_schema({})),
         ("finalize_semantic_claim_inventory", "Explicitly finalize discovery and persist an immutable inventory revision. Requirements are not required at this phase, but the inventory must be able to support one: it is refused (APPLICABILITY_AUTHORITY_MISSING) when duties exist and no SCOPE or CONDITION claim does. Reopen the owning unit with reopen_source_review and register that claim.", lambda: ledger.validate_inventory(True), object_schema({})),
         ("start_rule_authoring", "Transition the same Agent from frozen inventory ready to Rule authoring against that revision.", ledger.begin_authoring, object_schema({})),
@@ -414,7 +423,7 @@ def build_claim_tools(context):
           ("reopen_source_review","Explicitly reopen a completed/blocked unit to correct its semantics. The runtime will schedule it; other units remain unchanged.",ledger.frontier.reopen,object_schema({"source_node_id":TEXT,"reason":{**TEXT,"maxLength":2000}},["source_node_id","reason"])),
         ]
     if context.discovery_only:
-        specs=[spec for spec in specs if spec[0] not in {"start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory"}]
+        specs=[spec for spec in specs if spec[0] not in {"start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory","get_rule_authoring_context"}]
     tools = []
     for name, description, function, schema in specs:
         def invoke(_function=function, _schema=schema, _name=name, **kwargs):
@@ -425,15 +434,18 @@ def build_claim_tools(context):
                     if errors:
                         # Field-addressed: two different malformed arguments are different gaps, one repeated mistake is not.
                         field = ".".join(map(str, errors[0].absolute_path))
-                        return json.dumps(ledger.rejected("CLAIM_SCHEMA_INVALID", _name + ("." + field if field else ""), "; ".join(
-                            ".".join(map(str, e.absolute_path)) + (": " if e.absolute_path else "") + e.message[:160] for e in errors[:3])))
-                    try:
-                        result = _function(**kwargs)
-                        if result.get("outcome") == "PASSED":
-                            ledger.progress(_name)
-                        return json.dumps(result, ensure_ascii=False)
-                    except (KeyError, TypeError, ValueError) as error:
-                        return json.dumps(ledger.rejected("CLAIM_SCHEMA_INVALID", _name, str(error)[:200]))
+                        result = ledger.rejected("CLAIM_SCHEMA_INVALID", _name + ("." + field if field else ""), "; ".join(
+                            ".".join(map(str, e.absolute_path)) + (": " if e.absolute_path else "") + e.message[:160] for e in errors[:3]))
+                    else:
+                        try:
+                            result = _function(**kwargs)
+                            if result.get("outcome") == "PASSED":
+                                ledger.progress(_name)
+                        except (KeyError, TypeError, ValueError) as error:
+                            result = ledger.rejected("CLAIM_SCHEMA_INVALID", _name, str(error)[:200])
+                    if context.authoring is not None:
+                        context.authoring.observe_tool(_name, kwargs, result)
+                    return json.dumps(result, ensure_ascii=False)
                 finally:
                     ledger.current_tool = None
         tools.append(StructuredTool.from_function(invoke, name=name, description=description, args_schema=schema))

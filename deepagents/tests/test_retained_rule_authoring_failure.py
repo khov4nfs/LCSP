@@ -71,7 +71,8 @@ def test_five_authoring_rejections_and_three_malformed_reads_are_zero_rule_valid
     events, session = capture()
     duty = NORMATIVE[0]
     with activate_agent_stream(session):
-        reads = [call(tools, "get_claim_inventory", kind="CLAIMS", limit=50), call(tools, "get_claim_inventory", kind="NOPE"), call(tools, "get_claim_inventory", kind="CLAIMS", limit=0)]
+        # Oversized or non-positive limits are normalized now; these are the reads that are still genuinely malformed.
+        reads = [call(tools, "get_claim_inventory", kind="CLAIMS", limit="many"), call(tools, "get_claim_inventory", kind="NOPE"), call(tools, "get_claim_inventory", kind="CLAIMS", bogus=1)]
         assert call(tools, "start_rule_authoring")["relevantClaimsByAccountingRole"]["OPERATIVE_PROPOSITION"] == len(NORMATIVE)
         authoring = [
             call(tools, "author_legal_requirement", requirement_key="R1", title="t", operative_claim_ids=[duty], applicability_claim_ids=[cid("5c10d55e")]),  # DEFINITION as applicability
@@ -107,12 +108,12 @@ def test_live_fingerprints_of_the_eight_failures_are_still_reproduced_by_their_g
     events, session = capture()
     with activate_agent_stream(session):
         ctx.model_turn = 1
-        assert "NO_PROGRESS" not in call(tools, "get_claim_inventory", kind="CLAIMS", limit=50)
+        assert "NO_PROGRESS" not in call(tools, "get_claim_inventory", kind="NOPE")
         ctx.model_turn = 2
-        assert "NO_PROGRESS" in call(tools, "get_claim_inventory", kind="CLAIMS", limit=50)
+        assert "NO_PROGRESS" in call(tools, "get_claim_inventory", kind="NOPE")
         ctx.model_turn = 3
         with pytest.raises(NoProgressDetected):
-            call(tools, "get_claim_inventory", kind="CLAIMS", limit=50)
+            call(tools, "get_claim_inventory", kind="NOPE")
     assert kinds(events)["NO_PROGRESS_DETECTED"] == 1 and kinds(events)["CLAIM_INVENTORY_READ_REJECTED"] == 3
 
 

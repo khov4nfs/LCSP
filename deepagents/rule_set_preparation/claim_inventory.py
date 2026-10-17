@@ -30,7 +30,7 @@ CLAIM_ROLES = {**{k: "OPERATIVE_PROPOSITION" for k in NORMATIVE}, "CONDITION": "
                "TRANSITION_RULE": "QUALIFIER", "EXCEPTION": "EXCEPTION", "DEFINITION": "DEFINITION",
                "CONTEXT": "CONTEXT", "CROSS_REFERENCE": "CONTEXT"}
 # Inspection tools never change state; a malformed call is a rejected READ, not a validation of anything.
-READ_TOOLS = frozenset({"get_claim_inventory", "get_review_progress", "get_next_review_unit", "inspect_semantic_reference_binding"})
+READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_review_progress", "get_next_review_unit", "inspect_semantic_reference_binding"})
 # Frozen-inventory gaps only Claim Discovery can close: the same tool path closes them in either discovery mode.
 READINESS_CODES = frozenset({"APPLICABILITY_AUTHORITY_MISSING", "OPERATIVE_CLAIM_MISSING"})
 RELATION_KINDS = {"DEFINITION", "SCOPE", "QUALIFIER", "EXCEPTION", "CROSS_REFERENCE", "CONDITION", "INCORPORATES", "TEMPORALLY_LIMITS"}
@@ -131,6 +131,8 @@ class ClaimInventory:
     def transition(self, phase: str):
         previous = self.phase
         self.phase = phase
+        if phase in (DISCOVERY, INVENTORY_VALIDATION) and getattr(self.context, "authoring", None) is not None:
+            self.context.authoring.reset()  # a reopened inventory makes every authoring correction and cursor stale
         publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
             "durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "CLAIM_PHASE_TRANSITION", "previous_phase": previous, "phase": phase,
             "inventory_revision": self.revision, "inventory_fingerprint": self.frozen_fingerprint})

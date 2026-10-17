@@ -112,6 +112,7 @@ class RuleSetPreparationContext:
     discovery_only: bool = False
     authored_claim_ids: set[str] = field(default_factory=set)
     inventory: ClaimInventory | None = None
+    authoring: Any = None
     mutation_lock: Any = field(default_factory=threading.RLock, repr=False)
     model_turn: int | None = None
     submission: dict[str, Any] | None = None
@@ -356,6 +357,9 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
 
     if context.source_graph is not None and context.inventory is None:
         context.inventory = ClaimInventory(context)
+    if context.inventory is not None and context.authoring is None:
+        from rule_set_preparation.authoring_state import AuthoringWorkingSet
+        context.authoring = AuthoringWorkingSet(context)
 
     @tool(args_schema=PREPARATION_PROGRESS_SCHEMA)
     def record_preparation_progress(

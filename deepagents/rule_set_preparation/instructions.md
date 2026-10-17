@@ -137,6 +137,17 @@ with a precise reason. This increments revision and invalidates ALL downstream c
 revisions remain auditable. Review the returned ID remapping and re-author affected work. Never try
 to bypass a claim gap by changing/discarding claims in a Rule packet.
 
+Your tool history is trimmed to keep the context small, so do not rely on remembering earlier reads. From the freeze
+on, every request ends with a runtime-generated RULE AUTHORING STATE message. It is authoritative: the frozen revision,
+claim counts by accounting role, what you have authored, any OUTSTANDING PROBLEM, and an index of claimId + summary for
+every applicability-bearing claim and every claim not yet bound. Select claims by the exact IDs listed there. An
+outstanding problem stays listed until a corrected call succeeds, so apply its requiredAction before anything else.
+If the index is longer than shown, or you need a claim that is already bound, page the role-grouped view with
+get_rule_authoring_context (pages of at most 40). For one claim's exact statement, actor/action, relations and
+provenance use get_claim_inventory(kind=CLAIMS, claim_id=...). get_claim_inventory pages hold at most 20 claims:
+a larger limit is capped and reported as appliedLimit, and the reply gives hasMore and nextOffset. You do not need
+to read every page before authoring.
+
 Use author_legal_requirement to select frozen claims by role: operative_claim_ids, applicability_claim_ids
 (SCOPE/CONDITION claims only),
 qualifier_claim_ids (including temporal and transition claims), exception_claim_ids, context_claim_ids
