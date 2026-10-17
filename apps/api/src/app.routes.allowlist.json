@@ -19,6 +19,8 @@
   "GET /assessments/:assessmentId/artifacts/:artifactId/download",
   "GET /assessments/:assessmentId/events",
   "GET /assessments/:assessmentId/human-requests",
+  "GET /assessments/:assessmentId/provenance",
+  "GET /assessments/:assessmentId/provenance/download",
   "GET /assessments/:assessmentId/repository-setup",
   "GET /assessments/:assessmentId/runtime/control",
   "GET /audit-events",
@@ -100,8 +102,8 @@
   "POST /internal/compliance-rule-set/validations",
   "POST /internal/legal-sources/:versionId/activate-validated",
   "POST /internal/legal-sources/:versionId/retrieval-indexes/validated",
-  "POST /internal/legal-sources/validated-draft",
   "POST /internal/legal-sources/source-snapshots",
+  "POST /internal/legal-sources/validated-draft",
   "POST /internal/outbox/dlq/:id/replay",
   "POST /internal/rbac/preflight",
   "POST /provider-credentials"

@@ -35,6 +35,7 @@ type UpstreamBinaryResult = {
   status: number;
   contentType?: string;
   contentDisposition?: string;
+  headers?: Headers;
 };
 
 export function upstreamUrl(path: string): URL {
@@ -129,6 +130,7 @@ export async function upstreamBinaryRequest(
     contentType: response.headers.get("content-type") ?? undefined,
     contentDisposition:
       response.headers.get("content-disposition") ?? undefined,
+    headers: response.headers,
   };
 }
 

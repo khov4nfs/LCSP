@@ -1,4 +1,4 @@
-import { DownloadIcon, FileTextIcon } from "lucide-react";
+import { DownloadIcon, FileTextIcon, ShieldCheckIcon } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,14 @@ export function AssessmentReportActions({
       >
         <FileTextIcon aria-hidden="true" />
         {copy("completion.viewReport")}
+      </Link>
+      <Link
+        href={`/assessments/${id}/provenance`}
+        className={buttonVariants({ size: "sm", variant: "outline" })}
+        data-report-action="provenance"
+      >
+        <ShieldCheckIcon aria-hidden="true" />
+        {copy("completion.viewProvenance")}
       </Link>
       <a
         href={`/api/assessments/${id}/artifacts/${encodeURIComponent(artifactId)}/download`}
