@@ -1,3 +1,6 @@
+import { completeFixtureFrontier } from "./complete-fixture-frontier.js";
+import { inventoryFingerprint } from "../../src/modules/compliance-rule-set/domain/claim-inventory.js";
+import { sourceReviewUnits } from "../../src/modules/compliance-rule-set/domain/source-review-frontier.js";
 import type { ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
 import { ClaimInventoryHandler } from "../../src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.handler.js";
 import { ClaimInventoryCommand } from "../../src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.command.js";
@@ -63,6 +66,33 @@ export async function pinFixtureRequest<T>(
   );
   const candidate = complianceRuleSetPacketSchema.safeParse(packet);
   if (!candidate.success) return { ...body, packet };
+  const frozen = await prisma.ruleSetPreparationClaimInventory.findUnique({
+    where: {
+      preparationRunId_revision: {
+        preparationRunId: run.id,
+        revision: run.claimInventoryRevision,
+      },
+    },
+  });
+  if (frozen) {
+    packet.semanticGraph!.reviewFrontier = (
+      frozen.graph as unknown as NonNullable<
+        ComplianceRuleSetPacket["semanticGraph"]
+      >
+    ).reviewFrontier;
+    const units = new Set(sourceReviewUnits(graph).map((n) => n.nodeId));
+    packet.semanticGraph!.sourceAccounting =
+      packet.semanticGraph!.sourceAccounting.filter((r) =>
+        units.has(r.sourceNodeId),
+      );
+    packet.claimInventory = {
+      revision: run.claimInventoryRevision,
+      fingerprint: inventoryFingerprint(
+        run.claimInventoryRevision,
+        packet.semanticGraph!,
+      ),
+    };
+  }
   if (run.executionState === AgentExecutionState.RUNNING) {
     // Historical submit fixtures now traverse the same discovery/freeze/readiness lifecycle as the worker.
     const service = prisma as PrismaService;
@@ -71,27 +101,38 @@ export async function pinFixtureRequest<T>(
       new LegalDocumentGraphService(service),
     );
     const handler = new ClaimInventoryHandler(service, loader);
-    const frozen = await prisma.ruleSetPreparationClaimInventory.findUnique({
-      where: {
-        preparationRunId_revision: {
-          preparationRunId: run.id,
-          revision: run.claimInventoryRevision,
-        },
-      },
-    });
     if (!frozen) {
-      const result = await handler.execute(
-        new ClaimInventoryCommand(
-          {
-            preparationRunId: run.id,
-            action: A.FINALIZE,
-            revision: run.claimInventoryRevision,
-            graph: inventory,
-            identities,
-          },
-          "fixture-finalize",
-        ),
+      const reviewed = await completeFixtureFrontier(
+        service,
+        run.id,
+        run.claimInventoryRevision,
+        graph,
+        inventory,
+        identities,
       );
+      packet.semanticGraph = inventory;
+      packet.claimInventory = {
+        revision: run.claimInventoryRevision,
+        fingerprint: inventoryFingerprint(
+          run.claimInventoryRevision,
+          inventory,
+        ),
+      };
+      const result =
+        reviewed.outcome === O.PASSED
+          ? await handler.execute(
+              new ClaimInventoryCommand(
+                {
+                  preparationRunId: run.id,
+                  action: A.FINALIZE,
+                  revision: run.claimInventoryRevision,
+                  graph: inventory,
+                  identities,
+                },
+                "fixture-finalize",
+              ),
+            )
+          : reviewed;
       if (result.outcome === O.PASSED)
         await handler.execute(
           new ClaimInventoryCommand(
@@ -117,7 +158,10 @@ export async function pinFixtureRequest<T>(
     }
     await new ValidateComplianceRuleSetHandler(service, loader).execute(
       new ValidateComplianceRuleSetCommand(
-        { preparationRunId: run.id, packet: candidate.data },
+        {
+          preparationRunId: run.id,
+          packet: complianceRuleSetPacketSchema.parse(packet),
+        },
         "fixture-validate",
       ),
     );

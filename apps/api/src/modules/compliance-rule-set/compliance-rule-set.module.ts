@@ -1,3 +1,7 @@
+import {
+  SourceReviewHandler,
+  StartClaimDiscoveryDiagnosticHandler,
+} from "./application/commands/source-review/source-review.handler.js";
 import { Module } from "@nestjs/common";
 import { ClaimInventoryHandler } from "./application/commands/claim-inventory/claim-inventory.handler.js";
 import { LegalSourceModule } from "../legal-source/legal-source.module.js";
@@ -36,6 +40,8 @@ import { ReactivateComplianceRuleSetHandler } from "./application/commands/react
   controllers: [ComplianceRuleSetController, ComplianceRuleSetAdminController],
   providers: [
     ClaimInventoryHandler,
+    SourceReviewHandler,
+    StartClaimDiscoveryDiagnosticHandler,
     LegalSourceSnapshotLoader,
     ListComplianceRuleSetHistoryHandler,
     ComplianceRuleSetHistoryLoader,

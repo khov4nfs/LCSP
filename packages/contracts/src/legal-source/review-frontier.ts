@@ -1,0 +1,39 @@
+import { z } from "zod";
+
+export const SOURCE_REVIEW_STATES = {
+  PENDING: "PENDING",
+  IN_REVIEW: "IN_REVIEW",
+  REVIEWED_WITH_CLAIMS: "REVIEWED_WITH_CLAIMS",
+  REVIEWED_NO_CLAIMS: "REVIEWED_NO_CLAIMS",
+  BLOCKED_REFERENCE: "BLOCKED_REFERENCE",
+  REOPENED: "REOPENED",
+} as const;
+export const SOURCE_REVIEW_DISPOSITIONS = {
+  CLAIMS_AUTHORED: "CLAIMS_AUTHORED",
+  NO_RELEVANT_SEMANTIC_CLAIMS: "NO_RELEVANT_SEMANTIC_CLAIMS",
+  CONTEXT_ONLY: "CONTEXT_ONLY",
+  REQUIRES_REFERENCE_RESOLUTION: "REQUIRES_REFERENCE_RESOLUTION",
+} as const;
+export const SOURCE_REVIEW_ACTIONS = {
+  INIT: "INIT",
+  NEXT: "NEXT",
+  COMPLETE: "COMPLETE",
+  PROGRESS: "PROGRESS",
+  REOPEN: "REOPEN",
+  EXPAND: "EXPAND",
+  LOAD: "LOAD",
+} as const;
+export const SOURCE_REVIEW_GAPS = {
+  INCOMPLETE: "SOURCE_REVIEW_INCOMPLETE",
+  BINDING: "CLAIM_SOURCE_BINDING_INVALID",
+  STALE: "STALE_REVIEW_REVISION",
+  LEASE: "SOURCE_REVIEW_LEASE_CONFLICT",
+  DISPOSITION: "SOURCE_REVIEW_DISPOSITION_INVALID",
+  REFERENCE: "SOURCE_REVIEW_REFERENCE_BLOCKED",
+} as const;
+export const reviewFrontierBindingSchema = z.strictObject({
+  revision: z.number().int().positive(),
+  fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+  reviewedFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type ReviewFrontierBinding = z.infer<typeof reviewFrontierBindingSchema>;

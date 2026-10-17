@@ -90,6 +90,8 @@ class RuleSetApi(Protocol):
 
     def claim_inventory_operation(self, run_id: str, action: str, revision: int, **fields: Any) -> dict: ...
 
+    def source_review_operation(self, run_id: str, revision: int, action: str, **fields: Any) -> dict: ...
+
     def validate_compliance_rule_set(self, preparation_run_id: str, packet: dict) -> dict: ...
 
     def submit_compliance_rule_set(
@@ -106,6 +108,8 @@ class RuleSetPreparationContext:
     # Materialized pinned source; a source-blocking claim is checked against it when set.
     source_root: Path | None = None
     source_graph: PinnedSourceGraph | None = None
+    frontier_enabled: bool = True
+    discovery_only: bool = False
     authored_claim_ids: set[str] = field(default_factory=set)
     inventory: ClaimInventory | None = None
     mutation_lock: Any = field(default_factory=threading.RLock, repr=False)
@@ -147,6 +151,8 @@ class RuleSetPreparationContext:
         if self.source_graph is not None:
             packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V2", **self.source_graph.base(),
                                        **{field: list(self.draft[key].values()) for key, field in GRAPH_SECTIONS.items()}}
+        if self.inventory is not None:
+            packet["semanticGraph"] = self.inventory.graph()
         if self.inventory is not None and self.inventory.frozen is not None:
             packet["semanticGraph"] = deepcopy(self.inventory.frozen)
             packet["claimInventory"] = self.inventory.binding()
@@ -685,6 +691,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             return invoke
         for governed in common[:4]:
             governed.func = serialize(governed.func)
-        return common[:4] + build_claim_tools(context)
+        tools = common[:4] + build_claim_tools(context)
+        return [t for t in tools if not (context.discovery_only and t.name in {"validate_compliance_rule_set", "submit_compliance_rule_set"})]
     # Isolated legacy tool unit tests have no source graph. The real runner always supplies one.
     return common

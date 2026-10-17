@@ -54,6 +54,7 @@ _ACTIVITY_TOOLS = frozenset(
         "record_preparation_progress",
         "remove_rule_candidate", "register_semantic_claim", "remove_semantic_claim", "remove_semantic_relation", "update_semantic_claim", "link_semantic_claims", "review_source_node",
         "review_source_reference", "get_claim_inventory", "validate_semantic_claim_inventory",
+        "get_next_review_unit", "get_review_progress", "complete_source_review", "expand_review_frontier", "reopen_source_review",
         "finalize_semantic_claim_inventory", "reopen_semantic_claim_inventory", "start_rule_authoring",
         "author_legal_requirement", "author_assessment_rule",
         "report_rule_set_source_blocked",

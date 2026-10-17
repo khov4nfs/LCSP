@@ -9,8 +9,9 @@ legal meaning. Do not substitute keyword rules or regular expressions for legal 
 
 ## Pinned source and structure
 
-Read `/legal-source/INDEX.md` for exact legacy provenance identities and `/legal-source/NODES.md`
-for the materialization identity and source-node inventory. The canonical structural unit is a
+The review queue supplies the pinned materialization identity and structural path. Consult
+`/legal-source/INDEX.md` for exact legacy citation identities when needed; `/legal-source/NODES.md`
+is optional navigation, not a global review checklist to load into context. The canonical structural unit is a
 Legal Document AST node, independent of retrieval windows and page numbers. Chunks are retrieval
 and citation aids. A cited chunk, a cited ancestor, an attached provenance row or a context claim
 never proves that all legal meaning in a provision has been accounted for.
@@ -54,33 +55,46 @@ Use one explicit protocol in this same Agent/context. Do not author Requirements
 
 ## CLAIM_DISCOVERY
 
-Call get_claim_inventory(UNREVIEWED_SOURCE_NODES) with bounded pagination. Read the exact nodes,
-parents and references. Register each interpreted claim with register_semantic_claim. Choose a short,
-stable identity_key describing its semantic distinction; the tool assigns the canonical claim ID.
-Reuse that ID. Do not invent IDs or derive them from wording, array position or call order.
-For DUTY/PROHIBITION/PERMISSION give the actual actor and action; modality follows your selected type.
-Other types have no operative triple. A non-repository duty remains a relevant duty: its later
-Requirement may be NON_ASSESSABLE, but it must not be reclassified as context or excluded merely
-because repository evidence cannot establish performance. INTENTIONALLY_NON_OPERATIVE classification
-requires a truthful source-grounded reason. Correct a claim with update_semantic_claim before freeze.
+Call get_next_review_unit FIRST. The runtime schedules one bounded leased source unit with its
+structural path, source text, ancestors and explicit references. Do not search globally for remaining
+nodes, maintain a review list in memory, or author claims for another unit. Heading-only parents
+are supplied as context; they do not need fake claims or independent completion. Fetch additional
+bounded source context only when the current unit or its references require it.
 
-One node may yield CONTEXT + DUTY + EXCEPTION + TEMPORAL claims. Enumerate every distinct discovered
-claim using review_source_node, even when some are contextual. If a node has none, review it with
-an empty claim_ids list and a source-grounded no_relevant_claim_reason. Every node with its own text
-requires a review, including headings whose non-semantic role you must state. A definition or context
-claim is not a substitute for an operative claim in the same provision.
+Interpret the active unit. Register each distinct claim with register_semantic_claim; source_node_ids
+defaults to the active unit, so you need not copy node IDs for ordinary registration. An explicit
+source_node_ids list must include that unit and may include source ancestors/references that provide
+provenance. Choose a short stable identity_key; the runtime assigns the canonical ID. Repeat an
+identical claim safely; use update_semantic_claim for an intentional correction. Never replace a real
+non-repository duty with context merely because repository evidence cannot demonstrate performance.
+DUTY/PROHIBITION/PERMISSION need the actual actor and action; modality follows type. Other types have
+no operative triple. Exclusion uses relevant=false and a truthful non_operative_reason, persisted as
+INTENTIONALLY_NON_OPERATIVE; never exclude a real claim merely to satisfy accounting.
 
-Use link_semantic_claims to interpret dependency kind/direction; source REFERENCES alone is not a
-semantic classification. Attach the exact reference_id when a claim depends on that structural edge.
-Follow references with follow_legal_reference, then review_source_reference with material=true and
-the linked relation IDs, or a truthful non-material reason. Do not mark a material reference
-non-material merely to pass validation. Material unresolved/ambiguous references block finalization.
+One unit may contain CONTEXT + DUTY + EXCEPTION + TEMPORAL claims. Register each distinct claim.
+Call complete_source_review with disposition CLAIMS_AUTHORED or CONTEXT_ONLY as appropriate. Canonical
+claim IDs authored in THIS review are collected automatically; normally omit claim_ids. If you provide
+claim_ids explicitly, include every claim already authored here. A context claim never hides a duty.
+A unit with no relevant semantic claims uses NO_RELEVANT_SEMANTIC_CLAIMS plus a truthful reason and
+zero claims. Do not invent a placeholder to complete a unit. Completion does not complete children
+or siblings. A repeated identical completion is idempotent.
 
-Use get_claim_inventory(CLAIMS) filtered by source_node_id/claim_id, RELATIONS filtered by claim_id,
-and UNREVIEWED_SOURCE_NODES to find remaining work. Read bounded pages, not entire graphs repeatedly.
-Use validate_semantic_claim_inventory to check discovery alone; it does not require Requirements.
-Once discovery and review are complete, explicitly call finalize_semantic_claim_inventory. A passing
-result persists CLAIM_INVENTORY_READY with a frozen inventoryRevision and inventoryFingerprint.
+For each explicit reference attached to the unit, interpret materiality with review_source_reference.
+A material dependency needs link_semantic_claims with the exact reference_id and correct direction;
+a non-material reference needs a truthful reason. If the target needs review first, complete the
+current unit with REQUIRES_REFERENCE_RESOLUTION, reference_ids and a reason; then get_next_review_unit.
+The runtime schedules target work and resurfaces this unit when that work is complete. Existing claims
+are retained. If a resolved target is outside scope, expand_review_frontier explicitly with the edge
+and reason before blocking. Never label a material reference non-material merely to pass a gate.
+Use get_claim_inventory(CLAIMS, source_node_id=...) to retrieve related target claims, not to perform
+global source-node bookkeeping. Claims in a previously completed unit require reopen_source_review
+with a reason before correction; the runtime schedules that unit again.
+
+After every completed unit call get_next_review_unit. Use get_review_progress for compact counts.
+Only when discoveryCompleteEligible=true (pending=0, inReview=0, blocked=0) call
+finalize_semantic_claim_inventory. This validates and freezes claims plus reviewedFrontierFingerprint;
+it does not require Requirements. The runtime establishes completeness, not your memory. In a
+CLAIM_DISCOVERY_ONLY diagnostic, stop immediately after CLAIM_INVENTORY_READY: no Rules or submission.
 
 ## Frozen inventory -> RULE_AUTHORING
 

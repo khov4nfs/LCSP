@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reviewFrontierBindingSchema } from "../legal-source/review-frontier.ts";
 import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_OPERATIVE_MODALITIES,
@@ -70,9 +71,10 @@ export const legalSemanticClaimSchema = z.strictObject({
 });
 export const legalSemanticGraphSchema = z.strictObject({
   contractVersion: z.literal(LEGAL_SEMANTIC_GRAPH_VERSION),
+  reviewFrontier: reviewFrontierBindingSchema.optional(),
   materializationId: hash,
   legalSourceVersionId: z.string().uuid(),
-  claims: z.array(legalSemanticClaimSchema).min(1).max(20000),
+  claims: z.array(legalSemanticClaimSchema).max(20000),
   relations: z
     .array(
       z.strictObject({

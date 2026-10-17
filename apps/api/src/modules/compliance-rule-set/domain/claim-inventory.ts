@@ -67,6 +67,7 @@ export function validateClaimInventory(
   graph: LegalSemanticGraph,
   identities: Record<string, string>,
   source: LegalSourceSnapshot,
+  diagnosticReviewScope?: Set<string>,
 ) {
   const packet = {
     semanticGraph: graph,
@@ -74,7 +75,12 @@ export function validateClaimInventory(
     assessmentRules: [],
     contextRelations: [],
   } as ComplianceRuleSetPacket;
-  const result = validateSemanticClaimGraph(packet, source, true);
+  const result = validateSemanticClaimGraph(
+    packet,
+    source,
+    true,
+    diagnosticReviewScope,
+  );
   if (!source.retrievalIndexValid)
     result.failures.push({
       code: F.RETRIEVAL_INDEX_NOT_VALID,

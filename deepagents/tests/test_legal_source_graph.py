@@ -116,7 +116,7 @@ def test_claim_draft_binds_pinned_graph_and_known_claims_cannot_disappear(source
     api = Api()
     source.version = source.graph["legalSourceVersionId"] = "00000000-0000-4000-8000-000000000001"
     for node in source.nodes.values(): node["legalSourceVersionId"] = source.version
-    context = RuleSetPreparationContext("synthetic-run", api, source_graph=source)
+    context = RuleSetPreparationContext("synthetic-run", api, source_graph=source, frontier_enabled=False)
     tools = {tool.name: tool for tool in build_rule_set_tools(context)}
     result = json.loads(tools["register_semantic_claim"].invoke({"identity_key": "retention-duty", "source_node_ids": [f"{3:064x}"],
         "claim_type": "DUTY", "statement": "Synthetic duty", "actor": "Keeper", "action": "Keep records"}))

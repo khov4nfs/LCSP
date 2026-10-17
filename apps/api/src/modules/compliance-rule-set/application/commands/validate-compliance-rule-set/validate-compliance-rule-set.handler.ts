@@ -34,6 +34,7 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
       where: { id: input.request.preparationRunId },
       select: {
         legalSourceVersionId: true,
+        claimDiscoveryOnly: true,
         claimInventoryRevision: true,
         claimPhase: true,
         executionState: true,
@@ -46,6 +47,12 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
         { status: HttpStatus.NOT_FOUND },
       );
     }
+    if (run.claimDiscoveryOnly)
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
     const legalSource = await this.legalSource.load(
       run.legalSourceVersionId,
       input.request.packet,

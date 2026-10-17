@@ -68,7 +68,7 @@ def grouped_gaps(result: dict, claims: dict | None = None) -> dict:
                 example.update(claimType=claim["claimType"], sourceNodeIds=claim["sourceNodeIds"][:3], sourceNodeCount=len(claim["sourceNodeIds"]))
             group["examples"].append(example)
     return {"outcome": result.get("outcome", "FAILED"), "gaps": groups,
-            **{k: result[k] for k in ("phase", "revision", "fingerprint", "coverage", "NO_PROGRESS") if k in result}}
+            **{k: result[k] for k in ("phase", "revision", "fingerprint", "coverage", "NO_PROGRESS", "requiredAction", "expectedClaimIds", "missingClaimIds", "pendingCount", "nextReviewUnitIds", "progress") if k in result}}
 
 
 @dataclass
@@ -82,17 +82,23 @@ class ClaimInventory:
     validation_observations: dict[str, dict] = field(default_factory=dict)
     inventory_validation_calls: int = 0
     claims_by_node: dict[str, set[str]] = field(default_factory=dict)
+    frontier: Any = field(init=False, default=None)
     required_nodes: set[str] = field(init=False)
     reviewed_nodes: set[str] = field(default_factory=set)
 
     def __post_init__(self):
-        self.required_nodes = {nid for nid, node in self.context.source_graph.nodes.items() if node["content"].strip()}
+        if self.context.frontier_enabled:
+            from rule_set_preparation.review_frontier import ReviewFrontier
+            self.frontier = ReviewFrontier(self)
+        self.required_nodes = set() if self.frontier else {nid for nid, node in self.context.source_graph.nodes.items() if node["content"].strip()}
 
     def progress(self, tool_name: str):
         publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
             "activity_kind": "CLAIM_INVENTORY_PROGRESS", "tool_name": tool_name, "phase": self.phase,
             "inventory_revision": self.revision, "inventory_fingerprint": self.frozen_fingerprint,
-            "source_nodes_reviewed": len(self.reviewed_nodes), "source_nodes_remaining": len(self.required_nodes) - len(self.reviewed_nodes),
+            "source_nodes_reviewed": (self.frontier.snapshot.get("progress", {}).get("reviewedWithClaims", 0) + self.frontier.snapshot.get("progress", {}).get("reviewedNoClaims", 0)) if self.frontier else len(self.reviewed_nodes),
+            "source_nodes_remaining": (self.frontier.snapshot.get("progress", {}).get("total", 0) - self.frontier.snapshot.get("progress", {}).get("reviewedWithClaims", 0) - self.frontier.snapshot.get("progress", {}).get("reviewedNoClaims", 0)) if self.frontier else len(self.required_nodes) - len(self.reviewed_nodes),
+            "review_frontier": self.frontier.snapshot if self.frontier else None,
             "claim_count": len(self.identities), "claim_relation_count": len(self.context.draft["claimRelations"]),
             "requirement_count": len(self.context.draft["legalRequirements"]), "assessment_rule_count": len(self.context.draft["assessmentRules"])})
 
@@ -109,7 +115,7 @@ class ClaimInventory:
             self.context.validated_packet = self.context.last_validation = None
 
     def graph(self) -> dict:
-        return {"contractVersion": "LEGAL_GRAPH_V2", **self.context.source_graph.base(),
+        return {"contractVersion": "LEGAL_GRAPH_V2", **({"reviewFrontier": self.frontier.binding()} if self.frontier and self.frontier.binding() else {}), **self.context.source_graph.base(),
                 **{v: list(self.context.draft[k].values()) for k, v in GRAPH_SECTIONS.items()}}
 
     def binding(self) -> dict:
@@ -128,7 +134,7 @@ class ClaimInventory:
         requirements = sorted(packet.get("legalRequirements", []), key=lambda r: r.get("legalRequirementId", ""))
         accounting = {"bindings": [{"id": r.get("legalRequirementId"), "bindings": r.get("claimBindings", [])} for r in requirements],
                       "sourceAccounting": graph["sourceAccounting"], "referenceAccounting": graph["referenceAccounting"]}
-        return {"candidate_fingerprint": fingerprint(packet), "claim_inventory_fingerprint": fingerprint({"revision": self.revision, "graph": graph}),
+        return {"node_review_ledger_fingerprint": fingerprint(graph["sourceAccounting"]), "frontier_state_fingerprint": self.frontier.snapshot.get("frontierStateFingerprint") if self.frontier else None, "candidate_fingerprint": fingerprint(packet), "claim_inventory_fingerprint": fingerprint({"revision": self.revision, "graph": graph}),
                 "requirement_fingerprint": fingerprint(requirements), "accounting_fingerprint": fingerprint(accounting)}
 
     def observe_validation(self, result: dict, phase: str, packet: dict | None = None) -> dict:
@@ -149,13 +155,16 @@ class ClaimInventory:
         for section, key in (("legalRequirements", "legalRequirementId"), ("assessmentRules", "assessmentRuleId"), ("contextRelations", "relationId")):
             effective[section] = sorted(effective.get(section, []), key=lambda row: row[key])
         effective["semanticGraph"] = normalized_graph(effective.get("semanticGraph") or self.graph())
+        if effective["semanticGraph"].get("reviewFrontier"):
+            # Evidence digests retain exact reason text; convergence uses the effective queue state.
+            effective["semanticGraph"]["reviewFrontier"].pop("reviewedFingerprint", None)
         for review in effective["semanticGraph"]["sourceAccounting"]:
             review["nonSemanticReason"] = bool(review.get("nonSemanticReason"))
         for review in effective["semanticGraph"]["referenceAccounting"]:
             review["nonMaterialReason"] = bool(review.get("nonMaterialReason"))
         for claim in effective["semanticGraph"]["claims"]:
             claim["nonOperativeReason"] = bool(claim.get("nonOperativeReason"))
-        state_hash = fingerprint({"effective": effective, "phase": phase, "sourceRevision": source_revision, "revision": self.revision, "gaps": gap_hash})
+        state_hash = fingerprint({"effective": effective, "phase": phase, "sourceRevision": source_revision, "revision": self.revision, "gaps": gap_hash, "frontier": self.frontier.snapshot.get("frontierStateFingerprint") if self.frontier else None})
         previous = self.validation_observations.get(state_hash)
         failed = result.get("outcome") != "PASSED"
         feedback = failed and previous is not None
@@ -166,7 +175,7 @@ class ClaimInventory:
                 **identities, "effective_state_fingerprint": state_hash, "gap_fingerprint": gap_hash,
                 "gap_counts": {k: v["count"] for k, v in grouped_gaps(result)["gaps"].items()},
                 "outcome": result.get("outcome"), "claim_count": len(self.identities), "claim_relation_count": len(self.context.draft["claimRelations"]), "coverage": result.get("coverage"),
-                "inventory_validation_attempt": self.inventory_validation_calls, "rule_validation_attempt": self.context.validation_calls}
+                "inventory_validation_attempt": self.inventory_validation_calls, "rule_validation_attempt": self.context.validation_calls, "review_frontier": self.frontier.snapshot if self.frontier else None}
         publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data=data)
         self.context.trace.append(data)
         if terminal:
@@ -177,7 +186,7 @@ class ClaimInventory:
         return result
 
     def rejected(self, code: str, ref: str, detail: str) -> dict:
-        result = {"outcome": "FAILED", "phase": self.phase, "revision": self.revision, "failures": [{"code": code, "ref": ref, "detail": detail}]}
+        result = {"outcome": "FAILED", "phase": self.phase, "revision": self.revision, "failures": [{"code": code, "ref": ref, "detail": detail}], "requiredAction": "update_semantic_claim" if code == "CLAIM_IDENTITY_CONFLICT" else "get_next_review_unit" if self.frontier else "get_claim_inventory"}
         return grouped_gaps(self.observe_validation(result, INVENTORY_VALIDATION if self.phase == DISCOVERY else RULE_VALIDATION), self.context.draft["semanticClaims"])
 
     def discovery_allowed(self) -> bool:
@@ -187,33 +196,42 @@ class ClaimInventory:
                   actor: str | None, action: str | None, relevant: bool, reason: str | None, *, update_id: str | None = None) -> dict:
         if not self.discovery_allowed():
             return self.rejected("CLAIM_INVENTORY_FROZEN", "claimInventory", "Reopen explicitly before changing claims")
+        if self.frontier and not self.frontier.allowed(nodes, update_id):
+            return self.rejected("SOURCE_REVIEW_INCOMPLETE", "unit", "Call get_next_review_unit and author/update only claims owned by that active unit")
         key, nodes = identity_key(key), sorted(set(nodes))
         cid = claim_id(self.context.run_id, self.revision, nodes, key)
         if update_id is not None and (cid != update_id or cid not in self.identities):
             return self.rejected("CLAIM_SCHEMA_INVALID", "claim", "An update preserves identity key and source anchors; register a corrected identity explicitly")
         claim = {"claimId": cid, "legalSourceVersionId": self.context.source_graph.version, "sourceNodeIds": nodes,
-                 "claimType": claim_type, "statement": statement.strip(), "operative": {"actor": (actor or "").strip(), "modality": claim_type, "action": (action or "").strip()} if claim_type in NORMATIVE else None,
+                 "claimType": claim_type, "statement": " ".join(unicodedata.normalize("NFC", statement).split()), "operative": {"actor": " ".join(unicodedata.normalize("NFC", actor or "").split()), "modality": claim_type, "action": " ".join(unicodedata.normalize("NFC", action or "").split())} if claim_type in NORMATIVE else None,
                  "state": "RELEVANT" if relevant else "INTENTIONALLY_NON_OPERATIVE", "nonOperativeReason": None if relevant else reason}
         errors = list(Draft7Validator(CLAIM_SCHEMA).iter_errors(claim))
         if not key or len(key) > 128 or errors or any(n not in self.context.source_graph.nodes for n in nodes) or (not relevant and not reason):
             return self.rejected("CLAIM_SCHEMA_INVALID", "claim", "; ".join(".".join(map(str, e.path)) + ": " + e.message[:180] for e in errors[:4]) or "Valid key, source anchors and exclusion reason required")
         existing = self.context.draft["semanticClaims"].get(cid)
         if existing and existing != claim and update_id is None:
-            return self.rejected("CLAIM_IDENTITY_CONFLICT", cid, "Use update_semantic_claim for an existing identity")
+            return {**self.rejected("CLAIM_IDENTITY_CONFLICT", cid, "Use update_semantic_claim for an intentional correction; this canonical identity already exists"), "canonicalClaimId":cid,"claim":deepcopy(existing)}
         self.changed(existing, claim)
         self.context.draft["semanticClaims"][cid] = claim
         self.identities[cid] = key
         for node in nodes:
             self.claims_by_node.setdefault(node, set()).add(cid)
-            if existing is None:
+            if existing is None and not self.frontier:
                 self.context.draft["sourceAccounting"].pop(node, None)
                 self.reviewed_nodes.discard(node)
+        if self.frontier and cid not in self.frontier.claim_owners:
+            self.frontier.claim_owners[cid] = self.frontier.active["sourceNodeId"]
         self.context.authored_claim_ids.add(cid)
         return {"outcome": "PASSED", "phase": self.phase, "inventoryRevision": self.revision, "claim": deepcopy(claim), "identityKey": key, "claimFingerprint": fingerprint(claim)}
 
     def validate_inventory(self, finalize: bool) -> dict:
         if self.frozen is not None:
             return {"outcome": "PASSED", "phase": self.phase, **self.binding(), "alreadyFinalized": True}
+        if self.frontier:
+            status = self.frontier.progress()
+            if status.get("outcome") != "PASSED": return status
+            if not status["progress"]["discoveryCompleteEligible"]:
+                return self.frontier.failure({"outcome": "FAILED", "failures": [{"code": "SOURCE_REVIEW_INCOMPLETE", "ref": "frontier", "detail": "Pending, in-review or blocked units remain"}], "requiredAction": "get_next_review_unit", "progress": status["progress"]})
         self.inventory_validation_calls += 1
         self.transition(INVENTORY_VALIDATION)
         graph = normalized_graph(self.graph())
@@ -235,6 +253,7 @@ class ClaimInventory:
         return grouped_gaps(result, self.context.draft["semanticClaims"])
 
     def begin_authoring(self) -> dict:
+        if self.context.discovery_only: return self.rejected("CLAIM_PHASE_INVALID", "diagnostic", "Discovery-only sessions stop at CLAIM_INVENTORY_READY")
         if self.phase == READY:
             result = self.context.api.claim_inventory_operation(self.context.run_id, "AUTHOR_RULES", self.revision)
             if result.get("outcome") != "PASSED":
@@ -271,6 +290,13 @@ class ClaimInventory:
         for r in old["referenceAccounting"]:
             r["relationIds"] = [relation_remap[rid] for rid in r["relationIds"]]
             self.context.draft["referenceAccounting"][r["referenceId"]] = r
+        if self.frontier:
+            from rule_set_preparation.review_frontier import ReviewFrontier
+            previous=self.frontier
+            self.frontier=ReviewFrontier(self)
+            self.frontier.claim_owners={remap[cid]:owner for cid,owner in previous.claim_owners.items()}
+            self.frontier.relation_owners={relation_remap[rid]:owner for rid,owner in previous.relation_owners.items()}
+            self.context.draft["sourceAccounting"]={}
         self.rebuild_node_index()
         self.context.authored_claim_ids = set(remap.values())
         self.context.validated_packet = self.context.last_validation = None

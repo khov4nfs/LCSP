@@ -57,7 +57,7 @@ def runtime(seed):
     owners = {m["chunkId"]: m["legalDocumentNodeId"] for m in graph["chunkMappings"]}
     chunks = [{**c, "chunkId": c["id"], "content": nodes[owners[c["id"]]]["content"]} for c in seed["source"]["chunks"]]
     api = ScriptedApi(seed)
-    context = RuleSetPreparationContext(RUN, api, source_graph=PinnedSourceGraph(graph, chunks))
+    context = RuleSetPreparationContext(RUN, api, frontier_enabled=False, source_graph=PinnedSourceGraph(graph, chunks))
     tools = {t.name: t for t in build_rule_set_tools(context)}
     return seed, context, tools, api
 

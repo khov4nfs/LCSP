@@ -182,6 +182,9 @@ def test_native_managed_agent_uses_same_thread_phase_protocol_without_provider(s
     from langchain_core.messages import AIMessage
     from middleware import usage_metering
     from rule_set_preparation.runner import run_rule_set_preparation
+    from functools import partial
+    from rule_set_preparation.tools import RuleSetPreparationContext
+    monkeypatch.setattr("rule_set_preparation.runner.RuleSetPreparationContext",partial(RuleSetPreparationContext,frontier_enabled=False))
     from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
     # Record a scripted legal author's typed actions, then drive the actual Managed Deep Agent graph.
     seed, ctx, tools, _ = runtime(seed)
@@ -266,7 +269,7 @@ def test_native_graph_terminates_repeated_inventory_validation_after_feedback(se
 def test_empty_inventory_is_actionable_feedback_without_callback_exception(seed):
     _, ctx, tools, _ = runtime(seed)
     result = call(tools, "validate_semantic_claim_inventory")
-    assert result["outcome"] == "FAILED" and "CLAIM_SCHEMA_INVALID" in result["gaps"]
+    assert result["outcome"] == "FAILED" and "INCOMPLETE_STRUCTURAL_ACCOUNTING" in result["gaps"]
     assert ctx.inventory.phase == "CLAIM_DISCOVERY"
 
 

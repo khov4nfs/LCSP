@@ -54,6 +54,13 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
       );
     }
 
+    if (run.claimDiscoveryOnly)
+      throw problemException(
+        COMPLIANCE_RULE_SET_ERROR_CODES.submitRequestInvalid,
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+
     // Cheap replay before any validation work; re-checked inside the lock.
     const replay = await this.activation.findReplay(
       this.prisma,

@@ -890,7 +890,7 @@ def test_instructions_require_operative_accounting_without_citation_buckets() ->
     from rule_set_preparation.agent import INSTRUCTIONS
     text = " ".join(INSTRUCTIONS.split())
     for required in ("A single node can contain zero, one or several claims", "link_semantic_claims",
-                     "review_source_node", "review_source_reference", "all relevant claims", "INTENTIONALLY_NON_OPERATIVE",
+                     "get_next_review_unit", "complete_source_review", "review_source_reference", "all relevant claims", "INTENTIONALLY_NON_OPERATIVE",
                      "NON_ASSESSABLE never excuses omission", "Chunks are retrieval and citation aids"):
         assert required.lower() in text.lower()
     assert "Every EFFECTIVE leaf in INDEX" not in text

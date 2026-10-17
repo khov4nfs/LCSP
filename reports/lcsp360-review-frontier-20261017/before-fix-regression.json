@@ -1,0 +1,16 @@
+{
+  "beforeFixRegression": "PASS",
+  "requiredNodes": 16,
+  "repeatedGap": "INCOMPLETE_STRUCTURAL_ACCOUNTING",
+  "node": "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548",
+  "requiredCanonicalClaimIds": [
+    "11f310542dec65c4488df8da02d205e5aaf9cc358505899d264901693ec2df7a",
+    "70bc9cc2ed89e637cdc56386c21079c2ab73aff392ce9601b7426a941c27e732"
+  ],
+  "submittedClaimIds": [
+    "11f310542dec65c4488df8da02d205e5aaf9cc358505899d264901693ec2df7a"
+  ],
+  "gapFingerprint": "4ac437e3102808c3aef5017e2d0c2626c1850fdb54d93efea529de29ee9196ba",
+  "matchesLiveGap": true,
+  "noProgressPreserved": true
+}

@@ -1,3 +1,4 @@
+import type { ComplianceRuleSetPacket } from "@lcsp/contracts/compliance-rule-set";
 import assert from "node:assert/strict";
 import type { Prisma } from "@prisma/client";
 import {
@@ -51,7 +52,21 @@ export function storedRuleSetIntegrityValid(
     const hash = (value: unknown) => sha256Hex(canonicalJson(value));
     const inventory = row.preparationRun?.claimInventories[0];
     const semanticGraph = row.semanticGraph
-      ? readSemanticGraph(row.semanticGraph)
+      ? {
+          ...readSemanticGraph(row.semanticGraph),
+          ...((inventory?.graph as { reviewFrontier?: unknown } | undefined)
+            ?.reviewFrontier
+            ? {
+                reviewFrontier: (
+                  inventory.graph as {
+                    reviewFrontier: NonNullable<
+                      ComplianceRuleSetPacket["semanticGraph"]
+                    >["reviewFrontier"];
+                  }
+                ).reviewFrontier,
+              }
+            : {}),
+        }
       : null;
     if (semanticGraph) {
       assert(semanticGraph.legalSourceVersionId === row.legalSourceVersionId);

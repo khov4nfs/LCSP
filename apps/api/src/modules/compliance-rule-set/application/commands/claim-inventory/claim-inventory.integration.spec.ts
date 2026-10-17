@@ -17,6 +17,8 @@ import {
 } from "../../../../../../test/support/compliance-rule-set-fixtures.js";
 import { pinFixtureRequest } from "../../../../../../test/support/pin-legal-graph-fixture.js";
 import { canonicalInventoryFixture } from "../../../../../../test/support/canonical-claim-inventory-fixture.js";
+import { inventoryFingerprint } from "../../../domain/claim-inventory.js";
+import { completeFixtureFrontier } from "../../../../../../test/support/complete-fixture-frontier.js";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
@@ -85,6 +87,35 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     const run = await db.ruleSetPreparationRun.findUniqueOrThrow({
       where: { id },
     });
+    const frontierKey = { preparationRunId: id, inventoryRevision: 1 };
+    const frontier =
+      await db.ruleSetPreparationReviewFrontier.findUniqueOrThrow({
+        where: { preparationRunId_inventoryRevision: frontierKey },
+      });
+    expect(
+      frontier.pendingCount + frontier.inReviewCount + frontier.blockedCount,
+    ).toBe(0);
+    expect(frontier.frozenAt).not.toBeNull();
+    const review = await db.ruleSetPreparationSourceReview.findFirstOrThrow({
+      where: frontierKey,
+    });
+    await expect(
+      db.ruleSetPreparationSourceReview.update({
+        where: {
+          preparationRunId_inventoryRevision_sourceNodeId: {
+            ...frontierKey,
+            sourceNodeId: review.sourceNodeId,
+          },
+        },
+        data: { reason: "Silent correction" },
+      }),
+    ).rejects.toThrow("Frozen review dispositions are immutable");
+    await expect(
+      db.ruleSetPreparationReviewFrontier.update({
+        where: { preparationRunId_inventoryRevision: frontierKey },
+        data: { pendingCount: 1 },
+      }),
+    ).rejects.toThrow("Frozen review frontier is immutable");
     expect(run.executionState).toBe(AgentExecutionState.RUNNING);
     expect(run.claimPhase).toBe(ClaimPreparationPhase.SUBMISSION_READY);
     const operation = (
@@ -161,6 +192,23 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
       expect.objectContaining({ code: G.STALE }),
     );
     const next = canonicalInventoryFixture(request.packet, id, 2);
+    const sourceGraph = await new LegalDocumentGraphService(service).export(
+      source.id,
+    );
+    const reviewed = await completeFixtureFrontier(
+      service,
+      id,
+      2,
+      sourceGraph!,
+      next.graph,
+      next.identities,
+    );
+    expect(reviewed.outcome).toBe(O.PASSED);
+    request.packet.semanticGraph = next.graph;
+    request.packet.claimInventory = {
+      revision: 2,
+      fingerprint: inventoryFingerprint(2, next.graph),
+    };
     expect(
       await operation(A.FINALIZE, 2, {
         graph: next.graph,

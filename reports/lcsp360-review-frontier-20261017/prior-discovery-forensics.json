@@ -1,0 +1,1246 @@
+{
+  "SOURCE_REVIEW_CONVERGENCE_ROOT_CAUSE": "PROVEN",
+  "proofBoundary": "Global non-empty-node accounting, manual exact claim-ID reconciliation, no deterministic next-unit scheduler, and in-memory review writes are proven in code and reproduced provider-free. Original rejected claimIds/reasons and final exact reviewed set were not retained.",
+  "requiredNodes": [
+    {
+      "nodeId": "24c15a3e98ee746d6315771033ee2f7bd5b24eebf15688dc6434b99a092f6802",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i",
+      "nodeType": "CHAPTER",
+      "content": "Chapter I"
+    },
+    {
+      "nodeId": "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/1",
+      "nodeType": "ARTICLE",
+      "content": "Article 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument."
+    },
+    {
+      "nodeId": "c997d447cd001b6f4ca1b0ac8b3d1c691c53f030a14bf42838ca58930f15394c",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/2",
+      "nodeType": "ARTICLE",
+      "content": "Article 2. Export and portability"
+    },
+    {
+      "nodeId": "cc17682e02d61984dcbb10a9165427110c8a3199fdadedc37cf65cd1076b795f",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/2/paragraph/1",
+      "nodeType": "PARAGRAPH",
+      "content": "1. The operator of a covered service must implement a software export function that produces a portable\ncopy for a requesting customer. The operator must deliver the copy within seven calendar days after\nreceiving the request.\n\nThe implemented export function and actual timely delivery are distinct aspects: configured software\nalone does not establish fulfillment of an individual request."
+    },
+    {
+      "nodeId": "6616a67ad7975adf662d2e5d027bab2d9bb73e4ea8170b7d3caef82433991d22",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/2/paragraph/2",
+      "nodeType": "PARAGRAPH",
+      "content": "2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer\nmoving their customer-created records to another service. For both charges and obstacles, this\nprohibition is limited to those intended to prevent that portability; it does not prohibit charges\ngenerally. The limited exception in Article 3(2) applies."
+    },
+    {
+      "nodeId": "dc5180441a92eb2ec963827158b396757e94c2a2251a89eb762e56e406843c4e",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/3",
+      "nodeType": "ARTICLE",
+      "content": "Article 3. Remedy and exception"
+    },
+    {
+      "nodeId": "820f4b2b5625d552289b6e0456ebc4aa56047a9fe6cfed7e227c0cf8c0cc63a2",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/3/paragraph/1",
+      "nodeType": "PARAGRAPH",
+      "content": "1. If failure to perform Article 2(1) causes a customer documented financial loss, the operator must\ncompensate that customer for the documented loss within thirty calendar days after receiving notice of\nthe loss. A compensation policy alone does not perform this payment duty."
+    },
+    {
+      "nodeId": "84803ea2da3c40edba7e3bf0f204ff5b4ba7629d8e9486d7e32d50e005a60e4a",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/i/article/3/paragraph/2",
+      "nodeType": "PARAGRAPH",
+      "content": "2. As an exception to Article 2(2), the operator may temporarily block a transfer only while a\ndocumented, specific security threat makes that transfer unsafe. The block must be proportionate to that\nthreat and end when the threat ends. This exception does not remove or delay the portable-copy duty in\nArticle 2(1)."
+    },
+    {
+      "nodeId": "0a733e5d53d9db7b250beec8677a7bdf767d73be03d116448683e9fd50a552fc",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii",
+      "nodeType": "CHAPTER",
+      "content": "Chapter II"
+    },
+    {
+      "nodeId": "8f630f946a9cc3786b6e6397e6690db3947ca3df29e39bb348826a8e6d39b70a",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/4",
+      "nodeType": "ARTICLE",
+      "content": "Article 4. Temporal transition\nThis instrument takes effect on 1 January 2026. For covered services already operating before that date,\nthe duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month\ntransition.\n\nFor covered services first operating on or after 1 January 2026, those duties apply immediately on first\noperation."
+    },
+    {
+      "nodeId": "f9548abb5be91eedb2e12200f4da41caa3939431013a7c183282e40b29518d2a",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/5",
+      "nodeType": "ARTICLE",
+      "content": "Article 5. Incorporated duties\nWhen an operator delegates export fulfillment to an external fulfillment provider, that provider must\nimplement the portable-copy software function and perform the same delivery duty required by Article\n2(1), with the same seven-day period and the definitions in Article 1. Delegation does not remove the\noperator's own duty."
+    },
+    {
+      "nodeId": "562ceee3cc15b6a501ecc68b7d4d3307b35ba5399bdbe3a7e2ada9bac7909141",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/6",
+      "nodeType": "ARTICLE",
+      "content": "Article 6. Context and separate configuration duties"
+    },
+    {
+      "nodeId": "6c53dfaa448f8e8b28083619c83d49955cb593b74cd69ccbd1bfe3f861a7baf6",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/6/paragraph/1",
+      "nodeType": "PARAGRAPH",
+      "content": "1. Repository storage means the storage surface used by the covered service for customer-created records.\nAn audit entry means the event record about an export request. This paragraph supplies context and\ndefinitions; it creates no independent duty, prohibition or permission."
+    },
+    {
+      "nodeId": "162c0504d93af2b5cc3aded0a8cf7d455762ede4dbc44f1b399de05557a02f74",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/6/paragraph/2",
+      "nodeType": "PARAGRAPH",
+      "content": "2. The operator must maintain a software configuration identifying the relevant covered service. For its\nexport function, the operator must record the authorization decision in an audit entry and must record\ncompletion or failure with its timestamp in the audit entry. These two audit duties are compatible and\nboth must survive a combined representation. The operator must implement appropriate software safeguards\nprotecting customer-created records during processing and export. A repository assessment may inspect\nstorage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a\nparticular cipher."
+    },
+    {
+      "nodeId": "dff5da6fa80eae19060524f34a3f73065f17dd38c3c33bc371c10ec74f575000",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/7",
+      "nodeType": "ARTICLE",
+      "content": "Article 7. Delegated fulfillment and direction\nActor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider.\nIf A delegates export fulfillment to B, A must maintain a software configuration identifying B as its\ndelegate for that service, and B must implement the delegated portable-copy software path on behalf of A.\nB performs fulfillment while A remains responsible for Article 2(1). B's express duty in Article 5 does\nnot transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting\nrecord owner and beneficiary; an auditor owes no export-fulfillment duty."
+    },
+    {
+      "nodeId": "25f828bfa6b52057d43840d8abb5fb7e4293f7ce90579e171cd4f2bcabed7749",
+      "structuralPath": "/document/synthetic-legal-graph-instrument-test-material-only/chapter/ii/article/8",
+      "nodeType": "ARTICLE",
+      "content": "Article 8. Conditional permission and evidence\nThe operator may restrict access to the export interface only while a documented, specific security\nincident makes access unsafe. The restriction must end when that condition ceases. Evidence must\ndemonstrate whether that condition holds and whether any restriction respects it. This Article does not\nrequire automatic blocking, automatic unblocking, or any other particular technical implementation.\n"
+    }
+  ],
+  "headingOnlyContainers": [
+    "24c15a3e98ee746d6315771033ee2f7bd5b24eebf15688dc6434b99a092f6802",
+    "c997d447cd001b6f4ca1b0ac8b3d1c691c53f030a14bf42838ca58930f15394c",
+    "dc5180441a92eb2ec963827158b396757e94c2a2251a89eb762e56e406843c4e",
+    "0a733e5d53d9db7b250beec8677a7bdf767d73be03d116448683e9fd50a552fc",
+    "562ceee3cc15b6a501ecc68b7d4d3307b35ba5399bdbe3a7e2ada9bac7909141"
+  ],
+  "requiredNodeCount": 16,
+  "headingOnlyContainerCount": 5,
+  "bodyReviewUnitCount": 11,
+  "attempts": [
+    {
+      "attempt": 1,
+      "at": "2026-10-16T18:39:42.212Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 0,
+      "unreviewed": 16,
+      "claimCount": 35,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "35fe779eb24c95348d86ff03d8b1bcdddeda319bfbc765f3748cb41850f13882",
+      "inventoryFingerprint": "8564f182ea550f194f0645cbf6578a8d26195fa22ca2d2169f96bebcb86b8996",
+      "effectiveStateFingerprint": "039868d3ad669b44765c8ad5afe0631de4c7159841ee0dba64e307054d0c4319",
+      "gapFingerprint": "e7e27101ac221649260d49eb11e7420848dda3ec9bfc3664ca1932a63d7c39dd",
+      "gapCodes": {
+        "CLAIM_IDENTITY_CONFLICT": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "read_file",
+          "at": "2026-10-16T18:32:11.075Z"
+        },
+        {
+          "tool": "read_file",
+          "at": "2026-10-16T18:32:19.003Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:32:24.421Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:32:29.646Z"
+        },
+        {
+          "tool": "inspect_legal_node",
+          "at": "2026-10-16T18:32:34.658Z"
+        },
+        {
+          "tool": "glob",
+          "at": "2026-10-16T18:32:40.396Z"
+        },
+        {
+          "tool": "glob",
+          "at": "2026-10-16T18:32:45.773Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:32:50.765Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:32:56.230Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:33:01.613Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:33:06.726Z"
+        },
+        {
+          "tool": "inspect_legal_node",
+          "at": "2026-10-16T18:33:12.718Z"
+        },
+        {
+          "tool": "inspect_legal_node",
+          "at": "2026-10-16T18:33:20.980Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:33:29.251Z"
+        },
+        {
+          "tool": "inspect_legal_node",
+          "at": "2026-10-16T18:33:35.151Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:33:46.078Z"
+        },
+        {
+          "tool": "inspect_legal_node",
+          "at": "2026-10-16T18:33:51.365Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:33:57.554Z"
+        },
+        {
+          "tool": "inspect_legal_node",
+          "at": "2026-10-16T18:34:04.378Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:34:09.985Z"
+        },
+        {
+          "tool": "get_legal_node",
+          "at": "2026-10-16T18:34:31.297Z"
+        },
+        {
+          "tool": "record_preparation_progress",
+          "at": "2026-10-16T18:34:35.097Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:34:40.523Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:34:45.340Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:34:50.836Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:34:56.480Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:01.399Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:05.761Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:10.812Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:14.844Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:20.036Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:33.008Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:38.669Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:46.257Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:35:55.765Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:36:08.211Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:36:13.743Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:36:19.945Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:36:34.988Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:36:51.065Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:36:57.254Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:37:03.449Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:37:09.703Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:37:16.067Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:37:23.267Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:37:29.350Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:37:35.319Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:37:45.297Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:37:56.109Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:04.179Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:09.841Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:16.659Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:21.991Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:29.296Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:35.268Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:41.825Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:53.574Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:38:59.805Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:39:05.518Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:39:10.937Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:39:16.939Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:39:23.040Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:39:28.461Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:39:33.753Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:39:42.162Z"
+        }
+      ]
+    },
+    {
+      "attempt": 2,
+      "at": "2026-10-16T18:39:52.665Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 0,
+      "unreviewed": 16,
+      "claimCount": 35,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "35fe779eb24c95348d86ff03d8b1bcdddeda319bfbc765f3748cb41850f13882",
+      "inventoryFingerprint": "8564f182ea550f194f0645cbf6578a8d26195fa22ca2d2169f96bebcb86b8996",
+      "effectiveStateFingerprint": "039868d3ad669b44765c8ad5afe0631de4c7159841ee0dba64e307054d0c4319",
+      "gapFingerprint": "e7e27101ac221649260d49eb11e7420848dda3ec9bfc3664ca1932a63d7c39dd",
+      "gapCodes": {
+        "CLAIM_IDENTITY_CONFLICT": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:39:52.639Z"
+        }
+      ]
+    },
+    {
+      "attempt": 3,
+      "at": "2026-10-16T18:40:11.262Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 0,
+      "unreviewed": 16,
+      "claimCount": 35,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "35fe779eb24c95348d86ff03d8b1bcdddeda319bfbc765f3748cb41850f13882",
+      "inventoryFingerprint": "8564f182ea550f194f0645cbf6578a8d26195fa22ca2d2169f96bebcb86b8996",
+      "effectiveStateFingerprint": "bd57fe7066b990af44df2e16bebdb716ed0d6c08dfbf914fab22c81f6ad2546b",
+      "gapFingerprint": "ee15770b510dfbaf78a250391bf71640002b9516b54f5f031eb09196b1b5529c",
+      "gapCodes": {
+        "CLAIM_SCHEMA_INVALID": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:39:57.928Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:04.122Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:11.224Z"
+        }
+      ]
+    },
+    {
+      "attempt": 4,
+      "at": "2026-10-16T18:40:54.477Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 0,
+      "unreviewed": 16,
+      "claimCount": 35,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "35fe779eb24c95348d86ff03d8b1bcdddeda319bfbc765f3748cb41850f13882",
+      "inventoryFingerprint": "8564f182ea550f194f0645cbf6578a8d26195fa22ca2d2169f96bebcb86b8996",
+      "effectiveStateFingerprint": "bd57fe7066b990af44df2e16bebdb716ed0d6c08dfbf914fab22c81f6ad2546b",
+      "gapFingerprint": "ee15770b510dfbaf78a250391bf71640002b9516b54f5f031eb09196b1b5529c",
+      "gapCodes": {
+        "CLAIM_SCHEMA_INVALID": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:16.751Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:26.820Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:33.950Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:45.607Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:48.813Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:50.190Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:51.724Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:53.167Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:54.468Z"
+        }
+      ]
+    },
+    {
+      "attempt": 5,
+      "at": "2026-10-16T18:41:00.340Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 0,
+      "unreviewed": 16,
+      "claimCount": 35,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "2ca8dad7547ec4709398a78850471be5493d1385a363a179818649a32335bd57",
+      "inventoryFingerprint": "2eb84248ef6349a01ba17770ea2f3a966f92f83f4d6d3682aa625f8dfe7ee09b",
+      "effectiveStateFingerprint": "0a687277bf48108f9b574f16f5f34d15d05adea6fecd19f2e0f7b81c48f7ef93",
+      "gapFingerprint": "4ac437e3102808c3aef5017e2d0c2626c1850fdb54d93efea529de29ee9196ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:40:57.182Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:40:58.885Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:41:00.328Z"
+        }
+      ]
+    },
+    {
+      "attempt": 6,
+      "at": "2026-10-16T18:41:04.014Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 1,
+      "unreviewed": 15,
+      "claimCount": 35,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "2ca8dad7547ec4709398a78850471be5493d1385a363a179818649a32335bd57",
+      "inventoryFingerprint": "2eb84248ef6349a01ba17770ea2f3a966f92f83f4d6d3682aa625f8dfe7ee09b",
+      "effectiveStateFingerprint": "254de6865c275aa110f88924b7e2b72fe3d64290b46bdaea3aeeb128d8200213",
+      "gapFingerprint": "5c06e64172a4655b66a81de7a98aeba8e64db01e7352c8ecd5f191d2c1ed7118",
+      "gapCodes": {
+        "CLAIM_IDENTITY_CONFLICT": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:41:01.818Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:41:04.002Z"
+        }
+      ]
+    },
+    {
+      "attempt": 7,
+      "at": "2026-10-16T18:41:39.349Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 1,
+      "unreviewed": 15,
+      "claimCount": 35,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "2ca8dad7547ec4709398a78850471be5493d1385a363a179818649a32335bd57",
+      "inventoryFingerprint": "2eb84248ef6349a01ba17770ea2f3a966f92f83f4d6d3682aa625f8dfe7ee09b",
+      "effectiveStateFingerprint": "0a687277bf48108f9b574f16f5f34d15d05adea6fecd19f2e0f7b81c48f7ef93",
+      "gapFingerprint": "4ac437e3102808c3aef5017e2d0c2626c1850fdb54d93efea529de29ee9196ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:41:05.444Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:41:33.601Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:41:35.990Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:41:39.340Z"
+        }
+      ]
+    },
+    {
+      "attempt": 8,
+      "at": "2026-10-16T18:41:40.889Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 1,
+      "unreviewed": 15,
+      "claimCount": 35,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "2ca8dad7547ec4709398a78850471be5493d1385a363a179818649a32335bd57",
+      "inventoryFingerprint": "2eb84248ef6349a01ba17770ea2f3a966f92f83f4d6d3682aa625f8dfe7ee09b",
+      "effectiveStateFingerprint": "301127d08235b5b1918d52fa563024ba3edba0f248f8cb9b6f52955f89484823",
+      "gapFingerprint": "ee15770b510dfbaf78a250391bf71640002b9516b54f5f031eb09196b1b5529c",
+      "gapCodes": {
+        "CLAIM_SCHEMA_INVALID": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:41:40.879Z"
+        }
+      ]
+    },
+    {
+      "attempt": 9,
+      "at": "2026-10-16T18:41:57.484Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 1,
+      "unreviewed": 15,
+      "claimCount": 32,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "2ca8dad7547ec4709398a78850471be5493d1385a363a179818649a32335bd57",
+      "inventoryFingerprint": "e0085bdfbdb65d04ec4c4f670abd5b888013f0b8c2a4e1e9318ddb1758c2ec23",
+      "effectiveStateFingerprint": "2eedafe2e7035369c8d11592ad55bc92526bf7b86fc49455d834dedf00eb7bd7",
+      "gapFingerprint": "52771fc24c03a9b38333723367da09a6399cffbdf92c50c3d583fe1a543eb35d",
+      "gapCodes": {
+        "CLAIM_SCHEMA_INVALID": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:41:47.448Z"
+        },
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:41:50.839Z"
+        },
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:41:52.848Z"
+        },
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:41:55.313Z"
+        },
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:41:57.476Z"
+        }
+      ]
+    },
+    {
+      "attempt": 10,
+      "at": "2026-10-16T18:42:36.981Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 1,
+      "unreviewed": 15,
+      "claimCount": 17,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "2b5303f2be7fbf9bfe4890f4f917f26de79fafe0e03f4973c2204cda7187fa4e",
+      "inventoryFingerprint": "ec24e852df64c0e9b38c2209a69e129be399c30c554cb8a512f21bc8c350ad3e",
+      "effectiveStateFingerprint": "133fd1b42763ec2b5d982124071ae223107a9e201693fd79849599cfeebc71eb",
+      "gapFingerprint": "4ac437e3102808c3aef5017e2d0c2626c1850fdb54d93efea529de29ee9196ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:42:01.850Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:42:05.221Z"
+        },
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:42:19.696Z"
+        },
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:42:22.983Z"
+        },
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:42:26.757Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:42:30.851Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:42:36.956Z"
+        }
+      ]
+    },
+    {
+      "attempt": 11,
+      "at": "2026-10-16T18:42:38.629Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 1,
+      "unreviewed": 15,
+      "claimCount": 17,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "142e11361f6701cff1de681c68ffa2a5918df912a5d9f013ab862213c1b66212",
+      "effectiveStateFingerprint": "a6b1283cd01033e5515a2d12b892598aeabcfdd2adac375722e6589737850dfa",
+      "gapFingerprint": "ee15770b510dfbaf78a250391bf71640002b9516b54f5f031eb09196b1b5529c",
+      "gapCodes": {
+        "CLAIM_SCHEMA_INVALID": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:42:38.619Z"
+        }
+      ]
+    },
+    {
+      "attempt": 12,
+      "at": "2026-10-16T18:42:54.019Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 5,
+      "unreviewed": 11,
+      "claimCount": 17,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5f7fc1668e98628cba706305a09608b81cd9b78b9e732e6b23a52fedf913d338",
+      "inventoryFingerprint": "5cc00ac927bdb3d9d2903ef52d50433b376818e1eafcb5cc482a6d5d82f1f27f",
+      "effectiveStateFingerprint": "58eee880cc3d26c326b4bc30cfb665f4592b18e700e2b702ecd2be7364cfaa44",
+      "gapFingerprint": "a09152977241461af06b325fa2b23b452d6f0995d20c50c6bd4911119ece3bab",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "820f4b2b5625d552289b6e0456ebc4aa56047a9fe6cfed7e227c0cf8c0cc63a2"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:42:41.403Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:42:43.660Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:42:46.200Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:42:48.457Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:42:53.989Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:42:54.004Z"
+        }
+      ]
+    },
+    {
+      "attempt": 13,
+      "at": "2026-10-16T18:42:54.032Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 5,
+      "unreviewed": 11,
+      "claimCount": 17,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5f7fc1668e98628cba706305a09608b81cd9b78b9e732e6b23a52fedf913d338",
+      "inventoryFingerprint": "5cc00ac927bdb3d9d2903ef52d50433b376818e1eafcb5cc482a6d5d82f1f27f",
+      "effectiveStateFingerprint": "1ef207b3609e2b16a3566104d8ba08bf0e4f6b36a7567b3ee9ff0fb4bd3e5289",
+      "gapFingerprint": "2b30029fef5e00e6d0f44a845c5e77aa2829dc5fbee6b0bb33cf17c71107ddb7",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "6616a67ad7975adf662d2e5d027bab2d9bb73e4ea8170b7d3caef82433991d22"
+      ],
+      "toolCallsSincePreviousValidation": []
+    },
+    {
+      "attempt": 14,
+      "at": "2026-10-16T18:42:54.045Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 5,
+      "unreviewed": 11,
+      "claimCount": 17,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5f7fc1668e98628cba706305a09608b81cd9b78b9e732e6b23a52fedf913d338",
+      "inventoryFingerprint": "5cc00ac927bdb3d9d2903ef52d50433b376818e1eafcb5cc482a6d5d82f1f27f",
+      "effectiveStateFingerprint": "c56818a26b22eeacc611196711da4ed39c69acbbf72356ae3c3ea42d072d3e79",
+      "gapFingerprint": "58689b288e42b6c59dde1189569186f84857e8e5b8f8feaf3d5a293f4a9197a2",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "84803ea2da3c40edba7e3bf0f204ff5b4ba7629d8e9486d7e32d50e005a60e4a"
+      ],
+      "toolCallsSincePreviousValidation": []
+    },
+    {
+      "attempt": 15,
+      "at": "2026-10-16T18:44:04.728Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 43,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e942d4205f58541ab0b0b843374210928ef16ab03800c644e5dd55aaf01a4430",
+      "effectiveStateFingerprint": "ce3154d4c062ed8b03e156bf4fb9668d9499035fa28817b0b4c01a6ffd7f8a9c",
+      "gapFingerprint": "76802cd18a0fe637cf5dab55141b429a4f054d8e5f7bd19d0f74207a947442ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "25f828bfa6b52057d43840d8abb5fb7e4293f7ce90579e171cd4f2bcabed7749"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:42:55.795Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:42:57.914Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:42:59.784Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:43:02.003Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:06.471Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:10.818Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:15.591Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:19.482Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:20.990Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:23.279Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:24.601Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:26.332Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:28.974Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:33.002Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:34.735Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:36.394Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:39.868Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:41.728Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:43.207Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:45.618Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:47.611Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:50.193Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:51.620Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:53.158Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:54.575Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:56.154Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:57.715Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:43:59.660Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:44:01.144Z"
+        },
+        {
+          "tool": "register_semantic_claim",
+          "at": "2026-10-16T18:44:02.913Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:44:04.715Z"
+        }
+      ]
+    },
+    {
+      "attempt": 16,
+      "at": "2026-10-16T18:44:06.209Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 43,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e942d4205f58541ab0b0b843374210928ef16ab03800c644e5dd55aaf01a4430",
+      "effectiveStateFingerprint": "b0030a9e1e855324c36e6be8cbd07b0395bb5e1656860802d80f1c516997e773",
+      "gapFingerprint": "ee15770b510dfbaf78a250391bf71640002b9516b54f5f031eb09196b1b5529c",
+      "gapCodes": {
+        "CLAIM_SCHEMA_INVALID": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:44:06.189Z"
+        }
+      ]
+    },
+    {
+      "attempt": 17,
+      "at": "2026-10-16T18:44:11.620Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 43,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e942d4205f58541ab0b0b843374210928ef16ab03800c644e5dd55aaf01a4430",
+      "effectiveStateFingerprint": "ce3154d4c062ed8b03e156bf4fb9668d9499035fa28817b0b4c01a6ffd7f8a9c",
+      "gapFingerprint": "76802cd18a0fe637cf5dab55141b429a4f054d8e5f7bd19d0f74207a947442ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "25f828bfa6b52057d43840d8abb5fb7e4293f7ce90579e171cd4f2bcabed7749"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:44:11.610Z"
+        }
+      ]
+    },
+    {
+      "attempt": 18,
+      "at": "2026-10-16T18:44:19.177Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 41,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e13ea93a2483162d4308e1609f944741b0100770a098651a3b6a7dd60ba9db5b",
+      "effectiveStateFingerprint": "b297b19970944e001b3aee5e2f4d117603d2dddff27314140a8dc3ff52c20195",
+      "gapFingerprint": "76802cd18a0fe637cf5dab55141b429a4f054d8e5f7bd19d0f74207a947442ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "25f828bfa6b52057d43840d8abb5fb7e4293f7ce90579e171cd4f2bcabed7749"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:44:14.931Z"
+        },
+        {
+          "tool": "remove_semantic_claim",
+          "at": "2026-10-16T18:44:17.300Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:44:19.169Z"
+        }
+      ]
+    },
+    {
+      "attempt": 19,
+      "at": "2026-10-16T18:44:21.579Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 41,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e13ea93a2483162d4308e1609f944741b0100770a098651a3b6a7dd60ba9db5b",
+      "effectiveStateFingerprint": "b297b19970944e001b3aee5e2f4d117603d2dddff27314140a8dc3ff52c20195",
+      "gapFingerprint": "76802cd18a0fe637cf5dab55141b429a4f054d8e5f7bd19d0f74207a947442ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "25f828bfa6b52057d43840d8abb5fb7e4293f7ce90579e171cd4f2bcabed7749"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:44:21.567Z"
+        }
+      ]
+    },
+    {
+      "attempt": 20,
+      "at": "2026-10-16T18:44:26.685Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 41,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e13ea93a2483162d4308e1609f944741b0100770a098651a3b6a7dd60ba9db5b",
+      "effectiveStateFingerprint": "d93cc3cb2bf82087e7bf8a8bbab37121b5902ac4ab4e5b6de3835f916f5ce677",
+      "gapFingerprint": "ee15770b510dfbaf78a250391bf71640002b9516b54f5f031eb09196b1b5529c",
+      "gapCodes": {
+        "CLAIM_SCHEMA_INVALID": 1
+      },
+      "matchedSourceNodeIds": [],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:44:22.871Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:44:24.922Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:44:26.675Z"
+        }
+      ]
+    },
+    {
+      "attempt": 21,
+      "at": "2026-10-16T18:44:32.616Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 41,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e13ea93a2483162d4308e1609f944741b0100770a098651a3b6a7dd60ba9db5b",
+      "effectiveStateFingerprint": "fce6f3f35cc62a333654842efc69286a44c7f203a52dba8581692d7dc9a4244b",
+      "gapFingerprint": "4ac437e3102808c3aef5017e2d0c2626c1850fdb54d93efea529de29ee9196ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:44:29.676Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:44:32.607Z"
+        }
+      ]
+    },
+    {
+      "attempt": 22,
+      "at": "2026-10-16T18:44:37.328Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 41,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e13ea93a2483162d4308e1609f944741b0100770a098651a3b6a7dd60ba9db5b",
+      "effectiveStateFingerprint": "fce6f3f35cc62a333654842efc69286a44c7f203a52dba8581692d7dc9a4244b",
+      "gapFingerprint": "4ac437e3102808c3aef5017e2d0c2626c1850fdb54d93efea529de29ee9196ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:44:37.315Z"
+        }
+      ]
+    },
+    {
+      "attempt": 23,
+      "at": "2026-10-16T18:44:49.592Z",
+      "phase": "CLAIM_INVENTORY_VALIDATION",
+      "requiredNodeCount": 16,
+      "requiredNodeSetFingerprint": "13d7200a690c837c84daf61563858a7749e8fd014183167c48d24c34c19bf621",
+      "reviewed": 3,
+      "unreviewed": 13,
+      "claimCount": 41,
+      "reviewLedgerFingerprint": "NOT_RECORDED",
+      "accountingFingerprint": "5b5bdd2832f5edae43a255729a2fc042ddbcdfa6eae474ca0a5fd9505f83fb9f",
+      "inventoryFingerprint": "e13ea93a2483162d4308e1609f944741b0100770a098651a3b6a7dd60ba9db5b",
+      "effectiveStateFingerprint": "fce6f3f35cc62a333654842efc69286a44c7f203a52dba8581692d7dc9a4244b",
+      "gapFingerprint": "4ac437e3102808c3aef5017e2d0c2626c1850fdb54d93efea529de29ee9196ba",
+      "gapCodes": {
+        "INCOMPLETE_STRUCTURAL_ACCOUNTING": 1
+      },
+      "matchedSourceNodeIds": [
+        "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548"
+      ],
+      "toolCallsSincePreviousValidation": [
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:44:39.465Z"
+        },
+        {
+          "tool": "get_claim_inventory",
+          "at": "2026-10-16T18:44:43.869Z"
+        },
+        {
+          "tool": "review_source_node",
+          "at": "2026-10-16T18:44:49.583Z"
+        }
+      ]
+    }
+  ],
+  "gapDistribution": {
+    "CLAIM_IDENTITY_CONFLICT": 3,
+    "CLAIM_SCHEMA_INVALID": 7,
+    "INCOMPLETE_STRUCTURAL_ACCOUNTING": 13
+  },
+  "finalReviewed": 3,
+  "finalUnreviewed": 13,
+  "exactFinalUnreviewedIds": "NOT_RECORDED; review dictionary was ephemeral and no inventory froze",
+  "terminalKnownUnreviewedNode": [
+    "2a9c23e0419e4d0ad7fc65099655ec2ec3466204c14293b26b263989cf121548"
+  ],
+  "ledgerPersistence": "Only in-memory until finalization; zero frozen rows",
+  "reviewInvalidation": "New claim anchored to a previously reviewed node removes that review; no frontier state/reason/lease is persisted"
+}

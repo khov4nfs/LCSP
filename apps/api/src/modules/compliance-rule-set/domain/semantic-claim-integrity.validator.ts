@@ -17,6 +17,10 @@ import {
   LEGAL_SOURCE_CHUNK_STATUSES as EFFECT,
 } from "@lcsp/contracts/legal-source";
 import type { LegalSourceSnapshot } from "./compliance-rule-set-integrity.validator.js";
+import {
+  sourceReviewUnits,
+  reviewReferenceOwners,
+} from "./source-review-frontier.js";
 import { createHash } from "node:crypto";
 
 const normative = new Set<string>([C.DUTY, C.PROHIBITION, C.PERMISSION]);
@@ -59,6 +63,7 @@ export function validateSemanticClaimGraph(
   packet: ComplianceRuleSetPacket,
   source: LegalSourceSnapshot,
   inventoryOnly = false,
+  diagnosticReviewScope?: Set<string>,
 ) {
   const failures: ComplianceRuleSetValidationFailure[] = [];
   const fail = (
@@ -252,14 +257,29 @@ export function validateSemanticClaimGraph(
       );
     inspections.set(item.sourceNodeId, item);
   }
-  for (const n of graph.nodes) {
-    if (!n.content.trim()) continue;
+  const reviewNodes = (
+    semantic.reviewFrontier
+      ? sourceReviewUnits(graph)
+      : graph.nodes.filter((n) => n.content.trim())
+  ).filter(
+    (n) =>
+      !inventoryOnly ||
+      !diagnosticReviewScope ||
+      diagnosticReviewScope.has(n.nodeId),
+  );
+  for (const n of reviewNodes) {
     coverage.structuralSource.total += 1;
     const inspection = inspections.get(n.nodeId);
-    const expected = [...(claimsAtNode.get(n.nodeId) ?? [])].sort();
+    const expected = semantic.reviewFrontier
+      ? [...(inspection?.claimIds ?? [])].sort()
+      : [...(claimsAtNode.get(n.nodeId) ?? [])].sort();
     if (
       !inspection ||
       !same([...inspection.claimIds].sort(), expected) ||
+      new Set(inspection.claimIds).size !== inspection.claimIds.length ||
+      inspection.claimIds.some(
+        (id) => !claims.get(id)?.sourceNodeIds.includes(n.nodeId),
+      ) ||
       (expected.length
         ? inspection.nonSemanticReason !== null
         : !inspection.nonSemanticReason?.trim())
@@ -270,6 +290,18 @@ export function validateSemanticClaimGraph(
         "Inspect this node and enumerate every identified claim, or explain why it contains no relevant semantic claim",
       );
     else coverage.structuralSource.accounted += 1;
+  }
+  if (semantic.reviewFrontier) {
+    const reviewedClaims = new Set(
+      reviewNodes.flatMap((n) => inspections.get(n.nodeId)?.claimIds ?? []),
+    );
+    for (const claim of semantic.claims)
+      if (!reviewedClaims.has(claim.claimId))
+        fail(
+          F.INCOMPLETE_STRUCTURAL_ACCOUNTING,
+          `claim:${claim.claimId}`,
+          "Every discovered claim needs an explicit completed review unit",
+        );
   }
   const bound = new Map<string, Set<string>>();
   for (const requirement of inventoryOnly ? [] : packet.legalRequirements) {
@@ -462,7 +494,18 @@ export function validateSemanticClaimGraph(
       "references",
       "Unknown or duplicate reference accounting",
     );
+  const referenceOwners =
+    inventoryOnly && diagnosticReviewScope
+      ? reviewReferenceOwners(graph)
+      : null;
   for (const reference of graph.references) {
+    if (
+      referenceOwners &&
+      !diagnosticReviewScope!.has(
+        referenceOwners.get(reference.referenceId) ?? "",
+      )
+    )
+      continue;
     const accounting = referenceAccounting.get(reference.referenceId);
     if (
       !accounting ||

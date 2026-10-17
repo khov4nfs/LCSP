@@ -731,6 +731,7 @@ model LegalDocumentMaterialization {
   chunkMappings          LegalDocumentChunkNode[]
   retrievalUnits         LegalDocumentRetrievalUnit[]
   semanticGraphs         LegalSemanticGraph[]
+  reviewFrontiers        RuleSetPreparationReviewFrontier[]
 
   @@unique([id, legalSourceVersionId])
   @@unique([legalSourceVersionId, parserRevision, materializationRevision, sourceDigest], map: "LegalMaterialization_revision_key")
@@ -765,6 +766,7 @@ model LegalDocumentNode {
   chunks                 LegalDocumentChunkNode[]
   retrievalUnits         LegalDocumentRetrievalUnit[]
   semanticClaims         LegalSemanticClaimSource[]
+  sourceReviews          RuleSetPreparationSourceReview[]
 
   @@id([nodeId, materializationId])
   @@unique([nodeId, materializationId, legalSourceVersionId], map: "LegalNode_source_key")
@@ -1244,6 +1246,8 @@ model LlmUsageEvent {
 // ---------------------------------------------------------------------------
 
 model RuleSetPreparationRun {
+  claimDiscoveryOnly Boolean @default(false)
+  reviewFrontiers RuleSetPreparationReviewFrontier[]
   claimPhase ClaimPreparationPhase @default(CLAIM_DISCOVERY)
   claimInventoryRevision Int @default(1)
   claimInventoryReopenReason String?
@@ -1264,6 +1268,7 @@ model RuleSetPreparationRun {
   activationRecord     ComplianceRuleSetActivationRecord?
   runtimeEvents        AssessmentRuntimeEvent[]
 
+  @@unique([id, legalSourceVersionId])
   @@index([legalSourceVersionId])
   @@index([executionState, createdAt])
 }
@@ -1875,6 +1880,7 @@ enum ClaimPreparationPhase {
 }
 
 model RuleSetPreparationClaimInventory {
+  reviewedFrontierFingerprint String?
   preparationRunId String
   revision         Int
   fingerprint      String
@@ -1887,4 +1893,78 @@ model RuleSetPreparationClaimInventory {
 
   @@id([preparationRunId, revision])
   @@index([preparationRunId, fingerprint])
+}
+
+
+enum SourceReviewState {
+  PENDING
+  IN_REVIEW
+  REVIEWED_WITH_CLAIMS
+  REVIEWED_NO_CLAIMS
+  BLOCKED_REFERENCE
+  REOPENED
+}
+
+enum SourceReviewDisposition {
+  CLAIMS_AUTHORED
+  NO_RELEVANT_SEMANTIC_CLAIMS
+  CONTEXT_ONLY
+  REQUIRES_REFERENCE_RESOLUTION
+}
+
+model RuleSetPreparationReviewFrontier {
+  preparationRunId String
+  inventoryRevision Int
+  legalSourceVersionId String
+  materializationId String
+  revision Int @default(1)
+  fingerprint String
+  stateFingerprint String
+  stateAccumulator String
+  unitCount Int @default(0)
+  pendingCount Int @default(0)
+  inReviewCount Int @default(0)
+  reviewedWithClaimsCount Int @default(0)
+  reviewedNoClaimsCount Int @default(0)
+  blockedCount Int @default(0)
+  persistedClaimCount Int @default(0)
+  expansions Json @default("[]")
+  frozenAt DateTime?
+  createdAt DateTime @default(now())
+  preparation RuleSetPreparationRun @relation(fields: [preparationRunId,legalSourceVersionId], references: [id,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  materialization LegalDocumentMaterialization @relation(fields: [materializationId,legalSourceVersionId], references: [id,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  items RuleSetPreparationSourceReview[]
+  @@id([preparationRunId, inventoryRevision])
+  @@unique([preparationRunId,inventoryRevision,materializationId,legalSourceVersionId])
+}
+
+model RuleSetPreparationSourceReview {
+  preparationRunId String
+  inventoryRevision Int
+  materializationId String
+  legalSourceVersionId String
+  sourceNodeId String
+  structuralPath String
+  ordinal Int
+  state SourceReviewState @default(PENDING)
+  disposition SourceReviewDisposition?
+  reason String?
+  operationId String?
+  leaseExpiresAt DateTime?
+  claimIds String[] @default([])
+  ownedClaimCount Int @default(0)
+  referenceIds String[] @default([])
+  blockedReferenceIds String[] @default([])
+  payload Json @default("{\"claims\":[],\"identities\":{},\"relations\":[],\"referenceAccounting\":[]}")
+  stateFingerprint String
+  completionFingerprint String?
+  completedAt DateTime?
+  updatedAt DateTime @updatedAt
+  frontier RuleSetPreparationReviewFrontier @relation(fields: [preparationRunId,inventoryRevision,materializationId,legalSourceVersionId], references: [preparationRunId,inventoryRevision,materializationId,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  node LegalDocumentNode @relation(fields: [sourceNodeId,materializationId,legalSourceVersionId], references: [nodeId,materializationId,legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
+  @@id([preparationRunId,inventoryRevision,sourceNodeId])
+  @@index([preparationRunId,inventoryRevision,state,ordinal], map: "SourceReview_pending_idx")
+  @@index([claimIds], type: Gin)
+  @@index([blockedReferenceIds], type: Gin)
+  @@index([preparationRunId,inventoryRevision,structuralPath], map: "SourceReview_path_idx")
 }

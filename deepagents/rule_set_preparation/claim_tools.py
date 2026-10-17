@@ -56,7 +56,9 @@ def build_claim_tools(context):
                 refs[(ref["documentId"], ref["locator"], ref["contentSha256"])] = ref
         return list(refs.values())
 
-    def register(identity_key, source_node_ids, claim_type, statement, actor=None, action=None, relevant=True, non_operative_reason=None):
+    def register(identity_key, claim_type, statement, source_node_ids=None, actor=None, action=None, relevant=True, non_operative_reason=None):
+        if source_node_ids is None:
+            source_node_ids = [ledger.frontier.active["sourceNodeId"]] if ledger.frontier and ledger.frontier.active else []
         return ledger.put_claim(identity_key, source_node_ids, claim_type, statement, actor, action, relevant, non_operative_reason)
 
     def update(claim_id, claim_type, statement, actor=None, action=None, relevant=True, non_operative_reason=None):
@@ -71,21 +73,32 @@ def build_claim_tools(context):
             return ledger.rejected("CLAIM_SCHEMA_INVALID", "claimRelations", "Distinct existing claim IDs and a supported kind are required")
         if reference_id is not None and reference_id not in context.source_graph.references:
             return ledger.rejected("CLAIM_SCHEMA_INVALID", "reference", "Use an explicit reference ID from the pinned source graph")
+        if ledger.frontier and (not ledger.frontier.active or not any(ledger.frontier.claim_owners.get(cid) == ledger.frontier.active["sourceNodeId"] for cid in [from_claim_id,to_claim_id])):
+            return ledger.rejected("CLAIM_SOURCE_BINDING_INVALID", "relation", "Link a claim from this active review unit to its related claim")
         row = {"fromClaimId": from_claim_id, "toClaimId": to_claim_id, "kind": kind, "referenceId": reference_id}
         row["relationId"] = fingerprint(row)
         ledger.changed(context.draft["claimRelations"].get(row["relationId"]), row)
         context.draft["claimRelations"][row["relationId"]] = row
+        if ledger.frontier: ledger.frontier.relation_owners.setdefault(row["relationId"],ledger.frontier.active["sourceNodeId"])
         return {"outcome": "PASSED", "inventoryRevision": ledger.revision, "relation": row}
 
     def remove(claim_id, reason):
         if not ledger.discovery_allowed() or not reason.strip():
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", claim_id, "Remove a mistaken discovery claim only before freeze, with a reason")
+        if ledger.frontier and not ledger.frontier.allowed(claim_id=claim_id):
+            return ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",claim_id,"Reopen the owning review unit before changing its claim")
+        if ledger.frontier:
+            affected = {ledger.frontier.relation_owners.get(rid) for rid, relation in context.draft["claimRelations"].items()
+                        if claim_id in (relation["fromClaimId"], relation["toClaimId"]) and ledger.frontier.relation_owners.get(rid) != ledger.frontier.active["sourceNodeId"]}
+            if affected:
+                return {**ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",claim_id,"Complete the current review, reopen the dependent review units and remove their relations before deleting this claim"),
+                        "requiredAction":"reopen_source_review","sourceNodeIds":sorted(node for node in affected if node)}
         old = context.draft["semanticClaims"].pop(claim_id)
         ledger.changed(old, None)
         del ledger.identities[claim_id]
         context.authored_claim_ids.discard(claim_id)
         for node_id in old["sourceNodeIds"]:
-            context.draft["sourceAccounting"].pop(node_id, None)
+            if not ledger.frontier: context.draft["sourceAccounting"].pop(node_id, None)
             ledger.claims_by_node.get(node_id, set()).discard(claim_id)
             ledger.reviewed_nodes.discard(node_id)
         detached = [rid for rid, r in context.draft["claimRelations"].items() if claim_id in (r["fromClaimId"], r["toClaimId"])]
@@ -100,6 +113,8 @@ def build_claim_tools(context):
     def unlink(relation_id, reason):
         if not ledger.discovery_allowed() or not reason.strip():
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", relation_id, "Correct relations only before freeze, with a reason")
+        if ledger.frontier and (not ledger.frontier.active or ledger.frontier.relation_owners.get(relation_id)!=ledger.frontier.active["sourceNodeId"]):
+            return {**ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",relation_id,"Reopen the owning review unit before changing its relation"),"requiredAction":"reopen_source_review","sourceNodeId":ledger.frontier.relation_owners.get(relation_id)}
         ledger.changed(context.draft["claimRelations"][relation_id], None)
         del context.draft["claimRelations"][relation_id]
         for ref, review in list(context.draft["referenceAccounting"].items()):
@@ -121,6 +136,8 @@ def build_claim_tools(context):
         return {"outcome": "PASSED", "inventoryRevision": ledger.revision, "review": context.draft["sourceAccounting"][source_node_id]}
 
     def review_reference(reference_id, material, relation_ids, non_material_reason=None):
+        if ledger.frontier and (not ledger.frontier.active or reference_id not in ledger.frontier.active["referenceIds"]):
+            return ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",reference_id,"Review references attached to the active review unit")
         if not ledger.discovery_allowed():
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", "referenceAccounting", "Reopen before changing reference accounting")
         if reference_id not in context.source_graph.references or (material and (not relation_ids or non_material_reason)) or (not material and (relation_ids or not non_material_reason)):
@@ -133,6 +150,8 @@ def build_claim_tools(context):
         return {"outcome": "PASSED", "inventoryRevision": ledger.revision, "review": context.draft["referenceAccounting"][reference_id]}
 
     def inspect(kind="STATUS", source_node_id=None, claim_id=None, offset=0, limit=10):
+        if ledger.frontier and kind in {"STATUS","UNREVIEWED_SOURCE_NODES"}:
+            return ledger.frontier.progress()
         if offset < 0 or not 1 <= limit <= 20:
             return {"error": "Use nonnegative offset and limit 1..20"}
         required = [n for n in context.source_graph.nodes.values() if n["content"].strip()]
@@ -263,6 +282,19 @@ def build_claim_tools(context):
         ("remove_rule_candidate", "Remove a mistaken downstream candidate, recording why. Removing a Requirement invalidates its dependent AssessmentRule candidates; frozen claims stay unchanged.", remove_candidate, object_schema({"kind": {"type": "string", "enum": ["LEGAL_REQUIREMENT", "ASSESSMENT_RULE"]}, "candidate_id": TEXT, "reason": TEXT}, ["kind", "candidate_id", "reason"])),
         ("author_assessment_rule", "Choose assessable Requirement parents. API derives normative criteria, applicability and evidence from those parents; optional investigation focus cannot create a legal obligation.", assessment, object_schema({"assessment_rule_id": {**TEXT, "maxLength": 128}, "concept": TEXT, "legal_requirement_ids": {**IDS, "minItems": 1}, "investigation_focus": TEXT}, ["assessment_rule_id", "concept", "legal_requirement_ids"])),
     ]
+    if ledger.frontier:
+        specs = [spec for spec in specs if spec[0] != "review_source_node"]
+        specs[0][3]["required"].remove("source_node_ids")
+        specs[0][3]["description"] = "Source anchors default to the active review unit. Add ancestor/reference context only when it supplies claim provenance."
+        specs += [
+          ("get_next_review_unit","Get the next runtime-scheduled bounded source unit. Repeated calls return your leased unit until you complete or block it. No global node bookkeeping is required.",ledger.frontier.next,object_schema({})),
+          ("get_review_progress","Get compact persisted queue progress and the exact next action. Queue empty with zero blocked units makes discovery eligible to freeze.",ledger.frontier.progress,object_schema({})),
+          ("complete_source_review","Give the active unit a semantic disposition. Runtime collects ALL canonical claims authored here by default. Explicit claim_ids must include every authored claim. No-claim needs a reason; blocking needs reference_ids. This never completes children/siblings.",ledger.frontier.complete,object_schema({"disposition":{"type":"string","enum":["CLAIMS_AUTHORED","NO_RELEVANT_SEMANTIC_CLAIMS","CONTEXT_ONLY","REQUIRES_REFERENCE_RESOLUTION"]},"claim_ids":IDS,"reason":{**TEXT,"maxLength":2000},"reference_ids":IDS},["disposition"])),
+          ("expand_review_frontier","Explicitly include a structurally referenced target in scope, recording why. Existing target work is reused. Never silently expand the frontier.",ledger.frontier.expand,object_schema({"reference_ids":{**IDS,"minItems":1},"reason":{**TEXT,"maxLength":2000}},["reference_ids","reason"])),
+          ("reopen_source_review","Explicitly reopen a completed/blocked unit to correct its semantics. The runtime will schedule it; other units remain unchanged.",ledger.frontier.reopen,object_schema({"source_node_id":TEXT,"reason":{**TEXT,"maxLength":2000}},["source_node_id","reason"])),
+        ]
+    if context.discovery_only:
+        specs=[spec for spec in specs if spec[0] not in {"start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory"}]
     tools = []
     for name, description, function, schema in specs:
         def invoke(_function=function, _schema=schema, _name=name, **kwargs):

@@ -20,6 +20,11 @@ import {
   normalizeInventory,
   validateClaimInventory,
 } from "../../../domain/claim-inventory.js";
+import {
+  reviewedFrontierFingerprint,
+  completedReviewStates,
+} from "../../../domain/source-review-frontier.js";
+import { reviewPayload } from "../source-review/source-review.handler.js";
 import { ClaimInventoryCommand } from "./claim-inventory.command.js";
 
 @CommandHandler(ClaimInventoryCommand)
@@ -52,7 +57,14 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           revision: run.claimInventoryRevision,
           failures: [{ code, ref: "claimInventory", detail }],
         });
-        if (run.executionState !== AgentExecutionState.RUNNING)
+        if (
+          run.executionState !== AgentExecutionState.RUNNING &&
+          !(
+            run.claimDiscoveryOnly &&
+            run.executionState === AgentExecutionState.SUCCEEDED &&
+            input.action === A.FINALIZE
+          )
+        )
           return fail(G.PHASE, "Preparation is not running");
         if (
           input.action === A.REOPEN &&
@@ -100,6 +112,11 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           };
         }
         if (input.action === A.AUTHOR_RULES) {
+          if (run.claimDiscoveryOnly)
+            return fail(
+              G.PHASE,
+              "A discovery-only diagnostic cannot author Rules",
+            );
           if (
             frozen &&
             (
@@ -165,6 +182,86 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             G.PHASE,
             "Claim discovery must precede inventory validation",
           );
+        const frontier = await tx.ruleSetPreparationReviewFrontier.findUnique({
+          where: {
+            preparationRunId_inventoryRevision: {
+              preparationRunId: run.id,
+              inventoryRevision: input.revision,
+            },
+          },
+        });
+        if (!frontier)
+          return {
+            ...fail(
+              G.INVALID,
+              "Initialize the deterministic review frontier first",
+            ),
+            requiredAction: "get_next_review_unit",
+          };
+        const items = await tx.ruleSetPreparationSourceReview.findMany({
+          where: {
+            preparationRunId: run.id,
+            inventoryRevision: input.revision,
+          },
+          orderBy: { ordinal: "asc" },
+        });
+        const unfinished = items.filter(
+          (item) => !completedReviewStates.includes(item.state as never),
+        );
+        if (!items.length || unfinished.length)
+          return {
+            ...fail(
+              G.INVALID,
+              "Complete every pending/in-review/blocked review unit before freezing",
+            ),
+            requiredAction: "get_next_review_unit",
+            pendingCount: unfinished.length,
+            nextReviewUnitIds: unfinished
+              .slice(0, 3)
+              .map((i) => i.sourceNodeId),
+          };
+        const reviewBinding = {
+          revision: frontier.revision,
+          fingerprint: frontier.fingerprint,
+          reviewedFingerprint: reviewedFrontierFingerprint(
+            frontier.fingerprint,
+            items,
+          ),
+        };
+        const payloads = items.map(reviewPayload);
+        const persistentGraph = normalizeInventory({
+          ...graph,
+          reviewFrontier: reviewBinding,
+          claims: payloads.flatMap((p) => p.claims),
+          relations: [
+            ...new Map(
+              payloads
+                .flatMap((p) => p.relations)
+                .map((r) => [r.relationId, r]),
+            ).values(),
+          ],
+          sourceAccounting: items.map((item) => ({
+            sourceNodeId: item.sourceNodeId,
+            claimIds: item.claimIds,
+            nonSemanticReason: item.claimIds.length ? null : item.reason,
+          })),
+          referenceAccounting: payloads.flatMap((p) => p.referenceAccounting),
+        });
+        const persistentIdentities = Object.fromEntries(
+          payloads.flatMap((p) => Object.entries(p.identities)),
+        );
+        if (
+          inventoryHash(persistentGraph) !== inventoryHash(graph) ||
+          inventoryHash(persistentIdentities) !==
+            inventoryHash(input.identities)
+        )
+          return {
+            ...fail(
+              G.INVALID,
+              "Candidate differs from transactionally completed source reviews",
+            ),
+            requiredAction: "get_claim_inventory",
+          };
         const { snapshot } = await this.source.load(run.legalSourceVersionId, {
           legalRequirements: [],
           assessmentRules: [],
@@ -176,6 +273,9 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           graph,
           input.identities,
           snapshot,
+          run.claimDiscoveryOnly
+            ? new Set(items.map((item) => item.sourceNodeId))
+            : undefined,
         );
         if (result.failures.length || input.action === A.VALIDATE)
           return {
@@ -191,14 +291,32 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             revision: input.revision,
             fingerprint,
             graphDigest: inventoryHash(graph),
+            reviewedFrontierFingerprint: reviewBinding.reviewedFingerprint,
             graph,
             identities: input.identities,
             reopenReason: run.claimInventoryReopenReason,
           },
         });
+        await tx.ruleSetPreparationReviewFrontier.update({
+          where: {
+            preparationRunId_inventoryRevision: {
+              preparationRunId: run.id,
+              inventoryRevision: input.revision,
+            },
+          },
+          data: { frozenAt: new Date() },
+        });
         await tx.ruleSetPreparationRun.update({
           where: { id: run.id },
-          data: { claimPhase: ClaimPreparationPhase.CLAIM_INVENTORY_READY },
+          data: {
+            claimPhase: ClaimPreparationPhase.CLAIM_INVENTORY_READY,
+            ...(run.claimDiscoveryOnly
+              ? {
+                  executionState: AgentExecutionState.SUCCEEDED,
+                  completedAt: new Date(),
+                }
+              : {}),
+          },
         });
         return {
           outcome: O.PASSED,

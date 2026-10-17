@@ -1,8 +1,15 @@
 import { randomUUID } from "node:crypto";
 import {
   claimInventoryOperationSchema,
+  sourceReviewOperationSchema,
+  claimDiscoveryDiagnosticRequestSchema,
+  type SourceReviewOperation,
   type ClaimInventoryOperation,
 } from "@lcsp/contracts/compliance-rule-set";
+import {
+  SourceReviewCommand,
+  StartClaimDiscoveryDiagnosticCommand,
+} from "../../application/commands/source-review/source-review.command.js";
 import { ClaimInventoryCommand } from "../../application/commands/claim-inventory/claim-inventory.command.js";
 
 import {
@@ -50,9 +57,9 @@ const body = (schema: z.ZodTypeAny, includeIssuePaths = false) =>
 
 /**
  * Worker-authenticated rule set boundary: claim, fail, validate, one submit -> activate, and the
- * single runtime reader of the ACTIVE rule set. A preparation is never started here: it is
+ * single runtime reader of the ACTIVE rule set. Full Preparation is never started here: it is
  * started by Legal Source activation or the separate ADMIN action. Transport only: Zod validates the body and
- * each call is one Command/Query.
+ * each call is one Command/Query. Discovery-only sessions are disabled outside explicitly enabled isolated diagnostics.
  */
 @Controller("internal/compliance-rule-set")
 @UseGuards(WorkerApiKeyGuard)
@@ -64,6 +71,36 @@ export class ComplianceRuleSetController {
 
   private correlation(req: AuthenticatedRequest): string {
     return req.correlationId || randomUUID();
+  }
+
+  @Post("source-reviews")
+  @HttpCode(200)
+  async sourceReview(
+    @Body(body(sourceReviewOperationSchema, true))
+    request: SourceReviewOperation,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new SourceReviewCommand(request, this.correlation(req)),
+      ),
+    );
+  }
+
+  @Post("discovery-diagnostics")
+  @HttpCode(200)
+  async discoveryDiagnostic(
+    @Body(body(claimDiscoveryDiagnosticRequestSchema, true))
+    request: z.infer<typeof claimDiscoveryDiagnosticRequestSchema>,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new StartClaimDiscoveryDiagnosticCommand(
+          request.legalSourceVersionId,
+          request.idempotencyKey,
+        ),
+      ),
+    );
   }
 
   @Post("claim-inventories")

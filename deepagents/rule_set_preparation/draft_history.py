@@ -19,7 +19,7 @@ ADD_TOOL = "add_to_packet_draft"
 INCREMENTAL_TOOLS = frozenset({
     "register_semantic_claim", "update_semantic_claim", "remove_semantic_claim", "link_semantic_claims",
     "remove_semantic_relation", "review_source_node", "review_source_reference", "author_legal_requirement",
-    "author_assessment_rule", "remove_rule_candidate", "get_claim_inventory",
+    "author_assessment_rule", "remove_rule_candidate", "get_claim_inventory", "get_next_review_unit", "get_review_progress", "complete_source_review", "reopen_source_review", "expand_review_frontier",
 })
 CHECK_TOOLS = frozenset({"validate_compliance_rule_set", "remove_from_packet_draft",
                          "validate_semantic_claim_inventory"})

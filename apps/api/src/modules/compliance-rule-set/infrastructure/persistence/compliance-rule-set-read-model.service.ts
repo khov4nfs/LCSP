@@ -105,7 +105,19 @@ export class ComplianceRuleSetReadModelLoader {
           }
         : {}),
       ...(active.semanticGraph
-        ? { semanticGraph: readSemanticGraph(active.semanticGraph) }
+        ? {
+            semanticGraph: {
+              ...readSemanticGraph(active.semanticGraph),
+              ...((frozen?.graph as { reviewFrontier?: unknown } | undefined)
+                ?.reviewFrontier
+                ? {
+                    reviewFrontier: (
+                      frozen.graph as { reviewFrontier: unknown }
+                    ).reviewFrontier,
+                  }
+                : {}),
+            },
+          }
         : {}),
       ruleSetVersionId: active.id,
       version: active.version,

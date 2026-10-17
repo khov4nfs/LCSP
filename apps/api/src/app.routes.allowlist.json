@@ -120,6 +120,8 @@
   "POST /internal/assessment-runtime/agent-stream-events",
   "POST /internal/billing/usage",
   "POST /internal/compliance-rule-set/claim-inventories",
+  "POST /internal/compliance-rule-set/source-reviews",
+  "POST /internal/compliance-rule-set/discovery-diagnostics",
   "POST /internal/compliance-rule-set/claims",
   "POST /internal/compliance-rule-set/failures",
   "POST /internal/compliance-rule-set/submissions",

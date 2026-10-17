@@ -59,7 +59,7 @@ class PreparationObservationMiddleware(AgentMiddleware):
 
     def _observe(self, request, result):
         call = getattr(request, "tool_call", None)
-        if not isinstance(call, dict) or call.get("name") not in {*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "get_claim_inventory"}:
+        if not isinstance(call, dict) or call.get("name") not in {*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "get_claim_inventory", "get_next_review_unit", "get_review_progress", "complete_source_review"}:
             return result
         if not isinstance(result, ToolMessage):
             return result
@@ -166,7 +166,7 @@ class PreparationCompletionMiddleware(AgentMiddleware):
 
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
-        if self.context.submission is not None or self.context.source_blocked is not None:
+        if (self.context.discovery_only and self.context.inventory and self.context.inventory.phase == "CLAIM_INVENTORY_READY") or self.context.submission is not None or self.context.source_blocked is not None:
             return {"jump_to": "end"}
         return None
 
@@ -176,7 +176,7 @@ class PreparationCompletionMiddleware(AgentMiddleware):
         if not isinstance(response, AIMessage) or response.tool_calls:
             return None
         context = self.context
-        if context.submission is not None or context.source_blocked is not None:
+        if (context.discovery_only and context.inventory and context.inventory.phase == "CLAIM_INVENTORY_READY") or context.submission is not None or context.source_blocked is not None:
             return None
         outcome = (context.last_validation or {}).get("outcome")
         context.trace.append({
@@ -194,6 +194,8 @@ class PreparationCompletionMiddleware(AgentMiddleware):
                     stop_reason=metadata.get("stop_reason") or metadata.get("finish_reason"),
                     output_tokens=(response.usage_metadata or {}).get("output_tokens"),
                     text_chars=len(text), text_head=" ".join(text.split())[:300])
+        if context.discovery_only:
+            return {"messages": [HumanMessage(content="Continue the SAME discovery session. Call get_next_review_unit, interpret and complete its typed disposition, and repeat until the runtime reports discoveryCompleteEligible=true. Then finalize_semantic_claim_inventory and STOP at CLAIM_INVENTORY_READY. No Rule authoring, validation or submission is authorized.")], "jump_to": "model"}
         return {
             "messages": [HumanMessage(content=(
                 "Preparation is not finished. Continue the same pinned-source work and preserve "
@@ -273,6 +275,10 @@ def create_rule_set_preparation_agent(
 
         model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
 
+    if context.discovery_only:
+        instructions = INSTRUCTIONS + "\nDISCOVERY-ONLY DIAGNOSTIC: Follow the review frontier until it is empty, finalize the claim inventory, then STOP at CLAIM_INVENTORY_READY. No Requirements, AssessmentRules, Rule validation or submission are authorized.\n"
+    else:
+        instructions = INSTRUCTIONS
     backend = FilesystemBackend(root_dir=legal_source_root, virtual_mode=True)
     observation_middleware = PreparationObservationMiddleware(context)
     read_only = FilesystemMiddleware(
@@ -289,7 +295,7 @@ def create_rule_set_preparation_agent(
             name="lcsp-rule-set-preparation",
             model=model,
             backend=backend,
-            system_prompt=INSTRUCTIONS,
+            system_prompt=instructions,
             tools=[*build_rule_set_tools(context), *(build_source_graph_tools(context.source_graph) if context.source_graph else [])],
             middleware=[
                 read_only,
