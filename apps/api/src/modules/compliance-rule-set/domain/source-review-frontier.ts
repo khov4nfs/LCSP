@@ -6,6 +6,7 @@ import type {
 import { SOURCE_REVIEW_STATES as S } from "@lcsp/contracts/legal-source";
 import { LEGAL_STRUCTURE_HEADINGS } from "../../legal-source/domain/document-structure.config.js";
 import { inventoryHash } from "./claim-inventory.js";
+import { materialReferenceAccounting } from "./semantic-reference-binding.js";
 
 /** Structural headings remain ancestor context; no legal meaning is inferred from source words. */
 export function sourceReviewUnits(
@@ -187,7 +188,23 @@ export function normalizeReviewPayload(
     relations: [...payload.relations].sort((a, b) =>
       a.relationId.localeCompare(b.relationId),
     ),
-    referenceAccounting: payload.referenceAccounting
+    referenceAccounting: [
+      ...payload.referenceAccounting.filter((r) => !r.material),
+      ...[
+        ...new Set(
+          payload.relations.flatMap((r) =>
+            r.referenceId ? [r.referenceId] : [],
+          ),
+        ),
+      ]
+        .filter(
+          (id) =>
+            !payload.referenceAccounting.some(
+              (r) => r.referenceId === id && !r.material,
+            ),
+        )
+        .map((id) => materialReferenceAccounting(id, payload.relations)!),
+    ]
       .map((r) => ({ ...r, relationIds: [...r.relationIds].sort() }))
       .sort((a, b) => a.referenceId.localeCompare(b.referenceId)),
   };

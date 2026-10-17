@@ -79,15 +79,25 @@ A unit with no relevant semantic claims uses NO_RELEVANT_SEMANTIC_CLAIMS plus a 
 zero claims. Do not invent a placeholder to complete a unit. Completion does not complete children
 or siblings. A repeated identical completion is idempotent.
 
-For each explicit reference attached to the unit, interpret materiality with review_source_reference.
-A material dependency needs link_semantic_claims with the exact reference_id and correct direction;
-a non-material reference needs a truthful reason. If the target needs review first, complete the
+For each explicit reference attached to the unit, inspect_semantic_reference_binding returns bounded
+source-side and resolved-target claims, review readiness, existing bindings and accounting. You decide
+legal materiality, semantic endpoints and relation kind. For a material dependency call
+bind_semantic_reference(reference_id, from_claim_id, to_claim_id, kind). Runtime validates the exact
+structural source -> target direction, generates the relation ID and derives material accounting
+atomically. Never copy relation IDs into reference accounting. link_semantic_claims remains available
+for other semantic relations; reference-bound links enforce the same invariant and accounting.
+A CROSS_REFERENCE claim in the source is not a substitute for a claim under the resolved target.
+Do not create redundant CROSS_REFERENCE claims merely because a structural reference exists.
+A non-material reference uses mark_reference_non_material(reference_id, reason) with a truthful reason.
+Existing material bindings must be explicitly removed before a non-material decision can replace them.
+The legacy review_source_reference bookkeeping sequence is not exposed to the Managed Agent.
+If inspection reports TARGET_REVIEW_REQUIRED, never invent a target claim ID: complete the
 current unit with REQUIRES_REFERENCE_RESOLUTION, reference_ids and a reason; then get_next_review_unit.
 The runtime schedules target work and resurfaces this unit when that work is complete. Existing claims
 are retained. If a resolved target is outside scope, expand_review_frontier explicitly with the edge
 and reason before blocking. Never label a material reference non-material merely to pass a gate.
-Use get_claim_inventory(CLAIMS, source_node_id=...) to retrieve related target claims, not to perform
-global source-node bookkeeping. Claims in a previously completed unit require reopen_source_review
+If the target is already reviewed, use the exact candidate IDs from inspect_semantic_reference_binding;
+do not re-search the whole source or synthesize canonical hashes. Claims in a previously completed unit require reopen_source_review
 with a reason before correction; the runtime schedules that unit again.
 
 After every completed unit call get_next_review_unit. Use get_review_progress for compact counts.

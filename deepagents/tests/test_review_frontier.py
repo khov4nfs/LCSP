@@ -150,7 +150,7 @@ def test_native_managed_agent_stops_at_inventory_ready_without_rule_tools(tmp_pa
         step("get_next_review_unit")
         if node["label"]=="2":step("register_semantic_claim",identity_key="receipt-duty",claim_type="DUTY",statement="The service must retain transfer receipts",actor="The service",action="retain transfer receipts")
         for ref in seed["documentGraph"]["references"]:
-            if ref["fromNodeId"]==node["nodeId"]:step("review_source_reference",reference_id=ref["referenceId"],material=False,relation_ids=[],non_material_reason="No operative claim in this scripted diagnostic relies on this edge")
+            if ref["fromNodeId"]==node["nodeId"]:step("mark_reference_non_material",reference_id=ref["referenceId"],reason="No operative claim in this scripted diagnostic relies on this edge")
         step("complete_source_review",disposition="CLAIMS_AUTHORED" if node["label"]=="2" else "NO_RELEVANT_SEMANTIC_CLAIMS",**({} if node["label"]=="2" else {"reason":"This scripted diagnostic has no claim for this unit"}))
     step("finalize_semantic_claim_inventory")
     model=RuleSetPreparationScriptedModel(responses=actions)
@@ -171,7 +171,7 @@ def test_already_reviewed_reference_cannot_create_unwakeable_block():
     work=call(tools,"get_next_review_unit")
     ref=next(r for r in work["unit"]["references"] if r["toNodeId"] in ctx.draft["sourceAccounting"])
     result=call(tools,"complete_source_review",disposition="REQUIRES_REFERENCE_RESOLUTION",reason="Target inspection requested",reference_ids=[ref["referenceId"]])
-    assert result["outcome"]=="FAILED" and result["requiredAction"]=="get_claim_inventory"
+    assert result["outcome"]=="FAILED" and result["requiredAction"]=="inspect_semantic_reference_binding"
     assert ctx.inventory.frontier.snapshot["progress"]["blocked"]==0
 
 
@@ -203,3 +203,97 @@ def test_cosmetic_review_reopen_cannot_reset_phase_no_progress():
     result=call(tools,"complete_source_review",disposition="NO_RELEVANT_SEMANTIC_CLAIMS",reason="Different words describe the same empty semantic scope")
     assert result["frontierStateFingerprint"]==previous
     with pytest.raises(NoProgressDetected):call(tools,"validate_semantic_claim_inventory")
+
+
+def test_exact_retained_six_completed_reopen_once_repair_restore_and_freeze():
+    from review_frontier_harness import bridge
+    from test_semantic_reference_binding import FIXTURE, REFERENCE, SOURCE, SCOPE, DEFINITION
+    seed = bridge({"action": "SEED_RETAINED"})
+    scope, definition = seed["claimIds"][SCOPE], seed["claimIds"][DEFINITION]
+    ctx = RuleSetPreparationContext(seed["preparationRunId"], DatabaseFrontierApi(),
+        source_graph=PinnedSourceGraph(seed["documentGraph"], []), discovery_only=True)
+    tools = {t.name: t for t in build_rule_set_tools(ctx)}
+    progress = call(tools, "get_review_progress")
+    assert progress["progress"]["reviewedWithClaims"] == 6
+    invalid = call(tools, "validate_semantic_claim_inventory")
+    assert "SEMANTIC_DEPENDENCY_DETACHED" in invalid["gaps"]
+    assert call(tools, "reopen_source_review", source_node_id=SOURCE, reason="Repair the retained wrong structural target")["outcome"] == "PASSED"
+    assert call(tools, "get_next_review_unit")["unit"]["sourceNodeId"] == SOURCE
+    inspected = call(tools, "inspect_semantic_reference_binding", reference_id=REFERENCE)
+    assert inspected["targetReviewReady"]
+    assert [c["claimId"] for c in inspected["targetClaims"]] == [definition]
+    bad = FIXTURE["reviews"][3]["payload"]["relations"][0]
+    assert call(tools, "remove_semantic_relation", relation_id=seed["relationIds"][bad["relationId"]], reason="This source-side cross-reference claim is not the resolved target")["outcome"] == "PASSED"
+    args = dict(reference_id=REFERENCE, from_claim_id=scope, to_claim_id=definition, kind="DEFINITION")
+    bound = call(tools, "bind_semantic_reference", **args)
+    assert bound["outcome"] == "PASSED", bound
+    assert call(tools, "bind_semantic_reference", **args) == bound
+    completed = call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")
+    assert completed["outcome"] == "PASSED", completed
+    assert call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")["alreadyCompleted"]
+    assert all(completed["progress"][k] == 0 for k in ["pending", "blocked", "inReview"])
+    restarted = RuleSetPreparationContext(ctx.run_id, ctx.api, source_graph=ctx.source_graph, discovery_only=True)
+    resumed = {t.name: t for t in build_rule_set_tools(restarted)}
+    assert call(resumed, "get_review_progress")["progress"]["discoveryCompleteEligible"]
+    rid = bound["relation"]["relationId"]
+    assert restarted.inventory.frontier.relation_owners[rid] == SOURCE
+    assert scope in restarted.inventory.identities and definition in restarted.inventory.identities
+    assert restarted.draft["referenceAccounting"][REFERENCE]["relationIds"] == [rid]
+    assert len(restarted.draft["claimRelations"]) == 1
+    ready = call(resumed, "finalize_semantic_claim_inventory")
+    assert ready["outcome"] == "PASSED", ready
+    assert restarted.inventory.phase == "CLAIM_INVENTORY_READY"
+    assert len(restarted.inventory.identities) == sum(len(r["payload"]["claims"]) for r in FIXTURE["reviews"])
+
+
+@pytest.mark.parametrize("target_descendant", [False, True])
+def test_target_scheduling_inspection_atomic_binding_and_native_managed_inventory_ready(tmp_path, monkeypatch, target_descendant):
+    from langchain_core.messages import AIMessage
+    from middleware import usage_metering
+    from rule_set_preparation.agent import create_rule_set_preparation_agent
+    from rule_set_preparation.claim_inventory import claim_id
+    from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
+    seed, ctx, _ = runtime(small=True, target_descendant=target_descendant)
+    nodes = sorted([n for n in seed["documentGraph"]["nodes"] if n["nodeType"] == "ARTICLE"], key=lambda n: int(n["label"]))
+    ref = next(r for r in seed["documentGraph"]["references"] if r["toNodeId"] == nodes[5]["nodeId"])
+    target_unit = next(n for n in seed["reviewUnits"] if n["nodeId"] == ref["toNodeId"] or n["parentNodeId"] == ref["toNodeId"])
+    if target_descendant: assert target_unit["parentNodeId"] == ref["toNodeId"]
+    actions = []
+    def step(name, **args): actions.append(AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": "binding-" + str(len(actions))}]))
+    def finish(node):
+        if node["nodeId"] == target_unit["nodeId"]:
+            step("register_semantic_claim", identity_key="transfer-definition", claim_type="DEFINITION", statement="A record transfer means delivery of a record by a participating service to another participating service.")
+            step("complete_source_review", disposition="CONTEXT_ONLY")
+        else: step("complete_source_review", disposition="NO_RELEVANT_SEMANTIC_CLAIMS", reason="No claim in this scripted scope")
+    for node in seed["reviewUnits"]:
+        step("get_next_review_unit")
+        if node["nodeId"] == ref["fromNodeId"]:
+            step("register_semantic_claim", identity_key="transfer-scope", claim_type="SCOPE", statement="The duty applies to record transfers as defined in Article 6.")
+            for other in seed["documentGraph"]["references"]:
+                if other["referenceId"] != ref["referenceId"]:
+                    step("mark_reference_non_material", reference_id=other["referenceId"], reason="No additional semantic dependency in this scripted scope")
+            step("inspect_semantic_reference_binding", reference_id=ref["referenceId"])
+            step("complete_source_review", disposition="REQUIRES_REFERENCE_RESOLUTION", reference_ids=[ref["referenceId"]], reason="Review the referenced definition before binding")
+        else: finish(node)
+    step("get_next_review_unit")
+    step("inspect_semantic_reference_binding", reference_id=ref["referenceId"])
+    step("bind_semantic_reference", reference_id=ref["referenceId"],
+        from_claim_id=claim_id(ctx.run_id, 1, [nodes[3]["nodeId"]], "transfer-scope"),
+        to_claim_id=claim_id(ctx.run_id, 1, [target_unit["nodeId"]], "transfer-definition"), kind="DEFINITION")
+    step("complete_source_review", disposition="CLAIMS_AUTHORED")
+    step("finalize_semantic_claim_inventory")
+    model = RuleSetPreparationScriptedModel(responses=actions)
+    original = usage_metering.assert_model_identity
+    monkeypatch.setattr(usage_metering, "assert_model_identity", lambda m, response=None: None if isinstance(m, RuleSetPreparationScriptedModel) else original(m, response))
+    graph = create_rule_set_preparation_agent(context=ctx, legal_source_root=tmp_path, model=model)
+    result = graph.invoke({"messages": [{"role": "user", "content": "Review the target definition, bind the material reference atomically, complete all work and freeze the inventory."}]})
+    inspections = [json.loads(m.content) for m in result["messages"] if getattr(m, "name", None) == "inspect_semantic_reference_binding"]
+    assert inspections[0]["targetReviewReady"] is False
+    assert inspections[0]["targetReviewState"] == "TARGET_REVIEW_REQUIRED"
+    assert inspections[1]["targetReviewReady"] is True
+    assert inspections[1]["targetClaims"][0]["sourceNodeIds"] == [target_unit["nodeId"]]
+    assert ctx.inventory.phase == "CLAIM_INVENTORY_READY"
+    assert len(ctx.inventory.frozen["relations"]) == 1
+    bound_tools = {name for names in model.bound_tool_names for name in names}
+    assert "bind_semantic_reference" in bound_tools and "review_source_reference" not in bound_tools
+    assert ctx.submission is None

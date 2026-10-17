@@ -43,8 +43,8 @@ class DatabaseFrontierApi:
     def submit_compliance_rule_set(self,*args):
         raise AssertionError("Discovery-only harness cannot submit")
 
-def runtime(small=False):
-    seed=bridge({"action":"SEED","small":small});graph=seed["documentGraph"]
+def runtime(small=False, target_descendant=False):
+    seed=bridge({"action":"SEED","small":small,"targetDescendant":target_descendant});graph=seed["documentGraph"]
     chunks=[{**c,"chunkId":c["id"]} for c in seed["chunks"]]
     ctx=RuleSetPreparationContext(seed["preparationRunId"],DatabaseFrontierApi(),source_graph=PinnedSourceGraph(graph,chunks),discovery_only=True)
     tools={tool.name:tool for tool in build_rule_set_tools(ctx)}

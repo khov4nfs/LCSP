@@ -296,7 +296,7 @@ def create_rule_set_preparation_agent(
             model=model,
             backend=backend,
             system_prompt=instructions,
-            tools=[*build_rule_set_tools(context), *(build_source_graph_tools(context.source_graph) if context.source_graph else [])],
+            tools=[*[t for t in build_rule_set_tools(context) if t.name != "review_source_reference"], *(build_source_graph_tools(context.source_graph) if context.source_graph else [])],
             middleware=[
                 read_only,
                 observation_middleware,

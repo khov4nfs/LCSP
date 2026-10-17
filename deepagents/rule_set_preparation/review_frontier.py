@@ -57,6 +57,8 @@ class ReviewFrontier:
             if result["nextOffset"] is None: break
             offset=result["nextOffset"]
         self.inventory.rebuild_node_index()
+        from rule_set_preparation.reference_binding import project_reference_accounting
+        project_reference_accounting(self.context)
         self.loaded=True
         return None
 
@@ -96,6 +98,8 @@ class ReviewFrontier:
             for review in payload["referenceAccounting"]:
                 self.context.draft["referenceAccounting"][review["referenceId"]] = review
             self.inventory.rebuild_node_index()
+            from rule_set_preparation.reference_binding import project_reference_accounting
+            project_reference_accounting(self.context)
             # The model gets one bounded unit, never the scheduler's global item list.
             result["unit"] = {k: unit[k] for k in ["sourceNodeId", "node", "structuralPath", "ancestors", "references", "moreReferences", "contentLength", "contentTruncated"]}
             result["unit"]["existingClaims"] = self.owned_claims()[:12]
@@ -140,6 +144,12 @@ class ReviewFrontier:
                 "detail": "Review omitted claims already authored in this unit"}], "requiredAction": "complete_source_review",
                 "expectedClaimIds": expected, "missingClaimIds": missing})
         references = set(self.active["referenceIds"])
+        from rule_set_preparation.reference_binding import valid_binding, project_reference_accounting
+        for rid, relation in self.context.draft["claimRelations"].items():
+            if self.relation_owners.get(rid) == node_id and relation.get("referenceId") and not valid_binding(self.context.source_graph, self.context.draft["semanticClaims"], relation):
+                return {**self.inventory.rejected("SEMANTIC_DEPENDENCY_DETACHED", relation["referenceId"], "Remove this legacy invalid binding and inspect the resolved target before rebinding"),
+                        "referenceId": relation["referenceId"], "relationId": rid, "requiredAction": "inspect_semantic_reference_binding"}
+        project_reference_accounting(self.context)
         payload = {"claims": owned, "identities": {cid: self.inventory.identities[cid] for cid in expected},
                    "relations": [r for rid, r in self.context.draft["claimRelations"].items() if self.relation_owners.get(rid) == node_id],
                    "referenceAccounting": [r for rid, r in self.context.draft["referenceAccounting"].items() if rid in references]}

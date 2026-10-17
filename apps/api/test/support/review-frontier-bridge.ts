@@ -27,6 +27,8 @@ import {
   fixtureLegalSource,
   validPacket,
 } from "./compliance-rule-set-fixtures.js";
+import { seedRetainedReferenceBinding } from "./seed-retained-reference-binding.js";
+import { sourceReviewUnits } from "../../src/modules/compliance-rule-set/domain/source-review-frontier.js";
 
 const url = process.env.DATABASE_URL ?? "";
 if (
@@ -35,13 +37,20 @@ if (
   )
 )
   throw new Error("Exact task-owned frontier test database required");
-type BridgeInput = { action: string; request: unknown; small?: boolean };
+type BridgeInput = {
+  action: string;
+  request: unknown;
+  small?: boolean;
+  targetDescendant?: boolean;
+};
 const db = new PrismaClient({ adapter: new PrismaPg(url) });
 const service = db as PrismaService;
 const graphs = new LegalDocumentGraphService(service);
 async function invoke(input: BridgeInput) {
   let result: unknown;
-  if (input.action === "SEED") {
+  if (input.action === "SEED_RETAINED") {
+    result = await seedRetainedReferenceBinding(db);
+  } else if (input.action === "SEED") {
     let source: { id: string };
     if (input.small) {
       const content = JSON.parse(
@@ -53,6 +62,11 @@ async function invoke(input: BridgeInput) {
           "utf8",
         ),
       ) as { title: string; articles: string[] };
+      if (input.targetDescendant)
+        content.articles[5] = content.articles[5].replace(
+          "\nA record",
+          "\nParagraph 2. A record",
+        );
       const hash = (s: string) => createHash("sha256").update(s).digest("hex");
       source = await db.legalSourceVersion.create({
         data: {
@@ -72,6 +86,15 @@ async function invoke(input: BridgeInput) {
           sourceUrl: "https://example.invalid/lcsp360/synthetic-discovery",
           sourceSha256: hash(content.articles.join("\n\n")),
           sourceEffectStatus: "IN_FORCE",
+          ...(input.targetDescendant
+            ? {
+                snapshotPath: "synthetic-descendant.txt",
+                extraction: {
+                  pages: [content.articles.join("\n\n")],
+                  pageCount: 1,
+                },
+              }
+            : {}),
         },
       });
       await db.legalDocumentChunk.createMany({
@@ -138,7 +161,12 @@ async function invoke(input: BridgeInput) {
           targets.get(paths.get(id)!)!,
         );
       }
-    result = { ...started, source: snapshot, packet };
+    result = {
+      ...started,
+      source: snapshot,
+      packet,
+      reviewUnits: sourceReviewUnits(snapshot.documentGraph!),
+    };
   } else if (input.action === "REVIEW") {
     result = await new SourceReviewHandler(service, graphs).execute(
       new SourceReviewCommand(

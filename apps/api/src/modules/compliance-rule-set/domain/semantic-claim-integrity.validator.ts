@@ -22,6 +22,10 @@ import {
   reviewReferenceOwners,
 } from "./source-review-frontier.js";
 import { createHash } from "node:crypto";
+import {
+  semanticReferenceBindings,
+  materialReferenceAccounting,
+} from "./semantic-reference-binding.js";
 
 const normative = new Set<string>([C.DUTY, C.PROHIBITION, C.PERMISSION]);
 const allowedRoles: Record<string, readonly string[]> = {
@@ -114,17 +118,12 @@ export function validateSemanticClaimGraph(
   const chunksByRef = new Map(
     source.chunks.map((c) => [`${c.documentId}::${c.locator}`, c]),
   );
-  const within = (nodeId: string, ancestorId: string) => {
-    const node = nodes.get(nodeId),
-      ancestor = nodes.get(ancestorId);
-    return Boolean(
-      node &&
-      ancestor &&
-      node.documentId === ancestor.documentId &&
-      (node.nodeId === ancestor.nodeId ||
-        node.structuralPath.startsWith(ancestor.structuralPath + "/")),
-    );
-  };
+  const binding = semanticReferenceBindings(
+    graph,
+    semantic.legalSourceVersionId,
+    semantic.materializationId,
+  );
+  const { within } = binding;
   if (
     nodes.size !== graph.nodes.length ||
     graph.chunkMappings.length !== source.chunks.length ||
@@ -439,6 +438,10 @@ export function validateSemanticClaimGraph(
     requirementDependencies.set(key, targets);
   }
   for (const relation of semantic.relations) {
+    if (relation.referenceId) {
+      const detached = binding.failure(relation, claims);
+      if (detached) failures.push(detached);
+    }
     const from = claims.get(relation.fromClaimId),
       to = claims.get(relation.toClaimId);
     const ref = `claimRelation:${relation.relationId}`;
@@ -464,21 +467,6 @@ export function validateSemanticClaimGraph(
           F.SEMANTIC_DEPENDENCY_DETACHED,
           ref,
           "Claim dependency must retain its kind and direction within the origin Requirement or a linked Requirement dependency",
-        );
-    }
-    if (relation.referenceId) {
-      const reference = referenceById.get(relation.referenceId);
-      if (
-        !reference ||
-        reference.resolutionState !== R.RESOLVED ||
-        !from.sourceNodeIds.some((id) => within(reference.fromNodeId, id)) ||
-        !reference.toNodeId ||
-        !to.sourceNodeIds.some((id) => within(id, reference.toNodeId!))
-      )
-        fail(
-          F.SEMANTIC_DEPENDENCY_DETACHED,
-          ref,
-          "Semantic reference dependency must retain the structural reference direction and resolved target",
         );
     }
   }
@@ -507,8 +495,16 @@ export function validateSemanticClaimGraph(
     )
       continue;
     const accounting = referenceAccounting.get(reference.referenceId);
+    const projected = materialReferenceAccounting(
+      reference.referenceId,
+      semantic.relations,
+    );
     if (
       !accounting ||
+      (projected !== null &&
+        (!accounting.material ||
+          accounting.nonMaterialReason !== null ||
+          !same([...accounting.relationIds].sort(), projected.relationIds))) ||
       (accounting.material
         ? accounting.nonMaterialReason !== null ||
           accounting.relationIds.length === 0 ||

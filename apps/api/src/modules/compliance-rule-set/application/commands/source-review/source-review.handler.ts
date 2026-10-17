@@ -38,6 +38,7 @@ import {
   zeroReviewAccumulator,
   normalizeReviewPayload,
 } from "../../../domain/source-review-frontier.js";
+import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
 import {
   SourceReviewCommand,
   StartClaimDiscoveryDiagnosticCommand,
@@ -473,6 +474,70 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             ...extra,
           };
         };
+        if (input.action === A.PROGRESS && input.referenceIds?.length) {
+          if (input.referenceIds.length > 20)
+            return failed(
+              G.REFERENCE,
+              "referenceIds",
+              "Inspect at most twenty structural references at once",
+            );
+          const references = await tx.legalDocumentReference.findMany({
+            where: {
+              materializationId: frontier.materializationId,
+              legalSourceVersionId: run.legalSourceVersionId,
+              referenceId: { in: input.referenceIds },
+            },
+          });
+          const targets: {
+            referenceId: string;
+            targetNodeId: string | null;
+            inScope: boolean;
+            reviewReady: boolean;
+            pending: number;
+          }[] = [];
+          for (const ref of references) {
+            const node = ref.toNodeId
+              ? await tx.legalDocumentNode.findUnique({
+                  where: {
+                    nodeId_materializationId: {
+                      nodeId: ref.toNodeId,
+                      materializationId: frontier.materializationId,
+                    },
+                  },
+                })
+              : null;
+            const items = node
+              ? await tx.ruleSetPreparationSourceReview.findMany({
+                  where: {
+                    ...key,
+                    OR: [
+                      { sourceNodeId: node.nodeId },
+                      {
+                        structuralPath: {
+                          startsWith: node.structuralPath + "/",
+                        },
+                      },
+                    ],
+                  },
+                  select: { state: true },
+                })
+              : [];
+            targets.push({
+              referenceId: ref.referenceId,
+              targetNodeId: ref.toNodeId,
+              inScope: items.length > 0,
+              reviewReady:
+                items.length > 0 &&
+                items.every((item) =>
+                  completedReviewStates.includes(item.state as never),
+                ),
+              pending: items.filter(
+                (item) => !completedReviewStates.includes(item.state as never),
+              ).length,
+            });
+          }
+          return reply({ referenceTargets: targets });
+        }
         if (input.action === A.INIT || input.action === A.PROGRESS)
           return reply();
         if (input.action === A.LOAD) {
@@ -509,6 +574,50 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               },
             })
           : null;
+        if (
+          input.action === A.COMPLETE &&
+          input.payload?.relations.some((r) => r.referenceId)
+        ) {
+          const graph = await this.graph.export(run.legalSourceVersionId);
+          if (!graph || graph.materializationId !== frontier.materializationId)
+            return failed(
+              G.STALE,
+              "sourceRevision",
+              "Reload the pinned structural materialization",
+            );
+          const ids = [
+            ...new Set(
+              input.payload.relations.flatMap((r) => [
+                r.fromClaimId,
+                r.toClaimId,
+              ]),
+            ),
+          ];
+          const rows = await tx.ruleSetPreparationSourceReview.findMany({
+            where: {
+              ...key,
+              state: { in: completedReviewStates },
+              claimIds: { hasSome: ids },
+            },
+          });
+          const claims = new Map(
+            [
+              ...rows.flatMap((row) => reviewPayload(row).claims),
+              ...input.payload.claims,
+            ].map((c) => [c.claimId, c]),
+          );
+          const binding = semanticReferenceBindings(
+            graph,
+            run.legalSourceVersionId,
+            frontier.materializationId,
+          );
+          for (const relation of input.payload.relations) {
+            if (!relation.referenceId) continue;
+            const detached = binding.failure(relation, claims);
+            if (detached)
+              return { outcome: O.FAILED, failures: [detached], ...detached };
+          }
+        }
         if (
           existing &&
           input.action === A.COMPLETE &&
@@ -1113,7 +1222,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             G.REFERENCE,
             existing.sourceNodeId,
             "Referenced review work is already complete; inspect the target claims and account for the reference instead of blocking",
-            "get_claim_inventory",
+            "inspect_semantic_reference_binding",
           );
         for (const ref of refs) {
           const accounting = payload.referenceAccounting.find(
@@ -1123,6 +1232,10 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             continue;
           if (
             !accounting ||
+            (!accounting.material &&
+              payload.relations.some(
+                (r) => r.referenceId === ref.referenceId,
+              )) ||
             (accounting.material &&
               (ref.resolutionState !== R.RESOLVED ||
                 !accounting.relationIds.length ||

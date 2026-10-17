@@ -5,7 +5,9 @@ import {
   reviewItemStateFingerprint,
   xorReviewHash,
   zeroReviewAccumulator,
+  normalizeReviewPayload,
 } from "./source-review-frontier.js";
+import { retainedBindingCase } from "../../../../test/support/retained-reference-binding-fixture.js";
 import { buildLegalDocumentGraph } from "../../legal-source/domain/document-graph.js";
 import { SOURCE_REVIEW_STATES as S } from "@lcsp/contracts/legal-source";
 import { inventoryHash } from "./claim-inventory.js";
@@ -30,6 +32,29 @@ const graph = buildLegalDocumentGraph("00000000-0000-4000-8000-000000000001", [
   },
 ]);
 describe("Deterministic body review units", () => {
+  it("derives all material relation IDs and drops stale material accounting after removal", () => {
+    const { fixture, good } = retainedBindingCase();
+    const payload = fixture.reviews.find(
+      (r) => r.payload.relations.length,
+    )!.payload;
+    payload.relations = [
+      good,
+      { ...good, relationId: "second-canonical-binding" },
+    ];
+    payload.referenceAccounting = [];
+    const projected = normalizeReviewPayload(payload);
+    expect(projected.referenceAccounting[0].relationIds).toEqual(
+      [good.relationId, "second-canonical-binding"].sort(),
+    );
+    expect(
+      normalizeReviewPayload({ ...projected, relations: [good] })
+        .referenceAccounting[0].relationIds,
+    ).toEqual([good.relationId]);
+    expect(
+      normalizeReviewPayload({ ...projected, relations: [] })
+        .referenceAccounting,
+    ).toEqual([]);
+  });
   it("reproduces the real17-node fixture and removes five heading-only container dispositions", () => {
     expect(graph.nodes).toHaveLength(17);
     const units = sourceReviewUnits(graph);

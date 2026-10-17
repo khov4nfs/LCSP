@@ -250,6 +250,29 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
         const persistentIdentities = Object.fromEntries(
           payloads.flatMap((p) => Object.entries(p.identities)),
         );
+        const { snapshot } = await this.source.load(run.legalSourceVersionId, {
+          legalRequirements: [],
+          assessmentRules: [],
+          contextRelations: [],
+        });
+        // Validate durable evidence before comparing projections, so legacy defects remain repairable.
+        const result = validateClaimInventory(
+          run.id,
+          input.revision,
+          persistentGraph,
+          persistentIdentities,
+          snapshot,
+          run.claimDiscoveryOnly
+            ? new Set(items.map((item) => item.sourceNodeId))
+            : undefined,
+        );
+        if (result.failures.length)
+          return {
+            ...result,
+            outcome: O.FAILED,
+            phase: P.CLAIM_INVENTORY_VALIDATION,
+            revision: input.revision,
+          };
         if (
           inventoryHash(persistentGraph) !== inventoryHash(graph) ||
           inventoryHash(persistentIdentities) !==
@@ -262,21 +285,6 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             ),
             requiredAction: "get_claim_inventory",
           };
-        const { snapshot } = await this.source.load(run.legalSourceVersionId, {
-          legalRequirements: [],
-          assessmentRules: [],
-          contextRelations: [],
-        });
-        const result = validateClaimInventory(
-          run.id,
-          input.revision,
-          graph,
-          input.identities,
-          snapshot,
-          run.claimDiscoveryOnly
-            ? new Set(items.map((item) => item.sourceNodeId))
-            : undefined,
-        );
         if (result.failures.length || input.action === A.VALIDATE)
           return {
             ...result,

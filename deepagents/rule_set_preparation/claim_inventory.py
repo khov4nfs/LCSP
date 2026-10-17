@@ -61,7 +61,7 @@ def grouped_gaps(result: dict, claims: dict | None = None) -> dict:
         group = groups.setdefault(failure["code"], {"count": 0, "examples": []})
         group["count"] += 1
         if len(group["examples"]) < 6:
-            example = {k: failure[k] for k in ("ref", "detail") if k in failure}
+            example = {k: failure[k] for k in ("ref", "detail", "referenceId", "sourceNodeId", "targetNodeId", "suppliedFromClaimId", "suppliedToClaimId", "sourceClaimIds", "targetClaimIds", "requiredAction") if k in failure}
             ref = failure.get("ref")
             claim = (claims or {}).get(ref.removeprefix("claim:")) if isinstance(ref, str) else None
             if claim:
@@ -115,6 +115,8 @@ class ClaimInventory:
             self.context.validated_packet = self.context.last_validation = None
 
     def graph(self) -> dict:
+        from rule_set_preparation.reference_binding import project_reference_accounting
+        project_reference_accounting(self.context)
         return {"contractVersion": "LEGAL_GRAPH_V2", **({"reviewFrontier": self.frontier.binding()} if self.frontier and self.frontier.binding() else {}), **self.context.source_graph.base(),
                 **{v: list(self.context.draft[k].values()) for k, v in GRAPH_SECTIONS.items()}}
 

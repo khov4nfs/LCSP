@@ -17,6 +17,7 @@ from rule_set_preparation.tools import ITEM_ID_KEYS, RuleSetPreparationContext
 
 ADD_TOOL = "add_to_packet_draft"
 INCREMENTAL_TOOLS = frozenset({
+    "inspect_semantic_reference_binding", "bind_semantic_reference", "mark_reference_non_material",
     "register_semantic_claim", "update_semantic_claim", "remove_semantic_claim", "link_semantic_claims",
     "remove_semantic_relation", "review_source_node", "review_source_reference", "author_legal_requirement",
     "author_assessment_rule", "remove_rule_candidate", "get_claim_inventory", "get_next_review_unit", "get_review_progress", "complete_source_review", "reopen_source_review", "expand_review_frontier",
