@@ -1,0 +1,19 @@
+{
+ "postFix": {
+  "requests": 26,
+  "totalViewChars": 1092223,
+  "maxViewChars": 54677,
+  "actualInventoryReads": 5,
+  "rereads": 0,
+  "requirements": 9,
+  "rules": 9,
+  "validatorCalls": 1
+ },
+ "preFix": {
+  "requests": 40,
+  "totalViewChars": 1447219,
+  "maxViewChars": 52112,
+  "actualInventoryReads": 19,
+  "rereads": 14
+ }
+}

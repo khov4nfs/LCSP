@@ -1,0 +1,43 @@
+{
+ "code": "deployed e6b6e2fbb (git archive, unmodified)",
+ "inventory": {
+  "claims": 48,
+  "relevant": 46,
+  "fingerprint": "0270895606077c82ad209e5ee12660741eb404e8b7babb2463af082dd406c06f"
+ },
+ "earlyPage": {
+  "claimsMissingAtFirstAuthoringRequest": [
+   "656289",
+   "74d867",
+   "c1d5c5",
+   "c9b142",
+   "879973",
+   "bad345",
+   "717824"
+  ],
+  "count": 7,
+  "rereadsBeforeFirstRequirement": 3
+ },
+ "readAmplification": {
+  "plannedInventoryReads": 5,
+  "actualInventoryReads": 19,
+  "rereads": 14,
+  "callsByTool": {
+   "start_rule_authoring": 1,
+   "get_claim_inventory": 19,
+   "author_legal_requirement": 9,
+   "author_assessment_rule": 9,
+   "validate_compliance_rule_set": 1,
+   "submit_compliance_rule_set": 1
+  },
+  "converged": true,
+  "maxViewChars": 52112,
+  "requests": 40,
+  "totalViewChars": 1447219
+ },
+ "rejection": {
+  "retryWasCorrected": false,
+  "attempts": 2
+ },
+ "verdict": "REAL_COMPACTED_HISTORY_FAILURE_REPRODUCED = YES (forgotten inventory state, repeated reads, forgotten rejection); this probe does not reproduce the live model's non-termination"
+}
