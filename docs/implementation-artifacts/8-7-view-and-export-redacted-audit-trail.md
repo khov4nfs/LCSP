@@ -1,8 +1,12 @@
+---
+baseline_commit: 247f45fb5ab2487947398fb534aca6fc573cd76c
+---
+
 > **Historical pre-freeze documentation.** This preserves the original V1 planning record; current implementation authority is [the Architecture Freeze](/reports/architecture-freeze-migration-manifest.md).
 
 # Story 8.7: View and Export Redacted Audit Trail
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -29,9 +33,9 @@ As a Manager or authorized auditor, I want to view and export redacted audit eve
 
 ## Tasks / Subtasks
 
-- [ ] Build filtered redacted audit timeline view with RBAC checks and access audit. (AC: 1)
-- [ ] Generate redacted audit export with checksum, filter criteria and version metadata. (AC: 2)
-- [ ] Deny and audit out-of-scope export/view requests without exposing hidden data. (AC: 3)
+- [x] Build filtered redacted audit timeline view with RBAC checks and access audit. (AC: 1)
+- [x] Generate redacted audit export with checksum, filter criteria and version metadata. (AC: 2)
+- [x] Deny and audit out-of-scope export/view requests without exposing hidden data. (AC: 3)
 
 ## Dev Notes
 
@@ -148,20 +152,39 @@ As a Manager or authorized auditor, I want to view and export redacted audit eve
 
 ### Agent Model Used
 
-GPT-5 Codex
+Gemini 3.8 Flash
 
 ### Debug Log References
 
 - Batch `bmad-create-story` run on 2026-07-02T22:01:26+07:00.
 - Source packet: `docs/developer/story-handbook/8-7-view-and-export-redacted-audit-trail.md`.
 - Canonical title/source alignment: `docs/planning-artifacts/epics.md`.
+- Unit tests added: `apps/api/src/modules/audit/infrastructure/storage/audit-export-storage.service.spec.ts`, `apps/api/src/modules/audit/application/queries/get-audit-export-artifact/get-audit-export-artifact.handler.spec.ts`.
+- Verification suites passed: 7 test suites (33 tests) in `@lcsp/api` matching `src/modules/audit`; DeepAgents reporting tests `deepagents/tests/test_reporting/test_audit_export_worker.py` (4 tests); E2E test `apps/api/test/audit-trail.e2e-spec.ts`.
+- Module tasks synced: `MW-aud-001` and `MW-aud-002` marked `DONE`.
 
 ### Completion Notes List
 
 - Converted planning-derived developer packet into official execution artifact for dev cycle.
-- Status set to `ready-for-dev` in `docs/implementation-artifacts/sprint-status.yaml`.
-- Story retains planning authority references and scope guardrails for downstream `dev-story` work.
+- Validated AC1: `AuditController.listAuditEvents` and `ListAuditEventsHandler` provide paginated, filtered audit events (actor, action/event type, date range) with payload redaction via `AuditRedactorService` and RBAC checks (`ADMIN` role required).
+- Validated AC2: `AuditController.exportAuditTrail`, `ExportAuditTrailHandler`, and `GetAuditExportHandler` produce immutable audit export requests with SHA-256 checksum, filter criteria metadata, versioning, audit event emission, and HMAC-signed time-limited download URLs.
+- Validated AC3: Server-side guards reject unauthorized requests and out-of-scope date ranges (> 90 days for timeline queries, > 365 days for export requests) with standard RFC 7807 problem exceptions and audit trail logging.
+- Created unit tests for `AuditExportStorageService` covering token creation, verification, tampering rejection, and expiration.
+- Created unit tests for `GetAuditExportArtifactHandler` covering happy path artifact retrieval and error cases.
+- Reconciled task catalog in `docs/implementation/tasks/README.md`, `docs/implementation/tasks/modules/audit/*`, and local assignment tables.
 
 ### File List
 
+- apps/api/src/modules/audit/infrastructure/storage/audit-export-storage.service.spec.ts
+- apps/api/src/modules/audit/application/queries/get-audit-export-artifact/get-audit-export-artifact.handler.spec.ts
+- docs/implementation/tasks/modules/audit/01-list-audit-events-endpoint.md
+- docs/implementation/tasks/modules/audit/02-export-audit-trail-endpoint.md
+- docs/implementation/tasks/README.md
+- docs/developer/lcsp-local-assignments.md
+- docs/developer/lcsp-local-assignments.csv
+- docs/implementation-artifacts/sprint-status.yaml
 - docs/implementation-artifacts/8-7-view-and-export-redacted-audit-trail.md
+
+### Change Log
+
+- 2026-10-17: Completed Story 8.7 implementation verification across module tasks MW-aud-001 and MW-aud-002, added comprehensive unit tests for audit export storage and artifact retrieval, and updated story status to review.
