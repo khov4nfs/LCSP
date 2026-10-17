@@ -240,8 +240,9 @@ test("AssessmentProvenanceView renders populated provenance with cryptographic c
   assert.match(html, /SOC 2 Type II Assessment/);
   assert.match(html, /Assessment provenance/);
 
-  // Cryptographic integrity verification & checksum
+  // Cryptographic integrity verification & content fingerprint
   assert.match(html, /Provenance integrity cryptographically verified/);
+  assert.match(html, /Canonical content fingerprint/);
   assert.match(html, /abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789/);
 
   // Download provenance button

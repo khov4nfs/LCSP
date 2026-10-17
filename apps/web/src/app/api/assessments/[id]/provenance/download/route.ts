@@ -28,14 +28,33 @@ export async function GET(
     { bearerToken: session.token },
   );
   if (!upstream.ok) return upstreamJson(upstream);
+  const responseHeaders = new Headers();
+  responseHeaders.set(
+    "content-type",
+    upstream.contentType ?? "application/json",
+  );
+  responseHeaders.set(
+    "content-disposition",
+    upstream.contentDisposition ??
+      `attachment; filename="assessment-${id}-provenance.json"`,
+  );
+  responseHeaders.set("cache-control", "private, no-store");
+
+  const etag = upstream.headers?.get("etag");
+  if (etag) {
+    responseHeaders.set("etag", etag);
+  }
+  const checksum = upstream.headers?.get("x-checksum-sha256");
+  if (checksum) {
+    responseHeaders.set("x-checksum-sha256", checksum);
+  }
+  const fingerprint = upstream.headers?.get("x-content-fingerprint-sha256");
+  if (fingerprint) {
+    responseHeaders.set("x-content-fingerprint-sha256", fingerprint);
+  }
+
   return new NextResponse(upstream.body, {
     status: upstream.status,
-    headers: {
-      "content-type": upstream.contentType ?? "application/json",
-      "content-disposition":
-        upstream.contentDisposition ??
-        `attachment; filename="assessment-${id}-provenance.json"`,
-      "cache-control": "private, no-store",
-    },
+    headers: responseHeaders,
   });
 }

@@ -272,6 +272,7 @@ export const viPages = {
       events: "Dòng thời gian sự kiện chính thức",
       artifacts: "Các artifact đã tạo",
       integrityVerified: "Tính toàn vẹn nguồn gốc đã được xác thực mã hóa",
+      contentFingerprint: "Dấu vân tay nội dung chuẩn hoá (SHA-256)",
       checksum: "Mã băm SHA-256",
     },
   },

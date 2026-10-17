@@ -301,6 +301,7 @@ export type PagesMessages = {
       events: string;
       artifacts: string;
       integrityVerified: string;
+      contentFingerprint: string;
       checksum: string;
     };
   };

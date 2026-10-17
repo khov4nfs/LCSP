@@ -96,9 +96,9 @@ export function AssessmentProvenanceView({
         </CardHeader>
         <CardContent className="space-y-2 text-xs">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <span className="font-medium text-muted-foreground">{copy("provenance.checksum")}:</span>
+            <span className="font-medium text-muted-foreground">{copy("provenance.contentFingerprint")}:</span>
             <code className="rounded bg-muted px-2 py-0.5 font-mono text-foreground break-all">
-              {data.checksumSha256}
+              {data.contentFingerprintSha256 ?? data.checksumSha256}
             </code>
           </div>
           <div className="grid grid-cols-1 gap-2 pt-1 text-muted-foreground sm:grid-cols-3">

@@ -275,6 +275,7 @@ export const enPages = {
       events: "Canonical event timeline",
       artifacts: "Generated artifacts",
       integrityVerified: "Provenance integrity cryptographically verified",
+      contentFingerprint: "Canonical content fingerprint (SHA-256)",
       checksum: "SHA-256 Checksum",
     },
   },
