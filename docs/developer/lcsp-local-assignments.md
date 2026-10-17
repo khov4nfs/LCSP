@@ -94,8 +94,8 @@ Local-only assignment plan generated from `docs/implementation/tasks/modules` vi
 
 ### nhibao08 - Rotating contributor across all modules (16)
 
-- `LCSP-62` `MW-aud-001`: List Audit Events Endpoint (audit, Story 8.6, P1, READY_FOR_DEV, support)
-- `LCSP-63` `MW-aud-002`: Export Audit Trail Endpoint (audit, Story 8.7, P1, READY_FOR_DEV, support)
+- `LCSP-62` `MW-aud-001`: List Audit Events Endpoint (audit, Story 8.6, P1, DONE, support)
+- `LCSP-63` `MW-aud-002`: Export Audit Trail Endpoint (audit, Story 8.7, P1, DONE, support)
 - `LCSP-73` `MW-auth-010`: Invite Developer Endpoint (auth-workspace, Story 1.5, P0, READY_FOR_DEV, support)
 - `LCSP-74` `MW-auth-011`: Accept Developer Invitation Endpoint (auth-workspace, Story 1.5, P0, READY_FOR_DEV, support)
 - `LCSP-75` `MW-auth-012`: Revoke Developer Membership Endpoint (auth-workspace, Story 1.5, P0, READY_FOR_DEV, support)
