@@ -550,6 +550,8 @@ class _ModelCallTelemetry:
             "provider_attempts": provider_attempts,
             "credential_attempts": provider_attempts + summary.get("credential_rotations", 0),
             "fallback_used": provider_attempts > 1,
+            "route_ordinal": self._context.get(_active_provider_route_ordinal),
+            "credential_slot_safe_id": self._context.get(_active_credential_slot_safe_id),
         }
 
     def start(self) -> None:

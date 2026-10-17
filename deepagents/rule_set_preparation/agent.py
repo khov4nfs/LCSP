@@ -32,6 +32,7 @@ from orchestration.graph_execution import agent_graph_config
 from tools.common.capabilities.platform.logging import get_logger
 
 from deepagents import GeneralPurposeSubagentProfile, HarnessProfile, create_deep_agent
+from rule_set_preparation.authoring_recorder import AuthoringToolCallRecorder
 from rule_set_preparation.draft_history import DraftHistoryMiddleware
 from rule_set_preparation.legal_source_files import LEGAL_SOURCE_ROOT
 from rule_set_preparation.legal_source_reader import legal_source_reader_subagent
@@ -307,6 +308,8 @@ def create_rule_set_preparation_agent(
                 ),
                 AgentRoleMiddleware(RULE_SET_PREPARATION_ROLE),
                 *MODEL_GOVERNANCE_MIDDLEWARE,
+                # Innermost: sees the raw model response and tool result before governance can raise on them.
+                AuthoringToolCallRecorder(context),
             ],
             subagents=[
                 legal_source_reader_subagent(

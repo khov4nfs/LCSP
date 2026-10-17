@@ -35,7 +35,7 @@ PLAN48 = [
 ]
 
 
-class ProbeFinished(RuntimeError):
+class ProbeFinished(BaseException):
     """The probe has nothing left to do; raising ends the run, because a tool-free reply would make the middleware loop forever."""
 
 

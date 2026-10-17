@@ -139,9 +139,14 @@ to bypass a claim gap by changing/discarding claims in a Rule packet.
 
 Your tool history is trimmed to keep the context small, so do not rely on remembering earlier reads. From the freeze
 on, every request ends with a runtime-generated RULE AUTHORING STATE message. It is authoritative: the frozen revision,
-claim counts by accounting role, what you have authored, any OUTSTANDING PROBLEM, and an index of claimId + summary for
-every applicability-bearing claim and every claim not yet bound. Select claims by the exact IDs listed there. An
-outstanding problem stays listed until a corrected call succeeds, so apply its requiredAction before anything else.
+claim counts by accounting role, your Requirements with the exact legalRequirementId of each and whether it still NEEDS an
+AssessmentRule, any OUTSTANDING AUTHORING REJECTION, and an index of claimId + summary for every applicability-bearing claim
+and every claim not yet bound. Select claims by the exact IDs listed there. An outstanding rejection stays listed until a
+corrected call succeeds, so read its invalid fields, expected values and repair, apply its requiredAction, and resend. A
+rejection means the tool did NOT change your draft. Fix exactly what it names; do not resend the same call, and do not
+invent tool names (a call to a tool that does not exist, or arguments that are not valid JSON, is also rejected and listed
+there). author_assessment_rule takes the exact legalRequirementId values from that list; get_rule_authoring_status pages
+them together with your AssessmentRules, the unbound claims by role and the next valid actions.
 If the index is longer than shown, or you need a claim that is already bound, page the role-grouped view with
 get_rule_authoring_context (pages of at most 40). For one claim's exact statement, actor/action, relations and
 provenance use get_claim_inventory(kind=CLAIMS, claim_id=...). get_claim_inventory pages hold at most 20 claims:

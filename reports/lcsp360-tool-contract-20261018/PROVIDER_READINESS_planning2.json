@@ -1,0 +1,367 @@
+{
+ "probedAt": "2026-10-17T17:11:42Z",
+ "routesFile": "production default (config/model_routes.yaml)",
+ "credentialsPresent": [
+  "APX_API_KEY",
+  "GEMINI_API_KEY",
+  "INCEPTION_API_KEY"
+ ],
+ "routes": [
+  {
+   "route": "primary",
+   "provider": "apx",
+   "model": "claude-sonnet-4-6-free",
+   "protocol": "anthropic",
+   "slots": [
+    {
+     "slot": "CREDENTIAL_SLOT_01",
+     "status": "RATE_LIMITED",
+     "ms": 1365,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_02",
+     "status": "RATE_LIMITED",
+     "ms": 642,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_03",
+     "status": "RATE_LIMITED",
+     "ms": 654,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_04",
+     "status": "RATE_LIMITED",
+     "ms": 646,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_05",
+     "status": "RATE_LIMITED",
+     "ms": 651,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_06",
+     "status": "RATE_LIMITED",
+     "ms": 749,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_07",
+     "status": "RATE_LIMITED",
+     "ms": 652,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_08",
+     "status": "RATE_LIMITED",
+     "ms": 640,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_09",
+     "status": "RATE_LIMITED",
+     "ms": 641,
+     "usage": null
+    }
+   ],
+   "conformance": [],
+   "pool": {
+    "total": 9,
+    "envVariable": "APX_API_KEY",
+    "byStatus": {
+     "RATE_LIMITED": 9
+    }
+   },
+   "conformingCalls": 0,
+   "eligible": false,
+   "reasons": [
+    "NO_HEALTHY_CREDENTIAL_SLOT"
+   ],
+   "poolWarnings": [
+    "9 slot(s) RATE_LIMITED"
+   ]
+  },
+  {
+   "route": "fallback",
+   "provider": "google_genai",
+   "model": "gemini-3.5-flash-lite",
+   "protocol": "google_genai",
+   "slots": [
+    {
+     "slot": "CREDENTIAL_SLOT_01",
+     "status": "OK",
+     "ms": 1064,
+     "usage": {
+      "input": 8,
+      "output": 1
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_02",
+     "status": "AUTH_FAILED",
+     "ms": 184,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_03",
+     "status": "AUTH_FAILED",
+     "ms": 183,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_04",
+     "status": "OK",
+     "ms": 1293,
+     "usage": {
+      "input": 8,
+      "output": 1
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_05",
+     "status": "AUTH_FAILED",
+     "ms": 198,
+     "usage": null
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_06",
+     "status": "OK",
+     "ms": 723,
+     "usage": {
+      "input": 8,
+      "output": 1
+     }
+    }
+   ],
+   "conformance": [
+    {
+     "ms": 1185,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 498,
+      "output": 177
+     }
+    },
+    {
+     "ms": 1041,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 498,
+      "output": 177
+     }
+    },
+    {
+     "ms": 1315,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 498,
+      "output": 177
+     }
+    }
+   ],
+   "conformanceSlot": "CREDENTIAL_SLOT_01",
+   "pool": {
+    "total": 6,
+    "envVariable": "GEMINI_API_KEY",
+    "byStatus": {
+     "OK": 3,
+     "AUTH_FAILED": 3
+    }
+   },
+   "conformingCalls": 3,
+   "eligible": true,
+   "reasons": [],
+   "poolWarnings": [
+    "3 slot(s) AUTH_FAILED"
+   ]
+  },
+  {
+   "route": "fallback-01",
+   "provider": "inception",
+   "model": "mercury-2.5",
+   "protocol": "openai",
+   "slots": [
+    {
+     "slot": "CREDENTIAL_SLOT_01",
+     "status": "OK",
+     "ms": 845,
+     "usage": {
+      "input": 7,
+      "output": 200
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_02",
+     "status": "OK",
+     "ms": 1368,
+     "usage": {
+      "input": 8,
+      "output": 238
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_03",
+     "status": "OK",
+     "ms": 1106,
+     "usage": {
+      "input": 7,
+      "output": 162
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_04",
+     "status": "OK",
+     "ms": 1470,
+     "usage": {
+      "input": 7,
+      "output": 168
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_05",
+     "status": "OK",
+     "ms": 1006,
+     "usage": {
+      "input": 8,
+      "output": 204
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_06",
+     "status": "OK",
+     "ms": 1057,
+     "usage": {
+      "input": 6,
+      "output": 193
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_07",
+     "status": "OK",
+     "ms": 1305,
+     "usage": {
+      "input": 8,
+      "output": 223
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_08",
+     "status": "OK",
+     "ms": 1458,
+     "usage": {
+      "input": 6,
+      "output": 215
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_09",
+     "status": "OK",
+     "ms": 2036,
+     "usage": {
+      "input": 8,
+      "output": 300
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_10",
+     "status": "OK",
+     "ms": 1413,
+     "usage": {
+      "input": 6,
+      "output": 202
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_11",
+     "status": "OK",
+     "ms": 1085,
+     "usage": {
+      "input": 6,
+      "output": 203
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_12",
+     "status": "OK",
+     "ms": 1491,
+     "usage": {
+      "input": 8,
+      "output": 204
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_13",
+     "status": "OK",
+     "ms": 1346,
+     "usage": {
+      "input": 8,
+      "output": 212
+     }
+    },
+    {
+     "slot": "CREDENTIAL_SLOT_14",
+     "status": "OK",
+     "ms": 1327,
+     "usage": {
+      "input": 7,
+      "output": 230
+     }
+    }
+   ],
+   "conformance": [
+    {
+     "ms": 2821,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 795,
+      "output": 988
+     }
+    },
+    {
+     "ms": 1740,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 794,
+      "output": 865
+     }
+    },
+    {
+     "ms": 1808,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 818,
+      "output": 977
+     }
+    }
+   ],
+   "conformanceSlot": "CREDENTIAL_SLOT_01",
+   "pool": {
+    "total": 14,
+    "envVariable": "INCEPTION_API_KEY",
+    "byStatus": {
+     "OK": 14
+    }
+   },
+   "conformingCalls": 3,
+   "eligible": true,
+   "reasons": [],
+   "poolWarnings": []
+  }
+ ]
+}

@@ -172,13 +172,13 @@ def test_unresolved_rejection_is_in_the_digest_until_a_corrected_call_succeeds_t
     duty, scope, definition = full("656289"), full("c1d5c5"), full("1ae971")
     assert call(tools, "author_legal_requirement", requirement_key="R-fix", title="t", operative_claim_ids=[duty], applicability_claim_ids=[scope, definition])["outcome"] == "FAILED"
     digest = ctx.authoring.digest()
-    assert "OUTSTANDING PROBLEM" in digest and "CLAIM_REQUIREMENT_MISMATCH" in digest and "context_claim_ids" in digest and "author_legal_requirement" in digest
+    assert "OUTSTANDING AUTHORING REJECTION" in digest and "CLAIM_REQUIREMENT_MISMATCH" in digest and "context_claim_ids" in digest and "author_legal_requirement" in digest
     for _ in range(6):  # unrelated successful work does not clear a different operation's problem
         assert call(tools, "get_claim_inventory", kind="REQUIREMENTS")["total"] == 0
     assert call(tools, "author_legal_requirement", requirement_key="R-other", title="t", operative_claim_ids=[full("74d867")], applicability_claim_ids=[scope])["outcome"] == "PASSED"
-    assert "OUTSTANDING PROBLEM" in ctx.authoring.digest()
+    assert "OUTSTANDING AUTHORING REJECTION" in ctx.authoring.digest()
     assert call(tools, "author_legal_requirement", requirement_key="R-fix", title="t", operative_claim_ids=[duty], applicability_claim_ids=[scope], context_claim_ids=[definition])["outcome"] == "PASSED"
-    assert "OUTSTANDING PROBLEM" not in ctx.authoring.digest() and not ctx.authoring.outstanding, "a resolved error must not pollute later prompts"
+    assert "OUTSTANDING AUTHORING REJECTION" not in ctx.authoring.digest() and not ctx.authoring.outstanding, "a resolved error must not pollute later prompts"
 
 
 def test_a_rejected_read_is_retained_until_a_valid_read_and_phase_change_clears_everything():
@@ -262,41 +262,48 @@ def test_early_page_claim_survives_compaction_through_the_digest():
 
 def test_compaction_never_drops_state_the_next_valid_transition_needs():
     """Randomized interleavings through the real tools: after every round the model-visible view holds all needed state."""
+    definitions = [cid for cid, c in CLAIMS.items() if c["claimType"] == "DEFINITION"]
     for seed in range(40):
         rng = random.Random(seed)
         _, ctx, tools, _ = restored()
         middleware = DraftHistoryMiddleware(ctx)
         messages, n = [HumanMessage(content="go")], 0
-        definitions = [cid for cid, c in CLAIMS.items() if c["claimType"] == "DEFINITION"]
+
         def run(name, **args):
             nonlocal n
             n += 1
             ctx.model_turn = n
             result = call(tools, name, **args)
             messages.extend([AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": f"r{n}"}]), ToolMessage(content=json.dumps(result), tool_call_id=f"r{n}")])
+
+        def author(key, op, app, qual, exc, context, name=None):
+            run("author_legal_requirement", requirement_key=name or key, title=key, operative_claim_ids=[full(p) for p in op], applicability_claim_ids=[full(p) for p in app],
+                qualifier_claim_ids=[full(p) for p in qual], exception_claim_ids=[full(p) for p in exc], context_claim_ids=[full(p) for p in context])
+
         run("start_rule_authoring")
         try:
-          for _ in range(rng.randint(8, 24)):
-              choice = rng.random()
-              if choice < 0.35:
-                  run("get_claim_inventory", kind=rng.choice(["CLAIMS", "UNACCOUNTED_CLAIMS", "REQUIREMENTS", "RELATIONS"]), limit=rng.choice([5, 20, 50]), offset=rng.choice([0, 20, 40, -1]))
-              elif choice < 0.5:
-                  run("get_rule_authoring_context", role=rng.choice([None, "OPERATIVE_PROPOSITION", "UNACCOUNTED"]), offset=rng.choice([0, 40]))
-              elif choice < 0.8:
-                  key, op, app, qual, exc, context = PLAN48[rng.randrange(len(PLAN48))]
-                  run("author_legal_requirement", requirement_key=key, title=key, operative_claim_ids=[full(p) for p in op], applicability_claim_ids=[full(p) for p in app],
-                      qualifier_claim_ids=[full(p) for p in qual], exception_claim_ids=[full(p) for p in exc], context_claim_ids=[full(p) for p in context])
-              else:
-                  key, op, app, *_ = PLAN48[rng.randrange(len(PLAN48))]
-                  run("author_legal_requirement", requirement_key="bad-" + key, title="t", operative_claim_ids=[full(op[0])], applicability_claim_ids=[rng.choice(definitions)])  # DEFINITION as applicability
-              view = middleware._view(messages)
-              text = visible_text(view)
-              bound = ctx.authoring.bound()
-              needed = [c["claimId"] for c in ctx.authoring.claims() if CLAIM_ROLES[c["claimType"]] == "APPLICABILITY_CONDITION" or c["claimId"] not in bound]
-              assert all(cid in text for cid in needed), f"seed {seed}: a claim the next transition may need left the view"
-              for problem in ctx.authoring.outstanding.values():
-                  assert problem["code"] in text and str(problem["requiredAction"]) in text, f"seed {seed}: an unresolved rejection left the view"
-              assert len(view) <= 24, f"seed {seed}: the view grew with the run ({len(view)} messages)"
+            for _ in range(rng.randint(8, 24)):
+                choice = rng.random()
+                if choice < 0.35:
+                    run("get_claim_inventory", kind=rng.choice(["CLAIMS", "UNACCOUNTED_CLAIMS", "REQUIREMENTS", "RELATIONS"]), limit=rng.choice([5, 20, 50]), offset=rng.choice([0, 20, 40, -1]))
+                elif choice < 0.5:
+                    run("get_rule_authoring_context", role=rng.choice([None, "OPERATIVE_PROPOSITION", "UNACCOUNTED"]), offset=rng.choice([0, 40]))
+                elif choice < 0.8:
+                    author(*PLAN48[rng.randrange(len(PLAN48))])
+                else:
+                    key, op, *_ = PLAN48[rng.randrange(len(PLAN48))]
+                    run("author_legal_requirement", requirement_key="bad-" + key, title="t", operative_claim_ids=[full(op[0])], applicability_claim_ids=[rng.choice(definitions)])
+                view = middleware._view(messages)
+                text = visible_text(view)
+                bound = ctx.authoring.bound()
+                needed = [c["claimId"] for c in ctx.authoring.claims() if CLAIM_ROLES[c["claimType"]] == "APPLICABILITY_CONDITION" or c["claimId"] not in bound]
+                assert all(cid in text for cid in needed), f"seed {seed}: a claim the next transition may need left the view"
+                newest = sorted(ctx.authoring.outstanding.values(), key=lambda item: -item["sequence"])
+                for problem in newest[:3]:
+                    assert problem["rejectionCode"] in text and str(problem["requiredAction"]) in text, f"seed {seed}: a recent unresolved rejection left the view"
+                if newest:
+                    assert f"({len(newest)} unresolved" in text, f"seed {seed}: the digest must state how many rejections are unresolved"
+                assert len(view) <= 24, f"seed {seed}: the view grew with the run ({len(view)} messages)"
         except NoProgressDetected:
             pass  # a third identical rejection is genuine stagnation: the runtime rightly ends that run
 

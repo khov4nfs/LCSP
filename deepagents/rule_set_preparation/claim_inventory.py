@@ -11,6 +11,7 @@ from typing import Any
 
 from jsonschema import Draft7Validator
 from middleware.failure_policy import NoProgressDetected
+from rule_set_preparation.authoring_rejections import AUTHORING_PRECONDITION, REPAIR, SOURCE_BODY, build_envelope, draft_fingerprint
 from orchestration.agent_stream import DURABLE, SEMANTIC_SCHEMA_VERSION, publish_agent_stream_event
 
 DISCOVERY = "CLAIM_DISCOVERY"
@@ -30,13 +31,18 @@ CLAIM_ROLES = {**{k: "OPERATIVE_PROPOSITION" for k in NORMATIVE}, "CONDITION": "
                "TRANSITION_RULE": "QUALIFIER", "EXCEPTION": "EXCEPTION", "DEFINITION": "DEFINITION",
                "CONTEXT": "CONTEXT", "CROSS_REFERENCE": "CONTEXT"}
 # Inspection tools never change state; a malformed call is a rejected READ, not a validation of anything.
-READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_review_progress", "get_next_review_unit", "inspect_semantic_reference_binding"})
+READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_review_progress", "get_next_review_unit", "inspect_semantic_reference_binding"})
 # Frozen-inventory gaps only Claim Discovery can close: the same tool path closes them in either discovery mode.
 READINESS_CODES = frozenset({"APPLICABILITY_AUTHORITY_MISSING", "OPERATIVE_CLAIM_MISSING"})
 RELATION_KINDS = {"DEFINITION", "SCOPE", "QUALIFIER", "EXCEPTION", "CROSS_REFERENCE", "CONDITION", "INCORPORATES", "TEMPORALLY_LIMITS"}
 REQUIREMENT_KINDS = {"CONDITION": "SCOPE", "INCORPORATES": "CROSS_REFERENCE", "TEMPORALLY_LIMITS": "QUALIFIER"}
 SCHEMA = json.loads(Path(__file__).with_name("packet-schema.json").read_text())["properties"]["packet"]
 CLAIM_SCHEMA = SCHEMA["properties"]["semanticGraph"]["properties"]["claims"]["items"]
+
+
+# Repair instruction used when the rejecting site names none: stable per code, never per occurrence.
+DEFAULT_REPAIR = {"CLAIM_REQUIREMENT_MISMATCH": "ROLE_MISMATCH", "OPERATIVE_PROPOSITION_REQUIRED": "OPERATIVE_REQUIRED",
+                  "APPLICABILITY_SCOPE_MISSING": "APPLICABILITY_REQUIRED", "ORPHAN_ASSESSMENT_RULE": "UNKNOWN_REQUIREMENT"}
 
 
 def fingerprint(value: Any) -> str:
@@ -65,7 +71,7 @@ def grouped_gaps(result: dict, claims: dict | None = None) -> dict:
         group = groups.setdefault(failure["code"], {"count": 0, "examples": []})
         group["count"] += 1
         if len(group["examples"]) < 6:
-            example = {k: failure[k] for k in ("ref", "detail", "referenceId", "sourceNodeId", "targetNodeId", "suppliedFromClaimId", "suppliedToClaimId", "sourceClaimIds", "targetClaimIds", "requiredAction", "expectedRole", "suppliedField", "expectedField", "candidateCount", "candidates") if k in failure}
+            example = {k: failure[k] for k in ("ref", "detail", "referenceId", "sourceNodeId", "targetNodeId", "suppliedFromClaimId", "suppliedToClaimId", "sourceClaimIds", "targetClaimIds", "requiredAction", "expectedRole", "suppliedField", "expectedField", "candidateCount", "candidates", "layer", "fieldPaths", "repair", "suppliedClaimId", "actualRole", "expected") if k in failure}
             ref = failure.get("ref")
             claim = (claims or {}).get(ref.removeprefix("claim:")) if isinstance(ref, str) else None
             if claim:
@@ -90,6 +96,12 @@ class ClaimInventory:
     required_nodes: set[str] = field(init=False)
     reviewed_nodes: set[str] = field(default_factory=set)
     current_tool: str | None = field(init=False, default=None)
+    current_args: Any = field(init=False, default=None)
+    current_call_id: str | None = field(init=False, default=None)
+    current_layer: str | None = field(init=False, default=None)
+    current_source: str | None = field(init=False, default=None)
+    current_draft_before: str | None = field(init=False, default=None)
+    last_envelope: dict | None = field(init=False, default=None)
 
     def __post_init__(self):
         if self.context.frontier_enabled:
@@ -105,7 +117,8 @@ class ClaimInventory:
             "source_nodes_remaining": (self.frontier.snapshot.get("progress", {}).get("total", 0) - self.frontier.snapshot.get("progress", {}).get("reviewedWithClaims", 0) - self.frontier.snapshot.get("progress", {}).get("reviewedNoClaims", 0)) if self.frontier else len(self.required_nodes) - len(self.reviewed_nodes),
             "review_frontier": self.frontier.snapshot if self.frontier else None,
             "claim_count": len(self.identities), "claim_relation_count": len(self.context.draft["claimRelations"]),
-            "requirement_count": len(self.context.draft["legalRequirements"]), "assessment_rule_count": len(self.context.draft["assessmentRules"])})
+            "requirement_count": len(self.context.draft["legalRequirements"]), "assessment_rule_count": len(self.context.draft["assessmentRules"]),
+            **{k: v for k, v in self.stamp().items() if k not in ("requirement_count", "assessment_rule_count")}})
 
     def rebuild_node_index(self):
         self.reviewed_nodes = self.required_nodes.intersection(self.context.draft["sourceAccounting"])
@@ -128,6 +141,26 @@ class ClaimInventory:
     def binding(self) -> dict:
         return {"revision": self.revision, "fingerprint": self.frozen_fingerprint}
 
+    def stamp(self) -> dict:
+        """Ordering fields for every authoring observation, so two snapshots are comparable without wall-clock time."""
+        context = self.context
+        context.event_sequence += 1
+        if context.draft_fp is None:
+            context.draft_fp = draft_fingerprint(context.draft)
+        return {"event_sequence": context.event_sequence, "model_turn": context.model_turn, "draft_revision": context.draft_revision,
+                "draft_fingerprint": context.draft_fp, "requirement_count": len(context.draft["legalRequirements"]),
+                "assessment_rule_count": len(context.draft["assessmentRules"])}
+
+    def draft_changed(self) -> bool:
+        """Call after a Requirement/AssessmentRule candidate was added, replaced or removed."""
+        context = self.context
+        current = draft_fingerprint(context.draft)
+        if current == context.draft_fp:
+            return False
+        context.draft_fp = current
+        context.draft_revision += 1
+        return True
+
     def transition(self, phase: str):
         previous = self.phase
         self.phase = phase
@@ -135,7 +168,7 @@ class ClaimInventory:
             self.context.authoring.reset()  # a reopened inventory makes every authoring correction and cursor stale
         publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
             "durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "CLAIM_PHASE_TRANSITION", "previous_phase": previous, "phase": phase,
-            "inventory_revision": self.revision, "inventory_fingerprint": self.frozen_fingerprint})
+            "inventory_revision": self.revision, "inventory_fingerprint": self.frozen_fingerprint, **self.stamp()})
 
     def state_fingerprints(self, packet: dict | None = None) -> dict:
         graph = normalized_graph(self.graph())
@@ -146,10 +179,13 @@ class ClaimInventory:
         return {"node_review_ledger_fingerprint": fingerprint(graph["sourceAccounting"]), "frontier_state_fingerprint": self.frontier.snapshot.get("frontierStateFingerprint") if self.frontier else None, "candidate_fingerprint": fingerprint(packet), "claim_inventory_fingerprint": fingerprint({"revision": self.revision, "graph": graph}),
                 "requirement_fingerprint": fingerprint(requirements), "accounting_fingerprint": fingerprint(accounting)}
 
-    def observe_validation(self, result: dict, phase: str, packet: dict | None = None, *, kind: str = "CLAIM_PHASE_VALIDATION") -> dict:
+    def observe_validation(self, result: dict, phase: str, packet: dict | None = None, *, kind: str = "CLAIM_PHASE_VALIDATION", envelope: dict | None = None) -> dict:
         """Record one outcome. Only kind CLAIM_PHASE_VALIDATION is a validator run; tool rejections use their own kind."""
         identities = self.state_fingerprints(packet)
-        gaps = sorted({(f.get("code"), f.get("ref")) for f in result.get("failures", [])})
+        # Identity of a gap is its code, its reference AND the specific fields at fault: two different missing arguments are two
+        # gaps, while one repeated mistake stays one. (A jsonschema "required" error has an empty path, so code+ref alone would
+        # merge "missing title" and "missing applicability_claim_ids" into the same stagnation.)
+        gaps = sorted({(f.get("code"), f.get("ref"), tuple(f.get("fieldPaths") or ())) for f in result.get("failures", [])}, key=repr)
         gap_hash = fingerprint(gaps)
         source_revision = self.context.source_graph.graph["materializationId"]
         effective = deepcopy(packet if packet is not None else self.context.draft_packet())
@@ -185,7 +221,8 @@ class ClaimInventory:
                 **identities, "effective_state_fingerprint": state_hash, "gap_fingerprint": gap_hash,
                 "gap_counts": {k: v["count"] for k, v in grouped_gaps(result)["gaps"].items()},
                 "outcome": result.get("outcome"), "claim_count": len(self.identities), "claim_relation_count": len(self.context.draft["claimRelations"]), "coverage": result.get("coverage"),
-                "inventory_validation_attempt": self.inventory_validation_calls, "rule_validation_attempt": self.context.validation_calls, "review_frontier": self.frontier.snapshot if self.frontier else None}
+                "inventory_validation_attempt": self.inventory_validation_calls, "rule_validation_attempt": self.context.validation_calls, "review_frontier": self.frontier.snapshot if self.frontier else None,
+                **self.stamp(), **({"rejection": envelope} if envelope else {})}
         publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data=data)
         self.context.trace.append(data)
         if terminal:
@@ -206,8 +243,26 @@ class ClaimInventory:
             "update_semantic_claim" if code == "CLAIM_IDENTITY_CONFLICT"
             else "get_next_review_unit" if self.frontier and self.phase in {DISCOVERY, INVENTORY_VALIDATION}
             else "get_claim_inventory")
-        result = {"outcome": "FAILED", "phase": self.phase, "revision": self.revision, "failures": [{"code": code, "ref": ref, "detail": detail, **extra}], "requiredAction": action}
-        return grouped_gaps(self.observe_validation(result, self.phase, kind=self.rejection_kind()), self.context.draft["semanticClaims"])
+        layer = extra.pop("layer", None) or self.current_layer or AUTHORING_PRECONDITION
+        source = extra.pop("source", None) or self.current_source or SOURCE_BODY
+        repair_key = extra.pop("repairKey", None) or DEFAULT_REPAIR.get(code)
+        field_paths = list(extra.pop("fieldPaths", None) or ([extra["suppliedField"]] if extra.get("suppliedField") else []))
+        failure = {"code": code, "ref": ref, "detail": detail, "layer": layer, **({"fieldPaths": field_paths} if field_paths else {}),
+                   **({"repair": REPAIR[repair_key]} if repair_key in REPAIR else {}), **extra}
+        result = {"outcome": "FAILED", "phase": self.phase, "revision": self.revision, "failures": [failure], "requiredAction": action}
+        context = self.context
+        if context.draft_fp is None:
+            context.draft_fp = draft_fingerprint(context.draft)
+        envelope = build_envelope(
+            tool=self.current_tool or "UNKNOWN", layer=layer, source=source, code=code, args=self.current_args if self.current_args is not None else {},
+            ref=ref, detail=detail, field_paths=field_paths, required_action=action, repair_key=repair_key or "", inventory=self.binding(),
+            draft_before=self.current_draft_before or context.draft_fp, draft_after=draft_fingerprint(context.draft), draft_revision=context.draft_revision,
+            sequence=context.event_sequence + 1, model_turn=context.model_turn, phase=self.phase, tool_call_id=self.current_call_id,
+            extra={k: extra.get(k) for k in ("suppliedClaimId", "actualRole", "expectedRole", "expectedField", "suppliedField", "candidateCount")})
+        self.last_envelope = envelope
+        context.rejection_log.append(envelope)
+        del context.rejection_log[:-200]
+        return grouped_gaps(self.observe_validation(result, self.phase, kind=self.rejection_kind(), envelope=envelope), self.context.draft["semanticClaims"])
 
     def discovery_allowed(self) -> bool:
         return self.phase == DISCOVERY and self.frozen is None

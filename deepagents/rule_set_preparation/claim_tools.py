@@ -12,9 +12,19 @@ from rule_set_preparation.claim_inventory import (
 )
 from rule_set_preparation.reference_binding import valid_binding, side_claims, project_reference_accounting, endpoint_fingerprint
 from rule_set_preparation.authoring_state import normalize_page
+from rule_set_preparation.authoring_rejections import (
+    CURRENT_TOOL_CALL_ID, SOURCE_BODY, SOURCE_PREFLIGHT, TOOL_SCHEMA, classify_schema_error, draft_fingerprint, field_paths_of,
+)
+from rule_set_preparation.authoring_state import summary as claim_summary
 
 BUCKET_ARGS = {"OPERATIVE_PROPOSITION": "operative_claim_ids", "APPLICABILITY_CONDITION": "applicability_claim_ids", "QUALIFIER": "qualifier_claim_ids",
                "EXCEPTION": "exception_claim_ids", "CONTEXT": "context_claim_ids", "DEFINITION": "context_claim_ids"}
+# Schema constraints the tool body enforces itself with a richer rejection (candidates, repair) than the generic pre-body check.
+BODY_OWNED = {("author_legal_requirement", "operative_claim_ids", "minItems")}
+ASSEMBLED_ROW_FIELDS = {"operativePropositions": "OPERATIVE_PROPOSITION", "applicabilityConditions": "APPLICABILITY_CONDITION", "qualifiers": "QUALIFIER",
+                        "exceptions": "EXCEPTION", "semanticContext": "CONTEXT"}
+CANDIDATE_LIMIT = 8
+AUTHORING_MUTATIONS = frozenset({"author_legal_requirement", "author_assessment_rule", "remove_rule_candidate", "reopen_semantic_claim_inventory"})
 TEXT = {"type": "string", "minLength": 1, "maxLength": 8000}
 IDS = {"type": "array", "items": {"type": "string", "minLength": 1}, "maxItems": 128, "uniqueItems": True}
 
@@ -287,6 +297,13 @@ def build_claim_tools(context):
             return ledger.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize the claim inventory first; this view reads the frozen revision")
         return context.authoring.page_view(role, offset, limit)
 
+    def role_candidates(role):
+        """Real, relevant claims of one accounting role, unbound first: navigation help from the frozen inventory, never legal meaning."""
+        bound = context.authoring.bound() if context.authoring is not None else {}
+        pool = sorted((c for c in context.draft["semanticClaims"].values() if c["state"] == "RELEVANT" and CLAIM_ROLES[c["claimType"]] == role),
+                      key=lambda c: (c["claimId"] in bound, c["claimId"]))
+        return [{"claimId": c["claimId"], "claimType": c["claimType"], "summary": claim_summary(c)} for c in pool[:CANDIDATE_LIMIT]], len(pool)
+
     def requirement(requirement_key, title, operative_claim_ids, applicability_claim_ids, qualifier_claim_ids=None,
                     exception_claim_ids=None, context_claim_ids=None, non_repository_duty=False, non_assessable_reason=None):
         started = ledger.begin_authoring()
@@ -302,16 +319,24 @@ def build_claim_tools(context):
         statements = []
         provenance = {}
         for role, ids in selections.items():
-            for cid in ids:
+            for position, cid in enumerate(ids):
+                arg = BUCKET_ARGS[role]
+                path = f"{arg}[{position}]"
                 claim = claims.get(cid)
                 if claim is None:
-                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "Unknown claim ID; copy exact IDs from get_claim_inventory", suppliedField=BUCKET_ARGS[role], requiredAction="get_claim_inventory")
+                    candidates, total = role_candidates(role)
+                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "Unknown claim ID; copy exact IDs from get_rule_authoring_context or get_claim_inventory",
+                                           suppliedField=arg, fieldPaths=[path], suppliedClaimId=cid, expectedRole=role, expectedField=arg, candidateCount=total,
+                                           candidates=candidates, requiredAction="get_claim_inventory", repairKey="UNKNOWN_CLAIM")
                 actual_role = CLAIM_ROLES[claim["claimType"]]
                 if claim["state"] != "RELEVANT":
-                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "An intentionally non-operative claim cannot be bound to a Requirement", suppliedField=BUCKET_ARGS[role], requiredAction="get_claim_inventory")
+                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "An intentionally non-operative claim cannot be bound to a Requirement", suppliedField=arg,
+                                           fieldPaths=[path], suppliedClaimId=cid, actualRole=actual_role, requiredAction="get_claim_inventory", repairKey="NON_RELEVANT_CLAIM")
                 if actual_role != role and not (role == "CONTEXT" and actual_role == "DEFINITION"):
+                    _, same_role = role_candidates(actual_role)
                     return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, f"A {claim['claimType']} claim has accounting role {actual_role}, not {role}; role follows claim type",
-                                           suppliedField=BUCKET_ARGS[role], expectedRole=actual_role, expectedField=BUCKET_ARGS[actual_role], requiredAction="author_legal_requirement")
+                                           suppliedField=arg, fieldPaths=[path], suppliedClaimId=cid, actualRole=actual_role, expectedRole=actual_role, expectedField=BUCKET_ARGS[actual_role],
+                                           candidateCount=same_role, requiredAction="author_legal_requirement", repairKey="ROLE_MISMATCH")
                 refs = source_refs(claim)
                 for ref in refs:
                     provenance[(ref["documentId"], ref["locator"], ref["contentSha256"])] = ref
@@ -325,32 +350,55 @@ def build_claim_tools(context):
         row["sourceRefs"] = list(provenance.values())
         row["proposition"] = "\n".join(statements)
         if not operative_claim_ids:
-            return ledger.rejected("OPERATIVE_PROPOSITION_REQUIRED", requirement_key, "Select at least one operative (DUTY, PROHIBITION or PERMISSION) claim", suppliedField="operative_claim_ids", expectedRole="OPERATIVE_PROPOSITION", requiredAction="author_legal_requirement")
+            candidates, total = role_candidates("OPERATIVE_PROPOSITION")
+            return ledger.rejected("OPERATIVE_PROPOSITION_REQUIRED", requirement_key, "Select at least one operative (DUTY, PROHIBITION or PERMISSION) claim", suppliedField="operative_claim_ids",
+                                   fieldPaths=["operative_claim_ids"], expectedRole="OPERATIVE_PROPOSITION", expectedField="operative_claim_ids", candidateCount=total, candidates=candidates,
+                                   requiredAction="author_legal_requirement", repairKey="OPERATIVE_REQUIRED")
         if not non_assessable_reason and not applicability_claim_ids:
             candidates = [c for c in claims.values() if c["state"] == "RELEVANT" and CLAIM_ROLES[c["claimType"]] == "APPLICABILITY_CONDITION"]
             summary = [{"claimId": c["claimId"], "claimType": c["claimType"], "statement": c["statement"][:200], "sourceNodeIds": c["sourceNodeIds"][:3]} for c in sorted(candidates, key=lambda c: c["claimId"])[:20]]
             return ledger.rejected("APPLICABILITY_SCOPE_MISSING", requirement_key,
                                    "An assessable Requirement needs applicability claims: choose the SCOPE/CONDITION claims that state its addressee and trigger"
                                    if candidates else "The frozen inventory has no SCOPE or CONDITION claim; reopen_semantic_claim_inventory and register the source-grounded one in its review unit",
-                                   suppliedField="applicability_claim_ids", expectedRole="APPLICABILITY_CONDITION", expectedField="applicability_claim_ids",
-                                   candidateCount=len(candidates), candidates=summary,
+                                   suppliedField="applicability_claim_ids", fieldPaths=["applicability_claim_ids"], expectedRole="APPLICABILITY_CONDITION", expectedField="applicability_claim_ids",
+                                   candidateCount=len(candidates), candidates=summary, repairKey="APPLICABILITY_REQUIRED",
                                    requiredAction="author_legal_requirement" if candidates else "reopen_semantic_claim_inventory")
         errors = list(Draft7Validator(SCHEMA["properties"]["legalRequirements"]["items"]).iter_errors(row))
         if errors:
-            return ledger.rejected("CLAIM_SCHEMA_INVALID", requirement_key, "; ".join(e.message[:160] for e in errors[:3]))
+            path = list(errors[0].absolute_path)
+            # An assembled-row field the model never wrote: say which of its claims produced it.
+            role = ASSEMBLED_ROW_FIELDS.get(path[0]) if path else None
+            offender = next((b["claimId"] for b in row["claimBindings"] if len(path) > 1 and isinstance(path[1], int) and b["index"] == path[1]
+                             and (CLAIM_ROLES.get(claims[b["claimId"]]["claimType"]) == role or (role == "CONTEXT" and b["role"] in {"CONTEXT", "DEFINITION"}))), None)
+            return ledger.rejected("CLAIM_SCHEMA_INVALID", requirement_key,
+                                   "The assembled Requirement row is invalid at " + (".".join(map(str, path)) or "<row>") + ": " + errors[0].message[:160],
+                                   fieldPaths=[BUCKET_ARGS[role]] if role else [], suppliedClaimId=offender, repairKey="ROW_INVALID")
         ledger.changed(context.draft["legalRequirements"].get(requirement_key), row)
         context.draft["legalRequirements"][requirement_key] = row
         context.validated_packet = context.last_validation = None
         derive_requirement_relations(context)
+        ledger.draft_changed()
         ledger.transition(AUTHORING)
-        return {"outcome": "PASSED", "phase": ledger.phase, "inventoryRevision": ledger.revision, "requirement": deepcopy(row)}
+        return {"outcome": "PASSED", "phase": ledger.phase, "inventoryRevision": ledger.revision, "draftRevision": context.draft_revision, "requirement": deepcopy(row)}
+
+    def assessable_requirements():
+        return {rid: r for rid, r in context.draft["legalRequirements"].items() if r["coverage"]["state"] == "COVERED_BY_ASSESSMENT_RULES"}
 
     def assessment(assessment_rule_id, concept, legal_requirement_ids, investigation_focus=None):
         started = ledger.begin_authoring()
         if started.get("outcome") != "PASSED":
             return started
-        if not legal_requirement_ids or any(context.draft["legalRequirements"][rid]["coverage"]["state"] != "COVERED_BY_ASSESSMENT_RULES" for rid in legal_requirement_ids):
-            return ledger.rejected("ORPHAN_ASSESSMENT_RULE", assessment_rule_id, "Choose existing assessable Requirement IDs")
+        requirements, assessable = context.draft["legalRequirements"], assessable_requirements()
+        bad = next(((i, rid) for i, rid in enumerate(legal_requirement_ids) if rid not in assessable), None)
+        if not legal_requirement_ids or bad is not None:
+            covered = {rid for rule in context.draft["assessmentRules"].values() for rid in rule["legalRequirementIds"]}
+            candidates = [{"legalRequirementId": rid, "title": " ".join(r["title"].split())[:80], "hasAssessmentRule": rid in covered} for rid, r in sorted(assessable.items())[:20]]
+            why = ("is a non-assessable Requirement; an AssessmentRule needs an assessable parent" if bad and bad[1] in requirements else
+                   "is not an existing Requirement ID") if bad else "legal_requirement_ids must name at least one existing assessable Requirement"
+            return ledger.rejected("ORPHAN_ASSESSMENT_RULE", assessment_rule_id, f"{bad[1]!r} {why}" if bad else why,
+                                   suppliedField="legal_requirement_ids", fieldPaths=[f"legal_requirement_ids[{bad[0]}]" if bad else "legal_requirement_ids"],
+                                   expectedField="legal_requirement_ids", candidateCount=len(assessable), candidates=candidates,
+                                   requiredAction="get_rule_authoring_status", repairKey="UNKNOWN_REQUIREMENT")
         criteria = [{"criterionId": "criterion_" + fingerprint({"assessmentRuleId": assessment_rule_id, "legalRequirementIds": sorted(legal_requirement_ids)})[:24], "legalRequirementIds": legal_requirement_ids,
                      **({"investigationFocus": investigation_focus} if investigation_focus else {})}]
         row = {"assessmentRuleId": assessment_rule_id, "concept": concept, "legalRequirementIds": legal_requirement_ids, "criteria": criteria,
@@ -359,12 +407,15 @@ def build_claim_tools(context):
                "semanticAuthority": "CLAIM_DERIVED", **{k: [] for k in ["investigationGoals", "startingNodeTypes", "targetNodeTypes", "edgeStrategies", "graphQueries", "keywords", "commonApis", "commonLibraries", "patterns", "requiredEvidence", "supportingEvidence", "negativeEvidence"]}}
         errors = list(Draft7Validator(SCHEMA["properties"]["assessmentRules"]["items"]).iter_errors(row))
         if errors:
-            return ledger.rejected("CLAIM_SCHEMA_INVALID", assessment_rule_id, "; ".join(e.message[:160] for e in errors[:3]))
+            return ledger.rejected("CLAIM_SCHEMA_INVALID", assessment_rule_id,
+                                   "The assembled AssessmentRule row is invalid at " + (".".join(map(str, errors[0].absolute_path)) or "<row>") + ": " + errors[0].message[:160],
+                                   repairKey="ROW_INVALID")
         ledger.changed(context.draft["assessmentRules"].get(assessment_rule_id), row)
         context.draft["assessmentRules"][assessment_rule_id] = row
         context.validated_packet = context.last_validation = None
+        ledger.draft_changed()
         ledger.transition(AUTHORING)
-        return {"outcome": "PASSED", "phase": ledger.phase, "inventoryRevision": ledger.revision, "assessmentRule": deepcopy(row),
+        return {"outcome": "PASSED", "phase": ledger.phase, "inventoryRevision": ledger.revision, "draftRevision": context.draft_revision, "assessmentRule": deepcopy(row),
                 "authority": "Normative criteria/applicability/evidence are derived by the API from these exact parents. Investigation focus is a non-normative suggestion."}
 
     def remove_candidate(kind, candidate_id, reason):
@@ -372,6 +423,13 @@ def build_claim_tools(context):
         if started.get("outcome") != "PASSED":
             return started
         section = "legalRequirements" if kind == "LEGAL_REQUIREMENT" else "assessmentRules"
+        if candidate_id not in context.draft[section]:
+            label = "title" if kind == "LEGAL_REQUIREMENT" else "concept"
+            existing = sorted(context.draft[section].items())
+            return ledger.rejected("CLAIM_SCHEMA_INVALID", candidate_id, f"No {kind} candidate {candidate_id!r} exists in the draft", suppliedField="candidate_id",
+                                   fieldPaths=["candidate_id"], candidateCount=len(existing), expectedField="candidate_id",
+                                   candidates=[{"candidateId": cid, label: " ".join(str(row.get(label, "")).split())[:80]} for cid, row in existing[:20]],
+                                   requiredAction="get_rule_authoring_status", repairKey="UNKNOWN_CANDIDATE")
         row = context.draft[section].pop(candidate_id)
         ledger.changed(row, None)
         invalidated = []
@@ -381,9 +439,15 @@ def build_claim_tools(context):
                     invalidated.append(rule_id)
                     del context.draft["assessmentRules"][rule_id]
             derive_requirement_relations(context)
+        ledger.draft_changed()
         ledger.transition(AUTHORING)
-        return {"outcome": "PASSED", "inventoryRevision": ledger.revision, "removedCandidateId": candidate_id,
+        return {"outcome": "PASSED", "inventoryRevision": ledger.revision, "draftRevision": context.draft_revision, "removedCandidateId": candidate_id,
                 "reason": reason, "invalidatedAssessmentRules": invalidated}
+
+    def authoring_status(offset=0, limit=None):
+        if context.authoring is None or not context.authoring.active():
+            return ledger.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize the claim inventory first; this view reads the frozen revision")
+        return context.authoring.status_view(offset, limit)
 
     claim_properties = {"claim_type": {"type": "string", "enum": CLAIM_SCHEMA["properties"]["claimType"]["enum"],
                                        "description": "SCOPE = whom or what the provision applies to (an addressee class, subject matter or application scope, with the source-defined criteria unpacked). "
@@ -403,11 +467,12 @@ def build_claim_tools(context):
         ("review_source_reference", "Account for an explicit reference with its semantic relation IDs or an Agent-authored non-material reason.", review_reference, object_schema({"reference_id": TEXT, "material": {"type": "boolean"}, "relation_ids": IDS, "non_material_reason": TEXT}, ["reference_id", "material", "relation_ids"])),
         ("get_claim_inventory", "Read exact claims (statement, actor/action, provenance), relations, unaccounted claims or Requirements, one bounded page at a time. The reply states requestedLimit, appliedLimit, offset, returnedCount, hasMore and nextOffset; a page size above 20 is capped at 20 and reported, never rejected. Use claim_id to fetch one exact claim.", inspect, object_schema({"kind": {"type": "string", "enum": ["STATUS", "UNREVIEWED_SOURCE_NODES", "CLAIMS", "RELATIONS", "UNACCOUNTED_CLAIMS", "REQUIREMENTS"]}, "source_node_id": TEXT, "claim_id": TEXT, "offset": {"type": "integer", "description": "Zero-based start; negative values start at 0"}, "limit": {"type": "integer", "description": "Page size; default and maximum 20"}})),
         ("get_rule_authoring_context", "Bounded navigation index over the FROZEN inventory for Rule authoring: relevant claims grouped by accounting role (summary plus exact claimId), which Requirements already bind each claim, and what is authored. Not a second authority: fetch an exact claim with get_claim_inventory(kind=CLAIMS, claim_id=...). Pages of at most 40; the reply states requestedLimit, appliedLimit, offset, returnedCount, total, hasMore and nextOffset.", authoring_context, object_schema({"role": {"type": "string", "enum": ["OPERATIVE_PROPOSITION", "APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION", "CONTEXT", "DEFINITION", "UNACCOUNTED"], "description": "Omit for all roles"}, "offset": {"type": "integer"}, "limit": {"type": "integer", "description": "Default and maximum 40"}})),
+        ("get_rule_authoring_status", "Bounded read-only projection of Rule authoring progress: the exact IDs and titles of your authored Requirements (assessable or not, with or without an AssessmentRule), your AssessmentRules, unbound relevant claims by role, any unresolved rejection of your last mutation and the next valid actions. Use it to get the exact legalRequirementId values author_assessment_rule needs. Not a second authority; pages of at most 40.", authoring_status, object_schema({"offset": {"type": "integer"}, "limit": {"type": "integer", "description": "Default and maximum 40"}})),
         ("validate_semantic_claim_inventory", "Validate discovery and source/reference review WITHOUT requiring Requirements. Reports the same authoring-readiness gaps as finalization (APPLICABILITY_AUTHORITY_MISSING). Fix grouped gaps before finalization.", lambda: ledger.validate_inventory(False), object_schema({})),
         ("finalize_semantic_claim_inventory", "Explicitly finalize discovery and persist an immutable inventory revision. Requirements are not required at this phase, but the inventory must be able to support one: it is refused (APPLICABILITY_AUTHORITY_MISSING) when duties exist and no SCOPE or CONDITION claim does. Reopen the owning unit with reopen_source_review and register that claim.", lambda: ledger.validate_inventory(True), object_schema({})),
         ("start_rule_authoring", "Transition the same Agent from frozen inventory ready to Rule authoring against that revision.", ledger.begin_authoring, object_schema({})),
         ("reopen_semantic_claim_inventory", "Explicitly reopen discovery for a reason, increment revision, remap claim identities and invalidate ALL downstream candidates. Previous frozen revision stays immutable.", ledger.reopen, object_schema({"reason": TEXT}, ["reason"])),
-        ("author_legal_requirement", "Bind selected frozen claim IDs to exact Requirement roles. Canonical actor/action/text/provenance and coverage-state shape are assembled from those claims. A non-assessable reason means external/non-repository performance, not a substitute software duty.", requirement, object_schema({"requirement_key": {**TEXT, "maxLength": 128}, "title": TEXT, "operative_claim_ids": IDS, "applicability_claim_ids": IDS, "qualifier_claim_ids": IDS, "exception_claim_ids": IDS, "context_claim_ids": IDS, "non_repository_duty": {"type": "boolean"}, "non_assessable_reason": TEXT}, ["requirement_key", "title", "operative_claim_ids", "applicability_claim_ids"])),
+        ("author_legal_requirement", "Bind selected frozen claim IDs to exact Requirement roles. Canonical actor/action/text/provenance and coverage-state shape are assembled from those claims. A non-assessable reason means external/non-repository performance, not a substitute software duty.", requirement, object_schema({"requirement_key": {**TEXT, "maxLength": 128}, "title": TEXT, "operative_claim_ids": {**IDS, "minItems": 1}, "applicability_claim_ids": IDS, "qualifier_claim_ids": IDS, "exception_claim_ids": IDS, "context_claim_ids": IDS, "non_repository_duty": {"type": "boolean"}, "non_assessable_reason": TEXT}, ["requirement_key", "title", "operative_claim_ids", "applicability_claim_ids"])),
         ("remove_rule_candidate", "Remove a mistaken downstream candidate, recording why. Removing a Requirement invalidates its dependent AssessmentRule candidates; frozen claims stay unchanged.", remove_candidate, object_schema({"kind": {"type": "string", "enum": ["LEGAL_REQUIREMENT", "ASSESSMENT_RULE"]}, "candidate_id": TEXT, "reason": TEXT}, ["kind", "candidate_id", "reason"])),
         ("author_assessment_rule", "Choose assessable Requirement parents. API derives normative criteria, applicability and evidence from those parents; optional investigation focus cannot create a legal obligation.", assessment, object_schema({"assessment_rule_id": {**TEXT, "maxLength": 128}, "concept": TEXT, "legal_requirement_ids": {**IDS, "minItems": 1}, "investigation_focus": TEXT}, ["assessment_rule_id", "concept", "legal_requirement_ids"])),
     ]
@@ -423,30 +488,42 @@ def build_claim_tools(context):
           ("reopen_source_review","Explicitly reopen a completed/blocked unit to correct its semantics. The runtime will schedule it; other units remain unchanged.",ledger.frontier.reopen,object_schema({"source_node_id":TEXT,"reason":{**TEXT,"maxLength":2000}},["source_node_id","reason"])),
         ]
     if context.discovery_only:
-        specs=[spec for spec in specs if spec[0] not in {"start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory","get_rule_authoring_context"}]
+        specs=[spec for spec in specs if spec[0] not in {"start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory","get_rule_authoring_context","get_rule_authoring_status"}]
     tools = []
     for name, description, function, schema in specs:
         def invoke(_function=function, _schema=schema, _name=name, **kwargs):
             with context.mutation_lock:
-                ledger.current_tool = _name
+                ledger.current_tool, ledger.current_args, ledger.current_call_id = _name, kwargs, CURRENT_TOOL_CALL_ID.get()
+                ledger.current_layer = ledger.current_source = ledger.last_envelope = None
                 try:
-                    errors = list(Draft7Validator(_schema).iter_errors(kwargs))
+                    if context.draft_fp is None:
+                        context.draft_fp = draft_fingerprint(context.draft)
+                    ledger.current_draft_before = context.draft_fp
+                    # Argument-contract violations (layer A). A constraint the body owns is left to the body, which gives a richer rejection.
+                    errors = [e for e in Draft7Validator(_schema).iter_errors(kwargs)
+                              if (_name, ".".join(map(str, e.absolute_path)), e.validator) not in BODY_OWNED]
                     if errors:
                         # Field-addressed: two different malformed arguments are different gaps, one repeated mistake is not.
-                        field = ".".join(map(str, errors[0].absolute_path))
-                        result = ledger.rejected("CLAIM_SCHEMA_INVALID", _name + ("." + field if field else ""), "; ".join(
-                            ".".join(map(str, e.absolute_path)) + (": " if e.absolute_path else "") + e.message[:160] for e in errors[:3]))
+                        paths = field_paths_of(errors)
+                        ledger.current_layer, ledger.current_source = TOOL_SCHEMA, SOURCE_PREFLIGHT
+                        result = ledger.rejected("CLAIM_SCHEMA_INVALID", _name + (("." + paths[0]) if paths and paths[0] != "<root>" else ""), "; ".join(
+                            ".".join(map(str, e.absolute_path)) + (": " if e.absolute_path else "") + e.message[:160] for e in errors[:3]),
+                            fieldPaths=paths, repairKey=classify_schema_error(errors[0]))
                     else:
                         try:
                             result = _function(**kwargs)
                             if result.get("outcome") == "PASSED":
+                                if _name in AUTHORING_MUTATIONS:
+                                    ledger.draft_changed()
                                 ledger.progress(_name)
                         except (KeyError, TypeError, ValueError) as error:
-                            result = ledger.rejected("CLAIM_SCHEMA_INVALID", _name, str(error)[:200])
+                            # Safety net only: every known precondition has an explicit, candidate-bearing rejection above.
+                            ledger.current_layer, ledger.current_source = None, SOURCE_BODY
+                            result = ledger.rejected("CLAIM_SCHEMA_INVALID", _name, f"Internal {type(error).__name__} in {_name}: {str(error)[:160]}", repairKey="FRAMEWORK_ERROR")
                     if context.authoring is not None:
-                        context.authoring.observe_tool(_name, kwargs, result)
+                        context.authoring.observe_tool(_name, kwargs, result, call_id=ledger.current_call_id, envelope=ledger.last_envelope)
                     return json.dumps(result, ensure_ascii=False)
                 finally:
-                    ledger.current_tool = None
+                    ledger.current_tool = ledger.current_args = ledger.current_call_id = ledger.current_layer = ledger.current_source = None
         tools.append(StructuredTool.from_function(invoke, name=name, description=description, args_schema=schema))
     return tools

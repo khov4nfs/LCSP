@@ -1,0 +1,75 @@
+[
+  {
+    "check": "typecheck",
+    "exitCode": 0,
+    "command": [
+      "pnpm",
+      "run",
+      "typecheck:run"
+    ]
+  },
+  {
+    "check": "api-build",
+    "exitCode": 0,
+    "command": [
+      "pnpm",
+      "--filter",
+      "@lcsp/api",
+      "build"
+    ]
+  },
+  {
+    "check": "imports",
+    "exitCode": 0,
+    "command": [
+      "node",
+      "scripts/check-import-policy.mjs"
+    ]
+  },
+  {
+    "check": "contract-literals",
+    "exitCode": 0,
+    "command": [
+      "node",
+      "scripts/check-contract-literals.mjs"
+    ]
+  },
+  {
+    "check": "legal-v1-retired",
+    "exitCode": 0,
+    "command": [
+      "node",
+      "scripts/check-legal-v1-authority-retired.mjs"
+    ]
+  },
+  {
+    "check": "terminology",
+    "exitCode": 0,
+    "command": [
+      "node",
+      "reports/lcsp360-tool-contract-20261018/terminology.mjs"
+    ]
+  },
+  {
+    "check": "compileall",
+    "exitCode": 0,
+    "command": [
+      "deepagents/.venv/bin/python",
+      "-m",
+      "compileall",
+      "-q",
+      "-x",
+      "/(\\.venv|\\.uv-cache|__pycache__)/",
+      "deepagents"
+    ]
+  },
+  {
+    "check": "diff-check",
+    "exitCode": 0,
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ]
+  }
+]

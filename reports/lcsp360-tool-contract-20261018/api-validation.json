@@ -1,0 +1,82 @@
+[
+  {
+    "check": "src",
+    "exitCode": 0,
+    "passed": 1150,
+    "failed": 0,
+    "pending": 76,
+    "suites": 155
+  },
+  {
+    "check": "tests",
+    "exitCode": 0,
+    "passed": 64,
+    "failed": 0,
+    "pending": 0,
+    "suites": 17
+  },
+  {
+    "check": "service",
+    "exitCode": 0,
+    "passed": 22,
+    "failed": 0,
+    "pending": 0,
+    "suites": 1
+  },
+  {
+    "check": "lifecycle",
+    "exitCode": 0,
+    "passed": 15,
+    "failed": 0,
+    "pending": 0,
+    "suites": 1
+  },
+  {
+    "check": "inventory",
+    "exitCode": 0,
+    "passed": 2,
+    "failed": 0,
+    "pending": 0,
+    "suites": 1
+  },
+  {
+    "check": "graph",
+    "exitCode": 0,
+    "passed": 11,
+    "failed": 0,
+    "pending": 0,
+    "suites": 1
+  },
+  {
+    "check": "admin",
+    "exitCode": 0,
+    "passed": 18,
+    "failed": 0,
+    "pending": 0,
+    "suites": 1
+  },
+  {
+    "check": "mgmt",
+    "exitCode": 0,
+    "passed": 22,
+    "failed": 0,
+    "pending": 0,
+    "suites": 1
+  },
+  {
+    "check": "reactivation",
+    "exitCode": 0,
+    "passed": 17,
+    "failed": 0,
+    "pending": 0,
+    "suites": 1
+  },
+  {
+    "check": "e2e",
+    "exitCode": 0,
+    "passed": 9,
+    "failed": 0,
+    "pending": 0,
+    "suites": 1
+  }
+]

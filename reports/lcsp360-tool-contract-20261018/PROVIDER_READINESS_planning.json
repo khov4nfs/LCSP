@@ -1,0 +1,133 @@
+{
+ "probedAt": "2026-10-17T17:08:34Z",
+ "routesFile": "production default (config/model_routes.yaml)",
+ "credentialsPresent": [
+  "APX_API_KEY",
+  "GEMINI_API_KEY",
+  "INCEPTION_API_KEY"
+ ],
+ "routes": [
+  {
+   "route": "primary",
+   "provider": "apx",
+   "model": "claude-sonnet-4-6-free",
+   "protocol": "anthropic",
+   "liveness": {
+    "ok": false,
+    "ms": 1202,
+    "usage": null
+   },
+   "conformance": [],
+   "errors": {
+    "RATE_LIMITED": 1
+   },
+   "conformingCalls": 0,
+   "eligible": false,
+   "reasons": [
+    "NOT_REACHABLE_OR_NO_ANSWER",
+    "REFUSED:RATE_LIMITED",
+    "TOOL_CONTRACT_CONFORMANCE_0_OF_3"
+   ]
+  },
+  {
+   "route": "fallback",
+   "provider": "google_genai",
+   "model": "gemini-3.5-flash-lite",
+   "protocol": "google_genai",
+   "liveness": {
+    "ok": true,
+    "ms": 738,
+    "usage": {
+     "input": 8,
+     "output": 1
+    }
+   },
+   "conformance": [
+    {
+     "ms": 1243,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 498,
+      "output": 177
+     }
+    },
+    {
+     "ms": 1062,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 498,
+      "output": 177
+     }
+    },
+    {
+     "ms": 1062,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 498,
+      "output": 177
+     }
+    }
+   ],
+   "errors": {},
+   "conformingCalls": 3,
+   "eligible": true,
+   "reasons": []
+  },
+  {
+   "route": "fallback-01",
+   "provider": "inception",
+   "model": "mercury-2.5",
+   "protocol": "openai",
+   "liveness": {
+    "ok": true,
+    "ms": 1410,
+    "usage": {
+     "input": 8,
+     "output": 207
+    }
+   },
+   "conformance": [
+    {
+     "ms": 3027,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 794,
+      "output": 943
+     }
+    },
+    {
+     "ms": 2774,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 828,
+      "output": 1065
+     }
+    },
+    {
+     "ms": 3068,
+     "error": null,
+     "validSchema": true,
+     "rolesCorrect": true,
+     "usage": {
+      "input": 795,
+      "output": 1055
+     }
+    }
+   ],
+   "errors": {},
+   "conformingCalls": 3,
+   "eligible": true,
+   "reasons": []
+  }
+ ]
+}

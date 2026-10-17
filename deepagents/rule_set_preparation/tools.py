@@ -115,6 +115,12 @@ class RuleSetPreparationContext:
     authoring: Any = None
     mutation_lock: Any = field(default_factory=threading.RLock, repr=False)
     model_turn: int | None = None
+    # Ordering for authoring telemetry: never infer order from wall-clock time. event_sequence is monotonic per run; draft_revision
+    # advances exactly when the authored Requirement/AssessmentRule candidates change.
+    event_sequence: int = 0
+    draft_revision: int = 0
+    draft_fp: str | None = None
+    rejection_log: list[dict[str, Any]] = field(default_factory=list)
     submission: dict[str, Any] | None = None
     validation_calls: int = 0
     last_validation: dict[str, Any] | None = None
@@ -404,7 +410,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
                 "durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "RULE_VALIDATION_STARTED",
                 "rule_validation_attempt": context.validation_calls, "inventory_revision": inventory.revision,
-                "claim_inventory_fingerprint": inventory.frozen_fingerprint})
+                "claim_inventory_fingerprint": inventory.frozen_fingerprint, **inventory.stamp()})
         context.adds_since_validation = 0
         previous_validation = context.last_validation
         context.validated_packet = None
@@ -443,7 +449,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             publish_agent_stream_event("CUSTOM_PROGRESS", status="RUNNING", data={
                 "durability": DURABLE, "schema_version": SEMANTIC_SCHEMA_VERSION, "activity_kind": "RULE_VALIDATION_PASSED" if passed else "RULE_VALIDATION_FAILED",
                 "rule_validation_attempt": context.validation_calls, "inventory_revision": context.inventory.revision,
-                "gap_counts": {k: v["count"] for k, v in grouped_gaps(result)["gaps"].items()}})
+                "gap_counts": {k: v["count"] for k, v in grouped_gaps(result)["gaps"].items()}, **context.inventory.stamp()})
             context.inventory.transition(SUBMISSION_READY if passed else AUTHORING)
         context.last_validation = result
         if result.get("coverage"):

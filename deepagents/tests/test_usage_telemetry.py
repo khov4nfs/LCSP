@@ -307,6 +307,16 @@ def test_terminal_exhaustion_is_one_logical_failure(monkeypatch):
     assert not _completed(events)
 
 
+def test_successful_completion_retains_safe_route_and_credential_slot(monkeypatch):
+    from middleware.usage_metering import provider_attempt_context
+
+    with provider_attempt_context(route_ordinal=2, credential_slot_safe_id="CREDENTIAL_SLOT_04"):
+        events = _stepped([lambda _r: _message({"input_tokens": 4, "output_tokens": 1})], monkeypatch)
+    data = _completed(events)[0]["data"]
+    assert data["route_ordinal"] == 2
+    assert data["credential_slot_safe_id"] == "CREDENTIAL_SLOT_04"
+
+
 def test_failed_provider_attempts_share_identity_and_emit_only_safe_metadata(monkeypatch):
     from middleware.usage_metering import provider_attempt_context
 
