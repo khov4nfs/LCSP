@@ -15,6 +15,7 @@ import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   claimAssessmentRootRequestSchema,
+  type AssessmentProvenanceArtifact,
 } from "@lcsp/contracts/assessment-domain";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
@@ -47,12 +48,30 @@ export class AssessmentProvenanceController {
     @Req() req: AuthenticatedRequest,
   ) {
     const correlationId = req.correlationId || randomUUID();
-    const artifact = await this.provenanceLoader.load({
-      assessmentId,
-      sessionUserId: req.rbacContext.userId,
-      subjectRole: req.rbacContext.role,
-      correlationId,
-    });
+    let artifact: AssessmentProvenanceArtifact;
+    try {
+      artifact = await this.provenanceLoader.load({
+        assessmentId,
+        sessionUserId: req.rbacContext.userId,
+        subjectRole: req.rbacContext.role,
+        correlationId,
+      });
+    } catch (error) {
+      await this.auditWriter.write({
+        eventType: "assessment.provenance.viewed",
+        actorId: req.rbacContext.userId,
+        assessmentId,
+        resourceType: AUDIT_RESOURCE_TYPES.assessment,
+        resourceId: assessmentId,
+        decision: AUDIT_DECISIONS.deny,
+        correlationId,
+        result: "DENIED",
+        payload: {
+          reason: "ACCESS_DENIED_OR_NOT_FOUND",
+        },
+      });
+      throw error;
+    }
 
     await this.auditWriter.write({
       eventType: "assessment.provenance.viewed",
@@ -78,12 +97,30 @@ export class AssessmentProvenanceController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const correlationId = req.correlationId || randomUUID();
-    const artifact = await this.provenanceLoader.load({
-      assessmentId,
-      sessionUserId: req.rbacContext.userId,
-      subjectRole: req.rbacContext.role,
-      correlationId,
-    });
+    let artifact: AssessmentProvenanceArtifact;
+    try {
+      artifact = await this.provenanceLoader.load({
+        assessmentId,
+        sessionUserId: req.rbacContext.userId,
+        subjectRole: req.rbacContext.role,
+        correlationId,
+      });
+    } catch (error) {
+      await this.auditWriter.write({
+        eventType: "assessment.provenance.exported",
+        actorId: req.rbacContext.userId,
+        assessmentId,
+        resourceType: AUDIT_RESOURCE_TYPES.assessment,
+        resourceId: assessmentId,
+        decision: AUDIT_DECISIONS.deny,
+        correlationId,
+        result: "DENIED",
+        payload: {
+          reason: "ACCESS_DENIED_OR_NOT_FOUND",
+        },
+      });
+      throw error;
+    }
 
     await this.auditWriter.write({
       eventType: "assessment.provenance.exported",

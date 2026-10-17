@@ -14,7 +14,13 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import type { ExecutionContext, INestApplication } from "@nestjs/common";
+import {
+  HttpStatus,
+  type ExecutionContext,
+  type INestApplication,
+} from "@nestjs/common";
+import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { Test } from "@nestjs/testing";
 import supertest from "supertest";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
@@ -185,5 +191,69 @@ describe("AssessmentProvenanceController", () => {
       .expect(422);
 
     expect(loadProvenanceMock).not.toHaveBeenCalled();
+  });
+
+  it("audits denial with result DENIED and returns 404 when loader rejects foreign/nonexistent assessment", async () => {
+    loadProvenanceMock.mockRejectedValue(
+      problemException(ASSESSMENT_ERROR_CODES.notFound, "corr-test-123", {
+        status: HttpStatus.NOT_FOUND,
+      }),
+    );
+
+    const response = await supertest(server)
+      .get(`/assessments/${assessmentId}/provenance`)
+      .expect(404);
+
+    expect(response.body).toEqual({
+      ok: false,
+      problem: expect.objectContaining({
+        code: ASSESSMENT_ERROR_CODES.notFound,
+      }),
+    });
+
+    expect(auditWriteMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "assessment.provenance.viewed",
+        assessmentId,
+        actorId: actor.userId,
+        decision: "DENY",
+        result: "DENIED",
+        payload: {
+          reason: "ACCESS_DENIED_OR_NOT_FOUND",
+        },
+      }),
+    );
+  });
+
+  it("audits download denial with result DENIED and returns 404 when loader rejects foreign/nonexistent assessment", async () => {
+    loadProvenanceMock.mockRejectedValue(
+      problemException(ASSESSMENT_ERROR_CODES.notFound, "corr-test-123", {
+        status: HttpStatus.NOT_FOUND,
+      }),
+    );
+
+    const response = await supertest(server)
+      .get(`/assessments/${assessmentId}/provenance/download`)
+      .expect(404);
+
+    expect(response.body).toEqual({
+      ok: false,
+      problem: expect.objectContaining({
+        code: ASSESSMENT_ERROR_CODES.notFound,
+      }),
+    });
+
+    expect(auditWriteMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "assessment.provenance.exported",
+        assessmentId,
+        actorId: actor.userId,
+        decision: "DENY",
+        result: "DENIED",
+        payload: {
+          reason: "ACCESS_DENIED_OR_NOT_FOUND",
+        },
+      }),
+    );
   });
 });

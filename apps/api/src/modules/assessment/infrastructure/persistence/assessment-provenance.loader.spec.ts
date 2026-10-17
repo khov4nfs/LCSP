@@ -34,7 +34,7 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
     lifecycleRevision: 1,
     blockerReason: null,
     blockerReference: null,
-    repositorySnapshotId: "snap-1",
+    repositorySnapshotId: snapshotId,
     ruleSetVersionId,
     pinnedRepositoryCommit: commitSha,
     pinnedRepositoryHash: sha256Hex,
@@ -59,7 +59,7 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
       assessmentId,
       caseRevision: 3,
       ruleSetVersionId,
-      repositorySnapshotId: "snap-1",
+      repositorySnapshotId: snapshotId,
       repositoryScanJobId: "job-1",
       repositoryCommit: commitSha,
       pinnedAt: new Date("2026-10-17T09:00:00Z"),
@@ -122,6 +122,8 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
           scopeId: "global",
           decisionRevision: 1,
           state: "ACCEPTED",
+          repositoryCommit: commitSha,
+          caseRevision: 1,
           decision: {
             scopeId: "global",
             assessmentRuleId: "rule-item-1",
@@ -138,7 +140,12 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
                 type: "ASSESSMENT_EVIDENCE",
                 evidenceId,
               },
-            ],
+            ] as Array<{
+              type: string;
+              evidenceId?: string;
+              factId?: string;
+              caseRevision?: number;
+            }>,
             criteria: [
               {
                 criterionId: "crit-1",
@@ -159,6 +166,8 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
       ],
       coverage: [
         {
+          assessmentId,
+          ruleSetVersionId,
           assessmentRuleId: "rule-item-1",
           assessmentRuleVersion: "1.0.0",
           resolutionState: "RESOLVED",
@@ -212,7 +221,7 @@ function buildValidRecord(overrides: Record<string, unknown> = {}) {
           kind: "FINAL_REPORT",
           lifecycleState: "ACTIVE",
           ruleSetVersionId,
-          repositorySnapshotId: "snap-1",
+          repositorySnapshotId: snapshotId,
           repositoryCommit: commitSha,
           caseRevision: 3,
           contentSha256: sha256Hex,
@@ -589,5 +598,296 @@ describe("AssessmentProvenanceLoader", () => {
         }),
       }),
     });
+  });
+
+  it("fails closed with PROVENANCE_INTEGRITY_MISMATCH if a decision references nonexistent evidence", async () => {
+    const record = buildValidRecord();
+    record.domainCase.decisions[0].decision = {
+      ...record.domainCase.decisions[0].decision,
+      references: [
+        {
+          type: "ASSESSMENT_EVIDENCE",
+          evidenceId: "99999999-9999-4999-8999-999999999999",
+        },
+      ],
+    };
+
+    const prisma = {
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService;
+
+    const loader = new AssessmentProvenanceLoader(prisma);
+
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        }),
+      }),
+    });
+  });
+
+  it("fails closed with PROVENANCE_INTEGRITY_MISMATCH if a decision references nonexistent fact", async () => {
+    const record = buildValidRecord();
+    record.domainCase.decisions[0].decision = {
+      ...record.domainCase.decisions[0].decision,
+      references: [
+        {
+          type: "CONFIRMED_FACT",
+          factId: "99999999-9999-4999-8999-999999999999",
+          caseRevision: 1,
+        },
+      ],
+    };
+
+    const prisma = {
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService;
+
+    const loader = new AssessmentProvenanceLoader(prisma);
+
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        }),
+      }),
+    });
+  });
+
+  it("fails closed with PROVENANCE_INTEGRITY_MISMATCH if coverage.currentDecisionId does not resolve to a valid decision", async () => {
+    const record = buildValidRecord();
+    record.domainCase.coverage[0] = {
+      ...record.domainCase.coverage[0],
+      currentDecisionId: "99999999-9999-4999-8999-999999999999",
+    };
+
+    const prisma = {
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService;
+
+    const loader = new AssessmentProvenanceLoader(prisma);
+
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        }),
+      }),
+    });
+  });
+
+  it("fails closed with PROVENANCE_INTEGRITY_MISMATCH if human request resolvedFactId references nonexistent fact", async () => {
+    const record = buildValidRecord();
+    record.domainCase.humanRequests[0] = {
+      ...record.domainCase.humanRequests[0],
+      resolvedFactId: "99999999-9999-4999-8999-999999999999",
+    };
+
+    const prisma = {
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService;
+
+    const loader = new AssessmentProvenanceLoader(prisma);
+
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        }),
+      }),
+    });
+  });
+
+  it("fails closed with PROVENANCE_INTEGRITY_MISMATCH if decision commit or pins mismatch canonical case", async () => {
+    const record = buildValidRecord();
+    record.domainCase.decisions[0].decision = {
+      ...record.domainCase.decisions[0].decision,
+      repositoryCommit: "ffffffffffffffffffffffffffffffffffffffff",
+    };
+
+    const prisma = {
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService;
+
+    const loader = new AssessmentProvenanceLoader(prisma);
+
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        }),
+      }),
+    });
+  });
+
+  it("fails closed with PROVENANCE_INTEGRITY_MISMATCH if evidence commit does not match pinned case commit", async () => {
+    const record = buildValidRecord();
+    record.domainCase.evidence[0] = {
+      ...record.domainCase.evidence[0],
+      repositoryCommit: "ffffffffffffffffffffffffffffffffffffffff",
+    };
+
+    const prisma = {
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService;
+
+    const loader = new AssessmentProvenanceLoader(prisma);
+
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        }),
+      }),
+    });
+  });
+
+  it("fails closed with PROVENANCE_INTEGRITY_MISMATCH if final artifact pins mismatch canonical case", async () => {
+    const record = buildValidRecord();
+    record.domainCase.artifacts[0] = {
+      ...record.domainCase.artifacts[0],
+      repositoryCommit: "ffffffffffffffffffffffffffffffffffffffff",
+    };
+
+    const prisma = {
+      assessment: {
+        findUnique: () => Promise.resolve(record),
+      },
+    } as unknown as PrismaService;
+
+    const loader = new AssessmentProvenanceLoader(prisma);
+
+    await expect(
+      loader.load({
+        assessmentId,
+        sessionUserId: ownerId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      response: expect.objectContaining({
+        problem: expect.objectContaining({
+          code: ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+        }),
+      }),
+    });
+  });
+
+  it("computes deterministic content fingerprint across multiple requests and changes when provenance changes", async () => {
+    const record1 = buildValidRecord();
+    const prisma1 = {
+      assessment: { findUnique: () => Promise.resolve(record1) },
+    } as unknown as PrismaService;
+    const loader1 = new AssessmentProvenanceLoader(prisma1);
+
+    const result1 = await loader1.load({
+      assessmentId,
+      sessionUserId: ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "correlation-attempt-1",
+    });
+
+    // Second call with different correlationId
+    const result2 = await loader1.load({
+      assessmentId,
+      sessionUserId: ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "correlation-attempt-2",
+    });
+
+    // Content fingerprint is identical despite volatile correlationId
+    expect(result1.checksumSha256).toBe(result2.checksumSha256);
+    expect(result1.correlationId).not.toBe(result2.correlationId);
+
+    // Now change canonical state: add an accepted fact
+    const record2 = buildValidRecord();
+    record2.domainCase.facts.push({
+      factId: "99999999-9999-4999-8999-999999999999",
+      assessmentId,
+      caseRevision: 2,
+      kind: "FACT",
+      authority: "EVIDENCE_CITED",
+      state: "ACCEPTED",
+      statement: "New secondary security fact.",
+      invalidatedAt: null,
+      evidenceLinks: [],
+      createdAt: new Date("2026-10-17T09:15:00Z"),
+      updatedAt: new Date("2026-10-17T09:15:00Z"),
+    });
+    const prisma2 = {
+      assessment: { findUnique: () => Promise.resolve(record2) },
+    } as unknown as PrismaService;
+    const loader2 = new AssessmentProvenanceLoader(prisma2);
+
+    const result3 = await loader2.load({
+      assessmentId,
+      sessionUserId: ownerId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: "correlation-attempt-3",
+    });
+
+    expect(result3.checksumSha256).not.toBe(result1.checksumSha256);
   });
 });

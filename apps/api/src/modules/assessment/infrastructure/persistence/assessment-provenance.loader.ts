@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
-import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_ERROR_CODES,
+  RULE_DECISION_REFERENCE_TYPES,
+} from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_DOMAIN_ERROR_CODES,
   ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
@@ -123,7 +126,13 @@ export class AssessmentProvenanceLoader {
       const evidenceIdSet = new Set(
         domainCase.evidence.map((e) => e.evidenceId),
       );
+      const factIdSet = new Set(domainCase.facts.map((f) => f.factId));
+      const factMap = new Map(domainCase.facts.map((f) => [f.factId, f]));
+      const decisionMap = new Map(
+        domainCase.decisions.map((d) => [d.decisionId, d]),
+      );
 
+      // 1. Facts validation
       for (const fact of domainCase.facts) {
         if (fact.assessmentId !== input.assessmentId) {
           throw problemException(
@@ -146,6 +155,7 @@ export class AssessmentProvenanceLoader {
         }
       }
 
+      // 2. Evidence validation (assessmentId and pinned commit cross-check)
       for (const evidence of domainCase.evidence) {
         if (evidence.assessmentId !== input.assessmentId) {
           throw problemException(
@@ -154,8 +164,19 @@ export class AssessmentProvenanceLoader {
             { status: HttpStatus.CONFLICT },
           );
         }
+        if (
+          domainCase.repositoryCommit &&
+          evidence.repositoryCommit !== domainCase.repositoryCommit
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
       }
 
+      // 3. Decisions validation (row pins + parsed decision content references & pins)
       for (const decision of domainCase.decisions) {
         if (decision.assessmentId !== input.assessmentId) {
           throw problemException(
@@ -174,8 +195,173 @@ export class AssessmentProvenanceLoader {
             { status: HttpStatus.CONFLICT },
           );
         }
+        if (
+          domainCase.repositoryCommit &&
+          decision.repositoryCommit !== domainCase.repositoryCommit
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (decision.caseRevision > domainCase.caseRevision) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        // Validate nested decision content payload references and pins
+        const decPayload =
+          typeof decision.decision === "object" && decision.decision !== null
+            ? (decision.decision as Record<string, unknown>)
+            : {};
+
+        if (
+          domainCase.ruleSetVersionId &&
+          decPayload.ruleSetVersionId &&
+          decPayload.ruleSetVersionId !== domainCase.ruleSetVersionId
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (
+          domainCase.repositorySnapshotId &&
+          decPayload.repositorySnapshotId &&
+          decPayload.repositorySnapshotId !== domainCase.repositorySnapshotId
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (
+          domainCase.repositoryCommit &&
+          decPayload.repositoryCommit &&
+          decPayload.repositoryCommit !== domainCase.repositoryCommit
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (
+          typeof decPayload.caseRevision === "number" &&
+          decPayload.caseRevision > domainCase.caseRevision
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+
+        // Validate references in decision and its criteria
+        const referencesToCheck: Array<{
+          type?: string;
+          evidenceId?: string;
+          factId?: string;
+          caseRevision?: number;
+        }> = [];
+
+        if (Array.isArray(decPayload.references)) {
+          referencesToCheck.push(
+            ...(decPayload.references as Array<{
+              type?: string;
+              evidenceId?: string;
+              factId?: string;
+              caseRevision?: number;
+            }>),
+          );
+        }
+        if (Array.isArray(decPayload.criteria)) {
+          for (const crit of decPayload.criteria) {
+            if (
+              typeof crit === "object" &&
+              crit !== null &&
+              Array.isArray((crit as Record<string, unknown>).references)
+            ) {
+              referencesToCheck.push(
+                ...((crit as Record<string, unknown>).references as Array<{
+                  type?: string;
+                  evidenceId?: string;
+                  factId?: string;
+                  caseRevision?: number;
+                }>),
+              );
+            }
+          }
+        }
+
+        for (const ref of referencesToCheck) {
+          if (ref.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE) {
+            if (!ref.evidenceId || !evidenceIdSet.has(ref.evidenceId)) {
+              throw problemException(
+                ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+                input.correlationId,
+                { status: HttpStatus.CONFLICT },
+              );
+            }
+          } else if (
+            ref.type === RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT
+          ) {
+            if (!ref.factId || !factIdSet.has(ref.factId)) {
+              throw problemException(
+                ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+                input.correlationId,
+                { status: HttpStatus.CONFLICT },
+              );
+            }
+            const confirmedFact = factMap.get(ref.factId);
+            if (
+              !confirmedFact ||
+              (ref.caseRevision != null &&
+                confirmedFact.caseRevision !== ref.caseRevision)
+            ) {
+              throw problemException(
+                ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+                input.correlationId,
+                { status: HttpStatus.CONFLICT },
+              );
+            }
+          }
+        }
       }
 
+      // 4. Coverage validation (currentDecisionId must resolve to a valid same-assessment decision for that rule)
+      for (const cov of domainCase.coverage) {
+        if (cov.assessmentId !== input.assessmentId) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (cov.currentDecisionId) {
+          const resolvedDec = decisionMap.get(cov.currentDecisionId);
+          if (
+            !resolvedDec ||
+            resolvedDec.assessmentRuleId !== cov.assessmentRuleId ||
+            (cov.decisionRevision != null &&
+              resolvedDec.decisionRevision !== cov.decisionRevision)
+          ) {
+            throw problemException(
+              ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+              input.correlationId,
+              { status: HttpStatus.CONFLICT },
+            );
+          }
+        }
+      }
+
+      // 5. Human Requests validation (resolvedFactId cross-check)
       for (const request of domainCase.humanRequests) {
         if (request.assessmentId !== input.assessmentId) {
           throw problemException(
@@ -184,10 +370,61 @@ export class AssessmentProvenanceLoader {
             { status: HttpStatus.CONFLICT },
           );
         }
+        if (request.resolvedFactId && !factIdSet.has(request.resolvedFactId)) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
       }
 
+      // 6. Artifacts validation (cross-check pins against canonical case)
       for (const artifact of domainCase.artifacts) {
         if (artifact.assessmentId !== input.assessmentId) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (
+          domainCase.ruleSetVersionId &&
+          artifact.ruleSetVersionId &&
+          artifact.ruleSetVersionId !== domainCase.ruleSetVersionId
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (
+          domainCase.repositorySnapshotId &&
+          artifact.repositorySnapshotId &&
+          artifact.repositorySnapshotId !== domainCase.repositorySnapshotId
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (
+          domainCase.repositoryCommit &&
+          artifact.repositoryCommit &&
+          artifact.repositoryCommit !== domainCase.repositoryCommit
+        ) {
+          throw problemException(
+            ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (
+          artifact.caseRevision != null &&
+          artifact.caseRevision > domainCase.caseRevision
+        ) {
           throw problemException(
             ASSESSMENT_DOMAIN_ERROR_CODES.PROVENANCE_INTEGRITY_MISMATCH,
             input.correlationId,
@@ -367,13 +604,11 @@ export class AssessmentProvenanceLoader {
 
     const generatedAt = new Date().toISOString();
 
-    const baseArtifact = {
+    const stableProvenancePayload = {
       schemaVersion: ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
       assessmentId: assessment.id,
       name: assessment.name,
       ownerId: assessment.ownerId,
-      generatedAt,
-      correlationId: input.correlationId,
       lifecycle: canonical.lifecycle,
       pins,
       runtime: canonical.runtime,
@@ -387,11 +622,13 @@ export class AssessmentProvenanceLoader {
     };
 
     const checksumSha256 = createHash("sha256")
-      .update(JSON.stringify(baseArtifact))
+      .update(JSON.stringify(stableProvenancePayload))
       .digest("hex");
 
     const provenanceArtifact: AssessmentProvenanceArtifact = {
-      ...baseArtifact,
+      ...stableProvenancePayload,
+      generatedAt,
+      correlationId: input.correlationId,
       checksumSha256,
     };
 
