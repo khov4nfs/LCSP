@@ -19,7 +19,7 @@ import {
   DECISION_VALIDATION_FAILURE_CODES,
   SEARCH_COVERAGE_SCOPE_KINDS,
 } from "@lcsp/contracts/assessment-domain";
-import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
+import { AUDIT_DECISIONS, AUDIT_EVENT_RESULTS } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,
   AUTH_ERROR_CODES,
@@ -65,6 +65,7 @@ const canonicalValues = new Set(
     ASSESSMENT_RECORD_STATES,
     ASSESSMENT_ROOT_COMMAND_TYPES,
     AUDIT_DECISIONS,
+    AUDIT_EVENT_RESULTS,
     AUTH_AUDIT_EVENT_TYPES,
     AUTH_ERROR_CODES,
     AUTH_LEGACY_AUDIT_EVENT_TYPES,

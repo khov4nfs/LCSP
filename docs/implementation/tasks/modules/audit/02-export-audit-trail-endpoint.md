@@ -3,7 +3,7 @@ task_id: MW-aud-002
 module: audit
 runtime: nestjs-api
 priority: P1
-status: READY_FOR_DEV
+status: DONE
 epic_story: 8.7
 depends_on:
   - audit/01-list-audit-events-endpoint.md

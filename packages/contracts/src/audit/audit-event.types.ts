@@ -6,6 +6,15 @@ export const AUDIT_DECISIONS = {
 export type AuditDecision =
   (typeof AUDIT_DECISIONS)[keyof typeof AUDIT_DECISIONS];
 
+export const AUDIT_EVENT_RESULTS = {
+  success: "SUCCESS",
+  denied: "DENIED",
+  failed: "FAILED",
+} as const;
+
+export type AuditEventResult =
+  (typeof AUDIT_EVENT_RESULTS)[keyof typeof AUDIT_EVENT_RESULTS];
+
 export const AUDIT_EVENT_SCHEMA_VERSION = "audit.event.v1";
 
 export const AUDIT_REDACTION_STATUSES = {
