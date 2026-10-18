@@ -38,6 +38,7 @@ export class AssessmentPdfRenderer {
         margin: 48,
         bufferPages: true,
         compress: true,
+        fontLayoutCache: false,
         info: { Title: "LCSP Assessment Report", Author: "LCSP" },
       });
       document.registerFont("NotoSans", FONT_PATH);
@@ -46,6 +47,14 @@ export class AssessmentPdfRenderer {
       document.on("data", (chunk: Buffer) => chunks.push(chunk));
       document.on("error", reject);
       document.on("end", () => resolve(Buffer.concat(chunks)));
+      const write = (value: string, options: Record<string, unknown> = {}) =>
+        document.text(value, {
+          ...options,
+          features: {
+            ccmp: false,
+            ...(options.features as object | undefined),
+          } as never,
+        });
 
       const heading = (text: string, level = 1) => {
         document.moveDown(level === 1 ? 0.8 : 0.35);
@@ -54,20 +63,22 @@ export class AssessmentPdfRenderer {
           .font("NotoSans")
           .text(text, {
             continued: false,
+            features: { ccmp: false } as never,
           });
         document.moveDown(0.25).fontSize(9);
       };
       const label = (name: string, value: string | number | null) => {
-        document.font("NotoSans").text(`${name}: ${value ?? "N/A"}`, {
+        write(`${name}: ${value ?? "N/A"}`, {
           width: 500,
         });
       };
       const list = (items: string[]) => {
         if (!items.length) return label("—", "N/A");
-        for (const item of items) document.text(`• ${item}`, { indent: 8 });
+        for (const item of items) write(`• ${item}`, { indent: 8 });
       };
 
-      document.fontSize(18).text("LCSP — Final Assessment Report", {
+      document.fontSize(18);
+      write("LCSP — Final Assessment Report", {
         align: "center",
       });
       document.fontSize(9).moveDown(0.5);
@@ -94,7 +105,7 @@ export class AssessmentPdfRenderer {
         model.summary.applicableNonCompliant,
       );
       label("Not applicable", model.summary.notApplicable);
-      document.text(
+      write(
         model.summary.statement === "NO_NON_COMPLIANT_FINDINGS"
           ? "Chưa ghi nhận nghĩa vụ không đáp ứng trong phạm vi đã kiểm tra."
           : "Applicable non-compliant findings are listed below.",
@@ -179,7 +190,7 @@ export class AssessmentPdfRenderer {
 
       heading("05 — KẾ HOẠCH HÀNH ĐỘNG");
       if (!model.actionPlan.length)
-        document.text("Không có hành động được hỗ trợ nào được ghi nhận.");
+        write("Không có hành động được hỗ trợ nào được ghi nhận.");
       for (const item of model.actionPlan) {
         heading(item.obligation, 2);
         label("Rule", item.assessmentRuleId);
@@ -229,6 +240,7 @@ export class AssessmentPdfRenderer {
             height: 10,
             align: "center",
             lineBreak: false,
+            features: { ccmp: false } as never,
           });
       }
       document.end();
