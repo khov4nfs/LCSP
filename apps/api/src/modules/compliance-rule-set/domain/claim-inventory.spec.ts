@@ -16,7 +16,12 @@ import { validateSemanticClaimGraph } from "./semantic-claim-integrity.validator
 const RUN = "00000000-0000-4000-8000-000000000009";
 function fixture() {
   const packet = validPacket();
-  const inventory = canonicalInventoryFixture(packet, RUN);
+  const inventory = canonicalInventoryFixture(
+    packet,
+    RUN,
+    1,
+    fixtureLegalSource().documentGraph!,
+  );
   return { packet, ...inventory, source: fixtureLegalSource() };
 }
 describe("Frozen Preparation claim inventory", () => {
@@ -54,7 +59,9 @@ describe("Frozen Preparation claim inventory", () => {
     f.graph.claims[0].statement += " clarified wording";
     expect(
       validateClaimInventory(RUN, 1, f.graph, f.identities, f.source).failures,
-    ).toEqual([]);
+    ).toContainEqual(
+      expect.objectContaining({ code: F.SEMANTIC_AUDIT_REQUIRED }),
+    );
     expect(f.graph.claims[0].claimId).toBe(id);
   });
   it("fingerprint ignores set ordering, retaining all claim and relation meaning", () => {
@@ -137,7 +144,7 @@ describe("Frozen Preparation claim inventory", () => {
       F.staleInventoryBinding,
     );
   });
-  it("validates thousands of claims and reference relations with bounded indexed passes", () => {
+  it("validates source accounting for thousands of claims with bounded indexed passes", () => {
     const f = fixture(),
       seed = f.graph.claims[0],
       nodes = seed.sourceNodeIds;
@@ -178,9 +185,15 @@ describe("Frozen Preparation claim inventory", () => {
         : "No further semantic material in this scripted scale fixture",
     }));
     const started = performance.now();
-    expect(
-      validateClaimInventory(RUN, 1, f.graph, identities, f.source).failures,
-    ).toEqual([]);
+    // This fixture deliberately has unaudited, unanchored synthetic context claims.
+    // Benchmark the structural accounting layer, not V3 semantic freeze approval.
+    const structural = validateSemanticClaimGraph(
+      { semanticGraph: f.graph, legalRequirements: [], assessmentRules: [], contextRelations: [] } as ReturnType<typeof validPacket>,
+      f.source,
+      true,
+    );
+    expect(structural.coverage.semanticClaims.relevant).toBe(2000);
+    expect(structural.coverage.structuralSource.total).toBeGreaterThan(0);
     expect(performance.now() - started).toBeLessThan(3000);
   });
   describe("authoring readiness (CLAIM_INVENTORY_READY must be authorable)", () => {
@@ -200,13 +213,13 @@ describe("Frozen Preparation claim inventory", () => {
     it("rejects the retained shape: normative claims but no claim able to ground applicability", () => {
       const f = withoutApplicability(fixture());
       const gaps = authoringReadinessGaps(f.graph);
-      expect(gaps.map((g) => g.code)).toEqual(
-        operative(f).map(() => F.APPLICABILITY_AUTHORITY_MISSING),
+      // External-fulfillment and non-assessable operative assertions need no
+      // repository applicability, unlike repository-verifiable anchors.
+      const repositoryAnchors = operative(f).filter((c) =>
+        !["EXTERNAL_FULFILLMENT", "NON_ASSESSABLE"].includes(c.assessability!),
       );
-      expect(gaps.map((g) => g.ref).sort()).toEqual(
-        operative(f)
-          .map((c) => `claim:${c.claimId}`)
-          .sort(),
+      expect(gaps.filter((g) => g.code === F.APPLICABILITY_AUTHORITY_MISSING).map((g) => g.ref).sort()).toEqual(
+        repositoryAnchors.map((c) => `claim:${c.claimId}`).sort(),
       );
       expect(gaps[0].detail).toMatch(/CONDITION or SCOPE/);
       // The authoritative gate that freezes the inventory reports the same machine-readable gaps.
@@ -250,6 +263,20 @@ describe("Frozen Preparation claim inventory", () => {
           claimType: claimType as typeof seed.claimType,
           operative: null,
         });
+        // A matching claim type without an authoritative target is insufficient.
+        expect(authoringReadinessGaps(f.graph).map((g) => g.code)).toContain(
+          F.APPLICABILITY_AUTHORITY_MISSING,
+        );
+        const scope = f.graph.claims.find((c) => c.claimId === "extra")!;
+        scope.semanticAuthority = "LEGAL_NORMATIVE";
+        for (const anchor of operative(f))
+          f.graph.relations.push({
+            relationId: `scope-to-${anchor.claimId}`,
+            kind: "CONDITION_OF",
+            fromClaimId: scope.claimId,
+            toClaimId: anchor.claimId,
+            referenceId: null,
+          });
         expect(authoringReadinessGaps(f.graph)).toEqual([]);
       },
     );

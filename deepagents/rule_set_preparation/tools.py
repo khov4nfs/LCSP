@@ -113,6 +113,8 @@ class RuleSetPreparationContext:
     authored_claim_ids: set[str] = field(default_factory=set)
     inventory: ClaimInventory | None = None
     authoring: Any = None
+    semantic_auditor: Any = None
+    semantic_audits: dict[str, dict[str, Any]] = field(default_factory=dict)
     mutation_lock: Any = field(default_factory=threading.RLock, repr=False)
     model_turn: int | None = None
     # Ordering for authoring telemetry: never infer order from wall-clock time. event_sequence is monotonic per run; draft_revision
@@ -156,7 +158,7 @@ class RuleSetPreparationContext:
     def draft_packet(self) -> dict[str, Any]:
         packet = {key: list(items.values()) for key, items in self.draft.items() if key not in GRAPH_SECTIONS}
         if self.source_graph is not None:
-            packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V2", **self.source_graph.base(),
+            packet["semanticGraph"] = {"contractVersion": "LEGAL_GRAPH_V3", "semanticAudits": list(self.semantic_audits.values()), **self.source_graph.base(),
                                        **{field: list(self.draft[key].values()) for key, field in GRAPH_SECTIONS.items()}}
         if self.inventory is not None:
             packet["semanticGraph"] = self.inventory.graph()

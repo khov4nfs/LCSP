@@ -119,10 +119,13 @@ describe("complete semantic fidelity matrix", () => {
       "Evaluate repository encryption safeguards for the selected storage surface";
     expect(failures(packet)).toEqual([]);
   });
-  it("P12 permits several compatible propositions and source units in one requirement", () => {
+  it("P12 rejects combining a DUTY and PROHIBITION as if they were compatible operative claims", () => {
     const packet = semanticStressPacket();
     const [direct, prohibition] = packet.legalRequirements;
+    const previousOperativeCount = direct.operativePropositions!.length;
     direct.operativePropositions!.push(...prohibition.operativePropositions!);
+    // The new gate must see both operative anchors, not merely two copied text rows.
+    direct.claimBindings!.push(...prohibition.claimBindings!.filter((b) => b.role === "OPERATIVE_PROPOSITION").map((b) => ({...b, index: previousOperativeCount + b.index})));
     direct.sourceRefs.push(
       ...prohibition.sourceRefs.filter(
         (r) => !direct.sourceRefs.some((x) => x.locator === r.locator),
@@ -149,7 +152,10 @@ describe("complete semantic fidelity matrix", () => {
         semanticStressSource(),
         () => false,
       ).failures,
-    ).toEqual([]);
+    ).toContainEqual(expect.objectContaining({
+      code: Gaps.SEMANTIC_CLOSURE_INVALID,
+      detail: "INCOMPATIBLE_OPERATIVE_AGGREGATION",
+    }));
   });
   it.each([
     ["N1 actor reversed", "Actor: Organization B owes A's duty"],

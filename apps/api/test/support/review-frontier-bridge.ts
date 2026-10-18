@@ -8,6 +8,8 @@ import { PrismaClient } from "@prisma/client";
 import {
   sourceReviewOperationSchema,
   claimInventoryOperationSchema,
+  sourceReviewPayloadSchema,
+  LEGAL_SEMANTIC_GRAPH_VERSION,
 } from "@lcsp/contracts/compliance-rule-set";
 import {
   SourceReviewHandler,
@@ -31,6 +33,7 @@ import { seedRetainedReferenceBinding } from "./seed-retained-reference-binding.
 import { sourceReviewUnits } from "../../src/modules/compliance-rule-set/domain/source-review-frontier.js";
 import { seedReferenceDependencies } from "./seed-reference-dependencies.js";
 import type { ModelEdge } from "./reference-dependency-model.js";
+import { semanticAuditInput } from "../../src/modules/compliance-rule-set/domain/semantic-audit.js";
 
 const url = process.env.DATABASE_URL ?? "";
 if (
@@ -73,6 +76,58 @@ async function invoke(input: BridgeInput) {
           ),
         ),
       ),
+    );
+  } else if (input.action === "AUDIT_INPUT") {
+    const request = input.request as {
+      preparationRunId: string;
+      sourceNodeId: string;
+      payload: unknown;
+      claimIds: string[];
+    };
+    const run = await db.ruleSetPreparationRun.findUniqueOrThrow({
+      where: { id: request.preparationRunId },
+    });
+    const source = (await graphs.export(run.legalSourceVersionId))!;
+    const rows = await db.ruleSetPreparationSourceReview.findMany({
+      where: { preparationRunId: run.id, inventoryRevision: 1 },
+    });
+    const payloads = rows
+      .filter((r) => r.sourceNodeId !== request.sourceNodeId)
+      .map((r) => sourceReviewPayloadSchema.parse(r.payload))
+      .concat(sourceReviewPayloadSchema.parse(request.payload));
+    result = semanticAuditInput(
+      source,
+      {
+        contractVersion: LEGAL_SEMANTIC_GRAPH_VERSION,
+        materializationId: source.materializationId,
+        legalSourceVersionId: source.legalSourceVersionId,
+        claims: [
+          ...new Map(
+            payloads.flatMap((p) => p.claims).map((c) => [c.claimId, c]),
+          ).values(),
+        ],
+        relations: [
+          ...new Map(
+            payloads
+              .flatMap((p) =>
+                p.relations.filter(
+                  (r) => !p.invalidatedRelationIds?.includes(r.relationId),
+                ),
+              )
+              .map((r) => [r.relationId, r]),
+          ).values(),
+        ],
+        sourceAccounting: [
+          {
+            sourceNodeId: request.sourceNodeId,
+            claimIds: request.claimIds,
+            nonSemanticReason: null,
+          },
+        ],
+        referenceAccounting: [],
+      },
+      request.sourceNodeId,
+      1,
     );
   } else if (input.action === "STATE") {
     const { preparationRunId } = input.request as { preparationRunId: string };

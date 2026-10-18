@@ -195,10 +195,10 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     expect(stale.failures).toContainEqual(
       expect.objectContaining({ code: G.STALE }),
     );
-    const next = canonicalInventoryFixture(request.packet, id, 2);
     const sourceGraph = await new LegalDocumentGraphService(service).export(
       source.id,
     );
+    const next = canonicalInventoryFixture(request.packet, id, 2, sourceGraph!);
     const reviewed = await completeFixtureFrontier(
       service,
       id,
@@ -315,6 +315,15 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
           randomUUID(),
         ),
       );
+    // An otherwise structurally complete, model-claimed audit cannot be re-recorded
+    // under a forged receipt seal, even by an authenticated worker request.
+    const forged = structuredClone(lacking);
+    expect(forged.semanticAudits?.length).toBeGreaterThan(0);
+    forged.semanticAudits![0]!.attestation = "hmac-sha256:" + "0".repeat(64);
+    const refusedForgery = await operation(A.RECORD_SEMANTIC_AUDITS, forged);
+    expect(refusedForgery).toMatchObject({ outcome: O.FAILED });
+    expect((refusedForgery.failures as {detail: string}[]).map((f) => f.detail).join("; "))
+      .toContain("VERIFIER_ATTESTATION_INVALID");
     const refused = await operation(A.FINALIZE);
     expect(refused.outcome).toBe(O.FAILED);
     expect(

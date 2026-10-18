@@ -8,6 +8,8 @@ import type {
   LegalContextRelationInput,
   AssessmentRuleInput,
 } from "./schemas.ts";
+import type { LegalSemanticGraph } from "./semantic-graph.ts";
+import { LEGAL_ASSESSABILITIES } from "./semantic-support.ts";
 
 /** Directed inherited context, including transitive incorporation; cycles terminate by identity. */
 export function assessmentSemanticContext(
@@ -76,6 +78,7 @@ export function deriveAssessmentApplicabilityGuidance(
   requirements: readonly LegalRequirementInput[],
   relations: readonly LegalContextRelationInput[] = [],
   allRequirements: readonly LegalRequirementInput[] = requirements,
+  semanticGraph?: LegalSemanticGraph,
 ): string {
   const context = assessmentSemanticContext(
     requirements,
@@ -96,6 +99,17 @@ export function deriveAssessmentApplicabilityGuidance(
       [
         `LegalRequirement: ${rule.legalRequirementId}`,
         `Proposition: ${rule.proposition}`,
+        ...(rule.claimBindings ?? []).flatMap((binding) => {
+          const claim = semanticGraph?.claims.find(
+            (c) => c.claimId === binding.claimId,
+          );
+          return claim?.assessability === LEGAL_ASSESSABILITIES.MIXED
+            ? [
+                `Repository proof boundary for ${claim.claimId}: ${claim.semanticFrame?.repositoryObservableAspect ?? "UNSPECIFIED"}`,
+                `External fulfillment is not established by repository inspection: ${claim.semanticFrame?.externalFulfillmentAspect ?? "UNSPECIFIED"}`,
+              ]
+            : [];
+        }),
         ...(rule.operativePropositions ?? []).flatMap((operative, index) => [
           `Operative proposition ${index + 1}:`,
           `Actor: ${operative.actor}`,

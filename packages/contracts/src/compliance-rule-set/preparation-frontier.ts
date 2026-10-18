@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { semanticAuditReceiptSchema } from "./semantic-support.ts";
 import {
   SOURCE_REVIEW_ACTIONS,
   SOURCE_REVIEW_DISPOSITIONS,
@@ -19,6 +20,7 @@ export const sourceReviewPayloadSchema = z.strictObject({
   identities: z.record(id, z.string().trim().min(1).max(128)),
   relations: legalSemanticGraphSchema.shape.relations,
   referenceAccounting: legalSemanticGraphSchema.shape.referenceAccounting,
+  semanticAudit: semanticAuditReceiptSchema.optional(),
   // Runtime-owned authority snapshots; Agent intent remains in claims/relations.
   dependencyFingerprints: z.record(id, hash).optional(),
   blockedEndpointFingerprints: z.record(id, hash).optional(),

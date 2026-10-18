@@ -42,6 +42,7 @@ def restore(fx=None, api=None):
     tools = {t.name: t for t in build_rule_set_tools(ctx)}
     ledger, inv = ctx.inventory, fx["frozenInventory"]
     frozen = deepcopy(inv["graph"])
+    ctx.semantic_audits = {r["sourceNodeId"]: deepcopy(r) for r in frozen.get("semanticAudits", [])}
     ledger.revision, ledger.identities = inv["revision"], dict(inv["identities"])
     ctx.draft["semanticClaims"] = {c["claimId"]: deepcopy(c) for c in frozen["claims"]}
     ctx.draft["claimRelations"] = {r["relationId"]: deepcopy(r) for r in frozen["relations"]}

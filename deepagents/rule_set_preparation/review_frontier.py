@@ -57,6 +57,8 @@ class ReviewFrontier:
             for item in result["records"]:
                 node_id=item["sourceNodeId"]
                 payload=item["payload"]
+                if payload.get("semanticAudit") and node_id not in self.context.semantic_audits:
+                    self.context.semantic_audits[node_id] = payload["semanticAudit"]
                 if node_id == active: continue
                 for claim in payload["claims"]:
                     self.context.draft["semanticClaims"][claim["claimId"]]=claim
@@ -200,6 +202,13 @@ class ReviewFrontier:
         if invalid:
             payload["relations"].extend(self.invalidated_relations[rid] for rid in invalid)
             payload["invalidatedRelationIds"] = invalid
+        if disposition != "REQUIRES_REFERENCE_RESOLUTION":
+            graph = self.inventory.graph()
+            graph["sourceAccounting"] = [r for r in graph["sourceAccounting"] if r["sourceNodeId"] != node_id] + [{"sourceNodeId": node_id, "claimIds": claim_ids, "nonSemanticReason": None if claim_ids else reason}]
+            audit = self.inventory.audit_unit(node_id, graph)
+            if audit["outcome"] != "PASSED":
+                return self.failure(audit)
+            payload["semanticAudit"] = audit["semanticAudit"]
         arguments = dict(sourceNodeId=node_id, sourceRevision=self.snapshot["sourceRevision"],
             frontierRevision=self.snapshot["frontierRevision"], disposition=disposition, claimIds=claim_ids,
             payload=payload, **({"reason": reason} if reason else {}), **({"referenceIds": reference_ids} if reference_ids else {}))

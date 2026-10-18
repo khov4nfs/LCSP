@@ -26,6 +26,11 @@ import {
   semanticReferenceBindings,
   materialReferenceAccounting,
 } from "./semantic-reference-binding.js";
+import {
+  semanticFreezeFailures,
+  semanticClosure,
+  requirementClosureFailures,
+} from "./semantic-audit.js";
 
 const normative = new Set<string>([C.DUTY, C.PROHIBITION, C.PERMISSION]);
 const allowedRoles: Record<string, readonly string[]> = {
@@ -65,6 +70,14 @@ const requirementRelationKind = {
   [S.CONDITION]: K.SCOPE,
   [S.INCORPORATES]: K.CROSS_REFERENCE,
   [S.TEMPORALLY_LIMITS]: K.QUALIFIER,
+  [S.CONDITION_OF]: K.SCOPE,
+  [S.QUALIFIES]: K.QUALIFIER,
+  [S.EXCEPTION_TO]: K.EXCEPTION,
+  [S.TEMPORALLY_APPLIES_TO]: K.QUALIFIER,
+  [S.DEFINED_BY]: K.DEFINITION,
+  [S.PRESERVES]: K.CROSS_REFERENCE,
+  [S.EVIDENCE_SLICE_OF]: K.CROSS_REFERENCE,
+  [S.CONTEXT_FOR]: K.CROSS_REFERENCE,
 } as const;
 
 /** Checks Agent-declared structure/lineage, never classifies or interprets source prose. */
@@ -114,6 +127,14 @@ export function validateSemanticClaimGraph(
     );
   }
   const nodes = new Map(graph.nodes.map((n) => [n.nodeId, n]));
+  if (!inventoryOnly)
+    failures.push(
+      ...semanticFreezeFailures(
+        semantic,
+        graph,
+        packet.claimInventory?.revision ?? 1,
+      ),
+    );
   const referenceById = new Map(
     graph.references.map((r) => [r.referenceId, r]),
   );
@@ -310,6 +331,23 @@ export function validateSemanticClaimGraph(
   const bound = new Map<string, Set<string>>();
   for (const requirement of inventoryOnly ? [] : packet.legalRequirements) {
     const ref = `legalRequirement:${requirement.legalRequirementId}`;
+    for (const gap of requirementClosureFailures(
+      semantic,
+      requirement.claimBindings ?? [],
+      requirement.nonRepositoryDuty,
+      requirement.coverage.state === "NON_ASSESSABLE",
+    ))
+      fail(F.SEMANTIC_CLOSURE_INVALID, ref, gap);
+    const closureRoles = new Set<string>();
+    for (const b of requirement.claimBindings ?? [])
+      if (b.role === ROLE.OPERATIVE_PROPOSITION) {
+        try {
+          for (const c of semanticClosure(semantic, b.claimId).claims)
+            closureRoles.add(`${c.claimId}:${c.role}`);
+        } catch {
+          /* Reported by closure gate. */
+        }
+      }
     const seen = new Set<string>();
     const boundFields = new Set<string>();
     const operativeStatements = new Map<number, string>();
@@ -320,7 +358,10 @@ export function validateSemanticClaimGraph(
         !claim ||
         seen.has(identity) ||
         claim.state !== STATE.RELEVANT ||
-        !allowedRoles[claim.claimType]?.includes(binding.role)
+        !(
+          allowedRoles[claim.claimType]?.includes(binding.role) ||
+          closureRoles.has(`${claim.claimId}:${binding.role}`)
+        )
       ) {
         fail(
           F.CLAIM_REQUIREMENT_MISMATCH,

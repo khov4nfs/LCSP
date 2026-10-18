@@ -7,6 +7,7 @@ from pathlib import Path
 from middleware.failure_policy import NoProgressDetected
 from rule_set_preparation.source_graph import PinnedSourceGraph
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
+from structural_semantic_fixture import StructuralFixtureAuditor, semantic_arguments, MechanicalTools, mechanical_arguments
 
 ROOT = Path(__file__).resolve().parents[2]
 RUN = "00000000-0000-4000-8000-000000000009"
@@ -57,12 +58,14 @@ def runtime(seed):
     owners = {m["chunkId"]: m["legalDocumentNodeId"] for m in graph["chunkMappings"]}
     chunks = [{**c, "chunkId": c["id"], "content": nodes[owners[c["id"]]]["content"]} for c in seed["source"]["chunks"]]
     api = ScriptedApi(seed)
-    context = RuleSetPreparationContext(RUN, api, frontier_enabled=False, source_graph=PinnedSourceGraph(graph, chunks))
-    tools = {t.name: t for t in build_rule_set_tools(context)}
+    context = RuleSetPreparationContext(RUN, api, frontier_enabled=False, source_graph=PinnedSourceGraph(graph, chunks), semantic_auditor=StructuralFixtureAuditor())
+    tools = MechanicalTools(context, build_rule_set_tools(context))
     return seed, context, tools, api
 
 
 def call(tools, name, **args):
+    if name in {"register_semantic_claim", "update_semantic_claim"} and isinstance(tools, MechanicalTools):
+        args = mechanical_arguments(tools.context, args)
     return json.loads(tools[name].invoke(args))
 
 
@@ -70,7 +73,7 @@ def discover(seed, context, tools):
     remap = {}
     for c in seed["packet"]["semanticGraph"]["claims"]:
         result = call(tools, "register_semantic_claim", identity_key=c["claimId"], source_node_ids=c["sourceNodeIds"],
-                      claim_type=c["claimType"], statement=c["statement"], **({"actor": c["operative"]["actor"], "action": c["operative"]["action"]} if c["operative"] else {}))
+                      claim_type=c["claimType"], statement=c["statement"], **semantic_arguments(c), **({"actor": c["operative"]["actor"], "action": c["operative"]["action"]} if c["operative"] else {}))
         assert result["outcome"] == "PASSED", result
         remap[c["claimId"]] = result["claim"]["claimId"]
     for r in seed["packet"]["semanticGraph"]["relations"]:

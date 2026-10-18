@@ -505,6 +505,7 @@ export const complianceRuleSetPacketSchema = z
               }),
               packet.contextRelations,
               packet.legalRequirements,
+              packet.semanticGraph,
             ),
         })),
         applicabilityGuidance:
@@ -518,6 +519,7 @@ export const complianceRuleSetPacketSchema = z
             }),
             packet.contextRelations,
             packet.legalRequirements,
+            packet.semanticGraph,
           ),
       })),
     }),

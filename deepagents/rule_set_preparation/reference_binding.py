@@ -18,6 +18,7 @@ def endpoint_fingerprint(claim):
         "claimType": claim["claimType"], "statement": text(claim["statement"]),
         "operative": {"actor": text(operative["actor"]), "modality": operative["modality"], "action": text(operative["action"])} if operative else None,
         "sourceNodeIds": sorted(claim["sourceNodeIds"]), "state": claim["state"],
+        **({k: claim.get(k) for k in ("sourceSupport", "semanticFrame", "semanticAuthority", "assessability")} if "sourceSupport" in claim else {}),
         "nonOperativeReason": text(claim["nonOperativeReason"]) if claim["nonOperativeReason"] is not None else None})
 
 

@@ -11,7 +11,8 @@ import retained_rule_authoring_harness as H
 from authoring_memory_harness import (FIXTURE48, PLAN48, NavigateAndAuthorProbe, ProbeBudgetExceeded, RejectionRetentionProbe,
                                       run_agent, view_chars, visible_text)
 
-FX = json.loads(FIXTURE48.read_text())
+from semantic_pipeline_harness import authoring_fixture
+FX = authoring_fixture()
 CLAIMS = {c["claimId"]: c for c in FX["frozenInventory"]["graph"]["claims"]}
 PREFIXES = {p for row in PLAN48 for part in row[1:] for p in part}
 assert all(sum(cid.startswith(p) for cid in CLAIMS) == 1 for p in PREFIXES), "claim-ID prefixes must identify exactly one frozen claim"
@@ -22,9 +23,11 @@ def restored():
 
 
 def test_the_frozen_live_inventory_is_what_the_replay_uses():
-    assert len(CLAIMS) == 48 and FX["frozenInventory"]["fingerprint"].startswith("02708956")
+    historical = json.loads(FIXTURE48.read_text())
+    assert len(historical["frozenInventory"]["graph"]["claims"]) == 48 and historical["frozenInventory"]["fingerprint"].startswith("02708956")
+    assert len(CLAIMS) == 56 and FX["frozenInventory"]["graph"]["contractVersion"] == "LEGAL_GRAPH_V3"
     relevant = {cid for cid, c in CLAIMS.items() if c["state"] == "RELEVANT"}
-    assert len(relevant) == 46
+    assert len(relevant) == 56
     # every relevant claim is bound by the plan, so a complete replay can pass the real Rule Validator
     planned = {p for row in PLAN48 for part in row[1:] for p in part}
     assert {cid for cid in CLAIMS if any(cid.startswith(p) for p in planned)} == relevant
@@ -58,7 +61,7 @@ def test_full_scripted_convergence_through_the_real_middleware(tmp_path, monkeyp
     _, ctx, _, api = restored()
     probe = NavigateAndAuthorProbe(plan=PLAN48)
     run_agent(ctx, probe, tmp_path, monkeypatch)
-    assert len(ctx.draft["legalRequirements"]) == len(PLAN48) and len(ctx.draft["assessmentRules"]) == len(PLAN48)
+    assert len(ctx.draft["legalRequirements"]) == len(PLAN48) and len(ctx.draft["assessmentRules"]) == 13
     assert ctx.validation_calls >= 1 and ctx.last_validation is not None
     assert ctx.inventory.phase == "COMPLETION" and ctx.submission is not None and api.submitted is not None
     assert api.submitted["claimInventory"]["fingerprint"] == FX["frozenInventory"]["fingerprint"], "the frozen inventory is untouched through submission"
@@ -67,7 +70,10 @@ def test_full_scripted_convergence_through_the_real_middleware(tmp_path, monkeyp
 def test_an_unresolved_rejection_is_retained_until_a_corrected_call_succeeds(tmp_path, monkeypatch):
     _, ctx, _, _ = restored()
     pick = lambda claim_type: next(cid for cid, c in CLAIMS.items() if c["claimType"] == claim_type)[:6]
-    probe = RejectionRetentionProbe(definition_prefix=pick("DEFINITION"), operative_prefix=pick("DUTY"), applicability_prefix=pick("SCOPE"))
+    from rule_set_preparation.semantic_closure import semantic_closure
+    duty = next(cid for cid, c in CLAIMS.items() if c["claimType"] == "DUTY" and c["assessability"] == "REPOSITORY_VERIFIABLE")
+    scope = next(r["claimId"] for r in semantic_closure(FX["frozenInventory"]["graph"], duty)["claims"] if r["role"] == "APPLICABILITY_CONDITION")
+    probe = RejectionRetentionProbe(definition_prefix=next(r["claimId"][:8] for r in semantic_closure(FX["frozenInventory"]["graph"], duty)["claims"] if r["role"] == "DEFINITION"), operative_prefix=duty[:8], applicability_prefix=scope[:8])
     run_agent(ctx, probe, tmp_path, monkeypatch)
     assert probe.retry_was_corrected is True, "the only actionable feedback disappeared with the compacted rounds"
     assert "R-retry" in ctx.draft["legalRequirements"], "the corrected retry was accepted"

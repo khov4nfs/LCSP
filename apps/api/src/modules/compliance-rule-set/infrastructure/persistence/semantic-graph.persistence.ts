@@ -24,6 +24,7 @@ export function readSemanticGraph(
     legalSourceVersionId: graph.legalSourceVersionId,
     sourceAccounting: graph.sourceAccounting,
     referenceAccounting: graph.referenceAccounting,
+    ...(graph.semanticAudits ? { semanticAudits: graph.semanticAudits } : {}),
     claims: graph.claims.map((claim) => ({
       claimId: claim.claimId,
       legalSourceVersionId: claim.legalSourceVersionId,
@@ -33,6 +34,14 @@ export function readSemanticGraph(
       operative: claim.operative,
       state: claim.state,
       nonOperativeReason: claim.nonOperativeReason,
+      ...(claim.sourceSupport
+        ? {
+            sourceSupport: claim.sourceSupport,
+            semanticFrame: claim.semanticFrame,
+            semanticAuthority: claim.semanticAuthority,
+            assessability: claim.assessability,
+          }
+        : {}),
     })),
     relations: graph.relations.map(
       ({ relationId, kind, fromClaimId, toClaimId, referenceId }) => ({
@@ -60,6 +69,7 @@ export async function writeSemanticGraph(
       contractVersion: graph.contractVersion,
       sourceAccounting: graph.sourceAccounting,
       referenceAccounting: graph.referenceAccounting,
+      semanticAudits: graph.semanticAudits ?? Prisma.DbNull,
       graphDigest: sha256Hex(canonicalJson(graph)),
     },
   });
@@ -72,6 +82,10 @@ export async function writeSemanticGraph(
       claimType: claim.claimType,
       statement: claim.statement,
       operative: claim.operative ?? Prisma.DbNull,
+      sourceSupport: claim.sourceSupport ?? Prisma.DbNull,
+      semanticFrame: claim.semanticFrame ?? Prisma.DbNull,
+      semanticAuthority: claim.semanticAuthority,
+      assessability: claim.assessability,
       state: claim.state,
       nonOperativeReason: claim.nonOperativeReason,
       candidateFingerprint: sha256Hex(

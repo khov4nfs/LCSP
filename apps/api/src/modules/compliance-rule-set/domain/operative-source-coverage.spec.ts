@@ -11,7 +11,8 @@ import {
   semanticStressSource,
 } from "../../../../test/support/semantic-stress-fixtures.js";
 import { validateComplianceRuleSetPacket } from "./compliance-rule-set-integrity.validator.js";
-import { withDerivedAssessmentSemantics } from "../../../../test/support/compliance-rule-set-fixtures.js";
+import { fixtureLegalSource, validPacket, withDerivedAssessmentSemantics } from "../../../../test/support/compliance-rule-set-fixtures.js";
+import { authorFixtureClaims } from "../../../../test/support/legal-graph-fixtures.js";
 import { fixtureDocumentGraph } from "../../../../test/support/legal-graph-fixtures.js";
 
 const validate = (
@@ -62,7 +63,22 @@ describe("operative source accounting", () => {
       "does not remove or delay",
     );
   });
-  it("allows related duties to be aggregated without one requirement per chunk", () => {
+  it("allows two source-bound compatible DUTY propositions within one Requirement", () => {
+    const source = fixtureLegalSource();
+    const packet = validPacket();
+    const parent = packet.legalRequirements[0];
+    const first = parent.operativePropositions![0];
+    parent.operativePropositions!.push({
+      ...structuredClone(first),
+      action: "Perform a second compatible part of the same synthetic duty",
+    });
+    authorFixtureClaims(packet, source.documentGraph!, source.chunks);
+    const operative = parent.claimBindings!.filter((b) => b.role === "OPERATIVE_PROPOSITION");
+    expect(operative).toHaveLength(2);
+    expect(new Set(operative.map((b) => b.claimId)).size).toBe(2);
+    expect(validate(withDerivedAssessmentSemantics(packet, source), source)).toEqual([]);
+  });
+  it("rejects aggregation of different DUTY and PROHIBITION modalities", () => {
     const packet = semanticStressPacket();
     const [direct, prohibition] = packet.legalRequirements;
     direct.operativePropositions!.push(...prohibition.operativePropositions!);
@@ -90,12 +106,11 @@ describe("operative source accounting", () => {
         criterion.statement = rule.applicabilityGuidance;
       }
     }
-    expect(
-      validate(withDerivedAssessmentSemantics(packet, semanticStressSource())),
-    ).toEqual([]);
-    expect(packet.legalRequirements.length).toBeLessThan(
-      semanticStressSource().chunks.length,
-    );
+    expect(validate(withDerivedAssessmentSemantics(packet, semanticStressSource())))
+      .toContainEqual(expect.objectContaining({
+        code: Errors.SEMANTIC_CLOSURE_INVALID,
+        detail: "INCOMPATIBLE_OPERATIVE_AGGREGATION",
+      }));
   });
   it("does not let unrelated AssessmentRule citations discharge source coverage", () => {
     const packet = placeholderStressPacket();

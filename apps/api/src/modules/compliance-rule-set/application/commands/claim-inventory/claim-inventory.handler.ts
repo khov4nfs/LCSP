@@ -10,6 +10,10 @@ import {
   COMPLIANCE_RULE_SET_ERROR_CODES,
   CLAIM_PREPARATION_PHASES as P,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
+  COMPLIANCE_RULE_SET_FAILURE_CODES as F,
+  semanticAuditReceiptSchema,
+  legalSemanticGraphSchema,
+  LEGAL_SEMANTIC_GRAPH_VERSION,
 } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
@@ -25,7 +29,12 @@ import {
   completedReviewStates,
 } from "../../../domain/source-review-frontier.js";
 import { reviewPayload } from "../source-review/source-review.handler.js";
+import {
+  semanticAuditInput,
+  semanticAuditReceiptFailures,
+} from "../../../domain/semantic-audit.js";
 import { ClaimInventoryCommand } from "./claim-inventory.command.js";
+import { semanticAuditAttestationFailures } from "../../../domain/semantic-audit-attestation.js";
 
 @CommandHandler(ClaimInventoryCommand)
 export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryCommand> {
@@ -112,6 +121,15 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           };
         }
         if (input.action === A.AUTHOR_RULES) {
+          if (
+            frozen &&
+            legalSemanticGraphSchema.parse(frozen.graph).contractVersion !==
+              LEGAL_SEMANTIC_GRAPH_VERSION
+          )
+            return fail(
+              F.SEMANTIC_AUDIT_REQUIRED,
+              "Historical inventories are read-only; explicitly reopen and obtain V3 source support/audits before new authoring",
+            );
           if (run.claimDiscoveryOnly)
             return fail(
               G.PHASE,
@@ -229,8 +247,17 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           ),
         };
         const payloads = items.map(reviewPayload);
+        const audits = await tx.ruleSetPreparationSemanticAudit.findMany({
+          where: {
+            preparationRunId: run.id,
+            inventoryRevision: input.revision,
+          },
+        });
         const persistentGraph = normalizeInventory({
           ...graph,
+          semanticAudits: audits.map((row) =>
+            semanticAuditReceiptSchema.parse(row.receipt),
+          ),
           reviewFrontier: reviewBinding,
           claims: payloads.flatMap((p) => p.claims),
           relations: [
@@ -255,6 +282,83 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           assessmentRules: [],
           contextRelations: [],
         });
+        if (input.action === A.RECORD_SEMANTIC_AUDITS) {
+          if (!snapshot.documentGraph)
+            return fail(
+              F.SEMANTIC_AUDIT_REQUIRED,
+              "Pinned source graph required",
+            );
+          const withoutAudits = (value: typeof graph) => ({
+            ...value,
+            semanticAudits: [],
+          });
+          if (
+            inventoryHash(withoutAudits(persistentGraph)) !==
+            inventoryHash(withoutAudits(graph))
+          )
+            return fail(
+              G.INVALID,
+              "Audit candidate differs from durable source reviews",
+            );
+          const receipts = new Map(
+            (graph.semanticAudits ?? []).map((r) => [r.sourceNodeId, r]),
+          );
+          if (
+            receipts.size !== items.length ||
+            receipts.size !== (graph.semanticAudits ?? []).length
+          )
+            return fail(
+              F.SEMANTIC_AUDIT_REQUIRED,
+              "Exactly one independent receipt is required per completed unit",
+            );
+          for (const item of items) {
+            const receipt = receipts.get(item.sourceNodeId);
+            const gaps = semanticAuditReceiptFailures(
+              semanticAuditInput(
+                snapshot.documentGraph,
+                persistentGraph,
+                item.sourceNodeId,
+                input.revision,
+              ),
+              receipt,
+            );
+            gaps.push(...semanticAuditAttestationFailures(receipt, run.id));
+            if (gaps.length)
+              return fail(
+                F.SEMANTIC_AUDIT_REQUIRED,
+                `${item.sourceNodeId}: ${gaps.join(", ")}`,
+              );
+          }
+          for (const receipt of receipts.values())
+            await tx.ruleSetPreparationSemanticAudit.upsert({
+              where: {
+                preparationRunId_inventoryRevision_sourceNodeId: {
+                  preparationRunId: run.id,
+                  inventoryRevision: input.revision,
+                  sourceNodeId: receipt.sourceNodeId,
+                },
+              },
+              create: {
+                preparationRunId: run.id,
+                inventoryRevision: input.revision,
+                sourceNodeId: receipt.sourceNodeId,
+                receipt,
+              },
+              update: { receipt },
+            });
+          return {
+            outcome: O.PASSED,
+            revision: input.revision,
+            semanticAuditCount: receipts.size,
+          };
+        }
+        // A producer-supplied or replayed receipt never authorizes freezing,
+        // even when its source and semantic fingerprints are structurally valid.
+        for (const receipt of persistentGraph.semanticAudits ?? []) {
+          const originGaps = semanticAuditAttestationFailures(receipt, run.id);
+          if (originGaps.length)
+            return fail(F.SEMANTIC_AUDIT_REQUIRED, `${receipt.sourceNodeId}: ${originGaps.join(", ")}`);
+        }
         // Validate durable evidence before comparing projections, so legacy defects remain repairable.
         const result = validateClaimInventory(
           run.id,

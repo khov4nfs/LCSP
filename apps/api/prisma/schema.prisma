@@ -1252,6 +1252,7 @@ model RuleSetPreparationRun {
   claimInventoryRevision Int @default(1)
   claimInventoryReopenReason String?
   claimInventories RuleSetPreparationClaimInventory[]
+  semanticAudits RuleSetPreparationSemanticAudit[]
   id                   String                             @id @default(uuid())
   idempotencyKey       String                             @unique
   legalSourceVersionId String
@@ -1366,6 +1367,29 @@ enum LegalSemanticRelationKind {
   CONDITION
   INCORPORATES
   TEMPORALLY_LIMITS
+  CONDITION_OF
+  QUALIFIES
+  EXCEPTION_TO
+  TEMPORALLY_APPLIES_TO
+  DEFINED_BY
+  PRESERVES
+  EVIDENCE_SLICE_OF
+  CONTEXT_FOR
+}
+
+enum LegalSemanticAuthority {
+  LEGAL_NORMATIVE
+  DEFINITION
+  CONTEXT
+  ASSESSMENT_GUIDANCE
+  EVIDENCE_GUIDANCE
+}
+
+enum LegalAssessability {
+  REPOSITORY_VERIFIABLE
+  EXTERNAL_FULFILLMENT
+  MIXED
+  NON_ASSESSABLE
 }
 
 /// Agent-authored semantic authority for a new Rule Set; no retroactive graph for historical rows.
@@ -1377,6 +1401,7 @@ model LegalSemanticGraph {
   sourceAccounting       Json
   referenceAccounting    Json
   graphDigest            String
+  semanticAudits         Json?
   ruleSet                ComplianceRuleSetVersion @relation(fields: [ruleSetVersionId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
   materialization        LegalDocumentMaterialization @relation(fields: [materializationId, legalSourceVersionId], references: [id, legalSourceVersionId], onDelete: Restrict, onUpdate: Restrict)
   claims                 LegalSemanticClaim[]
@@ -1394,6 +1419,10 @@ model LegalSemanticClaim {
   claimType              LegalSemanticClaimType
   statement              String
   operative              Json?
+  sourceSupport          Json?
+  semanticFrame          Json?
+  semanticAuthority      LegalSemanticAuthority?
+  assessability          LegalAssessability?
   state                  LegalSemanticClaimState
   nonOperativeReason     String?
   candidateFingerprint   String
@@ -1893,6 +1922,18 @@ model RuleSetPreparationClaimInventory {
 
   @@id([preparationRunId, revision])
   @@index([preparationRunId, fingerprint])
+}
+
+/// Independently verified unit receipts; replacing a receipt never mutates source review intent.
+model RuleSetPreparationSemanticAudit {
+  preparationRunId String
+  inventoryRevision Int
+  sourceNodeId String
+  receipt Json
+  updatedAt DateTime @updatedAt
+  preparation RuleSetPreparationRun @relation(fields: [preparationRunId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([preparationRunId, inventoryRevision, sourceNodeId], map: "PreparationSemanticAudit_pkey")
 }
 
 

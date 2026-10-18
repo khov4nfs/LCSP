@@ -21,6 +21,10 @@ import {
   CLAIM_PREPARATION_PHASES as P,
   CLAIM_DISCOVERY_MODES,
   LEGAL_SEMANTIC_CLAIM_TYPES as C,
+  LEGAL_SEMANTIC_GRAPH_VERSION,
+  COMPLIANCE_RULE_SET_FAILURE_CODES as F,
+  type LegalSemanticGraph,
+  semanticAuditReceiptSchema,
 } from "@lcsp/contracts/compliance-rule-set";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
@@ -41,6 +45,12 @@ import {
   reviewCompletionFingerprint,
 } from "../../../domain/source-review-frontier.js";
 import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
+import { semanticAuditAttestationFailures } from "../../../domain/semantic-audit-attestation.js";
+import {
+  semanticAuditInput,
+  semanticAuditReceiptFailures,
+  sourceSupportFailures,
+} from "../../../domain/semantic-audit.js";
 import {
   claimEndpointFingerprint,
   referenceDependencyView,
@@ -540,8 +550,32 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             skip: offset,
             take: limit + 1,
           });
+          const audits = await tx.ruleSetPreparationSemanticAudit.findMany({
+            where: {
+              ...key,
+              sourceNodeId: {
+                in: records.slice(0, limit).map((r) => r.sourceNodeId),
+              },
+            },
+          });
+          const receipts = new Map(
+            audits.map((r) => [
+              r.sourceNodeId,
+              semanticAuditReceiptSchema.parse(r.receipt),
+            ]),
+          );
           return reply({
-            records: records.slice(0, limit),
+            records: records
+              .slice(0, limit)
+              .map((record) => ({
+                ...record,
+                payload: {
+                  ...reviewPayload(record),
+                  ...(receipts.has(record.sourceNodeId)
+                    ? { semanticAudit: receipts.get(record.sourceNodeId)! }
+                    : {}),
+                },
+              })),
             nextOffset: records.length > limit ? offset + limit : null,
           });
         }
@@ -1272,6 +1306,83 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               "Review this explicit reference with valid linked relations or an Agent-authored non-material reason",
               "review_source_reference",
             );
+        }
+        if (!blocked) {
+          const { graph, rows } = await dependencies();
+          for (const claim of payload.claims) {
+            const gaps = sourceSupportFailures(claim, graph);
+            if (gaps.length)
+              return failed(
+                F.SOURCE_SUPPORT_INVALID,
+                claim.claimId,
+                gaps.join(", "),
+                "update_semantic_claim",
+              );
+          }
+          const payloads = rows
+            .filter((r) => r.sourceNodeId !== existing.sourceNodeId)
+            .map(reviewPayload)
+            .concat(payload);
+          const semantic: LegalSemanticGraph = {
+            contractVersion: LEGAL_SEMANTIC_GRAPH_VERSION,
+            materializationId: graph.materializationId,
+            legalSourceVersionId: graph.legalSourceVersionId,
+            claims: [
+              ...new Map(
+                payloads.flatMap((p) => p.claims).map((c) => [c.claimId, c]),
+              ).values(),
+            ],
+            relations: [
+              ...new Map(
+                payloads
+                  .flatMap((p) =>
+                    p.relations.filter(
+                      (r) => !p.invalidatedRelationIds?.includes(r.relationId),
+                    ),
+                  )
+                  .map((r) => [r.relationId, r]),
+              ).values(),
+            ],
+            sourceAccounting: [
+              {
+                sourceNodeId: existing.sourceNodeId,
+                claimIds: input.claimIds,
+                nonSemanticReason: input.reason ?? null,
+              },
+            ],
+            referenceAccounting: [],
+          };
+          const auditGaps = semanticAuditReceiptFailures(
+            semanticAuditInput(
+              graph,
+              semantic,
+              existing.sourceNodeId,
+              input.inventoryRevision,
+            ),
+            payload.semanticAudit,
+          );
+          auditGaps.push(...semanticAuditAttestationFailures(payload.semanticAudit, run.id));
+          if (auditGaps.length)
+            return failed(
+              F.SEMANTIC_AUDIT_REQUIRED,
+              existing.sourceNodeId,
+              auditGaps.join(", "),
+              "complete_source_review",
+            );
+          await tx.ruleSetPreparationSemanticAudit.upsert({
+            where: {
+              preparationRunId_inventoryRevision_sourceNodeId: {
+                ...key,
+                sourceNodeId: existing.sourceNodeId,
+              },
+            },
+            create: {
+              ...key,
+              sourceNodeId: existing.sourceNodeId,
+              receipt: payload.semanticAudit!,
+            },
+            update: { receipt: payload.semanticAudit! },
+          });
         }
         const state = blocked
           ? SourceReviewState.BLOCKED_REFERENCE

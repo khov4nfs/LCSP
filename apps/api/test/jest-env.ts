@@ -19,3 +19,6 @@ process.env.BILLING_SEPAY_BANK_ACCOUNT_NUMBER ??= "1234567890";
 process.env.BILLING_SEPAY_ACCOUNT_HOLDER ??= "LCSP TEST";
 process.env.BILLING_SEPAY_QR_URL_TEMPLATE ??=
   "https://payments.test/qr?amount={amountVnd}&content={paymentCode}";
+
+// Deliberately public test-only attestation key; never used by production environments.
+process.env.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY = "7c".repeat(32);

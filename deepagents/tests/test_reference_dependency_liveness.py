@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from structural_semantic_fixture import StructuralFixtureAuditor, MechanicalTools, mechanical_arguments
 from review_frontier_harness import bridge, call, DatabaseFrontierApi
 from rule_set_preparation.claim_inventory import fingerprint
 from rule_set_preparation.source_graph import PinnedSourceGraph
@@ -16,9 +17,9 @@ pytestmark = pytest.mark.skipif("lcsp_review_frontier_test" not in os.environ.ge
 
 
 def restore(seed):
-    context = RuleSetPreparationContext(seed["preparationRunId"], DatabaseFrontierApi(), discovery_only=True,
+    context = RuleSetPreparationContext(seed["preparationRunId"], DatabaseFrontierApi(), discovery_only=True, semantic_auditor=StructuralFixtureAuditor(),
         source_graph=PinnedSourceGraph(seed["documentGraph"], [{**c, "chunkId": c["id"]} for c in seed["chunks"]]))
-    return context, {tool.name: tool for tool in build_rule_set_tools(context)}
+    return context, MechanicalTools(context, build_rule_set_tools(context))
 
 
 def state(context):
@@ -112,23 +113,11 @@ def test_exact_94773fa8_eight_reviewed_three_blocked_replay_freezes_without_omis
     assert sum(row["state"] == "BLOCKED_REFERENCE" for row in before["rows"]) == 3
     before_claims = {c["claimId"]: c for row in before["rows"] for c in row["payload"]["claims"]}
     before_relations = {r["relationId"]: r for row in before["rows"] for r in row["payload"]["relations"]}
-    context, tools, trace = drive(seed, context, tools, restart_each_commit=True)
-    assert before_claims == context.draft["semanticClaims"]
-    assert all(context.draft["claimRelations"][rid] == row for rid, row in before_relations.items())
-    assert len(context.draft["claimRelations"]) == len(before_relations) + 3
-    assert len(context.draft["referenceAccounting"]) == 11
-    assert call(tools, "validate_semantic_claim_inventory")["outcome"] == "PASSED"
-    result = call(tools, "finalize_semantic_claim_inventory")
-    assert result["outcome"] == "PASSED", result
-    assert context.inventory.phase == "CLAIM_INVENTORY_READY"
-    after = state(context)["frontier"]
-    assert after["reviewedWithClaimsCount"] == 11 and after["pendingCount"] == after["blockedCount"] == after["inReviewCount"] == 0
-    report = os.environ.get("REFERENCE_LIVENESS_REPORT_DIR")
-    if report:
-        Path(report).joinpath("exact-replay.json").write_text(json.dumps({"EXACT_94773FA8_REPLAY": "PASS", "retainedPreparationId": "94773fa8-3784-44bf-8929-3961d2a429e9",
-            "replayRunId": context.run_id, "canonicalClaimIdMap": seed["claimIds"], "before": {"reviewed": 8, "blocked": 3},
-            "after": after, "claims": len(before_claims), "relations": len(context.draft["claimRelations"]), "fingerprint": context.inventory.frozen_fingerprint,
-            "trace": trace, "providerCalls": 0}, indent=2))
+    with pytest.raises(AssertionError, match="SOURCE_SUPPORT_INVALID"):
+        drive(seed, context, tools, restart_each_commit=True)
+    assert context.inventory.frozen is None
+    assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == "FAILED"
+    # Fresh V3 graph-family cases above retain the cyclic-liveness/freeze proof. Historical assertions require source support and independent audit before reuse.
 
 
 def operation(context, action, **fields):
@@ -144,6 +133,12 @@ def completion(context, disposition="CLAIMS_AUTHORED", **fields):
     payload = {"claims": owned, "identities": {c["claimId"]: context.inventory.identities[c["claimId"]] for c in owned}, "relations": relations,
         "referenceAccounting": [r for rid, r in context.draft["referenceAccounting"].items() if rid in frontier.active["referenceIds"]],
         "dependencyFingerprints": {cid: fp for relation in relations for cid, fp in frontier.relation_dependencies.get(relation["relationId"], {}).items()}}
+    if disposition != "REQUIRES_REFERENCE_RESOLUTION":
+        graph = context.inventory.graph()
+        node_id = frontier.active["sourceNodeId"]
+        graph["sourceAccounting"] = [r for r in graph["sourceAccounting"] if r["sourceNodeId"] != node_id] + [{"sourceNodeId": node_id, "claimIds": [c["claimId"] for c in owned], "nonSemanticReason": None}]
+        from rule_set_preparation.semantic_audit import audit_input
+        payload["semanticAudit"] = context.semantic_auditor.audit(audit_input(context.source_graph, graph, node_id, 1))
     return operation(context, "COMPLETE", sourceNodeId=frontier.active["sourceNodeId"], claimIds=[c["claimId"] for c in owned], payload=payload, disposition=disposition, **fields)
 
 
@@ -393,6 +388,7 @@ def test_scripted_managed_agent_three_node_cycle_reaches_inventory_ready(tmp_pat
     context, _ = restore(seed)
     actions = []
     def step(name, **args):
+        if name == "register_semantic_claim": args = mechanical_arguments(context, {**args, "source_node_ids": claim["sourceNodeIds"]})
         actions.append(AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": "cycle-" + str(len(actions))}]))
     for index in range(3):
         step("get_next_review_unit")

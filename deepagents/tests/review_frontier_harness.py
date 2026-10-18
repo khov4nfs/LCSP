@@ -5,6 +5,7 @@ import subprocess
 from copy import deepcopy
 from pathlib import Path
 
+from structural_semantic_fixture import StructuralFixtureAuditor, MechanicalTools, mechanical_arguments
 from rule_set_preparation.source_graph import PinnedSourceGraph
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
 
@@ -46,16 +47,19 @@ class DatabaseFrontierApi:
 def runtime(small=False, target_descendant=False):
     seed=bridge({"action":"SEED","small":small,"targetDescendant":target_descendant});graph=seed["documentGraph"]
     chunks=[{**c,"chunkId":c["id"]} for c in seed["chunks"]]
-    ctx=RuleSetPreparationContext(seed["preparationRunId"],DatabaseFrontierApi(),source_graph=PinnedSourceGraph(graph,chunks),discovery_only=True)
-    tools={tool.name:tool for tool in build_rule_set_tools(ctx)}
+    ctx=RuleSetPreparationContext(seed["preparationRunId"],DatabaseFrontierApi(),source_graph=PinnedSourceGraph(graph,chunks),discovery_only=True,semantic_auditor=StructuralFixtureAuditor())
+    tools=MechanicalTools(ctx, build_rule_set_tools(ctx))
     return seed,ctx,tools
 
 def call(tools,name,**args):
+    if name in {"register_semantic_claim", "update_semantic_claim"} and isinstance(tools, MechanicalTools):
+        args = mechanical_arguments(tools.context, args)
     return json.loads(tools[name].invoke(args))
 
 def discover(seed,ctx,tools,record=None,finalize=True,completions=None):
     remap={};pending_relations=deepcopy(seed["packet"]["semanticGraph"]["relations"])
     def action(name,**args):
+        if name == "register_semantic_claim": args = mechanical_arguments(ctx, args)
         if record:record(name,args)
         return call(tools,name,**args)
     while True:

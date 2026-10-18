@@ -6,6 +6,7 @@ import pytest
 from middleware.failure_policy import NoProgressDetected
 from rule_set_preparation.claim_inventory import claim_id, fingerprint, normalized_graph
 
+from structural_semantic_fixture import StructuralFixtureAuditor, mechanical_arguments
 from claim_protocol_harness import RUN, ScriptedApi, runtime, bridge, call, discover, author
 
 
@@ -115,11 +116,16 @@ def test_four_claims_in_one_review_stay_distinct_and_omissions_have_specific_ids
                             ("CONTEXT", "Context about the compensation regime"),
                             ("EXCEPTION", "Except where a final order excludes compensation"),
                             ("TRANSITION_RULE", "Compensation applies to claims arising after 2030-01-01")]:
-        result = call(tools, "register_semantic_claim", identity_key="mixed." + kind, source_node_ids=[node],
-                      claim_type=kind, statement=statement, **({"actor": "The authority", "action": "compensate eligible persons"} if kind == "DUTY" else {}))
+        args = mechanical_arguments(ctx, dict(identity_key="mixed." + kind, source_node_ids=[node],
+                      claim_type=kind, statement=statement, **({"actor": "The authority", "action": "compensate eligible persons"} if kind == "DUTY" else {})))
+        if kind == "DUTY":
+            args["assessability"] = "EXTERNAL_FULFILLMENT"
+            args["semantic_frame"]["externalFulfillmentAspect"] = "Actual compensation payment by the authority"
+        result = call(tools, "register_semantic_claim", **args)
         ids[kind] = result["claim"]["claimId"]
     for kind in ["EXCEPTION", "TRANSITION_RULE"]:
-        assert call(tools, "link_semantic_claims", from_claim_id=ids["DUTY"], to_claim_id=ids[kind], kind="EXCEPTION" if kind == "EXCEPTION" else "TEMPORALLY_LIMITS")["outcome"] == "PASSED"
+        assert call(tools, "link_semantic_claims", from_claim_id=ids[kind], to_claim_id=ids["DUTY"], kind="EXCEPTION_TO" if kind == "EXCEPTION" else "TEMPORALLY_APPLIES_TO")["outcome"] == "PASSED"
+    call(tools, "link_semantic_claims", from_claim_id=ids["CONTEXT"], to_claim_id=ids["DUTY"], kind="CONTEXT_FOR")
     assert call(tools, "review_source_node", source_node_id=node, claim_ids=list(ids.values()))["outcome"] == "PASSED"
     assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == "PASSED"
     assert len(next(r for r in ctx.inventory.frozen["sourceAccounting"] if r["sourceNodeId"] == node)["claimIds"]) == 4
@@ -161,16 +167,16 @@ def test_rule_validation_no_progress_cannot_be_evaded_by_titles_or_progress_note
 def test_indexed_review_and_paginated_claim_lookup_at_corpus_scale(seed):
     import time
     _, ctx, tools, _ = runtime(seed)
-    nodes = list(ctx.source_graph.nodes)
+    nodes = [nid for nid,n in ctx.source_graph.nodes.items() if n["content"].strip()]
     started = time.perf_counter()
     for i in range(2000):
         result = ctx.inventory.put_claim("scale." + str(i), [nodes[i % len(nodes)]], "CONTEXT",
-                                         "Synthetic contextual proposition " + str(i), None, None, True, None)
+                                         "Synthetic contextual proposition " + str(i), None, None, True, None, **{k: v for k, v in mechanical_arguments(ctx, {"source_node_ids": [nodes[i % len(nodes)]], "claim_type": "CONTEXT"}).items() if k in {"source_support", "semantic_authority", "semantic_frame", "assessability"}})
         assert result["outcome"] == "PASSED"
     for node, claims in ctx.inventory.claims_by_node.items():
-        result = call(tools, "review_source_node", source_node_id=node, claim_ids=sorted(claims))
-        # At most 128 claims per review is the bounded tool contract.
+        # At most 128 claims per review is the bounded tool contract; this test measures lookup, not oversized mutation rejection.
         if len(claims) <= 128:
+            result = call(tools, "review_source_node", source_node_id=node, claim_ids=sorted(claims))
             assert result["outcome"] == "PASSED"
     result = call(tools, "get_claim_inventory", kind="CLAIMS", source_node_id=nodes[0], limit=10)
     assert len(result["items"]) == 10 and result["total"] >= 100
@@ -184,7 +190,7 @@ def test_native_managed_agent_uses_same_thread_phase_protocol_without_provider(s
     from rule_set_preparation.runner import run_rule_set_preparation
     from functools import partial
     from rule_set_preparation.tools import RuleSetPreparationContext
-    monkeypatch.setattr("rule_set_preparation.runner.RuleSetPreparationContext",partial(RuleSetPreparationContext,frontier_enabled=False))
+    monkeypatch.setattr("rule_set_preparation.runner.RuleSetPreparationContext",partial(RuleSetPreparationContext,frontier_enabled=False, semantic_auditor=StructuralFixtureAuditor()))
     from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
     # Record a scripted legal author's typed actions, then drive the actual Managed Deep Agent graph.
     seed, ctx, tools, _ = runtime(seed)

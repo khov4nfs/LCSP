@@ -60,7 +60,7 @@ class PreparationObservationMiddleware(AgentMiddleware):
 
     def _observe(self, request, result):
         call = getattr(request, "tool_call", None)
-        if not isinstance(call, dict) or call.get("name") not in {*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "get_claim_inventory", "get_next_review_unit", "get_review_progress", "complete_source_review"}:
+        if not isinstance(call, dict) or call.get("name") not in {*READ_ONLY_TOOLS, *GRAPH_TOOL_NAMES, "get_claim_inventory", "get_rule_authoring_context", "get_semantic_closure", "get_source_support", "get_next_review_unit", "get_review_progress", "complete_source_review"}:
             return result
         if not isinstance(result, ToolMessage):
             return result
@@ -275,6 +275,9 @@ def create_rule_set_preparation_agent(
         from model_policy import resolve_agent_model
 
         model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
+    if context.semantic_auditor is None:
+        from rule_set_preparation.semantic_audit import SemanticAuditor
+        context.semantic_auditor = SemanticAuditor()
 
     if context.discovery_only:
         instructions = INSTRUCTIONS + "\nDISCOVERY-ONLY DIAGNOSTIC: Follow the review frontier until it is empty, finalize the claim inventory, then STOP at CLAIM_INVENTORY_READY. No Requirements, AssessmentRules, Rule validation or submission are authorized.\n"

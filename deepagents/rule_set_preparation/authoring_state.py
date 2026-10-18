@@ -14,10 +14,11 @@ from typing import Any
 from orchestration.agent_stream import DURABLE, SEMANTIC_SCHEMA_VERSION, publish_agent_stream_event
 from rule_set_preparation.authoring_rejections import args_fingerprint, draft_fingerprint
 from rule_set_preparation.claim_inventory import AUTHORING, CLAIM_ROLES, READY, RULE_VALIDATION, SUBMISSION_READY
+from rule_set_preparation.semantic_closure import claim_role, operative
 
 AUTHORING_PHASES = frozenset({READY, AUTHORING, RULE_VALIDATION, SUBMISSION_READY})
 # Tools that only read; a successful call never changes the draft and resolves any earlier rejection of the same tool.
-READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status"})
+READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_source_support"})
 ROLE_ORDER = ("APPLICABILITY_CONDITION", "OPERATIVE_PROPOSITION", "QUALIFIER", "EXCEPTION", "CONTEXT", "DEFINITION")
 MAX_PAGE = 20
 DIGEST_MAX_CLAIM_LINES = 48
@@ -98,13 +99,13 @@ class AuthoringWorkingSet:
     def role_counts(self) -> dict[str, int]:
         counts: dict[str, int] = {}
         for claim in self.claims():
-            counts[CLAIM_ROLES[claim["claimType"]]] = counts.get(CLAIM_ROLES[claim["claimType"]], 0) + 1
+            counts[claim_role(claim)] = counts.get(claim_role(claim), 0) + 1
         return {role: counts[role] for role in ROLE_ORDER if role in counts}
 
     def ordered(self, role: str | None = None, unaccounted_only: bool = False) -> list[dict]:
         bound = self.bound()
-        rows = [c for c in self.claims() if (role is None or CLAIM_ROLES[c["claimType"]] == role) and (not unaccounted_only or c["claimId"] not in bound)]
-        return sorted(rows, key=lambda c: (ROLE_ORDER.index(CLAIM_ROLES[c["claimType"]]), c["claimId"]))
+        rows = [c for c in self.claims() if (role is None or claim_role(c) == role) and (not unaccounted_only or c["claimId"] not in bound)]
+        return sorted(rows, key=lambda c: (ROLE_ORDER.index(claim_role(c)), c["claimId"]))
 
     def requirement_rows(self) -> list[dict]:
         """Every authored Requirement with the AssessmentRules that already cite it: the model must not have to remember these IDs."""
@@ -192,7 +193,7 @@ class AuthoringWorkingSet:
             if tool in AUTHORED_BY or tool == "remove_rule_candidate":
                 self.last_mutation = {"toolName": tool, "target": target or None, "toolCallId": call_id, "sequence": self.context.event_sequence}
             if tool in READ_TOOLS and not result.get("error"):
-                rows = result.get("items") or []
+                rows = result.get("items") or result.get("claims") or []
                 self.surface([r["claim"]["claimId"] if "claim" in r else r.get("claimId") for r in rows if isinstance(r, dict)])
         self.revision += 1
 
@@ -208,10 +209,10 @@ class AuthoringWorkingSet:
     def page_view(self, role: str | None, offset: Any, limit: Any) -> dict:
         applied, start = normalize_page(limit, offset, VIEW_MAX_PAGE)
         unaccounted = role == "UNACCOUNTED"
-        rows = self.ordered(None if unaccounted else role, unaccounted_only=unaccounted)
+        rows = [c for c in self.ordered(None if unaccounted else role, unaccounted_only=unaccounted) if role != "OPERATIVE_PROPOSITION" or operative(c)]
         bound = self.bound()
         page = rows[start:start + applied]
-        items = [{"claimId": c["claimId"], "claimType": c["claimType"], "accountingRole": CLAIM_ROLES[c["claimType"]], "summary": summary(c),
+        items = [{"claimId": c["claimId"], "claimType": c["claimType"], "accountingRole": claim_role(c), "summary": summary(c),
                   "sourceNodeCount": len(c["sourceNodeIds"]), "boundTo": bound.get(c["claimId"], [])} for c in page]
         ledger = self.context.inventory
         result = {"outcome": "PASSED", "frozenInventory": {"revision": ledger.revision, "fingerprint": ledger.frozen_fingerprint}, "roleCounts": self.role_counts(),
@@ -232,7 +233,7 @@ class AuthoringWorkingSet:
         needing = [r["legalRequirementId"] for r in rows if r["needsAssessmentRule"]]
         actions = []
         if unbound:
-            actions.append(f"author_legal_requirement for the {len(unbound)} relevant claim(s) not yet bound (get_rule_authoring_context role=UNACCOUNTED).")
+            actions.append(f"author_legal_requirement for the {len(unbound)} relevant claim(s) not yet bound (get_rule_authoring_context, then get_semantic_closure for a verified operative anchor).")
         if needing:
             actions.append(f"author_assessment_rule for the {len(needing)} assessable Requirement(s) without a rule: {', '.join(needing[:8])}{' …' if len(needing) > 8 else ''}.")
         if not actions:
@@ -247,7 +248,7 @@ class AuthoringWorkingSet:
         unbound = self.ordered(unaccounted_only=True)
         by_role: dict[str, int] = {}
         for claim in unbound:
-            by_role[CLAIM_ROLES[claim["claimType"]]] = by_role.get(CLAIM_ROLES[claim["claimType"]], 0) + 1
+            by_role[claim_role(claim)] = by_role.get(claim_role(claim), 0) + 1
         return {
             "outcome": "PASSED", "phase": ledger.phase, "frozenInventory": {"revision": ledger.revision, "fingerprint": ledger.frozen_fingerprint},
             "draft": {"revision": context.draft_revision, "fingerprint": context.draft_fp or draft_fingerprint(context.draft)},
@@ -313,10 +314,10 @@ class AuthoringWorkingSet:
         reads = "; ".join(f"{view.split(':')[-1]} offset {c['offset']} -> next {c['nextOffset']} of {c['total']}" for view, c in sorted(self.cursors.items()))
         lines.append(f"Inventory reading: {len(self.surfaced)} of {len(self.claims())} claims surfaced so far" + (f"; last pages: {reads}" if reads else ""))
         bound = self.bound()
-        shown = [c for c in self.ordered() if CLAIM_ROLES[c["claimType"]] == "APPLICABILITY_CONDITION" or c["claimId"] not in bound]
-        lines.append("Claim index (claimId TYPE summary): every applicability-bearing claim (reusable by several Requirements) and every claim not yet bound. "
-                     "Fetch an exact claim with get_claim_inventory(kind=CLAIMS, claim_id=...); page the role-grouped view with get_rule_authoring_context; "
-                     "see progress with get_rule_authoring_status.")
+        shown = [c for c in self.ordered() if operative(c) and c["claimId"] not in bound]
+        lines.append("Verified operative anchors (claimId TYPE summary): choose an anchor and call get_semantic_closure. "
+                     "Requirements inherit only its verified reachable modifiers/context; global role pools cannot establish compatibility. "
+                     "Use get_rule_authoring_status for existing Requirement IDs.")
         lines += [f"{c['claimId']} {c['claimType']} {summary(c)}" for c in shown[:DIGEST_MAX_CLAIM_LINES]]
         if len(shown) > DIGEST_MAX_CLAIM_LINES:
             lines.append(f"(+{len(shown) - DIGEST_MAX_CLAIM_LINES} more: page with get_rule_authoring_context)")

@@ -19,7 +19,8 @@ from rule_set_preparation.agent import create_rule_set_preparation_agent
 from rule_set_preparation.authoring_rejections import draft_fingerprint
 from rule_set_preparation.draft_history import DraftHistoryMiddleware
 
-FX = json.loads(FIXTURE48.read_text())
+from semantic_pipeline_harness import authoring_fixture
+FX = authoring_fixture()
 CL = claim_index(FX)
 FROZEN_FINGERPRINT = FX["frozenInventory"]["fingerprint"]
 
@@ -72,6 +73,8 @@ def test_a_model_that_keeps_making_mistakes_still_reaches_a_validated_submission
         {"assessment_rule_id": "AR-bad", "concept": "c", "legal_requirement_ids": []},
     ]
     for index, row in enumerate(PLAN48):
+        if any(CL[full(p)]["assessability"] in {"EXTERNAL_FULFILLMENT", "NON_ASSESSABLE"} for p in row[1]):
+            continue
         if index < len(rule_mistakes):
             steps.append(Step("author_assessment_rule", rule_mistakes[index]))
         steps.append(Step("author_assessment_rule", {"assessment_rule_id": f"AR-{row[0]}", "concept": row[0], "legal_requirement_ids": [row[0]]},
@@ -89,7 +92,7 @@ def test_a_model_that_keeps_making_mistakes_still_reaches_a_validated_submission
     sources = {r["rejection"]["rejectionSource"] for r in rejections}
     assert layers == {"TOOL_SCHEMA", "AUTHORING_PRECONDITION"} and {"TOOL_PREFLIGHT", "FRAMEWORK_UNKNOWN_TOOL", "FRAMEWORK_UNPARSEABLE_ARGUMENTS"} <= sources
     # authoring reached everything the live run never did
-    assert len(ctx.draft["legalRequirements"]) == 9 and len(ctx.draft["assessmentRules"]) == 9
+    assert len(ctx.draft["legalRequirements"]) == 16 and len(ctx.draft["assessmentRules"]) == 13
     kinds = [e["data"]["activity_kind"] for e in events if e.get("data", {}).get("activity_kind", "").startswith("RULE_VALIDATION_")]
     assert kinds == ["RULE_VALIDATION_STARTED", "RULE_VALIDATION_PASSED"], kinds
     assert ctx.validation_calls == 1, "a rejected authoring call is never a Rule validator attempt"
@@ -126,7 +129,7 @@ def test_an_unresolved_rejection_outlives_history_compaction_and_the_correction_
 
     fillers = [Step("author_legal_requirement", args_of(PLAN48[i]), check=still_visible) for i in (1, 2, 3, 4)]
     fillers += [Step("get_claim_inventory", {"kind": "CLAIMS", "limit": 20, "offset": 20 * i}, check=still_visible) for i in range(3)]
-    fillers += [Step("get_rule_authoring_context", {"role": "UNACCOUNTED"}, check=still_visible)]
+    fillers += [Step("get_rule_authoring_context", {}, check=still_visible)]
 
     def fixed(c, r, v, t):
         assert r["outcome"] == "PASSED" and not c.authoring.outstanding and BLOCK not in digest_of(v)
@@ -141,7 +144,7 @@ def test_an_unresolved_rejection_outlives_history_compaction_and_the_correction_
 def test_an_unresolved_rejection_survives_a_rebuilt_agent_graph_a_summarized_transcript_and_a_provider_retry(tmp_path, monkeypatch):
     _, ctx, _, _ = H.restore(FX)
     target = args_of(PLAN48[0], "R-target")
-    bad = {**target, "applicability_claim_ids": [full("3e72d6")]}  # a context claim offered as applicability
+    bad = {**target, "applicability_claim_ids": [next(cid for cid, c in CL.items() if c["claimType"] == "CONTEXT")]}  # a context claim offered as applicability
     run_script(ctx, [Step("start_rule_authoring", {}), Step("author_legal_requirement", bad)], tmp_path, monkeypatch)
     assert list(ctx.authoring.outstanding) == ["author_legal_requirement:R-target"]
 
@@ -158,7 +161,7 @@ def test_an_unresolved_rejection_survives_a_rebuilt_agent_graph_a_summarized_tra
     def fixed(c, r, v, t):
         assert r["outcome"] == "PASSED" and not c.authoring.outstanding and BLOCK not in digest_of(v)
 
-    good = {**target, "applicability_claim_ids": [full("c1d5c5")], "context_claim_ids": [full("3e72d6")]}
+    good = dict(target)
     run_script(ctx, [Step("get_rule_authoring_status", {}, check=reread), Step("author_legal_requirement", good, check=fixed)], tmp_path, monkeypatch)
 
 
@@ -253,16 +256,16 @@ def test_events_are_ordered_by_sequence_and_the_requirement_count_only_falls_thr
 def test_the_model_always_sees_which_requirements_still_need_an_assessment_rule(tmp_path, monkeypatch):
     _, ctx, _, _ = H.restore(FX)
     r1 = args_of(PLAN48[0], "R1")
-    external = {"requirement_key": "R-ext", "title": "performed outside", "operative_claim_ids": [full("23776a")], "applicability_claim_ids": [], "non_assessable_reason": "outside the repository"}
+    external = {"requirement_key": "R-ext", "title": "performed outside", "operative_claim_ids": [next(cid for cid, c in CL.items() if c["assessability"] == "EXTERNAL_FULFILLMENT" and c["operative"])], "applicability_claim_ids": [], "non_assessable_reason": "outside the repository"}
 
     def before_rule(c, r, v, t):
         digest = digest_of(v)
         assert r["requirements"] == {**r["requirements"], "total": 2, "assessable": 1, "nonAssessable": 1, "withoutRule": 1}
-        assert "- R1 | R1-export | NEEDS AssessmentRule" in digest and "- R-ext | performed outside | non-assessable" in digest
+        assert f"- R1 | {PLAN48[0][0]} | NEEDS AssessmentRule" in digest and "- R-ext | performed outside | non-assessable" in digest
         assert any("author_assessment_rule for the 1 assessable Requirement(s) without a rule: R1" in action for action in r["nextValidActions"])
 
     def after_rule(c, r, v, t):
-        assert r["requirements"]["withoutRule"] == 0 and "- R1 | R1-export | rules: AR-1" in digest_of(v)
+        assert r["requirements"]["withoutRule"] == 0 and f"- R1 | {PLAN48[0][0]} | rules: AR-1" in digest_of(v)
         assert r["assessmentRules"] == {"total": 1, "ids": ["AR-1"]}
 
     steps = [Step("start_rule_authoring", {}), Step("author_legal_requirement", r1), Step("author_legal_requirement", external),

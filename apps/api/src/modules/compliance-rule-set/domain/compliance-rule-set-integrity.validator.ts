@@ -194,6 +194,7 @@ export function validateComplianceRuleSetPacket(
           parents,
           packet.contextRelations,
           packet.legalRequirements,
+          packet.semanticGraph,
         )
     ) {
       fail(
@@ -226,6 +227,7 @@ export function validateComplianceRuleSetPacket(
             boundParents,
             packet.contextRelations,
             packet.legalRequirements,
+            packet.semanticGraph,
           )
       ) {
         fail(

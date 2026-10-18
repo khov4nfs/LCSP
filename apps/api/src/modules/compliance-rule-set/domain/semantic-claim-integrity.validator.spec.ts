@@ -11,6 +11,7 @@ import {
   LEGAL_REQUIREMENT_COVERAGE_STATES as COVERAGE,
 } from "@lcsp/contracts/compliance-rule-set";
 import { LEGAL_REFERENCE_RESOLUTION_STATES as R } from "@lcsp/contracts/legal-source";
+import { supportStructuralFixture, refreshStructuralAudits } from "../../../../test/support/structural-semantic-fixture.js";
 import { validateSemanticClaimGraph } from "./semantic-claim-integrity.validator.js";
 import {
   authorFixtureClaims,
@@ -153,6 +154,9 @@ describe("Completion Gate V2: Agent-authored claims, exact accounting and downst
       })),
     });
     packet.assessmentRules = rendered.assessmentRules;
+    // The V3 gate requires explicit typed closure edges and fresh audit receipts.
+    // This is only a synthetic structural role-matrix test, not source entailment.
+    supportStructuralFixture(packet, fixtureLegalSource().documentGraph!);
     expect(validate(packet).failures).toEqual([]);
   });
   it("distinguishes multiple claims in one node and one claim spanning related nodes", () => {
@@ -180,6 +184,11 @@ describe("Completion Gate V2: Agent-authored claims, exact accounting and downst
       (c) => c.claimId === "LR-DIRECT.QUALIFIER.0",
     )!;
     claim.claimType = C.TRANSITION_RULE;
+    // The old generic QUALIFIES relation is not a valid V3 temporal target.
+    packet.semanticGraph!.relations = packet.semanticGraph!.relations.filter(
+      (r) => !(r.fromClaimId === claim.claimId && r.kind === "QUALIFIES"),
+    );
+    supportStructuralFixture(packet, semanticStressSource().documentGraph!);
     expect(validate(packet, semanticStressSource()).failures).toEqual([]);
     packet.legalRequirements[0].claimBindings =
       packet.legalRequirements[0].claimBindings!.filter(
@@ -375,6 +384,8 @@ describe("Completion Gate V2: Agent-authored claims, exact accounting and downst
       relationIds: [relation.relationId],
       nonMaterialReason: null,
     });
+    // The synthetic source reference changed the audit evidence neighborhood.
+    refreshStructuralAudits(good.semanticGraph!, source.documentGraph!, 1);
     expect(validate(good, source).failures).toEqual([]);
     const bad = structuredClone(good),
       reversed = bad.semanticGraph!.relations.find(

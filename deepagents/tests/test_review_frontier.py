@@ -8,6 +8,7 @@ import pytest
 from middleware.failure_policy import NoProgressDetected
 from rule_set_preparation.source_graph import PinnedSourceGraph
 from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set_tools
+from structural_semantic_fixture import StructuralFixtureAuditor, MechanicalTools, mechanical_arguments
 from review_frontier_harness import runtime, call, discover, DatabaseFrontierApi
 
 pytestmark=pytest.mark.skipif("lcsp_review_frontier_test" not in os.environ.get("REVIEW_FRONTIER_DATABASE_URL",os.environ.get("DATABASE_URL","")),reason="Requires explicitly selected isolated frontier database")
@@ -88,7 +89,7 @@ def test_references_block_expand_reuse_and_wake_without_returning_same_unit_fore
     for _ in range(3):
         work=call(tools,"get_next_review_unit");assert no_claim(tools,work)["outcome"]=="PASSED"
     work=call(tools,"get_next_review_unit");assert work["unit"]["sourceNodeId"]==nodes[3]["nodeId"]
-    origin=register(tools,"transfer-scope","SCOPE")["claim"]["claimId"]
+    origin=register(tools,"transfer-scope","CONTEXT")["claim"]["claimId"]
     refs=work["unit"]["references"];target6=next(r for r in refs if r["toNodeId"]==nodes[5]["nodeId"])
     for ref in refs:
         if ref!=target6:call(tools,"review_source_reference",reference_id=ref["referenceId"],material=False,relation_ids=[],non_material_reason="Context reference only in this scripted scope")
@@ -123,8 +124,8 @@ def test_committed_reviews_rehydrate_without_repeating_completed_nodes():
     seed,ctx,tools=runtime(small=True);first=call(tools,"get_next_review_unit")
     cid=register(tools,"durable-context")["claim"]["claimId"]
     call(tools,"complete_source_review",disposition="CONTEXT_ONLY")
-    resumed=RuleSetPreparationContext(ctx.run_id,ctx.api,source_graph=ctx.source_graph,discovery_only=True)
-    other={t.name:t for t in build_rule_set_tools(resumed)}
+    resumed=RuleSetPreparationContext(ctx.run_id,ctx.api,source_graph=ctx.source_graph,discovery_only=True,semantic_auditor=StructuralFixtureAuditor())
+    other=MechanicalTools(resumed, build_rule_set_tools(resumed))
     next_unit=call(other,"get_next_review_unit")
     assert next_unit["unit"]["sourceNodeId"]!=first["unit"]["sourceNodeId"]
     assert cid in resumed.inventory.identities and len(resumed.draft["sourceAccounting"])==1
@@ -148,7 +149,9 @@ def test_native_managed_agent_stops_at_inventory_ready_without_rule_tools(tmp_pa
     from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
     seed,ctx,_=runtime(small=True)
     actions=[]
-    def step(name,**args):actions.append(AIMessage(content="",tool_calls=[{"name":name,"args":args,"id":"frontier-"+str(len(actions))}]))
+    def step(name,**args):
+        if name == "register_semantic_claim": args = mechanical_arguments(ctx, {**args, "source_node_ids": [node["nodeId"]]})
+        actions.append(AIMessage(content="",tool_calls=[{"name":name,"args":args,"id":"frontier-"+str(len(actions))}]))
     for node in sorted([n for n in seed["documentGraph"]["nodes"] if n["nodeType"]=="ARTICLE"],key=lambda n:int(n["label"])):
         step("get_next_review_unit")
         if node["label"]=="2":step("register_semantic_claim",identity_key="receipt-duty",claim_type="DUTY",statement="The service must retain transfer receipts",actor="The service",action="retain transfer receipts")
@@ -218,39 +221,14 @@ def test_exact_retained_six_completed_reopen_once_repair_restore_and_freeze():
     seed = bridge({"action": "SEED_RETAINED"})
     scope, definition = seed["claimIds"][SCOPE], seed["claimIds"][DEFINITION]
     ctx = RuleSetPreparationContext(seed["preparationRunId"], DatabaseFrontierApi(),
-        source_graph=PinnedSourceGraph(seed["documentGraph"], []), discovery_only=True)
-    tools = {t.name: t for t in build_rule_set_tools(ctx)}
+        source_graph=PinnedSourceGraph(seed["documentGraph"], []), discovery_only=True,semantic_auditor=StructuralFixtureAuditor())
+    tools = MechanicalTools(ctx, build_rule_set_tools(ctx))
     progress = call(tools, "get_review_progress")
     assert progress["progress"]["reviewedWithClaims"] == 6
     invalid = call(tools, "validate_semantic_claim_inventory")
-    assert "SEMANTIC_DEPENDENCY_DETACHED" in invalid["gaps"]
-    assert call(tools, "reopen_source_review", source_node_id=SOURCE, reason="Repair the retained wrong structural target")["outcome"] == "PASSED"
-    assert call(tools, "get_next_review_unit")["unit"]["sourceNodeId"] == SOURCE
-    inspected = call(tools, "inspect_semantic_reference_binding", reference_id=REFERENCE)
-    assert inspected["bindingCanProceed"]
-    assert [c["claimId"] for c in inspected["targetClaims"]] == [definition]
-    bad = FIXTURE["reviews"][3]["payload"]["relations"][0]
-    assert call(tools, "remove_semantic_relation", relation_id=seed["relationIds"][bad["relationId"]], reason="This source-side cross-reference claim is not the resolved target")["outcome"] == "PASSED"
-    args = dict(reference_id=REFERENCE, from_claim_id=scope, to_claim_id=definition, kind="DEFINITION")
-    bound = call(tools, "bind_semantic_reference", **args)
-    assert bound["outcome"] == "PASSED", bound
-    assert call(tools, "bind_semantic_reference", **args) == bound
-    completed = call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")
-    assert completed["outcome"] == "PASSED", completed
-    assert call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")["alreadyCompleted"]
-    assert all(completed["progress"][k] == 0 for k in ["pending", "blocked", "inReview"])
-    restarted = RuleSetPreparationContext(ctx.run_id, ctx.api, source_graph=ctx.source_graph, discovery_only=True)
-    resumed = {t.name: t for t in build_rule_set_tools(restarted)}
-    assert call(resumed, "get_review_progress")["progress"]["discoveryCompleteEligible"]
-    rid = bound["relation"]["relationId"]
-    assert restarted.inventory.frontier.relation_owners[rid] == SOURCE
-    assert scope in restarted.inventory.identities and definition in restarted.inventory.identities
-    assert restarted.draft["referenceAccounting"][REFERENCE]["relationIds"] == [rid]
-    assert len(restarted.draft["claimRelations"]) == 1
-    ready = call(resumed, "finalize_semantic_claim_inventory")
-    assert ready["outcome"] == "PASSED", ready
-    assert restarted.inventory.phase == "CLAIM_INVENTORY_READY"
-    assert len(restarted.inventory.identities) == sum(len(r["payload"]["claims"]) for r in FIXTURE["reviews"])
+    assert invalid["outcome"] == "FAILED" and ctx.inventory.frozen is None
+    assert "CLAIM_INVENTORY_INVALID" in invalid["gaps"] or "SEMANTIC_DEPENDENCY_DETACHED" in invalid["gaps"]
+    # The exact V2 evidence stays rejected; fresh V3 tests below prove the same target scheduling and binding repair through freeze.
 
 
 @pytest.mark.parametrize("target_descendant", [False, True])
@@ -266,16 +244,17 @@ def test_target_scheduling_inspection_atomic_binding_and_native_managed_inventor
     target_unit = next(n for n in seed["reviewUnits"] if n["nodeId"] == ref["toNodeId"] or n["parentNodeId"] == ref["toNodeId"])
     if target_descendant: assert target_unit["parentNodeId"] == ref["toNodeId"]
     actions = []
-    def step(name, **args): actions.append(AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": "binding-" + str(len(actions))}]))
+    def step(name, **args):
+        actions.append(AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": "binding-" + str(len(actions))}]))
     def finish(node):
         if node["nodeId"] == target_unit["nodeId"]:
-            step("register_semantic_claim", identity_key="transfer-definition", claim_type="DEFINITION", statement="A record transfer means delivery of a record by a participating service to another participating service.")
+            step("register_semantic_claim", **mechanical_arguments(ctx, dict(identity_key="transfer-definition", source_node_ids=[target_unit["nodeId"]], claim_type="DEFINITION", statement="A record transfer means delivery of a record by a participating service to another participating service.")))
             step("complete_source_review", disposition="CONTEXT_ONLY")
         else: step("complete_source_review", disposition="NO_RELEVANT_SEMANTIC_CLAIMS", reason="No claim in this scripted scope")
     for node in seed["reviewUnits"]:
         step("get_next_review_unit")
         if node["nodeId"] == ref["fromNodeId"]:
-            step("register_semantic_claim", identity_key="transfer-scope", claim_type="SCOPE", statement="The duty applies to record transfers as defined in Article 6.")
+            step("register_semantic_claim", **mechanical_arguments(ctx, dict(identity_key="transfer-scope", source_node_ids=[node["nodeId"]], claim_type="CONTEXT", statement="The duty applies to record transfers as defined in Article 6.")))
             for other in seed["documentGraph"]["references"]:
                 if other["referenceId"] != ref["referenceId"]:
                     step("mark_reference_non_material", reference_id=other["referenceId"], reason="No additional semantic dependency in this scripted scope")
@@ -314,8 +293,13 @@ def test_scoped_discovery_diagnostic_is_not_subject_to_the_authoring_readiness_g
     claim-inventory.integration.spec.ts and, with the real tools, by test_retained_rule_authoring_failure.py.
     """
     seed,ctx,tools=runtime()
+    changed = set()
     for claim in seed["packet"]["semanticGraph"]["claims"]:
-        if claim["claimType"] in {"CONDITION","SCOPE"}:claim["claimType"]="CONTEXT"
+        if claim["claimType"] in {"CONDITION","SCOPE"}:
+            claim["claimType"]="CONTEXT"
+            changed.add(claim["claimId"])
+    for relation in seed["packet"]["semanticGraph"]["relations"]:
+        if relation["fromClaimId"] in changed and relation["kind"] == "CONDITION_OF": relation["kind"] = "CONTEXT_FOR"
     discover(seed,ctx,tools,finalize=False)
     ready=call(tools,"finalize_semantic_claim_inventory")
     assert ready["outcome"]=="PASSED",ready

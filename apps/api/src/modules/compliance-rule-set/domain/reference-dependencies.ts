@@ -55,6 +55,14 @@ export function claimEndpointFingerprint(c: LegalSemanticClaim) {
         }
       : null,
     sourceNodeIds: [...c.sourceNodeIds].sort(),
+    ...(c.sourceSupport
+      ? {
+          sourceSupport: c.sourceSupport,
+          semanticFrame: c.semanticFrame,
+          semanticAuthority: c.semanticAuthority,
+          assessability: c.assessability,
+        }
+      : {}),
     state: c.state,
     nonOperativeReason:
       c.nonOperativeReason === null ? null : text(c.nonOperativeReason),

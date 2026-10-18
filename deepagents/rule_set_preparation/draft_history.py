@@ -20,7 +20,7 @@ INCREMENTAL_TOOLS = frozenset({
     "inspect_semantic_reference_binding", "bind_semantic_reference", "mark_reference_non_material",
     "register_semantic_claim", "update_semantic_claim", "remove_semantic_claim", "link_semantic_claims",
     "remove_semantic_relation", "review_source_node", "review_source_reference", "author_legal_requirement",
-    "author_assessment_rule", "remove_rule_candidate", "get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_next_review_unit", "get_review_progress", "complete_source_review", "reopen_source_review", "expand_review_frontier",
+    "author_assessment_rule", "remove_rule_candidate", "get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_source_support", "get_next_review_unit", "get_review_progress", "complete_source_review", "reopen_source_review", "expand_review_frontier",
 })
 CHECK_TOOLS = frozenset({"validate_compliance_rule_set", "remove_from_packet_draft",
                          "validate_semantic_claim_inventory"})
@@ -28,7 +28,7 @@ KEEP_RECENT_ADDS = 3
 KEEP_RECENT_CHECKS = 2
 # Rule authoring: reads are navigation, not bookkeeping. They get their own small budget so they can neither evict
 # the model's Requirement/Rule results nor be mistaken for them; what they carried lives in the runtime digest.
-AUTHORING_READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status"})
+AUTHORING_READ_TOOLS = frozenset({"get_claim_inventory", "get_rule_authoring_context", "get_rule_authoring_status", "get_semantic_closure", "get_source_support"})
 KEEP_RECENT_AUTHORING_READS = 2
 _GIST_KEYS = ("title", "concept", "kind")
 

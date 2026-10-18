@@ -256,3 +256,7 @@ def scan_job_payload() -> dict:
         "config_hash": "sha256:abc123def456",
         "policy_token": "internal-policy-test-token",
     }
+
+# Public test-only key; production never falls back to this value.
+import os
+os.environ["LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY"] = "7c" * 32

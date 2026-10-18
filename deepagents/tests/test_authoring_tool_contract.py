@@ -18,7 +18,8 @@ from rule_set_preparation.authoring_rejections import (
     draft_fingerprint,
 )
 
-FX = json.loads(FIXTURE48.read_text())
+from semantic_pipeline_harness import authoring_fixture
+FX = authoring_fixture()
 CL = claim_index(FX)
 
 
@@ -26,10 +27,17 @@ def pick(kind: str, relevant: bool = True, skip: int = 0) -> str:
     return sorted(cid for cid, c in CL.items() if c["claimType"] == kind and (c["state"] == "RELEVANT") == relevant)[skip]
 
 
-DUTY, DUTY2, SCOPE, DEF, CTX, QUAL = pick("DUTY"), pick("DUTY", skip=1), pick("SCOPE"), pick("DEFINITION"), pick("CONTEXT"), pick("QUALIFIER")
-NONRELEVANT = next(cid for cid, c in CL.items() if c["state"] != "RELEVANT")
+from rule_set_preparation.semantic_closure import semantic_closure
+DUTY, DUTY2 = [cid for cid, c in CL.items() if c["claimType"] == "DUTY" and c["assessability"] == "REPOSITORY_VERIFIABLE"][:2]
+closure = semantic_closure(FX["frozenInventory"]["graph"], DUTY2)
+SCOPE = next(r["claimId"] for r in closure["claims"] if r["role"] == "APPLICABILITY_CONDITION")
+DEF, CTX, QUAL = pick("DEFINITION"), pick("CONTEXT"), pick("QUALIFIER")
+NONRELEVANT = "e" * 64
+# Non-relevance is isolated mutation in this mechanical contract fixture, never the independently audited positive fixture.
+FX["frozenInventory"]["graph"]["claims"].append({**CL[CTX], "claimId": NONRELEVANT, "state": "INTENTIONALLY_NON_OPERATIVE", "nonOperativeReason": "Mechanical rejection probe"})
+CL[NONRELEVANT] = FX["frozenInventory"]["graph"]["claims"][-1]
 GHOST = "f" * 64
-BASE = {"requirement_key": "R-base", "title": "base", "operative_claim_ids": [DUTY], "applicability_claim_ids": [SCOPE]}
+BASE = {"requirement_key": "R-base", "title": "base", "operative_claim_ids": [DUTY], "applicability_claim_ids": [next(r["claimId"] for r in semantic_closure(FX["frozenInventory"]["graph"], DUTY)["claims"] if r["role"] == "APPLICABILITY_CONDITION")]}
 NEW = {"requirement_key": "R-new", "title": "new", "operative_claim_ids": [DUTY2], "applicability_claim_ids": [SCOPE]}
 RULE = {"assessment_rule_id": "AR-new", "concept": "new concept", "legal_requirement_ids": ["R-base"]}
 

@@ -838,7 +838,7 @@ def test_instructions_state_the_authority_boundary() -> None:
     from rule_set_preparation.agent import INSTRUCTIONS
 
     lowered = " ".join(INSTRUCTIONS.lower().split())
-    assert "nobody reviews or" in lowered and "approves your output" in lowered
+    assert "independent semantic auditor" in lowered and "challenges source entailment and completeness before freeze" in lowered
     assert "non_repository_duty" in lowered
     for required in ("definition", "exception", "qualifier", "cross-reference"):
         assert required in lowered

@@ -80,7 +80,7 @@ def test_the_draft_fingerprint_moves_only_when_a_candidate_changes():
 
 # --- the published contract is the running contract -------------------------------------------------------------------------------------
 def test_authoring_tool_contract_document_matches_runtime():
-    path = REPO / "reports/lcsp360-tool-contract-20261018"
+    path = REPO / "reports/lcsp360-source-semantic-fidelity-20261018"
     spec = importlib.util.spec_from_file_location("build_tool_contract", path / "build-tool-contract.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

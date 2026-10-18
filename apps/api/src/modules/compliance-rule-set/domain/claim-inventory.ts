@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
 import {
+  SEMANTIC_INTEGRITY_GAP_CODES as G,
   COMPLIANCE_RULE_SET_FAILURE_CODES as F,
   LEGAL_CLAIM_ACCOUNTING_ROLES as ROLE,
   LEGAL_CLAIM_STATES as STATE,
+  LEGAL_ASSESSABILITIES as ASSESS,
   type ClaimInventoryBinding,
   type ComplianceRuleSetPacket,
   type ComplianceRuleSetValidationFailure,
@@ -13,6 +15,11 @@ import {
   claimTypesForRole,
   validateSemanticClaimGraph,
 } from "./semantic-claim-integrity.validator.js";
+import {
+  semanticFreezeFailures,
+  operativeClaim,
+  semanticClosure,
+} from "./semantic-audit.js";
 
 export function inventoryCanonical(value: unknown): string {
   if (Array.isArray(value))
@@ -46,6 +53,13 @@ export function normalizeInventory(
 ): LegalSemanticGraph {
   return {
     ...graph,
+    ...(graph.semanticAudits
+      ? {
+          semanticAudits: [...graph.semanticAudits].sort((a, b) =>
+            a.sourceNodeId.localeCompare(b.sourceNodeId),
+          ),
+        }
+      : {}),
     claims: graph.claims
       .map((c) => ({ ...c, sourceNodeIds: [...c.sourceNodeIds].sort() }))
       .sort((a, b) => a.claimId.localeCompare(b.claimId)),
@@ -83,7 +97,10 @@ export function authoringReadinessGaps(
       claims: relevant.filter((c) => types.includes(c.claimType)),
     };
   };
-  const operative = bearing(ROLE.OPERATIVE_PROPOSITION);
+  const operative = {
+    ...bearing(ROLE.OPERATIVE_PROPOSITION),
+    claims: relevant.filter(operativeClaim),
+  };
   if (!operative.claims.length)
     return [
       {
@@ -93,15 +110,35 @@ export function authoringReadinessGaps(
       },
     ];
   const applicability = bearing(ROLE.APPLICABILITY_CONDITION);
-  if (applicability.claims.length) return [];
-  return operative.claims
-    .map((c) => c.claimId)
-    .sort()
-    .map((claimId) => ({
-      code: F.APPLICABILITY_AUTHORITY_MISSING,
-      ref: `claim:${claimId}`,
-      detail: `No claim of type ${applicability.types.join(" or ")} exists, so no assessable Requirement can state whom or what this duty applies to. Author a source-grounded one in the review unit that owns this duty's addressee, trigger or scope`,
-    }));
+  const failures: ComplianceRuleSetValidationFailure[] = [],
+    reachable = new Set<string>();
+  for (const claim of operative.claims) {
+    try {
+      const closure = semanticClosure(graph, claim.claimId);
+      for (const row of closure.claims) reachable.add(row.claimId);
+      if (
+        ![ASSESS.EXTERNAL_FULFILLMENT, ASSESS.NON_ASSESSABLE].includes(
+          claim.assessability as never,
+        ) &&
+        !closure.claims.some((c) => c.role === ROLE.APPLICABILITY_CONDITION)
+      )
+        failures.push({
+          code: F.APPLICABILITY_AUTHORITY_MISSING,
+          ref: `claim:${claim.claimId}`,
+          detail: `No compatible ${applicability.types.join(" or ")} claim belongs to this operative claim's verified closure. Author and explicitly target its source-grounded addressee, trigger or scope before freeze`,
+        });
+    } catch {
+      /* The semantic closure gate reports the precise topology failure. */
+    }
+  }
+  for (const claim of relevant)
+    if (!reachable.has(claim.claimId))
+      failures.push({
+        code: F.SEMANTIC_CLOSURE_INVALID,
+        ref: `claim:${claim.claimId}`,
+        detail: `${G.UNREACHABLE_RELEVANT_CLAIM}: declare its supported relationship to an operative closure, or independently audit a legitimate non-operative disposition`,
+      });
+  return failures;
 }
 export function validateClaimInventory(
   runId: string,
@@ -123,6 +160,10 @@ export function validateClaimInventory(
     true,
     diagnosticReviewScope,
   );
+  if (source.documentGraph)
+    result.failures.push(
+      ...semanticFreezeFailures(graph, source.documentGraph, revision),
+    );
   // A scoped diagnostic inspects part of the source and cannot prove whole-Rule-Set capability.
   if (!diagnosticReviewScope)
     result.failures.push(...authoringReadinessGaps(graph));

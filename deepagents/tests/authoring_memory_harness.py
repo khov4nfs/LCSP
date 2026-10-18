@@ -22,17 +22,10 @@ HEX = re.compile(r"[0-9a-f]{64}")
 
 # requirement key -> (operative, applicability, qualifier, exception, context) claim-ID prefixes of the live-frozen inventory:
 # 48 claims, 46 RELEVANT (00b8e0 and 8d3414 were intentionally excluded by the model and are outside the accounting denominator).
-PLAN48 = [
-    ("R1-export", ["656289", "74d867"], ["c1d5c5", "040c00", "c9b142"], ["110ce6", "2471ac", "879973"], [], ["3e72d6", "bad345", "717824", "1ae971", "e2726a"]),
-    ("R2-no-obstacles", ["23776a"], ["07bc1c", "78b8d1"], ["489fed"], [], ["50fa63"]),
-    ("R3-compensation", ["0c7e07"], ["64a691", "497c09"], [], [], []),
-    ("R4-temporary-block", ["188e07", "d2610c"], ["2f50af"], [], [], []),
-    ("R5-provider", ["1d79c9", "f83cce", "2d3a92"], ["fe9159", "11ff5f"], [], [], ["dcd50a"]),
-    ("R6-operator-delegation", ["861759"], ["11ff5f", "fe9159"], ["9fbb2a", "fa83e3"], [], ["eff9e0"]),
-    ("R7-config-safeguards", ["12fd43", "48fdeb", "a9c3a1"], ["c1d5c5"], [], [], ["c12abc", "623dc5"]),
-    ("R8-audit", ["66f667", "d221c4"], ["c1d5c5"], ["3569a9"], [], ["7636e6"]),
-    ("R9-restriction", ["d16d7d"], ["c53515"], ["4fe4fa"], [], []),
-]
+from semantic_pipeline_harness import authoring_fixture, authoring_plan
+# Historical fixture remains immutable; current positive replay uses verified-closure-compatible source assertions.
+PLAN48 = authoring_plan()
+
 
 
 class ProbeFinished(BaseException):
@@ -82,7 +75,7 @@ def last_result(view: list[Any]) -> dict | None:
     if not isinstance(tail, ToolMessage):
         return None
     try:
-        return json.loads(text_of(tail))
+        return json.JSONDecoder().raw_decode(text_of(tail).lstrip())[0]
     except ValueError:
         return None
 
@@ -117,7 +110,8 @@ class NavigateAndAuthorProbe(Probe):
         self.queue += [("get_claim_inventory", {"kind": "UNACCOUNTED_CLAIMS", "limit": page_size}), ("get_claim_inventory", {"kind": "REQUIREMENTS", "limit": page_size})][:extra_reads]
         self.index, self.rule_index, self.rereads, self.cycle, self.awaiting, self.stage = 0, 0, 0, 0, None, "plan"
         self.first_author_view_missing: list[str] = []
-        self.assessable = [p[0] for p in plan]
+        claims = authoring_fixture()["frozenInventory"]["graph"]["claims"]
+        self.assessable = [p[0] for p in plan if all(next(c for c in claims if c["claimId"].startswith(prefix))["assessability"] not in {"EXTERNAL_FULFILLMENT", "NON_ASSESSABLE"} for prefix in p[1])]
 
     def __call__(self, view: list[Any], model: Any) -> AIMessage:
         result = last_result(view)
@@ -144,12 +138,11 @@ class NavigateAndAuthorProbe(Probe):
             wanted = op + app + qual + exc + ctx
             ids = find_ids(view, wanted)
             if len(ids) < len(wanted):
-                if not self.first_author_view_missing:
-                    self.first_author_view_missing = [p for p in wanted if p not in ids]
+                anchors = find_ids(view, op)
+                if len(anchors) == len(op):
+                    return self.emit("get_semantic_closure", operative_claim_ids=[anchors[p] for p in op])
                 self.rereads += 1
-                offset = (self.cycle % self.pages) * self.page_size
-                self.cycle += 1
-                return self.emit("get_claim_inventory", kind="CLAIMS", limit=self.page_size, offset=offset)
+                return self.emit("get_rule_authoring_context", offset=0, limit=100)
             self.awaiting = "requirement"
             pick = lambda prefixes: [ids[p] for p in prefixes]
             return self.emit("author_legal_requirement", requirement_key=key, title=key, operative_claim_ids=pick(op), applicability_claim_ids=pick(app),

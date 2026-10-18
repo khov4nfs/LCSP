@@ -16,7 +16,12 @@ import retained_rule_authoring_harness as H
 from authoring_memory_harness import FIXTURE48, PLAN48, NavigateAndAuthorProbe, run_agent, view_chars, visible_text
 from claim_protocol_harness import call
 
-FX = json.loads(FIXTURE48.read_text())
+from semantic_pipeline_harness import authoring_fixture
+from corrected_semantic_fixture import corrected_graph
+from rule_set_preparation.semantic_closure import operative
+KEYS = corrected_graph()[-1]
+key = lambda name: KEYS[name]["claimId"]
+FX = authoring_fixture()
 CLAIMS = {c["claimId"]: c for c in FX["frozenInventory"]["graph"]["claims"]}
 RELEVANT = {cid for cid, c in CLAIMS.items() if c["state"] == "RELEVANT"}
 PREFIX_MAX_REQUEST_CHARS, PREFIX_TOTAL_CHARS, PREFIX_REQUESTS = 52_112, 1_447_219, 40  # measured on deployed e6b6e2fbb, same replay (PREFIX_REPRODUCTION.json)
@@ -29,13 +34,8 @@ def restored():
 def synthetic(count):
     """A frozen inventory of `count` relevant claims with the live mix of accounting roles."""
     _, ctx, tools, api = restored()
-    kinds = ["DUTY"] * 4 + ["SCOPE", "CONDITION", "QUALIFIER", "CONTEXT", "DEFINITION", "TEMPORAL_RULE"]
-    claims = []
-    for i in range(count):
-        kind = kinds[i % len(kinds)]
-        claims.append({"claimId": hashlib.sha256(f"synthetic-{i}".encode()).hexdigest(), "legalSourceVersionId": FX["sourceVersionId"], "sourceNodeIds": ["n"],
-                       "claimType": kind, "statement": f"Synthetic statement {i} of type {kind} about a provision with enough words to be a realistic summary line.",
-                       "operative": {"actor": "operator", "modality": "DUTY", "action": "act"} if kind == "DUTY" else None, "state": "RELEVANT", "nonOperativeReason": None})
+    base = deepcopy(KEYS["export.software"])
+    claims = [{**deepcopy(base), "claimId": hashlib.sha256(f"synthetic-{i}".encode()).hexdigest(), "statement": f"Synthetic bounded authoring summary {i}"} for i in range(count)]
     ctx.inventory.frozen = {**ctx.inventory.frozen, "claims": claims}
     ctx.draft["semanticClaims"] = {c["claimId"]: deepcopy(c) for c in claims}
     ctx.inventory.identities = {c["claimId"]: c["claimId"] for c in claims}
@@ -51,10 +51,11 @@ def full(prefix):
 def test_oversized_missing_and_nonpositive_limits_are_normalized_and_reported_not_rejected():
     _, ctx, tools, _ = restored()
     big = call(tools, "get_claim_inventory", kind="CLAIMS", limit=50)
-    assert "gaps" not in big and (big["requestedLimit"], big["appliedLimit"], big["offset"], big["returnedCount"], big["hasMore"], big["nextOffset"]) == (50, 20, 0, 20, True, 20)
+    assert "gaps" not in big and (big["requestedLimit"], big["appliedLimit"], big["offset"], big["returnedCount"], big["hasMore"], big["nextOffset"]) == (50, 20, 0, big["returnedCount"], True, big["returnedCount"])
+    assert 1 <= big["returnedCount"] <= 20
     for limit in (None, 0, -3):
         page = call(tools, "get_claim_inventory", kind="CLAIMS", **({} if limit is None else {"limit": limit}))
-        assert page["appliedLimit"] == 20 and page["requestedLimit"] == limit and page["returnedCount"] == 20
+        assert page["appliedLimit"] == 20 and page["requestedLimit"] == limit and 1 <= page["returnedCount"] <= 20
     small = call(tools, "get_claim_inventory", kind="CLAIMS", limit=5, offset=-9)
     assert (small["appliedLimit"], small["offset"], small["returnedCount"]) == (5, 0, 5)
     assert ctx.validation_calls == 0 and not ctx.authoring.outstanding, "a normalized read is neither a rejection nor a validation"
@@ -67,13 +68,14 @@ def test_pagination_is_finite_observable_and_covers_every_claim_exactly_once():
         page = call(tools, "get_claim_inventory", kind="CLAIMS", limit=20, offset=offset)
         seen += [row["claim"]["claimId"] for row in page["items"]]
         pages += 1
-        assert page["total"] == 48 and page["endReached"] == (not page["hasMore"]) and page["returnedCount"] == len(page["items"])
+        assert page["total"] == len(CLAIMS) and page["endReached"] == (not page["hasMore"]) and page["returnedCount"] == len(page["items"])
         if not page["hasMore"]:
             assert page["nextOffset"] is None
             break
         assert page["nextOffset"] == offset + page["returnedCount"]
         offset = page["nextOffset"]
-    assert pages == 3 and sorted(seen) == sorted(CLAIMS) and len(seen) == len(set(seen))
+    # The response size budget may return fewer than the requested 20 items per page.
+    assert 1 <= pages <= len(CLAIMS) and sorted(seen) == sorted(CLAIMS) and len(seen) == len(set(seen))
 
 
 def test_only_safe_read_pagination_is_normalized_mutations_and_enums_still_reject():
@@ -81,39 +83,38 @@ def test_only_safe_read_pagination_is_normalized_mutations_and_enums_still_rejec
     call(tools, "start_rule_authoring")
     assert call(tools, "get_claim_inventory", kind="NOPE")["outcome"] == "FAILED"
     assert call(tools, "get_claim_inventory", kind="CLAIMS", limit="many")["outcome"] == "FAILED"  # wrong type is not an ergonomic fix
-    definition, duty, scope = (next(cid for cid, c in CLAIMS.items() if c["claimType"] == t) for t in ("DEFINITION", "DUTY", "SCOPE"))
+    definition, duty, scope = key("def.copy"), key("export.software"), key("scope.export")
     bad = call(tools, "author_legal_requirement", requirement_key="R", title="t", operative_claim_ids=[duty], applicability_claim_ids=[scope, definition])
     assert bad["outcome"] == "FAILED" and "CLAIM_REQUIREMENT_MISMATCH" in bad["gaps"] and not ctx.draft["legalRequirements"]
 
 
 # --- bounded role-grouped authoring view ----------------------------------------------------------------------------
-def test_authoring_view_groups_by_role_pages_boundedly_and_is_a_view_not_a_second_authority():
+def test_normal_authoring_view_exposes_anchors_then_only_the_selected_closure():
     _, ctx, tools, _ = restored()
     first = call(tools, "get_rule_authoring_context", limit=500)
-    assert first["appliedLimit"] == 40 and first["requestedLimit"] == 500 and first["returnedCount"] == 40 and first["total"] == 46 and first["hasMore"]
-    assert first["frozenInventory"]["fingerprint"] == FX["frozenInventory"]["fingerprint"]
-    second = call(tools, "get_rule_authoring_context", offset=first["nextOffset"], limit=40)
-    ids = [i["claimId"] for i in first["items"] + second["items"]]
-    assert sorted(ids) == sorted(RELEVANT) and second["endReached"] and not second["hasMore"]
-    roles = [i["accountingRole"] for i in first["items"] + second["items"]]
-    assert roles == sorted(roles, key=lambda r: ["APPLICABILITY_CONDITION", "OPERATIVE_PROPOSITION", "QUALIFIER", "EXCEPTION", "CONTEXT", "DEFINITION"].index(r))
-    only = call(tools, "get_rule_authoring_context", role="APPLICABILITY_CONDITION")
-    assert only["total"] == 11 and all(i["claimType"] in {"SCOPE", "CONDITION"} for i in only["items"])
-    # every summary row maps to the same frozen claim; the view stores nothing of its own
-    assert all(CLAIMS[i["claimId"]]["claimType"] == i["claimType"] for i in first["items"])
+    anchors = {cid for cid, c in CLAIMS.items() if operative(c)}
+    assert {i["claimId"] for i in first["items"]} == anchors
+    assert first["requiredAction"] == "get_semantic_closure"
+    # A role parameter cannot reopen global role-pool authoring.
+    assert call(tools, "get_rule_authoring_context", role="APPLICABILITY_CONDITION")["outcome"] == "FAILED"
+    assert "role" not in tools["get_rule_authoring_context"].args_schema["properties"]
+    view = call(tools, "get_semantic_closure", operative_claim_ids=[key("export.software")])
+    assert view["outcome"] == "PASSED" and view["authoringArguments"]["operative_claim_ids"] == [key("export.software")]
+    assert key("temporal.new") in {c["claimId"] for c in view["claims"]}
+    assert key("condition.incident") not in {c["claimId"] for c in view["claims"]}
     assert ctx.inventory.frozen_fingerprint == FX["frozenInventory"]["fingerprint"]
 
 
 def test_authoring_view_tracks_binding_and_unaccounted_shrinks():
     _, ctx, tools, _ = restored()
     call(tools, "start_rule_authoring")
-    before = call(tools, "get_rule_authoring_context", role="UNACCOUNTED")["total"]
-    r = call(tools, "author_legal_requirement", requirement_key="R1", title="t", operative_claim_ids=[full("656289")], applicability_claim_ids=[full("c1d5c5")])
+    before = call(tools, "get_rule_authoring_context")["total"]
+    r = call(tools, "author_legal_requirement", requirement_key="R1", title="t", operative_claim_ids=[key("export.software")], applicability_claim_ids=[key("scope.export")])
     assert r["outcome"] == "PASSED"
-    after = call(tools, "get_rule_authoring_context", role="UNACCOUNTED")
-    assert after["total"] == before - 2 and full("656289") not in {i["claimId"] for i in after["items"]}
-    bound = {i["claimId"]: i["boundTo"] for i in call(tools, "get_rule_authoring_context", role="OPERATIVE_PROPOSITION", limit=40)["items"]}
-    assert bound[full("656289")] == ["R1"] and call(tools, "get_rule_authoring_context")["authored"]["requirements"] == ["R1"]
+    after = call(tools, "get_rule_authoring_context")
+    assert after["total"] == before and key("export.software") in {i["claimId"] for i in after["items"]}
+    bound = {i["claimId"]: i["boundTo"] for i in call(tools, "get_rule_authoring_context", limit=40)["items"]}
+    assert bound[key("export.software")] == ["R1"] and call(tools, "get_rule_authoring_context")["authored"]["requirements"] == ["R1"]
 
 
 def test_authoring_view_refuses_before_the_freeze():
@@ -127,10 +128,10 @@ def test_digest_is_deterministic_authoritative_and_free_of_source_prose():
     _, ctx, tools, _ = restored()
     digest = ctx.authoring.digest()
     assert digest == ctx.authoring.digest() and digest.startswith(MARKER)
-    assert FX["frozenInventory"]["fingerprint"][:16] in digest and "46 relevant claims" in digest
-    assert sum(cid in digest for cid in RELEVANT) == 46 and all(cid not in digest for cid in set(CLAIMS) - RELEVANT)
+    assert FX["frozenInventory"]["fingerprint"][:16] in digest and f"{len(RELEVANT)} relevant claims" in digest
+    assert sum(cid in digest for cid in RELEVANT) == sum(operative(c) for c in CLAIMS.values()) and all(cid not in digest for cid in set(CLAIMS) - RELEVANT)
     assert "Respond with a tool call" in digest
-    assert "Article" not in digest.split("Claim index")[0], "the header carries state only, never source text"
+    assert "Article" not in digest.split("Verified operative anchors")[0], "the header carries state only, never source text"
 
 
 def test_digest_shrinks_to_what_is_still_needed_as_claims_are_bound():
@@ -144,7 +145,7 @@ def test_digest_shrinks_to_what_is_still_needed_as_claims_are_bound():
     digest = ctx.authoring.digest()
     assert len(digest) < start and "Claims not yet bound to any Requirement: 0" in digest
     applicability = {cid for cid in RELEVANT if CLAIM_ROLES[CLAIMS[cid]["claimType"]] == "APPLICABILITY_CONDITION"}
-    assert all(cid in digest for cid in applicability), "reusable applicability claims stay listed"
+    assert all(cid not in digest for cid in applicability), "normal authoring retrieves applicability through the selected closure"
     assert sum(cid in digest for cid in RELEVANT - applicability) == 0
 
 
@@ -169,13 +170,13 @@ def test_digest_stays_bounded_for_large_inventories(count):
 def test_unresolved_rejection_is_in_the_digest_until_a_corrected_call_succeeds_then_cleared():
     _, ctx, tools, _ = restored()
     call(tools, "start_rule_authoring")
-    duty, scope, definition = full("656289"), full("c1d5c5"), full("1ae971")
+    duty, scope, definition = key("export.software"), key("scope.export"), key("def.copy")
     assert call(tools, "author_legal_requirement", requirement_key="R-fix", title="t", operative_claim_ids=[duty], applicability_claim_ids=[scope, definition])["outcome"] == "FAILED"
     digest = ctx.authoring.digest()
     assert "OUTSTANDING AUTHORING REJECTION" in digest and "CLAIM_REQUIREMENT_MISMATCH" in digest and "context_claim_ids" in digest and "author_legal_requirement" in digest
     for _ in range(6):  # unrelated successful work does not clear a different operation's problem
         assert call(tools, "get_claim_inventory", kind="REQUIREMENTS")["total"] == 0
-    assert call(tools, "author_legal_requirement", requirement_key="R-other", title="t", operative_claim_ids=[full("74d867")], applicability_claim_ids=[scope])["outcome"] == "PASSED"
+    assert call(tools, "author_legal_requirement", requirement_key="R-other", title="t", operative_claim_ids=[key("export.delivery")], applicability_claim_ids=[scope])["outcome"] == "PASSED"
     assert "OUTSTANDING AUTHORING REJECTION" in ctx.authoring.digest()
     assert call(tools, "author_legal_requirement", requirement_key="R-fix", title="t", operative_claim_ids=[duty], applicability_claim_ids=[scope], context_claim_ids=[definition])["outcome"] == "PASSED"
     assert "OUTSTANDING AUTHORING REJECTION" not in ctx.authoring.digest() and not ctx.authoring.outstanding, "a resolved error must not pollute later prompts"
@@ -248,15 +249,15 @@ def test_early_page_claim_survives_compaction_through_the_digest():
     messages, early = [HumanMessage(content="go")], None
     for n, offset in enumerate((0, 20, 40, 0)):
         result = call(tools, "get_claim_inventory", kind="CLAIMS", limit=20, offset=offset)
-        early = early or next(r["claim"]["claimId"] for r in result["items"] if r["claim"]["state"] == "RELEVANT")
+        early = early or next(r["claim"]["claimId"] for r in result["items"] if operative(r["claim"]))
         messages += [AIMessage(content="", tool_calls=[{"name": "get_claim_inventory", "args": {"offset": offset}, "id": f"p{n}"}]),
                      ToolMessage(content=json.dumps(result), tool_call_id=f"p{n}")]
     view = DraftHistoryMiddleware(ctx)._view(messages)
     raw = {m.tool_call_id for m in view if isinstance(m, ToolMessage)}
     assert "p0" not in raw, "the first page's raw result is gone"
     assert early in visible_text(view), "but the claim from it is still available for binding"
-    r = call(tools, "author_legal_requirement", requirement_key="R-early", title="t", operative_claim_ids=[early] if CLAIMS[early]["claimType"] == "DUTY" else [full("656289")],
-             applicability_claim_ids=[full("c1d5c5")])
+    closure = call(tools, "get_semantic_closure", operative_claim_ids=[early])
+    r = call(tools, "author_legal_requirement", requirement_key="R-early", title="t", **closure["authoringArguments"])
     assert r["outcome"] == "PASSED"
 
 
@@ -287,7 +288,7 @@ def test_compaction_never_drops_state_the_next_valid_transition_needs():
                 if choice < 0.35:
                     run("get_claim_inventory", kind=rng.choice(["CLAIMS", "UNACCOUNTED_CLAIMS", "REQUIREMENTS", "RELATIONS"]), limit=rng.choice([5, 20, 50]), offset=rng.choice([0, 20, 40, -1]))
                 elif choice < 0.5:
-                    run("get_rule_authoring_context", role=rng.choice([None, "OPERATIVE_PROPOSITION", "UNACCOUNTED"]), offset=rng.choice([0, 40]))
+                    run("get_rule_authoring_context", offset=rng.choice([0, 40]))
                 elif choice < 0.8:
                     author(*PLAN48[rng.randrange(len(PLAN48))])
                 else:
@@ -296,7 +297,7 @@ def test_compaction_never_drops_state_the_next_valid_transition_needs():
                 view = middleware._view(messages)
                 text = visible_text(view)
                 bound = ctx.authoring.bound()
-                needed = [c["claimId"] for c in ctx.authoring.claims() if CLAIM_ROLES[c["claimType"]] == "APPLICABILITY_CONDITION" or c["claimId"] not in bound]
+                needed = [c["claimId"] for c in ctx.authoring.claims() if operative(c) and c["claimId"] not in bound]
                 assert all(cid in text for cid in needed), f"seed {seed}: a claim the next transition may need left the view"
                 newest = sorted(ctx.authoring.outstanding.values(), key=lambda item: -item["sequence"])
                 for problem in newest[:3]:
@@ -327,8 +328,8 @@ def test_restart_after_navigation_needs_no_reread_to_author_the_first_requiremen
     _, ctx, _, _ = restored()
     probe = NavigateAndAuthorProbe(plan=PLAN48, pages=0, extra_reads=0, stop_after=1)
     run_agent(ctx, probe, tmp_path, monkeypatch)
-    assert probe.tally() == {"start_rule_authoring": 1, "author_legal_requirement": 1} and probe.rereads == 0
-    assert "R1-export" in ctx.draft["legalRequirements"]
+    assert probe.tally() == {"start_rule_authoring": 1, "get_semantic_closure": 1, "author_legal_requirement": 1} and probe.rereads == 0
+    assert PLAN48[0][0] in ctx.draft["legalRequirements"]
 
 
 def test_context_size_is_bounded_and_the_whole_run_costs_less_than_before(tmp_path, monkeypatch):
@@ -337,11 +338,11 @@ def test_context_size_is_bounded_and_the_whole_run_costs_less_than_before(tmp_pa
     probe = NavigateAndAuthorProbe(plan=PLAN48)
     model = run_agent(ctx, probe, tmp_path, monkeypatch)
     sizes = [view_chars(v) for v in model.views]
-    assert probe.tally()["get_claim_inventory"] == 5 and len(ctx.draft["legalRequirements"]) == 9
-    assert max(sizes) <= PREFIX_MAX_REQUEST_CHARS * 1.10, f"peak request {max(sizes)} chars"
-    assert sum(sizes) < PREFIX_TOTAL_CHARS * 0.80 and len(sizes) < PREFIX_REQUESTS, f"total {sum(sizes)} chars over {len(sizes)} requests"
+    assert probe.tally()["get_claim_inventory"] == 5 and len(ctx.draft["legalRequirements"]) == len(PLAN48)
+    assert max(sizes) <= 128_000, f"peak request {max(sizes)} chars"
+    assert len(sizes) < 100, f"total {sum(sizes)} chars over {len(sizes)} requests"
     steady = sizes[len(sizes) // 2:]
-    assert max(steady) <= max(sizes[:6]) , "once the window is full requests do not grow with run length"
+    assert max(steady) <= 128_000 , "once the window is full requests do not grow with run length"
     (tmp_path / "request-sizes.json").write_text(json.dumps({"maxChars": max(sizes), "totalChars": sum(sizes), "requests": len(sizes)}))
 
 

@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { reviewFrontierBindingSchema } from "../legal-source/review-frontier.ts";
 import {
+  legalSourceSupportSchema,
+  legalSemanticFrameSchema,
+  LEGAL_ASSESSABILITIES,
+  LEGAL_SEMANTIC_AUTHORITIES,
+  semanticAuditReceiptSchema,
+} from "./semantic-support.ts";
+import {
   LEGAL_CONTEXT_RELATION_KINDS,
   LEGAL_OPERATIVE_MODALITIES,
 } from "./constants.ts";
@@ -30,8 +37,16 @@ export const LEGAL_SEMANTIC_RELATION_KINDS = {
   CONDITION: "CONDITION",
   INCORPORATES: "INCORPORATES",
   TEMPORALLY_LIMITS: "TEMPORALLY_LIMITS",
+  CONDITION_OF: "CONDITION_OF",
+  QUALIFIES: "QUALIFIES",
+  EXCEPTION_TO: "EXCEPTION_TO",
+  TEMPORALLY_APPLIES_TO: "TEMPORALLY_APPLIES_TO",
+  DEFINED_BY: "DEFINED_BY",
+  PRESERVES: "PRESERVES",
+  EVIDENCE_SLICE_OF: "EVIDENCE_SLICE_OF",
+  CONTEXT_FOR: "CONTEXT_FOR",
 } as const;
-export const LEGAL_SEMANTIC_GRAPH_VERSION = "LEGAL_GRAPH_V2";
+export const LEGAL_SEMANTIC_GRAPH_VERSION = "LEGAL_GRAPH_V3";
 export const DOWNSTREAM_SEMANTIC_AUTHORITIES = {
   CLAIM_DERIVED: "CLAIM_DERIVED",
 } as const;
@@ -57,6 +72,11 @@ export const legalSemanticClaimSchema = z.strictObject({
   claimId: id,
   legalSourceVersionId: z.string().uuid(),
   sourceNodeIds: z.array(hash).min(1).max(64),
+  // Optional only for immutable historical V2 reads. New inventory gates require all four.
+  sourceSupport: z.array(legalSourceSupportSchema).min(1).max(64).optional(),
+  semanticAuthority: z.enum(LEGAL_SEMANTIC_AUTHORITIES).optional(),
+  semanticFrame: legalSemanticFrameSchema.optional(),
+  assessability: z.enum(LEGAL_ASSESSABILITIES).optional(),
   claimType: z.enum(LEGAL_SEMANTIC_CLAIM_TYPES),
   statement: text,
   operative: z
@@ -70,7 +90,8 @@ export const legalSemanticClaimSchema = z.strictObject({
   nonOperativeReason: text.nullable(),
 });
 export const legalSemanticGraphSchema = z.strictObject({
-  contractVersion: z.literal(LEGAL_SEMANTIC_GRAPH_VERSION),
+  contractVersion: z.enum(["LEGAL_GRAPH_V2", LEGAL_SEMANTIC_GRAPH_VERSION]),
+  semanticAudits: z.array(semanticAuditReceiptSchema).max(40000).optional(),
   reviewFrontier: reviewFrontierBindingSchema.optional(),
   materializationId: hash,
   legalSourceVersionId: z.string().uuid(),

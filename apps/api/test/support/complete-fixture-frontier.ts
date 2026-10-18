@@ -18,7 +18,17 @@ import {
   type SourceReviewOperation,
   type SourceReviewPayload,
   type LegalSemanticClaim,
+  CLAIM_INVENTORY_ACTIONS,
 } from "@lcsp/contracts/compliance-rule-set";
+import { semanticAuditInput } from "../../src/modules/compliance-rule-set/domain/semantic-audit.js";
+import { signSemanticAuditFixture } from "../../src/modules/compliance-rule-set/domain/semantic-audit-attestation.js";
+import {
+  structuralReceipt,
+  refreshStructuralAudits,
+} from "./structural-semantic-fixture.js";
+import { ClaimInventoryHandler } from "../../src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.handler.js";
+import { ClaimInventoryCommand } from "../../src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.command.js";
+import { LegalSourceSnapshotLoader } from "../../src/modules/compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
 
 /** Historical semantic fixtures traverse the real queue; no review or freeze database rows are patched. */
 export async function completeFixtureFrontier(
@@ -129,6 +139,41 @@ export async function completeFixtureFrontier(
       .filter((c) => c.sourceNodeIds.includes(id))
       .map((c) => c.claimId);
     const original = graph.sourceAccounting.find((r) => r.sourceNodeId === id);
+    if (!waiting.size) {
+      const rows = await db.ruleSetPreparationSourceReview.findMany({
+        where: { preparationRunId: runId, inventoryRevision: revision },
+      });
+      const payloads = rows
+        .filter((r) => r.sourceNodeId !== id)
+        .map((r) => r.payload as unknown as SourceReviewPayload)
+        .concat(payload);
+      const stage = {
+        ...graph,
+        claims: payloads.flatMap((p) => p.claims),
+        relations: [
+          ...new Map(
+            payloads
+              .flatMap((p) =>
+                p.relations.filter(
+                  (r) => !p.invalidatedRelationIds?.includes(r.relationId),
+                ),
+              )
+              .map((r) => [r.relationId, r]),
+          ).values(),
+        ],
+        sourceAccounting: [
+          {
+            sourceNodeId: id,
+            claimIds,
+            nonSemanticReason: original?.nonSemanticReason ?? null,
+          },
+        ],
+      };
+      payload.semanticAudit = signSemanticAuditFixture(
+        structuralReceipt(semanticAuditInput(source, stage, id, revision)),
+        runId,
+      );
+    }
     const result = await invoke({
       action: A.COMPLETE,
       sourceNodeId: id,
@@ -169,5 +214,22 @@ export async function completeFixtureFrontier(
   graph.sourceAccounting = graph.sourceAccounting.filter((r) =>
     positions.has(r.sourceNodeId),
   );
-  return progress;
+  if (progress.outcome !== O.PASSED) return progress;
+  refreshStructuralAudits(graph, source, revision);
+  graph.semanticAudits = graph.semanticAudits?.map((receipt) => signSemanticAuditFixture(receipt, runId));
+  return new ClaimInventoryHandler(
+    db,
+    new LegalSourceSnapshotLoader(db, new LegalDocumentGraphService(db)),
+  ).execute(
+    new ClaimInventoryCommand(
+      {
+        preparationRunId: runId,
+        revision,
+        action: CLAIM_INVENTORY_ACTIONS.RECORD_SEMANTIC_AUDITS,
+        graph,
+        identities,
+      },
+      "scripted-fixture-audits",
+    ),
+  );
 }

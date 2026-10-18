@@ -13,7 +13,8 @@ from authoring_contract_harness import FIXTURE48, PLAN48, Step, claim_index, run
 from middleware.failure_policy import NoProgressDetected
 
 LIVE = json.loads(Path(__file__).with_name("fixtures").joinpath("retained-authoring-rejection-failure-0964420f.json").read_text())
-FX = json.loads(FIXTURE48.read_text())
+from semantic_pipeline_harness import authoring_fixture
+FX = authoring_fixture()
 CL = claim_index(FX)
 
 
@@ -70,8 +71,8 @@ def good(index):
 # One synthetic malformed call per retained rejection code. Which call produced which retained rejection is NOT known; this only
 # gives each code a body that provokes it, so the runtime's handling of the retained order can be exercised.
 OMIT = ["title", "applicability_claim_ids", "operative_claim_ids", "requirement_key"]
-WRONG_ROLE = [lambda a: {"qualifier_claim_ids": [a["applicability_claim_ids"][0]]}, lambda a: {"operative_claim_ids": [full("3e72d6")]},
-              lambda a: {"applicability_claim_ids": [a["applicability_claim_ids"][0], full("1ae971")]}]
+WRONG_ROLE = [lambda a: {"qualifier_claim_ids": [a["applicability_claim_ids"][0]]}, lambda a: {"operative_claim_ids": [next(cid for cid,c in CL.items() if c["claimType"] == "CONTEXT")]},
+              lambda a: {"applicability_claim_ids": [a["applicability_claim_ids"][0], next(cid for cid,c in CL.items() if c["claimType"] == "DEFINITION")]}]
 
 
 def synthetic(code, plan, variant):
@@ -93,13 +94,13 @@ def test_the_retained_outcome_order_replays_through_the_new_runtime_with_a_durab
     events: list = []
     steps, authored, removed_once, rejected = [Step("start_rule_authoring", {})], 0, False, 0
     for kind, code in outcomes:
-        next_plan = good(min(authored, len(PLAN48) - 1))
+        next_plan = good(min(authored, 8))
         if kind == "REJECT":
             steps.append(synthetic(code, next_plan, rejected))
             rejected += 1
             continue
         if authored == 9 and not removed_once:      # the retained 10 -> 9 -> 10: an explicit removal, then the Requirement again
-            steps.append(Step("remove_rule_candidate", {"kind": "LEGAL_REQUIREMENT", "candidate_id": "R9-restriction", "reason": "re-author"}))
+            steps.append(Step("remove_rule_candidate", {"kind": "LEGAL_REQUIREMENT", "candidate_id": PLAN48[8][0], "reason": "re-author"}))
             removed_once = True
             authored -= 1
             continue

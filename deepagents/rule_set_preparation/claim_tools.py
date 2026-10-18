@@ -16,6 +16,8 @@ from rule_set_preparation.authoring_rejections import (
     CURRENT_TOOL_CALL_ID, SOURCE_BODY, SOURCE_PREFLIGHT, TOOL_SCHEMA, classify_schema_error, draft_fingerprint, field_paths_of,
 )
 from rule_set_preparation.authoring_state import summary as claim_summary
+from rule_set_preparation.semantic_closure import aggregate_closure, operative, claim_role
+from rule_set_preparation.semantic_audit import AUTHORITIES, ASSESSABILITIES, FRAME_FIELDS
 
 BUCKET_ARGS = {"OPERATIVE_PROPOSITION": "operative_claim_ids", "APPLICABILITY_CONDITION": "applicability_claim_ids", "QUALIFIER": "qualifier_claim_ids",
                "EXCEPTION": "exception_claim_ids", "CONTEXT": "context_claim_ids", "DEFINITION": "context_claim_ids"}
@@ -70,15 +72,24 @@ def build_claim_tools(context):
                 refs[(ref["documentId"], ref["locator"], ref["contentSha256"])] = ref
         return list(refs.values())
 
-    def register(identity_key, claim_type, statement, source_node_ids=None, actor=None, action=None, relevant=True, non_operative_reason=None):
+    def register(identity_key, claim_type, statement, source_node_ids=None, actor=None, action=None, relevant=True, non_operative_reason=None, source_support=None, semantic_authority=None, semantic_frame=None, assessability=None):
         if source_node_ids is None:
             source_node_ids = [ledger.frontier.active["sourceNodeId"]] if ledger.frontier and ledger.frontier.active else []
-        return ledger.put_claim(identity_key, source_node_ids, claim_type, statement, actor, action, relevant, non_operative_reason)
+        return ledger.put_claim(identity_key, source_node_ids, claim_type, statement, actor, action, relevant, non_operative_reason, source_support=source_support, semantic_authority=semantic_authority, semantic_frame=semantic_frame, assessability=assessability)
 
-    def update(claim_id, claim_type, statement, actor=None, action=None, relevant=True, non_operative_reason=None):
+    def support_span(node_id, quote):
+        node = context.source_graph.nodes.get(node_id)
+        if not node or not quote or node["content"].count(quote) != 1:
+            return ledger.rejected("SOURCE_SUPPORT_INVALID", node_id, "Copy a unique exact minimal passage from the pinned node, preserving line breaks; no normalized or paraphrased quotation", requiredAction="get_source_support")
+        from rule_set_preparation.semantic_audit import text_sha
+        start = node["content"].index(quote)
+        offset = len(node["content"][:start].encode("utf-16-le")) // 2
+        return {"outcome": "PASSED", "sourceSupport": {"nodeId": node_id, "startOffset": offset, "endOffset": offset + len(quote.encode("utf-16-le")) // 2, "contentSha256": text_sha(quote)}}
+
+    def update(claim_id, claim_type, statement, actor=None, action=None, relevant=True, non_operative_reason=None, source_support=None, semantic_authority=None, semantic_frame=None, assessability=None):
         claim = context.draft["semanticClaims"][claim_id]
         return ledger.put_claim(ledger.identities[claim_id], claim["sourceNodeIds"], claim_type, statement,
-                                actor, action, relevant, non_operative_reason, update_id=claim_id)
+                                actor, action, relevant, non_operative_reason, update_id=claim_id, source_support=source_support, semantic_authority=semantic_authority, semantic_frame=semantic_frame, assessability=assessability)
 
     def link(from_claim_id, to_claim_id, kind, reference_id=None):
         if not ledger.discovery_allowed():
@@ -276,7 +287,7 @@ def build_claim_tools(context):
             candidates = ([context.draft["semanticClaims"][cid] for cid in sorted(ledger.claims_by_node.get(source_node_id, set()))] if source_node_id else
                           [context.draft["semanticClaims"][claim_id]] if claim_id and claim_id in ledger.identities else
                           [] if claim_id else context.draft["semanticClaims"].values())
-            rows = [{"claim": c, "accountingRole": CLAIM_ROLES.get(c["claimType"]), "identityKey": ledger.identities[c["claimId"]], "claimFingerprint": fingerprint(c)} for c in candidates
+            rows = [{"claim": c, "accountingRole": claim_role(c), "identityKey": ledger.identities[c["claimId"]], "claimFingerprint": fingerprint(c)} for c in candidates
                     if (not claim_id or c["claimId"] == claim_id) and (not source_node_id or source_node_id in c["sourceNodeIds"])
                     and (kind != "UNACCOUNTED_CLAIMS" or (c["state"] == "RELEVANT" and c["claimId"] not in bound))] if kind != "STATUS" else []
         selected, chars = [], 0
@@ -292,15 +303,34 @@ def build_claim_tools(context):
                 "total": len(rows), "items": deepcopy(selected), "requestedLimit": limit, "appliedLimit": applied, "offset": offset,
                 "returnedCount": len(selected), "hasMore": more, "nextOffset": offset + len(selected) if more else None, "endReached": not more}
 
-    def authoring_context(role=None, offset=0, limit=None):
+    def authoring_context(offset=0, limit=None, operative_claim_ids=None):
         if context.authoring is None or not context.authoring.active():
             return ledger.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Finalize the claim inventory first; this view reads the frozen revision")
-        return context.authoring.page_view(role, offset, limit)
+        if operative_claim_ids:
+            return closure_view(operative_claim_ids)
+        result = context.authoring.page_view("OPERATIVE_PROPOSITION", offset, limit)
+        result["requiredAction"] = "get_semantic_closure"
+        result["guidance"] = "Choose a verified operative anchor, then retrieve its semantic closure. Global inventory search is diagnostic navigation only."
+        return result
 
-    def role_candidates(role):
+    def closure_view(operative_claim_ids):
+        if not ledger.frozen:
+            return ledger.rejected("CLAIM_PHASE_INVALID", "claimInventory", "Freeze the verified inventory first")
+        try:
+            closure = aggregate_closure(ledger.frozen, operative_claim_ids)
+        except ValueError as error:
+            return ledger.rejected("SEMANTIC_CLOSURE_INVALID", "operative_claim_ids", str(error), requiredAction="get_rule_authoring_context")
+        by_id = {c["claimId"]: c for c in ledger.frozen["claims"]}
+        return {"outcome": "PASSED", "inventoryRevision": ledger.revision, **closure,
+                "claims": [{**row, "claim": deepcopy(by_id[row["claimId"]])} for row in closure["claims"]],
+                "referenceDependencies": [{**r, "targetAssertion": deepcopy(by_id[r["toClaimId"]])} for r in closure["referenceDependencies"]],
+                "authoringArguments": {arg: [r["claimId"] for r in closure["claims"] if BUCKET_ARGS[r["role"]] == arg] for arg in sorted(set(BUCKET_ARGS.values()))},
+                "guidance": "Author from these operative anchors. All reachable semantic bindings are retained automatically; unrelated global role-compatible claims are refused. referenceDependencies retain other operative assertions as navigation/context; their modifiers cannot bind this anchor without an explicit compatible target relation."}
+
+    def role_candidates(role, allowed=None):
         """Real, relevant claims of one accounting role, unbound first: navigation help from the frozen inventory, never legal meaning."""
         bound = context.authoring.bound() if context.authoring is not None else {}
-        pool = sorted((c for c in context.draft["semanticClaims"].values() if c["state"] == "RELEVANT" and CLAIM_ROLES[c["claimType"]] == role),
+        pool = sorted((c for c in context.draft["semanticClaims"].values() if c["state"] == "RELEVANT" and claim_role(c) == role and (operative(c) if role == "OPERATIVE_PROPOSITION" else allowed is not None and c["claimId"] in allowed)),
                       key=lambda c: (c["claimId"] in bound, c["claimId"]))
         return [{"claimId": c["claimId"], "claimType": c["claimType"], "summary": claim_summary(c)} for c in pool[:CANDIDATE_LIMIT]], len(pool)
 
@@ -309,13 +339,52 @@ def build_claim_tools(context):
         started = ledger.begin_authoring()
         if started.get("outcome") != "PASSED":
             return started
-        selections = {"OPERATIVE_PROPOSITION": operative_claim_ids, "APPLICABILITY_CONDITION": applicability_claim_ids,
+        selections = {"OPERATIVE_PROPOSITION": operative_claim_ids, "APPLICABILITY_CONDITION": applicability_claim_ids or [],
                       "QUALIFIER": qualifier_claim_ids or [], "EXCEPTION": exception_claim_ids or [], "CONTEXT": context_claim_ids or []}
+        claims = context.draft["semanticClaims"]
+        closure_roles = {}
+        if operative_claim_ids and all(operative(claims.get(cid)) for cid in operative_claim_ids):
+            try:
+                closure = aggregate_closure(ledger.frozen, operative_claim_ids)
+            except ValueError as error:
+                return ledger.rejected("SEMANTIC_CLOSURE_INVALID", requirement_key, str(error), requiredAction="get_semantic_closure")
+            closure_roles = {r["claimId"]: r["role"] for r in closure["claims"]}
+        for role, ids in selections.items():
+            arg = BUCKET_ARGS[role]
+            for position, cid in enumerate(ids):
+                claim = claims.get(cid)
+                fields = {"suppliedField": arg, "fieldPaths": [f"{arg}[{position}]"], "suppliedClaimId": cid}
+                if claim is None:
+                    candidates, total = role_candidates(role, closure_roles)
+                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "Unknown claim ID; copy an exact ID from the verified closure", **fields,
+                                           expectedRole=role, expectedField=arg, candidates=candidates, candidateCount=total, requiredAction="get_semantic_closure", repairKey="UNKNOWN_CLAIM")
+                actual = closure_roles.get(cid, claim_role(claim))
+                if claim["state"] != "RELEVANT":
+                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "An intentionally non-operative claim cannot be bound to a Requirement", **fields,
+                                           actualRole=actual, requiredAction="get_semantic_closure", repairKey="NON_RELEVANT_CLAIM")
+                if actual != role and not (role == "CONTEXT" and actual == "DEFINITION"):
+                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "Selected claim has a different accounting role", **fields,
+                                           actualRole=actual, expectedRole=actual, expectedField=BUCKET_ARGS[actual], requiredAction="author_legal_requirement", repairKey="ROLE_MISMATCH")
+                if closure_roles and cid not in closure_roles:
+                    candidates, total = role_candidates(role, closure_roles)
+                    return ledger.rejected("SEMANTIC_CLOSURE_INVALID", cid, "BINDING_OUTSIDE_SEMANTIC_CLOSURE", **fields,
+                                           candidates=candidates, candidateCount=total, requiredAction="get_semantic_closure")
+        if closure_roles:
+            external = any(claims[cid]["assessability"] in {"EXTERNAL_FULFILLMENT", "NON_ASSESSABLE"} for cid in operative_claim_ids)
+            if not applicability_claim_ids and not non_assessable_reason and not external:
+                candidates, total = role_candidates("APPLICABILITY_CONDITION", closure_roles)
+                return ledger.rejected("APPLICABILITY_SCOPE_MISSING", requirement_key, "Copy the applicability claims from the selected semantic closure", suppliedField="applicability_claim_ids",
+                                       fieldPaths=["applicability_claim_ids"], candidates=candidates, candidateCount=total, expectedRole="APPLICABILITY_CONDITION", expectedField="applicability_claim_ids",
+                                       repairKey="APPLICABILITY_REQUIRED", requiredAction="author_legal_requirement" if candidates else "reopen_semantic_claim_inventory")
+            selections = {role: [cid for cid, actual in closure_roles.items() if actual == role or role == "CONTEXT" and actual == "DEFINITION"] for role in selections}
+            applicability_claim_ids = selections["APPLICABILITY_CONDITION"]
+            if any(claims[cid]["assessability"] in {"EXTERNAL_FULFILLMENT", "NON_ASSESSABLE"} for cid in operative_claim_ids):
+                non_repository_duty = True
+                non_assessable_reason = non_assessable_reason or "Verified semantic assessability requires fulfillment or evidence outside the repository; repository inspection cannot establish performance."
         row = {"legalRequirementId": requirement_key, "claimInventoryRevision": ledger.revision, "title": title,
                "proposition": "", "operativePropositions": [], "applicabilityConditions": [], "qualifiers": [], "exceptions": [],
                "semanticContext": [], "claimBindings": [], "sourceRefs": [], "nonRepositoryDuty": non_repository_duty,
                "coverage": {"state": "NON_ASSESSABLE" if non_assessable_reason else "COVERED_BY_ASSESSMENT_RULES", "nonAssessableReason": non_assessable_reason}}
-        claims = context.draft["semanticClaims"]
         statements = []
         provenance = {}
         for role, ids in selections.items():
@@ -324,17 +393,19 @@ def build_claim_tools(context):
                 path = f"{arg}[{position}]"
                 claim = claims.get(cid)
                 if claim is None:
-                    candidates, total = role_candidates(role)
+                    candidates, total = role_candidates(role, closure_roles)
                     return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "Unknown claim ID; copy exact IDs from get_rule_authoring_context or get_claim_inventory",
                                            suppliedField=arg, fieldPaths=[path], suppliedClaimId=cid, expectedRole=role, expectedField=arg, candidateCount=total,
                                            candidates=candidates, requiredAction="get_claim_inventory", repairKey="UNKNOWN_CLAIM")
-                actual_role = CLAIM_ROLES[claim["claimType"]]
+                actual_role = closure_roles.get(cid, claim_role(claim))
+                if role == "OPERATIVE_PROPOSITION" and not operative(claim):
+                    return ledger.rejected("SEMANTIC_CLOSURE_INVALID", cid, "LEGAL_NORMATIVE_ANCHOR_REQUIRED: guidance/context cannot author an operative Requirement", requiredAction="get_rule_authoring_context")
                 if claim["state"] != "RELEVANT":
                     return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, "An intentionally non-operative claim cannot be bound to a Requirement", suppliedField=arg,
                                            fieldPaths=[path], suppliedClaimId=cid, actualRole=actual_role, requiredAction="get_claim_inventory", repairKey="NON_RELEVANT_CLAIM")
                 if actual_role != role and not (role == "CONTEXT" and actual_role == "DEFINITION"):
-                    _, same_role = role_candidates(actual_role)
-                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, f"A {claim['claimType']} claim has accounting role {actual_role}, not {role}; role follows claim type",
+                    _, same_role = role_candidates(actual_role, closure_roles)
+                    return ledger.rejected("CLAIM_REQUIREMENT_MISMATCH", cid, f"A {claim['claimType']} claim has accounting role {actual_role}, not {role}; role follows the verified semantic closure and authority",
                                            suppliedField=arg, fieldPaths=[path], suppliedClaimId=cid, actualRole=actual_role, expectedRole=actual_role, expectedField=BUCKET_ARGS[actual_role],
                                            candidateCount=same_role, requiredAction="author_legal_requirement", repairKey="ROLE_MISMATCH")
                 refs = source_refs(claim)
@@ -355,7 +426,7 @@ def build_claim_tools(context):
                                    fieldPaths=["operative_claim_ids"], expectedRole="OPERATIVE_PROPOSITION", expectedField="operative_claim_ids", candidateCount=total, candidates=candidates,
                                    requiredAction="author_legal_requirement", repairKey="OPERATIVE_REQUIRED")
         if not non_assessable_reason and not applicability_claim_ids:
-            candidates = [c for c in claims.values() if c["state"] == "RELEVANT" and CLAIM_ROLES[c["claimType"]] == "APPLICABILITY_CONDITION"]
+            candidates = [c for cid, c in claims.items() if closure_roles.get(cid) == "APPLICABILITY_CONDITION"]
             summary = [{"claimId": c["claimId"], "claimType": c["claimType"], "statement": c["statement"][:200], "sourceNodeIds": c["sourceNodeIds"][:3]} for c in sorted(candidates, key=lambda c: c["claimId"])[:20]]
             return ledger.rejected("APPLICABILITY_SCOPE_MISSING", requirement_key,
                                    "An assessable Requirement needs applicability claims: choose the SCOPE/CONDITION claims that state its addressee and trigger"
@@ -453,10 +524,16 @@ def build_claim_tools(context):
                                        "description": "SCOPE = whom or what the provision applies to (an addressee class, subject matter or application scope, with the source-defined criteria unpacked). "
                                                       "CONDITION = a trigger predicate (if/when/only while). Register SCOPE and CONDITION as separate claims, never only inside a DUTY statement: "
                                                       "they are the only claims that can ground a Requirement's applicability, and the inventory cannot be finalized without one."}, "statement": TEXT,
-                        "actor": TEXT, "action": TEXT, "relevant": {"type": "boolean"}, "non_operative_reason": TEXT}
+                        "actor": TEXT, "action": TEXT, "relevant": {"type": "boolean"}, "non_operative_reason": TEXT,
+                        "source_support": {"type": "array", "minItems": 1, "maxItems": 64, "items": object_schema({"nodeId": TEXT, "startOffset": {"type": "integer", "minimum": 0}, "endOffset": {"type": "integer", "minimum": 1}, "contentSha256": TEXT}, ["nodeId", "startOffset", "endOffset"])},
+                        "semantic_authority": {"type": "string", "enum": AUTHORITIES}, "assessability": {"type": "string", "enum": ASSESSABILITIES},
+                        "semantic_frame": object_schema({k: {"anyOf": [TEXT, {"type": "null"}]} for k in FRAME_FIELDS})}
+    semantic_required = ["source_support", "semantic_authority", "semantic_frame", "assessability"]
     specs = [
-        ("register_semantic_claim", "Register one Agent-interpreted claim with a stable semantic key and pinned source nodes; returns its canonical ID.", register, object_schema({"identity_key": {**TEXT, "maxLength": 128}, "source_node_ids": {**IDS, "minItems": 1}, **claim_properties}, ["identity_key", "source_node_ids", "claim_type", "statement"])),
-        ("update_semantic_claim", "Correct an existing claim during discovery, preserving its canonical ID/source anchors. Frozen claims require explicit reopening.", update, object_schema({"claim_id": TEXT, **claim_properties}, ["claim_id", "claim_type", "statement"])),
+        ("register_semantic_claim", "Register one source-supported structured assertion. source_support uses minimal UTF-16 offsets in pinned node content; the runtime computes and verifies hashes. Distinguish legal norms, definitions, context and guidance, and classify repository vs external assessability. Independent audit is mandatory before review completion.", register, object_schema({"identity_key": {**TEXT, "maxLength": 128}, "source_node_ids": {**IDS, "minItems": 1}, **claim_properties}, ["identity_key", "source_node_ids", "claim_type", "statement", *semantic_required])),
+        ("update_semantic_claim", "Correct a structured assertion and its support; every semantic mutation invalidates its independent audit. Canonical ID/source anchors remain stable. Frozen claims require reopening.", update, object_schema({"claim_id": TEXT, **claim_properties}, ["claim_id", "claim_type", "statement", *semantic_required])),
+        ("get_source_support", "Resolve a unique exact minimal quotation against pinned AST content and return immutable UTF-16 offsets and SHA-256. This locates text only; independent audit decides entailment.", support_span, object_schema({"node_id": TEXT, "quote": TEXT}, ["node_id", "quote"])),
+        ("get_semantic_closure", "Read the verified typed semantic closure of one operative anchor or a compatible operative aggregation. Only reachable applicability, qualifications, exceptions, temporal branches, definitions and context may bind its Requirement.", closure_view, object_schema({"operative_claim_ids": {**IDS, "minItems": 1}}, ["operative_claim_ids"])),
         ("remove_semantic_claim", "Remove a mistaken claim BEFORE inventory freeze, recording why and invalidating affected source/reference reviews. Never omit a real duty merely to pass coverage.", remove, object_schema({"claim_id": TEXT, "reason": TEXT}, ["claim_id", "reason"])),
         ("link_semantic_claims", "Declare the legal role/direction between claims. Attach a structural reference edge when the dependency relies on it.", link, object_schema({"from_claim_id": TEXT, "to_claim_id": TEXT, "kind": {"type": "string", "enum": sorted(RELATION_KINDS)}, "reference_id": TEXT}, ["from_claim_id", "to_claim_id", "kind"])),
         ("inspect_semantic_reference_binding", "Inspect one structural edge, bounded durable canonical targets, targetClaimAvailability and independent targetReviewComplete. A blocked target can expose usable committed claims. Does not choose legal materiality or a semantic target.", inspect_binding, object_schema({"reference_id": TEXT, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}}, ["reference_id"])),
@@ -466,7 +543,7 @@ def build_claim_tools(context):
         ("review_source_node", "Record discovery review: enumerate ALL discovered claims in this node, or an explicit reason it has none. A context claim never hides a separate duty.", review_node, object_schema({"source_node_id": TEXT, "claim_ids": IDS, "no_relevant_claim_reason": TEXT}, ["source_node_id", "claim_ids"])),
         ("review_source_reference", "Account for an explicit reference with its semantic relation IDs or an Agent-authored non-material reason.", review_reference, object_schema({"reference_id": TEXT, "material": {"type": "boolean"}, "relation_ids": IDS, "non_material_reason": TEXT}, ["reference_id", "material", "relation_ids"])),
         ("get_claim_inventory", "Read exact claims (statement, actor/action, provenance), relations, unaccounted claims or Requirements, one bounded page at a time. The reply states requestedLimit, appliedLimit, offset, returnedCount, hasMore and nextOffset; a page size above 20 is capped at 20 and reported, never rejected. Use claim_id to fetch one exact claim.", inspect, object_schema({"kind": {"type": "string", "enum": ["STATUS", "UNREVIEWED_SOURCE_NODES", "CLAIMS", "RELATIONS", "UNACCOUNTED_CLAIMS", "REQUIREMENTS"]}, "source_node_id": TEXT, "claim_id": TEXT, "offset": {"type": "integer", "description": "Zero-based start; negative values start at 0"}, "limit": {"type": "integer", "description": "Page size; default and maximum 20"}})),
-        ("get_rule_authoring_context", "Bounded navigation index over the FROZEN inventory for Rule authoring: relevant claims grouped by accounting role (summary plus exact claimId), which Requirements already bind each claim, and what is authored. Not a second authority: fetch an exact claim with get_claim_inventory(kind=CLAIMS, claim_id=...). Pages of at most 40; the reply states requestedLimit, appliedLimit, offset, returnedCount, total, hasMore and nextOffset.", authoring_context, object_schema({"role": {"type": "string", "enum": ["OPERATIVE_PROPOSITION", "APPLICABILITY_CONDITION", "QUALIFIER", "EXCEPTION", "CONTEXT", "DEFINITION", "UNACCOUNTED"], "description": "Omit for all roles"}, "offset": {"type": "integer"}, "limit": {"type": "integer", "description": "Default and maximum 40"}})),
+        ("get_rule_authoring_context", "Choose verified LEGAL_NORMATIVE operative anchors from the frozen inventory, then call get_semantic_closure to obtain compatible bindings and exact authoringArguments. This normal path does not expose a global role pool. Global get_claim_inventory remains diagnostic/navigation only. Pages of at most 40 with explicit cursors.", authoring_context, object_schema({"operative_claim_ids": IDS, "offset": {"type": "integer"}, "limit": {"type": "integer", "description": "Default and maximum 40"}})),
         ("get_rule_authoring_status", "Bounded read-only projection of Rule authoring progress: the exact IDs and titles of your authored Requirements (assessable or not, with or without an AssessmentRule), your AssessmentRules, unbound relevant claims by role, any unresolved rejection of your last mutation and the next valid actions. Use it to get the exact legalRequirementId values author_assessment_rule needs. Not a second authority; pages of at most 40.", authoring_status, object_schema({"offset": {"type": "integer"}, "limit": {"type": "integer", "description": "Default and maximum 40"}})),
         ("validate_semantic_claim_inventory", "Validate discovery and source/reference review WITHOUT requiring Requirements. Reports the same authoring-readiness gaps as finalization (APPLICABILITY_AUTHORITY_MISSING). Fix grouped gaps before finalization.", lambda: ledger.validate_inventory(False), object_schema({})),
         ("finalize_semantic_claim_inventory", "Explicitly finalize discovery and persist an immutable inventory revision. Requirements are not required at this phase, but the inventory must be able to support one: it is refused (APPLICABILITY_AUTHORITY_MISSING) when duties exist and no SCOPE or CONDITION claim does. Reopen the owning unit with reopen_source_review and register that claim.", lambda: ledger.validate_inventory(True), object_schema({})),
@@ -483,12 +560,12 @@ def build_claim_tools(context):
         specs += [
           ("get_next_review_unit","Get the next runtime-scheduled bounded source unit. Repeated calls return your leased unit until you complete or block it. No global node bookkeeping is required.",ledger.frontier.next,object_schema({})),
           ("get_review_progress","Get compact persisted queue progress and the exact next action. Queue empty with zero blocked units makes discovery eligible to freeze.",ledger.frontier.progress,object_schema({})),
-          ("complete_source_review","Give the active unit a semantic disposition. Runtime collects ALL canonical claims authored here by default. Explicit claim_ids must include every authored claim. No-claim needs a reason; blocking needs reference_ids. This never completes children/siblings.",ledger.frontier.complete,object_schema({"disposition":{"type":"string","enum":["CLAIMS_AUTHORED","NO_RELEVANT_SEMANTIC_CLAIMS","CONTEXT_ONLY","REQUIRES_REFERENCE_RESOLUTION"]},"claim_ids":IDS,"reason":{**TEXT,"maxLength":2000},"reference_ids":IDS},["disposition"])),
+          ("complete_source_review","Give the active unit a semantic disposition. Runtime collects ALL canonical claims authored here by default. Explicit claim_ids must include every authored claim. NO_RELEVANT_SEMANTIC_CLAIMS means no relevant semantic material of any role; definitions and context still require claims. No-claim needs a reason; blocking needs reference_ids. This never completes children/siblings.",ledger.frontier.complete,object_schema({"disposition":{"type":"string","enum":["CLAIMS_AUTHORED","NO_RELEVANT_SEMANTIC_CLAIMS","CONTEXT_ONLY","REQUIRES_REFERENCE_RESOLUTION"]},"claim_ids":IDS,"reason":{**TEXT,"maxLength":2000},"reference_ids":IDS},["disposition"])),
           ("expand_review_frontier","Explicitly include a structurally referenced target in scope, recording why. Existing target work is reused. Never silently expand the frontier.",ledger.frontier.expand,object_schema({"reference_ids":{**IDS,"minItems":1},"reason":{**TEXT,"maxLength":2000}},["reference_ids","reason"])),
           ("reopen_source_review","Explicitly reopen a completed/blocked unit to correct its semantics. The runtime will schedule it; other units remain unchanged.",ledger.frontier.reopen,object_schema({"source_node_id":TEXT,"reason":{**TEXT,"maxLength":2000}},["source_node_id","reason"])),
         ]
     if context.discovery_only:
-        specs=[spec for spec in specs if spec[0] not in {"start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory","get_rule_authoring_context","get_rule_authoring_status"}]
+        specs=[spec for spec in specs if spec[0] not in {"start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory","get_rule_authoring_context","get_rule_authoring_status", "get_semantic_closure"}]
     tools = []
     for name, description, function, schema in specs:
         def invoke(_function=function, _schema=schema, _name=name, **kwargs):

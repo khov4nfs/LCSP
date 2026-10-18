@@ -11,6 +11,7 @@ import {
 import type { LegalDocumentGraph } from "@lcsp/contracts/legal-source";
 import { buildLegalDocumentGraph } from "../../src/modules/legal-source/domain/document-graph.js";
 import type { LegalSourceChunkSnapshot } from "../../src/modules/compliance-rule-set/domain/compliance-rule-set-integrity.validator.js";
+import { supportStructuralFixture } from "./structural-semantic-fixture.js";
 
 export function fixtureDocumentGraph(
   version: string,
@@ -191,6 +192,7 @@ export function authorFixtureClaims(
         "Synthetic structural reference with no semantic dependency in this fixture",
     })),
   };
+  supportStructuralFixture(packet, graph);
   for (const rule of packet.assessmentRules) {
     rule.evidenceBindings = rule.criteria.map((c) => ({
       criterionId: c.criterionId,
