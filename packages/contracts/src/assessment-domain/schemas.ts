@@ -32,6 +32,7 @@ import {
   TRACKING_ACTION_REASONS,
   TRACKING_ANOMALY_TYPES,
   TRACKING_CHANGE_TYPES,
+  TRACKING_FRESHNESS_STATUSES,
   TRACKING_IMPACT_REASONS,
   TRACKING_TRUST_STATUSES,
   TRACKING_UNTRUSTED_REASONS,
@@ -755,6 +756,7 @@ export type AssessmentProvenanceExport = z.infer<
 /** Tracking enum schemas derived from canonical constants. */
 export const trackingChangeTypeSchema = z.enum(TRACKING_CHANGE_TYPES);
 export const trackingTrustStatusSchema = z.enum(TRACKING_TRUST_STATUSES);
+export const trackingFreshnessStatusSchema = z.enum(TRACKING_FRESHNESS_STATUSES);
 export const trackingActionReasonSchema = z.enum(TRACKING_ACTION_REASONS);
 export const trackingAnomalyTypeSchema = z.enum(TRACKING_ANOMALY_TYPES);
 export const trackingUntrustedReasonSchema = z.enum(TRACKING_UNTRUSTED_REASONS);
@@ -779,6 +781,8 @@ export const customerTrackingChangeItemSchema = z.strictObject({
   assessmentId: uuidSchema,
   assessmentName: z.string().trim().min(1),
   changeType: trackingChangeTypeSchema,
+  titleKey: z.string().trim().min(1),
+  descriptionKey: z.string().trim().min(1),
   title: z.string().trim().min(1),
   description: z.string().trim().min(1),
   occurredAt: z.iso.datetime(),
@@ -809,6 +813,7 @@ export const customerTrackingAssessmentItemSchema = z.strictObject({
     owner: z.string().nullable(),
     pinnedCommit: z.string().nullable(),
     latestCommit: z.string().nullable(),
+    freshnessStatus: trackingFreshnessStatusSchema,
     isStale: z.boolean(),
   }),
   ruleSet: z.strictObject({
@@ -841,18 +846,26 @@ export type CustomerTrackingAssessmentItem = z.infer<
   typeof customerTrackingAssessmentItemSchema
 >;
 
+export const trackingPaginationSchema = z.strictObject({
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
+});
+export type TrackingPagination = z.infer<typeof trackingPaginationSchema>;
+
 export const customerTrackingOverviewSchema = z.strictObject({
   actions: z.array(customerTrackingActionItemSchema),
   changes: z.array(customerTrackingChangeItemSchema),
   complianceSummary: customerTrackingComplianceSummarySchema,
   assessments: z.array(customerTrackingAssessmentItemSchema),
+  pagination: trackingPaginationSchema,
   correlationId: z.string().min(1),
   generatedAt: z.iso.datetime(),
 });
 export type CustomerTrackingOverview = z.infer<
   typeof customerTrackingOverviewSchema
 >;
-
 
 export const adminTrackingImpactedAssessmentSchema = z.strictObject({
   assessmentId: uuidSchema,
@@ -874,7 +887,7 @@ export const adminTrackingExecutionAnomalySchema = z.strictObject({
   executionState: z.string(),
   rootAgentVersion: z.string().nullable(),
   anomalyType: trackingAnomalyTypeSchema,
-  durationSeconds: z.number().int().nonnegative(),
+  durationSeconds: z.number().int().nonnegative().nullable(),
   detectedAt: z.iso.datetime(),
 });
 export type AdminTrackingExecutionAnomaly = z.infer<
@@ -885,8 +898,9 @@ export const adminTrackingUnreconciledUsageSchema = z.strictObject({
   eventId: uuidSchema,
   assessmentId: uuidSchema.nullable(),
   model: z.string(),
-  promptTokens: z.number().int().nonnegative(),
-  completionTokens: z.number().int().nonnegative(),
+  promptTokens: z.number().int().nonnegative().nullable(),
+  completionTokens: z.number().int().nonnegative().nullable(),
+  totalTokens: z.number().int().nonnegative().nullable(),
   reconciled: z.boolean(),
   createdAt: z.iso.datetime(),
 });

@@ -1996,6 +1996,14 @@ export type AssessmentMessages = {
     modelStepCompleted: string;
     repositoryInspected: string;
   };
+  tracking: {
+    reportReadyTitle: string;
+    reportReadyDescription: string;
+    reassessmentRequiredTitle: string;
+    reassessmentRequiredDescription: string;
+    outcomeCompletedTitle: string;
+    outcomeCompletedDescription: string;
+  };
 };
 
 export type LocaleMessages = {

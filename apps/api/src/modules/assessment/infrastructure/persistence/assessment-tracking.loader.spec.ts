@@ -2,40 +2,177 @@ import { describe, expect, it } from "@jest/globals";
 import { HttpStatus } from "@nestjs/common";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
-  TRACKING_ACTION_REASONS,
   TRACKING_ANOMALY_TYPES,
   TRACKING_CHANGE_TYPES,
-  TRACKING_IMPACT_REASONS,
+  TRACKING_FRESHNESS_STATUSES,
   TRACKING_TRUST_STATUSES,
-  TRACKING_UNTRUSTED_REASONS,
 } from "@lcsp/contracts/assessment-domain";
 import { AssessmentTrackingLoader } from "./assessment-tracking.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
-function buildLoader(fixtures: {
-  assessments?: unknown[];
-  runtimes?: unknown[];
-  usageEvents?: unknown[];
-  counts?: { active?: number; failed?: number; blocked?: number };
-}) {
+interface MockDecision {
+  id?: string;
+  state?: string;
+  supersededAt?: Date | null;
+  invalidatedAt?: Date | null;
+  [key: string]: unknown;
+}
+
+interface MockEvidence {
+  id?: string;
+  state?: string;
+  [key: string]: unknown;
+}
+
+interface MockFact {
+  id?: string;
+  state?: string;
+  [key: string]: unknown;
+}
+
+interface MockSnapshot {
+  id?: string;
+  repositoryFullName?: string;
+  ref?: string;
+  branch?: string;
+  status?: string;
+  createdAt?: string | Date;
+  [key: string]: unknown;
+}
+
+interface FixtureTypes {
+  assessments?: Record<string, unknown>[];
+  coverage?: Record<string, unknown>[];
+  decisions?: MockDecision[];
+  evidence?: MockEvidence[];
+  facts?: MockFact[];
+  snapshots?: MockSnapshot[];
+  runtimes?: Record<string, unknown>[];
+  usageEvents?: Record<string, unknown>[];
+  ruleCounts?: Record<string, number>;
+  counts?: {
+    active?: number;
+    failed?: number;
+    blocked?: number;
+    anomalies?: number;
+    unreconciled?: number;
+    untrusted?: number;
+  };
+}
+
+function buildLoader(fixtures: FixtureTypes) {
   const prisma = {
     assessment: {
-      findMany: () => Promise.resolve(fixtures.assessments ?? []),
-      count: (args?: { where?: { lifecycleState?: string } }) => {
+      findMany: (args?: { skip?: number; take?: number }) => {
+        const list = fixtures.assessments ?? [];
+        if (args?.skip !== undefined && args?.take !== undefined) {
+          return Promise.resolve(list.slice(args.skip, args.skip + args.take));
+        }
+        return Promise.resolve(list);
+      },
+      count: (args?: {
+        where?: { lifecycleState?: string; OR?: unknown[] };
+      }) => {
         if (args?.where?.lifecycleState === "ACTIVE") {
           return Promise.resolve(fixtures.counts?.active ?? 0);
         }
         if (args?.where?.lifecycleState === "FAILED") {
           return Promise.resolve(fixtures.counts?.failed ?? 0);
         }
-        return Promise.resolve(fixtures.counts?.blocked ?? 0);
+        if (args?.where?.lifecycleState === "BLOCKED") {
+          return Promise.resolve(fixtures.counts?.blocked ?? 0);
+        }
+        if (args?.where?.OR) {
+          return Promise.resolve(fixtures.counts?.untrusted ?? 0);
+        }
+        return Promise.resolve(fixtures.assessments?.length ?? 0);
+      },
+    },
+    assessmentDecisionCoverage: {
+      findMany: () => Promise.resolve(fixtures.coverage ?? []),
+    },
+    assessmentRuleDecision: {
+      findMany: (args?: { where?: { state?: string } }) => {
+        const all = fixtures.decisions ?? [];
+        if (args?.where?.state === "INVALIDATED") {
+          return Promise.resolve(all.filter((d) => d.state === "INVALIDATED"));
+        }
+        if (args?.where?.state === "ACCEPTED") {
+          return Promise.resolve(
+            all.filter(
+              (d) =>
+                d.state === "ACCEPTED" &&
+                d.supersededAt == null &&
+                d.invalidatedAt == null,
+            ),
+          );
+        }
+        return Promise.resolve(all);
+      },
+    },
+    assessmentEvidence: {
+      findMany: (args?: { where?: { state?: string } }) => {
+        const all = fixtures.evidence ?? [];
+        if (args?.where?.state === "INVALIDATED") {
+          return Promise.resolve(all.filter((e) => e.state === "INVALIDATED"));
+        }
+        return Promise.resolve(all);
+      },
+    },
+    assessmentCaseFact: {
+      findMany: (args?: { where?: { state?: string } }) => {
+        const all = fixtures.facts ?? [];
+        if (args?.where?.state === "INVALIDATED") {
+          return Promise.resolve(all.filter((f) => f.state === "INVALIDATED"));
+        }
+        return Promise.resolve(all);
+      },
+    },
+    repositorySnapshot: {
+      findMany: (args?: { where?: { id?: { in?: string[] } } }) => {
+        const all = fixtures.snapshots ?? [];
+        if (args?.where?.id?.in) {
+          const inIds = args.where.id.in;
+          return Promise.resolve(
+            all.filter((s) => typeof s.id === "string" && inIds.includes(s.id)),
+          );
+        }
+        return Promise.resolve(all);
+      },
+      findFirst: (args?: {
+        where?: { repositoryFullName?: string; ref?: string; status?: string };
+      }) => {
+        const all = fixtures.snapshots ?? [];
+        const match = all
+          .filter(
+            (s) =>
+              s.repositoryFullName === args?.where?.repositoryFullName &&
+              (!args?.where?.ref ||
+                s.ref === args.where.ref ||
+                s.branch === args.where.ref) &&
+              (!args?.where?.status || s.status === args.where.status),
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt ?? 0).getTime() -
+              new Date(a.createdAt ?? 0).getTime(),
+          )[0];
+        return Promise.resolve(match ?? null);
+      },
+    },
+    assessmentRule: {
+      count: (args?: { where?: { ruleSetVersionId?: string } }) => {
+        const vId = args?.where?.ruleSetVersionId ?? "";
+        return Promise.resolve(fixtures.ruleCounts?.[vId] ?? 1);
       },
     },
     assessmentRuntime: {
       findMany: () => Promise.resolve(fixtures.runtimes ?? []),
+      count: () => Promise.resolve(fixtures.counts?.anomalies ?? 0),
     },
     llmUsageEvent: {
       findMany: () => Promise.resolve(fixtures.usageEvents ?? []),
+      count: () => Promise.resolve(fixtures.counts?.unreconciled ?? 0),
     },
   } as unknown as PrismaService;
 
@@ -55,10 +192,399 @@ describe("AssessmentTrackingLoader", () => {
       expect(result.actions).toEqual([]);
       expect(result.changes).toEqual([]);
       expect(result.assessments).toEqual([]);
+      expect(result.pagination.total).toBe(0);
       expect(result.complianceSummary.totalRulesEvaluated).toBe(0);
     });
 
-    it("aggregates actions, material changes, rule compliance, and freshness for customer", async () => {
+    it("ensures accepted-but-not-current decisions cannot be counted as compliant", async () => {
+      const assessmentId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+
+      const mockAssessment = {
+        id: assessmentId,
+        ownerId: "customer-1",
+        name: "Payments Service",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        runtime: { executionState: "SUCCEEDED", currentExecutionId: null },
+        domainCase: {
+          caseRevision: 1,
+          pinnedAt: now,
+          ruleSetVersionId: "rule-v1",
+          repositorySnapshotId: "snap-1",
+          repositoryScanJobId: "job-1",
+          repositoryCommit: "abc1234",
+          ruleSet: {
+            id: "rule-v1",
+            version: "1.0.0",
+            supersededAt: null,
+            lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
+          },
+          humanRequests: [],
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: now,
+              activatedAt: now,
+              lifecycleState: "ACTIVE",
+            },
+          ],
+        },
+      };
+
+      // Coverage row points to currentDecisionId 'dec-1' with revision 2
+      const coverage = [
+        {
+          assessmentId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId: "rule-v1",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-1",
+          decisionRevision: 2,
+        },
+      ];
+
+      // Stale decision has revision 1 instead of 2 (revision mismatch)
+      const decisions = [
+        {
+          decisionId: "dec-1",
+          assessmentId,
+          assessmentRuleId: "RULE-1",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "rule-v1",
+          decisionRevision: 1, // Mismatched revision!
+          repositoryCommit: "abc1234",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          supersededAt: null,
+          invalidatedAt: null,
+          decision: {
+            applicability: "APPLICABLE",
+            compliance: "COMPLIANT",
+          },
+        },
+      ];
+
+      const snapshots = [
+        {
+          id: "snap-1",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "abc1234",
+          createdAt: now,
+          status: "READY",
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [mockAssessment],
+        coverage,
+        decisions,
+        snapshots,
+        ruleCounts: { "rule-v1": 1 },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-inconsistent",
+      });
+
+      // Mismatched decision must not be counted as compliant; must fail closed to unresolved
+      expect(result.complianceSummary.compliantCount).toBe(0);
+      expect(result.complianceSummary.unresolvedCount).toBe(1);
+      expect(result.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
+      );
+      expect(result.assessments[0].trust.reason).toBe("INTEGRITY_MISMATCH");
+      expect(result.assessments[0].trust.isTrustworthy).toBe(false);
+    });
+
+    it("ensures incomplete or stale pins/evidence cannot be TRUSTED", async () => {
+      const assessmentId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+
+      // Case A: Missing pinnedScanJobId
+      const unpinnedAssessment = {
+        id: assessmentId,
+        ownerId: "customer-1",
+        name: "Unpinned Assessment",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        runtime: null,
+        domainCase: {
+          caseRevision: 1,
+          pinnedAt: now,
+          ruleSetVersionId: "rule-v1",
+          repositorySnapshotId: "snap-1",
+          repositoryScanJobId: null, // Missing scan job pin!
+          repositoryCommit: "abc1234",
+          ruleSet: {
+            id: "rule-v1",
+            version: "1.0.0",
+            supersededAt: null,
+            lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
+          },
+          humanRequests: [],
+          artifacts: [],
+        },
+      };
+
+      const loaderA = buildLoader({
+        assessments: [unpinnedAssessment],
+      });
+
+      const resultA = await loaderA.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-unpinned",
+      });
+
+      expect(resultA.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
+      );
+      expect(resultA.assessments[0].trust.reason).toBe("PINS_MISSING");
+      expect(resultA.assessments[0].trust.isTrustworthy).toBe(false);
+
+      // Case B: Pinned but has invalidated evidence
+      const pinnedAssessment = {
+        ...unpinnedAssessment,
+        domainCase: {
+          ...unpinnedAssessment.domainCase,
+          repositoryScanJobId: "job-1",
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: now,
+              activatedAt: now,
+              lifecycleState: "ACTIVE",
+            },
+          ],
+        },
+      };
+
+      const loaderB = buildLoader({
+        assessments: [pinnedAssessment],
+        coverage: [
+          {
+            assessmentId,
+            assessmentRuleId: "RULE-1",
+            ruleSetVersionId: "rule-v1",
+            assessmentRuleVersion: "1.0.0",
+            resolutionState: "RESOLVED",
+            currentDecisionId: "dec-1",
+            decisionRevision: 1,
+          },
+        ],
+        decisions: [
+          {
+            decisionId: "dec-1",
+            assessmentId,
+            assessmentRuleId: "RULE-1",
+            assessmentRuleVersion: "1.0.0",
+            scopeId: "ASSESSMENT",
+            ruleSetVersionId: "rule-v1",
+            decisionRevision: 1,
+            repositoryCommit: "abc1234",
+            caseRevision: 1,
+            state: "ACCEPTED",
+            supersededAt: null,
+            invalidatedAt: null,
+            decision: { applicability: "APPLICABLE", compliance: "COMPLIANT" },
+          },
+        ],
+        evidence: [
+          {
+            assessmentId,
+            evidenceId: "ev-1",
+            state: "INVALIDATED", // Invalidated evidence!
+          },
+        ],
+        snapshots: [
+          {
+            id: "snap-1",
+            repositoryFullName: "acme/payments",
+            ref: "main",
+            commitSha: "abc1234",
+            createdAt: now,
+            status: "READY",
+          },
+        ],
+      });
+
+      const resultB = await loaderB.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-invalid-evidence",
+      });
+
+      expect(resultB.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
+      );
+      expect(resultB.assessments[0].trust.reason).toBe("INTEGRITY_MISMATCH");
+      expect(resultB.assessments[0].trust.isTrustworthy).toBe(false);
+    });
+
+    it("ensures newer independent repo snapshot cannot spuriously flag a different repo as stale", async () => {
+      const assessmentId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+      const later = new Date("2026-10-18T11:00:00.000Z");
+
+      const mockAssessment = {
+        id: assessmentId,
+        ownerId: "customer-1",
+        name: "Payments Service",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        runtime: { executionState: "SUCCEEDED", currentExecutionId: null },
+        domainCase: {
+          caseRevision: 1,
+          pinnedAt: now,
+          ruleSetVersionId: "rule-v1",
+          repositorySnapshotId: "snap-payments-1",
+          repositoryScanJobId: "job-1",
+          repositoryCommit: "abc1234",
+          ruleSet: {
+            id: "rule-v1",
+            version: "1.0.0",
+            supersededAt: null,
+            lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
+          },
+          humanRequests: [],
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: now,
+              activatedAt: now,
+              lifecycleState: "ACTIVE",
+            },
+          ],
+        },
+      };
+
+      // Snapshots: snap-payments-1 is pinned. An unrelated snapshot for 'acme/auth' was created later.
+      const snapshots = [
+        {
+          id: "snap-payments-1",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "abc1234",
+          createdAt: now,
+          status: "READY",
+        },
+        {
+          id: "snap-auth-2",
+          repositoryFullName: "acme/auth", // DIFFERENT REPO!
+          ref: "main",
+          commitSha: "xyz9999",
+          createdAt: later,
+          status: "READY",
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [mockAssessment],
+        snapshots,
+        coverage: [
+          {
+            assessmentId,
+            assessmentRuleId: "RULE-1",
+            ruleSetVersionId: "rule-v1",
+            assessmentRuleVersion: "1.0.0",
+            resolutionState: "RESOLVED",
+            currentDecisionId: "dec-1",
+            decisionRevision: 1,
+          },
+        ],
+        decisions: [
+          {
+            decisionId: "dec-1",
+            assessmentId,
+            assessmentRuleId: "RULE-1",
+            assessmentRuleVersion: "1.0.0",
+            scopeId: "ASSESSMENT",
+            ruleSetVersionId: "rule-v1",
+            decisionRevision: 1,
+            repositoryCommit: "abc1234",
+            caseRevision: 1,
+            state: "ACCEPTED",
+            supersededAt: null,
+            invalidatedAt: null,
+            decision: { applicability: "APPLICABLE", compliance: "COMPLIANT" },
+          },
+        ],
+        ruleCounts: { "rule-v1": 1 },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-multi-repo",
+      });
+
+      // Pinned repo 'acme/payments' must remain CURRENT and NOT stale!
+      expect(result.assessments[0].repository.name).toBe("payments");
+      expect(result.assessments[0].repository.owner).toBe("acme");
+      expect(result.assessments[0].repository.pinnedCommit).toBe("abc1234");
+      expect(result.assessments[0].repository.latestCommit).toBe("abc1234");
+      expect(result.assessments[0].repository.freshnessStatus).toBe(
+        TRACKING_FRESHNESS_STATUSES.CURRENT,
+      );
+      expect(result.assessments[0].repository.isStale).toBe(false);
+
+      // No REASSESSMENT_REQUIRED should be emitted for payments
+      expect(
+        result.changes.some(
+          (c) => c.changeType === TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+        ),
+      ).toBe(false);
+    });
+
+    it("marks missing live ref / unpinned repository as UNKNOWN freshness", async () => {
+      const assessmentId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+
+      const mockAssessment = {
+        id: assessmentId,
+        ownerId: "customer-1",
+        name: "No Repo Assessment",
+        lifecycleState: "CREATED",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        runtime: null,
+        domainCase: null, // No domain case or snapshot
+      };
+
+      const loader = buildLoader({
+        assessments: [mockAssessment],
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-unknown-freshness",
+      });
+
+      expect(result.assessments[0].repository.freshnessStatus).toBe(
+        TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+      );
+      expect(result.assessments[0].repository.isStale).toBe(false);
+      expect(result.assessments[0].repository.latestCommit).toBeNull();
+    });
+
+    it("verifies user actions lead to correct UI screens and preserve request/artifact identity", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
       const requestId = "22222222-2222-4222-8222-222222222222";
       const artifactId = "33333333-3333-4333-8333-333333333333";
@@ -67,336 +593,169 @@ describe("AssessmentTrackingLoader", () => {
       const mockAssessment = {
         id: assessmentId,
         ownerId: "customer-1",
-        name: "Payments Service Assessment",
+        name: "Payments Service",
         lifecycleState: "COMPLETE",
         blockerReason: null,
-        createdAt: new Date("2026-10-10T00:00:00.000Z"),
+        createdAt: now,
         updatedAt: now,
-        runtime: {
-          executionState: "SUCCEEDED",
-        },
-        repositorySnapshots: [
-          {
-            commitSha: "abc1234",
-            repositoryFullName: "acme/payments",
-            createdAt: now,
-          },
-        ],
+        runtime: { executionState: "SUCCEEDED", currentExecutionId: null },
         domainCase: {
-          assessmentId,
+          caseRevision: 1,
+          pinnedAt: now,
           ruleSetVersionId: "rule-v1",
+          repositorySnapshotId: "snap-1",
+          repositoryScanJobId: "job-1",
           repositoryCommit: "abc1234",
           ruleSet: {
             id: "rule-v1",
             version: "1.0.0",
             supersededAt: null,
             lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
           },
-          decisions: [
-            {
-              assessmentRuleId: "RULE-1",
-              applicability: "APPLICABLE",
-              compliance: "COMPLIANT",
-              state: "ACCEPTED",
-              supersededAt: null,
-              invalidatedAt: null,
-            },
-            {
-              assessmentRuleId: "RULE-2",
-              applicability: "APPLICABLE",
-              compliance: "NON_COMPLIANT",
-              state: "ACCEPTED",
-              supersededAt: null,
-              invalidatedAt: null,
-            },
-            {
-              assessmentRuleId: "RULE-3",
-              applicability: "NOT_APPLICABLE",
-              compliance: null,
-              state: "ACCEPTED",
-              supersededAt: null,
-              invalidatedAt: null,
-            },
-          ],
-          coverage: [
-            {
-              assessmentRuleId: "RULE-1",
-              resolutionState: "RESOLVED",
-              currentDecisionId: "dec-1",
-            },
-            {
-              assessmentRuleId: "RULE-2",
-              resolutionState: "RESOLVED",
-              currentDecisionId: "dec-2",
-            },
-            {
-              assessmentRuleId: "RULE-3",
-              resolutionState: "RESOLVED",
-              currentDecisionId: "dec-3",
-            },
-            {
-              assessmentRuleId: "RULE-4",
-              resolutionState: "PENDING",
-              currentDecisionId: null,
-            },
-          ],
           humanRequests: [
             {
               requestId,
-              assessmentId,
-              assessmentRuleId: "RULE-4",
-              question: "Does the service store CVV?",
-              unresolvedFact: "CVV storage policy",
-              status: "OPEN",
+              assessmentRuleId: "RULE-MFA",
+              question: "Is MFA enabled?",
+              unresolvedFact: "MFA enforcement",
               createdAt: now,
             },
           ],
           artifacts: [
             {
               artifactId,
-              kind: "FINAL_REPORT",
-              lifecycleState: "ACTIVE",
-              activatedAt: now,
               createdAt: now,
+              activatedAt: now,
+              lifecycleState: "ACTIVE",
             },
           ],
         },
       };
 
-      const loader = buildLoader({ assessments: [mockAssessment] });
-
-      const result = await loader.loadCustomerOverview({
-        sessionUserId: "customer-1",
-        subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-123",
-      });
-
-      // 1. Actions
-      expect(result.actions).toHaveLength(1);
-      expect(result.actions[0]).toMatchObject({
-        requestId,
-        assessmentId,
-        assessmentName: "Payments Service Assessment",
-        assessmentRuleId: "RULE-4",
-        question: "Does the service store CVV?",
-        actionReason: TRACKING_ACTION_REASONS.HUMAN_FACT_REQUIRED,
-        destinationUrl: `/assessments/${assessmentId}/provenance`,
-      });
-
-      // 2. Material changes: Final Report is ready
-      expect(result.changes).toHaveLength(1);
-      expect(result.changes[0]).toMatchObject({
-        assessmentId,
-        changeType: TRACKING_CHANGE_TYPES.REPORT_READY,
-        destinationUrl: `/assessments/${assessmentId}/provenance`,
-      });
-
-      // 3. Compliance Summary (raw rule decision counts, distinct unresolved, no synthetic score)
-      expect(result.complianceSummary).toEqual({
-        compliantCount: 1,
-        nonCompliantCount: 1,
-        notApplicableCount: 1,
-        unresolvedCount: 1,
-        totalRulesEvaluated: 3,
-      });
-
-      // 4. Assessment details
-      expect(result.assessments).toHaveLength(1);
-      const asmt = result.assessments[0];
-      expect(asmt.assessmentId).toBe(assessmentId);
-      expect(asmt.repository.pinnedCommit).toBe("abc1234");
-      expect(asmt.repository.isStale).toBe(false);
-      expect(asmt.report.hasFinalReport).toBe(true);
-      expect(asmt.report.isReady).toBe(true);
-      expect(asmt.pendingActionCount).toBe(1);
-
-      // Trust status: UNRESOLVED_RULES keeps it in progress
-      expect(asmt.trust.trustStatus).toBe(TRACKING_TRUST_STATUSES.IN_PROGRESS);
-      expect(asmt.trust.reason).toBe("UNRESOLVED_RULES");
-      expect(asmt.trust.isTrustworthy).toBe(false);
-    });
-
-    it("marks result as STALE and creates REASSESSMENT_REQUIRED change when newer snapshot commit exists", async () => {
-      const assessmentId = "11111111-1111-4111-8111-111111111111";
-      const now = new Date("2026-10-18T10:00:00.000Z");
-
-      const mockAssessment = {
-        id: assessmentId,
-        ownerId: "customer-1",
-        name: "Auth Service Assessment",
-        lifecycleState: "COMPLETE",
-        blockerReason: null,
-        createdAt: new Date("2026-10-10T00:00:00.000Z"),
-        updatedAt: now,
-        runtime: { executionState: "SUCCEEDED" },
-        repositorySnapshots: [
+      const loader = buildLoader({
+        assessments: [mockAssessment],
+        snapshots: [
           {
-            commitSha: "def5678",
-            repositoryFullName: "acme/auth",
-            createdAt: now,
-          },
-        ],
-        domainCase: {
-          assessmentId,
-          ruleSetVersionId: "rule-v1",
-          repositoryCommit: "abc1234",
-          ruleSet: {
-            id: "rule-v1",
-            version: "1.0.0",
-            supersededAt: null,
-            lifecycleState: "ACTIVE",
-          },
-          decisions: [
-            {
-              assessmentRuleId: "RULE-1",
-              applicability: "APPLICABLE",
-              compliance: "COMPLIANT",
-              state: "ACCEPTED",
-              supersededAt: null,
-              invalidatedAt: null,
-            },
-          ],
-          coverage: [
-            {
-              assessmentRuleId: "RULE-1",
-              resolutionState: "RESOLVED",
-              currentDecisionId: "dec-1",
-            },
-          ],
-          humanRequests: [],
-          artifacts: [],
-        },
-      };
-
-      const loader = buildLoader({ assessments: [mockAssessment] });
-
-      const result = await loader.loadCustomerOverview({
-        sessionUserId: "customer-1",
-        subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-stale",
-      });
-
-      expect(result.assessments[0].repository.isStale).toBe(true);
-      expect(result.assessments[0].trust.trustStatus).toBe(
-        TRACKING_TRUST_STATUSES.STALE,
-      );
-      expect(result.assessments[0].trust.reason).toBe("SOURCE_SNAPSHOT_STALE");
-      expect(result.assessments[0].trust.isTrustworthy).toBe(false);
-
-      expect(result.changes).toContainEqual(
-        expect.objectContaining({
-          changeType: TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
-          assessmentId,
-        }),
-      );
-    });
-
-    it("marks result as TRUSTED when complete, rule set active, no staleness, and coverage fully resolved", async () => {
-      const assessmentId = "11111111-1111-4111-8111-111111111111";
-      const now = new Date("2026-10-18T10:00:00.000Z");
-
-      const mockAssessment = {
-        id: assessmentId,
-        ownerId: "customer-1",
-        name: "Catalog Assessment",
-        lifecycleState: "COMPLETE",
-        blockerReason: null,
-        createdAt: new Date("2026-10-10T00:00:00.000Z"),
-        updatedAt: now,
-        runtime: { executionState: "SUCCEEDED" },
-        repositorySnapshots: [
-          {
+            id: "snap-1",
+            repositoryFullName: "acme/payments",
+            ref: "main",
             commitSha: "abc1234",
-            repositoryFullName: "acme/catalog",
             createdAt: now,
+            status: "READY",
           },
         ],
+        ruleCounts: { "rule-v1": 1 },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-destinations",
+      });
+
+      // Human request must preserve requestId and point to assessment conversation
+      expect(result.actions).toHaveLength(1);
+      expect(result.actions[0].requestId).toBe(requestId);
+      expect(result.actions[0].destinationUrl).toBe(
+        `/assessments/${assessmentId}?requestId=${requestId}`,
+      );
+
+      // Report ready change must preserve artifactId and point to report viewer
+      const reportReady = result.changes.find(
+        (c) => c.changeType === TRACKING_CHANGE_TYPES.REPORT_READY,
+      );
+      expect(reportReady).toBeDefined();
+      expect(reportReady?.destinationUrl).toBe(
+        `/assessments/${assessmentId}/report?artifactId=${artifactId}`,
+      );
+      expect(reportReady?.titleKey).toBe(
+        "assessment.tracking.reportReadyTitle",
+      );
+      expect(reportReady?.descriptionKey).toBe(
+        "assessment.tracking.reportReadyDescription",
+      );
+    });
+
+    it("ensures material changes and report readiness are lifecycle-gated and baseline-scoped", async () => {
+      const assessmentId = "11111111-1111-4111-8111-111111111111";
+      const artifactId = "33333333-3333-4333-8333-333333333333";
+      const t1 = new Date("2026-10-18T09:00:00.000Z");
+      const t2 = new Date("2026-10-18T10:00:00.000Z");
+
+      // Active report exists, but lifecycleState is ACTIVE (not COMPLETE)
+      const inProgressAssessment = {
+        id: assessmentId,
+        ownerId: "customer-1",
+        name: "In-Progress Assessment",
+        lifecycleState: "ACTIVE", // NOT complete!
+        blockerReason: null,
+        createdAt: t1,
+        updatedAt: t1,
+        runtime: { executionState: "RUNNING", currentExecutionId: null },
         domainCase: {
-          assessmentId,
+          caseRevision: 1,
+          pinnedAt: t1,
           ruleSetVersionId: "rule-v1",
+          repositorySnapshotId: "snap-1",
+          repositoryScanJobId: "job-1",
           repositoryCommit: "abc1234",
           ruleSet: {
             id: "rule-v1",
             version: "1.0.0",
             supersededAt: null,
             lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
           },
-          decisions: [
-            {
-              assessmentRuleId: "RULE-1",
-              applicability: "APPLICABLE",
-              compliance: "COMPLIANT",
-              state: "ACCEPTED",
-              supersededAt: null,
-              invalidatedAt: null,
-            },
-          ],
-          coverage: [
-            {
-              assessmentRuleId: "RULE-1",
-              resolutionState: "RESOLVED",
-              currentDecisionId: "dec-1",
-            },
-          ],
           humanRequests: [],
           artifacts: [
             {
-              artifactId: "33333333-3333-4333-8333-333333333333",
-              kind: "FINAL_REPORT",
+              artifactId,
+              createdAt: t1,
+              activatedAt: t1,
               lifecycleState: "ACTIVE",
-              activatedAt: now,
-              createdAt: now,
             },
           ],
         },
       };
 
-      const loader = buildLoader({ assessments: [mockAssessment] });
+      const loader = buildLoader({
+        assessments: [inProgressAssessment],
+      });
 
       const result = await loader.loadCustomerOverview({
         sessionUserId: "customer-1",
         subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-trusted",
+        correlationId: "corr-lifecycle-gated",
       });
 
-      expect(result.assessments[0].trust.trustStatus).toBe(
-        TRACKING_TRUST_STATUSES.TRUSTED,
-      );
-      expect(result.assessments[0].trust.reason).toBeNull();
-      expect(result.assessments[0].trust.isTrustworthy).toBe(true);
-      expect(result.assessments[0].report.isReady).toBe(true);
-    });
+      // REPORT_READY must NOT be emitted because lifecycleState is not COMPLETE
+      expect(
+        result.changes.some(
+          (c) => c.changeType === TRACKING_CHANGE_TYPES.REPORT_READY,
+        ),
+      ).toBe(false);
+      expect(result.assessments[0].report.isReady).toBe(false);
 
-    it("marks result as DATA_UNAVAILABLE when pins or domainCase are missing", async () => {
-      const assessmentId = "11111111-1111-4111-8111-111111111111";
-      const now = new Date("2026-10-18T10:00:00.000Z");
-
-      const mockAssessment = {
-        id: assessmentId,
-        ownerId: "customer-1",
-        name: "Empty Assessment",
-        lifecycleState: "CREATED",
-        blockerReason: null,
-        createdAt: now,
-        updatedAt: now,
-        runtime: null,
-        repositorySnapshots: [],
-        domainCase: null,
+      // Now complete the assessment, but test baseline filtering with `since`
+      const completedAssessment = {
+        ...inProgressAssessment,
+        lifecycleState: "COMPLETE",
       };
 
-      const loader = buildLoader({ assessments: [mockAssessment] });
-
-      const result = await loader.loadCustomerOverview({
-        sessionUserId: "customer-1",
-        subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-empty",
+      const loaderCompleted = buildLoader({
+        assessments: [completedAssessment],
       });
 
-      expect(result.assessments[0].trust.trustStatus).toBe(
-        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
-      );
-      expect(result.assessments[0].trust.reason).toBe("PINS_MISSING");
-      expect(result.assessments[0].trust.isTrustworthy).toBe(false);
+      // If `since` is t2 (later than t1 report creation), report change is filtered out
+      const resultWithSince = await loaderCompleted.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-since",
+        since: t2.toISOString(),
+      });
+
+      expect(resultWithSince.changes).toHaveLength(0);
     });
   });
 
@@ -414,7 +773,7 @@ describe("AssessmentTrackingLoader", () => {
       });
     });
 
-    it("aggregates platform health, impacted assessments, anomalies, and unreconciled usage for admin", async () => {
+    it("preserves missing token measurements as null and computes truthful durations/counts for admin", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
       const eventId = "44444444-4444-4444-8444-444444444444";
       const now = new Date("2026-10-18T10:00:00.000Z");
@@ -436,8 +795,9 @@ describe("AssessmentTrackingLoader", () => {
         {
           assessmentId,
           currentExecutionId: "55555555-5555-4555-8555-555555555555",
-          executionState: "FAILED",
+          executionState: "INTERRUPTED", // Interrupted runtime!
           rootAgentVersion: "v1.2",
+          assessment: { updatedAt: now },
         },
       ];
 
@@ -446,9 +806,10 @@ describe("AssessmentTrackingLoader", () => {
           id: eventId,
           assessmentId,
           model: "claude-3-5-sonnet",
-          inputTokens: BigInt(500),
-          outputTokens: BigInt(100),
-          status: "UNAVAILABLE",
+          inputTokens: null, // Null tokens must be preserved as null!
+          outputTokens: null,
+          totalTokens: BigInt(200),
+          status: "SETTLED",
           createdAt: now,
         },
       ];
@@ -457,7 +818,14 @@ describe("AssessmentTrackingLoader", () => {
         assessments: mockImpacted,
         runtimes: mockRuntimes,
         usageEvents: mockUsageEvents,
-        counts: { active: 5, failed: 1, blocked: 0 },
+        counts: {
+          active: 12,
+          failed: 3,
+          blocked: 1,
+          anomalies: 8,
+          unreconciled: 4,
+          untrusted: 6,
+        },
       });
 
       const result = await loader.loadAdminOperational({
@@ -466,46 +834,27 @@ describe("AssessmentTrackingLoader", () => {
         correlationId: "corr-admin-op",
       });
 
-      // Health summary
+      // Health summary uses full counts from DB, not sample lengths
       expect(result.platformHealth).toEqual({
-        totalActiveAssessments: 5,
-        totalFailedAssessments: 1,
-        totalBlockedAssessments: 0,
-        totalExecutionAnomalies: 1,
-        totalUnreconciledUsageEvents: 1,
-        totalUntrustedProjections: 1,
+        totalActiveAssessments: 12,
+        totalFailedAssessments: 3,
+        totalBlockedAssessments: 1,
+        totalExecutionAnomalies: 8,
+        totalUnreconciledUsageEvents: 4,
+        totalUntrustedProjections: 6,
       });
 
-      // Impacted assessments
-      expect(result.impactedAssessments).toHaveLength(1);
-      expect(result.impactedAssessments[0]).toMatchObject({
-        assessmentId,
-        impactReason: TRACKING_IMPACT_REASONS.PLATFORM_FAILURE,
-      });
+      // Execution anomalies: INTERRUPTED is distinguished and has null durationSeconds
+      expect(result.executionAnomalies[0].anomalyType).toBe(
+        TRACKING_ANOMALY_TYPES.EXECUTION_INTERRUPTED,
+      );
+      expect(result.executionAnomalies[0].durationSeconds).toBeNull();
 
-      // Execution anomalies
-      expect(result.executionAnomalies).toHaveLength(1);
-      expect(result.executionAnomalies[0]).toMatchObject({
-        assessmentId,
-        anomalyType: TRACKING_ANOMALY_TYPES.EXECUTION_FAILED,
-      });
-
-      // Unreconciled usage
-      expect(result.unreconciledUsage).toHaveLength(1);
-      expect(result.unreconciledUsage[0]).toMatchObject({
-        eventId,
-        model: "claude-3-5-sonnet",
-        promptTokens: 500,
-        completionTokens: 100,
-        reconciled: false,
-      });
-
-      // Untrusted projections
-      expect(result.untrustedProjections).toHaveLength(1);
-      expect(result.untrustedProjections[0]).toMatchObject({
-        assessmentId,
-        untrustedReason: TRACKING_UNTRUSTED_REASONS.RULE_SET_UNAVAILABLE,
-      });
+      // Unreconciled usage: missing tokens remain null (not fabricated 0)
+      expect(result.unreconciledUsage[0].promptTokens).toBeNull();
+      expect(result.unreconciledUsage[0].completionTokens).toBeNull();
+      expect(result.unreconciledUsage[0].totalTokens).toBe(200);
+      expect(result.unreconciledUsage[0].reconciled).toBe(true);
     });
   });
 });

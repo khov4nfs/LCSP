@@ -18,6 +18,7 @@ import supertest from "supertest";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import {
   TRACKING_ACTION_REASONS,
+  TRACKING_FRESHNESS_STATUSES,
   TRACKING_TRUST_STATUSES,
   type CustomerTrackingOverview,
   type AdminTrackingOperational,
@@ -51,7 +52,7 @@ describe("AssessmentTrackingControllers", () => {
         actionReason: TRACKING_ACTION_REASONS.HUMAN_FACT_REQUIRED,
         createdAt: new Date().toISOString(),
         destinationUrl:
-          "/assessments/11111111-1111-4111-8111-111111111111/provenance",
+          "/assessments/11111111-1111-4111-8111-111111111111?requestId=22222222-2222-4222-8222-222222222222",
       },
     ],
     changes: [],
@@ -73,6 +74,7 @@ describe("AssessmentTrackingControllers", () => {
           owner: "acme",
           pinnedCommit: "abc1234",
           latestCommit: "abc1234",
+          freshnessStatus: TRACKING_FRESHNESS_STATUSES.CURRENT,
           isStale: false,
         },
         ruleSet: {
@@ -102,6 +104,12 @@ describe("AssessmentTrackingControllers", () => {
         updatedAt: new Date().toISOString(),
       },
     ],
+    pagination: {
+      total: 1,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    },
     correlationId: "corr-1",
     generatedAt: new Date().toISOString(),
   };
@@ -210,6 +218,10 @@ describe("AssessmentTrackingControllers", () => {
         sessionUserId: "cust-1",
         subjectRole: AUTH_USER_ROLES.customer,
         correlationId: "test-corr-id",
+        limit: undefined,
+        offset: undefined,
+        since: undefined,
+        locale: undefined,
       });
     });
 

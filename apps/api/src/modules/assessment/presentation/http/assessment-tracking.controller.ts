@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Controller, Get, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
@@ -23,12 +23,22 @@ export class AssessmentTrackingController {
    */
   @Get("overview")
   @RequireRoles(AUTH_USER_ROLES.customer)
-  async getOverview(@Req() request: AuthenticatedRequest) {
+  async getOverview(
+    @Req() request: AuthenticatedRequest,
+    @Query("limit") limit?: string,
+    @Query("offset") offset?: string,
+    @Query("since") since?: string,
+    @Query("locale") locale?: string,
+  ) {
     const correlationId = request.correlationId || randomUUID();
     const data = await this.trackingLoader.loadCustomerOverview({
       sessionUserId: request.rbacContext.userId,
       subjectRole: request.rbacContext.role,
       correlationId,
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+      since: since || undefined,
+      locale: locale || undefined,
     });
     return resultEnvelope(data);
   }

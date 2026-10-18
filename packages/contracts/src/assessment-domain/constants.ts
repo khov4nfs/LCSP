@@ -217,6 +217,15 @@ export const TRACKING_TRUST_STATUSES = {
 export type TrackingTrustStatus =
   (typeof TRACKING_TRUST_STATUSES)[keyof typeof TRACKING_TRUST_STATUSES];
 
+/** Freshness status of the assessed repository commit relative to authoritative sources. */
+export const TRACKING_FRESHNESS_STATUSES = {
+  CURRENT: "FRESHNESS_CURRENT",
+  STALE: "FRESHNESS_STALE",
+  UNKNOWN: "FRESHNESS_UNKNOWN",
+} as const;
+export type TrackingFreshnessStatus =
+  (typeof TRACKING_FRESHNESS_STATUSES)[keyof typeof TRACKING_FRESHNESS_STATUSES];
+
 /** Action reasons for actionable items requiring customer input. */
 export const TRACKING_ACTION_REASONS = {
   HUMAN_FACT_REQUIRED: "HUMAN_FACT_REQUIRED",
@@ -229,6 +238,7 @@ export type TrackingActionReason =
 export const TRACKING_ANOMALY_TYPES = {
   EXECUTION_FAILED: "EXECUTION_FAILED",
   EXECUTION_PAUSED: "EXECUTION_PAUSED",
+  EXECUTION_INTERRUPTED: "EXECUTION_INTERRUPTED",
   ABNORMAL_RUNTIME_DURATION: "ABNORMAL_RUNTIME_DURATION",
 } as const;
 export type TrackingAnomalyType =
