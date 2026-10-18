@@ -25,6 +25,7 @@ import { ControlAssessmentRuntimeHandler } from "./application/commands/control-
 import { AssessmentHumanResolutionController } from "./presentation/http/assessment-human-resolution.controller.js";
 import { AssessmentProvenanceController } from "./presentation/http/assessment-provenance.controller.js";
 import { AssessmentProvenanceLoader } from "./infrastructure/persistence/assessment-provenance.loader.js";
+import { AssessmentPdfRenderer } from "./infrastructure/report/assessment-pdf-renderer.service.js";
 
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { AssessmentRuntimeControlService } from "../../platform/runtime-events/assessment-runtime-control.service.js";
@@ -142,6 +143,7 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     AssessmentDetailLoader,
     AssessmentReportLoader,
     AssessmentProvenanceLoader,
+    AssessmentPdfRenderer,
     AssessmentRepositorySetupLoader,
     GetRepositorySetupHandler,
     GetAssessmentReportHandler,

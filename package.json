@@ -17,7 +17,7 @@
     "dev:agent:docker:build": "node scripts/run.mjs docker_worker_build",
     "dev:trace": "LCSP_DEV_UNSAFE_TRACE=true ORCHESTRATION_DEBUG=true LOG_LEVEL=DEBUG NODE_ENV=development pnpm run prepare:cli && pnpm --filter @lcsp/api prisma:migrate:deploy && LCSP_DEV_UNSAFE_TRACE=true ORCHESTRATION_DEBUG=true LOG_LEVEL=DEBUG NODE_ENV=development node scripts/run.mjs dev",
     "check:imports": "node scripts/check-import-policy.mjs",
-    "check:contracts": "node scripts/check-contract-literals.mjs",
+    "check:contracts": "tsx scripts/check-contract-literals.mjs",
     "check:legal-v1-retired": "node scripts/check-legal-v1-authority-retired.mjs",
     "test:dev-scripts": "node --test scripts/run-agent-runtime.test.mjs scripts/run-phoenix-config.test.mjs scripts/dev-stop.test.mjs scripts/dev-entry-command.test.mjs",
     "eval:jev-decisions": "cd deepagents && uv run python -m decision.eval --dataset decision/eval_fixtures/lcsp_decision_eval_v1.json --output ../artifacts/decision/jev-decision-eval-report.json",
@@ -57,6 +57,7 @@
     "dotenv-expand": "12.0.3",
     "husky": "^9.1.7",
     "likec4": "^1.49.0",
+    "pdf-parse": "2.4.5",
     "prettier": "^3.9.4",
     "tsx": "^4.23.1",
     "typescript": "^5.8.0"

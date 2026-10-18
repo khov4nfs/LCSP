@@ -18,7 +18,9 @@ RUN cd /app/deepagents \
     && uv sync --frozen --no-dev --no-install-project
 
 COPY deepagents/sandbox/setup.sh /tmp/lcsp-sandbox-setup.sh
-RUN bash /tmp/lcsp-sandbox-setup.sh \
+# Normalize a Windows checkout before Bash executes the test/runtime setup.
+RUN sed -i 's/\r$//' /tmp/lcsp-sandbox-setup.sh \
+    && bash /tmp/lcsp-sandbox-setup.sh \
     && rm -f /tmp/lcsp-sandbox-setup.sh \
     && mkdir -p /workspace/repository /workspace/runtime \
     && chmod -R 1777 /workspace
