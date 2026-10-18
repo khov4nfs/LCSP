@@ -118,7 +118,9 @@ export function AssessmentChatView({
         targetRequestId={targetRequestId}
         answerPending={answer.pending}
         answerFailed={answer.failed}
-        onAnswer={(value) => void answer.submit(value)}
+        submittingRequestId={answer.submittingRequestId}
+        failedRequestId={answer.failedRequestId}
+        onAnswer={(value, req) => void answer.submit(value, req)}
         footer={
           requests.isError || events.isError ? (
             <Alert variant="destructive">

@@ -47,7 +47,27 @@ import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 
-const REMOTE_FRESHNESS_RECENCY_MS = 15 * 60 * 1000;
+/**
+ * CANONICAL INVARIANTS BOUNDARY:
+ *
+ * 1. Guarantees provided by the canonical writer (submitRuleDecisionHandler & DecisionValidator):
+ *    - Pinned RuleSetVersion criterion completeness.
+ *    - Legal-context reference identity and existence.
+ *    - Evidence payload structure and search-coverage completeness.
+ *    - Fact-to-evidence derivation chains.
+ *
+ * 2. Revalidated at read time by the tracking projection (evaluateAssessmentDecisions & $queryRaw):
+ *    - Resolution pointer authority (AssessmentDecisionCoverage.currentDecisionId points to accepted record).
+ *    - Schema conformance of the stored JSON packet via ruleDecisionSchema.safeParse.
+ *    - Domain pin identity: ruleSetVersionId, repositorySnapshotId, repositoryCommit, caseRevision,
+ *      assessmentRuleId, assessmentRuleVersion, scopeId ('ASSESSMENT').
+ *    - Decision lifecycle state (state === ACCEPTED, supersededAt === null, invalidatedAt === null).
+ *    - Referenced evidence & confirmed facts validity: must exist, belong to the assessment,
+ *      be in ACCEPTED state (non-invalidated), and match repositoryCommit / caseRevision bounds.
+ *
+ * If any revalidation check fails, the decision fails closed to unresolved and the assessment trust
+ * status transitions to UNTRUSTED with reason DECISION_INCONSISTENCY.
+ */
 
 interface DecisionEvaluationParams {
   assessmentId: string;
@@ -481,18 +501,93 @@ export class AssessmentTrackingLoader {
         unresolvedCount: number | bigint;
       }
       const summaryRows = await this.prisma.$queryRaw<SummaryRow[]>`
+        WITH evaluated AS (
+          SELECT
+            adc."assessmentId",
+            adc."assessmentRuleId",
+            adc."resolutionState",
+            ard."decisionId",
+            ard."applicability",
+            ard."compliance",
+            (
+              adc."resolutionState" = 'RESOLVED'
+              AND ard."decisionId" IS NOT NULL
+              AND ard."state" = 'ACCEPTED'
+              AND ard."supersededAt" IS NULL
+              AND ard."invalidatedAt" IS NULL
+              AND ard."caseRevision" = ac."caseRevision"
+              AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit")
+              AND ard."ruleSetVersionId" = ac."ruleSetVersionId"
+              AND ard."scopeId" = 'ASSESSMENT'
+              AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion"
+              AND ard."decisionRevision" = adc."decisionRevision"
+              AND ard."decision" IS NOT NULL
+              AND jsonb_typeof(ard."decision"::jsonb) = 'object'
+              AND ard."decision"->>'assessmentRuleId' = adc."assessmentRuleId"
+              AND ard."decision"->>'assessmentRuleVersion' = adc."assessmentRuleVersion"
+              AND ard."decision"->>'scopeId' = 'ASSESSMENT'
+              AND ard."decision"->>'ruleSetVersionId' = ac."ruleSetVersionId"
+              AND (ac."repositorySnapshotId" IS NULL OR ard."decision"->>'repositorySnapshotId' = ac."repositorySnapshotId")
+              AND LOWER(ard."decision"->>'repositoryCommit') = LOWER(ac."repositoryCommit")
+              AND ard."decision"->>'caseRevision' = ac."caseRevision"::text
+              AND ard."decision"->>'applicability' = ard."applicability"::text
+              AND (
+                (ard."compliance" IS NULL AND ard."decision"->>'compliance' IS NULL)
+                OR (ard."decision"->>'compliance' = ard."compliance"::text)
+              )
+              AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+              AND NOT EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(
+                  CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
+                    THEN (ard."decision"::jsonb)->'references'
+                    ELSE '[]'::jsonb END
+                  ||
+                  CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+                    THEN (
+                      SELECT COALESCE(jsonb_agg(c_ref), '[]'::jsonb)
+                      FROM jsonb_array_elements((ard."decision"::jsonb)->'criteria') crit,
+                           jsonb_array_elements(CASE WHEN jsonb_typeof(crit->'references') = 'array' THEN crit->'references' ELSE '[]'::jsonb END) c_ref
+                    )
+                    ELSE '[]'::jsonb END
+                ) ref
+                WHERE (
+                  ref->>'type' = 'ASSESSMENT_EVIDENCE'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM "AssessmentEvidence" ae
+                    WHERE ae."evidenceId"::text = ref->>'evidenceId'
+                      AND ae."assessmentId" = adc."assessmentId"
+                      AND ae."state" = 'ACCEPTED'
+                      AND ae."invalidatedAt" IS NULL
+                      AND LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
+                  )
+                ) OR (
+                  ref->>'type' = 'CONFIRMED_FACT'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM "AssessmentCaseFact" af
+                    WHERE af."factId"::text = ref->>'factId'
+                      AND af."assessmentId" = adc."assessmentId"
+                      AND af."state" = 'ACCEPTED'
+                      AND af."invalidatedAt" IS NULL
+                      AND af."caseRevision" = ac."caseRevision"
+                  )
+                )
+              )
+            ) AS is_valid
+          FROM "AssessmentDecisionCoverage" adc
+          JOIN "Assessment" a ON a."id" = adc."assessmentId"
+          JOIN "AssessmentCase" ac ON ac."assessmentId" = adc."assessmentId"
+          LEFT JOIN "AssessmentRuleDecision" ard
+            ON ard."decisionId" = adc."currentDecisionId"
+            AND ard."assessmentId" = adc."assessmentId"
+          WHERE a."ownerId" = ${input.sessionUserId}
+        )
         SELECT
-          COALESCE(SUM(CASE WHEN adc."resolutionState" = 'RESOLVED' AND ard."state" = 'ACCEPTED' AND ard."supersededAt" IS NULL AND ard."invalidatedAt" IS NULL AND ard."applicability" = 'APPLICABLE' AND ard."compliance" = 'COMPLIANT' AND ard."caseRevision" = ac."caseRevision" AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit") AND ard."ruleSetVersionId" = ac."ruleSetVersionId" AND ard."scopeId" = 'ASSESSMENT' AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion" THEN 1 ELSE 0 END), 0) AS "compliantCount",
-          COALESCE(SUM(CASE WHEN adc."resolutionState" = 'RESOLVED' AND ard."state" = 'ACCEPTED' AND ard."supersededAt" IS NULL AND ard."invalidatedAt" IS NULL AND ard."applicability" = 'APPLICABLE' AND ard."compliance" = 'NON_COMPLIANT' AND ard."caseRevision" = ac."caseRevision" AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit") AND ard."ruleSetVersionId" = ac."ruleSetVersionId" AND ard."scopeId" = 'ASSESSMENT' AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion" THEN 1 ELSE 0 END), 0) AS "nonCompliantCount",
-          COALESCE(SUM(CASE WHEN adc."resolutionState" = 'RESOLVED' AND ard."state" = 'ACCEPTED' AND ard."supersededAt" IS NULL AND ard."invalidatedAt" IS NULL AND ard."applicability" = 'NOT_APPLICABLE' AND ard."caseRevision" = ac."caseRevision" AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit") AND ard."ruleSetVersionId" = ac."ruleSetVersionId" AND ard."scopeId" = 'ASSESSMENT' AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion" THEN 1 ELSE 0 END), 0) AS "notApplicableCount",
-          COALESCE(SUM(CASE WHEN adc."resolutionState" != 'RESOLVED' OR ard."decisionId" IS NULL OR ard."state" != 'ACCEPTED' OR ard."supersededAt" IS NOT NULL OR ard."invalidatedAt" IS NOT NULL OR ard."caseRevision" != ac."caseRevision" OR LOWER(ard."repositoryCommit") != LOWER(ac."repositoryCommit") OR ard."ruleSetVersionId" != ac."ruleSetVersionId" OR ard."scopeId" != 'ASSESSMENT' OR ard."assessmentRuleVersion" != adc."assessmentRuleVersion" OR (ard."applicability" = 'APPLICABLE' AND ard."compliance" NOT IN ('COMPLIANT', 'NON_COMPLIANT')) THEN 1 ELSE 0 END), 0) AS "unresolvedCount"
-        FROM "AssessmentDecisionCoverage" adc
-        JOIN "Assessment" a ON a."id" = adc."assessmentId"
-        JOIN "AssessmentCase" ac ON ac."assessmentId" = adc."assessmentId"
-        LEFT JOIN "AssessmentRuleDecision" ard
-          ON ard."decisionId" = adc."currentDecisionId"
-          AND ard."assessmentId" = adc."assessmentId"
-        WHERE a."ownerId" = ${input.sessionUserId}
+          COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'APPLICABLE' AND "compliance" = 'COMPLIANT' THEN 1 ELSE 0 END), 0) AS "compliantCount",
+          COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'APPLICABLE' AND "compliance" = 'NON_COMPLIANT' THEN 1 ELSE 0 END), 0) AS "nonCompliantCount",
+          COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'NOT_APPLICABLE' THEN 1 ELSE 0 END), 0) AS "notApplicableCount",
+          COALESCE(SUM(CASE WHEN is_valid = false OR ("applicability" = 'APPLICABLE' AND "compliance" NOT IN ('COMPLIANT', 'NON_COMPLIANT')) THEN 1 ELSE 0 END), 0) AS "unresolvedCount"
+        FROM evaluated
       `;
       if (summaryRows && summaryRows.length > 0) {
         ownerCompliant = Number(summaryRows[0].compliantCount ?? 0);
@@ -539,11 +634,8 @@ export class AssessmentTrackingLoader {
     >();
     for (const key of repoRefKeys) {
       const [fullName, ref] = key.split("::");
-      const latest = await this.prisma.repositorySnapshot.findFirst({
-        where: {
-          repositoryFullName: fullName,
-          ...(ref ? { OR: [{ ref }, { branch: ref }] } : {}),
-          status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+      const whereConditions: Array<Record<string, unknown>> = [
+        {
           OR: [
             { assessment: { ownerId: input.sessionUserId } },
             {
@@ -553,6 +645,19 @@ export class AssessmentTrackingLoader {
               },
             },
           ],
+        },
+      ];
+      if (ref) {
+        whereConditions.push({
+          OR: [{ ref }, { branch: ref }],
+        });
+      }
+
+      const latest = await this.prisma.repositorySnapshot.findFirst({
+        where: {
+          repositoryFullName: fullName,
+          status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+          AND: whereConditions,
         },
         orderBy: { createdAt: "desc" },
         select: {
@@ -649,14 +754,6 @@ export class AssessmentTrackingLoader {
             ) {
               freshnessStatus = TRACKING_FRESHNESS_STATUSES.STALE;
               isStale = true;
-              latestCommit = foundLatest.commitSha;
-            } else if (
-              pinnedCommit &&
-              now.getTime() - foundLatest.createdAt.getTime() <=
-                REMOTE_FRESHNESS_RECENCY_MS
-            ) {
-              freshnessStatus = TRACKING_FRESHNESS_STATUSES.CURRENT;
-              isStale = false;
               latestCommit = foundLatest.commitSha;
             } else {
               freshnessStatus = TRACKING_FRESHNESS_STATUSES.UNKNOWN;
@@ -916,60 +1013,12 @@ export class AssessmentTrackingLoader {
       actions,
       changes,
       complianceSummary: {
-        compliantCount:
-          ownerCompliant > 0 ||
-          ownerNonCompliant > 0 ||
-          ownerNotApplicable > 0 ||
-          ownerUnresolved > 0
-            ? ownerCompliant
-            : assessmentItems.reduce(
-                (acc, a) => acc + a.compliance.compliantCount,
-                0,
-              ),
-        nonCompliantCount:
-          ownerCompliant > 0 ||
-          ownerNonCompliant > 0 ||
-          ownerNotApplicable > 0 ||
-          ownerUnresolved > 0
-            ? ownerNonCompliant
-            : assessmentItems.reduce(
-                (acc, a) => acc + a.compliance.nonCompliantCount,
-                0,
-              ),
-        notApplicableCount:
-          ownerCompliant > 0 ||
-          ownerNonCompliant > 0 ||
-          ownerNotApplicable > 0 ||
-          ownerUnresolved > 0
-            ? ownerNotApplicable
-            : assessmentItems.reduce(
-                (acc, a) => acc + a.compliance.notApplicableCount,
-                0,
-              ),
-        unresolvedCount:
-          ownerCompliant > 0 ||
-          ownerNonCompliant > 0 ||
-          ownerNotApplicable > 0 ||
-          ownerUnresolved > 0
-            ? ownerUnresolved
-            : assessmentItems.reduce(
-                (acc, a) => acc + a.compliance.unresolvedCount,
-                0,
-              ),
+        compliantCount: ownerCompliant,
+        nonCompliantCount: ownerNonCompliant,
+        notApplicableCount: ownerNotApplicable,
+        unresolvedCount: ownerUnresolved,
         totalRulesEvaluated:
-          ownerCompliant > 0 ||
-          ownerNonCompliant > 0 ||
-          ownerNotApplicable > 0 ||
-          ownerUnresolved > 0
-            ? ownerCompliant + ownerNonCompliant + ownerNotApplicable
-            : assessmentItems.reduce(
-                (acc, a) =>
-                  acc +
-                  a.compliance.compliantCount +
-                  a.compliance.nonCompliantCount +
-                  a.compliance.notApplicableCount,
-                0,
-              ),
+          ownerCompliant + ownerNonCompliant + ownerNotApplicable,
       },
       assessments: assessmentItems,
       pagination: {

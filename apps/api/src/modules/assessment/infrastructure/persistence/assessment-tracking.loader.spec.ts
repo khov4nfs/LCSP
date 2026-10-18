@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import { HttpStatus } from "@nestjs/common";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
 import {
   TRACKING_ANOMALY_TYPES,
   TRACKING_CHANGE_TYPES,
@@ -176,14 +177,81 @@ function buildLoader(fixtures: FixtureTypes) {
           unresolved++;
           continue;
         }
-        const dec = d.decision as Record<string, unknown> | undefined;
-        const applicability = (dec?.applicability as string) ?? d.applicability;
-        const compliance = (dec?.compliance as string) ?? d.compliance;
-        if (applicability === "NOT_APPLICABLE") {
+        const parsed = ruleDecisionSchema.safeParse(d.decision);
+        if (!parsed.success) {
+          unresolved++;
+          continue;
+        }
+        const decData = parsed.data;
+        if (
+          decData.assessmentRuleId !== cov.assessmentRuleId ||
+          decData.assessmentRuleVersion !== cov.assessmentRuleVersion ||
+          decData.scopeId !== "ASSESSMENT" ||
+          decData.ruleSetVersionId !== asmt.domainCase?.ruleSetVersionId ||
+          (asmt.domainCase?.repositorySnapshotId &&
+            decData.repositorySnapshotId !==
+              asmt.domainCase.repositorySnapshotId) ||
+          decData.repositoryCommit.toLowerCase() !==
+            asmt.domainCase?.repositoryCommit?.toLowerCase() ||
+          decData.caseRevision !== asmt.domainCase?.caseRevision ||
+          (d.applicability !== undefined &&
+            decData.applicability !== (d.applicability as unknown)) ||
+          (d.compliance !== undefined &&
+            decData.compliance !== (d.compliance as unknown))
+        ) {
+          unresolved++;
+          continue;
+        }
+
+        const evidenceMap = new Map(
+          (fixtures.evidence ?? []).map((e) => [e.evidenceId, e]),
+        );
+        const factsMap = new Map(
+          (fixtures.facts ?? []).map((f) => [f.factId, f]),
+        );
+        const allRefs = [
+          ...decData.references,
+          ...decData.criteria.flatMap((c) => c.references),
+        ];
+        let refsValid = true;
+        for (const ref of allRefs) {
+          if (ref.type === "ASSESSMENT_EVIDENCE") {
+            const ev = evidenceMap.get(ref.evidenceId);
+            if (
+              !ev ||
+              ev.assessmentId !== cov.assessmentId ||
+              ev.state !== "ACCEPTED" ||
+              ev.invalidatedAt != null ||
+              ev.repositoryCommit?.toLowerCase() !==
+                asmt.domainCase?.repositoryCommit?.toLowerCase()
+            ) {
+              refsValid = false;
+              break;
+            }
+          } else if (ref.type === "CONFIRMED_FACT") {
+            const fact = factsMap.get(ref.factId);
+            if (
+              !fact ||
+              fact.assessmentId !== cov.assessmentId ||
+              fact.state !== "ACCEPTED" ||
+              fact.invalidatedAt != null ||
+              fact.caseRevision !== asmt.domainCase?.caseRevision
+            ) {
+              refsValid = false;
+              break;
+            }
+          }
+        }
+        if (!refsValid) {
+          unresolved++;
+          continue;
+        }
+
+        if (decData.applicability === "NOT_APPLICABLE") {
           notApplicable++;
-        } else if (compliance === "COMPLIANT") {
+        } else if (decData.compliance === "COMPLIANT") {
           compliant++;
-        } else if (compliance === "NON_COMPLIANT") {
+        } else if (decData.compliance === "NON_COMPLIANT") {
           nonCompliant++;
         } else {
           unresolved++;
@@ -291,27 +359,61 @@ function buildLoader(fixtures: FixtureTypes) {
           repositoryFullName?: string;
           ref?: string;
           status?: string;
+          AND?: Array<Record<string, unknown>>;
           OR?: Array<{
             assessment?: { ownerId?: string };
             connection?: { userId?: string; status?: string };
           }>;
         };
       }) => {
+        const where = args?.where;
         const all = fixtures.snapshots ?? [];
         const match = all
           .filter((s) => {
-            if (s.repositoryFullName !== args?.where?.repositoryFullName)
-              return false;
             if (
-              args?.where?.ref &&
-              s.ref !== args.where.ref &&
-              s.branch !== args.where.ref
+              where?.repositoryFullName &&
+              s.repositoryFullName !== where.repositoryFullName
             )
               return false;
-            if (args?.where?.status && s.status !== args.where.status)
+            if (where?.status && s.status !== where.status) return false;
+
+            const orList: Array<{
+              assessment?: { ownerId?: string };
+              connection?: { userId?: string; status?: string };
+            }> = [];
+            let refFilter: string | undefined = undefined;
+
+            if (where?.AND) {
+              for (const cond of where.AND) {
+                if (cond.OR && Array.isArray(cond.OR)) {
+                  const first = cond.OR[0] as
+                    { ref?: string; branch?: string } | undefined;
+                  if (first && ("ref" in first || "branch" in first)) {
+                    refFilter = first.ref ?? first.branch;
+                  } else {
+                    orList.push(
+                      ...(cond.OR as Array<{
+                        assessment?: { ownerId?: string };
+                        connection?: { userId?: string; status?: string };
+                      }>),
+                    );
+                  }
+                }
+              }
+            }
+            if (where?.OR) {
+              orList.push(...where.OR);
+            }
+            if (where?.ref) {
+              refFilter = where.ref;
+            }
+
+            if (refFilter && s.ref !== refFilter && s.branch !== refFilter) {
               return false;
-            if (args?.where?.OR) {
-              const matchesOr = args.where.OR.some((cond) => {
+            }
+
+            if (orList.length > 0) {
+              const matchesOr = orList.some((cond) => {
                 if (s.ownerId !== undefined && cond.assessment?.ownerId) {
                   return s.ownerId === cond.assessment.ownerId;
                 }
@@ -701,17 +803,15 @@ describe("AssessmentTrackingLoader", () => {
         correlationId: "corr-multi-repo",
       });
 
-      // Pinned repo 'acme/payments' must remain CURRENT and NOT stale!
+      // Pinned repo 'acme/payments' must report UNKNOWN freshness (cached snapshot does not claim live HEAD) and NOT stale!
       expect(result.assessments[0].repository.name).toBe("payments");
       expect(result.assessments[0].repository.owner).toBe("acme");
       expect(result.assessments[0].repository.pinnedCommit).toBe(
         "a000000000000000000000000000000000000001",
       );
-      expect(result.assessments[0].repository.latestCommit).toBe(
-        "a000000000000000000000000000000000000001",
-      );
+      expect(result.assessments[0].repository.latestCommit).toBeNull();
       expect(result.assessments[0].repository.freshnessStatus).toBe(
-        TRACKING_FRESHNESS_STATUSES.CURRENT,
+        TRACKING_FRESHNESS_STATUSES.UNKNOWN,
       );
       expect(result.assessments[0].repository.isStale).toBe(false);
 
@@ -1023,7 +1123,7 @@ describe("AssessmentTrackingLoader", () => {
           caseRevision: 1,
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositoryCommit: "a000000000000000000000000000000000000001",
-          repositorySnapshotId: "snap-1",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000011",
           repositoryScanJobId: "job-1",
           pinnedAt: now,
           humanRequests: [],
@@ -1043,7 +1143,7 @@ describe("AssessmentTrackingLoader", () => {
           caseRevision: 1,
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositoryCommit: "a000000000000000000000000000000000000001",
-          repositorySnapshotId: "snap-2",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000012",
           repositoryScanJobId: "job-2",
           pinnedAt: now,
           humanRequests: [],
@@ -1086,7 +1186,7 @@ describe("AssessmentTrackingLoader", () => {
           state: "ACCEPTED",
           decision: createValidCompliantDecision({
             assessmentRuleId: "RULE-1",
-            repositorySnapshotId: "snap-1",
+            repositorySnapshotId: "00000000-0000-4000-8000-000000000011",
           }),
         },
         {
@@ -1102,7 +1202,7 @@ describe("AssessmentTrackingLoader", () => {
           state: "ACCEPTED",
           decision: createValidCompliantDecision({
             assessmentRuleId: "RULE-2",
-            repositorySnapshotId: "snap-2",
+            repositorySnapshotId: "00000000-0000-4000-8000-000000000012",
             evidenceId: "00000000-0000-4000-8000-000000000004",
           }),
         },
@@ -1509,9 +1609,11 @@ describe("AssessmentTrackingLoader", () => {
         correlationId: "corr-tamper-json",
       });
 
-      // Mismatched JSON pins must fail closed to unresolved
+      // Mismatched JSON pins must fail closed to unresolved on BOTH summary and detail
       expect(result.assessments[0].compliance.compliantCount).toBe(0);
       expect(result.assessments[0].compliance.unresolvedCount).toBe(1);
+      expect(result.complianceSummary.compliantCount).toBe(0);
+      expect(result.complianceSummary.unresolvedCount).toBe(1);
 
       // Trust status must be untrusted with DECISION_INCONSISTENCY
       expect(result.assessments[0].trust.trustStatus).toBe(
@@ -1521,6 +1623,313 @@ describe("AssessmentTrackingLoader", () => {
         TRACKING_UNTRUSTED_REASONS.DECISION_INCONSISTENCY,
       );
       expect(result.assessments[0].trust.isTrustworthy).toBe(false);
+    });
+
+    it("ensures branch and tenant predicates are both applied and newest commit on another branch does not produce false stale", async () => {
+      const asmtId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+      const later = new Date("2026-10-18T10:30:00.000Z");
+
+      const assessment = {
+        id: asmtId,
+        ownerId: "customer-1",
+        name: "Branch Isolation Service",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          repositoryScanJobId: "job-1",
+          pinnedAt: now,
+          ruleSet: {
+            id: "00000000-0000-4000-8000-000000000001",
+            version: "1.0.0",
+            supersededAt: null,
+            lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
+          },
+          humanRequests: [],
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: now,
+              activatedAt: now,
+              lifecycleState: "ACTIVE",
+            },
+          ],
+        },
+      };
+
+      // Two snapshots of the same repo 'acme/repo':
+      // 1. snap-main: branch 'main', matching commit a0001
+      // 2. snap-feat: branch 'feature/experimental', newer commit b0002, created later
+      const snapshots = [
+        {
+          id: "00000000-0000-4000-8000-000000000002",
+          repositoryFullName: "acme/repo",
+          ref: "main",
+          branch: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: now,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000009",
+          repositoryFullName: "acme/repo",
+          ref: "feature/experimental",
+          branch: "feature/experimental",
+          commitSha: "b0000000000000000000000000000000000000002",
+          createdAt: later,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+      ];
+
+      const coverage = [
+        {
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-1",
+          decisionRevision: 1,
+        },
+      ];
+      const decisions = [
+        {
+          decisionId: "dec-1",
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          decision: createValidCompliantDecision({
+            repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          }),
+        },
+      ];
+
+      const evidence = [
+        {
+          assessmentId: asmtId,
+          evidenceId: "00000000-0000-4000-8000-000000000003",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          state: "ACCEPTED",
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [assessment],
+        snapshots,
+        coverage,
+        decisions,
+        evidence,
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-branch-isolation",
+      });
+
+      // The assessment on branch 'main' must NOT be flagged stale due to the newer 'feature/experimental' snapshot!
+      expect(result.assessments[0].repository.isStale).toBe(false);
+      expect(result.assessments[0].repository.freshnessStatus).toBe(
+        TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+      );
+      expect(result.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.TRUSTED,
+      );
+      expect(
+        result.changes.some(
+          (c) => c.changeType === TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+        ),
+      ).toBe(false);
+    });
+
+    it("ensures cached snapshot within 15 minutes cannot be asserted as live HEAD without verification", async () => {
+      const asmtId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+      // Snapshot created 2 minutes ago (< 15 minutes)
+      const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+
+      const assessment = {
+        id: asmtId,
+        ownerId: "customer-1",
+        name: "Recent Snapshot Service",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: twoMinutesAgo,
+        updatedAt: twoMinutesAgo,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          repositoryScanJobId: "job-1",
+          pinnedAt: twoMinutesAgo,
+          ruleSet: {
+            id: "00000000-0000-4000-8000-000000000001",
+            version: "1.0.0",
+            supersededAt: null,
+            lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
+          },
+          humanRequests: [],
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: twoMinutesAgo,
+              activatedAt: twoMinutesAgo,
+              lifecycleState: "ACTIVE",
+            },
+          ],
+        },
+      };
+
+      const snapshots = [
+        {
+          id: "00000000-0000-4000-8000-000000000002",
+          repositoryFullName: "acme/repo",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: twoMinutesAgo,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+        // Subsequent snapshot matching pinned commit, also recent (2 minutes ago)
+        {
+          id: "00000000-0000-4000-8000-000000000003",
+          repositoryFullName: "acme/repo",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: twoMinutesAgo,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+      ];
+
+      const coverage = [
+        {
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-1",
+          decisionRevision: 1,
+        },
+      ];
+      const decisions = [
+        {
+          decisionId: "dec-1",
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          decision: createValidCompliantDecision({
+            repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          }),
+        },
+      ];
+      const evidence = [
+        {
+          assessmentId: asmtId,
+          evidenceId: "00000000-0000-4000-8000-000000000003",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          state: "ACCEPTED",
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [assessment],
+        snapshots,
+        coverage,
+        decisions,
+        evidence,
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-cached-snap-recent",
+      });
+
+      // Recent snapshot cannot assert live HEAD without active verification: reports UNKNOWN
+      expect(result.assessments[0].repository.freshnessStatus).toBe(
+        TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+      );
+      expect(result.assessments[0].repository.latestCommit).toBeNull();
+      expect(result.assessments[0].repository.isStale).toBe(false);
+
+      // Pinned result remains TRUSTED
+      expect(result.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.TRUSTED,
+      );
+      expect(result.assessments[0].trust.isTrustworthy).toBe(true);
+    });
+
+    it("ensures genuine zero SQL compliance aggregates never turn into page-local reductions", async () => {
+      const asmtId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+
+      const assessment = {
+        id: asmtId,
+        ownerId: "customer-1",
+        name: "Zero Aggregate Service",
+        lifecycleState: "ACTIVE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          pinnedAt: now,
+          humanRequests: [],
+          artifacts: [],
+        },
+      };
+
+      const loader = buildLoader({
+        assessments: [assessment],
+        queryRawSummary: {
+          compliantCount: 0,
+          nonCompliantCount: 0,
+          notApplicableCount: 0,
+          unresolvedCount: 0,
+        },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-genuine-zero",
+      });
+
+      // The genuine zero counts from SQL must be preserved and not replaced
+      expect(result.complianceSummary.compliantCount).toBe(0);
+      expect(result.complianceSummary.nonCompliantCount).toBe(0);
+      expect(result.complianceSummary.notApplicableCount).toBe(0);
+      expect(result.complianceSummary.unresolvedCount).toBe(0);
+      expect(result.complianceSummary.totalRulesEvaluated).toBe(0);
     });
   });
 
