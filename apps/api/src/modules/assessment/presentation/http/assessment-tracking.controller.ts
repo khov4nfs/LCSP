@@ -8,7 +8,7 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { AssessmentTrackingLoader } from "../../infrastructure/persistence/assessment-tracking.loader.js";
 
 /**
- * Controller providing the authoritative customer portfolio tracking read model.
+ * Controller providing the authoritative customer tracking read model.
  */
 @Controller("assessments/tracking")
 @UseGuards(RbacGuard)
@@ -16,16 +16,16 @@ export class AssessmentTrackingController {
   constructor(private readonly trackingLoader: AssessmentTrackingLoader) {}
 
   /**
-   * Retrieves the customer portfolio tracking dashboard read model.
+   * Retrieves the customer tracking dashboard read model.
    *
    * Aggregates actions requiring human resolution, material changes since the latest result,
    * current accepted rule compliance summary, result freshness, and report readiness.
    */
-  @Get("portfolio")
+  @Get("overview")
   @RequireRoles(AUTH_USER_ROLES.customer)
-  async getPortfolio(@Req() request: AuthenticatedRequest) {
+  async getOverview(@Req() request: AuthenticatedRequest) {
     const correlationId = request.correlationId || randomUUID();
-    const data = await this.trackingLoader.loadCustomerPortfolio({
+    const data = await this.trackingLoader.loadCustomerOverview({
       sessionUserId: request.rbacContext.userId,
       subjectRole: request.rbacContext.role,
       correlationId,

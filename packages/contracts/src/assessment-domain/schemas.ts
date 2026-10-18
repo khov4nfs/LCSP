@@ -841,7 +841,7 @@ export type CustomerTrackingAssessmentItem = z.infer<
   typeof customerTrackingAssessmentItemSchema
 >;
 
-export const customerTrackingPortfolioSchema = z.strictObject({
+export const customerTrackingOverviewSchema = z.strictObject({
   actions: z.array(customerTrackingActionItemSchema),
   changes: z.array(customerTrackingChangeItemSchema),
   complianceSummary: customerTrackingComplianceSummarySchema,
@@ -849,9 +849,10 @@ export const customerTrackingPortfolioSchema = z.strictObject({
   correlationId: z.string().min(1),
   generatedAt: z.iso.datetime(),
 });
-export type CustomerTrackingPortfolio = z.infer<
-  typeof customerTrackingPortfolioSchema
+export type CustomerTrackingOverview = z.infer<
+  typeof customerTrackingOverviewSchema
 >;
+
 
 export const adminTrackingImpactedAssessmentSchema = z.strictObject({
   assessmentId: uuidSchema,

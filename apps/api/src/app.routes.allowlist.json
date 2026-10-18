@@ -24,7 +24,7 @@
   "GET /assessments/:assessmentId/provenance/download",
   "GET /assessments/:assessmentId/repository-setup",
   "GET /assessments/:assessmentId/runtime/control",
-  "GET /assessments/tracking/portfolio",
+  "GET /assessments/tracking/overview",
   "GET /audit-events",
   "GET /audit-events/export/:exportRequestId",
   "GET /audit-events/export/:exportRequestId/download",

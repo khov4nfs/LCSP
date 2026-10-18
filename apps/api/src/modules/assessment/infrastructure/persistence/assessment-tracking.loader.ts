@@ -17,9 +17,9 @@ import {
   TRACKING_IMPACT_REASONS,
   TRACKING_TRUST_STATUSES,
   TRACKING_UNTRUSTED_REASONS,
-  customerTrackingPortfolioSchema,
+  customerTrackingOverviewSchema,
   adminTrackingOperationalSchema,
-  type CustomerTrackingPortfolio,
+  type CustomerTrackingOverview,
   type AdminTrackingOperational,
   type CustomerTrackingActionItem,
   type CustomerTrackingChangeItem,
@@ -36,7 +36,7 @@ import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 /**
  * Authoritative read-model loader for LCSP Tracking Dashboard.
  *
- * Provides portfolio projections for customers (actions, material changes, rule decisions,
+ * Provides overview projections for customers (actions, material changes, rule decisions,
  * report readiness, and result freshness) and operational health projections for platform admins.
  */
 @Injectable()
@@ -44,21 +44,21 @@ export class AssessmentTrackingLoader {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Loads customer portfolio tracking data with strict tenant isolation.
+   * Loads customer tracking overview data with strict tenant isolation.
    *
    * @param input.sessionUserId - Authenticated user ID (must match assessment ownerId).
    * @param input.subjectRole - Requesting role.
    * @param input.correlationId - Request correlation identifier.
    */
-  async loadCustomerPortfolio(input: {
+  async loadCustomerOverview(input: {
     sessionUserId: string;
     subjectRole: AuthUserRole;
     correlationId: string;
-  }): Promise<CustomerTrackingPortfolio> {
+  }): Promise<CustomerTrackingOverview> {
     const now = new Date();
 
     if (input.subjectRole !== AUTH_USER_ROLES.customer) {
-      return customerTrackingPortfolioSchema.parse({
+      return customerTrackingOverviewSchema.parse({
         actions: [],
         changes: [],
         complianceSummary: {
@@ -342,7 +342,7 @@ export class AssessmentTrackingLoader {
         new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
     );
 
-    return customerTrackingPortfolioSchema.parse({
+    return customerTrackingOverviewSchema.parse({
       actions,
       changes,
       complianceSummary: {

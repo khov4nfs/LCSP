@@ -19,7 +19,7 @@ import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import {
   TRACKING_ACTION_REASONS,
   TRACKING_TRUST_STATUSES,
-  type CustomerTrackingPortfolio,
+  type CustomerTrackingOverview,
   type AdminTrackingOperational,
 } from "@lcsp/contracts/assessment-domain";
 import {
@@ -39,7 +39,7 @@ describe("AssessmentTrackingControllers", () => {
   let currentRole: AuthUserRole = AUTH_USER_ROLES.customer;
   let currentUserId = "user-123";
 
-  const mockPortfolio: CustomerTrackingPortfolio = {
+  const mockOverview: CustomerTrackingOverview = {
     actions: [
       {
         requestId: "22222222-2222-4222-8222-222222222222",
@@ -123,16 +123,16 @@ describe("AssessmentTrackingControllers", () => {
     generatedAt: new Date().toISOString(),
   };
 
-  const loadCustomerPortfolio = jest
-    .fn<AssessmentTrackingLoader["loadCustomerPortfolio"]>()
-    .mockResolvedValue(mockPortfolio);
+  const loadCustomerOverview = jest
+    .fn<AssessmentTrackingLoader["loadCustomerOverview"]>()
+    .mockResolvedValue(mockOverview);
 
   const loadAdminOperational = jest
     .fn<AssessmentTrackingLoader["loadAdminOperational"]>()
     .mockResolvedValue(mockOperational);
 
   const trackingLoaderMock = {
-    loadCustomerPortfolio,
+    loadCustomerOverview,
     loadAdminOperational,
   };
 
@@ -192,21 +192,21 @@ describe("AssessmentTrackingControllers", () => {
     jest.clearAllMocks();
   });
 
-  describe("GET /assessments/tracking/portfolio", () => {
+  describe("GET /assessments/tracking/overview", () => {
     it("returns 200 with resultEnvelope when invoked by CUSTOMER", async () => {
       currentRole = AUTH_USER_ROLES.customer;
       currentUserId = "cust-1";
 
       const res = await supertest(server)
-        .get("/assessments/tracking/portfolio")
+        .get("/assessments/tracking/overview")
         .expect(HttpStatus.OK);
 
       expect(res.body).toEqual({
         ok: true,
-        data: mockPortfolio,
+        data: mockOverview,
       });
 
-      expect(loadCustomerPortfolio).toHaveBeenCalledWith({
+      expect(loadCustomerOverview).toHaveBeenCalledWith({
         sessionUserId: "cust-1",
         subjectRole: AUTH_USER_ROLES.customer,
         correlationId: "test-corr-id",
@@ -217,10 +217,10 @@ describe("AssessmentTrackingControllers", () => {
       currentRole = AUTH_USER_ROLES.admin;
 
       await supertest(server)
-        .get("/assessments/tracking/portfolio")
+        .get("/assessments/tracking/overview")
         .expect(HttpStatus.FORBIDDEN);
 
-      expect(loadCustomerPortfolio).not.toHaveBeenCalled();
+      expect(loadCustomerOverview).not.toHaveBeenCalled();
     });
   });
 

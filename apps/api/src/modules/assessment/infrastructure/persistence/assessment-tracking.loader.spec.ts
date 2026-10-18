@@ -43,10 +43,10 @@ function buildLoader(fixtures: {
 }
 
 describe("AssessmentTrackingLoader", () => {
-  describe("loadCustomerPortfolio", () => {
-    it("returns empty portfolio when user role is not CUSTOMER", async () => {
+  describe("loadCustomerOverview", () => {
+    it("returns empty overview when user role is not CUSTOMER", async () => {
       const loader = buildLoader({});
-      const result = await loader.loadCustomerPortfolio({
+      const result = await loader.loadCustomerOverview({
         sessionUserId: "admin-1",
         subjectRole: AUTH_USER_ROLES.admin,
         correlationId: "corr-admin",
@@ -165,7 +165,7 @@ describe("AssessmentTrackingLoader", () => {
 
       const loader = buildLoader({ assessments: [mockAssessment] });
 
-      const result = await loader.loadCustomerPortfolio({
+      const result = await loader.loadCustomerOverview({
         sessionUserId: "customer-1",
         subjectRole: AUTH_USER_ROLES.customer,
         correlationId: "corr-123",
@@ -270,7 +270,7 @@ describe("AssessmentTrackingLoader", () => {
 
       const loader = buildLoader({ assessments: [mockAssessment] });
 
-      const result = await loader.loadCustomerPortfolio({
+      const result = await loader.loadCustomerOverview({
         sessionUserId: "customer-1",
         subjectRole: AUTH_USER_ROLES.customer,
         correlationId: "corr-stale",
@@ -353,7 +353,7 @@ describe("AssessmentTrackingLoader", () => {
 
       const loader = buildLoader({ assessments: [mockAssessment] });
 
-      const result = await loader.loadCustomerPortfolio({
+      const result = await loader.loadCustomerOverview({
         sessionUserId: "customer-1",
         subjectRole: AUTH_USER_ROLES.customer,
         correlationId: "corr-trusted",
@@ -386,7 +386,7 @@ describe("AssessmentTrackingLoader", () => {
 
       const loader = buildLoader({ assessments: [mockAssessment] });
 
-      const result = await loader.loadCustomerPortfolio({
+      const result = await loader.loadCustomerOverview({
         sessionUserId: "customer-1",
         subjectRole: AUTH_USER_ROLES.customer,
         correlationId: "corr-empty",
