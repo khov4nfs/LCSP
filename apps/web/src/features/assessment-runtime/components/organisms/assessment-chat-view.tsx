@@ -20,7 +20,13 @@ import { AssessmentConversation } from "./assessment-conversation";
  * Context (state, repository, rule set, usage, report) lives in the right sidebar, which never
  * repeats the chronology.
  */
-export function AssessmentChatView({ assessmentId }: { assessmentId: string }) {
+export function AssessmentChatView({
+  assessmentId,
+  targetRequestId,
+}: {
+  assessmentId: string;
+  targetRequestId?: string;
+}) {
   const { detail, requests, events, projection } =
     useAssessmentConversation(assessmentId);
   const workspace = useWorkspaceRuntime();
@@ -31,9 +37,29 @@ export function AssessmentChatView({ assessmentId }: { assessmentId: string }) {
   useEffect(() => {
     void client.invalidateQueries({ queryKey: ["assessment", assessmentId] });
   }, [client, assessmentId, sequence]);
-  const openRequest = requests.data?.requests.find(
-    (request) => request.requestId === projection.openRequestId,
-  );
+
+  useEffect(() => {
+    if (!targetRequestId) return;
+    const el = document.querySelector(
+      `[data-human-request="${targetRequestId}"]`,
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (el instanceof HTMLElement) {
+        el.focus();
+      }
+    }
+  }, [targetRequestId, projection.turns.length]);
+
+  const openRequest =
+    (targetRequestId
+      ? requests.data?.requests.find(
+          (request) => request.requestId === targetRequestId,
+        )
+      : null) ??
+    requests.data?.requests.find(
+      (request) => request.requestId === projection.openRequestId,
+    );
   const answer = useStructuredAnswerSubmit(
     assessmentId,
     openRequest,

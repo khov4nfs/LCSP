@@ -6,26 +6,40 @@ import {
   TRACKING_CHANGE_TYPES,
   TRACKING_FRESHNESS_STATUSES,
   TRACKING_TRUST_STATUSES,
+  TRACKING_UNTRUSTED_REASONS,
 } from "@lcsp/contracts/assessment-domain";
 import { AssessmentTrackingLoader } from "./assessment-tracking.loader.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 
 interface MockDecision {
-  id?: string;
+  decisionId?: string;
+  assessmentId?: string;
+  assessmentRuleId?: string;
+  assessmentRuleVersion?: string;
+  scopeId?: string;
+  ruleSetVersionId?: string;
+  decisionRevision?: number;
+  repositoryCommit?: string;
+  caseRevision?: number;
   state?: string;
   supersededAt?: Date | null;
   invalidatedAt?: Date | null;
+  decision?: unknown;
   [key: string]: unknown;
 }
 
 interface MockEvidence {
-  id?: string;
+  evidenceId?: string;
+  assessmentId?: string;
+  repositoryCommit?: string;
   state?: string;
   [key: string]: unknown;
 }
 
 interface MockFact {
-  id?: string;
+  factId?: string;
+  assessmentId?: string;
+  caseRevision?: number;
   state?: string;
   [key: string]: unknown;
 }
@@ -35,6 +49,7 @@ interface MockSnapshot {
   repositoryFullName?: string;
   ref?: string;
   branch?: string;
+  commitSha?: string;
   status?: string;
   createdAt?: string | Date;
   [key: string]: unknown;
@@ -60,10 +75,56 @@ interface FixtureTypes {
   };
 }
 
+function createValidCompliantDecision(overrides: Record<string, unknown> = {}) {
+  const evidenceId =
+    typeof overrides.evidenceId === "string"
+      ? overrides.evidenceId
+      : "00000000-0000-4000-8000-000000000003";
+  const rest = { ...overrides };
+  delete rest.evidenceId;
+  return {
+    assessmentRuleId: "RULE-1",
+    assessmentRuleVersion: "1.0.0",
+    scopeId: "ASSESSMENT",
+    ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+    repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+    repositoryCommit: "a000000000000000000000000000000000000001",
+    caseRevision: 1,
+    legalContextRefs: [{ legalContextId: "legal-1" }],
+    applicability: "APPLICABLE",
+    compliance: "COMPLIANT",
+    rationale: "Rule fully satisfied.",
+    references: [
+      {
+        type: "ASSESSMENT_EVIDENCE",
+        evidenceId,
+      },
+    ],
+    criteria: [
+      {
+        criterionId: "crit-1",
+        outcome: "MET",
+        rationale: "Criterion met",
+        references: [
+          {
+            type: "ASSESSMENT_EVIDENCE",
+            evidenceId,
+          },
+        ],
+      },
+    ],
+    ...rest,
+  };
+}
+
 function buildLoader(fixtures: FixtureTypes) {
   const prisma = {
     assessment: {
-      findMany: (args?: { skip?: number; take?: number }) => {
+      findMany: (args?: {
+        skip?: number;
+        take?: number;
+        where?: { ownerId?: string };
+      }) => {
         const list = fixtures.assessments ?? [];
         if (args?.skip !== undefined && args?.take !== undefined) {
           return Promise.resolve(list.slice(args.skip, args.skip + args.take));
@@ -116,6 +177,9 @@ function buildLoader(fixtures: FixtureTypes) {
         if (args?.where?.state === "INVALIDATED") {
           return Promise.resolve(all.filter((e) => e.state === "INVALIDATED"));
         }
+        if (args?.where?.state === "ACCEPTED") {
+          return Promise.resolve(all.filter((e) => e.state !== "INVALIDATED"));
+        }
         return Promise.resolve(all);
       },
     },
@@ -124,6 +188,9 @@ function buildLoader(fixtures: FixtureTypes) {
         const all = fixtures.facts ?? [];
         if (args?.where?.state === "INVALIDATED") {
           return Promise.resolve(all.filter((f) => f.state === "INVALIDATED"));
+        }
+        if (args?.where?.state === "ACCEPTED") {
+          return Promise.resolve(all.filter((f) => f.state !== "INVALIDATED"));
         }
         return Promise.resolve(all);
       },
@@ -196,7 +263,7 @@ describe("AssessmentTrackingLoader", () => {
       expect(result.complianceSummary.totalRulesEvaluated).toBe(0);
     });
 
-    it("ensures accepted-but-not-current decisions cannot be counted as compliant", async () => {
+    it("ensures accepted-but-not-current decisions cannot be counted as compliant (revision mismatch, older case revision, malformed JSON)", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
       const now = new Date("2026-10-18T10:00:00.000Z");
 
@@ -210,14 +277,14 @@ describe("AssessmentTrackingLoader", () => {
         updatedAt: now,
         runtime: { executionState: "SUCCEEDED", currentExecutionId: null },
         domainCase: {
-          caseRevision: 1,
+          caseRevision: 2, // Case is at revision 2!
           pinnedAt: now,
-          ruleSetVersionId: "rule-v1",
-          repositorySnapshotId: "snap-1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
-          repositoryCommit: "abc1234",
+          repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
-            id: "rule-v1",
+            id: "00000000-0000-4000-8000-000000000001",
             version: "1.0.0",
             supersededAt: null,
             lifecycleState: "ACTIVE",
@@ -235,47 +302,43 @@ describe("AssessmentTrackingLoader", () => {
         },
       };
 
-      // Coverage row points to currentDecisionId 'dec-1' with revision 2
       const coverage = [
         {
           assessmentId,
           assessmentRuleId: "RULE-1",
-          ruleSetVersionId: "rule-v1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           assessmentRuleVersion: "1.0.0",
           resolutionState: "RESOLVED",
-          currentDecisionId: "dec-1",
-          decisionRevision: 2,
+          currentDecisionId: "dec-older-case",
+          decisionRevision: 1,
         },
       ];
 
-      // Stale decision has revision 1 instead of 2 (revision mismatch)
+      // Decision is from older caseRevision 1 (whereas case is at revision 2)
       const decisions = [
         {
-          decisionId: "dec-1",
+          decisionId: "dec-older-case",
           assessmentId,
           assessmentRuleId: "RULE-1",
           assessmentRuleVersion: "1.0.0",
           scopeId: "ASSESSMENT",
-          ruleSetVersionId: "rule-v1",
-          decisionRevision: 1, // Mismatched revision!
-          repositoryCommit: "abc1234",
-          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1, // Older case revision! Must be rejected by strict equality
           state: "ACCEPTED",
           supersededAt: null,
           invalidatedAt: null,
-          decision: {
-            applicability: "APPLICABLE",
-            compliance: "COMPLIANT",
-          },
+          decision: createValidCompliantDecision({ caseRevision: 1 }),
         },
       ];
 
       const snapshots = [
         {
-          id: "snap-1",
+          id: "00000000-0000-4000-8000-000000000002",
           repositoryFullName: "acme/payments",
           ref: "main",
-          commitSha: "abc1234",
+          commitSha: "a000000000000000000000000000000000000001",
           createdAt: now,
           status: "READY",
         },
@@ -286,80 +349,90 @@ describe("AssessmentTrackingLoader", () => {
         coverage,
         decisions,
         snapshots,
-        ruleCounts: { "rule-v1": 1 },
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
       });
 
       const result = await loader.loadCustomerOverview({
         sessionUserId: "customer-1",
         subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-inconsistent",
+        correlationId: "corr-older-case",
       });
 
-      // Mismatched decision must not be counted as compliant; must fail closed to unresolved
+      // Older case decision must fail closed to unresolved
       expect(result.complianceSummary.compliantCount).toBe(0);
       expect(result.complianceSummary.unresolvedCount).toBe(1);
       expect(result.assessments[0].trust.trustStatus).toBe(
         TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
       );
-      expect(result.assessments[0].trust.reason).toBe("INTEGRITY_MISMATCH");
+      expect(result.assessments[0].trust.reason).toBe(
+        TRACKING_UNTRUSTED_REASONS.DECISION_INCONSISTENCY,
+      );
       expect(result.assessments[0].trust.isTrustworthy).toBe(false);
+
+      // Now test malformed JSON decision
+      const loaderMalformed = buildLoader({
+        assessments: [
+          {
+            ...mockAssessment,
+            domainCase: { ...mockAssessment.domainCase, caseRevision: 1 },
+          },
+        ],
+        coverage,
+        decisions: [
+          {
+            ...decisions[0],
+            decision: { arbitrary: "invalid" }, // Malformed JSON failing ruleDecisionSchema!
+          },
+        ],
+        snapshots,
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
+      });
+
+      const resultMalformed = await loaderMalformed.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-malformed-json",
+      });
+
+      expect(resultMalformed.complianceSummary.compliantCount).toBe(0);
+      expect(resultMalformed.complianceSummary.unresolvedCount).toBe(1);
+      expect(resultMalformed.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
+      );
+      expect(resultMalformed.assessments[0].trust.reason).toBe(
+        TRACKING_UNTRUSTED_REASONS.DECISION_INCONSISTENCY,
+      );
     });
 
-    it("ensures incomplete or stale pins/evidence cannot be TRUSTED", async () => {
+    it("ensures incomplete or stale pins/evidence/freshness cannot be TRUSTED", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
       const now = new Date("2026-10-18T10:00:00.000Z");
 
-      // Case A: Missing pinnedScanJobId
-      const unpinnedAssessment = {
+      // Incomplete pins: repositorySnapshotId is null
+      const incompleteAssessment = {
         id: assessmentId,
         ownerId: "customer-1",
-        name: "Unpinned Assessment",
+        name: "Payments Service",
         lifecycleState: "COMPLETE",
         blockerReason: null,
         createdAt: now,
         updatedAt: now,
-        runtime: null,
+        runtime: { executionState: "SUCCEEDED", currentExecutionId: null },
         domainCase: {
           caseRevision: 1,
           pinnedAt: now,
-          ruleSetVersionId: "rule-v1",
-          repositorySnapshotId: "snap-1",
-          repositoryScanJobId: null, // Missing scan job pin!
-          repositoryCommit: "abc1234",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositorySnapshotId: null, // MISSING PIN!
+          repositoryScanJobId: "job-1",
+          repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
-            id: "rule-v1",
+            id: "00000000-0000-4000-8000-000000000001",
             version: "1.0.0",
             supersededAt: null,
             lifecycleState: "ACTIVE",
             validationOutcome: "PASSED",
           },
           humanRequests: [],
-          artifacts: [],
-        },
-      };
-
-      const loaderA = buildLoader({
-        assessments: [unpinnedAssessment],
-      });
-
-      const resultA = await loaderA.loadCustomerOverview({
-        sessionUserId: "customer-1",
-        subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-unpinned",
-      });
-
-      expect(resultA.assessments[0].trust.trustStatus).toBe(
-        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
-      );
-      expect(resultA.assessments[0].trust.reason).toBe("PINS_MISSING");
-      expect(resultA.assessments[0].trust.isTrustworthy).toBe(false);
-
-      // Case B: Pinned but has invalidated evidence
-      const pinnedAssessment = {
-        ...unpinnedAssessment,
-        domainCase: {
-          ...unpinnedAssessment.domainCase,
-          repositoryScanJobId: "job-1",
           artifacts: [
             {
               artifactId: "33333333-3333-4333-8333-333333333333",
@@ -371,49 +444,46 @@ describe("AssessmentTrackingLoader", () => {
         },
       };
 
+      const loaderA = buildLoader({
+        assessments: [incompleteAssessment],
+      });
+
+      const resultA = await loaderA.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-missing-pins",
+      });
+
+      expect(resultA.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
+      );
+      expect(resultA.assessments[0].trust.reason).toBe("PINS_MISSING");
+      expect(resultA.assessments[0].trust.isTrustworthy).toBe(false);
+
+      // Invalidated evidence test
+      const completeAssessment = {
+        ...incompleteAssessment,
+        domainCase: {
+          ...incompleteAssessment.domainCase,
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+        },
+      };
+
       const loaderB = buildLoader({
-        assessments: [pinnedAssessment],
-        coverage: [
-          {
-            assessmentId,
-            assessmentRuleId: "RULE-1",
-            ruleSetVersionId: "rule-v1",
-            assessmentRuleVersion: "1.0.0",
-            resolutionState: "RESOLVED",
-            currentDecisionId: "dec-1",
-            decisionRevision: 1,
-          },
-        ],
-        decisions: [
-          {
-            decisionId: "dec-1",
-            assessmentId,
-            assessmentRuleId: "RULE-1",
-            assessmentRuleVersion: "1.0.0",
-            scopeId: "ASSESSMENT",
-            ruleSetVersionId: "rule-v1",
-            decisionRevision: 1,
-            repositoryCommit: "abc1234",
-            caseRevision: 1,
-            state: "ACCEPTED",
-            supersededAt: null,
-            invalidatedAt: null,
-            decision: { applicability: "APPLICABLE", compliance: "COMPLIANT" },
-          },
-        ],
+        assessments: [completeAssessment],
         evidence: [
           {
             assessmentId,
-            evidenceId: "ev-1",
+            evidenceId: "00000000-0000-4000-8000-000000000003",
             state: "INVALIDATED", // Invalidated evidence!
           },
         ],
         snapshots: [
           {
-            id: "snap-1",
+            id: "00000000-0000-4000-8000-000000000002",
             repositoryFullName: "acme/payments",
             ref: "main",
-            commitSha: "abc1234",
+            commitSha: "a000000000000000000000000000000000000001",
             createdAt: now,
             status: "READY",
           },
@@ -429,7 +499,9 @@ describe("AssessmentTrackingLoader", () => {
       expect(resultB.assessments[0].trust.trustStatus).toBe(
         TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
       );
-      expect(resultB.assessments[0].trust.reason).toBe("INTEGRITY_MISMATCH");
+      expect(resultB.assessments[0].trust.reason).toBe(
+        TRACKING_UNTRUSTED_REASONS.DECISIONS_INVALIDATED,
+      );
       expect(resultB.assessments[0].trust.isTrustworthy).toBe(false);
     });
 
@@ -450,12 +522,12 @@ describe("AssessmentTrackingLoader", () => {
         domainCase: {
           caseRevision: 1,
           pinnedAt: now,
-          ruleSetVersionId: "rule-v1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "snap-payments-1",
           repositoryScanJobId: "job-1",
-          repositoryCommit: "abc1234",
+          repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
-            id: "rule-v1",
+            id: "00000000-0000-4000-8000-000000000001",
             version: "1.0.0",
             supersededAt: null,
             lifecycleState: "ACTIVE",
@@ -473,21 +545,31 @@ describe("AssessmentTrackingLoader", () => {
         },
       };
 
-      // Snapshots: snap-payments-1 is pinned. An unrelated snapshot for 'acme/auth' was created later.
+      // Snapshots: snap-payments-1 is pinned.
+      // snap-payments-2 confirms the repo is verified at commit a000000000000000000000000000000000000001.
+      // snap-auth-2 is an unrelated snapshot for 'acme/auth' with a different commit.
       const snapshots = [
         {
           id: "snap-payments-1",
           repositoryFullName: "acme/payments",
           ref: "main",
-          commitSha: "abc1234",
+          commitSha: "a000000000000000000000000000000000000001",
           createdAt: now,
+          status: "READY",
+        },
+        {
+          id: "snap-payments-2",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: later,
           status: "READY",
         },
         {
           id: "snap-auth-2",
           repositoryFullName: "acme/auth", // DIFFERENT REPO!
           ref: "main",
-          commitSha: "xyz9999",
+          commitSha: "b000000000000000000000000000000000000002",
           createdAt: later,
           status: "READY",
         },
@@ -496,35 +578,7 @@ describe("AssessmentTrackingLoader", () => {
       const loader = buildLoader({
         assessments: [mockAssessment],
         snapshots,
-        coverage: [
-          {
-            assessmentId,
-            assessmentRuleId: "RULE-1",
-            ruleSetVersionId: "rule-v1",
-            assessmentRuleVersion: "1.0.0",
-            resolutionState: "RESOLVED",
-            currentDecisionId: "dec-1",
-            decisionRevision: 1,
-          },
-        ],
-        decisions: [
-          {
-            decisionId: "dec-1",
-            assessmentId,
-            assessmentRuleId: "RULE-1",
-            assessmentRuleVersion: "1.0.0",
-            scopeId: "ASSESSMENT",
-            ruleSetVersionId: "rule-v1",
-            decisionRevision: 1,
-            repositoryCommit: "abc1234",
-            caseRevision: 1,
-            state: "ACCEPTED",
-            supersededAt: null,
-            invalidatedAt: null,
-            decision: { applicability: "APPLICABLE", compliance: "COMPLIANT" },
-          },
-        ],
-        ruleCounts: { "rule-v1": 1 },
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
       });
 
       const result = await loader.loadCustomerOverview({
@@ -536,8 +590,12 @@ describe("AssessmentTrackingLoader", () => {
       // Pinned repo 'acme/payments' must remain CURRENT and NOT stale!
       expect(result.assessments[0].repository.name).toBe("payments");
       expect(result.assessments[0].repository.owner).toBe("acme");
-      expect(result.assessments[0].repository.pinnedCommit).toBe("abc1234");
-      expect(result.assessments[0].repository.latestCommit).toBe("abc1234");
+      expect(result.assessments[0].repository.pinnedCommit).toBe(
+        "a000000000000000000000000000000000000001",
+      );
+      expect(result.assessments[0].repository.latestCommit).toBe(
+        "a000000000000000000000000000000000000001",
+      );
       expect(result.assessments[0].repository.freshnessStatus).toBe(
         TRACKING_FRESHNESS_STATUSES.CURRENT,
       );
@@ -551,24 +609,61 @@ describe("AssessmentTrackingLoader", () => {
       ).toBe(false);
     });
 
-    it("marks missing live ref / unpinned repository as UNKNOWN freshness", async () => {
+    it("marks unchanged cached repository snapshot with unknown live HEAD as UNKNOWN freshness", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
       const now = new Date("2026-10-18T10:00:00.000Z");
 
       const mockAssessment = {
         id: assessmentId,
         ownerId: "customer-1",
-        name: "No Repo Assessment",
-        lifecycleState: "CREATED",
+        name: "Payments Service",
+        lifecycleState: "COMPLETE",
         blockerReason: null,
         createdAt: now,
         updatedAt: now,
-        runtime: null,
-        domainCase: null, // No domain case or snapshot
+        runtime: { executionState: "SUCCEEDED", currentExecutionId: null },
+        domainCase: {
+          caseRevision: 1,
+          pinnedAt: now,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositorySnapshotId: "snap-payments-1",
+          repositoryScanJobId: "job-1",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          ruleSet: {
+            id: "00000000-0000-4000-8000-000000000001",
+            version: "1.0.0",
+            supersededAt: null,
+            lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
+          },
+          humanRequests: [],
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: now,
+              activatedAt: now,
+              lifecycleState: "ACTIVE",
+            },
+          ],
+        },
       };
+
+      // Only the pinned snapshot itself is in the DB; live remote HEAD has not been verified!
+      const snapshots = [
+        {
+          id: "snap-payments-1",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: now,
+          status: "READY",
+        },
+      ];
 
       const loader = buildLoader({
         assessments: [mockAssessment],
+        snapshots,
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
       });
 
       const result = await loader.loadCustomerOverview({
@@ -582,6 +677,14 @@ describe("AssessmentTrackingLoader", () => {
       );
       expect(result.assessments[0].repository.isStale).toBe(false);
       expect(result.assessments[0].repository.latestCommit).toBeNull();
+      // An assessment with unknown source freshness CANNOT be TRUSTED!
+      expect(result.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
+      );
+      expect(result.assessments[0].trust.reason).toBe(
+        TRACKING_UNTRUSTED_REASONS.SOURCE_FRESHNESS_UNKNOWN,
+      );
+      expect(result.assessments[0].trust.isTrustworthy).toBe(false);
     });
 
     it("verifies user actions lead to correct UI screens and preserve request/artifact identity", async () => {
@@ -602,12 +705,12 @@ describe("AssessmentTrackingLoader", () => {
         domainCase: {
           caseRevision: 1,
           pinnedAt: now,
-          ruleSetVersionId: "rule-v1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
           repositorySnapshotId: "snap-1",
           repositoryScanJobId: "job-1",
-          repositoryCommit: "abc1234",
+          repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
-            id: "rule-v1",
+            id: "00000000-0000-4000-8000-000000000001",
             version: "1.0.0",
             supersededAt: null,
             lifecycleState: "ACTIVE",
@@ -640,12 +743,12 @@ describe("AssessmentTrackingLoader", () => {
             id: "snap-1",
             repositoryFullName: "acme/payments",
             ref: "main",
-            commitSha: "abc1234",
+            commitSha: "a000000000000000000000000000000000000001",
             createdAt: now,
             status: "READY",
           },
         ],
-        ruleCounts: { "rule-v1": 1 },
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
       });
 
       const result = await loader.loadCustomerOverview({
@@ -677,85 +780,231 @@ describe("AssessmentTrackingLoader", () => {
       );
     });
 
-    it("ensures material changes and report readiness are lifecycle-gated and baseline-scoped", async () => {
+    it("ensures source-change timestamp is based on observed snapshot and respects since filter", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
-      const artifactId = "33333333-3333-4333-8333-333333333333";
-      const t1 = new Date("2026-10-18T09:00:00.000Z");
-      const t2 = new Date("2026-10-18T10:00:00.000Z");
+      const asmtUpdatedDate = new Date("2026-10-10T10:00:00.000Z"); // Assessment was last updated Oct 10
+      const sourceObservedDate = new Date("2026-10-18T10:00:00.000Z"); // New snapshot observed Oct 18
+      const sinceDate = "2026-10-17T00:00:00.000Z"; // User asks since Oct 17
 
-      // Active report exists, but lifecycleState is ACTIVE (not COMPLETE)
-      const inProgressAssessment = {
+      const mockAssessment = {
         id: assessmentId,
         ownerId: "customer-1",
-        name: "In-Progress Assessment",
-        lifecycleState: "ACTIVE", // NOT complete!
+        name: "Payments Service",
+        lifecycleState: "COMPLETE",
         blockerReason: null,
-        createdAt: t1,
-        updatedAt: t1,
-        runtime: { executionState: "RUNNING", currentExecutionId: null },
+        createdAt: asmtUpdatedDate,
+        updatedAt: asmtUpdatedDate, // Assessment was not edited recently
+        runtime: { executionState: "SUCCEEDED", currentExecutionId: null },
         domainCase: {
           caseRevision: 1,
-          pinnedAt: t1,
-          ruleSetVersionId: "rule-v1",
-          repositorySnapshotId: "snap-1",
+          pinnedAt: asmtUpdatedDate,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositorySnapshotId: "snap-old",
           repositoryScanJobId: "job-1",
-          repositoryCommit: "abc1234",
+          repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
-            id: "rule-v1",
+            id: "00000000-0000-4000-8000-000000000001",
             version: "1.0.0",
             supersededAt: null,
             lifecycleState: "ACTIVE",
             validationOutcome: "PASSED",
           },
           humanRequests: [],
-          artifacts: [
-            {
-              artifactId,
-              createdAt: t1,
-              activatedAt: t1,
-              lifecycleState: "ACTIVE",
-            },
-          ],
+          artifacts: [],
         },
       };
 
+      const snapshots = [
+        {
+          id: "snap-old",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: asmtUpdatedDate,
+          status: "READY",
+        },
+        {
+          id: "snap-new",
+          repositoryFullName: "acme/payments",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000002", // Newer commit!
+          createdAt: sourceObservedDate, // Observed Oct 18
+          status: "READY",
+        },
+      ];
+
       const loader = buildLoader({
-        assessments: [inProgressAssessment],
+        assessments: [mockAssessment],
+        snapshots,
       });
 
       const result = await loader.loadCustomerOverview({
         sessionUserId: "customer-1",
         subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-lifecycle-gated",
+        correlationId: "corr-source-since",
+        since: sinceDate,
       });
 
-      // REPORT_READY must NOT be emitted because lifecycleState is not COMPLETE
-      expect(
-        result.changes.some(
-          (c) => c.changeType === TRACKING_CHANGE_TYPES.REPORT_READY,
-        ),
-      ).toBe(false);
-      expect(result.assessments[0].report.isReady).toBe(false);
+      // Even though assessment.updatedAt was Oct 10, the new commit was observed Oct 18 (> since Oct 17)
+      // REASSESSMENT_REQUIRED must NOT disappear!
+      const change = result.changes.find(
+        (c) => c.changeType === TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+      );
+      expect(change).toBeDefined();
+      expect(change?.occurredAt).toBe(sourceObservedDate.toISOString());
+    });
 
-      // Now complete the assessment, but test baseline filtering with `since`
-      const completedAssessment = {
-        ...inProgressAssessment,
+    it("computes owner-wide compliance summary consistently across paginated pages (page 2 vs owner-wide summary)", async () => {
+      const now = new Date("2026-10-18T10:00:00.000Z");
+      const id1 = "11111111-1111-4111-8111-111111111111";
+      const id2 = "22222222-2222-4222-8222-222222222222";
+
+      const assessment1 = {
+        id: id1,
+        ownerId: "customer-1",
+        name: "Payments Service",
         lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          repositorySnapshotId: "snap-1",
+          repositoryScanJobId: "job-1",
+          pinnedAt: now,
+          humanRequests: [],
+          artifacts: [],
+        },
       };
 
-      const loaderCompleted = buildLoader({
-        assessments: [completedAssessment],
+      const assessment2 = {
+        id: id2,
+        ownerId: "customer-1",
+        name: "Auth Service",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          repositorySnapshotId: "snap-2",
+          repositoryScanJobId: "job-2",
+          pinnedAt: now,
+          humanRequests: [],
+          artifacts: [],
+        },
+      };
+
+      const coverage = [
+        {
+          assessmentId: id1,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-1",
+          decisionRevision: 1,
+        },
+        {
+          assessmentId: id2,
+          assessmentRuleId: "RULE-2",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-2",
+          decisionRevision: 1,
+        },
+      ];
+
+      const decisions = [
+        {
+          decisionId: "dec-1",
+          assessmentId: id1,
+          assessmentRuleId: "RULE-1",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          decision: createValidCompliantDecision({
+            assessmentRuleId: "RULE-1",
+          }),
+        },
+        {
+          decisionId: "dec-2",
+          assessmentId: id2,
+          assessmentRuleId: "RULE-2",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          decision: createValidCompliantDecision({
+            assessmentRuleId: "RULE-2",
+            evidenceId: "00000000-0000-4000-8000-000000000004",
+          }),
+        },
+      ];
+
+      const evidence = [
+        {
+          assessmentId: id1,
+          evidenceId: "00000000-0000-4000-8000-000000000003",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          state: "ACCEPTED",
+        },
+        {
+          assessmentId: id2,
+          evidenceId: "00000000-0000-4000-8000-000000000004",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          state: "ACCEPTED",
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [assessment1, assessment2],
+        coverage,
+        decisions,
+        evidence,
       });
 
-      // If `since` is t2 (later than t1 report creation), report change is filtered out
-      const resultWithSince = await loaderCompleted.loadCustomerOverview({
+      // Page 1: limit 1, offset 0 -> returns assessment 1
+      const page1 = await loader.loadCustomerOverview({
         sessionUserId: "customer-1",
         subjectRole: AUTH_USER_ROLES.customer,
-        correlationId: "corr-since",
-        since: t2.toISOString(),
+        correlationId: "corr-p1",
+        limit: 1,
+        offset: 0,
       });
 
-      expect(resultWithSince.changes).toHaveLength(0);
+      expect(page1.assessments).toHaveLength(1);
+      expect(page1.assessments[0].assessmentId).toBe(id1);
+      expect(page1.pagination.total).toBe(2);
+      expect(page1.complianceSummary.compliantCount).toBe(2); // Owner-wide count: 2 compliant rules
+
+      // Page 2: limit 1, offset 1 -> returns assessment 2
+      const page2 = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-p2",
+        limit: 1,
+        offset: 1,
+      });
+
+      expect(page2.assessments).toHaveLength(1);
+      expect(page2.assessments[0].assessmentId).toBe(id2);
+      expect(page2.pagination.total).toBe(2);
+      // Even on page 2, complianceSummary remains identical and owner-wide!
+      expect(page2.complianceSummary.compliantCount).toBe(2);
+      expect(page2.complianceSummary.totalRulesEvaluated).toBe(2);
     });
   });
 
@@ -773,10 +1022,12 @@ describe("AssessmentTrackingLoader", () => {
       });
     });
 
-    it("preserves missing token measurements as null and computes truthful durations/counts for admin", async () => {
+    it("preserves missing token measurements as null and computes truthful durations from runtime timing independent of assessment.updatedAt", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
       const eventId = "44444444-4444-4444-8444-444444444444";
-      const now = new Date("2026-10-18T10:00:00.000Z");
+      const now = new Date();
+      const runtimeStartedAt = new Date(Date.now() - 1200 * 1000); // 20 minutes ago (1200 seconds)
+      const asmtRecentlyUpdated = new Date(Date.now() - 60 * 1000); // 1 minute ago
 
       const mockImpacted = [
         {
@@ -785,7 +1036,7 @@ describe("AssessmentTrackingLoader", () => {
           name: "Failed Pipeline Assessment",
           lifecycleState: "FAILED",
           blockerReason: null,
-          updatedAt: now,
+          updatedAt: asmtRecentlyUpdated,
           runtime: { executionState: "FAILED" },
           domainCase: null,
         },
@@ -797,7 +1048,18 @@ describe("AssessmentTrackingLoader", () => {
           currentExecutionId: "55555555-5555-4555-8555-555555555555",
           executionState: "INTERRUPTED", // Interrupted runtime!
           rootAgentVersion: "v1.2",
-          assessment: { updatedAt: now },
+          startedAt: runtimeStartedAt,
+          lastResumedAt: null,
+          assessment: { updatedAt: asmtRecentlyUpdated },
+        },
+        {
+          assessmentId: "66666666-6666-4666-8666-666666666666",
+          currentExecutionId: "77777777-7777-4777-8777-777777777777",
+          executionState: "RUNNING", // Running long-duration runtime
+          rootAgentVersion: "v1.2",
+          startedAt: runtimeStartedAt, // Started 1200 seconds ago
+          lastResumedAt: null,
+          assessment: { updatedAt: asmtRecentlyUpdated },
         },
       ];
 
@@ -849,6 +1111,14 @@ describe("AssessmentTrackingLoader", () => {
         TRACKING_ANOMALY_TYPES.EXECUTION_INTERRUPTED,
       );
       expect(result.executionAnomalies[0].durationSeconds).toBeNull();
+
+      // Long-running anomaly duration is derived from runtime.startedAt (~1200s), NOT assessment.updatedAt (~60s)!
+      expect(result.executionAnomalies[1].anomalyType).toBe(
+        TRACKING_ANOMALY_TYPES.ABNORMAL_RUNTIME_DURATION,
+      );
+      expect(
+        result.executionAnomalies[1].durationSeconds,
+      ).toBeGreaterThanOrEqual(1200);
 
       // Unreconciled usage: missing tokens remain null (not fabricated 0)
       expect(result.unreconciledUsage[0].promptTokens).toBeNull();

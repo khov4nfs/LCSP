@@ -6,6 +6,10 @@ import {
   ASSESSMENT_LIFECYCLE_STATES,
   DECISION_RESOLUTION_STATES,
   HUMAN_RESOLUTION_REQUEST_STATUSES,
+  RULE_DECISION_APPLICABILITIES,
+  RULE_DECISION_COMPLIANCE_OUTCOMES,
+  RULE_DECISION_REFERENCE_TYPES,
+  ruleDecisionSchema,
 } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ARTIFACT_KINDS,
@@ -39,6 +43,168 @@ import { LLM_USAGE_STATUSES } from "@lcsp/contracts/billing";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
+
+interface DecisionEvaluationParams {
+  assessmentId: string;
+  domainCase: {
+    ruleSetVersionId: string;
+    caseRevision: number;
+    repositoryCommit: string;
+  };
+  coverage: Array<{
+    assessmentId: string;
+    assessmentRuleId: string;
+    ruleSetVersionId: string;
+    assessmentRuleVersion: string;
+    resolutionState: string;
+    currentDecisionId: string | null;
+    decisionRevision: number | null;
+  }>;
+  decisionsById: Map<
+    string,
+    {
+      decisionId: string;
+      assessmentId: string;
+      assessmentRuleId: string;
+      assessmentRuleVersion: string;
+      scopeId: string;
+      ruleSetVersionId: string;
+      decisionRevision: number;
+      repositoryCommit: string;
+      caseRevision: number;
+      decision: unknown;
+    }
+  >;
+  evidenceById?: Map<
+    string,
+    { assessmentId: string; repositoryCommit: string }
+  >;
+  factsById?: Map<string, { assessmentId: string; caseRevision: number }>;
+}
+
+function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
+  compliant: number;
+  nonCompliant: number;
+  notApplicable: number;
+  unresolved: number;
+  hasDecisionInconsistency: boolean;
+} {
+  let compliant = 0;
+  let nonCompliant = 0;
+  let notApplicable = 0;
+  let unresolved = 0;
+  let hasDecisionInconsistency = false;
+
+  for (const cov of params.coverage) {
+    if (
+      cov.resolutionState !== DECISION_RESOLUTION_STATES.RESOLVED ||
+      !cov.currentDecisionId
+    ) {
+      unresolved++;
+      continue;
+    }
+
+    const dec = params.decisionsById.get(cov.currentDecisionId);
+    if (
+      !dec ||
+      dec.assessmentId !== params.assessmentId ||
+      dec.decisionRevision !== cov.decisionRevision ||
+      dec.assessmentRuleId !== cov.assessmentRuleId ||
+      dec.scopeId !== ASSESSMENT_DECISION_SCOPE ||
+      dec.ruleSetVersionId !== params.domainCase.ruleSetVersionId ||
+      dec.assessmentRuleVersion !== cov.assessmentRuleVersion ||
+      dec.repositoryCommit.toLowerCase() !==
+        params.domainCase.repositoryCommit.toLowerCase() ||
+      dec.caseRevision !== params.domainCase.caseRevision
+    ) {
+      hasDecisionInconsistency = true;
+      unresolved++;
+      continue;
+    }
+
+    const parsed = ruleDecisionSchema.safeParse(dec.decision);
+    if (!parsed.success) {
+      hasDecisionInconsistency = true;
+      unresolved++;
+      continue;
+    }
+
+    const d = parsed.data;
+    if (
+      d.assessmentRuleId !== cov.assessmentRuleId ||
+      d.assessmentRuleVersion !== cov.assessmentRuleVersion ||
+      d.caseRevision !== params.domainCase.caseRevision
+    ) {
+      hasDecisionInconsistency = true;
+      unresolved++;
+      continue;
+    }
+
+    if (params.evidenceById || params.factsById) {
+      const allRefs = [
+        ...d.references,
+        ...d.criteria.flatMap((c) => c.references),
+      ];
+      let refsValid = true;
+      for (const ref of allRefs) {
+        if (
+          params.factsById &&
+          ref.type === RULE_DECISION_REFERENCE_TYPES.CONFIRMED_FACT
+        ) {
+          const fact = params.factsById.get(ref.factId);
+          if (
+            !fact ||
+            fact.assessmentId !== params.assessmentId ||
+            fact.caseRevision !== params.domainCase.caseRevision
+          ) {
+            refsValid = false;
+            break;
+          }
+        } else if (
+          params.evidenceById &&
+          ref.type === RULE_DECISION_REFERENCE_TYPES.ASSESSMENT_EVIDENCE
+        ) {
+          const ev = params.evidenceById.get(ref.evidenceId);
+          if (
+            !ev ||
+            ev.assessmentId !== params.assessmentId ||
+            ev.repositoryCommit.toLowerCase() !==
+              params.domainCase.repositoryCommit.toLowerCase()
+          ) {
+            refsValid = false;
+            break;
+          }
+        }
+      }
+
+      if (!refsValid) {
+        hasDecisionInconsistency = true;
+        unresolved++;
+        continue;
+      }
+    }
+
+    if (d.applicability === RULE_DECISION_APPLICABILITIES.NOT_APPLICABLE) {
+      notApplicable++;
+    } else if (d.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.COMPLIANT) {
+      compliant++;
+    } else if (
+      d.compliance === RULE_DECISION_COMPLIANCE_OUTCOMES.NON_COMPLIANT
+    ) {
+      nonCompliant++;
+    } else {
+      unresolved++;
+    }
+  }
+
+  return {
+    compliant,
+    nonCompliant,
+    notApplicable,
+    unresolved,
+    hasDecisionInconsistency,
+  };
+}
 
 /**
  * Authoritative read-model loader for LCSP Tracking Dashboard.
@@ -103,6 +269,22 @@ export class AssessmentTrackingLoader {
     const total = await this.prisma.assessment.count({
       where: { ownerId: input.sessionUserId },
     });
+
+    const allOwnedAssessments = await this.prisma.assessment.findMany({
+      where: { ownerId: input.sessionUserId },
+      select: {
+        id: true,
+        domainCase: {
+          select: {
+            caseRevision: true,
+            ruleSetVersionId: true,
+            repositoryCommit: true,
+          },
+        },
+      },
+    });
+
+    const allOwnedIds = allOwnedAssessments.map((a) => a.id);
 
     const assessments = await this.prisma.assessment.findMany({
       where: { ownerId: input.sessionUserId },
@@ -169,20 +351,20 @@ export class AssessmentTrackingLoader {
       skip: offset,
     });
 
-    const assessmentIds = assessments.map((a) => a.id);
-
-    // Fetch related records safely and boundedly for the retrieved page of assessments
+    // Fetch related records safely and boundedly for all owned assessments to compute owner-wide summary & page items
     const [
-      coverageRows,
-      decisionRows,
+      allCoverageRows,
+      allDecisionRows,
+      activeEvidence,
+      activeFacts,
       invalidatedDecisions,
       invalidatedEvidence,
       invalidatedFacts,
     ] =
-      assessmentIds.length > 0
+      allOwnedIds.length > 0
         ? await Promise.all([
             this.prisma.assessmentDecisionCoverage.findMany({
-              where: { assessmentId: { in: assessmentIds } },
+              where: { assessmentId: { in: allOwnedIds } },
               select: {
                 assessmentId: true,
                 assessmentRuleId: true,
@@ -195,7 +377,7 @@ export class AssessmentTrackingLoader {
             }),
             this.prisma.assessmentRuleDecision.findMany({
               where: {
-                assessmentId: { in: assessmentIds },
+                assessmentId: { in: allOwnedIds },
                 state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
                 supersededAt: null,
                 invalidatedAt: null,
@@ -213,39 +395,66 @@ export class AssessmentTrackingLoader {
                 decision: true,
               },
             }),
+            this.prisma.assessmentEvidence.findMany({
+              where: {
+                assessmentId: { in: allOwnedIds },
+                state: ASSESSMENT_RECORD_STATES.ACCEPTED,
+              },
+              select: {
+                evidenceId: true,
+                assessmentId: true,
+                repositoryCommit: true,
+              },
+            }),
+            this.prisma.assessmentCaseFact.findMany({
+              where: {
+                assessmentId: { in: allOwnedIds },
+                state: ASSESSMENT_RECORD_STATES.ACCEPTED,
+              },
+              select: {
+                factId: true,
+                assessmentId: true,
+                caseRevision: true,
+              },
+            }),
             this.prisma.assessmentRuleDecision.findMany({
               where: {
-                assessmentId: { in: assessmentIds },
+                assessmentId: { in: allOwnedIds },
                 state: ASSESSMENT_DECISION_RECORD_STATES.INVALIDATED,
               },
               select: { assessmentId: true },
             }),
             this.prisma.assessmentEvidence.findMany({
               where: {
-                assessmentId: { in: assessmentIds },
+                assessmentId: { in: allOwnedIds },
                 state: ASSESSMENT_RECORD_STATES.INVALIDATED,
               },
               select: { assessmentId: true },
             }),
             this.prisma.assessmentCaseFact.findMany({
               where: {
-                assessmentId: { in: assessmentIds },
+                assessmentId: { in: allOwnedIds },
                 state: ASSESSMENT_RECORD_STATES.INVALIDATED,
               },
               select: { assessmentId: true },
             }),
           ])
-        : [[], [], [], [], []];
+        : [[], [], [], [], [], [], []];
 
     // Group coverage and decisions by assessment
-    const coverageByAssessmentId = new Map<string, typeof coverageRows>();
-    for (const cov of coverageRows) {
-      const list = coverageByAssessmentId.get(cov.assessmentId) ?? [];
+    const allCoverageByAssessmentId = new Map<string, typeof allCoverageRows>();
+    for (const cov of allCoverageRows) {
+      const list = allCoverageByAssessmentId.get(cov.assessmentId) ?? [];
       list.push(cov);
-      coverageByAssessmentId.set(cov.assessmentId, list);
+      allCoverageByAssessmentId.set(cov.assessmentId, list);
     }
 
-    const decisionsById = new Map(decisionRows.map((d) => [d.decisionId, d]));
+    const allDecisionsById = new Map(
+      allDecisionRows.map((d) => [d.decisionId, d]),
+    );
+
+    const evidenceById = new Map(activeEvidence.map((e) => [e.evidenceId, e]));
+    const factsById = new Map(activeFacts.map((f) => [f.factId, f]));
 
     const invalidatedAssessmentIds = new Set([
       ...invalidatedDecisions.map((d) => d.assessmentId),
@@ -253,7 +462,43 @@ export class AssessmentTrackingLoader {
       ...invalidatedFacts.map((f) => f.assessmentId),
     ]);
 
-    // Fetch pinned snapshots for exact repository and ref resolution
+    // Compute owner-wide compliance summary across ALL owned assessments
+    let ownerCompliant = 0;
+    let ownerNonCompliant = 0;
+    let ownerNotApplicable = 0;
+    let ownerUnresolved = 0;
+
+    for (const owned of allOwnedAssessments) {
+      if (
+        !owned.domainCase ||
+        !owned.domainCase.ruleSetVersionId ||
+        !owned.domainCase.repositoryCommit
+      ) {
+        continue;
+      }
+      const cov = allCoverageByAssessmentId.get(owned.id) ?? [];
+      if (cov.length === 0) continue;
+
+      const evalResult = evaluateAssessmentDecisions({
+        assessmentId: owned.id,
+        domainCase: {
+          ruleSetVersionId: owned.domainCase.ruleSetVersionId,
+          caseRevision: owned.domainCase.caseRevision,
+          repositoryCommit: owned.domainCase.repositoryCommit,
+        },
+        coverage: cov,
+        decisionsById: allDecisionsById,
+        evidenceById,
+        factsById,
+      });
+
+      ownerCompliant += evalResult.compliant;
+      ownerNonCompliant += evalResult.nonCompliant;
+      ownerNotApplicable += evalResult.notApplicable;
+      ownerUnresolved += evalResult.unresolved;
+    }
+
+    // Fetch pinned snapshots for exact repository and ref resolution for page assessments
     const pinnedSnapshotIds = assessments
       .map((a) => a.domainCase?.repositorySnapshotId)
       .filter((id): id is string => typeof id === "string" && id.length > 0);
@@ -336,14 +581,9 @@ export class AssessmentTrackingLoader {
     const changes: CustomerTrackingChangeItem[] = [];
     const assessmentItems: CustomerTrackingAssessmentItem[] = [];
 
-    let totalCompliant = 0;
-    let totalNonCompliant = 0;
-    let totalNotApplicable = 0;
-    let totalUnresolved = 0;
-
     for (const assessment of assessments) {
       const domainCase = assessment.domainCase;
-      const asmtCoverage = coverageByAssessmentId.get(assessment.id) ?? [];
+      const asmtCoverage = allCoverageByAssessmentId.get(assessment.id) ?? [];
 
       // 1. Actions: open human requests requiring customer input
       if (domainCase && domainCase.humanRequests.length > 0) {
@@ -370,6 +610,7 @@ export class AssessmentTrackingLoader {
       let freshnessStatus: TrackingFreshnessStatus =
         TRACKING_FRESHNESS_STATUSES.UNKNOWN;
       let isStale = false;
+      let authoritativeLatest: (typeof pinnedSnapshots)[0] | null = null;
 
       if (domainCase?.repositorySnapshotId) {
         const pinned = pinnedSnapshotById.get(domainCase.repositorySnapshotId);
@@ -383,20 +624,27 @@ export class AssessmentTrackingLoader {
               : pinned.repositoryFullName;
 
           const key = `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`;
-          const authoritativeLatest =
-            latestSnapshotsByRepoRef.get(key) ?? pinned;
-          latestCommit = authoritativeLatest.commitSha;
+          const foundLatest = latestSnapshotsByRepoRef.get(key);
 
-          if (
-            pinnedCommit &&
-            latestCommit &&
-            latestCommit.toLowerCase() !== pinnedCommit.toLowerCase()
-          ) {
-            freshnessStatus = TRACKING_FRESHNESS_STATUSES.STALE;
-            isStale = true;
-          } else if (pinnedCommit && latestCommit) {
-            freshnessStatus = TRACKING_FRESHNESS_STATUSES.CURRENT;
+          // Treat last-known snapshot separately from verified current remote/ref freshness.
+          // If no distinct subsequent snapshot exists, remote state is UNKNOWN.
+          if (foundLatest && foundLatest.id !== pinned.id) {
+            authoritativeLatest = foundLatest;
+            latestCommit = foundLatest.commitSha;
+            if (
+              pinnedCommit &&
+              latestCommit.toLowerCase() !== pinnedCommit.toLowerCase()
+            ) {
+              freshnessStatus = TRACKING_FRESHNESS_STATUSES.STALE;
+              isStale = true;
+            } else if (pinnedCommit) {
+              freshnessStatus = TRACKING_FRESHNESS_STATUSES.CURRENT;
+              isStale = false;
+            }
+          } else {
+            freshnessStatus = TRACKING_FRESHNESS_STATUSES.UNKNOWN;
             isStale = false;
+            latestCommit = null;
           }
         }
       }
@@ -418,57 +666,31 @@ export class AssessmentTrackingLoader {
       let asmtUnresolved = 0;
       let hasDecisionInconsistency = false;
 
-      if (domainCase && asmtCoverage.length > 0) {
-        for (const cov of asmtCoverage) {
-          if (
-            cov.resolutionState !== DECISION_RESOLUTION_STATES.RESOLVED ||
-            !cov.currentDecisionId
-          ) {
-            asmtUnresolved++;
-            continue;
-          }
+      if (
+        domainCase &&
+        domainCase.ruleSetVersionId &&
+        domainCase.repositoryCommit &&
+        asmtCoverage.length > 0
+      ) {
+        const evalResult = evaluateAssessmentDecisions({
+          assessmentId: assessment.id,
+          domainCase: {
+            ruleSetVersionId: domainCase.ruleSetVersionId,
+            caseRevision: domainCase.caseRevision,
+            repositoryCommit: domainCase.repositoryCommit,
+          },
+          coverage: asmtCoverage,
+          decisionsById: allDecisionsById,
+          evidenceById,
+          factsById,
+        });
 
-          const dec = decisionsById.get(cov.currentDecisionId);
-          if (
-            !dec ||
-            dec.assessmentId !== assessment.id ||
-            dec.decisionRevision !== cov.decisionRevision ||
-            dec.assessmentRuleId !== cov.assessmentRuleId ||
-            dec.scopeId !== ASSESSMENT_DECISION_SCOPE ||
-            dec.ruleSetVersionId !== domainCase.ruleSetVersionId ||
-            dec.assessmentRuleVersion !== cov.assessmentRuleVersion ||
-            dec.repositoryCommit.toLowerCase() !==
-              (domainCase.repositoryCommit ?? "").toLowerCase() ||
-            dec.caseRevision > domainCase.caseRevision
-          ) {
-            hasDecisionInconsistency = true;
-            asmtUnresolved++;
-            continue;
-          }
-
-          const parsed =
-            typeof dec.decision === "object" && dec.decision !== null
-              ? (dec.decision as Record<string, unknown>)
-              : {};
-          const applicability = parsed.applicability ?? "APPLICABLE";
-          const compliance = parsed.compliance;
-
-          if (applicability === "NOT_APPLICABLE") {
-            asmtNotApplicable++;
-          } else if (compliance === "COMPLIANT") {
-            asmtCompliant++;
-          } else if (compliance === "NON_COMPLIANT") {
-            asmtNonCompliant++;
-          } else {
-            asmtUnresolved++;
-          }
-        }
+        asmtCompliant = evalResult.compliant;
+        asmtNonCompliant = evalResult.nonCompliant;
+        asmtNotApplicable = evalResult.notApplicable;
+        asmtUnresolved = evalResult.unresolved;
+        hasDecisionInconsistency = evalResult.hasDecisionInconsistency;
       }
-
-      totalCompliant += asmtCompliant;
-      totalNonCompliant += asmtNonCompliant;
-      totalNotApplicable += asmtNotApplicable;
-      totalUnresolved += asmtUnresolved;
 
       // 4. Report readiness from canonical Artifact boundary
       const activeReport = domainCase?.artifacts[0] ?? null;
@@ -505,9 +727,12 @@ export class AssessmentTrackingLoader {
         }
       }
 
+      // Base REASSESSMENT_REQUIRED event timestamp on the observed source snapshot, not assessment.updatedAt
       if (isStale && pinnedCommit && latestCommit) {
-        const asmtUpdateTime = assessment.updatedAt.getTime();
-        if (asmtUpdateTime >= sinceTime) {
+        const sourceChangeTime = authoritativeLatest
+          ? new Date(authoritativeLatest.createdAt).getTime()
+          : assessment.updatedAt.getTime();
+        if (sourceChangeTime >= sinceTime) {
           const commitPrefix = latestCommit.slice(0, 7);
           changes.push({
             assessmentId: assessment.id,
@@ -522,7 +747,10 @@ export class AssessmentTrackingLoader {
             description: isVi
               ? `Kho mã nguồn có commit mới hơn (${commitPrefix}) so với bản chụp đã đánh giá. Cần thực hiện đánh giá lại.`
               : `Repository has newer commit (${commitPrefix}) than assessed snapshot. Reassessment required.`,
-            occurredAt: assessment.updatedAt.toISOString(),
+            occurredAt: (authoritativeLatest
+              ? new Date(authoritativeLatest.createdAt)
+              : assessment.updatedAt
+            ).toISOString(),
             destinationUrl: `/assessments/${assessment.id}`,
           });
         }
@@ -579,12 +807,17 @@ export class AssessmentTrackingLoader {
       ) {
         trustStatus = TRACKING_TRUST_STATUSES.BLOCKED;
         trustReason = assessment.blockerReason ?? "ASSESSMENT_BLOCKED";
+      } else if (hasDecisionInconsistency || hasInvalidated) {
+        trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
+        trustReason = hasDecisionInconsistency
+          ? TRACKING_UNTRUSTED_REASONS.DECISION_INCONSISTENCY
+          : TRACKING_UNTRUSTED_REASONS.DECISIONS_INVALIDATED;
+      } else if (freshnessStatus === TRACKING_FRESHNESS_STATUSES.UNKNOWN) {
+        trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
+        trustReason = TRACKING_UNTRUSTED_REASONS.SOURCE_FRESHNESS_UNKNOWN;
       } else if (isStale) {
         trustStatus = TRACKING_TRUST_STATUSES.STALE;
         trustReason = TRACKING_UNTRUSTED_REASONS.SOURCE_SNAPSHOT_STALE;
-      } else if (hasDecisionInconsistency || hasInvalidated) {
-        trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
-        trustReason = "INTEGRITY_MISMATCH";
       } else if (domainCase?.ruleSet?.validationOutcome !== "PASSED") {
         trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
         trustReason = "RULE_SET_INVALID";
@@ -663,12 +896,12 @@ export class AssessmentTrackingLoader {
       actions,
       changes,
       complianceSummary: {
-        compliantCount: totalCompliant,
-        nonCompliantCount: totalNonCompliant,
-        notApplicableCount: totalNotApplicable,
-        unresolvedCount: totalUnresolved,
+        compliantCount: ownerCompliant,
+        nonCompliantCount: ownerNonCompliant,
+        notApplicableCount: ownerNotApplicable,
+        unresolvedCount: ownerUnresolved,
         totalRulesEvaluated:
-          totalCompliant + totalNonCompliant + totalNotApplicable,
+          ownerCompliant + ownerNonCompliant + ownerNotApplicable,
       },
       assessments: assessmentItems,
       pagination: {
@@ -773,14 +1006,20 @@ export class AssessmentTrackingLoader {
           },
           {
             executionState: AGENT_EXECUTION_STATES.RUNNING,
-            assessment: {
-              updatedAt: { lt: longRunningThreshold },
-            },
+            OR: [
+              { lastResumedAt: { lt: longRunningThreshold } },
+              { lastResumedAt: null, startedAt: { lt: longRunningThreshold } },
+            ],
           },
         ],
       },
-      include: {
-        assessment: { select: { updatedAt: true } },
+      select: {
+        assessmentId: true,
+        currentExecutionId: true,
+        rootAgentVersion: true,
+        executionState: true,
+        startedAt: true,
+        lastResumedAt: true,
       },
       take: 100,
     });
@@ -797,12 +1036,13 @@ export class AssessmentTrackingLoader {
           anomalyType = TRACKING_ANOMALY_TYPES.EXECUTION_INTERRUPTED;
         } else if (rt.executionState === AGENT_EXECUTION_STATES.RUNNING) {
           anomalyType = TRACKING_ANOMALY_TYPES.ABNORMAL_RUNTIME_DURATION;
-          durationSeconds = Math.max(
-            0,
-            Math.floor(
-              (now.getTime() - rt.assessment.updatedAt.getTime()) / 1000,
-            ),
-          );
+          const activeStart = rt.lastResumedAt ?? rt.startedAt;
+          durationSeconds = activeStart
+            ? Math.max(
+                0,
+                Math.floor((now.getTime() - activeStart.getTime()) / 1000),
+              )
+            : null;
         }
 
         return {
