@@ -22,6 +22,7 @@ type AssessmentConversationProps = {
   onAnswer: (answer: StructuredAnswer) => void;
   /** Rendered after the last turn inside the scroll area (e.g. a load error). */
   footer?: ReactNode;
+  targetRequestId?: string;
 };
 
 /**
@@ -35,11 +36,12 @@ export function AssessmentConversation({
   answerFailed,
   onAnswer,
   footer,
+  targetRequestId,
 }: AssessmentConversationProps) {
   return (
     <AssessmentTranscript
       ariaLabel={copy("transcriptLabel")}
-      autoScrollKey={projection.followKey}
+      autoScrollKey={targetRequestId ? undefined : projection.followKey}
       live="off"
     >
       {projection.turns.map((turn) => (

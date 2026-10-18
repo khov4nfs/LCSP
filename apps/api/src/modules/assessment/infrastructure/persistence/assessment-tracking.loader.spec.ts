@@ -52,6 +52,9 @@ interface MockSnapshot {
   commitSha?: string;
   status?: string;
   createdAt?: string | Date;
+  ownerId?: string;
+  connectionUserId?: string;
+  connectionStatus?: string;
   [key: string]: unknown;
 }
 
@@ -65,6 +68,13 @@ interface FixtureTypes {
   runtimes?: Record<string, unknown>[];
   usageEvents?: Record<string, unknown>[];
   ruleCounts?: Record<string, number>;
+  queryRawSummary?: {
+    compliantCount: number;
+    nonCompliantCount: number;
+    notApplicableCount: number;
+    unresolvedCount: number;
+  };
+  onFindManyDecision?: (where?: unknown) => void;
   counts?: {
     active?: number;
     failed?: number;
@@ -119,6 +129,75 @@ function createValidCompliantDecision(overrides: Record<string, unknown> = {}) {
 
 function buildLoader(fixtures: FixtureTypes) {
   const prisma = {
+    $queryRaw: () => {
+      if (fixtures.queryRawSummary) {
+        return Promise.resolve([fixtures.queryRawSummary]);
+      }
+      let compliant = 0;
+      let nonCompliant = 0;
+      let notApplicable = 0;
+      let unresolved = 0;
+      const coverageList = fixtures.coverage ?? [];
+      const decisionsList = fixtures.decisions ?? [];
+      const decisionsMap = new Map(decisionsList.map((d) => [d.decisionId, d]));
+      const assessmentsMap = new Map(
+        (fixtures.assessments ?? []).map((a) => [a.id, a]),
+      );
+
+      for (const cov of coverageList) {
+        const asmt = assessmentsMap.get(cov.assessmentId) as
+          | {
+              domainCase?: {
+                repositoryCommit?: string;
+                caseRevision?: number;
+                ruleSetVersionId?: string;
+                repositorySnapshotId?: string;
+              };
+            }
+          | undefined;
+        if (!asmt) continue;
+        const d =
+          typeof cov.currentDecisionId === "string"
+            ? decisionsMap.get(cov.currentDecisionId)
+            : null;
+        if (
+          !d ||
+          cov.resolutionState !== "RESOLVED" ||
+          d.state !== "ACCEPTED" ||
+          d.supersededAt != null ||
+          d.invalidatedAt != null ||
+          d.caseRevision !== asmt?.domainCase?.caseRevision ||
+          d.repositoryCommit?.toLowerCase() !==
+            asmt?.domainCase?.repositoryCommit?.toLowerCase() ||
+          d.ruleSetVersionId !== asmt?.domainCase?.ruleSetVersionId ||
+          d.scopeId !== "ASSESSMENT" ||
+          d.assessmentRuleVersion !== cov.assessmentRuleVersion
+        ) {
+          unresolved++;
+          continue;
+        }
+        const dec = d.decision as Record<string, unknown> | undefined;
+        const applicability = (dec?.applicability as string) ?? d.applicability;
+        const compliance = (dec?.compliance as string) ?? d.compliance;
+        if (applicability === "NOT_APPLICABLE") {
+          notApplicable++;
+        } else if (compliance === "COMPLIANT") {
+          compliant++;
+        } else if (compliance === "NON_COMPLIANT") {
+          nonCompliant++;
+        } else {
+          unresolved++;
+        }
+      }
+      return Promise.resolve([
+        {
+          compliantCount: compliant,
+          nonCompliantCount: nonCompliant,
+          notApplicableCount: notApplicable,
+          unresolvedCount: unresolved,
+        },
+      ]);
+    },
     assessment: {
       findMany: (args?: {
         skip?: number;
@@ -154,6 +233,7 @@ function buildLoader(fixtures: FixtureTypes) {
     },
     assessmentRuleDecision: {
       findMany: (args?: { where?: { state?: string } }) => {
+        fixtures.onFindManyDecision?.(args?.where);
         const all = fixtures.decisions ?? [];
         if (args?.where?.state === "INVALIDATED") {
           return Promise.resolve(all.filter((d) => d.state === "INVALIDATED"));
@@ -207,18 +287,52 @@ function buildLoader(fixtures: FixtureTypes) {
         return Promise.resolve(all);
       },
       findFirst: (args?: {
-        where?: { repositoryFullName?: string; ref?: string; status?: string };
+        where?: {
+          repositoryFullName?: string;
+          ref?: string;
+          status?: string;
+          OR?: Array<{
+            assessment?: { ownerId?: string };
+            connection?: { userId?: string; status?: string };
+          }>;
+        };
       }) => {
         const all = fixtures.snapshots ?? [];
         const match = all
-          .filter(
-            (s) =>
-              s.repositoryFullName === args?.where?.repositoryFullName &&
-              (!args?.where?.ref ||
-                s.ref === args.where.ref ||
-                s.branch === args.where.ref) &&
-              (!args?.where?.status || s.status === args.where.status),
-          )
+          .filter((s) => {
+            if (s.repositoryFullName !== args?.where?.repositoryFullName)
+              return false;
+            if (
+              args?.where?.ref &&
+              s.ref !== args.where.ref &&
+              s.branch !== args.where.ref
+            )
+              return false;
+            if (args?.where?.status && s.status !== args.where.status)
+              return false;
+            if (args?.where?.OR) {
+              const matchesOr = args.where.OR.some((cond) => {
+                if (s.ownerId !== undefined && cond.assessment?.ownerId) {
+                  return s.ownerId === cond.assessment.ownerId;
+                }
+                if (
+                  s.connectionUserId !== undefined &&
+                  cond.connection?.userId
+                ) {
+                  return (
+                    s.connectionUserId === cond.connection.userId &&
+                    (!cond.connection.status ||
+                      s.connectionStatus === cond.connection.status)
+                  );
+                }
+                return (
+                  s.ownerId === undefined && s.connectionUserId === undefined
+                );
+              });
+              if (!matchesOr) return false;
+            }
+            return true;
+          })
           .sort(
             (a, b) =>
               new Date(b.createdAt ?? 0).getTime() -
@@ -609,7 +723,7 @@ describe("AssessmentTrackingLoader", () => {
       ).toBe(false);
     });
 
-    it("marks unchanged cached repository snapshot with unknown live HEAD as UNKNOWN freshness", async () => {
+    it("marks unchanged cached repository snapshot with unknown live HEAD as UNKNOWN freshness while evaluating pinned result as TRUSTED", async () => {
       const assessmentId = "11111111-1111-4111-8111-111111111111";
       const now = new Date("2026-10-18T10:00:00.000Z");
 
@@ -626,7 +740,7 @@ describe("AssessmentTrackingLoader", () => {
           caseRevision: 1,
           pinnedAt: now,
           ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
-          repositorySnapshotId: "snap-payments-1",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
           repositoryScanJobId: "job-1",
           repositoryCommit: "a000000000000000000000000000000000000001",
           ruleSet: {
@@ -651,7 +765,7 @@ describe("AssessmentTrackingLoader", () => {
       // Only the pinned snapshot itself is in the DB; live remote HEAD has not been verified!
       const snapshots = [
         {
-          id: "snap-payments-1",
+          id: "00000000-0000-4000-8000-000000000002",
           repositoryFullName: "acme/payments",
           ref: "main",
           commitSha: "a000000000000000000000000000000000000001",
@@ -660,8 +774,48 @@ describe("AssessmentTrackingLoader", () => {
         },
       ];
 
+      const coverage = [
+        {
+          assessmentId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-1",
+          decisionRevision: 1,
+        },
+      ];
+      const decisions = [
+        {
+          decisionId: "dec-1",
+          assessmentId,
+          assessmentRuleId: "RULE-1",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          decision: createValidCompliantDecision({
+            repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          }),
+        },
+      ];
+      const evidence = [
+        {
+          assessmentId,
+          evidenceId: "00000000-0000-4000-8000-000000000003",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          state: "ACCEPTED",
+        },
+      ];
+
       const loader = buildLoader({
         assessments: [mockAssessment],
+        coverage,
+        decisions,
+        evidence,
         snapshots,
         ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
       });
@@ -677,14 +831,12 @@ describe("AssessmentTrackingLoader", () => {
       );
       expect(result.assessments[0].repository.isStale).toBe(false);
       expect(result.assessments[0].repository.latestCommit).toBeNull();
-      // An assessment with unknown source freshness CANNOT be TRUSTED!
+      // Historical result validity evaluated at pinned commit remains TRUSTED despite remote freshness UNKNOWN
       expect(result.assessments[0].trust.trustStatus).toBe(
-        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
+        TRACKING_TRUST_STATUSES.TRUSTED,
       );
-      expect(result.assessments[0].trust.reason).toBe(
-        TRACKING_UNTRUSTED_REASONS.SOURCE_FRESHNESS_UNKNOWN,
-      );
-      expect(result.assessments[0].trust.isTrustworthy).toBe(false);
+      expect(result.assessments[0].trust.reason).toBeNull();
+      expect(result.assessments[0].trust.isTrustworthy).toBe(true);
     });
 
     it("verifies user actions lead to correct UI screens and preserve request/artifact identity", async () => {
@@ -934,6 +1086,7 @@ describe("AssessmentTrackingLoader", () => {
           state: "ACCEPTED",
           decision: createValidCompliantDecision({
             assessmentRuleId: "RULE-1",
+            repositorySnapshotId: "snap-1",
           }),
         },
         {
@@ -949,6 +1102,7 @@ describe("AssessmentTrackingLoader", () => {
           state: "ACCEPTED",
           decision: createValidCompliantDecision({
             assessmentRuleId: "RULE-2",
+            repositorySnapshotId: "snap-2",
             evidenceId: "00000000-0000-4000-8000-000000000004",
           }),
         },
@@ -1005,6 +1159,368 @@ describe("AssessmentTrackingLoader", () => {
       // Even on page 2, complianceSummary remains identical and owner-wide!
       expect(page2.complianceSummary.compliantCount).toBe(2);
       expect(page2.complianceSummary.totalRulesEvaluated).toBe(2);
+    });
+
+    it("bounds collection read so limit=1 queries decision rows only for page assessments and relies on queryRaw for owner-wide aggregates", async () => {
+      const now = new Date("2026-10-18T10:00:00.000Z");
+      const assessmentsList = Array.from({ length: 25 }, (_, i) => ({
+        id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+        ownerId: "customer-large",
+        name: `Service ${i + 1}`,
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          repositoryScanJobId: "job-1",
+          pinnedAt: now,
+          humanRequests: [],
+          artifacts: [],
+        },
+      }));
+
+      const findManyDecisionCalls: unknown[] = [];
+      const loader = buildLoader({
+        assessments: assessmentsList,
+        queryRawSummary: {
+          compliantCount: 25,
+          nonCompliantCount: 0,
+          notApplicableCount: 0,
+          unresolvedCount: 0,
+        },
+        onFindManyDecision: (where) => {
+          findManyDecisionCalls.push(where);
+        },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-large",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-large-collection",
+        limit: 1,
+        offset: 0,
+      });
+
+      expect(result.assessments).toHaveLength(1);
+      expect(result.pagination.total).toBe(25);
+      expect(result.complianceSummary.compliantCount).toBe(25);
+      expect(result.complianceSummary.totalRulesEvaluated).toBe(25);
+
+      // Verify that all decision queries were bounded strictly to the 1 item on the requested page
+      expect(findManyDecisionCalls).toEqual([
+        {
+          assessmentId: { in: [assessmentsList[0].id] },
+          state: "ACCEPTED",
+          supersededAt: null,
+          invalidatedAt: null,
+        },
+        {
+          assessmentId: { in: [assessmentsList[0].id] },
+          state: "INVALIDATED",
+        },
+      ]);
+    });
+
+    it("scopes repository freshness query to customer provenance and avoids leaking other tenant's snapshots or spurious staleness", async () => {
+      const now = new Date("2026-10-18T10:00:00.000Z");
+      const customerAId = "customer-tenant-a";
+      const customerBId = "customer-tenant-b";
+      const asmtId = "11111111-1111-4111-8111-111111111111";
+
+      const assessmentA = {
+        id: asmtId,
+        ownerId: customerAId,
+        name: "Tenant A Repo",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          repositoryScanJobId: "job-1",
+          pinnedAt: now,
+          humanRequests: [],
+          artifacts: [],
+        },
+      };
+
+      const snapshots = [
+        {
+          id: "00000000-0000-4000-8000-000000000002",
+          repositoryFullName: "acme/shared-private-repo",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: now,
+          status: "READY",
+          ownerId: customerAId,
+        },
+        // Tenant B scans the same repo name/ref with a newer commit
+        {
+          id: "00000000-0000-4000-8000-000000000009",
+          repositoryFullName: "acme/shared-private-repo",
+          ref: "main",
+          commitSha: "b999999999999999999999999999999999999999",
+          createdAt: new Date("2026-10-18T10:05:00.000Z"),
+          status: "READY",
+          ownerId: customerBId,
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [assessmentA],
+        snapshots,
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: customerAId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-tenant-isolation",
+      });
+
+      // Tenant A must NOT observe or leak Tenant B's newer snapshot or commit
+      expect(result.assessments[0].repository.latestCommit).toBeNull();
+      expect(result.assessments[0].repository.isStale).toBe(false);
+      expect(result.assessments[0].repository.freshnessStatus).toBe(
+        TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+      );
+      expect(
+        result.changes.some(
+          (c) => c.changeType === TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+        ),
+      ).toBe(false);
+    });
+
+    it("distinguishes cached snapshot older than recency window from live HEAD (reporting UNKNOWN freshness) while maintaining TRUSTED result validity", async () => {
+      const asmtId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+      // Snapshot created 30 minutes ago (> 15 minutes REMOTE_FRESHNESS_RECENCY_MS)
+      const olderTime = new Date(now.getTime() - 30 * 60 * 1000);
+
+      const assessment = {
+        id: asmtId,
+        ownerId: "customer-1",
+        name: "Repo Service",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: olderTime,
+        updatedAt: olderTime,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          repositoryScanJobId: "job-1",
+          pinnedAt: olderTime,
+          ruleSet: {
+            id: "00000000-0000-4000-8000-000000000001",
+            version: "1.0.0",
+            supersededAt: null,
+            lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
+          },
+          humanRequests: [],
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: olderTime,
+              activatedAt: olderTime,
+              lifecycleState: "ACTIVE",
+            },
+          ],
+        },
+      };
+
+      const snapshots = [
+        {
+          id: "00000000-0000-4000-8000-000000000002",
+          repositoryFullName: "acme/repo",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: olderTime,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+        // Subsequent snapshot with same commit, but created 30 minutes ago
+        {
+          id: "00000000-0000-4000-8000-000000000003",
+          repositoryFullName: "acme/repo",
+          ref: "main",
+          commitSha: "a000000000000000000000000000000000000001",
+          createdAt: olderTime,
+          status: "READY",
+          ownerId: "customer-1",
+        },
+      ];
+
+      const coverage = [
+        {
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-1",
+          decisionRevision: 1,
+        },
+      ];
+      const decisions = [
+        {
+          decisionId: "dec-1",
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          decision: createValidCompliantDecision({
+            repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          }),
+        },
+      ];
+      const evidence = [
+        {
+          assessmentId: asmtId,
+          evidenceId: "00000000-0000-4000-8000-000000000003",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          state: "ACCEPTED",
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [assessment],
+        snapshots,
+        coverage,
+        decisions,
+        evidence,
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-recency-window",
+      });
+
+      // Older stored snapshot does NOT qualify as live HEAD: reported as UNKNOWN
+      expect(result.assessments[0].repository.freshnessStatus).toBe(
+        TRACKING_FRESHNESS_STATUSES.UNKNOWN,
+      );
+      expect(result.assessments[0].repository.latestCommit).toBeNull();
+      expect(result.assessments[0].repository.isStale).toBe(false);
+
+      // Pinned result remains fully TRUSTED
+      expect(result.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.TRUSTED,
+      );
+      expect(result.assessments[0].trust.isTrustworthy).toBe(true);
+    });
+
+    it("fails closed when decision JSON pins mismatch domain case or coverage invariants despite matching DB columns", async () => {
+      const asmtId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+
+      const assessment = {
+        id: asmtId,
+        ownerId: "customer-1",
+        name: "Tamper Test Service",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          repositoryScanJobId: "job-1",
+          pinnedAt: now,
+          ruleSet: {
+            id: "00000000-0000-4000-8000-000000000001",
+            version: "1.0.0",
+            supersededAt: null,
+            lifecycleState: "ACTIVE",
+            validationOutcome: "PASSED",
+          },
+          humanRequests: [],
+          artifacts: [
+            {
+              artifactId: "33333333-3333-4333-8333-333333333333",
+              createdAt: now,
+              activatedAt: now,
+              lifecycleState: "ACTIVE",
+            },
+          ],
+        },
+      };
+
+      const coverage = [
+        {
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-tampered",
+          decisionRevision: 1,
+        },
+      ];
+
+      // DB record columns match assessment case and coverage perfectly
+      const decisions = [
+        {
+          decisionId: "dec-tampered",
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          // BUT decision JSON contains mismatched ruleSetVersionId and repositorySnapshotId
+          decision: createValidCompliantDecision({
+            ruleSetVersionId: "00000000-0000-4000-8000-000000000099",
+            repositorySnapshotId: "00000000-0000-4000-8000-000000000099",
+          }),
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [assessment],
+        coverage,
+        decisions,
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-tamper-json",
+      });
+
+      // Mismatched JSON pins must fail closed to unresolved
+      expect(result.assessments[0].compliance.compliantCount).toBe(0);
+      expect(result.assessments[0].compliance.unresolvedCount).toBe(1);
+
+      // Trust status must be untrusted with DECISION_INCONSISTENCY
+      expect(result.assessments[0].trust.trustStatus).toBe(
+        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE,
+      );
+      expect(result.assessments[0].trust.reason).toBe(
+        TRACKING_UNTRUSTED_REASONS.DECISION_INCONSISTENCY,
+      );
+      expect(result.assessments[0].trust.isTrustworthy).toBe(false);
     });
   });
 

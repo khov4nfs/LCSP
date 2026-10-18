@@ -40,22 +40,23 @@ export function AssessmentChatView({
 
   useEffect(() => {
     if (!targetRequestId) return;
-    const el = document.querySelector(
+    const el = document.querySelector<HTMLElement>(
       `[data-human-request="${targetRequestId}"]`,
     );
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
-      if (el instanceof HTMLElement) {
-        el.focus();
-      }
+      el.focus();
     }
   }, [targetRequestId, projection.turns.length]);
 
+  const targetRequest = targetRequestId
+    ? requests.data?.requests.find(
+        (request) => request.requestId === targetRequestId,
+      )
+    : null;
   const openRequest =
-    (targetRequestId
-      ? requests.data?.requests.find(
-          (request) => request.requestId === targetRequestId,
-        )
+    (targetRequest && targetRequest.status === "OPEN"
+      ? targetRequest
       : null) ??
     requests.data?.requests.find(
       (request) => request.requestId === projection.openRequestId,
@@ -114,6 +115,7 @@ export function AssessmentChatView({
       </p>
       <AssessmentConversation
         projection={projection}
+        targetRequestId={targetRequestId}
         answerPending={answer.pending}
         answerFailed={answer.failed}
         onAnswer={(value) => void answer.submit(value)}

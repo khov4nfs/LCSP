@@ -391,3 +391,54 @@ test("the layout stays a readable, contained chat column on desktop, tablet and 
   assert.match(view, /aria-live="polite" className="sr-only"/, "a status region speaks; the log stays quiet");
   assert.doesNotMatch(`${slots}${bar}`, /(?:min-|max-)?w-\[\d{3,}px\]/);
 });
+
+test("request deep-link target renders as a focusable element with tabIndex=-1 and disables transcript auto-scroll", () => {
+  const req1Id = "11111111-1111-4111-8111-111111111111";
+  const req2Id = "22222222-2222-4222-8222-222222222222";
+  const req1 = request("OPEN", {
+    requestId: req1Id,
+    question: "First question?",
+  });
+  const req2 = request("OPEN", {
+    requestId: req2Id,
+    question: "Second question?",
+  });
+  const proj = projectConversation({
+    assessmentId: ASSESSMENT_ID,
+    events: ACTIVITY,
+    detail: detail(),
+    requests: [req1, req2],
+    repository: REPOSITORY,
+  });
+
+  const view = render(
+    <AssessmentConversation
+      projection={proj}
+      answerPending={false}
+      answerFailed={false}
+      onAnswer={noop}
+      targetRequestId={req2Id}
+    />,
+  );
+
+  const targetEl = view.querySelector<HTMLElement>(
+    `[data-human-request="${req2Id}"]`,
+  );
+  assert.ok(targetEl, "target request element must exist");
+  assert.equal(
+    targetEl.getAttribute("tabindex"),
+    "-1",
+    "target request must be focusable via tabIndex=-1",
+  );
+  assert.ok(
+    targetEl.className.includes("focus-visible:ring-2"),
+    "must have focus-visible styling",
+  );
+
+  const otherEl = view.querySelector<HTMLElement>(
+    `[data-human-request="${req1Id}"]`,
+  );
+  assert.ok(otherEl, "other request element also renders");
+  assert.equal(otherEl.getAttribute("tabindex"), "-1");
+});
+

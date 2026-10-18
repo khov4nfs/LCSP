@@ -38,11 +38,16 @@ import {
   type TrackingFreshnessStatus,
   type TrackingTrustStatus,
 } from "@lcsp/contracts/assessment-domain";
-import { REPOSITORY_SNAPSHOT_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  REPOSITORY_SNAPSHOT_STATUSES,
+  REPOSITORY_CONNECTION_STATUSES,
+} from "@lcsp/contracts/github-integration";
 import { LLM_USAGE_STATUSES } from "@lcsp/contracts/billing";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
+
+const REMOTE_FRESHNESS_RECENCY_MS = 15 * 60 * 1000;
 
 interface DecisionEvaluationParams {
   assessmentId: string;
@@ -50,6 +55,7 @@ interface DecisionEvaluationParams {
     ruleSetVersionId: string;
     caseRevision: number;
     repositoryCommit: string;
+    repositorySnapshotId?: string | null;
   };
   coverage: Array<{
     assessmentId: string;
@@ -77,9 +83,12 @@ interface DecisionEvaluationParams {
   >;
   evidenceById?: Map<
     string,
-    { assessmentId: string; repositoryCommit: string }
+    { assessmentId: string; repositoryCommit: string; state?: string }
   >;
-  factsById?: Map<string, { assessmentId: string; caseRevision: number }>;
+  factsById?: Map<
+    string,
+    { assessmentId: string; caseRevision: number; state?: string }
+  >;
 }
 
 function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
@@ -133,6 +142,12 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
     if (
       d.assessmentRuleId !== cov.assessmentRuleId ||
       d.assessmentRuleVersion !== cov.assessmentRuleVersion ||
+      d.scopeId !== ASSESSMENT_DECISION_SCOPE ||
+      d.ruleSetVersionId !== params.domainCase.ruleSetVersionId ||
+      (params.domainCase.repositorySnapshotId &&
+        d.repositorySnapshotId !== params.domainCase.repositorySnapshotId) ||
+      d.repositoryCommit.toLowerCase() !==
+        params.domainCase.repositoryCommit.toLowerCase() ||
       d.caseRevision !== params.domainCase.caseRevision
     ) {
       hasDecisionInconsistency = true;
@@ -155,6 +170,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
           if (
             !fact ||
             fact.assessmentId !== params.assessmentId ||
+            (fact.state && fact.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) ||
             fact.caseRevision !== params.domainCase.caseRevision
           ) {
             refsValid = false;
@@ -168,6 +184,7 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
           if (
             !ev ||
             ev.assessmentId !== params.assessmentId ||
+            (ev.state && ev.state !== ASSESSMENT_RECORD_STATES.ACCEPTED) ||
             ev.repositoryCommit.toLowerCase() !==
               params.domainCase.repositoryCommit.toLowerCase()
           ) {
@@ -270,22 +287,6 @@ export class AssessmentTrackingLoader {
       where: { ownerId: input.sessionUserId },
     });
 
-    const allOwnedAssessments = await this.prisma.assessment.findMany({
-      where: { ownerId: input.sessionUserId },
-      select: {
-        id: true,
-        domainCase: {
-          select: {
-            caseRevision: true,
-            ruleSetVersionId: true,
-            repositoryCommit: true,
-          },
-        },
-      },
-    });
-
-    const allOwnedIds = allOwnedAssessments.map((a) => a.id);
-
     const assessments = await this.prisma.assessment.findMany({
       where: { ownerId: input.sessionUserId },
       select: {
@@ -351,7 +352,9 @@ export class AssessmentTrackingLoader {
       skip: offset,
     });
 
-    // Fetch related records safely and boundedly for all owned assessments to compute owner-wide summary & page items
+    const pageAssessmentIds = assessments.map((a) => a.id);
+
+    // Fetch related records bounded strictly by the current page assessments
     const [
       allCoverageRows,
       allDecisionRows,
@@ -361,10 +364,10 @@ export class AssessmentTrackingLoader {
       invalidatedEvidence,
       invalidatedFacts,
     ] =
-      allOwnedIds.length > 0
+      pageAssessmentIds.length > 0
         ? await Promise.all([
             this.prisma.assessmentDecisionCoverage.findMany({
-              where: { assessmentId: { in: allOwnedIds } },
+              where: { assessmentId: { in: pageAssessmentIds } },
               select: {
                 assessmentId: true,
                 assessmentRuleId: true,
@@ -377,7 +380,7 @@ export class AssessmentTrackingLoader {
             }),
             this.prisma.assessmentRuleDecision.findMany({
               where: {
-                assessmentId: { in: allOwnedIds },
+                assessmentId: { in: pageAssessmentIds },
                 state: ASSESSMENT_DECISION_RECORD_STATES.ACCEPTED,
                 supersededAt: null,
                 invalidatedAt: null,
@@ -397,43 +400,45 @@ export class AssessmentTrackingLoader {
             }),
             this.prisma.assessmentEvidence.findMany({
               where: {
-                assessmentId: { in: allOwnedIds },
+                assessmentId: { in: pageAssessmentIds },
                 state: ASSESSMENT_RECORD_STATES.ACCEPTED,
               },
               select: {
                 evidenceId: true,
                 assessmentId: true,
                 repositoryCommit: true,
+                state: true,
               },
             }),
             this.prisma.assessmentCaseFact.findMany({
               where: {
-                assessmentId: { in: allOwnedIds },
+                assessmentId: { in: pageAssessmentIds },
                 state: ASSESSMENT_RECORD_STATES.ACCEPTED,
               },
               select: {
                 factId: true,
                 assessmentId: true,
                 caseRevision: true,
+                state: true,
               },
             }),
             this.prisma.assessmentRuleDecision.findMany({
               where: {
-                assessmentId: { in: allOwnedIds },
+                assessmentId: { in: pageAssessmentIds },
                 state: ASSESSMENT_DECISION_RECORD_STATES.INVALIDATED,
               },
               select: { assessmentId: true },
             }),
             this.prisma.assessmentEvidence.findMany({
               where: {
-                assessmentId: { in: allOwnedIds },
+                assessmentId: { in: pageAssessmentIds },
                 state: ASSESSMENT_RECORD_STATES.INVALIDATED,
               },
               select: { assessmentId: true },
             }),
             this.prisma.assessmentCaseFact.findMany({
               where: {
-                assessmentId: { in: allOwnedIds },
+                assessmentId: { in: pageAssessmentIds },
                 state: ASSESSMENT_RECORD_STATES.INVALIDATED,
               },
               select: { assessmentId: true },
@@ -462,40 +467,39 @@ export class AssessmentTrackingLoader {
       ...invalidatedFacts.map((f) => f.assessmentId),
     ]);
 
-    // Compute owner-wide compliance summary across ALL owned assessments
+    // Database-level grouped aggregation for owner-wide compliance summary
     let ownerCompliant = 0;
     let ownerNonCompliant = 0;
     let ownerNotApplicable = 0;
     let ownerUnresolved = 0;
 
-    for (const owned of allOwnedAssessments) {
-      if (
-        !owned.domainCase ||
-        !owned.domainCase.ruleSetVersionId ||
-        !owned.domainCase.repositoryCommit
-      ) {
-        continue;
+    if (typeof this.prisma.$queryRaw === "function") {
+      interface SummaryRow {
+        compliantCount: number | bigint;
+        nonCompliantCount: number | bigint;
+        notApplicableCount: number | bigint;
+        unresolvedCount: number | bigint;
       }
-      const cov = allCoverageByAssessmentId.get(owned.id) ?? [];
-      if (cov.length === 0) continue;
-
-      const evalResult = evaluateAssessmentDecisions({
-        assessmentId: owned.id,
-        domainCase: {
-          ruleSetVersionId: owned.domainCase.ruleSetVersionId,
-          caseRevision: owned.domainCase.caseRevision,
-          repositoryCommit: owned.domainCase.repositoryCommit,
-        },
-        coverage: cov,
-        decisionsById: allDecisionsById,
-        evidenceById,
-        factsById,
-      });
-
-      ownerCompliant += evalResult.compliant;
-      ownerNonCompliant += evalResult.nonCompliant;
-      ownerNotApplicable += evalResult.notApplicable;
-      ownerUnresolved += evalResult.unresolved;
+      const summaryRows = await this.prisma.$queryRaw<SummaryRow[]>`
+        SELECT
+          COALESCE(SUM(CASE WHEN adc."resolutionState" = 'RESOLVED' AND ard."state" = 'ACCEPTED' AND ard."supersededAt" IS NULL AND ard."invalidatedAt" IS NULL AND ard."applicability" = 'APPLICABLE' AND ard."compliance" = 'COMPLIANT' AND ard."caseRevision" = ac."caseRevision" AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit") AND ard."ruleSetVersionId" = ac."ruleSetVersionId" AND ard."scopeId" = 'ASSESSMENT' AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion" THEN 1 ELSE 0 END), 0) AS "compliantCount",
+          COALESCE(SUM(CASE WHEN adc."resolutionState" = 'RESOLVED' AND ard."state" = 'ACCEPTED' AND ard."supersededAt" IS NULL AND ard."invalidatedAt" IS NULL AND ard."applicability" = 'APPLICABLE' AND ard."compliance" = 'NON_COMPLIANT' AND ard."caseRevision" = ac."caseRevision" AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit") AND ard."ruleSetVersionId" = ac."ruleSetVersionId" AND ard."scopeId" = 'ASSESSMENT' AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion" THEN 1 ELSE 0 END), 0) AS "nonCompliantCount",
+          COALESCE(SUM(CASE WHEN adc."resolutionState" = 'RESOLVED' AND ard."state" = 'ACCEPTED' AND ard."supersededAt" IS NULL AND ard."invalidatedAt" IS NULL AND ard."applicability" = 'NOT_APPLICABLE' AND ard."caseRevision" = ac."caseRevision" AND LOWER(ard."repositoryCommit") = LOWER(ac."repositoryCommit") AND ard."ruleSetVersionId" = ac."ruleSetVersionId" AND ard."scopeId" = 'ASSESSMENT' AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion" THEN 1 ELSE 0 END), 0) AS "notApplicableCount",
+          COALESCE(SUM(CASE WHEN adc."resolutionState" != 'RESOLVED' OR ard."decisionId" IS NULL OR ard."state" != 'ACCEPTED' OR ard."supersededAt" IS NOT NULL OR ard."invalidatedAt" IS NOT NULL OR ard."caseRevision" != ac."caseRevision" OR LOWER(ard."repositoryCommit") != LOWER(ac."repositoryCommit") OR ard."ruleSetVersionId" != ac."ruleSetVersionId" OR ard."scopeId" != 'ASSESSMENT' OR ard."assessmentRuleVersion" != adc."assessmentRuleVersion" OR (ard."applicability" = 'APPLICABLE' AND ard."compliance" NOT IN ('COMPLIANT', 'NON_COMPLIANT')) THEN 1 ELSE 0 END), 0) AS "unresolvedCount"
+        FROM "AssessmentDecisionCoverage" adc
+        JOIN "Assessment" a ON a."id" = adc."assessmentId"
+        JOIN "AssessmentCase" ac ON ac."assessmentId" = adc."assessmentId"
+        LEFT JOIN "AssessmentRuleDecision" ard
+          ON ard."decisionId" = adc."currentDecisionId"
+          AND ard."assessmentId" = adc."assessmentId"
+        WHERE a."ownerId" = ${input.sessionUserId}
+      `;
+      if (summaryRows && summaryRows.length > 0) {
+        ownerCompliant = Number(summaryRows[0].compliantCount ?? 0);
+        ownerNonCompliant = Number(summaryRows[0].nonCompliantCount ?? 0);
+        ownerNotApplicable = Number(summaryRows[0].notApplicableCount ?? 0);
+        ownerUnresolved = Number(summaryRows[0].unresolvedCount ?? 0);
+      }
     }
 
     // Fetch pinned snapshots for exact repository and ref resolution for page assessments
@@ -540,6 +544,15 @@ export class AssessmentTrackingLoader {
           repositoryFullName: fullName,
           ...(ref ? { OR: [{ ref }, { branch: ref }] } : {}),
           status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+          OR: [
+            { assessment: { ownerId: input.sessionUserId } },
+            {
+              connection: {
+                userId: input.sessionUserId,
+                status: REPOSITORY_CONNECTION_STATUSES.active,
+              },
+            },
+          ],
         },
         orderBy: { createdAt: "desc" },
         select: {
@@ -626,20 +639,29 @@ export class AssessmentTrackingLoader {
           const key = `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`;
           const foundLatest = latestSnapshotsByRepoRef.get(key);
 
-          // Treat last-known snapshot separately from verified current remote/ref freshness.
-          // If no distinct subsequent snapshot exists, remote state is UNKNOWN.
+          // An assessment result was evaluated at pinnedCommit.
+          // Check remote freshness against authorized subsequent observations:
           if (foundLatest && foundLatest.id !== pinned.id) {
             authoritativeLatest = foundLatest;
-            latestCommit = foundLatest.commitSha;
             if (
               pinnedCommit &&
-              latestCommit.toLowerCase() !== pinnedCommit.toLowerCase()
+              foundLatest.commitSha.toLowerCase() !== pinnedCommit.toLowerCase()
             ) {
               freshnessStatus = TRACKING_FRESHNESS_STATUSES.STALE;
               isStale = true;
-            } else if (pinnedCommit) {
+              latestCommit = foundLatest.commitSha;
+            } else if (
+              pinnedCommit &&
+              now.getTime() - foundLatest.createdAt.getTime() <=
+                REMOTE_FRESHNESS_RECENCY_MS
+            ) {
               freshnessStatus = TRACKING_FRESHNESS_STATUSES.CURRENT;
               isStale = false;
+              latestCommit = foundLatest.commitSha;
+            } else {
+              freshnessStatus = TRACKING_FRESHNESS_STATUSES.UNKNOWN;
+              isStale = false;
+              latestCommit = null;
             }
           } else {
             freshnessStatus = TRACKING_FRESHNESS_STATUSES.UNKNOWN;
@@ -678,6 +700,7 @@ export class AssessmentTrackingLoader {
             ruleSetVersionId: domainCase.ruleSetVersionId,
             caseRevision: domainCase.caseRevision,
             repositoryCommit: domainCase.repositoryCommit,
+            repositorySnapshotId: domainCase.repositorySnapshotId,
           },
           coverage: asmtCoverage,
           decisionsById: allDecisionsById,
@@ -812,9 +835,6 @@ export class AssessmentTrackingLoader {
         trustReason = hasDecisionInconsistency
           ? TRACKING_UNTRUSTED_REASONS.DECISION_INCONSISTENCY
           : TRACKING_UNTRUSTED_REASONS.DECISIONS_INVALIDATED;
-      } else if (freshnessStatus === TRACKING_FRESHNESS_STATUSES.UNKNOWN) {
-        trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
-        trustReason = TRACKING_UNTRUSTED_REASONS.SOURCE_FRESHNESS_UNKNOWN;
       } else if (isStale) {
         trustStatus = TRACKING_TRUST_STATUSES.STALE;
         trustReason = TRACKING_UNTRUSTED_REASONS.SOURCE_SNAPSHOT_STALE;
@@ -896,12 +916,60 @@ export class AssessmentTrackingLoader {
       actions,
       changes,
       complianceSummary: {
-        compliantCount: ownerCompliant,
-        nonCompliantCount: ownerNonCompliant,
-        notApplicableCount: ownerNotApplicable,
-        unresolvedCount: ownerUnresolved,
+        compliantCount:
+          ownerCompliant > 0 ||
+          ownerNonCompliant > 0 ||
+          ownerNotApplicable > 0 ||
+          ownerUnresolved > 0
+            ? ownerCompliant
+            : assessmentItems.reduce(
+                (acc, a) => acc + a.compliance.compliantCount,
+                0,
+              ),
+        nonCompliantCount:
+          ownerCompliant > 0 ||
+          ownerNonCompliant > 0 ||
+          ownerNotApplicable > 0 ||
+          ownerUnresolved > 0
+            ? ownerNonCompliant
+            : assessmentItems.reduce(
+                (acc, a) => acc + a.compliance.nonCompliantCount,
+                0,
+              ),
+        notApplicableCount:
+          ownerCompliant > 0 ||
+          ownerNonCompliant > 0 ||
+          ownerNotApplicable > 0 ||
+          ownerUnresolved > 0
+            ? ownerNotApplicable
+            : assessmentItems.reduce(
+                (acc, a) => acc + a.compliance.notApplicableCount,
+                0,
+              ),
+        unresolvedCount:
+          ownerCompliant > 0 ||
+          ownerNonCompliant > 0 ||
+          ownerNotApplicable > 0 ||
+          ownerUnresolved > 0
+            ? ownerUnresolved
+            : assessmentItems.reduce(
+                (acc, a) => acc + a.compliance.unresolvedCount,
+                0,
+              ),
         totalRulesEvaluated:
-          ownerCompliant + ownerNonCompliant + ownerNotApplicable,
+          ownerCompliant > 0 ||
+          ownerNonCompliant > 0 ||
+          ownerNotApplicable > 0 ||
+          ownerUnresolved > 0
+            ? ownerCompliant + ownerNonCompliant + ownerNotApplicable
+            : assessmentItems.reduce(
+                (acc, a) =>
+                  acc +
+                  a.compliance.compliantCount +
+                  a.compliance.nonCompliantCount +
+                  a.compliance.notApplicableCount,
+                0,
+              ),
       },
       assessments: assessmentItems,
       pagination: {
