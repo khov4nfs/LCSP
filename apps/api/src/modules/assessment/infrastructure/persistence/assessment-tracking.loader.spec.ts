@@ -323,8 +323,31 @@ function buildLoader(fixtures: FixtureTypes) {
       },
     },
     assessmentHumanRequest: {
-      findMany: (args?: { where?: { status?: string } }) => {
-        const requests: Array<Record<string, unknown>> = [];
+      count: (args?: { where?: { status?: string } }) => {
+        let count = 0;
+        for (const a of fixtures.assessments ?? []) {
+          const dc = a.domainCase as
+            { humanRequests?: Array<Record<string, unknown>> } | undefined;
+          if (dc?.humanRequests) {
+            for (const hr of dc.humanRequests) {
+              if (
+                !args?.where?.status ||
+                hr.status === args.where.status ||
+                (!hr.status && args.where.status === "OPEN")
+              ) {
+                count++;
+              }
+            }
+          }
+        }
+        return Promise.resolve(count);
+      },
+      findMany: (args?: {
+        where?: { status?: string };
+        skip?: number;
+        take?: number;
+      }) => {
+        let requests: Array<Record<string, unknown>> = [];
         for (const a of fixtures.assessments ?? []) {
           const dc = a.domainCase as
             { humanRequests?: Array<Record<string, unknown>> } | undefined;
@@ -348,6 +371,11 @@ function buildLoader(fixtures: FixtureTypes) {
               }
             }
           }
+        }
+        if (args?.skip !== undefined || args?.take !== undefined) {
+          const start = args.skip ?? 0;
+          const end = args.take !== undefined ? start + args.take : undefined;
+          requests = requests.slice(start, end);
         }
         return Promise.resolve(requests);
       },

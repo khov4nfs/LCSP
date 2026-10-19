@@ -857,6 +857,8 @@ export type TrackingPagination = z.infer<typeof trackingPaginationSchema>;
 export const customerTrackingOverviewSchema = z.strictObject({
   actions: z.array(customerTrackingActionItemSchema),
   changes: z.array(customerTrackingChangeItemSchema),
+  actionsPagination: trackingPaginationSchema.optional(),
+  changesPagination: trackingPaginationSchema.optional(),
   complianceSummary: customerTrackingComplianceSummarySchema,
   assessments: z.array(customerTrackingAssessmentItemSchema),
   pagination: trackingPaginationSchema,

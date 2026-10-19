@@ -27,6 +27,10 @@ export class AssessmentTrackingController {
     @Req() request: AuthenticatedRequest,
     @Query("limit") limit?: string,
     @Query("offset") offset?: string,
+    @Query("actionsLimit") actionsLimit?: string,
+    @Query("actionsOffset") actionsOffset?: string,
+    @Query("changesLimit") changesLimit?: string,
+    @Query("changesOffset") changesOffset?: string,
     @Query("since") since?: string,
     @Query("locale") locale?: string,
   ) {
@@ -37,6 +41,10 @@ export class AssessmentTrackingController {
       correlationId,
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined,
+      actionsLimit: actionsLimit ? Number(actionsLimit) : undefined,
+      actionsOffset: actionsOffset ? Number(actionsOffset) : undefined,
+      changesLimit: changesLimit ? Number(changesLimit) : undefined,
+      changesOffset: changesOffset ? Number(changesOffset) : undefined,
       since: since || undefined,
       locale: locale || undefined,
     });

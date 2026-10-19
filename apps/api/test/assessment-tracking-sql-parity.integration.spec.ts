@@ -46,7 +46,10 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     await prisma.assessment.deleteMany({ where: { ownerId: userId } });
   }
 
-  async function seedPinnedRepository(assessmentId: string) {
+  async function seedPinnedRepository(
+    assessmentId: string,
+    repoFullName = "org/test-repo",
+  ) {
     const connectionId = `conn-${randomUUID()}`;
     const snapshotId = randomUUID();
     const scanJobId = randomUUID();
@@ -59,7 +62,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
         installationId: `inst-${connectionId}`,
         repositoryId: `repo-${connectionId}`,
         repositoryName: "test-repo",
-        repositoryFullName: "org/test-repo",
+        repositoryFullName: repoFullName,
         defaultBranch: "main",
         permissions: { contents: "READ" },
         status: "ACTIVE",
@@ -72,7 +75,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
         assessmentId,
         connectionId,
         repositoryId: `repo-${connectionId}`,
-        repositoryFullName: "org/test-repo",
+        repositoryFullName: repoFullName,
         branch: "main",
         ref: "refs/heads/main",
         commitSha,
@@ -95,7 +98,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       },
     });
 
-    return { snapshotId, scanJobId };
+    return { connectionId, snapshotId, scanJobId };
   }
 
   async function resolveDecisionCoverage(
@@ -664,4 +667,391 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       `/assessments/${offPageAssessmentId}/report?artifactId=${artifactId}`,
     );
   }, 60_000);
+
+  it("proves SQL summary and per-assessment SafeParse fail closed on malformed nonempty references ([{}]) and legalContextRefs ([{}])", async () => {
+    // 1. Assessment with decision containing references: [{}]
+    const assessmentId1 = randomUUID();
+    const decisionId1 = randomUUID();
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId1,
+        ownerId: userId,
+        name: "Malformed Ref Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+    const { snapshotId: s1, scanJobId: j1 } =
+      await seedPinnedRepository(assessmentId1);
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId: assessmentId1,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: s1,
+        repositoryScanJobId: j1,
+        pinnedAt: new Date(),
+      },
+    });
+
+    const evId = randomUUID();
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId: evId,
+        assessmentId: assessmentId1,
+        state: "ACCEPTED",
+        type: "REPOSITORY_SOURCE",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"3".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    // Valid pins, valid criteria outcome, BUT references has element lacking type: [{}]
+    const malformedRefPayload = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: s1,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale:
+        "Rule claimed compliant but references has empty object element",
+      references: [{}], // Non-empty array, but element lacks type
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion met",
+          references: [{}], // Also lacks type
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId: decisionId1,
+        assessmentId: assessmentId1,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId1}`,
+        requestDigest: "digest",
+        decision: malformedRefPayload,
+      },
+    });
+    await resolveDecisionCoverage(assessmentId1, "RULE-1", decisionId1);
+
+    const result1 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-parity-malformed-ref-${randomUUID()}`,
+    });
+
+    // Real PostgreSQL production SQL query AND per-assessment SafeParse MUST reject decision with references: [{}]
+    expect(result1.complianceSummary.compliantCount).toBe(0);
+    expect(result1.complianceSummary.unresolvedCount).toBe(1);
+    expect(result1.assessments[0].compliance.compliantCount).toBe(0);
+    expect(result1.assessments[0].compliance.unresolvedCount).toBe(1);
+
+    // 2. Now test legalContextRefs: [{}] (non-empty array, but element lacks legalContextId)
+    const assessmentId2 = randomUUID();
+    const decisionId2 = randomUUID();
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId2,
+        ownerId: userId,
+        name: "Malformed LCR Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+    const { snapshotId: s2, scanJobId: j2 } =
+      await seedPinnedRepository(assessmentId2);
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId: assessmentId2,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: s2,
+        repositoryScanJobId: j2,
+        pinnedAt: new Date(),
+      },
+    });
+
+    const evId2 = randomUUID();
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId: evId2,
+        assessmentId: assessmentId2,
+        state: "ACCEPTED",
+        type: "REPOSITORY_SOURCE",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"4".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const malformedLegalContextPayload = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: s2,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{}], // Lacks legalContextId
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale:
+        "Rule claimed compliant but legalContextRefs has empty object element",
+      references: [
+        {
+          type: "ASSESSMENT_EVIDENCE",
+          evidenceId: evId2,
+        },
+      ],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion met",
+          references: [
+            {
+              type: "ASSESSMENT_EVIDENCE",
+              evidenceId: evId2,
+            },
+          ],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId: decisionId2,
+        assessmentId: assessmentId2,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId2}`,
+        requestDigest: "digest",
+        decision: malformedLegalContextPayload,
+      },
+    });
+    await resolveDecisionCoverage(assessmentId2, "RULE-1", decisionId2);
+
+    const result2 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-parity-malformed-lcr-${randomUUID()}`,
+    });
+
+    // Real PostgreSQL production SQL query AND per-assessment SafeParse MUST reject decision with legalContextRefs: [{}]
+    expect(result2.complianceSummary.compliantCount).toBe(0);
+    expect(result2.complianceSummary.unresolvedCount).toBe(2);
+    expect(result2.assessments[0].compliance.compliantCount).toBe(0);
+    expect(result2.assessments[0].compliance.unresolvedCount).toBe(1);
+    expect(result2.assessments[1].compliance.compliantCount).toBe(0);
+    expect(result2.assessments[1].compliance.unresolvedCount).toBe(1);
+  });
+
+  it("evaluates staleness across >100 pinned assessments without 100-cap truncation so assessment #105 receives REASSESSMENT_REQUIRED", async () => {
+    const totalAssessments = 105;
+    const assessmentIds: string[] = [];
+    let oldestConnectionId = "";
+
+    // Create 105 assessments for userId
+    for (let i = 0; i < totalAssessments; i++) {
+      const aId = randomUUID();
+      assessmentIds.push(aId);
+      const isOldest = i === 0;
+      const repoFullName = isOldest
+        ? "org/stale-candidate-repo"
+        : `org/repo-${i}`;
+
+      await prisma.assessment.create({
+        data: {
+          id: aId,
+          ownerId: userId,
+          name: `Assessment ${i + 1}`,
+          lifecycleState: "ACTIVE",
+          lifecycleRevision: 1,
+          createdAt: new Date(Date.now() - (totalAssessments - i) * 60_000),
+          updatedAt: new Date(Date.now() - (totalAssessments - i) * 60_000),
+        },
+      });
+
+      const { connectionId, snapshotId, scanJobId } =
+        await seedPinnedRepository(aId, repoFullName);
+
+      if (isOldest) {
+        oldestConnectionId = connectionId;
+      }
+
+      await prisma.assessmentCase.create({
+        data: {
+          assessmentId: aId,
+          caseRevision: 1,
+          ruleSetVersionId,
+          repositoryCommit: commitSha,
+          repositorySnapshotId: snapshotId,
+          repositoryScanJobId: scanJobId,
+          pinnedAt: new Date(),
+        },
+      });
+    }
+
+    const candidateAssessmentId = assessmentIds[0]; // Oldest assessment, sits at position 105 in updatedAt desc
+    const newerCommitSha = "b0000000000000000000000000000000000000002";
+    const newestSnapshotId = randomUUID();
+
+    // Add a newer snapshot on the same repo+branch for the candidate assessment
+    await prisma.repositorySnapshot.create({
+      data: {
+        id: newestSnapshotId,
+        assessmentId: candidateAssessmentId,
+        connectionId: oldestConnectionId,
+        repositoryId: `repo-${oldestConnectionId}`,
+        repositoryFullName: "org/stale-candidate-repo",
+        branch: "main",
+        ref: "refs/heads/main",
+        commitSha: newerCommitSha,
+        providerMetadata: { source: "test" },
+        actorId: userId,
+        status: "READY",
+        createdAt: new Date(),
+      },
+    });
+
+    const overview = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-over-100-${randomUUID()}`,
+      limit: 50,
+      offset: 0,
+    });
+
+    // The candidate assessment is #105, far beyond page 1 and beyond a 100-item cap
+    const change = overview.changes.find(
+      (c) =>
+        c.assessmentId === candidateAssessmentId &&
+        c.changeType === TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+    );
+    expect(change).toBeDefined();
+    expect(change?.description).toContain("b000000");
+  }, 120_000);
+
+  it("paginates global actions and changes with completeness metadata beyond 50 items (51st request contract)", async () => {
+    const assessmentId = randomUUID();
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Queue Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    const threadId = randomUUID();
+    await prisma.assessmentRuntime.create({
+      data: {
+        assessmentId,
+        threadId,
+        rootAgentVersion: "1.0.0",
+        checkpointNamespace: "assessment",
+        executionState: "RUNNING",
+      },
+    });
+
+    // Create 51 open human requests
+    for (let i = 0; i < 51; i++) {
+      await prisma.assessmentHumanRequest.create({
+        data: {
+          requestId: randomUUID(),
+          assessmentId,
+          threadId,
+          assessmentRuleId: "RULE-1",
+          criterionIds: ["crit-1"],
+          question: `Human Question ${i + 1}`,
+          unresolvedFact: `fact-${i + 1}`,
+          decisionImpact: ["impact"],
+          resolutionAttempts: [],
+          controlType: "FREE_TEXT",
+          choices: [],
+          status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+          caseRevision: 1,
+          createdAt: new Date(Date.now() - (51 - i) * 1000),
+        },
+      });
+    }
+
+    // Page 1 of actions (default limit 50, offset 0)
+    const page1 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-actions-p1-${randomUUID()}`,
+      actionsLimit: 50,
+      actionsOffset: 0,
+    });
+
+    expect(page1.actionsPagination).toEqual({
+      total: 51,
+      limit: 50,
+      offset: 0,
+      hasMore: true,
+    });
+    expect(page1.actions).toHaveLength(50);
+
+    // Page 2 of actions (offset 50)
+    const page2 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-actions-p2-${randomUUID()}`,
+      actionsLimit: 50,
+      actionsOffset: 50,
+    });
+
+    expect(page2.actionsPagination).toEqual({
+      total: 51,
+      limit: 50,
+      offset: 50,
+      hasMore: false,
+    });
+    expect(page2.actions).toHaveLength(1);
+    expect(page2.actions[0].question).toBe("Human Question 1");
+  });
 });

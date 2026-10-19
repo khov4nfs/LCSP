@@ -110,6 +110,18 @@ describe("AssessmentTrackingControllers", () => {
       offset: 0,
       hasMore: false,
     },
+    actionsPagination: {
+      total: 1,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    },
+    changesPagination: {
+      total: 0,
+      limit: 50,
+      offset: 0,
+      hasMore: false,
+    },
     correlationId: "corr-1",
     generatedAt: new Date().toISOString(),
   };
@@ -220,6 +232,40 @@ describe("AssessmentTrackingControllers", () => {
         correlationId: "test-corr-id",
         limit: undefined,
         offset: undefined,
+        actionsLimit: undefined,
+        actionsOffset: undefined,
+        changesLimit: undefined,
+        changesOffset: undefined,
+        since: undefined,
+        locale: undefined,
+      });
+    });
+
+    it("parses and forwards actions and changes pagination query params", async () => {
+      currentRole = AUTH_USER_ROLES.customer;
+      currentUserId = "cust-1";
+
+      const res = await supertest(server)
+        .get(
+          "/assessments/tracking/overview?limit=10&offset=5&actionsLimit=20&actionsOffset=10&changesLimit=30&changesOffset=15",
+        )
+        .expect(HttpStatus.OK);
+
+      expect(res.body).toEqual({
+        ok: true,
+        data: mockOverview,
+      });
+
+      expect(loadCustomerOverview).toHaveBeenCalledWith({
+        sessionUserId: "cust-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "test-corr-id",
+        limit: 10,
+        offset: 5,
+        actionsLimit: 20,
+        actionsOffset: 10,
+        changesLimit: 30,
+        changesOffset: 15,
         since: undefined,
         locale: undefined,
       });

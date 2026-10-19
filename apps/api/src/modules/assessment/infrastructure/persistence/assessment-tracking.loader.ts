@@ -271,12 +271,32 @@ export class AssessmentTrackingLoader {
     correlationId: string;
     limit?: number;
     offset?: number;
+    actionsLimit?: number;
+    actionsOffset?: number;
+    changesLimit?: number;
+    changesOffset?: number;
     since?: string;
     locale?: string;
   }): Promise<CustomerTrackingOverview> {
     const now = new Date();
     const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 100);
     const offset = Math.max(Number(input.offset) || 0, 0);
+    const effectiveActionsLimit = Math.min(
+      Math.max(Number(input.actionsLimit) || Math.max(limit, 50), 1),
+      100,
+    );
+    const effectiveActionsOffset = Math.max(
+      Number(input.actionsOffset) || 0,
+      0,
+    );
+    const effectiveChangesLimit = Math.min(
+      Math.max(Number(input.changesLimit) || Math.max(limit, 50), 1),
+      100,
+    );
+    const effectiveChangesOffset = Math.max(
+      Number(input.changesOffset) || 0,
+      0,
+    );
     const isVi = input.locale === "vi";
     const sinceTime = input.since ? new Date(input.since).getTime() : 0;
 
@@ -284,6 +304,18 @@ export class AssessmentTrackingLoader {
       return customerTrackingOverviewSchema.parse({
         actions: [],
         changes: [],
+        actionsPagination: {
+          total: 0,
+          limit: effectiveActionsLimit,
+          offset: effectiveActionsOffset,
+          hasMore: false,
+        },
+        changesPagination: {
+          total: 0,
+          limit: effectiveChangesLimit,
+          offset: effectiveChangesOffset,
+          hasMore: false,
+        },
         complianceSummary: {
           compliantCount: 0,
           nonCompliantCount: 0,
@@ -538,6 +570,16 @@ export class AssessmentTrackingLoader {
               )
               AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
               AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array' THEN (ard."decision"::jsonb)->'legalContextRefs' ELSE '[]'::jsonb END) >= 1
+              AND NOT EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(
+                  CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
+                    THEN (ard."decision"::jsonb)->'legalContextRefs'
+                    ELSE '[]'::jsonb END
+                ) lcr
+                WHERE lcr->>'legalContextId' IS NULL
+                  OR length(trim(lcr->>'legalContextId')) = 0
+              )
               AND (ard."decision"->>'rationale') IS NOT NULL
               AND length(trim(ard."decision"->>'rationale')) > 0
               AND jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
@@ -608,22 +650,30 @@ export class AssessmentTrackingLoader {
                   ) crit
                 ) all_refs
                 WHERE (
-                  all_refs.ref->>'type' NOT IN ('ASSESSMENT_EVIDENCE', 'CONFIRMED_FACT')
+                  all_refs.ref->>'type' IS NULL
+                  OR all_refs.ref->>'type' NOT IN ('ASSESSMENT_EVIDENCE', 'CONFIRMED_FACT')
                   OR (
                     all_refs.ref->>'type' = 'ASSESSMENT_EVIDENCE'
-                    AND NOT EXISTS (
-                      SELECT 1 FROM "AssessmentEvidence" ae
-                      WHERE ae."evidenceId"::text = all_refs.ref->>'evidenceId'
-                        AND ae."assessmentId" = adc."assessmentId"
-                        AND ae."state" = 'ACCEPTED'
-                        AND ae."invalidatedAt" IS NULL
-                        AND LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
+                    AND (
+                      all_refs.ref->>'evidenceId' IS NULL
+                      OR length(trim(all_refs.ref->>'evidenceId')) = 0
+                      OR NOT EXISTS (
+                        SELECT 1 FROM "AssessmentEvidence" ae
+                        WHERE ae."evidenceId"::text = all_refs.ref->>'evidenceId'
+                          AND ae."assessmentId" = adc."assessmentId"
+                          AND ae."state" = 'ACCEPTED'
+                          AND ae."invalidatedAt" IS NULL
+                          AND LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
+                      )
                     )
                   )
                   OR (
                     all_refs.ref->>'type' = 'CONFIRMED_FACT'
                     AND (
-                      all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
+                      all_refs.ref->>'factId' IS NULL
+                      OR length(trim(all_refs.ref->>'factId')) = 0
+                      OR all_refs.ref->>'caseRevision' IS NULL
+                      OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
                       OR NOT EXISTS (
                         SELECT 1 FROM "AssessmentCaseFact" af
                         WHERE af."factId"::text = all_refs.ref->>'factId'
@@ -663,16 +713,22 @@ export class AssessmentTrackingLoader {
 
     // 1. Dedicated owner-wide Actions queue: open human requests across all owned assessments
     const actions: CustomerTrackingActionItem[] = [];
+    const actionsWhere = {
+      status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+      assessmentCase: {
+        assessment: {
+          ownerId: input.sessionUserId,
+        },
+      },
+    };
+    const totalOpenHumanRequests =
+      await this.prisma.assessmentHumanRequest.count({
+        where: actionsWhere,
+      });
+
     const openHumanRequests = await this.prisma.assessmentHumanRequest.findMany(
       {
-        where: {
-          status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
-          assessmentCase: {
-            assessment: {
-              ownerId: input.sessionUserId,
-            },
-          },
-        },
+        where: actionsWhere,
         select: {
           requestId: true,
           assessmentId: true,
@@ -692,7 +748,8 @@ export class AssessmentTrackingLoader {
           },
         },
         orderBy: { createdAt: "desc" },
-        take: Math.max(limit, 50),
+        skip: effectiveActionsOffset,
+        take: effectiveActionsLimit,
       },
     );
 
@@ -827,7 +884,7 @@ export class AssessmentTrackingLoader {
           },
         },
       },
-      take: 100,
+      orderBy: { assessment: { updatedAt: "desc" } },
     });
 
     // Fetch pinned snapshots for exact repository and ref resolution for page assessments and candidate cases
@@ -1200,14 +1257,30 @@ export class AssessmentTrackingLoader {
       return true;
     });
 
-    deduplicatedChanges.sort(
-      (a, b) =>
-        new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+    const actionsPagination = {
+      total: totalOpenHumanRequests,
+      limit: effectiveActionsLimit,
+      offset: effectiveActionsOffset,
+      hasMore: effectiveActionsOffset + actions.length < totalOpenHumanRequests,
+    };
+
+    const totalChanges = deduplicatedChanges.length;
+    const paginatedChanges = deduplicatedChanges.slice(
+      effectiveChangesOffset,
+      effectiveChangesOffset + effectiveChangesLimit,
     );
+    const changesPagination = {
+      total: totalChanges,
+      limit: effectiveChangesLimit,
+      offset: effectiveChangesOffset,
+      hasMore: effectiveChangesOffset + paginatedChanges.length < totalChanges,
+    };
 
     return customerTrackingOverviewSchema.parse({
-      actions: actions.slice(0, Math.max(limit, 50)),
-      changes: deduplicatedChanges.slice(0, Math.max(limit, 50)),
+      actions,
+      changes: paginatedChanges,
+      actionsPagination,
+      changesPagination,
       complianceSummary: {
         compliantCount: ownerCompliant,
         nonCompliantCount: ownerNonCompliant,
