@@ -521,6 +521,7 @@ export class AssessmentTrackingLoader {
               AND ard."scopeId" = 'ASSESSMENT'
               AND ard."assessmentRuleVersion" = adc."assessmentRuleVersion"
               AND ard."decisionRevision" = adc."decisionRevision"
+              AND ard."assessmentRuleId" = adc."assessmentRuleId"
               AND ard."decision" IS NOT NULL
               AND jsonb_typeof(ard."decision"::jsonb) = 'object'
               AND ard."decision"->>'assessmentRuleId' = adc."assessmentRuleId"
@@ -535,41 +536,103 @@ export class AssessmentTrackingLoader {
                 (ard."compliance" IS NULL AND ard."decision"->>'compliance' IS NULL)
                 OR (ard."decision"->>'compliance' = ard."compliance"::text)
               )
-              AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+              AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
+              AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array' THEN (ard."decision"::jsonb)->'legalContextRefs' ELSE '[]'::jsonb END) >= 1
+              AND (ard."decision"->>'rationale') IS NOT NULL
+              AND length(trim(ard."decision"->>'rationale')) > 0
+              AND jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
+              AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array' THEN (ard."decision"::jsonb)->'references' ELSE '[]'::jsonb END) >= 1
+              AND (
+                CASE
+                  WHEN ard."applicability" = 'APPLICABLE' THEN (
+                    ard."compliance" IN ('COMPLIANT', 'NON_COMPLIANT')
+                    AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+                    AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) >= 1
+                    AND (
+                      SELECT count(DISTINCT crit->>'criterionId')
+                      FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
+                    ) = jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END)
+                    AND NOT EXISTS (
+                      SELECT 1
+                      FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
+                      WHERE crit->>'criterionId' IS NULL
+                        OR length(trim(crit->>'criterionId')) = 0
+                        OR crit->>'outcome' NOT IN ('MET', 'NOT_MET')
+                        OR crit->>'rationale' IS NULL
+                        OR length(trim(crit->>'rationale')) = 0
+                        OR jsonb_typeof(crit->'references') <> 'array'
+                        OR jsonb_array_length(CASE WHEN jsonb_typeof(crit->'references') = 'array' THEN crit->'references' ELSE '[]'::jsonb END) < 1
+                    )
+                    AND CASE
+                      WHEN ard."compliance" = 'NON_COMPLIANT' THEN
+                        EXISTS (
+                          SELECT 1
+                          FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
+                          WHERE crit->>'outcome' = 'NOT_MET'
+                        )
+                      WHEN ard."compliance" = 'COMPLIANT' THEN
+                        NOT EXISTS (
+                          SELECT 1
+                          FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
+                          WHERE crit->>'outcome' = 'NOT_MET'
+                        )
+                      ELSE false
+                    END
+                  )
+                  WHEN ard."applicability" = 'NOT_APPLICABLE' THEN (
+                    ard."compliance" IS NULL
+                    AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+                    AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) = 0
+                  )
+                  ELSE false
+                END
+              )
               AND NOT EXISTS (
                 SELECT 1
-                FROM jsonb_array_elements(
-                  CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
-                    THEN (ard."decision"::jsonb)->'references'
-                    ELSE '[]'::jsonb END
-                  ||
-                  CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
-                    THEN (
-                      SELECT COALESCE(jsonb_agg(c_ref), '[]'::jsonb)
-                      FROM jsonb_array_elements((ard."decision"::jsonb)->'criteria') crit,
-                           jsonb_array_elements(CASE WHEN jsonb_typeof(crit->'references') = 'array' THEN crit->'references' ELSE '[]'::jsonb END) c_ref
-                    )
-                    ELSE '[]'::jsonb END
-                ) ref
+                FROM (
+                  SELECT jsonb_array_elements(
+                    CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
+                      THEN (ard."decision"::jsonb)->'references'
+                      ELSE '[]'::jsonb END
+                  ) AS ref
+                  UNION ALL
+                  SELECT jsonb_array_elements(
+                    CASE WHEN jsonb_typeof(crit->'references') = 'array'
+                      THEN crit->'references'
+                      ELSE '[]'::jsonb END
+                  ) AS ref
+                  FROM jsonb_array_elements(
+                    CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
+                      THEN (ard."decision"::jsonb)->'criteria'
+                      ELSE '[]'::jsonb END
+                  ) crit
+                ) all_refs
                 WHERE (
-                  ref->>'type' = 'ASSESSMENT_EVIDENCE'
-                  AND NOT EXISTS (
-                    SELECT 1 FROM "AssessmentEvidence" ae
-                    WHERE ae."evidenceId"::text = ref->>'evidenceId'
-                      AND ae."assessmentId" = adc."assessmentId"
-                      AND ae."state" = 'ACCEPTED'
-                      AND ae."invalidatedAt" IS NULL
-                      AND LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
+                  all_refs.ref->>'type' NOT IN ('ASSESSMENT_EVIDENCE', 'CONFIRMED_FACT')
+                  OR (
+                    all_refs.ref->>'type' = 'ASSESSMENT_EVIDENCE'
+                    AND NOT EXISTS (
+                      SELECT 1 FROM "AssessmentEvidence" ae
+                      WHERE ae."evidenceId"::text = all_refs.ref->>'evidenceId'
+                        AND ae."assessmentId" = adc."assessmentId"
+                        AND ae."state" = 'ACCEPTED'
+                        AND ae."invalidatedAt" IS NULL
+                        AND LOWER(ae."repositoryCommit") = LOWER(ac."repositoryCommit")
+                    )
                   )
-                ) OR (
-                  ref->>'type' = 'CONFIRMED_FACT'
-                  AND NOT EXISTS (
-                    SELECT 1 FROM "AssessmentCaseFact" af
-                    WHERE af."factId"::text = ref->>'factId'
-                      AND af."assessmentId" = adc."assessmentId"
-                      AND af."state" = 'ACCEPTED'
-                      AND af."invalidatedAt" IS NULL
-                      AND af."caseRevision" = ac."caseRevision"
+                  OR (
+                    all_refs.ref->>'type' = 'CONFIRMED_FACT'
+                    AND (
+                      all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
+                      OR NOT EXISTS (
+                        SELECT 1 FROM "AssessmentCaseFact" af
+                        WHERE af."factId"::text = all_refs.ref->>'factId'
+                          AND af."assessmentId" = adc."assessmentId"
+                          AND af."state" = 'ACCEPTED'
+                          AND af."invalidatedAt" IS NULL
+                          AND af."caseRevision" = ac."caseRevision"
+                      )
+                    )
                   )
                 )
               )
@@ -580,6 +643,7 @@ export class AssessmentTrackingLoader {
           LEFT JOIN "AssessmentRuleDecision" ard
             ON ard."decisionId" = adc."currentDecisionId"
             AND ard."assessmentId" = adc."assessmentId"
+            AND ard."assessmentRuleId" = adc."assessmentRuleId"
           WHERE a."ownerId" = ${input.sessionUserId}
         )
         SELECT
@@ -597,15 +661,195 @@ export class AssessmentTrackingLoader {
       }
     }
 
-    // Fetch pinned snapshots for exact repository and ref resolution for page assessments
-    const pinnedSnapshotIds = assessments
-      .map((a) => a.domainCase?.repositorySnapshotId)
-      .filter((id): id is string => typeof id === "string" && id.length > 0);
+    // 1. Dedicated owner-wide Actions queue: open human requests across all owned assessments
+    const actions: CustomerTrackingActionItem[] = [];
+    const openHumanRequests = await this.prisma.assessmentHumanRequest.findMany(
+      {
+        where: {
+          status: HUMAN_RESOLUTION_REQUEST_STATUSES.OPEN,
+          assessmentCase: {
+            assessment: {
+              ownerId: input.sessionUserId,
+            },
+          },
+        },
+        select: {
+          requestId: true,
+          assessmentId: true,
+          assessmentRuleId: true,
+          question: true,
+          unresolvedFact: true,
+          createdAt: true,
+          assessmentCase: {
+            select: {
+              assessment: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: Math.max(limit, 50),
+      },
+    );
+
+    for (const hr of openHumanRequests) {
+      actions.push({
+        requestId: hr.requestId,
+        assessmentId: hr.assessmentId,
+        assessmentName: hr.assessmentCase?.assessment?.name ?? "Assessment",
+        assessmentRuleId: hr.assessmentRuleId,
+        question: hr.question,
+        unresolvedFact: hr.unresolvedFact,
+        actionReason: TRACKING_ACTION_REASONS.HUMAN_FACT_REQUIRED,
+        createdAt: hr.createdAt.toISOString(),
+        destinationUrl: `/assessments/${hr.assessmentId}?requestId=${encodeURIComponent(hr.requestId)}`,
+      });
+    }
+
+    // 2. Dedicated owner-wide Changes queue: material changes across all owned assessments
+    const changes: CustomerTrackingChangeItem[] = [];
+
+    // 2a. Ready reports across all owned completed assessments
+    const readyReports = await this.prisma.assessmentArtifact.findMany({
+      where: {
+        kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+        lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+        assessmentCase: {
+          assessment: {
+            ownerId: input.sessionUserId,
+            lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+          },
+        },
+        OR: [
+          { activatedAt: { gte: new Date(sinceTime) } },
+          { createdAt: { gte: new Date(sinceTime) } },
+        ],
+      },
+      select: {
+        artifactId: true,
+        createdAt: true,
+        activatedAt: true,
+        assessmentCase: {
+          select: {
+            assessment: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: Math.max(limit, 50),
+    });
+
+    for (const report of readyReports) {
+      const reportTime = (report.activatedAt ?? report.createdAt).getTime();
+      changes.push({
+        assessmentId: report.assessmentCase.assessment.id,
+        assessmentName: report.assessmentCase.assessment.name,
+        changeType: TRACKING_CHANGE_TYPES.REPORT_READY,
+        titleKey: "assessment.tracking.reportReadyTitle",
+        descriptionKey: "assessment.tracking.reportReadyDescription",
+        title: isVi
+          ? `Báo cáo cuối cùng đã sẵn sàng cho ${report.assessmentCase.assessment.name}`
+          : `Final Report available for ${report.assessmentCase.assessment.name}`,
+        description: isVi
+          ? "Báo cáo tuân thủ chuẩn hoá đã sẵn sàng để tải về."
+          : "Canonical compliance report is ready for download.",
+        occurredAt: new Date(reportTime).toISOString(),
+        destinationUrl: `/assessments/${report.assessmentCase.assessment.id}/report?artifactId=${encodeURIComponent(report.artifactId)}`,
+      });
+    }
+
+    // 2b. Completed assessments without reports updated since sinceTime
+    const completedWithoutReports = await this.prisma.assessment.findMany({
+      where: {
+        ownerId: input.sessionUserId,
+        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+        updatedAt: { gte: new Date(sinceTime) },
+        domainCase: {
+          artifacts: {
+            none: {
+              kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+              lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        updatedAt: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      take: Math.max(limit, 50),
+    });
+
+    for (const asmt of completedWithoutReports) {
+      changes.push({
+        assessmentId: asmt.id,
+        assessmentName: asmt.name,
+        changeType: TRACKING_CHANGE_TYPES.OUTCOME_COMPLETED,
+        titleKey: "assessment.tracking.outcomeCompletedTitle",
+        descriptionKey: "assessment.tracking.outcomeCompletedDescription",
+        title: isVi
+          ? `Đã hoàn thành đánh giá cho ${asmt.name}`
+          : `Assessment completed for ${asmt.name}`,
+        description: isVi
+          ? "Đánh giá đã hoàn tất trên toàn bộ các quy tắc chuẩn."
+          : "Evaluation completed across canonical rules.",
+        occurredAt: asmt.updatedAt.toISOString(),
+        destinationUrl: `/assessments/${asmt.id}`,
+      });
+    }
+
+    // 2c. Candidate cases with pinned snapshots across all owned assessments (for staleness detection)
+    const ownerCasesWithSnapshots = await this.prisma.assessmentCase.findMany({
+      where: {
+        assessment: { ownerId: input.sessionUserId },
+        repositorySnapshotId: { not: null },
+      },
+      select: {
+        assessmentId: true,
+        repositorySnapshotId: true,
+        repositoryCommit: true,
+        assessment: {
+          select: {
+            id: true,
+            name: true,
+            updatedAt: true,
+          },
+        },
+      },
+      take: 100,
+    });
+
+    // Fetch pinned snapshots for exact repository and ref resolution for page assessments and candidate cases
+    const allPinnedSnapshotIds = [
+      ...new Set([
+        ...assessments
+          .map((a) => a.domainCase?.repositorySnapshotId)
+          .filter(
+            (id): id is string => typeof id === "string" && id.length > 0,
+          ),
+        ...ownerCasesWithSnapshots
+          .map((c) => c.repositorySnapshotId)
+          .filter(
+            (id): id is string => typeof id === "string" && id.length > 0,
+          ),
+      ]),
+    ];
 
     const pinnedSnapshots =
-      pinnedSnapshotIds.length > 0
+      allPinnedSnapshotIds.length > 0
         ? await this.prisma.repositorySnapshot.findMany({
-            where: { id: { in: pinnedSnapshotIds } },
+            where: { id: { in: allPinnedSnapshotIds } },
             select: {
               id: true,
               repositoryFullName: true,
@@ -675,6 +919,45 @@ export class AssessmentTrackingLoader {
       }
     }
 
+    // Emit REASSESSMENT_REQUIRED for any owned candidate assessment whose pinned commit is stale
+    for (const ac of ownerCasesWithSnapshots) {
+      if (!ac.repositorySnapshotId) continue;
+      const pinned = pinnedSnapshotById.get(ac.repositorySnapshotId);
+      if (!pinned) continue;
+      const pinnedCommit = ac.repositoryCommit ?? pinned.commitSha;
+      const key = `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`;
+      const foundLatest = latestSnapshotsByRepoRef.get(key);
+      if (foundLatest && foundLatest.id !== pinned.id) {
+        const latestCommit = foundLatest.commitSha;
+        const isStale =
+          Boolean(pinnedCommit) &&
+          Boolean(latestCommit) &&
+          pinnedCommit.toLowerCase() !== latestCommit.toLowerCase();
+        if (isStale && pinnedCommit && latestCommit) {
+          const sourceChangeTime = new Date(foundLatest.createdAt).getTime();
+          if (sourceChangeTime >= sinceTime) {
+            const commitPrefix = latestCommit.slice(0, 7);
+            changes.push({
+              assessmentId: ac.assessment.id,
+              assessmentName: ac.assessment.name,
+              changeType: TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+              titleKey: "assessment.tracking.reassessmentRequiredTitle",
+              descriptionKey:
+                "assessment.tracking.reassessmentRequiredDescription",
+              title: isVi
+                ? `Phát hiện commit mới cho ${ac.assessment.name}`
+                : `New commit detected for ${ac.assessment.name}`,
+              description: isVi
+                ? `Kho mã nguồn có commit mới hơn (${commitPrefix}) so với bản chụp đã đánh giá. Cần thực hiện đánh giá lại.`
+                : `Repository has newer commit (${commitPrefix}) than assessed snapshot. Reassessment required.`,
+              occurredAt: new Date(foundLatest.createdAt).toISOString(),
+              destinationUrl: `/assessments/${ac.assessment.id}`,
+            });
+          }
+        }
+      }
+    }
+
     // Fetch expected rule counts per ruleSetVersionId
     const ruleSetVersionIds = [
       ...new Set(
@@ -695,30 +978,11 @@ export class AssessmentTrackingLoader {
     );
     const expectedRuleCountByVersionId = new Map(expectedRuleCounts);
 
-    const actions: CustomerTrackingActionItem[] = [];
-    const changes: CustomerTrackingChangeItem[] = [];
     const assessmentItems: CustomerTrackingAssessmentItem[] = [];
 
     for (const assessment of assessments) {
       const domainCase = assessment.domainCase;
       const asmtCoverage = allCoverageByAssessmentId.get(assessment.id) ?? [];
-
-      // 1. Actions: open human requests requiring customer input
-      if (domainCase && domainCase.humanRequests.length > 0) {
-        for (const hr of domainCase.humanRequests) {
-          actions.push({
-            requestId: hr.requestId,
-            assessmentId: assessment.id,
-            assessmentName: assessment.name,
-            assessmentRuleId: hr.assessmentRuleId,
-            question: hr.question,
-            unresolvedFact: hr.unresolvedFact,
-            actionReason: TRACKING_ACTION_REASONS.HUMAN_FACT_REQUIRED,
-            createdAt: hr.createdAt.toISOString(),
-            destinationUrl: `/assessments/${assessment.id}?requestId=${encodeURIComponent(hr.requestId)}`,
-          });
-        }
-      }
 
       // 2. Exact Pinned Repository Freshness & Staleness
       let repoOwner: string | null = null;
@@ -728,7 +992,6 @@ export class AssessmentTrackingLoader {
       let freshnessStatus: TrackingFreshnessStatus =
         TRACKING_FRESHNESS_STATUSES.UNKNOWN;
       let isStale = false;
-      let authoritativeLatest: (typeof pinnedSnapshots)[0] | null = null;
 
       if (domainCase?.repositorySnapshotId) {
         const pinned = pinnedSnapshotById.get(domainCase.repositorySnapshotId);
@@ -747,7 +1010,6 @@ export class AssessmentTrackingLoader {
           // An assessment result was evaluated at pinnedCommit.
           // Check remote freshness against authorized subsequent observations:
           if (foundLatest && foundLatest.id !== pinned.id) {
-            authoritativeLatest = foundLatest;
             if (
               pinnedCommit &&
               foundLatest.commitSha.toLowerCase() !== pinnedCommit.toLowerCase()
@@ -823,82 +1085,7 @@ export class AssessmentTrackingLoader {
         hasFinalReport &&
         assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE;
 
-      // 5. Material changes (lifecycle-gated and baseline-scoped)
-      if (isReportReady && activeReport) {
-        const reportTime = (
-          activeReport.activatedAt ?? activeReport.createdAt
-        ).getTime();
-        if (reportTime >= sinceTime) {
-          changes.push({
-            assessmentId: assessment.id,
-            assessmentName: assessment.name,
-            changeType: TRACKING_CHANGE_TYPES.REPORT_READY,
-            titleKey: "assessment.tracking.reportReadyTitle",
-            descriptionKey: "assessment.tracking.reportReadyDescription",
-            title: isVi
-              ? `Báo cáo cuối cùng đã sẵn sàng cho ${assessment.name}`
-              : `Final Report available for ${assessment.name}`,
-            description: isVi
-              ? "Báo cáo tuân thủ chuẩn hoá đã sẵn sàng để tải về."
-              : "Canonical compliance report is ready for download.",
-            occurredAt: new Date(reportTime).toISOString(),
-            destinationUrl: `/assessments/${assessment.id}/report?artifactId=${encodeURIComponent(activeReport.artifactId)}`,
-          });
-        }
-      }
-
-      // Base REASSESSMENT_REQUIRED event timestamp on the observed source snapshot, not assessment.updatedAt
-      if (isStale && pinnedCommit && latestCommit) {
-        const sourceChangeTime = authoritativeLatest
-          ? new Date(authoritativeLatest.createdAt).getTime()
-          : assessment.updatedAt.getTime();
-        if (sourceChangeTime >= sinceTime) {
-          const commitPrefix = latestCommit.slice(0, 7);
-          changes.push({
-            assessmentId: assessment.id,
-            assessmentName: assessment.name,
-            changeType: TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
-            titleKey: "assessment.tracking.reassessmentRequiredTitle",
-            descriptionKey:
-              "assessment.tracking.reassessmentRequiredDescription",
-            title: isVi
-              ? `Phát hiện commit mới cho ${assessment.name}`
-              : `New commit detected for ${assessment.name}`,
-            description: isVi
-              ? `Kho mã nguồn có commit mới hơn (${commitPrefix}) so với bản chụp đã đánh giá. Cần thực hiện đánh giá lại.`
-              : `Repository has newer commit (${commitPrefix}) than assessed snapshot. Reassessment required.`,
-            occurredAt: (authoritativeLatest
-              ? new Date(authoritativeLatest.createdAt)
-              : assessment.updatedAt
-            ).toISOString(),
-            destinationUrl: `/assessments/${assessment.id}`,
-          });
-        }
-      } else if (
-        assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE &&
-        !activeReport
-      ) {
-        const asmtUpdateTime = assessment.updatedAt.getTime();
-        if (asmtUpdateTime >= sinceTime) {
-          changes.push({
-            assessmentId: assessment.id,
-            assessmentName: assessment.name,
-            changeType: TRACKING_CHANGE_TYPES.OUTCOME_COMPLETED,
-            titleKey: "assessment.tracking.outcomeCompletedTitle",
-            descriptionKey: "assessment.tracking.outcomeCompletedDescription",
-            title: isVi
-              ? `Đã hoàn thành đánh giá cho ${assessment.name}`
-              : `Assessment completed for ${assessment.name}`,
-            description: isVi
-              ? "Đánh giá đã hoàn tất trên toàn bộ các quy tắc chuẩn."
-              : "Evaluation completed across canonical rules.",
-            occurredAt: assessment.updatedAt.toISOString(),
-            destinationUrl: `/assessments/${assessment.id}`,
-          });
-        }
-      }
-
-      // 6. Fail-closed Trust Status Determination
+      // 5. Fail-closed Trust Status Determination
       const expectedRulesCount = domainCase?.ruleSetVersionId
         ? (expectedRuleCountByVersionId.get(domainCase.ruleSetVersionId) ?? 0)
         : 0;
@@ -1004,14 +1191,23 @@ export class AssessmentTrackingLoader {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-    changes.sort(
+
+    const seenChangeKeys = new Set<string>();
+    const deduplicatedChanges = changes.filter((c) => {
+      const key = `${c.changeType}::${c.assessmentId}`;
+      if (seenChangeKeys.has(key)) return false;
+      seenChangeKeys.add(key);
+      return true;
+    });
+
+    deduplicatedChanges.sort(
       (a, b) =>
         new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
     );
 
     return customerTrackingOverviewSchema.parse({
-      actions,
-      changes,
+      actions: actions.slice(0, Math.max(limit, 50)),
+      changes: deduplicatedChanges.slice(0, Math.max(limit, 50)),
       complianceSummary: {
         compliantCount: ownerCompliant,
         nonCompliantCount: ownerNonCompliant,

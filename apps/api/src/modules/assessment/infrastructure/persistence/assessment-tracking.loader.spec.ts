@@ -270,11 +270,37 @@ function buildLoader(fixtures: FixtureTypes) {
       findMany: (args?: {
         skip?: number;
         take?: number;
-        where?: { ownerId?: string };
+        where?: {
+          ownerId?: string;
+          lifecycleState?: string;
+          updatedAt?: { gte?: Date };
+          domainCase?: { artifacts?: { none?: unknown } };
+        };
       }) => {
-        const list = fixtures.assessments ?? [];
+        let list = fixtures.assessments ?? [];
+        if (args?.where?.lifecycleState) {
+          list = list.filter(
+            (a) => a.lifecycleState === args.where?.lifecycleState,
+          );
+        }
+        if (args?.where?.domainCase?.artifacts?.none) {
+          list = list.filter((a) => {
+            const dc = a.domainCase as
+              { artifacts?: Array<Record<string, unknown>> } | undefined;
+            const hasReport = dc?.artifacts?.some(
+              (art) =>
+                (art.kind === undefined || art.kind === "FINAL_REPORT") &&
+                (art.lifecycleState === undefined ||
+                  art.lifecycleState === "ACTIVE"),
+            );
+            return !hasReport;
+          });
+        }
         if (args?.skip !== undefined && args?.take !== undefined) {
           return Promise.resolve(list.slice(args.skip, args.skip + args.take));
+        }
+        if (args?.take !== undefined) {
+          return Promise.resolve(list.slice(0, args.take));
         }
         return Promise.resolve(list);
       },
@@ -294,6 +320,87 @@ function buildLoader(fixtures: FixtureTypes) {
           return Promise.resolve(fixtures.counts?.untrusted ?? 0);
         }
         return Promise.resolve(fixtures.assessments?.length ?? 0);
+      },
+    },
+    assessmentHumanRequest: {
+      findMany: (args?: { where?: { status?: string } }) => {
+        const requests: Array<Record<string, unknown>> = [];
+        for (const a of fixtures.assessments ?? []) {
+          const dc = a.domainCase as
+            { humanRequests?: Array<Record<string, unknown>> } | undefined;
+          if (dc?.humanRequests) {
+            for (const hr of dc.humanRequests) {
+              if (
+                !args?.where?.status ||
+                hr.status === args.where.status ||
+                (!hr.status && args.where.status === "OPEN")
+              ) {
+                requests.push({
+                  ...hr,
+                  assessmentId: a.id,
+                  assessmentCase: {
+                    assessment: {
+                      id: a.id,
+                      name: a.name,
+                    },
+                  },
+                });
+              }
+            }
+          }
+        }
+        return Promise.resolve(requests);
+      },
+    },
+    assessmentArtifact: {
+      findMany: () => {
+        const artifacts: Array<Record<string, unknown>> = [];
+        for (const a of fixtures.assessments ?? []) {
+          if (a.lifecycleState !== "COMPLETE") continue;
+          const dc = a.domainCase as
+            { artifacts?: Array<Record<string, unknown>> } | undefined;
+          if (dc?.artifacts) {
+            for (const art of dc.artifacts) {
+              if (
+                (art.kind === undefined || art.kind === "FINAL_REPORT") &&
+                (art.lifecycleState === undefined ||
+                  art.lifecycleState === "ACTIVE")
+              ) {
+                artifacts.push({
+                  ...art,
+                  assessmentCase: {
+                    assessment: {
+                      id: a.id,
+                      name: a.name,
+                    },
+                  },
+                });
+              }
+            }
+          }
+        }
+        return Promise.resolve(artifacts);
+      },
+    },
+    assessmentCase: {
+      findMany: () => {
+        const cases: Array<Record<string, unknown>> = [];
+        for (const a of fixtures.assessments ?? []) {
+          const dc = a.domainCase as Record<string, unknown> | undefined;
+          if (dc && dc.repositorySnapshotId) {
+            cases.push({
+              assessmentId: a.id,
+              repositorySnapshotId: dc.repositorySnapshotId,
+              repositoryCommit: dc.repositoryCommit,
+              assessment: {
+                id: a.id,
+                name: a.name,
+                updatedAt: a.updatedAt ?? new Date(),
+              },
+            });
+          }
+        }
+        return Promise.resolve(cases);
       },
     },
     assessmentDecisionCoverage: {
@@ -1930,6 +2037,198 @@ describe("AssessmentTrackingLoader", () => {
       expect(result.complianceSummary.notApplicableCount).toBe(0);
       expect(result.complianceSummary.unresolvedCount).toBe(0);
       expect(result.complianceSummary.totalRulesEvaluated).toBe(0);
+    });
+
+    it("ensures owner-wide action and change queues surface pending items from assessments beyond the first page", async () => {
+      const now = new Date("2026-10-18T10:00:00.000Z");
+      const assessmentsList: Array<Record<string, unknown>> = [];
+
+      // Create 50 newer assessments without requests or changes
+      for (let i = 0; i < 50; i++) {
+        const id = `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
+        assessmentsList.push({
+          id,
+          ownerId: "customer-1",
+          name: `Assessment ${i}`,
+          lifecycleState: "ACTIVE",
+          blockerReason: null,
+          createdAt: new Date(now.getTime() - i * 1000),
+          updatedAt: new Date(now.getTime() - i * 1000),
+          domainCase: {
+            caseRevision: 1,
+            ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+            repositoryCommit: "a000000000000000000000000000000000000001",
+            pinnedAt: now,
+            humanRequests: [],
+            artifacts: [],
+          },
+        });
+      }
+
+      // 51st assessment (oldest, pushed off page 1 when limit=50) has an OPEN human request and a ready report
+      const id51 = "00000000-0000-4000-8000-000000000051";
+      const reqId51 = "00000000-0000-4000-8000-000000000099";
+      const artId51 = "00000000-0000-4000-8000-000000000088";
+      assessmentsList.push({
+        id: id51,
+        ownerId: "customer-1",
+        name: "Assessment 51 (Off-Page)",
+        lifecycleState: "COMPLETE",
+        blockerReason: null,
+        createdAt: new Date(now.getTime() - 60000),
+        updatedAt: new Date(now.getTime() - 60000),
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          pinnedAt: now,
+          humanRequests: [
+            {
+              requestId: reqId51,
+              assessmentRuleId: "RULE-1",
+              question: "Confirm architecture boundary",
+              unresolvedFact: "boundary-fact",
+              status: "OPEN",
+              createdAt: now,
+            },
+          ],
+          artifacts: [
+            {
+              artifactId: artId51,
+              kind: "FINAL_REPORT",
+              lifecycleState: "ACTIVE",
+              createdAt: now,
+              activatedAt: now,
+            },
+          ],
+        },
+      });
+
+      const loader = buildLoader({
+        assessments: assessmentsList,
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
+      });
+
+      // Request page 1 with limit=50: assessment #51 is NOT on page 1 of assessments
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-off-page-queues",
+        limit: 50,
+        offset: 0,
+      });
+
+      expect(result.pagination.total).toBe(51);
+      expect(result.assessments).toHaveLength(50);
+      expect(result.assessments.some((a) => a.assessmentId === id51)).toBe(
+        false,
+      );
+
+      // BUT the global actions queue MUST contain the open request from assessment #51!
+      expect(result.actions).toHaveLength(1);
+      expect(result.actions[0].requestId).toBe(reqId51);
+      expect(result.actions[0].assessmentId).toBe(id51);
+      expect(result.actions[0].destinationUrl).toBe(
+        `/assessments/${id51}?requestId=${reqId51}`,
+      );
+
+      // AND the global changes queue MUST contain the REPORT_READY change from assessment #51!
+      const reportReady = result.changes.find(
+        (c) => c.changeType === TRACKING_CHANGE_TYPES.REPORT_READY,
+      );
+      expect(reportReady).toBeDefined();
+      expect(reportReady?.assessmentId).toBe(id51);
+      expect(reportReady?.destinationUrl).toBe(
+        `/assessments/${id51}/report?artifactId=${artId51}`,
+      );
+    });
+
+    it("ensures decisions with empty criteria or references fail closed to unresolved in both summary and per-assessment evaluation", async () => {
+      const asmtId = "11111111-1111-4111-8111-111111111111";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+
+      const assessment = {
+        id: asmtId,
+        ownerId: "customer-1",
+        name: "Empty Criteria Service",
+        lifecycleState: "ACTIVE",
+        blockerReason: null,
+        createdAt: now,
+        updatedAt: now,
+        domainCase: {
+          caseRevision: 1,
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          pinnedAt: now,
+          humanRequests: [],
+          artifacts: [],
+        },
+      };
+
+      const coverage = [
+        {
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          assessmentRuleVersion: "1.0.0",
+          resolutionState: "RESOLVED",
+          currentDecisionId: "dec-empty-crit",
+          decisionRevision: 1,
+        },
+      ];
+
+      // Stored decision JSON has APPLICABLE and COMPLIANT, but empty criteria: [] and references: []
+      const decisions = [
+        {
+          decisionId: "dec-empty-crit",
+          assessmentId: asmtId,
+          assessmentRuleId: "RULE-1",
+          assessmentRuleVersion: "1.0.0",
+          scopeId: "ASSESSMENT",
+          ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+          decisionRevision: 1,
+          repositoryCommit: "a000000000000000000000000000000000000001",
+          caseRevision: 1,
+          state: "ACCEPTED",
+          applicability: "APPLICABLE",
+          compliance: "COMPLIANT",
+          decision: {
+            assessmentRuleId: "RULE-1",
+            assessmentRuleVersion: "1.0.0",
+            scopeId: "ASSESSMENT",
+            ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+            repositorySnapshotId: "00000000-0000-4000-8000-000000000002",
+            repositoryCommit: "a000000000000000000000000000000000000001",
+            caseRevision: 1,
+            legalContextRefs: [{ legalContextId: "legal-1" }],
+            applicability: "APPLICABLE",
+            compliance: "COMPLIANT",
+            rationale: "Rule satisfied but criteria empty",
+            references: [], // VIOLATION: requires .min(1)
+            criteria: [], // VIOLATION: APPLICABLE requires .min(1)
+          },
+        },
+      ];
+
+      const loader = buildLoader({
+        assessments: [assessment],
+        coverage,
+        decisions,
+        ruleCounts: { "00000000-0000-4000-8000-000000000001": 1 },
+      });
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-empty-criteria",
+      });
+
+      // Both per-assessment evaluation and summary MUST fail closed to UNRESOLVED!
+      expect(result.assessments[0].compliance.compliantCount).toBe(0);
+      expect(result.assessments[0].compliance.unresolvedCount).toBe(1);
+      expect(result.complianceSummary.compliantCount).toBe(0);
+      expect(result.complianceSummary.unresolvedCount).toBe(1);
     });
   });
 
