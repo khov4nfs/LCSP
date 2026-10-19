@@ -34,6 +34,8 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
   let legalSourceId: string;
   let prepRunId: string;
   let ruleSetVersionId: string;
+  let createdRuleSet = false;
+  let createdRuleId: string | null = null;
 
   async function cleanup() {
     await prisma.repositoryScanJob.deleteMany({
@@ -157,6 +159,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     if (existingRuleSet) {
       ruleSetVersionId = existingRuleSet.id;
     } else {
+      createdRuleSet = true;
       legalSourceId = randomUUID();
       prepRunId = randomUUID();
       ruleSetVersionId = randomUUID();
@@ -164,7 +167,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       await prisma.legalSourceVersion.create({
         data: {
           id: legalSourceId,
-          version: `legal-${testSuffix}`,
+          version: `legalSource-${testSuffix}`,
           status: "ACTIVE",
           sourceManifest: {},
         },
@@ -188,7 +191,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
           legalSourceVersionId: legalSourceId,
           preparationRunId: prepRunId,
           lifecycleState: "ACTIVE",
-          ruleSetDigest: "test-digest",
+          ruleSetDigest: "f".repeat(64),
           validationOutcome: "PASSED",
           activatedAt: new Date(),
         },
@@ -200,9 +203,10 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     });
 
     if (!existingRule) {
+      createdRuleId = randomUUID();
       await prisma.assessmentRule.create({
         data: {
-          id: randomUUID(),
+          id: createdRuleId,
           ruleSetVersionId,
           assessmentRuleId: "RULE-1",
           assessmentRuleVersion: "1.0.0",
@@ -234,6 +238,26 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     try {
       await cleanup();
       await prisma.user.deleteMany({ where: { id: userId } });
+      await prisma.$executeRawUnsafe(`SET session_replication_role = replica;`);
+      if (createdRuleSet) {
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM "AssessmentRule" WHERE "ruleSetVersionId" = '${ruleSetVersionId}';`,
+        );
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM "ComplianceRuleSetVersion" WHERE "id" = '${ruleSetVersionId}';`,
+        );
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM "RuleSetPreparationRun" WHERE "id" = '${prepRunId}';`,
+        );
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM "LegalSourceVersion" WHERE "id" = '${legalSourceId}';`,
+        );
+      } else if (createdRuleId) {
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM "AssessmentRule" WHERE "id" = '${createdRuleId}';`,
+        );
+      }
+      await prisma.$executeRawUnsafe(`SET session_replication_role = origin;`);
     } finally {
       await prisma.$disconnect();
     }
@@ -1054,4 +1078,158 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(page2.actions).toHaveLength(1);
     expect(page2.actions[0].question).toBe("Human Question 1");
   });
+
+  it("paginates >50 same-type changes and sorts mixed event types globally by occurredAt DESC", async () => {
+    // 1. Create 51 completed assessments with active FINAL_REPORT artifacts
+    const totalReports = 51;
+    const reportAssessmentIds: string[] = [];
+
+    for (let i = 0; i < totalReports; i++) {
+      const aId = randomUUID();
+      reportAssessmentIds.push(aId);
+      const artId = randomUUID();
+      const activatedAt = new Date(Date.now() - (totalReports - i) * 60_000);
+
+      await prisma.assessment.create({
+        data: {
+          id: aId,
+          ownerId: userId,
+          name: `Report Assessment ${i + 1}`,
+          lifecycleState: "COMPLETE",
+          lifecycleRevision: 1,
+        },
+      });
+
+      const { snapshotId, scanJobId } = await seedPinnedRepository(aId);
+
+      await prisma.assessmentCase.create({
+        data: {
+          assessmentId: aId,
+          caseRevision: 1,
+          ruleSetVersionId,
+          repositoryCommit: commitSha,
+          repositorySnapshotId: snapshotId,
+          repositoryScanJobId: scanJobId,
+          pinnedAt: new Date(),
+        },
+      });
+
+      await prisma.assessmentArtifact.create({
+        data: {
+          artifactId: artId,
+          assessmentId: aId,
+          kind: "FINAL_REPORT",
+          lifecycleState: "BUILDING",
+          ruleSetVersionId,
+          repositorySnapshotId: snapshotId,
+          repositoryCommit: commitSha,
+          caseRevision: 1,
+          schemaVersion: "1.0.0",
+          storageRef: `/reports/${artId}.pdf`,
+          contentSha256: `sha256:${"5".repeat(64)}`,
+          sizeBytes: 1024,
+        },
+      });
+
+      await prisma.assessmentArtifact.update({
+        where: { artifactId: artId },
+        data: {
+          lifecycleState: "ACTIVE",
+          activatedAt,
+        },
+      });
+    }
+
+    // Also create 1 assessment with recent REASSESSMENT_REQUIRED (newer than all reports)
+    const staleAssessmentId = randomUUID();
+    await prisma.assessment.create({
+      data: {
+        id: staleAssessmentId,
+        ownerId: userId,
+        name: "Stale Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+    const {
+      connectionId: staleConnId,
+      snapshotId: staleSnapId,
+      scanJobId: staleScanId,
+    } = await seedPinnedRepository(staleAssessmentId, "org/urgent-stale-repo");
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId: staleAssessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: staleSnapId,
+        repositoryScanJobId: staleScanId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    const newerCommitSha = "c000000000000000000000000000000000000003";
+    await prisma.repositorySnapshot.create({
+      data: {
+        id: randomUUID(),
+        assessmentId: staleAssessmentId,
+        connectionId: staleConnId,
+        repositoryId: `repo-${staleConnId}`,
+        repositoryFullName: "org/urgent-stale-repo",
+        branch: "main",
+        ref: "refs/heads/main",
+        commitSha: newerCommitSha,
+        providerMetadata: { source: "test" },
+        actorId: userId,
+        status: "READY",
+        createdAt: new Date(), // occurred now (most recent)
+      },
+    });
+
+    // Page 1 of changes (limit 50, offset 0): Total is 52 changes (51 reports + 1 reassessment)
+    const page1 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-changes-p1-${randomUUID()}`,
+      changesLimit: 50,
+      changesOffset: 0,
+    });
+
+    expect(page1.changesPagination).toEqual({
+      total: 52,
+      limit: 50,
+      offset: 0,
+      hasMore: true,
+    });
+    expect(page1.changes).toHaveLength(50);
+    // Crucial: The newest change (REASSESSMENT_REQUIRED) must be first despite being processed in a later block!
+    expect(page1.changes[0].changeType).toBe(
+      TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+    );
+    expect(page1.changes[0].assessmentId).toBe(staleAssessmentId);
+
+    // Page 2 of changes (offset 50)
+    const page2 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-changes-p2-${randomUUID()}`,
+      changesLimit: 50,
+      changesOffset: 50,
+    });
+
+    expect(page2.changesPagination).toEqual({
+      total: 52,
+      limit: 50,
+      offset: 50,
+      hasMore: false,
+    });
+    expect(page2.changes).toHaveLength(2);
+    expect(page2.changes[0].changeType).toBe(
+      TRACKING_CHANGE_TYPES.REPORT_READY,
+    );
+    expect(page2.changes[1].changeType).toBe(
+      TRACKING_CHANGE_TYPES.REPORT_READY,
+    );
+  }, 120_000);
 });

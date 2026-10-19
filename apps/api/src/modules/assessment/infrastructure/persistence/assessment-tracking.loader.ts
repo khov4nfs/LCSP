@@ -802,7 +802,6 @@ export class AssessmentTrackingLoader {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: Math.max(limit, 50),
     });
 
     for (const report of readyReports) {
@@ -845,7 +844,6 @@ export class AssessmentTrackingLoader {
         updatedAt: true,
       },
       orderBy: { updatedAt: "desc" },
-      take: Math.max(limit, 50),
     });
 
     for (const asmt of completedWithoutReports) {
@@ -933,44 +931,49 @@ export class AssessmentTrackingLoader {
       string,
       (typeof pinnedSnapshots)[0]
     >();
-    for (const key of repoRefKeys) {
-      const [fullName, ref] = key.split("::");
-      const whereConditions: Array<Record<string, unknown>> = [
-        {
-          OR: [
-            { assessment: { ownerId: input.sessionUserId } },
-            {
-              connection: {
-                userId: input.sessionUserId,
-                status: REPOSITORY_CONNECTION_STATUSES.active,
+    const latestEntries = await Promise.all(
+      repoRefKeys.map(async (key) => {
+        const [fullName, ref] = key.split("::");
+        const whereConditions: Array<Record<string, unknown>> = [
+          {
+            OR: [
+              { assessment: { ownerId: input.sessionUserId } },
+              {
+                connection: {
+                  userId: input.sessionUserId,
+                  status: REPOSITORY_CONNECTION_STATUSES.active,
+                },
               },
-            },
-          ],
-        },
-      ];
-      if (ref) {
-        whereConditions.push({
-          OR: [{ ref }, { branch: ref }],
-        });
-      }
+            ],
+          },
+        ];
+        if (ref) {
+          whereConditions.push({
+            OR: [{ ref }, { branch: ref }],
+          });
+        }
 
-      const latest = await this.prisma.repositorySnapshot.findFirst({
-        where: {
-          repositoryFullName: fullName,
-          status: REPOSITORY_SNAPSHOT_STATUSES.ready,
-          AND: whereConditions,
-        },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          repositoryFullName: true,
-          ref: true,
-          branch: true,
-          commitSha: true,
-          createdAt: true,
-          status: true,
-        },
-      });
+        const latest = await this.prisma.repositorySnapshot.findFirst({
+          where: {
+            repositoryFullName: fullName,
+            status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+            AND: whereConditions,
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            repositoryFullName: true,
+            ref: true,
+            branch: true,
+            commitSha: true,
+            createdAt: true,
+            status: true,
+          },
+        });
+        return [key, latest] as const;
+      }),
+    );
+    for (const [key, latest] of latestEntries) {
       if (latest) {
         latestSnapshotsByRepoRef.set(key, latest);
       }
@@ -1255,6 +1258,15 @@ export class AssessmentTrackingLoader {
       if (seenChangeKeys.has(key)) return false;
       seenChangeKeys.add(key);
       return true;
+    });
+
+    deduplicatedChanges.sort((a, b) => {
+      const timeDiff =
+        new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      const idDiff = a.assessmentId.localeCompare(b.assessmentId);
+      if (idDiff !== 0) return idDiff;
+      return a.changeType.localeCompare(b.changeType);
     });
 
     const actionsPagination = {
