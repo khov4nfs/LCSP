@@ -1,5 +1,5 @@
-import { describe, expect, it } from "@jest/globals";
-import { HttpStatus } from "@nestjs/common";
+import { describe, expect, it, jest } from "@jest/globals";
+import { HttpStatus, Logger } from "@nestjs/common";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { ruleDecisionSchema } from "@lcsp/contracts/assessment";
 import {
@@ -75,6 +75,7 @@ interface FixtureTypes {
     notApplicableCount: number;
     unresolvedCount: number;
   };
+  queryRawError?: Error;
   onFindManyDecision?: (where?: unknown) => void;
   counts?: {
     active?: number;
@@ -131,6 +132,9 @@ function createValidCompliantDecision(overrides: Record<string, unknown> = {}) {
 function buildLoader(fixtures: FixtureTypes) {
   const prisma = {
     $queryRaw: () => {
+      if (fixtures.queryRawError) {
+        return Promise.reject(fixtures.queryRawError);
+      }
       if (fixtures.queryRawSummary) {
         return Promise.resolve([fixtures.queryRawSummary]);
       }
@@ -2257,6 +2261,70 @@ describe("AssessmentTrackingLoader", () => {
       expect(result.assessments[0].compliance.unresolvedCount).toBe(1);
       expect(result.complianceSummary.compliantCount).toBe(0);
       expect(result.complianceSummary.unresolvedCount).toBe(1);
+    });
+
+    it("exercises change feed database query failure path by falling back safely to bounded queries with observable logging", async () => {
+      const asmtId = "11111111-1111-4111-8111-111111111111";
+      const artId = "22222222-2222-4222-8222-222222222222";
+      const now = new Date("2026-10-18T10:00:00.000Z");
+
+      const loader = buildLoader({
+        assessments: [
+          {
+            id: asmtId,
+            ownerId: "customer-1",
+            name: "Fallback Verification Service",
+            lifecycleState: "COMPLETE",
+            blockerReason: null,
+            createdAt: now,
+            updatedAt: now,
+            domainCase: {
+              caseRevision: 1,
+              ruleSetVersionId: "00000000-0000-4000-8000-000000000001",
+              repositorySnapshotId: null,
+              repositoryCommit: "a000000000000000000000000000000000000001",
+              pinnedAt: now,
+              humanRequests: [],
+              artifacts: [
+                {
+                  artifactId: artId,
+                  kind: "FINAL_REPORT",
+                  lifecycleState: "ACTIVE",
+                  createdAt: now,
+                  activatedAt: now,
+                },
+              ],
+            },
+          },
+        ],
+        queryRawError: new Error("Database query timeout in change feed CTE"),
+      });
+
+      const errorSpy = jest
+        .spyOn(Logger.prototype, "error")
+        .mockImplementation(() => {});
+
+      const result = await loader.loadCustomerOverview({
+        sessionUserId: "customer-1",
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: "corr-query-fail",
+        changesLimit: 10,
+        changesOffset: 0,
+      });
+
+      // Observable error log is emitted with correlation ID
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("corr-query-fail"),
+        expect.any(String),
+      );
+
+      // Bounded fallback recovers and serves the change item
+      expect(result.changes).toHaveLength(1);
+      expect(result.changes[0].changeType).toBe(
+        TRACKING_CHANGE_TYPES.REPORT_READY,
+      );
+      expect(result.changes[0].assessmentId).toBe(asmtId);
+      expect(result.changesPagination?.total).toBe(1);
     });
   });
 

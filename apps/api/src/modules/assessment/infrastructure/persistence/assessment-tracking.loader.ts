@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import {
   AGENT_EXECUTION_STATES,
@@ -271,6 +271,8 @@ function evaluateAssessmentDecisions(params: DecisionEvaluationParams): {
  */
 @Injectable()
 export class AssessmentTrackingLoader {
+  private readonly logger = new Logger(AssessmentTrackingLoader.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -545,13 +547,14 @@ export class AssessmentTrackingLoader {
     let ownerUnresolved = 0;
 
     if (typeof this.prisma.$queryRaw === "function") {
-      interface SummaryRow {
-        compliantCount: number | bigint;
-        nonCompliantCount: number | bigint;
-        notApplicableCount: number | bigint;
-        unresolvedCount: number | bigint;
-      }
-      const summaryRows = await this.prisma.$queryRaw<SummaryRow[]>`
+      try {
+        interface SummaryRow {
+          compliantCount: number | bigint;
+          nonCompliantCount: number | bigint;
+          notApplicableCount: number | bigint;
+          unresolvedCount: number | bigint;
+        }
+        const summaryRows = await this.prisma.$queryRaw<SummaryRow[]>`
         WITH evaluated AS (
           SELECT
             adc."assessmentId",
@@ -560,7 +563,7 @@ export class AssessmentTrackingLoader {
             ard."decisionId",
             ard."applicability",
             ard."compliance",
-            (
+            CASE WHEN (
               adc."resolutionState" = 'RESOLVED'
               AND ard."decisionId" IS NOT NULL
               AND ard."state" = 'ACCEPTED'
@@ -575,17 +578,25 @@ export class AssessmentTrackingLoader {
               AND ard."assessmentRuleId" = adc."assessmentRuleId"
               AND ard."decision" IS NOT NULL
               AND jsonb_typeof(ard."decision"::jsonb) = 'object'
+              AND (ard."decision"->>'assessmentRuleId') IS NOT NULL
               AND ard."decision"->>'assessmentRuleId' = adc."assessmentRuleId"
+              AND (ard."decision"->>'assessmentRuleVersion') IS NOT NULL
               AND ard."decision"->>'assessmentRuleVersion' = adc."assessmentRuleVersion"
+              AND (ard."decision"->>'scopeId') IS NOT NULL
               AND ard."decision"->>'scopeId' = 'ASSESSMENT'
+              AND (ard."decision"->>'ruleSetVersionId') IS NOT NULL
               AND ard."decision"->>'ruleSetVersionId' = ac."ruleSetVersionId"
+              AND (ard."decision"->>'repositorySnapshotId') IS NOT NULL
               AND (ac."repositorySnapshotId" IS NULL OR ard."decision"->>'repositorySnapshotId' = ac."repositorySnapshotId")
+              AND (ard."decision"->>'repositoryCommit') IS NOT NULL
               AND LOWER(ard."decision"->>'repositoryCommit') = LOWER(ac."repositoryCommit")
+              AND (ard."decision"->>'caseRevision') IS NOT NULL
               AND ard."decision"->>'caseRevision' = ac."caseRevision"::text
+              AND (ard."decision"->>'applicability') IS NOT NULL
               AND ard."decision"->>'applicability' = ard."applicability"::text
               AND (
                 (ard."compliance" IS NULL AND ard."decision"->>'compliance' IS NULL)
-                OR (ard."decision"->>'compliance' = ard."compliance"::text)
+                OR (ard."compliance" IS NOT NULL AND ard."decision"->>'compliance' IS NOT NULL AND ard."decision"->>'compliance' = ard."compliance"::text)
               )
               AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
               AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array' THEN (ard."decision"::jsonb)->'legalContextRefs' ELSE '[]'::jsonb END) >= 1
@@ -616,8 +627,10 @@ export class AssessmentTrackingLoader {
                     AND NOT EXISTS (
                       SELECT 1
                       FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
-                      WHERE crit->>'criterionId' IS NULL
+                      WHERE jsonb_typeof(crit) <> 'object'
+                        OR crit->>'criterionId' IS NULL
                         OR length(trim(crit->>'criterionId')) = 0
+                        OR crit->>'outcome' IS NULL
                         OR crit->>'outcome' NOT IN ('MET', 'NOT_MET')
                         OR crit->>'rationale' IS NULL
                         OR length(trim(crit->>'rationale')) = 0
@@ -705,7 +718,7 @@ export class AssessmentTrackingLoader {
                   )
                 )
               )
-            ) AS is_valid
+            ) THEN true ELSE false END AS is_valid
           FROM "AssessmentDecisionCoverage" adc
           JOIN "Assessment" a ON a."id" = adc."assessmentId"
           JOIN "AssessmentCase" ac ON ac."assessmentId" = adc."assessmentId"
@@ -719,14 +732,20 @@ export class AssessmentTrackingLoader {
           COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'APPLICABLE' AND "compliance" = 'COMPLIANT' THEN 1 ELSE 0 END), 0) AS "compliantCount",
           COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'APPLICABLE' AND "compliance" = 'NON_COMPLIANT' THEN 1 ELSE 0 END), 0) AS "nonCompliantCount",
           COALESCE(SUM(CASE WHEN is_valid = true AND "applicability" = 'NOT_APPLICABLE' THEN 1 ELSE 0 END), 0) AS "notApplicableCount",
-          COALESCE(SUM(CASE WHEN is_valid = false OR ("applicability" = 'APPLICABLE' AND "compliance" NOT IN ('COMPLIANT', 'NON_COMPLIANT')) THEN 1 ELSE 0 END), 0) AS "unresolvedCount"
+          COALESCE(SUM(CASE WHEN is_valid IS NOT TRUE OR ("applicability" = 'APPLICABLE' AND ("compliance" IS NULL OR "compliance" NOT IN ('COMPLIANT', 'NON_COMPLIANT'))) THEN 1 ELSE 0 END), 0) AS "unresolvedCount"
         FROM evaluated
       `;
-      if (summaryRows && summaryRows.length > 0) {
-        ownerCompliant = Number(summaryRows[0].compliantCount ?? 0);
-        ownerNonCompliant = Number(summaryRows[0].nonCompliantCount ?? 0);
-        ownerNotApplicable = Number(summaryRows[0].notApplicableCount ?? 0);
-        ownerUnresolved = Number(summaryRows[0].unresolvedCount ?? 0);
+        if (summaryRows && summaryRows.length > 0) {
+          ownerCompliant = Number(summaryRows[0].compliantCount ?? 0);
+          ownerNonCompliant = Number(summaryRows[0].nonCompliantCount ?? 0);
+          ownerNotApplicable = Number(summaryRows[0].notApplicableCount ?? 0);
+          ownerUnresolved = Number(summaryRows[0].unresolvedCount ?? 0);
+        }
+      } catch (err) {
+        this.logger.error(
+          `Owner compliance summary database query failed for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err.stack : undefined,
+        );
       }
     }
 
@@ -995,15 +1014,24 @@ export class AssessmentTrackingLoader {
               };
             });
         }
-      } catch {
+      } catch (err) {
+        this.logger.error(
+          `Customer change feed database query failed; engaging bounded fallback for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${err instanceof Error ? err.message : String(err)}`,
+          err instanceof Error ? err.stack : undefined,
+        );
         usedDbChanges = false;
       }
     }
 
     const changes: CustomerTrackingChangeItem[] = [];
 
-    // Fallback path with controlled concurrency for unit test mocks
+    // Fallback path with controlled concurrency and bounded take limits for unit test mocks / database query recovery
     if (!usedDbChanges) {
+      const fallbackCandidateBudget = Math.min(
+        Math.max((effectiveChangesLimit + effectiveChangesOffset) * 2, 50),
+        200,
+      );
+
       // 2a. Ready reports across all owned completed assessments
       const readyReports = await this.prisma.assessmentArtifact.findMany({
         where: {
@@ -1020,6 +1048,7 @@ export class AssessmentTrackingLoader {
             { createdAt: { gte: new Date(sinceTime) } },
           ],
         },
+        take: fallbackCandidateBudget,
         select: {
           artifactId: true,
           createdAt: true,
@@ -1072,6 +1101,7 @@ export class AssessmentTrackingLoader {
             },
           },
         },
+        take: fallbackCandidateBudget,
         select: {
           id: true,
           name: true,
@@ -1105,6 +1135,7 @@ export class AssessmentTrackingLoader {
             assessment: { ownerId: input.sessionUserId },
             repositorySnapshotId: { not: null },
           },
+          take: fallbackCandidateBudget,
           select: {
             assessmentId: true,
             repositorySnapshotId: true,

@@ -1462,4 +1462,240 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     const distinctAsmtIds = new Set(allChanges.map((c) => c.assessmentId));
     expect(distinctAsmtIds.size).toBe(90);
   }, 120_000);
+
+  it("proves SQL summary rejects criterion missing required outcome with 100% parity to per-assessment evaluation", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Missing Criterion Outcome Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"3".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const validEvidenceRef = {
+      type: "ASSESSMENT_EVIDENCE",
+      evidenceId,
+    };
+
+    // Criterion lacks the required outcome field (otherwise valid)
+    const decisionMissingCriterionOutcome = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "Decision rationale is valid",
+      references: [validEvidenceRef],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          rationale: "Criterion rationale without outcome",
+          references: [validEvidenceRef],
+          // outcome omitted
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest",
+        decision: decisionMissingCriterionOutcome,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-no-outcome-${randomUUID()}`,
+    });
+
+    // SQL summary must fail-closed: 0 compliant, 1 unresolved
+    expect(result.complianceSummary.compliantCount).toBe(0);
+    expect(result.complianceSummary.unresolvedCount).toBe(1);
+
+    // Per-assessment detail must also fail-closed to UNRESOLVED
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(0);
+    expect(asmt?.compliance.unresolvedCount).toBe(1);
+  });
+
+  it("proves SQL summary counts decision with missing JSON pin as UNRESOLVED and preserves category sum", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Missing JSON Pin Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"4".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const validEvidenceRef = {
+      type: "ASSESSMENT_EVIDENCE",
+      evidenceId,
+    };
+
+    // Decision omits scopeId from JSON, while DB columns, criteria and evidence match
+    const decisionMissingScopeId = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      // scopeId intentionally omitted from JSON packet
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "Decision rationale is valid",
+      references: [validEvidenceRef],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion rationale is valid",
+          references: [validEvidenceRef],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest",
+        decision: decisionMissingScopeId,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-no-scope-${randomUUID()}`,
+    });
+
+    // Unresolved count must increment; compliantCount must be 0
+    expect(result.complianceSummary.compliantCount).toBe(0);
+    expect(result.complianceSummary.nonCompliantCount).toBe(0);
+    expect(result.complianceSummary.notApplicableCount).toBe(0);
+    expect(result.complianceSummary.unresolvedCount).toBe(1);
+
+    // Sum of all categories must equal coverage count
+    const coverageCount = await prisma.assessmentDecisionCoverage.count({
+      where: { assessmentId },
+    });
+    const categorySum =
+      result.complianceSummary.compliantCount +
+      result.complianceSummary.nonCompliantCount +
+      result.complianceSummary.notApplicableCount +
+      result.complianceSummary.unresolvedCount;
+    expect(categorySum).toBe(coverageCount);
+    expect(categorySum).toBe(1);
+
+    // Per-assessment detail must also fail closed to UNRESOLVED
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(0);
+    expect(asmt?.compliance.unresolvedCount).toBe(1);
+  });
 });
