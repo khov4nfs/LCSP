@@ -675,7 +675,8 @@ export class AssessmentTrackingLoader {
               AND (ac."repositorySnapshotId" IS NULL OR ard."decision"->>'repositorySnapshotId' = ac."repositorySnapshotId")
               AND jsonb_typeof((ard."decision"::jsonb)->'repositoryCommit') = 'string'
               AND (ard."decision"->>'repositoryCommit') IS NOT NULL
-              AND LOWER(ard."decision"->>'repositoryCommit') = LOWER(ac."repositoryCommit")
+              AND ard."decision"->>'repositoryCommit' = ac."repositoryCommit"
+              AND (ard."decision"->>'repositoryCommit') ~ '^(?:[a-f0-9]{40}|[a-f0-9]{64})$'
               AND jsonb_typeof((ard."decision"::jsonb)->'caseRevision') = 'number'
               AND (ard."decision"->>'caseRevision') IS NOT NULL
               AND ard."decision"->>'caseRevision' = ac."caseRevision"::text
@@ -720,7 +721,7 @@ export class AssessmentTrackingLoader {
                     AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
                     AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) >= 1
                     AND (
-                      SELECT count(DISTINCT crit->>'criterionId')
+                      SELECT count(DISTINCT trim(crit->>'criterionId'))
                       FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
                     ) = jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END)
                     AND NOT EXISTS (

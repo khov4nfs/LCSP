@@ -2361,6 +2361,232 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(asmt?.compliance.unresolvedCount).toBe(1);
   });
 
+  it("proves SQL summary rejects decision with trim-normalized duplicate criteria with 100% parity to ruleDecisionSchema", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Trim Duplicate Criteria Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"8".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const validEvidenceRef = {
+      type: "ASSESSMENT_EVIDENCE",
+      evidenceId,
+    };
+
+    // Stored JSON has distinct raw strings 'criterion-A' and ' criterion-A ' that normalize to the same trimmed ID
+    const decisionWithTrimDuplicateCriteria = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "Valid root rationale",
+      references: [validEvidenceRef],
+      criteria: [
+        {
+          criterionId: "criterion-A",
+          outcome: "MET",
+          rationale: "Criterion 1 rationale",
+          references: [validEvidenceRef],
+        },
+        {
+          criterionId: " criterion-A ", // Same ID after trimming
+          outcome: "MET",
+          rationale: "Criterion 2 rationale",
+          references: [validEvidenceRef],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest",
+        decision: decisionWithTrimDuplicateCriteria,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-trim-dupe-${randomUUID()}`,
+    });
+
+    // Both SQL aggregate and per-assessment SafeParse evaluation must fail closed to UNRESOLVED
+    expect(result.complianceSummary.compliantCount).toBe(0);
+    expect(result.complianceSummary.unresolvedCount).toBe(1);
+
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(0);
+    expect(asmt?.compliance.unresolvedCount).toBe(1);
+  });
+
+  it("proves SQL summary rejects decision with uppercase repositoryCommit in embedded JSON with 100% parity to ruleDecisionSchema", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Uppercase Commit Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"9".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const validEvidenceRef = {
+      type: "ASSESSMENT_EVIDENCE",
+      evidenceId,
+    };
+
+    // Stored JSON has uppercase repositoryCommit matching lowercase DB commit sha
+    const decisionWithUppercaseCommit = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha.toUpperCase(), // Violates /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "Valid root rationale",
+      references: [validEvidenceRef],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion rationale is valid",
+          references: [validEvidenceRef],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest",
+        decision: decisionWithUppercaseCommit,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-uppercase-commit-${randomUUID()}`,
+    });
+
+    // Both SQL aggregate and per-assessment SafeParse evaluation must fail closed to UNRESOLVED
+    expect(result.complianceSummary.compliantCount).toBe(0);
+    expect(result.complianceSummary.unresolvedCount).toBe(1);
+
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(0);
+    expect(asmt?.compliance.unresolvedCount).toBe(1);
+  });
+
   it("fails closed and rejects with ServiceUnavailableException when compliance summary SQL fails, never returning false all-zero success", async () => {
     const assessmentId = randomUUID();
     const evidenceId = randomUUID();
