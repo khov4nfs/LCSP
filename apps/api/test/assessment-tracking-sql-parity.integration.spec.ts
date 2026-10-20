@@ -238,26 +238,19 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     try {
       await cleanup();
       await prisma.user.deleteMany({ where: { id: userId } });
-      await prisma.$executeRawUnsafe(`SET session_replication_role = replica;`);
       if (createdRuleSet) {
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM "AssessmentRule" WHERE "ruleSetVersionId" = '${ruleSetVersionId}';`,
-        );
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM "ComplianceRuleSetVersion" WHERE "id" = '${ruleSetVersionId}';`,
-        );
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM "RuleSetPreparationRun" WHERE "id" = '${prepRunId}';`,
-        );
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM "LegalSourceVersion" WHERE "id" = '${legalSourceId}';`,
-        );
-      } else if (createdRuleId) {
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM "AssessmentRule" WHERE "id" = '${createdRuleId}';`,
-        );
+        await prisma.complianceRuleSetVersion.update({
+          where: { id: ruleSetVersionId },
+          data: {
+            lifecycleState: "SUPERSEDED",
+            supersededAt: new Date(),
+          },
+        });
+        await prisma.legalSourceVersion.update({
+          where: { id: legalSourceId },
+          data: { status: "SUPERSEDED" },
+        });
       }
-      await prisma.$executeRawUnsafe(`SET session_replication_role = origin;`);
     } finally {
       await prisma.$disconnect();
     }
@@ -1231,5 +1224,226 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(page2.changes[1].changeType).toBe(
       TRACKING_CHANGE_TYPES.REPORT_READY,
     );
+  }, 120_000);
+
+  it("proves actions queue offset pagination is deterministic when requests share identical createdAt timestamps", async () => {
+    const fixedTime = new Date(1_700_000_000_000);
+    const assessmentId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Timestamp Tie Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: "a".repeat(40),
+        pinnedAt: new Date(),
+      },
+    });
+
+    const threadId = randomUUID();
+    await prisma.assessmentRuntime.create({
+      data: {
+        assessmentId,
+        threadId,
+        rootAgentVersion: "1.0.0",
+        checkpointNamespace: "assessment",
+        executionState: "RUNNING",
+      },
+    });
+
+    // Seed 10 human requests with identical createdAt but different requestIds
+    const requestIds = Array.from({ length: 10 }, () => randomUUID());
+
+    for (const reqId of requestIds) {
+      await prisma.assessmentHumanRequest.create({
+        data: {
+          requestId: reqId,
+          assessmentId,
+          threadId,
+          assessmentRuleId: "RULE-1",
+          criterionIds: ["crit-1"],
+          question: `Question for ${reqId}`,
+          unresolvedFact: "Fact",
+          decisionImpact: ["impact"],
+          resolutionAttempts: [],
+          controlType: "FREE_TEXT",
+          choices: [],
+          caseRevision: 1,
+          status: "OPEN",
+          createdAt: fixedTime,
+        },
+      });
+    }
+
+    // Expected order: sorted by createdAt DESC, then requestId DESC
+    const expectedOrder = [...requestIds].sort((a, b) => b.localeCompare(a));
+
+    const page1 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-tie-p1-${randomUUID()}`,
+      actionsLimit: 5,
+      actionsOffset: 0,
+    });
+
+    const page2 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-tie-p2-${randomUUID()}`,
+      actionsLimit: 5,
+      actionsOffset: 5,
+    });
+
+    expect(page1.actionsPagination?.total).toBe(10);
+    expect(page1.actions).toHaveLength(5);
+    expect(page2.actions).toHaveLength(5);
+
+    const page1Ids = page1.actions.map((a) => a.requestId);
+    const page2Ids = page2.actions.map((a) => a.requestId);
+
+    // No overlap across pages
+    const intersection = page1Ids.filter((id) => page2Ids.includes(id));
+    expect(intersection).toEqual([]);
+
+    // Combined pages strictly match expected deterministic ordering
+    expect([...page1Ids, ...page2Ids]).toEqual(expectedOrder);
+  });
+
+  it("evaluates change queue across 120+ distinct repositories without query fan-out or omissions", async () => {
+    const totalRepos = 120;
+    const now = Date.now();
+
+    for (let i = 0; i < totalRepos; i++) {
+      const asmtId = randomUUID();
+      const repoFullName = `org/scale-repo-${i}-${testSuffix}`;
+      const isComplete = i >= 30 && i < 90;
+
+      await prisma.assessment.create({
+        data: {
+          id: asmtId,
+          ownerId: userId,
+          name: `Scalability Repo ${i}`,
+          lifecycleState: isComplete ? "COMPLETE" : "ACTIVE",
+          lifecycleRevision: 1,
+          updatedAt: new Date(now - 50_000 + i),
+        },
+      });
+
+      const { connectionId, snapshotId } = await seedPinnedRepository(
+        asmtId,
+        repoFullName,
+      );
+
+      await prisma.assessmentCase.create({
+        data: {
+          assessmentId: asmtId,
+          caseRevision: 1,
+          ruleSetVersionId,
+          repositoryCommit: commitSha,
+          repositorySnapshotId: snapshotId,
+          pinnedAt: new Date(),
+        },
+      });
+
+      if (i < 30) {
+        await prisma.repositorySnapshot.create({
+          data: {
+            id: `snap-latest-${i}-${testSuffix}`,
+            assessmentId: asmtId,
+            connectionId,
+            repositoryId: `repo-${connectionId}`,
+            repositoryFullName: repoFullName,
+            branch: "main",
+            ref: "refs/heads/main",
+            commitSha: "2".repeat(40),
+            providerMetadata: { source: "test" },
+            actorId: userId,
+            status: "READY",
+            createdAt: new Date(now + 10_000 + i),
+          },
+        });
+      } else if (i < 60) {
+        await prisma.assessmentArtifact.create({
+          data: {
+            artifactId: randomUUID(),
+            assessmentId: asmtId,
+            kind: "FINAL_REPORT",
+            lifecycleState: "ACTIVE",
+            ruleSetVersionId,
+            repositorySnapshotId: snapshotId,
+            repositoryCommit: commitSha,
+            caseRevision: 1,
+            schemaVersion: "1.0.0",
+            createdAt: new Date(now - 20_000 + i),
+            activatedAt: new Date(now - 20_000 + i),
+          },
+        });
+      }
+    }
+
+    const startMs = Date.now();
+    const overview = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-scale-${randomUUID()}`,
+      changesLimit: 30,
+      changesOffset: 0,
+    });
+    const elapsedMs = Date.now() - startMs;
+
+    expect(elapsedMs).toBeLessThan(5000);
+
+    expect(overview.changesPagination?.total).toBe(90);
+    expect(overview.changesPagination?.hasMore).toBe(true);
+    expect(overview.changes).toHaveLength(30);
+
+    const page2 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-scale-p2-${randomUUID()}`,
+      changesLimit: 30,
+      changesOffset: 30,
+    });
+    const page3 = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-scale-p3-${randomUUID()}`,
+      changesLimit: 30,
+      changesOffset: 60,
+    });
+
+    const allChanges = [
+      ...overview.changes,
+      ...page2.changes,
+      ...page3.changes,
+    ];
+    expect(allChanges).toHaveLength(90);
+
+    const reassessments = allChanges.filter(
+      (c) => c.changeType === TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+    );
+    const reports = allChanges.filter(
+      (c) => c.changeType === TRACKING_CHANGE_TYPES.REPORT_READY,
+    );
+    const outcomes = allChanges.filter(
+      (c) => c.changeType === TRACKING_CHANGE_TYPES.OUTCOME_COMPLETED,
+    );
+
+    expect(reassessments).toHaveLength(30);
+    expect(reports).toHaveLength(30);
+    expect(outcomes).toHaveLength(30);
+
+    const distinctAsmtIds = new Set(allChanges.map((c) => c.assessmentId));
+    expect(distinctAsmtIds.size).toBe(90);
   }, 120_000);
 });

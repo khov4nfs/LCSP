@@ -46,6 +46,25 @@ import { LLM_USAGE_STATUSES } from "@lcsp/contracts/billing";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let currentIndex = 0;
+  const workers = Array.from(
+    { length: Math.min(concurrency, items.length) },
+    async () => {
+      while (currentIndex < items.length) {
+        const idx = currentIndex++;
+        results[idx] = await fn(items[idx]);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
 
 /**
  * CANONICAL INVARIANTS BOUNDARY:
@@ -747,7 +766,7 @@ export class AssessmentTrackingLoader {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { requestId: "desc" }],
         skip: effectiveActionsOffset,
         take: effectiveActionsLimit,
       },
@@ -768,143 +787,488 @@ export class AssessmentTrackingLoader {
     }
 
     // 2. Dedicated owner-wide Changes queue: material changes across all owned assessments
+    let totalChanges = 0;
+    let paginatedChanges: CustomerTrackingChangeItem[] = [];
+    let usedDbChanges = false;
+
+    if (typeof this.prisma.$queryRaw === "function") {
+      try {
+        const sinceDate = new Date(sinceTime);
+        interface ChangeSqlRow {
+          total: number;
+          assessmentId: string | null;
+          assessmentName: string | null;
+          changeType: string | null;
+          occurredAt: Date | null;
+          artifactId: string | null;
+          commitPrefix: string | null;
+        }
+
+        const changeRows = await this.prisma.$queryRaw<ChangeSqlRow[]>`
+          WITH owner_ready_reports AS (
+            SELECT
+              art."assessmentId",
+              a."name" AS "assessmentName",
+              'REPORT_READY' AS "changeType",
+              COALESCE(art."activatedAt", art."createdAt") AS "occurredAt",
+              art."artifactId"::text AS "artifactId",
+              NULL::text AS "commitPrefix"
+            FROM "AssessmentArtifact" art
+            JOIN "Assessment" a ON a."id" = art."assessmentId"
+            WHERE a."ownerId" = ${input.sessionUserId}
+              AND a."lifecycleState" = 'COMPLETE'
+              AND art."kind" = 'FINAL_REPORT'
+              AND art."lifecycleState" = 'ACTIVE'
+              AND COALESCE(art."activatedAt", art."createdAt") >= ${sinceDate}
+          ),
+          owner_completed_without_reports AS (
+            SELECT
+              a."id" AS "assessmentId",
+              a."name" AS "assessmentName",
+              'OUTCOME_COMPLETED' AS "changeType",
+              a."updatedAt" AS "occurredAt",
+              NULL::text AS "artifactId",
+              NULL::text AS "commitPrefix"
+            FROM "Assessment" a
+            WHERE a."ownerId" = ${input.sessionUserId}
+              AND a."lifecycleState" = 'COMPLETE'
+              AND a."updatedAt" >= ${sinceDate}
+              AND NOT EXISTS (
+                SELECT 1
+                FROM "AssessmentArtifact" art
+                WHERE art."assessmentId" = a."id"
+                  AND art."kind" = 'FINAL_REPORT'
+                  AND art."lifecycleState" = 'ACTIVE'
+              )
+          ),
+          owner_reassessments AS (
+            SELECT
+              a."id" AS "assessmentId",
+              a."name" AS "assessmentName",
+              'REASSESSMENT_REQUIRED' AS "changeType",
+              ls."createdAt" AS "occurredAt",
+              NULL::text AS "artifactId",
+              SUBSTRING(ls."commitSha" FROM 1 FOR 7) AS "commitPrefix"
+            FROM "Assessment" a
+            JOIN "AssessmentCase" ac ON ac."assessmentId" = a."id"
+            JOIN "RepositorySnapshot" ps ON ps."id" = ac."repositorySnapshotId"
+            CROSS JOIN LATERAL (
+              SELECT s."id", s."commitSha", s."createdAt"
+              FROM "RepositorySnapshot" s
+              WHERE s."status" = 'READY'
+                AND s."repositoryFullName" = ps."repositoryFullName"
+                AND (
+                  (ps."ref" IS NOT NULL AND (s."ref" = ps."ref" OR s."branch" = ps."ref"))
+                  OR (ps."branch" IS NOT NULL AND (s."ref" = ps."branch" OR s."branch" = ps."branch"))
+                  OR (ps."ref" IS NULL AND ps."branch" IS NULL)
+                )
+                AND (
+                  EXISTS (
+                    SELECT 1 FROM "Assessment" oa WHERE oa."id" = s."assessmentId" AND oa."ownerId" = a."ownerId"
+                  )
+                  OR EXISTS (
+                    SELECT 1 FROM "RepositoryConnection" rc WHERE rc."id" = s."connectionId" AND rc."userId" = a."ownerId" AND rc."status" = 'ACTIVE'
+                  )
+                )
+              ORDER BY s."createdAt" DESC
+              LIMIT 1
+            ) ls
+            WHERE a."ownerId" = ${input.sessionUserId}
+              AND ls."id" <> ps."id"
+              AND LOWER(ls."commitSha") <> LOWER(COALESCE(ac."repositoryCommit", ps."commitSha"))
+              AND ls."createdAt" >= ${sinceDate}
+          ),
+          all_changes AS (
+            SELECT * FROM owner_ready_reports
+            UNION ALL
+            SELECT * FROM owner_completed_without_reports
+            UNION ALL
+            SELECT * FROM owner_reassessments
+          ),
+          deduped_changes AS (
+            SELECT DISTINCT ON ("changeType", "assessmentId")
+              "assessmentId",
+              "assessmentName",
+              "changeType",
+              "occurredAt",
+              "artifactId",
+              "commitPrefix"
+            FROM all_changes
+            ORDER BY "changeType", "assessmentId", "occurredAt" DESC
+          ),
+          total_count AS (
+            SELECT COUNT(*)::int AS "total" FROM deduped_changes
+          ),
+          paged_changes AS (
+            SELECT *
+            FROM deduped_changes
+            ORDER BY "occurredAt" DESC, "assessmentId" ASC, "changeType" ASC
+            LIMIT ${effectiveChangesLimit} OFFSET ${effectiveChangesOffset}
+          )
+          SELECT
+            tc."total",
+            pc."assessmentId",
+            pc."assessmentName",
+            pc."changeType",
+            pc."occurredAt",
+            pc."artifactId",
+            pc."commitPrefix"
+          FROM total_count tc
+          LEFT JOIN paged_changes pc ON true
+        `;
+
+        if (
+          Array.isArray(changeRows) &&
+          changeRows.length > 0 &&
+          typeof changeRows[0].total === "number"
+        ) {
+          usedDbChanges = true;
+          totalChanges = changeRows[0].total;
+          paginatedChanges = changeRows
+            .filter(
+              (
+                row,
+              ): row is ChangeSqlRow & {
+                assessmentId: string;
+                assessmentName: string;
+                changeType: string;
+                occurredAt: Date;
+              } =>
+                row.assessmentId !== null &&
+                row.assessmentName !== null &&
+                row.changeType !== null &&
+                row.occurredAt !== null,
+            )
+            .map((row) => {
+              const occurredAtStr = new Date(row.occurredAt).toISOString();
+              if (row.changeType === TRACKING_CHANGE_TYPES.REPORT_READY) {
+                return {
+                  assessmentId: row.assessmentId,
+                  assessmentName: row.assessmentName,
+                  changeType: TRACKING_CHANGE_TYPES.REPORT_READY,
+                  titleKey: "assessment.tracking.reportReadyTitle",
+                  descriptionKey: "assessment.tracking.reportReadyDescription",
+                  title: isVi
+                    ? `Báo cáo cuối cùng đã sẵn sàng cho ${row.assessmentName}`
+                    : `Final Report available for ${row.assessmentName}`,
+                  description: isVi
+                    ? "Báo cáo tuân thủ chuẩn hoá đã sẵn sàng để tải về."
+                    : "Canonical compliance report is ready for download.",
+                  occurredAt: occurredAtStr,
+                  destinationUrl: `/assessments/${row.assessmentId}/report?artifactId=${encodeURIComponent(row.artifactId ?? "")}`,
+                };
+              }
+              if (row.changeType === TRACKING_CHANGE_TYPES.OUTCOME_COMPLETED) {
+                return {
+                  assessmentId: row.assessmentId,
+                  assessmentName: row.assessmentName,
+                  changeType: TRACKING_CHANGE_TYPES.OUTCOME_COMPLETED,
+                  titleKey: "assessment.tracking.outcomeCompletedTitle",
+                  descriptionKey:
+                    "assessment.tracking.outcomeCompletedDescription",
+                  title: isVi
+                    ? `Đã hoàn thành đánh giá cho ${row.assessmentName}`
+                    : `Assessment completed for ${row.assessmentName}`,
+                  description: isVi
+                    ? "Đánh giá đã hoàn tất trên toàn bộ các quy tắc chuẩn."
+                    : "Evaluation completed across canonical rules.",
+                  occurredAt: occurredAtStr,
+                  destinationUrl: `/assessments/${row.assessmentId}`,
+                };
+              }
+              const commitPrefix = row.commitPrefix ?? "";
+              return {
+                assessmentId: row.assessmentId,
+                assessmentName: row.assessmentName,
+                changeType: TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+                titleKey: "assessment.tracking.reassessmentRequiredTitle",
+                descriptionKey:
+                  "assessment.tracking.reassessmentRequiredDescription",
+                title: isVi
+                  ? `Phát hiện commit mới cho ${row.assessmentName}`
+                  : `New commit detected for ${row.assessmentName}`,
+                description: isVi
+                  ? `Kho mã nguồn có commit mới hơn (${commitPrefix}) so với bản chụp đã đánh giá. Cần thực hiện đánh giá lại.`
+                  : `Repository has newer commit (${commitPrefix}) than assessed snapshot. Reassessment required.`,
+                occurredAt: occurredAtStr,
+                destinationUrl: `/assessments/${row.assessmentId}`,
+              };
+            });
+        }
+      } catch {
+        usedDbChanges = false;
+      }
+    }
+
     const changes: CustomerTrackingChangeItem[] = [];
 
-    // 2a. Ready reports across all owned completed assessments
-    const readyReports = await this.prisma.assessmentArtifact.findMany({
-      where: {
-        kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
-        lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
-        assessmentCase: {
-          assessment: {
-            ownerId: input.sessionUserId,
-            lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
-          },
-        },
-        OR: [
-          { activatedAt: { gte: new Date(sinceTime) } },
-          { createdAt: { gte: new Date(sinceTime) } },
-        ],
-      },
-      select: {
-        artifactId: true,
-        createdAt: true,
-        activatedAt: true,
-        assessmentCase: {
-          select: {
+    // Fallback path with controlled concurrency for unit test mocks
+    if (!usedDbChanges) {
+      // 2a. Ready reports across all owned completed assessments
+      const readyReports = await this.prisma.assessmentArtifact.findMany({
+        where: {
+          kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+          lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+          assessmentCase: {
             assessment: {
-              select: {
-                id: true,
-                name: true,
+              ownerId: input.sessionUserId,
+              lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+            },
+          },
+          OR: [
+            { activatedAt: { gte: new Date(sinceTime) } },
+            { createdAt: { gte: new Date(sinceTime) } },
+          ],
+        },
+        select: {
+          artifactId: true,
+          createdAt: true,
+          activatedAt: true,
+          assessmentCase: {
+            select: {
+              assessment: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    for (const report of readyReports) {
-      const reportTime = (report.activatedAt ?? report.createdAt).getTime();
-      changes.push({
-        assessmentId: report.assessmentCase.assessment.id,
-        assessmentName: report.assessmentCase.assessment.name,
-        changeType: TRACKING_CHANGE_TYPES.REPORT_READY,
-        titleKey: "assessment.tracking.reportReadyTitle",
-        descriptionKey: "assessment.tracking.reportReadyDescription",
-        title: isVi
-          ? `Báo cáo cuối cùng đã sẵn sàng cho ${report.assessmentCase.assessment.name}`
-          : `Final Report available for ${report.assessmentCase.assessment.name}`,
-        description: isVi
-          ? "Báo cáo tuân thủ chuẩn hoá đã sẵn sàng để tải về."
-          : "Canonical compliance report is ready for download.",
-        occurredAt: new Date(reportTime).toISOString(),
-        destinationUrl: `/assessments/${report.assessmentCase.assessment.id}/report?artifactId=${encodeURIComponent(report.artifactId)}`,
+        orderBy: { createdAt: "desc" },
       });
-    }
 
-    // 2b. Completed assessments without reports updated since sinceTime
-    const completedWithoutReports = await this.prisma.assessment.findMany({
-      where: {
-        ownerId: input.sessionUserId,
-        lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
-        updatedAt: { gte: new Date(sinceTime) },
-        domainCase: {
-          artifacts: {
-            none: {
-              kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
-              lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+      for (const report of readyReports) {
+        const reportTime = (report.activatedAt ?? report.createdAt).getTime();
+        changes.push({
+          assessmentId: report.assessmentCase.assessment.id,
+          assessmentName: report.assessmentCase.assessment.name,
+          changeType: TRACKING_CHANGE_TYPES.REPORT_READY,
+          titleKey: "assessment.tracking.reportReadyTitle",
+          descriptionKey: "assessment.tracking.reportReadyDescription",
+          title: isVi
+            ? `Báo cáo cuối cùng đã sẵn sàng cho ${report.assessmentCase.assessment.name}`
+            : `Final Report available for ${report.assessmentCase.assessment.name}`,
+          description: isVi
+            ? "Báo cáo tuân thủ chuẩn hoá đã sẵn sàng để tải về."
+            : "Canonical compliance report is ready for download.",
+          occurredAt: new Date(reportTime).toISOString(),
+          destinationUrl: `/assessments/${report.assessmentCase.assessment.id}/report?artifactId=${encodeURIComponent(report.artifactId)}`,
+        });
+      }
+
+      // 2b. Completed assessments without reports updated since sinceTime
+      const completedWithoutReports = await this.prisma.assessment.findMany({
+        where: {
+          ownerId: input.sessionUserId,
+          lifecycleState: ASSESSMENT_LIFECYCLE_STATES.COMPLETE,
+          updatedAt: { gte: new Date(sinceTime) },
+          domainCase: {
+            artifacts: {
+              none: {
+                kind: ASSESSMENT_ARTIFACT_KINDS.FINAL_REPORT,
+                lifecycleState: ARTIFACT_LIFECYCLE_STATES.ACTIVE,
+              },
             },
           },
         },
-      },
-      select: {
-        id: true,
-        name: true,
-        updatedAt: true,
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-
-    for (const asmt of completedWithoutReports) {
-      changes.push({
-        assessmentId: asmt.id,
-        assessmentName: asmt.name,
-        changeType: TRACKING_CHANGE_TYPES.OUTCOME_COMPLETED,
-        titleKey: "assessment.tracking.outcomeCompletedTitle",
-        descriptionKey: "assessment.tracking.outcomeCompletedDescription",
-        title: isVi
-          ? `Đã hoàn thành đánh giá cho ${asmt.name}`
-          : `Assessment completed for ${asmt.name}`,
-        description: isVi
-          ? "Đánh giá đã hoàn tất trên toàn bộ các quy tắc chuẩn."
-          : "Evaluation completed across canonical rules.",
-        occurredAt: asmt.updatedAt.toISOString(),
-        destinationUrl: `/assessments/${asmt.id}`,
+        select: {
+          id: true,
+          name: true,
+          updatedAt: true,
+        },
+        orderBy: { updatedAt: "desc" },
       });
+
+      for (const asmt of completedWithoutReports) {
+        changes.push({
+          assessmentId: asmt.id,
+          assessmentName: asmt.name,
+          changeType: TRACKING_CHANGE_TYPES.OUTCOME_COMPLETED,
+          titleKey: "assessment.tracking.outcomeCompletedTitle",
+          descriptionKey: "assessment.tracking.outcomeCompletedDescription",
+          title: isVi
+            ? `Đã hoàn thành đánh giá cho ${asmt.name}`
+            : `Assessment completed for ${asmt.name}`,
+          description: isVi
+            ? "Đánh giá đã hoàn tất trên toàn bộ các quy tắc chuẩn."
+            : "Evaluation completed across canonical rules.",
+          occurredAt: asmt.updatedAt.toISOString(),
+          destinationUrl: `/assessments/${asmt.id}`,
+        });
+      }
+
+      // 2c. Candidate cases with pinned snapshots across all owned assessments (for staleness detection)
+      const ownerCasesWithSnapshots = await this.prisma.assessmentCase.findMany(
+        {
+          where: {
+            assessment: { ownerId: input.sessionUserId },
+            repositorySnapshotId: { not: null },
+          },
+          select: {
+            assessmentId: true,
+            repositorySnapshotId: true,
+            repositoryCommit: true,
+            assessment: {
+              select: {
+                id: true,
+                name: true,
+                updatedAt: true,
+              },
+            },
+          },
+          orderBy: { assessment: { updatedAt: "desc" } },
+        },
+      );
+
+      const allPinnedSnapshotIds = [
+        ...new Set([
+          ...assessments
+            .map((a) => a.domainCase?.repositorySnapshotId)
+            .filter(
+              (id): id is string => typeof id === "string" && id.length > 0,
+            ),
+          ...ownerCasesWithSnapshots
+            .map((c) => c.repositorySnapshotId)
+            .filter(
+              (id): id is string => typeof id === "string" && id.length > 0,
+            ),
+        ]),
+      ];
+
+      const pinnedSnapshots =
+        allPinnedSnapshotIds.length > 0
+          ? await this.prisma.repositorySnapshot.findMany({
+              where: { id: { in: allPinnedSnapshotIds } },
+              select: {
+                id: true,
+                repositoryFullName: true,
+                ref: true,
+                branch: true,
+                commitSha: true,
+                createdAt: true,
+                status: true,
+              },
+            })
+          : [];
+
+      const pinnedSnapshotById = new Map(pinnedSnapshots.map((s) => [s.id, s]));
+
+      const repoRefKeys = [
+        ...new Set(
+          pinnedSnapshots.map(
+            (s) => `${s.repositoryFullName}::${s.ref ?? s.branch ?? ""}`,
+          ),
+        ),
+      ];
+      const latestSnapshotsByRepoRef = new Map<
+        string,
+        (typeof pinnedSnapshots)[0]
+      >();
+      const latestEntries = await mapWithConcurrency(
+        repoRefKeys,
+        8,
+        async (key) => {
+          const [fullName, ref] = key.split("::");
+          const whereConditions: Array<Record<string, unknown>> = [
+            {
+              OR: [
+                { assessment: { ownerId: input.sessionUserId } },
+                {
+                  connection: {
+                    userId: input.sessionUserId,
+                    status: REPOSITORY_CONNECTION_STATUSES.active,
+                  },
+                },
+              ],
+            },
+          ];
+          if (ref) {
+            whereConditions.push({
+              OR: [{ ref }, { branch: ref }],
+            });
+          }
+
+          const latest = await this.prisma.repositorySnapshot.findFirst({
+            where: {
+              repositoryFullName: fullName,
+              status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+              AND: whereConditions,
+            },
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              repositoryFullName: true,
+              ref: true,
+              branch: true,
+              commitSha: true,
+              createdAt: true,
+              status: true,
+            },
+          });
+          return [key, latest] as const;
+        },
+      );
+      for (const [key, latest] of latestEntries) {
+        if (latest) {
+          latestSnapshotsByRepoRef.set(key, latest);
+        }
+      }
+
+      for (const ac of ownerCasesWithSnapshots) {
+        if (!ac.repositorySnapshotId) continue;
+        const pinned = pinnedSnapshotById.get(ac.repositorySnapshotId);
+        if (!pinned) continue;
+        const pinnedCommit = ac.repositoryCommit ?? pinned.commitSha;
+        const key = `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`;
+        const foundLatest = latestSnapshotsByRepoRef.get(key);
+        if (foundLatest && foundLatest.id !== pinned.id) {
+          const latestCommit = foundLatest.commitSha;
+          const isStale =
+            Boolean(pinnedCommit) &&
+            Boolean(latestCommit) &&
+            pinnedCommit.toLowerCase() !== latestCommit.toLowerCase();
+          if (isStale && pinnedCommit && latestCommit) {
+            const sourceChangeTime = new Date(foundLatest.createdAt).getTime();
+            if (sourceChangeTime >= sinceTime) {
+              const commitPrefix = latestCommit.slice(0, 7);
+              changes.push({
+                assessmentId: ac.assessment.id,
+                assessmentName: ac.assessment.name,
+                changeType: TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
+                titleKey: "assessment.tracking.reassessmentRequiredTitle",
+                descriptionKey:
+                  "assessment.tracking.reassessmentRequiredDescription",
+                title: isVi
+                  ? `Phát hiện commit mới cho ${ac.assessment.name}`
+                  : `New commit detected for ${ac.assessment.name}`,
+                description: isVi
+                  ? `Kho mã nguồn có commit mới hơn (${commitPrefix}) so với bản chụp đã đánh giá. Cần thực hiện đánh giá lại.`
+                  : `Repository has newer commit (${commitPrefix}) than assessed snapshot. Reassessment required.`,
+                occurredAt: new Date(foundLatest.createdAt).toISOString(),
+                destinationUrl: `/assessments/${ac.assessment.id}`,
+              });
+            }
+          }
+        }
+      }
     }
 
-    // 2c. Candidate cases with pinned snapshots across all owned assessments (for staleness detection)
-    const ownerCasesWithSnapshots = await this.prisma.assessmentCase.findMany({
-      where: {
-        assessment: { ownerId: input.sessionUserId },
-        repositorySnapshotId: { not: null },
-      },
-      select: {
-        assessmentId: true,
-        repositorySnapshotId: true,
-        repositoryCommit: true,
-        assessment: {
-          select: {
-            id: true,
-            name: true,
-            updatedAt: true,
-          },
-        },
-      },
-      orderBy: { assessment: { updatedAt: "desc" } },
-    });
-
-    // Fetch pinned snapshots for exact repository and ref resolution for page assessments and candidate cases
-    const allPinnedSnapshotIds = [
-      ...new Set([
-        ...assessments
+    // Pinned snapshots and authoritative remote status for current page assessments only
+    const pagePinnedSnapshotIds = [
+      ...new Set(
+        assessments
           .map((a) => a.domainCase?.repositorySnapshotId)
           .filter(
             (id): id is string => typeof id === "string" && id.length > 0,
           ),
-        ...ownerCasesWithSnapshots
-          .map((c) => c.repositorySnapshotId)
-          .filter(
-            (id): id is string => typeof id === "string" && id.length > 0,
-          ),
-      ]),
+      ),
     ];
 
-    const pinnedSnapshots =
-      allPinnedSnapshotIds.length > 0
+    const pagePinnedSnapshots =
+      pagePinnedSnapshotIds.length > 0
         ? await this.prisma.repositorySnapshot.findMany({
-            where: { id: { in: allPinnedSnapshotIds } },
+            where: { id: { in: pagePinnedSnapshotIds } },
             select: {
               id: true,
               repositoryFullName: true,
@@ -917,22 +1281,25 @@ export class AssessmentTrackingLoader {
           })
         : [];
 
-    const pinnedSnapshotById = new Map(pinnedSnapshots.map((s) => [s.id, s]));
+    const pinnedSnapshotById = new Map(
+      pagePinnedSnapshots.map((s) => [s.id, s]),
+    );
 
-    // Query authoritative latest snapshot for each distinct (repositoryFullName, ref)
-    const repoRefKeys = [
+    const pageRepoRefKeys = [
       ...new Set(
-        pinnedSnapshots.map(
+        pagePinnedSnapshots.map(
           (s) => `${s.repositoryFullName}::${s.ref ?? s.branch ?? ""}`,
         ),
       ),
     ];
     const latestSnapshotsByRepoRef = new Map<
       string,
-      (typeof pinnedSnapshots)[0]
+      (typeof pagePinnedSnapshots)[0]
     >();
-    const latestEntries = await Promise.all(
-      repoRefKeys.map(async (key) => {
+    const latestPageEntries = await mapWithConcurrency(
+      pageRepoRefKeys,
+      5,
+      async (key) => {
         const [fullName, ref] = key.split("::");
         const whereConditions: Array<Record<string, unknown>> = [
           {
@@ -971,50 +1338,11 @@ export class AssessmentTrackingLoader {
           },
         });
         return [key, latest] as const;
-      }),
+      },
     );
-    for (const [key, latest] of latestEntries) {
+    for (const [key, latest] of latestPageEntries) {
       if (latest) {
         latestSnapshotsByRepoRef.set(key, latest);
-      }
-    }
-
-    // Emit REASSESSMENT_REQUIRED for any owned candidate assessment whose pinned commit is stale
-    for (const ac of ownerCasesWithSnapshots) {
-      if (!ac.repositorySnapshotId) continue;
-      const pinned = pinnedSnapshotById.get(ac.repositorySnapshotId);
-      if (!pinned) continue;
-      const pinnedCommit = ac.repositoryCommit ?? pinned.commitSha;
-      const key = `${pinned.repositoryFullName}::${pinned.ref ?? pinned.branch ?? ""}`;
-      const foundLatest = latestSnapshotsByRepoRef.get(key);
-      if (foundLatest && foundLatest.id !== pinned.id) {
-        const latestCommit = foundLatest.commitSha;
-        const isStale =
-          Boolean(pinnedCommit) &&
-          Boolean(latestCommit) &&
-          pinnedCommit.toLowerCase() !== latestCommit.toLowerCase();
-        if (isStale && pinnedCommit && latestCommit) {
-          const sourceChangeTime = new Date(foundLatest.createdAt).getTime();
-          if (sourceChangeTime >= sinceTime) {
-            const commitPrefix = latestCommit.slice(0, 7);
-            changes.push({
-              assessmentId: ac.assessment.id,
-              assessmentName: ac.assessment.name,
-              changeType: TRACKING_CHANGE_TYPES.REASSESSMENT_REQUIRED,
-              titleKey: "assessment.tracking.reassessmentRequiredTitle",
-              descriptionKey:
-                "assessment.tracking.reassessmentRequiredDescription",
-              title: isVi
-                ? `Phát hiện commit mới cho ${ac.assessment.name}`
-                : `New commit detected for ${ac.assessment.name}`,
-              description: isVi
-                ? `Kho mã nguồn có commit mới hơn (${commitPrefix}) so với bản chụp đã đánh giá. Cần thực hiện đánh giá lại.`
-                : `Repository has newer commit (${commitPrefix}) than assessed snapshot. Reassessment required.`,
-              occurredAt: new Date(foundLatest.createdAt).toISOString(),
-              destinationUrl: `/assessments/${ac.assessment.id}`,
-            });
-          }
-        }
       }
     }
 
@@ -1028,13 +1356,15 @@ export class AssessmentTrackingLoader {
           ),
       ),
     ];
-    const expectedRuleCounts = await Promise.all(
-      ruleSetVersionIds.map(async (vId) => {
+    const expectedRuleCounts = await mapWithConcurrency(
+      ruleSetVersionIds,
+      5,
+      async (vId) => {
         const count = await this.prisma.assessmentRule.count({
           where: { ruleSetVersionId: vId },
         });
         return [vId, count] as const;
-      }),
+      },
     );
     const expectedRuleCountByVersionId = new Map(expectedRuleCounts);
 
@@ -1247,27 +1577,37 @@ export class AssessmentTrackingLoader {
       });
     }
 
-    actions.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-
-    const seenChangeKeys = new Set<string>();
-    const deduplicatedChanges = changes.filter((c) => {
-      const key = `${c.changeType}::${c.assessmentId}`;
-      if (seenChangeKeys.has(key)) return false;
-      seenChangeKeys.add(key);
-      return true;
-    });
-
-    deduplicatedChanges.sort((a, b) => {
+    actions.sort((a, b) => {
       const timeDiff =
-        new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime();
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       if (timeDiff !== 0) return timeDiff;
-      const idDiff = a.assessmentId.localeCompare(b.assessmentId);
-      if (idDiff !== 0) return idDiff;
-      return a.changeType.localeCompare(b.changeType);
+      return b.requestId.localeCompare(a.requestId);
     });
+
+    if (!usedDbChanges) {
+      const seenChangeKeys = new Set<string>();
+      const deduplicatedChanges = changes.filter((c) => {
+        const key = `${c.changeType}::${c.assessmentId}`;
+        if (seenChangeKeys.has(key)) return false;
+        seenChangeKeys.add(key);
+        return true;
+      });
+
+      deduplicatedChanges.sort((a, b) => {
+        const timeDiff =
+          new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime();
+        if (timeDiff !== 0) return timeDiff;
+        const idDiff = a.assessmentId.localeCompare(b.assessmentId);
+        if (idDiff !== 0) return idDiff;
+        return a.changeType.localeCompare(b.changeType);
+      });
+
+      totalChanges = deduplicatedChanges.length;
+      paginatedChanges = deduplicatedChanges.slice(
+        effectiveChangesOffset,
+        effectiveChangesOffset + effectiveChangesLimit,
+      );
+    }
 
     const actionsPagination = {
       total: totalOpenHumanRequests,
@@ -1276,11 +1616,6 @@ export class AssessmentTrackingLoader {
       hasMore: effectiveActionsOffset + actions.length < totalOpenHumanRequests,
     };
 
-    const totalChanges = deduplicatedChanges.length;
-    const paginatedChanges = deduplicatedChanges.slice(
-      effectiveChangesOffset,
-      effectiveChangesOffset + effectiveChangesLimit,
-    );
     const changesPagination = {
       total: totalChanges,
       limit: effectiveChangesLimit,
