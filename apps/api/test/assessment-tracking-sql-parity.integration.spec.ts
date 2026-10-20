@@ -1379,18 +1379,28 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
           },
         });
       } else if (i < 60) {
+        const artId = randomUUID();
         await prisma.assessmentArtifact.create({
           data: {
-            artifactId: randomUUID(),
+            artifactId: artId,
             assessmentId: asmtId,
             kind: "FINAL_REPORT",
-            lifecycleState: "ACTIVE",
+            lifecycleState: "BUILDING",
             ruleSetVersionId,
             repositorySnapshotId: snapshotId,
             repositoryCommit: commitSha,
             caseRevision: 1,
             schemaVersion: "1.0.0",
+            storageRef: `/reports/${artId}.pdf`,
+            contentSha256: `sha256:${"6".repeat(64)}`,
+            sizeBytes: 1024,
             createdAt: new Date(now - 20_000 + i),
+          },
+        });
+        await prisma.assessmentArtifact.update({
+          where: { artifactId: artId },
+          data: {
+            lifecycleState: "ACTIVE",
             activatedAt: new Date(now - 20_000 + i),
           },
         });
