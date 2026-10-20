@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { ServiceUnavailableException } from "@nestjs/common";
 import {
   afterAll,
   beforeAll,
@@ -1698,4 +1699,316 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(asmt?.compliance.compliantCount).toBe(0);
     expect(asmt?.compliance.unresolvedCount).toBe(1);
   });
+
+  it("proves SQL summary rejects criterion with unexpected extra keys with 100% parity to strict ruleDecisionSchema", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Extra Key Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"5".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const validEvidenceRef = {
+      type: "ASSESSMENT_EVIDENCE",
+      evidenceId,
+    };
+
+    // Criterion has an unexpected extra field disallowed by canonical z.strictObject
+    const decisionWithExtraField = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "Decision rationale is valid",
+      references: [validEvidenceRef],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion rationale is valid",
+          references: [validEvidenceRef],
+          extraField: true,
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest",
+        decision: decisionWithExtraField,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-extra-key-${randomUUID()}`,
+    });
+
+    // Both SQL aggregate and per-assessment evaluation must fail closed to UNRESOLVED
+    expect(result.complianceSummary.compliantCount).toBe(0);
+    expect(result.complianceSummary.unresolvedCount).toBe(1);
+
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(0);
+    expect(asmt?.compliance.unresolvedCount).toBe(1);
+  });
+
+  it("fails closed and rejects with ServiceUnavailableException when compliance summary SQL fails, never returning false all-zero success", async () => {
+    const assessmentId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "SQL Failure Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"6".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    // Create a loader with simulated database failure on $queryRaw
+    const faultyPrisma = new Proxy(prisma, {
+      get(target, prop, receiver) {
+        if (prop === "$queryRaw") {
+          return () =>
+            Promise.reject(
+              new Error(
+                "Simulated PostgreSQL timeout in compliance summary CTE",
+              ),
+            );
+        }
+        return Reflect.get(target, prop, receiver) as unknown;
+      },
+    });
+    const faultyLoader = new AssessmentTrackingLoader(
+      faultyPrisma as unknown as PrismaService,
+    );
+
+    await expect(
+      faultyLoader.loadCustomerOverview({
+        sessionUserId: userId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: `corr-sql-fail-${randomUUID()}`,
+      }),
+    ).rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it("fails closed with ServiceUnavailableException when change-feed SQL query fails across 201+ records", async () => {
+    const count = 205;
+    const now = Date.now();
+    const asmtIds = Array.from({ length: count }, () => randomUUID());
+    const connIds = asmtIds.map(() => `conn-${randomUUID()}`);
+    const snapIds = asmtIds.map(() => randomUUID());
+    const scanJobIds = asmtIds.map(() => randomUUID());
+
+    await prisma.assessment.createMany({
+      data: asmtIds.map((id, i) => ({
+        id,
+        ownerId: userId,
+        name: `Change Failure Repo ${i}`,
+        lifecycleState: "COMPLETE",
+        lifecycleRevision: 1,
+        updatedAt: new Date(now - 100_000 + i),
+      })),
+    });
+
+    await prisma.repositoryConnection.createMany({
+      data: asmtIds.map((asmtId, i) => ({
+        id: connIds[i],
+        assessmentId: asmtId,
+        userId,
+        installationId: `inst-${connIds[i]}`,
+        repositoryId: `repo-${connIds[i]}`,
+        repositoryName: "test-repo",
+        repositoryFullName: `org/change-fail-repo-${i}-${testSuffix}`,
+        defaultBranch: "main",
+        permissions: { contents: "READ" },
+        status: "ACTIVE",
+      })),
+    });
+
+    await prisma.repositorySnapshot.createMany({
+      data: asmtIds.map((asmtId, i) => ({
+        id: snapIds[i],
+        assessmentId: asmtId,
+        connectionId: connIds[i],
+        repositoryId: `repo-${connIds[i]}`,
+        repositoryFullName: `org/change-fail-repo-${i}-${testSuffix}`,
+        branch: "main",
+        ref: "refs/heads/main",
+        commitSha,
+        providerMetadata: { source: "test" },
+        actorId: userId,
+        status: "READY",
+      })),
+    });
+
+    await prisma.repositoryScanJob.createMany({
+      data: asmtIds.map((asmtId, i) => ({
+        id: scanJobIds[i],
+        assessmentId: asmtId,
+        snapshotId: snapIds[i],
+        idempotencyKey: `scan-${scanJobIds[i]}`,
+        triggerSource: "MANUAL",
+        status: "COMPLETED",
+        attemptCount: 1,
+        correlationId: `corr-${scanJobIds[i]}`,
+      })),
+    });
+
+    await prisma.assessmentCase.createMany({
+      data: asmtIds.map((asmtId, i) => ({
+        assessmentId: asmtId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapIds[i],
+        repositoryScanJobId: scanJobIds[i],
+        pinnedAt: new Date(),
+      })),
+    });
+
+    await prisma.assessmentArtifact.createMany({
+      data: asmtIds.map((asmtId, i) => ({
+        artifactId: randomUUID(),
+        assessmentId: asmtId,
+        kind: "FINAL_REPORT",
+        lifecycleState: "ACTIVE",
+        ruleSetVersionId,
+        repositorySnapshotId: snapIds[i],
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        schemaVersion: "1.0.0",
+        createdAt: new Date(now - 20_000 + i),
+        activatedAt: new Date(now - 20_000 + i),
+      })),
+    });
+
+    // Create a loader that fails specifically when executing change feed CTE
+    const faultyPrisma = new Proxy(prisma, {
+      get(target, prop, receiver) {
+        if (prop === "$queryRaw") {
+          return (...args: unknown[]) => {
+            const firstArg = args[0];
+            const fullText = Array.isArray(firstArg)
+              ? firstArg.join(" ")
+              : typeof firstArg === "string"
+                ? firstArg
+                : ((firstArg as { strings?: string[] })?.strings ?? []).join(
+                    " ",
+                  );
+            if (fullText.includes("owner_ready_reports AS")) {
+              return Promise.reject(
+                new Error(
+                  "Simulated PostgreSQL connection failure in change feed CTE",
+                ),
+              );
+            }
+            return (target.$queryRaw as (...a: unknown[]) => Promise<unknown>)(
+              ...args,
+            );
+          };
+        }
+        return Reflect.get(target, prop, receiver) as unknown;
+      },
+    });
+    const faultyLoader = new AssessmentTrackingLoader(
+      faultyPrisma as unknown as PrismaService,
+    );
+
+    await expect(
+      faultyLoader.loadCustomerOverview({
+        sessionUserId: userId,
+        subjectRole: AUTH_USER_ROLES.customer,
+        correlationId: `corr-change-fail-${randomUUID()}`,
+        changesLimit: 50,
+        changesOffset: 0,
+      }),
+    ).rejects.toThrow(ServiceUnavailableException);
+  }, 120_000);
 });

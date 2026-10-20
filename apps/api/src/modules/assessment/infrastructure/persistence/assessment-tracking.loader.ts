@@ -1,4 +1,9 @@
-import { Injectable, HttpStatus, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  HttpStatus,
+  Logger,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import {
   AGENT_EXECUTION_STATES,
@@ -598,6 +603,7 @@ export class AssessmentTrackingLoader {
                 (ard."compliance" IS NULL AND ard."decision"->>'compliance' IS NULL)
                 OR (ard."compliance" IS NOT NULL AND ard."decision"->>'compliance' IS NOT NULL AND ard."decision"->>'compliance' = ard."compliance"::text)
               )
+              AND ((ard."decision"::jsonb) - ARRAY['assessmentRuleId', 'assessmentRuleVersion', 'scopeId', 'ruleSetVersionId', 'repositorySnapshotId', 'repositoryCommit', 'caseRevision', 'legalContextRefs', 'applicability', 'rationale', 'references', 'criteria', 'compliance']) = '{}'::jsonb
               AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
               AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array' THEN (ard."decision"::jsonb)->'legalContextRefs' ELSE '[]'::jsonb END) >= 1
               AND NOT EXISTS (
@@ -607,7 +613,9 @@ export class AssessmentTrackingLoader {
                     THEN (ard."decision"::jsonb)->'legalContextRefs'
                     ELSE '[]'::jsonb END
                 ) lcr
-                WHERE lcr->>'legalContextId' IS NULL
+                WHERE jsonb_typeof(lcr) <> 'object'
+                  OR (lcr - ARRAY['legalContextId']) <> '{}'::jsonb
+                  OR lcr->>'legalContextId' IS NULL
                   OR length(trim(lcr->>'legalContextId')) = 0
               )
               AND (ard."decision"->>'rationale') IS NOT NULL
@@ -628,6 +636,7 @@ export class AssessmentTrackingLoader {
                       SELECT 1
                       FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
                       WHERE jsonb_typeof(crit) <> 'object'
+                        OR (crit - ARRAY['criterionId', 'outcome', 'rationale', 'references']) <> '{}'::jsonb
                         OR crit->>'criterionId' IS NULL
                         OR length(trim(crit->>'criterionId')) = 0
                         OR crit->>'outcome' IS NULL
@@ -682,12 +691,14 @@ export class AssessmentTrackingLoader {
                   ) crit
                 ) all_refs
                 WHERE (
-                  all_refs.ref->>'type' IS NULL
+                  jsonb_typeof(all_refs.ref) <> 'object'
+                  OR all_refs.ref->>'type' IS NULL
                   OR all_refs.ref->>'type' NOT IN ('ASSESSMENT_EVIDENCE', 'CONFIRMED_FACT')
                   OR (
                     all_refs.ref->>'type' = 'ASSESSMENT_EVIDENCE'
                     AND (
-                      all_refs.ref->>'evidenceId' IS NULL
+                      (all_refs.ref - ARRAY['type', 'evidenceId']) <> '{}'::jsonb
+                      OR all_refs.ref->>'evidenceId' IS NULL
                       OR length(trim(all_refs.ref->>'evidenceId')) = 0
                       OR NOT EXISTS (
                         SELECT 1 FROM "AssessmentEvidence" ae
@@ -702,7 +713,8 @@ export class AssessmentTrackingLoader {
                   OR (
                     all_refs.ref->>'type' = 'CONFIRMED_FACT'
                     AND (
-                      all_refs.ref->>'factId' IS NULL
+                      (all_refs.ref - ARRAY['type', 'factId', 'caseRevision']) <> '{}'::jsonb
+                      OR all_refs.ref->>'factId' IS NULL
                       OR length(trim(all_refs.ref->>'factId')) = 0
                       OR all_refs.ref->>'caseRevision' IS NULL
                       OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
@@ -745,6 +757,9 @@ export class AssessmentTrackingLoader {
         this.logger.error(
           `Owner compliance summary database query failed for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${err instanceof Error ? err.message : String(err)}`,
           err instanceof Error ? err.stack : undefined,
+        );
+        throw new ServiceUnavailableException(
+          `Owner compliance summary is temporarily unavailable: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
     }
@@ -1016,22 +1031,19 @@ export class AssessmentTrackingLoader {
         }
       } catch (err) {
         this.logger.error(
-          `Customer change feed database query failed; engaging bounded fallback for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${err instanceof Error ? err.message : String(err)}`,
+          `Customer change feed database query failed for owner ${input.sessionUserId} (correlationId: ${input.correlationId}): ${err instanceof Error ? err.message : String(err)}`,
           err instanceof Error ? err.stack : undefined,
         );
-        usedDbChanges = false;
+        throw new ServiceUnavailableException(
+          `Customer change feed query is temporarily unavailable: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 
     const changes: CustomerTrackingChangeItem[] = [];
 
-    // Fallback path with controlled concurrency and bounded take limits for unit test mocks / database query recovery
+    // Fallback path with controlled concurrency for unit test mocks where $queryRaw is not provided
     if (!usedDbChanges) {
-      const fallbackCandidateBudget = Math.min(
-        Math.max((effectiveChangesLimit + effectiveChangesOffset) * 2, 50),
-        200,
-      );
-
       // 2a. Ready reports across all owned completed assessments
       const readyReports = await this.prisma.assessmentArtifact.findMany({
         where: {
@@ -1048,7 +1060,6 @@ export class AssessmentTrackingLoader {
             { createdAt: { gte: new Date(sinceTime) } },
           ],
         },
-        take: fallbackCandidateBudget,
         select: {
           artifactId: true,
           createdAt: true,
@@ -1101,7 +1112,6 @@ export class AssessmentTrackingLoader {
             },
           },
         },
-        take: fallbackCandidateBudget,
         select: {
           id: true,
           name: true,
@@ -1135,7 +1145,6 @@ export class AssessmentTrackingLoader {
             assessment: { ownerId: input.sessionUserId },
             repositorySnapshotId: { not: null },
           },
-          take: fallbackCandidateBudget,
           select: {
             assessmentId: true,
             repositorySnapshotId: true,
