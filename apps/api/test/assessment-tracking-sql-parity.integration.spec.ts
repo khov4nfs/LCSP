@@ -1240,12 +1240,19 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
       },
     });
 
+    const { scanJobId, snapshotId } = await seedPinnedRepository(
+      assessmentId,
+      "org/tied-requests-repo",
+    );
+
     await prisma.assessmentCase.create({
       data: {
         assessmentId,
         caseRevision: 1,
         ruleSetVersionId,
-        repositoryCommit: "a".repeat(40),
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
         pinnedAt: new Date(),
       },
     });
@@ -1339,10 +1346,8 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
         },
       });
 
-      const { connectionId, snapshotId } = await seedPinnedRepository(
-        asmtId,
-        repoFullName,
-      );
+      const { connectionId, snapshotId, scanJobId } =
+        await seedPinnedRepository(asmtId, repoFullName);
 
       await prisma.assessmentCase.create({
         data: {
@@ -1351,6 +1356,7 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
           ruleSetVersionId,
           repositoryCommit: commitSha,
           repositorySnapshotId: snapshotId,
+          repositoryScanJobId: scanJobId,
           pinnedAt: new Date(),
         },
       });
