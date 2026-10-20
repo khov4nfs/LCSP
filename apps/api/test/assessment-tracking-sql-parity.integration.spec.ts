@@ -1964,6 +1964,9 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
         repositoryCommit: commitSha,
         caseRevision: 1,
         schemaVersion: "1.0.0",
+        storageRef: `/reports/${asmtId}.pdf`,
+        contentSha256: `sha256:${"2".repeat(64)}`,
+        sizeBytes: 1024,
         createdAt: new Date(now - 20_000 + i),
       })),
     });
