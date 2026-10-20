@@ -1958,15 +1958,22 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
         artifactId: randomUUID(),
         assessmentId: asmtId,
         kind: "FINAL_REPORT",
-        lifecycleState: "ACTIVE",
+        lifecycleState: "BUILDING",
         ruleSetVersionId,
         repositorySnapshotId: snapIds[i],
         repositoryCommit: commitSha,
         caseRevision: 1,
         schemaVersion: "1.0.0",
         createdAt: new Date(now - 20_000 + i),
-        activatedAt: new Date(now - 20_000 + i),
       })),
+    });
+
+    await prisma.assessmentArtifact.updateMany({
+      where: { assessmentId: { in: asmtIds } },
+      data: {
+        lifecycleState: "ACTIVE",
+        activatedAt: new Date(now - 20_000),
+      },
     });
 
     // Create a loader that fails specifically when executing change feed CTE
