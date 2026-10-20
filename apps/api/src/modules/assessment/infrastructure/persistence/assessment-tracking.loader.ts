@@ -659,9 +659,11 @@ export class AssessmentTrackingLoader {
               AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleId') = 'string'
               AND (ard."decision"->>'assessmentRuleId') IS NOT NULL
               AND ard."decision"->>'assessmentRuleId' = adc."assessmentRuleId"
+              AND length(trim(ard."decision"->>'assessmentRuleId')) BETWEEN 1 AND 200
               AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleVersion') = 'string'
               AND (ard."decision"->>'assessmentRuleVersion') IS NOT NULL
               AND ard."decision"->>'assessmentRuleVersion' = adc."assessmentRuleVersion"
+              AND length(trim(ard."decision"->>'assessmentRuleVersion')) BETWEEN 1 AND 200
               AND jsonb_typeof((ard."decision"::jsonb)->'scopeId') = 'string'
               AND (ard."decision"->>'scopeId') IS NOT NULL
               AND ard."decision"->>'scopeId' = 'ASSESSMENT'
@@ -704,10 +706,11 @@ export class AssessmentTrackingLoader {
                   OR jsonb_typeof(lcr->'legalContextId') <> 'string'
                   OR lcr->>'legalContextId' IS NULL
                   OR length(trim(lcr->>'legalContextId')) = 0
+                  OR length(trim(lcr->>'legalContextId')) > 200
               )
               AND jsonb_typeof((ard."decision"::jsonb)->'rationale') = 'string'
               AND (ard."decision"->>'rationale') IS NOT NULL
-              AND length(trim(ard."decision"->>'rationale')) > 0
+              AND length(trim(ard."decision"->>'rationale')) BETWEEN 1 AND 10000
               AND jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
               AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array' THEN (ard."decision"::jsonb)->'references' ELSE '[]'::jsonb END) >= 1
               AND (
@@ -728,12 +731,14 @@ export class AssessmentTrackingLoader {
                         OR jsonb_typeof(crit->'criterionId') <> 'string'
                         OR crit->>'criterionId' IS NULL
                         OR length(trim(crit->>'criterionId')) = 0
+                        OR length(trim(crit->>'criterionId')) > 200
                         OR jsonb_typeof(crit->'outcome') <> 'string'
                         OR crit->>'outcome' IS NULL
                         OR crit->>'outcome' NOT IN ('MET', 'NOT_MET')
                         OR jsonb_typeof(crit->'rationale') <> 'string'
                         OR crit->>'rationale' IS NULL
                         OR length(trim(crit->>'rationale')) = 0
+                        OR length(trim(crit->>'rationale')) > 10000
                         OR jsonb_typeof(crit->'references') <> 'array'
                         OR jsonb_array_length(CASE WHEN jsonb_typeof(crit->'references') = 'array' THEN crit->'references' ELSE '[]'::jsonb END) < 1
                     )
@@ -793,6 +798,7 @@ export class AssessmentTrackingLoader {
                       OR jsonb_typeof(all_refs.ref->'evidenceId') <> 'string'
                       OR all_refs.ref->>'evidenceId' IS NULL
                       OR length(trim(all_refs.ref->>'evidenceId')) = 0
+                      OR length(trim(all_refs.ref->>'evidenceId')) > 200
                       OR NOT EXISTS (
                         SELECT 1 FROM "AssessmentEvidence" ae
                         WHERE ae."evidenceId"::text = all_refs.ref->>'evidenceId'
@@ -810,6 +816,7 @@ export class AssessmentTrackingLoader {
                       OR jsonb_typeof(all_refs.ref->'factId') <> 'string'
                       OR all_refs.ref->>'factId' IS NULL
                       OR length(trim(all_refs.ref->>'factId')) = 0
+                      OR length(trim(all_refs.ref->>'factId')) > 200
                       OR jsonb_typeof(all_refs.ref->'caseRevision') <> 'number'
                       OR all_refs.ref->>'caseRevision' IS NULL
                       OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
