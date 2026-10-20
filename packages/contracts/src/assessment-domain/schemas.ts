@@ -869,6 +869,26 @@ export type CustomerTrackingOverview = z.infer<
   typeof customerTrackingOverviewSchema
 >;
 
+export const customerTrackingOverviewQuerySchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  actionsLimit: z.coerce.number().int().min(1).max(100).optional(),
+  actionsOffset: z.coerce.number().int().min(0).optional(),
+  changesLimit: z.coerce.number().int().min(1).max(100).optional(),
+  changesOffset: z.coerce.number().int().min(0).optional(),
+  since: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.iso.datetime({ offset: true }).optional(),
+  ),
+  locale: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.string().trim().max(10).optional(),
+  ),
+});
+export type CustomerTrackingOverviewQuery = z.infer<
+  typeof customerTrackingOverviewQuerySchema
+>;
+
 export const adminTrackingImpactedAssessmentSchema = z.strictObject({
   assessmentId: uuidSchema,
   ownerId: z.string().min(1),

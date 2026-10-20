@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   HttpStatus,
   Logger,
@@ -304,6 +305,78 @@ export class AssessmentTrackingLoader {
     since?: string;
     locale?: string;
   }): Promise<CustomerTrackingOverview> {
+    if (input.since !== undefined && input.since !== "") {
+      const parsedSince = new Date(input.since);
+      if (Number.isNaN(parsedSince.getTime())) {
+        throw new BadRequestException(
+          `Invalid since parameter: ${input.since}`,
+        );
+      }
+    }
+    if (
+      input.offset !== undefined &&
+      (!Number.isFinite(input.offset) ||
+        !Number.isInteger(input.offset) ||
+        input.offset < 0)
+    ) {
+      throw new BadRequestException(
+        "offset must be a finite non-negative integer",
+      );
+    }
+    if (
+      input.actionsOffset !== undefined &&
+      (!Number.isFinite(input.actionsOffset) ||
+        !Number.isInteger(input.actionsOffset) ||
+        input.actionsOffset < 0)
+    ) {
+      throw new BadRequestException(
+        "actionsOffset must be a finite non-negative integer",
+      );
+    }
+    if (
+      input.changesOffset !== undefined &&
+      (!Number.isFinite(input.changesOffset) ||
+        !Number.isInteger(input.changesOffset) ||
+        input.changesOffset < 0)
+    ) {
+      throw new BadRequestException(
+        "changesOffset must be a finite non-negative integer",
+      );
+    }
+    if (
+      input.limit !== undefined &&
+      (!Number.isFinite(input.limit) ||
+        !Number.isInteger(input.limit) ||
+        input.limit < 1 ||
+        input.limit > 100)
+    ) {
+      throw new BadRequestException(
+        "limit must be an integer between 1 and 100",
+      );
+    }
+    if (
+      input.actionsLimit !== undefined &&
+      (!Number.isFinite(input.actionsLimit) ||
+        !Number.isInteger(input.actionsLimit) ||
+        input.actionsLimit < 1 ||
+        input.actionsLimit > 100)
+    ) {
+      throw new BadRequestException(
+        "actionsLimit must be an integer between 1 and 100",
+      );
+    }
+    if (
+      input.changesLimit !== undefined &&
+      (!Number.isFinite(input.changesLimit) ||
+        !Number.isInteger(input.changesLimit) ||
+        input.changesLimit < 1 ||
+        input.changesLimit > 100)
+    ) {
+      throw new BadRequestException(
+        "changesLimit must be an integer between 1 and 100",
+      );
+    }
+
     const now = new Date();
     const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 100);
     const offset = Math.max(Number(input.offset) || 0, 0);
@@ -583,25 +656,38 @@ export class AssessmentTrackingLoader {
               AND ard."assessmentRuleId" = adc."assessmentRuleId"
               AND ard."decision" IS NOT NULL
               AND jsonb_typeof(ard."decision"::jsonb) = 'object'
+              AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleId') = 'string'
               AND (ard."decision"->>'assessmentRuleId') IS NOT NULL
               AND ard."decision"->>'assessmentRuleId' = adc."assessmentRuleId"
+              AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleVersion') = 'string'
               AND (ard."decision"->>'assessmentRuleVersion') IS NOT NULL
               AND ard."decision"->>'assessmentRuleVersion' = adc."assessmentRuleVersion"
+              AND jsonb_typeof((ard."decision"::jsonb)->'scopeId') = 'string'
               AND (ard."decision"->>'scopeId') IS NOT NULL
               AND ard."decision"->>'scopeId' = 'ASSESSMENT'
+              AND jsonb_typeof((ard."decision"::jsonb)->'ruleSetVersionId') = 'string'
               AND (ard."decision"->>'ruleSetVersionId') IS NOT NULL
               AND ard."decision"->>'ruleSetVersionId' = ac."ruleSetVersionId"
+              AND jsonb_typeof((ard."decision"::jsonb)->'repositorySnapshotId') = 'string'
               AND (ard."decision"->>'repositorySnapshotId') IS NOT NULL
               AND (ac."repositorySnapshotId" IS NULL OR ard."decision"->>'repositorySnapshotId' = ac."repositorySnapshotId")
+              AND jsonb_typeof((ard."decision"::jsonb)->'repositoryCommit') = 'string'
               AND (ard."decision"->>'repositoryCommit') IS NOT NULL
               AND LOWER(ard."decision"->>'repositoryCommit') = LOWER(ac."repositoryCommit")
+              AND jsonb_typeof((ard."decision"::jsonb)->'caseRevision') = 'number'
               AND (ard."decision"->>'caseRevision') IS NOT NULL
               AND ard."decision"->>'caseRevision' = ac."caseRevision"::text
+              AND jsonb_typeof((ard."decision"::jsonb)->'applicability') = 'string'
               AND (ard."decision"->>'applicability') IS NOT NULL
               AND ard."decision"->>'applicability' = ard."applicability"::text
               AND (
-                (ard."compliance" IS NULL AND ard."decision"->>'compliance' IS NULL)
-                OR (ard."compliance" IS NOT NULL AND ard."decision"->>'compliance' IS NOT NULL AND ard."decision"->>'compliance' = ard."compliance"::text)
+                (ard."compliance" IS NULL AND jsonb_typeof((ard."decision"::jsonb)->'compliance') = 'null')
+                OR (
+                  ard."compliance" IS NOT NULL
+                  AND jsonb_typeof((ard."decision"::jsonb)->'compliance') = 'string'
+                  AND ard."decision"->>'compliance' IS NOT NULL
+                  AND ard."decision"->>'compliance' = ard."compliance"::text
+                )
               )
               AND ((ard."decision"::jsonb) - ARRAY['assessmentRuleId', 'assessmentRuleVersion', 'scopeId', 'ruleSetVersionId', 'repositorySnapshotId', 'repositoryCommit', 'caseRevision', 'legalContextRefs', 'applicability', 'rationale', 'references', 'criteria', 'compliance']) = '{}'::jsonb
               AND jsonb_typeof((ard."decision"::jsonb)->'legalContextRefs') = 'array'
@@ -615,9 +701,11 @@ export class AssessmentTrackingLoader {
                 ) lcr
                 WHERE jsonb_typeof(lcr) <> 'object'
                   OR (lcr - ARRAY['legalContextId']) <> '{}'::jsonb
+                  OR jsonb_typeof(lcr->'legalContextId') <> 'string'
                   OR lcr->>'legalContextId' IS NULL
                   OR length(trim(lcr->>'legalContextId')) = 0
               )
+              AND jsonb_typeof((ard."decision"::jsonb)->'rationale') = 'string'
               AND (ard."decision"->>'rationale') IS NOT NULL
               AND length(trim(ard."decision"->>'rationale')) > 0
               AND jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
@@ -637,10 +725,13 @@ export class AssessmentTrackingLoader {
                       FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
                       WHERE jsonb_typeof(crit) <> 'object'
                         OR (crit - ARRAY['criterionId', 'outcome', 'rationale', 'references']) <> '{}'::jsonb
+                        OR jsonb_typeof(crit->'criterionId') <> 'string'
                         OR crit->>'criterionId' IS NULL
                         OR length(trim(crit->>'criterionId')) = 0
+                        OR jsonb_typeof(crit->'outcome') <> 'string'
                         OR crit->>'outcome' IS NULL
                         OR crit->>'outcome' NOT IN ('MET', 'NOT_MET')
+                        OR jsonb_typeof(crit->'rationale') <> 'string'
                         OR crit->>'rationale' IS NULL
                         OR length(trim(crit->>'rationale')) = 0
                         OR jsonb_typeof(crit->'references') <> 'array'
@@ -692,12 +783,14 @@ export class AssessmentTrackingLoader {
                 ) all_refs
                 WHERE (
                   jsonb_typeof(all_refs.ref) <> 'object'
+                  OR jsonb_typeof(all_refs.ref->'type') <> 'string'
                   OR all_refs.ref->>'type' IS NULL
                   OR all_refs.ref->>'type' NOT IN ('ASSESSMENT_EVIDENCE', 'CONFIRMED_FACT')
                   OR (
                     all_refs.ref->>'type' = 'ASSESSMENT_EVIDENCE'
                     AND (
                       (all_refs.ref - ARRAY['type', 'evidenceId']) <> '{}'::jsonb
+                      OR jsonb_typeof(all_refs.ref->'evidenceId') <> 'string'
                       OR all_refs.ref->>'evidenceId' IS NULL
                       OR length(trim(all_refs.ref->>'evidenceId')) = 0
                       OR NOT EXISTS (
@@ -714,8 +807,10 @@ export class AssessmentTrackingLoader {
                     all_refs.ref->>'type' = 'CONFIRMED_FACT'
                     AND (
                       (all_refs.ref - ARRAY['type', 'factId', 'caseRevision']) <> '{}'::jsonb
+                      OR jsonb_typeof(all_refs.ref->'factId') <> 'string'
                       OR all_refs.ref->>'factId' IS NULL
                       OR length(trim(all_refs.ref->>'factId')) = 0
+                      OR jsonb_typeof(all_refs.ref->'caseRevision') <> 'number'
                       OR all_refs.ref->>'caseRevision' IS NULL
                       OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text
                       OR NOT EXISTS (

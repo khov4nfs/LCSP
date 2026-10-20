@@ -27,6 +27,7 @@ import {
   RBAC_METADATA_KEY,
   type RbacMetadata,
 } from "../../../../platform/rbac/decorators/rbac-metadata.js";
+import { HttpExceptionFilter } from "../../../../platform/http/filters/http-exception.filter.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AssessmentTrackingLoader } from "../../infrastructure/persistence/assessment-tracking.loader.js";
 import { AssessmentTrackingController } from "./assessment-tracking.controller.js";
@@ -198,6 +199,7 @@ describe("AssessmentTrackingControllers", () => {
       .compile();
 
     app = moduleRef.createNestApplication();
+    app.useGlobalFilters(new HttpExceptionFilter());
     await app.init();
     server = app.getHttpServer();
   });
@@ -279,6 +281,66 @@ describe("AssessmentTrackingControllers", () => {
         .expect(HttpStatus.FORBIDDEN);
 
       expect(loadCustomerOverview).not.toHaveBeenCalled();
+    });
+
+    it("rejects non-integer, negative, or invalid pagination and timestamp with 400", async () => {
+      currentRole = AUTH_USER_ROLES.customer;
+
+      const resFloat = await supertest(server)
+        .get("/assessments/tracking/overview?offset=1.5")
+        .expect(HttpStatus.BAD_REQUEST);
+      expect((resFloat.body as Record<string, unknown>).ok).toBe(false);
+
+      const resInfinity = await supertest(server)
+        .get("/assessments/tracking/overview?offset=Infinity")
+        .expect(HttpStatus.BAD_REQUEST);
+      expect((resInfinity.body as Record<string, unknown>).ok).toBe(false);
+
+      const resNegative = await supertest(server)
+        .get("/assessments/tracking/overview?offset=-1")
+        .expect(HttpStatus.BAD_REQUEST);
+      expect((resNegative.body as Record<string, unknown>).ok).toBe(false);
+
+      const resNan = await supertest(server)
+        .get("/assessments/tracking/overview?offset=NaN")
+        .expect(HttpStatus.BAD_REQUEST);
+      expect((resNan.body as Record<string, unknown>).ok).toBe(false);
+
+      const resSinceGarbage = await supertest(server)
+        .get("/assessments/tracking/overview?since=garbage")
+        .expect(HttpStatus.BAD_REQUEST);
+      expect((resSinceGarbage.body as Record<string, unknown>).ok).toBe(false);
+
+      const resLimitZero = await supertest(server)
+        .get("/assessments/tracking/overview?limit=0")
+        .expect(HttpStatus.BAD_REQUEST);
+      expect((resLimitZero.body as Record<string, unknown>).ok).toBe(false);
+
+      const resLimitOver = await supertest(server)
+        .get("/assessments/tracking/overview?limit=101")
+        .expect(HttpStatus.BAD_REQUEST);
+      expect((resLimitOver.body as Record<string, unknown>).ok).toBe(false);
+
+      expect(loadCustomerOverview).not.toHaveBeenCalled();
+    });
+
+    it("accepts valid ISO datetime since parameter and forwards it", async () => {
+      currentRole = AUTH_USER_ROLES.customer;
+      currentUserId = "cust-1";
+
+      const validSince = "2026-10-20T14:00:00.000Z";
+      const res = await supertest(server)
+        .get(
+          `/assessments/tracking/overview?since=${encodeURIComponent(validSince)}`,
+        )
+        .expect(HttpStatus.OK);
+
+      expect((res.body as Record<string, unknown>).ok).toBe(true);
+      expect(loadCustomerOverview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          since: validSince,
+        }),
+      );
     });
   });
 
