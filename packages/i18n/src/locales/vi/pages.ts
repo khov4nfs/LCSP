@@ -118,6 +118,8 @@ export const viPages = {
       RULE_SET_VALIDATION_FAILED: "Kiểm tra toàn vẹn thất bại",
       SOURCE_VERSION_UNAVAILABLE: "Phiên bản nguồn pháp lý không khả dụng",
       RUNTIME_ERROR: "Lỗi thực thi",
+      NO_OPERATIVE_OBLIGATIONS:
+        "Nguồn đã kiểm toán không nêu nghĩa vụ nào nên không tạo bộ quy tắc",
     },
     result: {
       title: "Kết quả bộ quy tắc",

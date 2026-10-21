@@ -30,3 +30,15 @@ def test_python_and_api_build_identical_bounded_neighborhoods_and_audit_fingerpr
         assert api["completeness"] == completeness_input(value)
         assert api["relationInputs"] == [relation_input(value, batch) for batch in relation_batches(value)]
         assert len(value["sources"]) <= len(source.nodes)
+
+
+def test_python_api_bind_identical_independent_source_readings_and_reject_stale_relation_receipts():
+    from corrected_semantic_fixture import corrected_graph
+    from structural_semantic_fixture import StructuralFixtureAuditor
+    _, source, graph, _, _ = corrected_graph()
+    unit = graph["sourceAccounting"][0]["sourceNodeId"]
+    value = audit_input(source, graph, unit, 1)
+    receipt = StructuralFixtureAuditor().audit(value)
+    graph["semanticAudits"] = [receipt]
+    api = bridge("AUDIT_INPUT", source, graph, nodeId=unit, relatedSourceCatalogs=receipt["relatedSourceCatalogs"])
+    assert api["relationInputs"] == [relation_input(value, batch, receipt["relatedSourceCatalogs"]) for batch in relation_batches(value)]

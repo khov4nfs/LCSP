@@ -1,9 +1,16 @@
+import {
+  semanticConceptInput,
+  semanticConceptCurrent,
+  semanticDefinitionTarget,
+} from "./source-concepts.js";
 import { createHash } from "node:crypto";
 import {
   LEGAL_SEMANTIC_AUTHORITIES as AUTH,
   LEGAL_ASSESSABILITIES as ASSESS,
   SEMANTIC_AUDIT,
   SEMANTIC_AUDIT_VERDICTS as V,
+  SEMANTIC_SOURCE_CONTENT_USES as U,
+  SEMANTIC_TARGET_SCOPE_READINGS as T,
   SEMANTIC_RELATION_CONTRACTS,
   SEMANTIC_INTEGRITY_GAP_CODES as G,
   COMPLIANCE_RULE_SET_FAILURE_CODES as F,
@@ -15,10 +22,17 @@ import {
   type LegalSemanticGraph,
   type LegalSemanticClaim,
   type SemanticAuditReceipt,
+  type SemanticSourceCatalog,
   type ComplianceRuleSetValidationFailure,
 } from "@lcsp/contracts/compliance-rule-set";
 import type { LegalDocumentGraph } from "@lcsp/contracts/legal-source";
 import { inventoryHash } from "./claim-inventory.js";
+import {
+  semanticSourceMaterialInput,
+  semanticEffectiveClassification,
+  semanticSourceCatalogCurrent,
+  semanticSourceCoveragePassed,
+} from "./source-completeness.js";
 
 const has = (values: readonly string[], value: string) =>
   values.includes(value);
@@ -58,8 +72,19 @@ export function semanticAuditInput(
     ),
     (r) => r.relationId,
   );
+  const origins = new Set(relations.map((r) => r.fromClaimId));
+  const focusedIds = new Set(relations.map((r) => r.relationId));
+  const contextRelations = sorted(
+    graph.relations.filter(
+      (r) => origins.has(r.fromClaimId) && !focusedIds.has(r.relationId),
+    ),
+    (r) => r.relationId,
+  );
   const endpointIds = new Set(
-    relations.flatMap((r) => [r.fromClaimId, r.toClaimId]),
+    [...relations, ...contextRelations].flatMap((r) => [
+      r.fromClaimId,
+      r.toClaimId,
+    ]),
   );
   const selected = new Set([
     nodeId,
@@ -125,6 +150,8 @@ export function semanticAuditInput(
         nodeType: n.nodeType,
         content: n.content,
         legalEffectStatus: n.legalEffectStatus,
+        label: n.label ?? null,
+        title: n.title ?? null,
         completenessTarget: n.nodeId === nodeId,
       })),
     (n) => n.nodeId,
@@ -146,6 +173,7 @@ export function semanticAuditInput(
     supportedPassages,
     contextClaims,
     relations,
+    contextRelations,
     references,
   };
   if (JSON.stringify(input).length > SEMANTIC_AUDIT.maxContextCharacters)
@@ -176,24 +204,42 @@ export function semanticAuditIdentity(
         contentSha256: sha(content),
       })),
       contextClaims: input.contextClaims,
+      contextRelations: input.contextRelations ?? [],
       references: input.references,
     }),
   };
 }
 export function semanticCompletenessInput(
   input: ReturnType<typeof semanticAuditInput>,
+  catalog?: SemanticSourceCatalog,
 ) {
+  const material = semanticSourceMaterialInput(input);
   return {
+    ...(catalog ? { sourceCatalog: catalog } : {}),
     schemaRevision: input.schemaRevision,
     sourceNodeId: input.sourceNodeId,
     source: input.sources.find((n) => n.completenessTarget)!,
     claims: input.claims,
     relations: input.relations,
+    referenceSources: material.referenceSources,
+    references: material.references,
+    sourceStructure: material.sourceStructure,
+    relationContracts: Object.fromEntries(
+      Object.entries(SEMANTIC_RELATION_CONTRACTS)
+        .filter(([kind]) => input.relations.some((r) => r.kind === kind))
+        .sort(([a], [b]) => a.localeCompare(b)),
+    ),
     contextClaims: input.contextClaims.map((c) => ({
       claimId: c.claimId,
+      claimType: c.claimType,
       statement: c.statement,
       operative: c.operative,
       semanticAuthority: c.semanticAuthority ?? null,
+      semanticFrame: c.semanticFrame ?? null,
+      assessability: c.assessability ?? null,
+      sourcePaths: c.sourceNodeIds.map(
+        (id) => input.sources.find((n) => n.nodeId === id)!.structuralPath,
+      ),
     })),
   };
 }
@@ -218,6 +264,8 @@ export function semanticRelationBatches(
 export function semanticRelationInput(
   input: ReturnType<typeof semanticAuditInput>,
   relations: ReturnType<typeof semanticAuditInput>["relations"],
+  catalogs?: SemanticAuditReceipt["relatedSourceCatalogs"],
+  concepts?: SemanticAuditReceipt["sourceConceptAudit"],
 ) {
   const sources = new Map(input.sources.map((n) => [n.nodeId, n]));
   const claims = new Map(
@@ -241,7 +289,12 @@ export function semanticRelationInput(
     };
   };
   const roots = new Set(
-    relations
+    [
+      ...relations,
+      ...[...input.relations, ...(input.contextRelations ?? [])].filter((r) =>
+        relations.some((focus) => focus.fromClaimId === r.fromClaimId),
+      ),
+    ]
       .flatMap((r) => [r.fromClaimId, r.toClaimId])
       .flatMap((id) => claims.get(id)!.sourceNodeIds),
   );
@@ -257,6 +310,17 @@ export function semanticRelationInput(
   const references = input.references.filter((r) =>
     [...roots].some((root) => within(r.fromNodeId, root)),
   );
+  const boundReference = (relation: (typeof relations)[number]) => {
+    if (relation.referenceId === null) return null;
+    const reference = input.references.find(
+      (r) => r.referenceId === relation.referenceId,
+    );
+    if (!reference)
+      throw new Error(
+        "Semantic relation reference is absent from its bounded source context",
+      );
+    return reference;
+  };
   const selected = new Set(roots);
   for (const ref of references)
     if (ref.toNodeId && sources.has(ref.toNodeId))
@@ -274,20 +338,93 @@ export function semanticRelationInput(
   return {
     schemaRevision: input.schemaRevision,
     sourceRevision: input.sourceRevision,
+    ...(concepts
+      ? {
+          sourceConceptAudit: concepts,
+          conceptSource: semanticConceptInput(input, catalogs!),
+        }
+      : {}),
+    ...(catalogs
+      ? {
+          sourceReadings: semanticRelationSourceNodes(input, relations).map(
+            (sourceNodeId) => {
+              const catalog = catalogs.find(
+                (c) => c.sourceNodeId === sourceNodeId,
+              )!.catalog;
+              return {
+                sourceNodeId,
+                catalogFingerprint: inventoryHash(catalog),
+                facts: catalog.facts,
+                classification: semanticEffectiveClassification(catalog),
+              };
+            },
+          ),
+        }
+      : {}),
     sources: input.sources
       .filter((n) => selected.has(n.nodeId))
       .map(({ completenessTarget: _, ...n }) => n),
     relationEvidence: relations.map((r) => ({
       ...r,
+      sourceReference: boundReference(r),
       kindContract:
         SEMANTIC_RELATION_CONTRACTS[
           r.kind as keyof typeof SEMANTIC_RELATION_CONTRACTS
         ] ?? null,
       fromAssertion: describe(r.fromClaimId),
       toAssertion: describe(r.toClaimId),
+      fromNeighborhoodComplete:
+        input.claims.some((c) => c.claimId === r.fromClaimId) ||
+        "contextRelations" in input,
+      fromOutgoingContext: [
+        ...input.relations,
+        ...(input.contextRelations ?? []),
+      ]
+        .filter(
+          (edge) =>
+            edge.fromClaimId === r.fromClaimId &&
+            edge.relationId !== r.relationId,
+        )
+        .sort((a, b) =>
+          a.relationId < b.relationId
+            ? -1
+            : a.relationId > b.relationId
+              ? 1
+              : 0,
+        )
+        .map((edge) => ({
+          relationId: edge.relationId,
+          kind: edge.kind,
+          fromClaimId: edge.fromClaimId,
+          toClaimId: edge.toClaimId,
+          referenceId: edge.referenceId,
+          sourceReference: boundReference(edge),
+          toAssertion: describe(edge.toClaimId),
+        })),
     })),
     references,
   };
+}
+export function semanticRelationSourceNodes(
+  input: ReturnType<typeof semanticAuditInput>,
+  relations = input.relations,
+) {
+  const origins = new Set(relations.map((r) => r.fromClaimId));
+  const endpoints = new Set(
+    [
+      ...relations,
+      ...[...input.relations, ...(input.contextRelations ?? [])].filter((r) =>
+        origins.has(r.fromClaimId),
+      ),
+    ].flatMap((r) => [r.fromClaimId, r.toClaimId]),
+  );
+  return [
+    ...new Set(
+      [...input.claims, ...input.contextClaims]
+        .filter((c) => endpoints.has(c.claimId))
+        .flatMap((c) => c.sourceNodeIds),
+    ),
+  ].sort();
 }
 export function semanticAuditReceiptFailures(
   input: ReturnType<typeof semanticAuditInput>,
@@ -307,30 +444,162 @@ export function semanticAuditReceiptFailures(
     .filter(([k, v]) => receipt[k as keyof typeof identity] !== v)
     .map(([k]) => `${G.STALE_AUDIT}:${k}`);
   if (stale.length) return stale;
+  if (receipt.sourceCatalog) {
+    const reviewedOperations = new Map<string, string>();
+    reviewedOperations.set(
+      inventoryHash({
+        ...input,
+        relations: [],
+        sourceCatalog: receipt.sourceCatalog,
+      }),
+      receipt.verifierOperationId,
+    );
+    for (const part of receipt.relationAudits ?? [])
+      reviewedOperations.set(part.inputFingerprint, part.verifierOperationId);
+    if (receipt.completenessAudit)
+      reviewedOperations.set(
+        receipt.completenessAudit.inputFingerprint,
+        receipt.completenessAudit.verifierOperationId,
+      );
+    if (
+      receipt.verdict === V.SUPPORTED &&
+      (new Set(receipt.reviewHistory?.map((r) => r.inputFingerprint)).size !==
+        (receipt.reviewHistory?.length ?? 0) ||
+        receipt.reviewHistory?.some(
+          (r) =>
+            reviewedOperations.get(r.inputFingerprint) !==
+              r.reviewOperationId ||
+            r.initialOperationId === r.reviewOperationId ||
+            r.initialVerdict === V.SUPPORTED ||
+            !r.initialGaps.length ||
+            r.reviewVerdict !== V.SUPPORTED ||
+            r.reviewGaps.length,
+        ))
+    )
+      return [`${G.STALE_AUDIT}:reviewHistory`];
+    if (
+      receipt.verdict === V.SUPPORTED &&
+      (!semanticSourceCatalogCurrent(input, receipt.sourceCatalog) ||
+        !receipt.completenessAudit ||
+        receipt.completenessAudit.inputFingerprint !==
+          inventoryHash(
+            semanticCompletenessInput(input, receipt.sourceCatalog),
+          ) ||
+        receipt.completenessAudit.verdict !== V.SUPPORTED ||
+        receipt.completenessAudit.gaps.length ||
+        !semanticSourceCoveragePassed(
+          input,
+          receipt.sourceCatalog,
+          receipt.completenessAudit.coverage,
+        ))
+    )
+      return [G.COMPLETENESS_AUDIT_REQUIRED];
+    const batches = semanticRelationBatches(input);
+    const related = receipt.relatedSourceCatalogs ?? [];
+    const relatedNodes = semanticRelationSourceNodes(input);
+    const relatedValid =
+      related.length === relatedNodes.length &&
+      new Set(related.map((r) => r.sourceNodeId)).size ===
+        relatedNodes.length &&
+      related.every(
+        (r) =>
+          relatedNodes.includes(r.sourceNodeId) &&
+          semanticSourceCatalogCurrent(
+            { ...input, sourceNodeId: r.sourceNodeId },
+            r.catalog,
+          ),
+      );
+    if (!relatedValid) return [G.RELATION_AUDIT_REQUIRED];
+    const concepts = receipt.sourceConceptAudit;
+    if (
+      input.relations.some((r) => r.kind === R.DEFINED_BY)
+        ? !semanticConceptCurrent(input, related, concepts)
+        : concepts !== null && concepts !== undefined
+    )
+      return [G.RELATION_AUDIT_REQUIRED];
+    if (concepts) {
+      const question = semanticConceptInput(input, related);
+      for (const batch of batches) {
+        const material = semanticRelationInput(input, batch, related, concepts);
+        const edge = material.relationEvidence[0]!;
+        const supported = semanticDefinitionTarget(edge, question, concepts);
+        if (supported !== null) {
+          const row = receipt.relations.find((r) => r.id === edge.relationId);
+          if (
+            !row ||
+            row.checks.kind !== V.SUPPORTED ||
+            row.checks.direction !== V.SUPPORTED ||
+            row.checks.target !== (supported ? V.SUPPORTED : V.WRONG_RELATION)
+          )
+            return [G.RELATION_AUDIT_REQUIRED];
+        }
+      }
+    }
+    if (
+      receipt.verdict === V.SUPPORTED &&
+      (related.length !== relatedNodes.length ||
+        new Set(related.map((r) => r.sourceNodeId)).size !==
+          relatedNodes.length ||
+        related.some(
+          (r) =>
+            !relatedNodes.includes(r.sourceNodeId) ||
+            !semanticSourceCatalogCurrent(
+              { ...input, sourceNodeId: r.sourceNodeId },
+              r.catalog,
+            ),
+        ) ||
+        batches.length !== (receipt.relationAudits?.length ?? 0) ||
+        batches.some((batch, i) => {
+          const audit = receipt.relationAudits?.[i];
+          if (!audit) return true;
+          return (
+            audit.verdict !== V.SUPPORTED ||
+            audit.gaps.length ||
+            inventoryHash(audit.relationIds) !==
+              inventoryHash(batch.map((r) => r.relationId)) ||
+            audit.inputFingerprint !==
+              inventoryHash(
+                semanticRelationInput(
+                  input,
+                  batch,
+                  related,
+                  receipt.sourceConceptAudit,
+                ),
+              )
+          );
+        }))
+    )
+      return [G.RELATION_AUDIT_REQUIRED];
+  }
   if (
-    receipt.verdict === V.SUPPORTED &&
-    (!receipt.completenessAudit ||
-      receipt.completenessAudit.inputFingerprint !==
-        inventoryHash(semanticCompletenessInput(input)) ||
-      receipt.completenessAudit.verdict !== V.SUPPORTED ||
-      receipt.completenessAudit.gaps.length)
-  )
-    return [G.COMPLETENESS_AUDIT_REQUIRED];
-  const batches = semanticRelationBatches(input);
-  if (
-    receipt.verdict === V.SUPPORTED &&
-    (batches.length !== receipt.relationAudits.length ||
-      batches.some((batch, i) => {
-        const audit = receipt.relationAudits[i];
-        return (
-          audit.verdict !== V.SUPPORTED ||
-          audit.gaps.length ||
-          inventoryHash(audit.relationIds) !==
-            inventoryHash(batch.map((r) => r.relationId)) ||
-          audit.inputFingerprint !==
-            inventoryHash(semanticRelationInput(input, batch))
-        );
-      }))
+    receipt.relations.some((row) => {
+      const scope = row.targetScopeReading;
+      const targetExpected =
+        scope === T.EXACT_SOURCE_TARGET ||
+        scope === T.SUPPORTED_MEMBER_OF_SOURCE_TARGET_SET
+          ? V.SUPPORTED
+          : scope === T.UNDETERMINED
+            ? V.INSUFFICIENT_SUPPORT
+            : V.WRONG_RELATION;
+      if (
+        !Object.values(T).includes(scope) ||
+        row.checks.target !== targetExpected
+      )
+        return true;
+      const relation = input.relations.find((r) => r.relationId === row.id);
+      if (relation?.kind !== R.INCORPORATES)
+        return row.sourceContentReading !== undefined;
+      const reading = row.sourceContentReading;
+      if (!reading) return true;
+      const expected =
+        reading === U.ADOPTED_PERFORMANCE ||
+        reading === U.ADOPTED_NORMATIVE_LIMIT
+          ? V.SUPPORTED
+          : reading === U.UNDETERMINED
+            ? V.INSUFFICIENT_SUPPORT
+            : V.WRONG_RELATION;
+      return row.checks.kind !== expected;
+    })
   )
     return [G.RELATION_AUDIT_REQUIRED];
   const check = (

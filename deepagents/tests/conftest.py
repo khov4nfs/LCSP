@@ -240,6 +240,7 @@ def no_secrets_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "ANTHROPIC_API_KEY",
         "APX_API_KEY",
         "INCEPTION_API_KEY",
+        "NARA_API_KEY",
         "APX_API_KEY",
         "GITHUB_TOKEN",
     ]:

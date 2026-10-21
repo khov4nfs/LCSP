@@ -5,10 +5,13 @@ import {
   validPacket,
 } from "../../../../test/support/compliance-rule-set-fixtures.js";
 import { canonicalInventoryFixture } from "../../../../test/support/canonical-claim-inventory-fixture.js";
+import { refreshStructuralAudits } from "../../../../test/support/structural-semantic-fixture.js";
+import { signSemanticAuditFixture } from "./semantic-audit-attestation.js";
 import {
   authoringReadinessGaps,
   canonicalClaimId,
   inventoryFingerprint,
+  noOperativeObligationsFailures,
   validateClaimInventory,
   validateFrozenInventory,
 } from "./claim-inventory.js";
@@ -316,6 +319,140 @@ describe("Frozen Preparation claim inventory", () => {
         scope,
       ).failures.map((g) => g.code);
       expect(codes).not.toContain(F.APPLICABILITY_AUTHORITY_MISSING);
+    });
+  });
+
+  describe("terminal non-operative outcome (INV-C2)", () => {
+    /** Every unit reviewed and independently audited; the only claims left are non-operative (a definition). */
+    const auditedWithoutOperativeClaims = (keepDefinition = true) => {
+      const f = fixture();
+      const keep = new Set(
+        keepDefinition
+          ? f.graph.claims
+              .filter((c) => c.claimType === "DEFINITION")
+              .map((c) => c.claimId)
+          : [],
+      );
+      f.graph.claims = f.graph.claims.filter((c) => keep.has(c.claimId));
+      f.graph.relations = f.graph.relations.filter(
+        (r) => keep.has(r.fromClaimId) && keep.has(r.toClaimId),
+      );
+      f.graph.sourceAccounting = f.graph.sourceAccounting.map((r) => {
+        const claimIds = r.claimIds.filter((id) => keep.has(id));
+        return {
+          ...r,
+          claimIds,
+          nonSemanticReason: claimIds.length
+            ? null
+            : "States no semantic material",
+        };
+      });
+      f.identities = Object.fromEntries(
+        Object.entries(f.identities).filter(([id]) => keep.has(id)),
+      );
+      refreshStructuralAudits(f.graph, f.source.documentGraph!, 1);
+      f.graph.semanticAudits = f.graph.semanticAudits!.map((receipt) =>
+        signSemanticAuditFixture(receipt, RUN),
+      );
+      return f;
+    };
+    const gate = (f: ReturnType<typeof fixture>) =>
+      validateClaimInventory(RUN, 1, f.graph, f.identities, f.source).failures;
+    const codes = (failures: { code: string }[]) =>
+      failures.map((g) => g.code);
+
+    it.each([true, false])(
+      "is available only for a fully reviewed, audited inventory whose single gap is the absence of an operative claim (definition kept: %s)",
+      (keepDefinition) => {
+        const f = auditedWithoutOperativeClaims(keepDefinition);
+        const failures = gate(f);
+        expect(codes(failures)).toEqual([F.OPERATIVE_CLAIM_MISSING]);
+        expect(noOperativeObligationsFailures(f.graph, failures)).toEqual([]);
+        expect(f.graph.claims.length).toBe(keepDefinition ? 1 : 0);
+      },
+    );
+
+    it("is unavailable while any review unit is unreviewed and reports the existing accounting code", () => {
+      const f = auditedWithoutOperativeClaims();
+      f.graph.sourceAccounting.pop();
+      const failures = gate(f);
+      const refusal = noOperativeObligationsFailures(f.graph, failures);
+      expect(codes(refusal)).toContain(F.INCOMPLETE_STRUCTURAL_ACCOUNTING);
+      expect(codes(refusal)).not.toContain(F.OPERATIVE_CLAIM_MISSING);
+    });
+
+    it.each([
+      [
+        "missing",
+        (f: ReturnType<typeof fixture>) => {
+          f.graph.semanticAudits!.pop();
+        },
+      ],
+      [
+        "failed",
+        (f: ReturnType<typeof fixture>) => {
+          const receipt = f.graph.semanticAudits![0];
+          receipt.verdict = "MISSING_ASSERTION";
+          receipt.gaps = [
+            { code: "MISSING_ASSERTION", detail: "A stated duty is absent" },
+          ];
+        },
+      ],
+      [
+        "stale",
+        (f: ReturnType<typeof fixture>) => {
+          f.graph.semanticAudits![0].inventoryRevision = 2;
+        },
+      ],
+    ])("is unavailable when one independent audit is %s", (_name, mutate) => {
+      const f = auditedWithoutOperativeClaims();
+      mutate(f);
+      const refusal = noOperativeObligationsFailures(f.graph, gate(f));
+      expect(codes(refusal)).toContain(F.SEMANTIC_AUDIT_REQUIRED);
+      expect(codes(refusal)).not.toContain(F.OPERATIVE_CLAIM_MISSING);
+    });
+
+    it("is unavailable for a source that states a duty, whether the duty is relevant or excluded", () => {
+      const f = fixture();
+      const passing = gate(f);
+      expect(passing).toEqual([]);
+      const unavailable = noOperativeObligationsFailures(f.graph, passing);
+      expect(codes(unavailable)).toEqual([F.claimPhaseInvalid]);
+      // Even if a stale gate result still reported the missing operative claim, an operative-typed claim blocks it.
+      expect(
+        codes(
+          noOperativeObligationsFailures(f.graph, [
+            {
+              code: F.OPERATIVE_CLAIM_MISSING,
+              ref: "claimInventory",
+              detail: null,
+            },
+          ]),
+        ),
+      ).toEqual([F.claimPhaseInvalid]);
+      // Excluding the duty as non-operative removes it from readiness but cannot launder it into "no obligations".
+      for (const claim of f.graph.claims.filter((c) => c.operative)) {
+        claim.state = "INTENTIONALLY_NON_OPERATIVE";
+        claim.nonOperativeReason = "Out of scope";
+      }
+      const excluded = gate(f);
+      expect(codes(excluded)).toContain(F.OPERATIVE_CLAIM_MISSING);
+      expect(codes(noOperativeObligationsFailures(f.graph, excluded))).toEqual(
+        [F.claimPhaseInvalid],
+      );
+    });
+
+    it("never infers the outcome from silence: an empty gate result with no operative claim is refused", () => {
+      const f = auditedWithoutOperativeClaims();
+      expect(codes(noOperativeObligationsFailures(f.graph, []))).toEqual([
+        F.claimPhaseInvalid,
+      ]);
+    });
+
+    it("keeps the readiness gate for an operative inventory unchanged", () => {
+      const f = fixture();
+      expect(gate(f)).toEqual([]);
+      expect(authoringReadinessGaps(f.graph)).toEqual([]);
     });
   });
 });

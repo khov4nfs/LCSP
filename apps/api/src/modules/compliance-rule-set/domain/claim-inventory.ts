@@ -140,6 +140,43 @@ export function authoringReadinessGaps(
       });
   return failures;
 }
+/**
+ * INV-C2: a complete, independently audited review of a source that states no duty, prohibition or permission ends the
+ * Preparation with an explicit outcome instead of failing under pressure to invent one. `failures` are the failures of
+ * validateClaimInventory for this same inventory, so every other gate (all units reviewed, every receipt current,
+ * attested and passed, closure and provenance) keeps its existing code. Only the absence of an operative claim is waived,
+ * and only when the gate itself reported it. Returns why the outcome is unavailable; [] means it may be recorded.
+ */
+export function noOperativeObligationsFailures(
+  graph: LegalSemanticGraph,
+  failures: ComplianceRuleSetValidationFailure[],
+): ComplianceRuleSetValidationFailure[] {
+  // Any claim of an operative type blocks the outcome, relevant or excluded: excluding a stated duty must never launder it into "none".
+  const operativeTypes = claimTypesForRole(ROLE.OPERATIVE_PROPOSITION);
+  const operative = graph.claims.filter((c) =>
+    operativeTypes.includes(c.claimType),
+  );
+  if (operative.length)
+    return [
+      {
+        code: F.claimPhaseInvalid,
+        ref: "claimInventory",
+        detail: `${operative.length} operative-typed claim(s) exist, so the no-operative-obligations outcome is unavailable; finalize the inventory and author Rules`,
+      },
+    ];
+  const blocking = failures.filter((f) => f.code !== F.OPERATIVE_CLAIM_MISSING);
+  if (blocking.length) return blocking;
+  return failures.length
+    ? []
+    : [
+        {
+          code: F.claimPhaseInvalid,
+          ref: "claimInventory",
+          detail:
+            "The inventory gate did not report the absence of operative claims; the outcome is never inferred",
+        },
+      ];
+}
 export function validateClaimInventory(
   runId: string,
   revision: number,

@@ -821,11 +821,16 @@ export type RuleSetPreparationLegalSourceBundle = z.infer<
   typeof ruleSetPreparationLegalSourceBundleSchema
 >;
 
-/** Marks a run FAILED when the agent could not produce a submission. */
+/**
+ * Marks a run FAILED when the agent could not produce a submission. NO_OPERATIVE_OBLIGATIONS is not reportable here:
+ * only the validated claim-inventory conclusion may record it.
+ */
 export const ruleSetPreparationFailRequestSchema = z
   .object({
     preparationRunId: z.string().uuid(),
-    reason: z.enum(RULE_SET_PREPARATION_FAILURE_REASONS),
+    reason: z
+      .enum(RULE_SET_PREPARATION_FAILURE_REASONS)
+      .exclude([RULE_SET_PREPARATION_FAILURE_REASONS.NO_OPERATIVE_OBLIGATIONS]),
   })
   .strict();
 export type RuleSetPreparationFailRequest = z.infer<

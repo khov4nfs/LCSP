@@ -48,6 +48,24 @@ def test_semantic_mutation_invalidates_independent_receipt(verified, field, valu
     assert any(f["code"] == "SEMANTIC_AUDIT_REQUIRED" for f in bridge("GATE", ctx.source_graph, graph))
 
 
+def test_review_history_is_bound_to_current_question_and_final_operation_in_python_and_api(verified):
+    """Synthetic provenance trace, not an independent source-law verdict."""
+    from uuid import uuid4
+    from rule_set_preparation.semantic_audit import assertion_input, digest, receipt_passed
+    ctx, _, _, _ = verified
+    graph = deepcopy(ctx.inventory.frozen)
+    receipt = graph["semanticAudits"][0]
+    value = audit_input(ctx.source_graph, graph, receipt["sourceNodeId"], 1)
+    receipt["reviewHistory"] = [{"inputFingerprint": digest(assertion_input(value, receipt["sourceCatalog"])), "initialOperationId": str(uuid4()),
+        "initialVerdict": "WRONG_ACTOR", "initialGaps": [{"code": "WRONG_ACTOR", "detail": "Scripted provenance-only finding"}],
+        "reviewOperationId": receipt["verifierOperationId"], "reviewVerdict": "SUPPORTED", "reviewGaps": []}]
+    assert receipt_passed(value, receipt)
+    assert not bridge("GATE", ctx.source_graph, graph)
+    receipt["reviewHistory"][0]["reviewOperationId"] = str(uuid4())
+    assert not receipt_passed(value, receipt)
+    assert any(f["code"] == "SEMANTIC_AUDIT_REQUIRED" for f in bridge("GATE", ctx.source_graph, graph))
+
+
 def artifact_review(packet, keys):
     """Independent assertions on resulting artifacts and typed graph; no prose golden Rule Set."""
     graph = packet["semanticGraph"]

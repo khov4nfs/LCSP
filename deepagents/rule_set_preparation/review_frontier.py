@@ -187,6 +187,13 @@ class ReviewFrontier:
             return self.failure({"outcome": "FAILED", "failures": [{"code": "CLAIM_SOURCE_BINDING_INVALID", "ref": node_id,
                 "detail": "Review omitted claims already authored in this unit"}], "requiredAction": "complete_source_review",
                 "expectedClaimIds": expected, "missingClaimIds": missing})
+        claims = self.context.draft["semanticClaims"]
+        if any(cid not in claims or node_id not in claims[cid]["sourceNodeIds"] for cid in claim_ids):
+            # Match the API's linked-claim binding gate before spending an independent audit call.
+            return self.failure({"outcome": "FAILED", "failures": [{"code": "CLAIM_SOURCE_BINDING_INVALID", "ref": node_id,
+                "detail": "Related claim IDs must exist and bind this source node"}], "requiredAction": "complete_source_review",
+                "expectedClaimIds": expected, "guidance": "Omit claim_ids to collect this unit's authored claims, or supply only claims anchored on sourceNodeId=" + node_id +
+                    ". Author any missing assertions in this active unit before completing it; use NO_RELEVANT_SEMANTIC_CLAIMS with a factual reason only if it has none."})
         references = set(self.active["referenceIds"])
         from rule_set_preparation.reference_binding import valid_binding, project_reference_accounting
         for rid, relation in self.context.draft["claimRelations"].items():
@@ -207,14 +214,15 @@ class ReviewFrontier:
             graph["sourceAccounting"] = [r for r in graph["sourceAccounting"] if r["sourceNodeId"] != node_id] + [{"sourceNodeId": node_id, "claimIds": claim_ids, "nonSemanticReason": None if claim_ids else reason}]
             audit = self.inventory.audit_unit(node_id, graph)
             if audit["outcome"] != "PASSED":
-                return self.failure(audit)
+                faulted = [f["ref"][6:] for f in audit.get("failures", []) if f.get("ref", "").startswith("claim:")]
+                return self.failure({**audit, **(self.foreign_relation_exit(faulted) or {})})
             payload["semanticAudit"] = audit["semanticAudit"]
         arguments = dict(sourceNodeId=node_id, sourceRevision=self.snapshot["sourceRevision"],
             frontierRevision=self.snapshot["frontierRevision"], disposition=disposition, claimIds=claim_ids,
             payload=payload, **({"reason": reason} if reason else {}), **({"referenceIds": reference_ids} if reference_ids else {}))
         result = self.request("COMPLETE", **arguments)
         if result.get("outcome") != "PASSED":
-            return self.failure(result)
+            return self.failure(self.reference_guidance(result, reference_ids))
         if result["state"] != "BLOCKED_REFERENCE":
             self.context.draft["sourceAccounting"][node_id] = {"sourceNodeId": node_id, "claimIds": claim_ids, "nonSemanticReason": None if claim_ids else reason}
         self.last_completion = deepcopy(arguments)
@@ -224,6 +232,47 @@ class ReviewFrontier:
         self.inventory.rebuild_node_index()
         advisory = self.applicability_advisory(owned)
         return {**result, "advisory": advisory} if advisory else result
+
+    def foreign_relation_exit(self, relation_ids):
+        """Relations another unit owns cannot change from the active unit; name the owners and the way to get them scheduled."""
+        active = (self.active or {}).get("sourceNodeId")
+        owners = {rid: self.relation_owners[rid] for rid in relation_ids if self.relation_owners.get(rid) not in (None, active)}
+        if not owners:
+            return None
+        nodes = self.context.source_graph.nodes
+        def inside(node_id, root):
+            return node_id == root or nodes.get(node_id, {}).get("structuralPath", "").startswith(nodes.get(root, {}).get("structuralPath", "\0") + "/")
+        into_owner = sorted({r["referenceId"] for r in self.context.source_graph.graph["references"]
+                             if r["fromNodeId"] == active and r.get("toNodeId") and any(inside(r["toNodeId"], o) for o in owners.values())})
+        return {"relationOwners": owners, "requiredAction": "reopen_source_review", "sourceNodeId": sorted(set(owners.values()))[0], "guidance": (
+            "Relation(s) " + ", ".join(sorted(owners)) + " belong to unit(s) " + ", ".join(sorted(set(owners.values()))) + " and cannot be changed from this unit. "
+            "Do not retry changing them here. (1) reopen_source_review for each owner. (2) Yield this unit with complete_source_review disposition "
+            "REQUIRES_REFERENCE_RESOLUTION, a factual reason, and reference_ids from this unit's references that resolve into the owner"
+            + (" (" + ", ".join(into_owner) + ")" if into_owner else "") + "; get_next_review_unit then schedules the reopened owner. "
+            "(3) Correct the relation in the owner; this unit resurfaces and is audited again.")}
+
+    def reference_guidance(self, result, listed):
+        """The API names one unaccounted reference per refusal; list every one and the allowed ways to account for it."""
+        active = (self.active or {}).get("sourceNodeId")
+        detached_rows = [f for f in result.get("failures", []) if f.get("code") == "SEMANTIC_DEPENDENCY_DETACHED"
+                         and str(f.get("ref", "")).startswith("claimRelation:") and self.relation_owners.get(f["ref"][len("claimRelation:"):]) == active]
+        detached = [f["ref"][len("claimRelation:"):] for f in detached_rows]
+        if detached:
+            return {**result, "requiredAction": "remove_semantic_relation", "detachedRelations": [
+                {"relationId": f["ref"][len("claimRelation:"):], "referenceId": f.get("referenceId"), "ownerSourceNodeId": active,
+                 "targetClaimId": f.get("suppliedToClaimId"), "targetClaimCommitted": f.get("suppliedToClaimId") in (f.get("targetClaimIds") or [])}
+                for f in detached_rows], "guidance": (
+                "Relation(s) " + ", ".join(detached) + " of this unit bind a claim that is no longer a committed target (its unit was reopened or changed). "
+                "Remove each with remove_semantic_relation and a factual reason, then complete this unit again; bind the reference once the target is republished.")}
+        if not any(f.get("code") == "SOURCE_REVIEW_REFERENCE_BLOCKED" for f in result.get("failures", [])) or not self.active:
+            return result
+        accounted = self.context.draft["referenceAccounting"]
+        pending = [rid for rid in self.active["referenceIds"] if rid not in accounted and rid not in set(listed or [])]
+        return {**result, "unaccountedReferenceIds": pending, "guidance": (
+            "Every explicit reference of this unit must be accounted before it completes. For each: bind_semantic_reference when a target claim exists, "
+            "mark_reference_non_material with a truthful reason, or, when the target unit is not reviewed yet, complete this unit with disposition "
+            "REQUIRES_REFERENCE_RESOLUTION and reference_ids containing ALL of: " + ", ".join(sorted({*pending, *(listed or [])})) +
+            ". The runtime then schedules the target units and resurfaces this one. Do not author claims for another unit's text from here.")}
 
     def applicability_advisory(self, completed):
         """Non-blocking nudge while the freeze would still be refused: duties exist but no claim can ground applicability yet."""

@@ -1,5 +1,8 @@
+import { semanticConceptInput } from "../../src/modules/compliance-rule-set/domain/source-concepts.js";
 /** Synthetic mechanical fixture receipts, not model entailment or retained-source semantic acceptance. */
 import {
+  SEMANTIC_SOURCE_CONTENT_USES as U,
+  SEMANTIC_TARGET_SCOPE_READINGS as T,
   LEGAL_SEMANTIC_GRAPH_VERSION,
   LEGAL_SEMANTIC_AUTHORITIES as AUTH,
   LEGAL_ASSESSABILITIES as A,
@@ -9,6 +12,8 @@ import {
   SEMANTIC_AUDIT,
   SEMANTIC_AUDIT_VERDICTS as V,
   type ComplianceRuleSetPacket,
+  type SemanticSourceCatalog,
+  type SemanticSourceCoverage,
 } from "@lcsp/contracts/compliance-rule-set";
 import type { LegalDocumentGraph } from "@lcsp/contracts/legal-source";
 import { createHash } from "node:crypto";
@@ -19,7 +24,9 @@ import {
   semanticCompletenessInput,
   semanticRelationBatches,
   semanticRelationInput,
+  semanticRelationSourceNodes,
 } from "../../src/modules/compliance-rule-set/domain/semantic-audit.js";
+import { semanticSourceMaterialInput, semanticSourceRoleInput } from "../../src/modules/compliance-rule-set/domain/source-completeness.js";
 
 export function supportStructuralFixture(
   packet: ComplianceRuleSetPacket,
@@ -73,7 +80,9 @@ export function supportStructuralFixture(
           binding.role === ROLE.APPLICABILITY_CONDITION
             ? R.CONDITION_OF
             : binding.role === ROLE.QUALIFIER
-              ? [C.TEMPORAL_RULE, C.TRANSITION_RULE].includes(claim.claimType as never)
+              ? [C.TEMPORAL_RULE, C.TRANSITION_RULE].includes(
+                  claim.claimType as never,
+                )
                 ? R.TEMPORALLY_APPLIES_TO
                 : R.QUALIFIES
               : binding.role === ROLE.EXCEPTION
@@ -89,9 +98,12 @@ export function supportStructuralFixture(
           ].includes(binding.role as never)
         )
           claim.semanticAuthority = AUTH.LEGAL_NORMATIVE;
-        const modifier = [R.CONDITION_OF, R.QUALIFIES, R.EXCEPTION_TO, R.TEMPORALLY_APPLIES_TO].includes(
-          kind as never,
-        );
+        const modifier = [
+          R.CONDITION_OF,
+          R.QUALIFIES,
+          R.EXCEPTION_TO,
+          R.TEMPORALLY_APPLIES_TO,
+        ].includes(kind as never);
         const row = {
           fromClaimId: modifier ? binding.claimId : anchor.claimId,
           toClaimId: modifier ? anchor.claimId : binding.claimId,
@@ -108,12 +120,45 @@ export function supportStructuralFixture(
   refreshStructuralAudits(graph, source, 1);
 }
 
+function structuralCatalog(input: ReturnType<typeof semanticAuditInput>): SemanticSourceCatalog {
+  const hash = inventoryHash(input);
+  const initialReading = {
+    verifierOperationId: `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`,
+    facts: [],
+    noMaterialReason:
+      "Scripted mechanical fixture only; no source-semantic judgment",
+    nonMaterialSpans: semanticSourceMaterialInput(input).sourceSpans.map(
+      (s) => ({ spanId: s.id, reason: "Mechanical fixture only" }),
+    ),
+  };
+  const sourceCatalog: SemanticSourceCatalog = {
+    sourceInputFingerprint: inventoryHash(semanticSourceMaterialInput(input)),
+    verifierOperationId: `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`,
+    facts: [],
+    noMaterialReason:
+      "Scripted mechanical fixture only; no source-semantic judgment",
+    initialReading,
+    reviewedReading: initialReading,
+    dependencyAudit: null,
+    classification: {
+      verifierOperationId: initialReading.verifierOperationId,
+      readings: [],
+      inputFingerprint: inventoryHash(semanticSourceRoleInput(semanticSourceMaterialInput(input), { facts: [] })),
+    },
+    nonMaterialSpans: initialReading.nonMaterialSpans,
+  };
+  return sourceCatalog;
+}
+
 export function structuralReceipt(
   input: ReturnType<typeof semanticAuditInput>,
 ) {
   const graph = { materializationId: input.sourceRevision };
   const review = { sourceNodeId: input.sourceNodeId };
   const hash = inventoryHash(input);
+  const sourceCatalog = structuralCatalog(input);
+  const relatedSourceCatalogs = semanticRelationSourceNodes(input).map((sourceNodeId) => ({ sourceNodeId, catalog: structuralCatalog({ ...input, sourceNodeId }) }));
+  const concepts = input.relations.some((r) => r.kind === R.DEFINED_BY) ? { inputFingerprint: inventoryHash(semanticConceptInput(input, relatedSourceCatalogs)), verifierOperationId: sourceCatalog.verifierOperationId, definitions: [], factUses: [] } : null;
   return {
     schemaRevision: SEMANTIC_AUDIT.schemaRevision,
     sourceNodeId: review.sourceNodeId,
@@ -142,6 +187,8 @@ export function structuralReceipt(
     })),
     relations: input.relations.map((r) => ({
       id: r.relationId,
+      targetScopeReading: T.EXACT_SOURCE_TARGET,
+      ...(r.kind === R.INCORPORATES ? { sourceContentReading: U.ADOPTED_PERFORMANCE } : {}),
       fingerprint: inventoryHash(r),
       checks: {
         kind: V.SUPPORTED,
@@ -153,16 +200,22 @@ export function structuralReceipt(
     })),
     relationAudits: semanticRelationBatches(input).map((batch) => ({
       relationIds: batch.map((r) => r.relationId),
-      inputFingerprint: inventoryHash(semanticRelationInput(input, batch)),
+      inputFingerprint: inventoryHash(semanticRelationInput(input, batch, relatedSourceCatalogs, concepts)),
       verifierOperationId: `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`,
       verdict: V.SUPPORTED,
       gaps: [],
     })),
+    sourceCatalog,
+    relatedSourceCatalogs,
+    sourceConceptAudit: concepts,
     completenessAudit: {
-      inputFingerprint: inventoryHash(semanticCompletenessInput(input)),
+      inputFingerprint: inventoryHash(
+        semanticCompletenessInput(input, sourceCatalog),
+      ),
       verifierOperationId: `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`,
       verdict: V.SUPPORTED,
       gaps: [],
+      coverage: [] as SemanticSourceCoverage,
     },
     auditedAt: "2026-10-18T00:00:00.000Z",
   };

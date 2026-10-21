@@ -107,6 +107,12 @@ export const RULE_SET_PREPARATION_FAILURE_REASONS = {
   RULE_SET_VALIDATION_FAILED: "RULE_SET_VALIDATION_FAILED",
   SOURCE_VERSION_UNAVAILABLE: "SOURCE_VERSION_UNAVAILABLE",
   RUNTIME_ERROR: "RUNTIME_ERROR",
+  /**
+   * Terminal outcome of a complete, independently audited review whose inventory has no relevant duty, prohibition or
+   * permission. It is recorded only by the validated claim-inventory conclusion, never reported by a worker, and it
+   * creates or activates no Rule Set.
+   */
+  NO_OPERATIVE_OBLIGATIONS: "NO_OPERATIVE_OBLIGATIONS",
 } as const;
 export type RuleSetPreparationFailureReason =
   (typeof RULE_SET_PREPARATION_FAILURE_REASONS)[keyof typeof RULE_SET_PREPARATION_FAILURE_REASONS];

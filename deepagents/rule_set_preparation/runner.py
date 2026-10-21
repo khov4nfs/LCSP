@@ -26,6 +26,7 @@ from rule_set_preparation.tools import RuleSetPreparationContext
 
 # Reasons mirror packages/contracts RULE_SET_PREPARATION_FAILURE_REASONS.
 NO_SUBMISSION = "NO_SUBMISSION"
+NO_OPERATIVE_OBLIGATIONS = "NO_OPERATIVE_OBLIGATIONS"
 MODEL_ERROR = "MODEL_ERROR"
 SOURCE_VERSION_UNAVAILABLE = "SOURCE_VERSION_UNAVAILABLE"
 RUNTIME_ERROR = "RUNTIME_ERROR"
@@ -56,7 +57,7 @@ _ACTIVITY_TOOLS = frozenset(
         "review_source_reference", "get_claim_inventory", "validate_semantic_claim_inventory",
         "inspect_semantic_reference_binding", "bind_semantic_reference", "mark_reference_non_material",
         "get_next_review_unit", "get_review_progress", "complete_source_review", "expand_review_frontier", "reopen_source_review",
-        "finalize_semantic_claim_inventory", "reopen_semantic_claim_inventory", "start_rule_authoring",
+        "finalize_semantic_claim_inventory", "conclude_no_operative_obligations", "reopen_semantic_claim_inventory", "start_rule_authoring",
         "author_legal_requirement", "author_assessment_rule",
         "report_rule_set_source_blocked",
     }
@@ -208,6 +209,27 @@ def run_rule_set_preparation(
                 {**chunk, "documentId": document["documentId"], "legalSourceVersionId": bundle["legalSourceVersionId"]}
                 for document in bundle["documents"] for chunk in document["chunks"]
             ])
+            # A partly extracted corpus cannot prove source completeness. Stop
+            # before paying for model calls or asking the Producer to invent
+            # material from pages or document parts that were not extracted.
+            if context.source_graph.extraction_gaps:
+                gap_count = len(context.source_graph.extraction_gaps)
+                publish_agent_stream_event(
+                    "CUSTOM_PROGRESS", status="FAILED", data={
+                        "activity_kind": "SOURCE_EXTRACTION_INCOMPLETE",
+                        "failure_reason": SOURCE_VERSION_UNAVAILABLE,
+                        "extraction_gap_count": gap_count,
+                    },
+                )
+                logger.warning("RULE_SET_PREPARATION_SOURCE_EXTRACTION_INCOMPLETE",
+                               run_id=run_id, extraction_gap_count=gap_count)
+                _fail(api, run_id, SOURCE_VERSION_UNAVAILABLE)
+                return {
+                    "state": "FAILED", "submission": None,
+                    "failureReason": SOURCE_VERSION_UNAVAILABLE,
+                    "error": {"type": "SourceExtractionIncomplete", "stage": failure_stage,
+                              "extractionGapCount": gap_count},
+                }
             materialize_legal_source(bundle, root)
             context.source_root = root
             context.pinned_source_version_id = bundle.get("legalSourceVersionId")
@@ -240,7 +262,8 @@ def run_rule_set_preparation(
         except NodeCancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - classify only proven model failures
-            if context.submission is None:
+            # A conclusion the API already recorded is terminal; a later exception cannot turn it into a model/runtime failure.
+            if context.submission is None and context.concluded is None:
                 active_tool_names = stream_trace.active_tool_names() if stream_trace else []
                 session = active_agent_stream.get()
                 model_call_diagnostics = session.model_call_diagnostics() if session else {}
@@ -273,6 +296,8 @@ def run_rule_set_preparation(
                 logger.warning("RULE_SET_PREPARATION_AGENT_FAILED", run_id=run_id, **diagnostic)
                 _fail(api, run_id, reason)
                 safe_error = {"type": type(error).__name__, "stage": failure_stage}
+                if isinstance(error, (GraphRecursionError, AgentRunBudgetExceeded, NoProgressDetected)):
+                    safe_error["detail"] = str(error)[:2000]  # our own bounded-failure diagnostics only; provider errors stay opaque
                 if isinstance(error, NoProgressDetected):
                     safe_error["message"] = "NO_PROGRESS_DETECTED"
                 return {
@@ -283,6 +308,12 @@ def run_rule_set_preparation(
                     "trace": context.trace,
                 }
 
+    if context.concluded is not None and context.submission is None:
+        # The API recorded the audited inventory and moved the run to FAILED/NO_OPERATIVE_OBLIGATIONS in the same
+        # transaction, so there is nothing to report and no Rule Set to submit.
+        logger.info("RULE_SET_PREPARATION_CONCLUDED_WITHOUT_OPERATIVE_OBLIGATIONS", run_id=run_id,
+                    inventory_fingerprint=context.concluded["fingerprint"], inventory_revision=context.concluded["revision"])
+        return {"state": "FAILED", "submission": None, "failureReason": NO_OPERATIVE_OBLIGATIONS, "trace": context.trace}
     if context.submission is None:
         reason = NO_SUBMISSION if context.source_blocked is not None else RUNTIME_ERROR
         _fail(api, run_id, reason)

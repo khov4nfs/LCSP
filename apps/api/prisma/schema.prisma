@@ -204,6 +204,7 @@ enum RuleSetPreparationFailureReason {
   RULE_SET_VALIDATION_FAILED
   SOURCE_VERSION_UNAVAILABLE
   RUNTIME_ERROR
+  NO_OPERATIVE_OBLIGATIONS
 }
 
 enum ComplianceRuleSetValidationOutcome {

@@ -693,6 +693,36 @@ def test_refuted_source_block_does_not_end_the_run_and_the_packet_is_still_submi
     assert "Source-blocking refused" in json.loads(_tool_messages(model)["blocked"].content)["error"]
 
 
+def test_incomplete_source_extraction_fails_before_model_invocation(tmp_path: Path, monkeypatch) -> None:
+    """A missing PDF text layer blocks the real Producer, without fabricating claims."""
+    import rule_set_preparation.runner as runner
+
+    class PartiallyExtractedApi(FakeApi):
+        def claim_rule_set_preparation(self, run_id: str) -> dict:
+            bundle = super().claim_rule_set_preparation(run_id)
+            bundle["documentGraph"]["extractionGaps"] = [
+                {"documentId": DOC, "page": 2, "kind": "NO_TEXT_LAYER"},
+            ]
+            return bundle
+
+    monkeypatch.setattr(
+        runner, "create_rule_set_preparation_agent",
+        lambda **kwargs: pytest.fail("incomplete corpus must not invoke Producer"),
+    )
+    monkeypatch.setattr(
+        runner, "publish_agent_stream_event", lambda *args, **kwargs: None,
+    )
+    api = PartiallyExtractedApi()
+    result = runner.run_rule_set_preparation(api, RUN_ID, work_dir=tmp_path)
+    assert result["failureReason"] == SOURCE_VERSION_UNAVAILABLE
+    assert result["error"] == {
+        "type": "SourceExtractionIncomplete", "stage": "SOURCE_MATERIALIZATION",
+        "extractionGapCount": 1,
+    }
+    assert api.names() == ["claim", "fail"]
+    assert api.calls[-1] == ("fail", (RUN_ID, SOURCE_VERSION_UNAVAILABLE))
+
+
 def test_model_error_and_claim_failure_are_recorded(tmp_path: Path) -> None:
     class ExplodingModel(RuleSetPreparationScriptedModel):
         def _generate(self, messages: list[Any], **kwargs: Any):

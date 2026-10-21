@@ -30,24 +30,26 @@ class AllowanceExhausted(Exception):
 @pytest.mark.parametrize(
     ("successful_slot", "expected"),
     [
-        (("apx", 1), [("apx", 0), ("apx", 1)]),
-        (("google_genai", 0), [("apx", 0), ("apx", 1), ("apx", 2), ("google_genai", 0)]),
-        (("inception", 1), [("apx", 0), ("apx", 1), ("apx", 2), ("google_genai", 0),
-                            ("google_genai", 1), ("inception", 0), ("inception", 1)]),
-        (None, [("apx", 0), ("apx", 1), ("apx", 2), ("google_genai", 0),
-                ("google_genai", 1), ("inception", 0), ("inception", 1)]),
-        (("apx", 0), [("apx", 0)]),
+        (("miraiapi", 1), [("miraiapi", 0), ("miraiapi", 1)]),
+        (("inception", 0), [("miraiapi", 0), ("miraiapi", 1), ("inception", 0)]),
+        (("google_genai", 1), [("miraiapi", 0), ("miraiapi", 1), ("inception", 0),
+                              ("inception", 1), ("google_genai", 0), ("google_genai", 1)]),
+        (("apx", 1), [("miraiapi", 0), ("miraiapi", 1), ("inception", 0), ("inception", 1),
+                      ("google_genai", 0), ("google_genai", 1), ("apx", 0), ("apx", 1)]),
+        (None, [("miraiapi", 0), ("miraiapi", 1), ("inception", 0), ("inception", 1),
+                ("google_genai", 0), ("google_genai", 1), ("apx", 0), ("apx", 1), ("apx", 2)]),
+        (("miraiapi", 0), [("miraiapi", 0)]),
     ],
-    ids=["A-apx-rotation", "B-apx-exhausted", "C-inception", "D-terminal-exhaustion", "E-primary-success"],
+    ids=["A-miraiapi-rotation", "B-miraiapi-exhausted", "C-gemini", "F-apx-last", "D-terminal-exhaustion", "E-primary-success"],
 )
 def test_preparation_uses_credential_pools_before_provider_fallback(
     monkeypatch, tmp_path, successful_slot, expected,
 ):
     monkeypatch.setenv("LCSP_MODEL_ROUTES_FILE", str(Path(__file__).parents[1] / "config/model_routes.yaml"))
     pools = {provider: tuple(f"fixture-{provider}-{i}" for i in range(count))
-             for provider, count in [("apx", 3), ("google_genai", 2), ("inception", 2)]}
+             for provider, count in [("apx", 3), ("google_genai", 2), ("inception", 2), ("miraiapi", 2)]}
     for provider, env in [("apx", "APX_API_KEY"), ("google_genai", "GOOGLE_API_KEY"),
-                          ("inception", "INCEPTION_API_KEY")]:
+                          ("inception", "INCEPTION_API_KEY"), ("miraiapi", "MIRAI_API_KEY")]:
         monkeypatch.setenv(env, ",".join(pools[provider]))
     token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
     token_fallback._RATE_LIMITED_UNTIL.clear()
@@ -64,7 +66,7 @@ def test_preparation_uses_credential_pools_before_provider_fallback(
         provider = token_fallback.model_provider(model)
         if provider == "google_genai":
             secret = model.google_api_key
-        elif provider == "apx":
+        elif isinstance(model, ChatAnthropic):
             secret = model.anthropic_api_key
         else:
             secret = model.openai_api_key
@@ -159,7 +161,7 @@ def _provider_slot(model, pools):
     provider = token_fallback.model_provider(model)
     if provider == "google_genai":
         secret = model.google_api_key
-    elif provider == "apx":
+    elif isinstance(model, ChatAnthropic):
         secret = model.anthropic_api_key
     else:
         secret = model.openai_api_key
@@ -176,11 +178,13 @@ def test_framework_summarization_uses_full_model_governance(monkeypatch, termina
         "apx": ("fixture-apx-0", "fixture-apx-1"),
         "google_genai": ("fixture-google-0",),
         "inception": ("fixture-inception-0",),
+        "miraiapi": ("fixture-miraiapi-0",),
     }
     for provider, env in [
         ("apx", "APX_API_KEY"),
         ("google_genai", "GOOGLE_API_KEY"),
         ("inception", "INCEPTION_API_KEY"),
+        ("miraiapi", "MIRAI_API_KEY"),
     ]:
         monkeypatch.setenv(env, ",".join(pools[provider]))
     token_fallback._DEAD_CREDENTIAL_SLOTS.clear()
@@ -278,13 +282,14 @@ def test_framework_summarization_uses_full_model_governance(monkeypatch, termina
         assert failed[0]["http_status"] in {None, 429}
     else:
         assert response.content == "governed summary"
-        assert attempts[:3] == [("apx", 0), ("apx", 1), ("google_genai", 0)]
+        assert attempts[:3] == [("miraiapi", 0), ("inception", 0), ("google_genai", 0)]
         assert failed == []
         assert len(completed) == len(settled) == 1
         assert completed[0]["operation_type"] == "SUMMARIZATION"
         assert completed[0]["invocation_id"] == starts[0]["invocation_id"]
         assert settled[0][0] == ("GOOGLE_GENAI", "gemini-3.5-flash-lite")
-        assert settled[0][1] == starts[0]["invocation_id"]
+        assert settled[0][1] == completed[0]["settlement_invocation_id"]
+        assert completed[0]["logical_invocation_id"] == starts[0]["invocation_id"]
         assert settled[0][2]["inputTokens"] == "7"
         assert settled[0][2]["outputTokens"] == "3"
         assert settled[0][2]["totalTokens"] == "10"
@@ -297,7 +302,7 @@ def test_preparation_reader_has_governed_summarization_and_role(monkeypatch):
         "LCSP_MODEL_ROUTES_FILE",
         str(Path(__file__).parents[1] / "config/model_routes.yaml"),
     )
-    monkeypatch.setenv("APX_API_KEY", "fixture-apx")
+    monkeypatch.setenv("MIRAI_API_KEY", "fixture-miraiapi")
     model = resolve_agent_model("rule-set-preparation")
     spec = legal_source_reader_subagent(model=model, backend=StateBackend())
     middleware = spec["middleware"]
@@ -312,7 +317,7 @@ def test_preparation_reader_has_governed_summarization_and_role(monkeypatch):
 def test_offline_preparation_cli_remains_provider_free(monkeypatch, tmp_path, capsys):
     from vertical import scripted_preparation
 
-    for name in ("APX_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "INCEPTION_API_KEY"):
+    for name in ("APX_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY", "INCEPTION_API_KEY", "MIRAI_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     seed = tmp_path / "seed.json"
     seed.write_text(json.dumps({"hashes": {}, "packet": _packet()}))

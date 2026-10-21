@@ -72,22 +72,60 @@ def build_claim_tools(context):
                 refs[(ref["documentId"], ref["locator"], ref["contentSha256"])] = ref
         return list(refs.values())
 
+    def resolved_support(source_support):
+        """Quote spans {nodeId, quote} are located by the same deterministic resolver as get_source_support; offset spans pass through to their own checks."""
+        if not isinstance(source_support, list):
+            return source_support, None
+        spans = []
+        for span in source_support:
+            if isinstance(span, dict) and "quote" in span:
+                found = support_span(span.get("nodeId"), span["quote"])
+                if found.get("outcome") != "PASSED":
+                    return None, found
+                spans.append(found["sourceSupport"])
+            else:
+                spans.append(span)
+        return spans, None
+
     def register(identity_key, claim_type, statement, source_node_ids=None, actor=None, action=None, relevant=True, non_operative_reason=None, source_support=None, semantic_authority=None, semantic_frame=None, assessability=None):
         if source_node_ids is None:
             source_node_ids = [ledger.frontier.active["sourceNodeId"]] if ledger.frontier and ledger.frontier.active else []
+        source_support, refused = resolved_support(source_support)
+        if refused:
+            return refused
         return ledger.put_claim(identity_key, source_node_ids, claim_type, statement, actor, action, relevant, non_operative_reason, source_support=source_support, semantic_authority=semantic_authority, semantic_frame=semantic_frame, assessability=assessability)
 
     def support_span(node_id, quote):
         node = context.source_graph.nodes.get(node_id)
-        if not node or not quote or node["content"].count(quote) != 1:
+        if not node or not quote:
             return ledger.rejected("SOURCE_SUPPORT_INVALID", node_id, "Copy a unique exact minimal passage from the pinned node, preserving line breaks; no normalized or paraphrased quotation", requiredAction="get_source_support")
+        content = node["content"]
+        if content.count(quote) == 1:
+            start = content.index(quote)
+            matched = quote
+        else:
+            trans = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'"})
+            content_norm = content.translate(trans)
+            quote_norm = quote.translate(trans)
+            if content_norm.count(quote_norm) == 1:
+                start = content_norm.index(quote_norm)
+                matched = content[start : start + len(quote)]
+            else:
+                return ledger.rejected("SOURCE_SUPPORT_INVALID", node_id, "Copy a unique exact minimal passage from the pinned node, preserving line breaks; no normalized or paraphrased quotation", requiredAction="get_source_support")
         from rule_set_preparation.semantic_audit import text_sha
-        start = node["content"].index(quote)
-        offset = len(node["content"][:start].encode("utf-16-le")) // 2
-        return {"outcome": "PASSED", "sourceSupport": {"nodeId": node_id, "startOffset": offset, "endOffset": offset + len(quote.encode("utf-16-le")) // 2, "contentSha256": text_sha(quote)}}
+        offset = len(content[:start].encode("utf-16-le")) // 2
+        return {"outcome": "PASSED", "sourceSupport": {"nodeId": node_id, "startOffset": offset, "endOffset": offset + len(matched.encode("utf-16-le")) // 2, "contentSha256": text_sha(matched)}}
 
     def update(claim_id, claim_type, statement, actor=None, action=None, relevant=True, non_operative_reason=None, source_support=None, semantic_authority=None, semantic_frame=None, assessability=None):
-        claim = context.draft["semanticClaims"][claim_id]
+        source_support, refused = resolved_support(source_support)
+        if refused:
+            return refused
+        claim = context.draft["semanticClaims"].get(claim_id)
+        if claim is None:
+            # A completed unit's claim is not in the active draft; an id never issued by this run is not a claim at all.
+            return ledger.foreign_claim(claim_id) or ledger.rejected("CLAIM_SCHEMA_INVALID", "claim_id", "No claim with this id is in the active review unit",
+                requiredAction="register_semantic_claim", guidance="update_semantic_claim changes a claim you registered for the active unit; copy its claimId from the "
+                "register_semantic_claim result or get_claim_inventory, and call register_semantic_claim to author a new one.")
         return ledger.put_claim(ledger.identities[claim_id], claim["sourceNodeIds"], claim_type, statement,
                                 actor, action, relevant, non_operative_reason, update_id=claim_id, source_support=source_support, semantic_authority=semantic_authority, semantic_frame=semantic_frame, assessability=assessability)
 
@@ -229,7 +267,8 @@ def build_claim_tools(context):
         if not ledger.discovery_allowed() or not reason.strip():
             return ledger.rejected("CLAIM_INVENTORY_FROZEN", relation_id, "Correct relations only before freeze, with a reason")
         if ledger.frontier and (not ledger.frontier.active or ledger.frontier.relation_owners.get(relation_id)!=ledger.frontier.active["sourceNodeId"]):
-            return {**ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",relation_id,"Reopen the owning review unit before changing its relation"),"requiredAction":"reopen_source_review","sourceNodeId":ledger.frontier.relation_owners.get(relation_id)}
+            return {**ledger.rejected("CLAIM_SOURCE_BINDING_INVALID",relation_id,"Reopen the owning review unit before changing its relation"),"requiredAction":"reopen_source_review","sourceNodeId":ledger.frontier.relation_owners.get(relation_id),
+                    **(ledger.frontier.foreign_relation_exit([relation_id]) or {})}
         old = context.draft["claimRelations"].pop(relation_id, None)
         if ledger.frontier: old = old or ledger.frontier.invalidated_relations.pop(relation_id, None)
         if old is None: return ledger.rejected("CLAIM_SCHEMA_INVALID", relation_id, "Inspect the existing relation before removing it")
@@ -525,19 +564,21 @@ def build_claim_tools(context):
                                                       "CONDITION = a trigger predicate (if/when/only while). Register SCOPE and CONDITION as separate claims, never only inside a DUTY statement: "
                                                       "they are the only claims that can ground a Requirement's applicability, and the inventory cannot be finalized without one."}, "statement": TEXT,
                         "actor": TEXT, "action": TEXT, "relevant": {"type": "boolean"}, "non_operative_reason": TEXT,
-                        "source_support": {"type": "array", "minItems": 1, "maxItems": 64, "items": object_schema({"nodeId": TEXT, "startOffset": {"type": "integer", "minimum": 0}, "endOffset": {"type": "integer", "minimum": 1}, "contentSha256": TEXT}, ["nodeId", "startOffset", "endOffset"])},
+                        "source_support": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"anyOf": [
+                            object_schema({"nodeId": TEXT, "startOffset": {"type": "integer", "minimum": 0}, "endOffset": {"type": "integer", "minimum": 1}, "contentSha256": TEXT}, ["nodeId", "startOffset", "endOffset"]),
+                            object_schema({"nodeId": TEXT, "quote": TEXT}, ["nodeId", "quote"])]}},
                         "semantic_authority": {"type": "string", "enum": AUTHORITIES}, "assessability": {"type": "string", "enum": ASSESSABILITIES},
                         "semantic_frame": object_schema({k: {"anyOf": [TEXT, {"type": "null"}]} for k in FRAME_FIELDS})}
     semantic_required = ["source_support", "semantic_authority", "semantic_frame", "assessability"]
     specs = [
-        ("register_semantic_claim", "Register one source-supported structured assertion. source_support uses minimal UTF-16 offsets in pinned node content; the runtime computes and verifies hashes. Distinguish legal norms, definitions, context and guidance, and classify repository vs external assessability. Independent audit is mandatory before review completion.", register, object_schema({"identity_key": {**TEXT, "maxLength": 128}, "source_node_ids": {**IDS, "minItems": 1}, **claim_properties}, ["identity_key", "source_node_ids", "claim_type", "statement", *semantic_required])),
+        ("register_semantic_claim", "Register one source-supported structured assertion. source_support spans are either {nodeId, quote} (a unique exact minimal passage copied from the pinned node; the runtime resolves its UTF-16 offsets and SHA-256, as get_source_support does) or explicit {nodeId, startOffset, endOffset[, contentSha256]}; the runtime computes and verifies hashes. Distinguish legal norms, definitions, context and guidance, and classify repository vs external assessability. Independent audit is mandatory before review completion.", register, object_schema({"identity_key": {**TEXT, "maxLength": 128}, "source_node_ids": {**IDS, "minItems": 1}, **claim_properties}, ["identity_key", "source_node_ids", "claim_type", "statement", *semantic_required])),
         ("update_semantic_claim", "Correct a structured assertion and its support; every semantic mutation invalidates its independent audit. Canonical ID/source anchors remain stable. Frozen claims require reopening.", update, object_schema({"claim_id": TEXT, **claim_properties}, ["claim_id", "claim_type", "statement", *semantic_required])),
         ("get_source_support", "Resolve a unique exact minimal quotation against pinned AST content and return immutable UTF-16 offsets and SHA-256. This locates text only; independent audit decides entailment.", support_span, object_schema({"node_id": TEXT, "quote": TEXT}, ["node_id", "quote"])),
         ("get_semantic_closure", "Read the verified typed semantic closure of one operative anchor or a compatible operative aggregation. Only reachable applicability, qualifications, exceptions, temporal branches, definitions and context may bind its Requirement.", closure_view, object_schema({"operative_claim_ids": {**IDS, "minItems": 1}}, ["operative_claim_ids"])),
         ("remove_semantic_claim", "Remove a mistaken claim BEFORE inventory freeze, recording why and invalidating affected source/reference reviews. Never omit a real duty merely to pass coverage.", remove, object_schema({"claim_id": TEXT, "reason": TEXT}, ["claim_id", "reason"])),
         ("link_semantic_claims", "Declare the legal role/direction between claims. Attach a structural reference edge when the dependency relies on it.", link, object_schema({"from_claim_id": TEXT, "to_claim_id": TEXT, "kind": {"type": "string", "enum": sorted(RELATION_KINDS)}, "reference_id": TEXT}, ["from_claim_id", "to_claim_id", "kind"])),
         ("inspect_semantic_reference_binding", "Inspect one structural edge, bounded durable canonical targets, targetClaimAvailability and independent targetReviewComplete. A blocked target can expose usable committed claims. Does not choose legal materiality or a semantic target.", inspect_binding, object_schema({"reference_id": TEXT, "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": 20}}, ["reference_id"])),
-        ("bind_semantic_reference", "Atomically bind your legal dependency from the structural source subtree to its resolved target subtree. Runtime generates the relation ID and derives material accounting. Identical bindings are idempotent.", bind, object_schema({"reference_id": TEXT, "from_claim_id": TEXT, "to_claim_id": TEXT, "kind": {"type": "string", "enum": sorted(RELATION_KINDS)}}, ["reference_id", "from_claim_id", "to_claim_id", "kind"])),
+        ("bind_semantic_reference", "Atomically bind your legal dependency from the structural source subtree to its resolved target subtree: FROM is always a claim of the unit that contains the reference. Use a kind with a review contract (not the legacy DEFINITION/SCOPE/QUALIFIER/EXCEPTION/CONDITION/TEMPORALLY_LIMITS); a modifier kind is valid only when the referencing unit is the modifier. Runtime generates the relation ID and derives material accounting. Identical bindings are idempotent.", bind, object_schema({"reference_id": TEXT, "from_claim_id": TEXT, "to_claim_id": TEXT, "kind": {"type": "string", "enum": sorted(RELATION_KINDS)}}, ["reference_id", "from_claim_id", "to_claim_id", "kind"])),
         ("mark_reference_non_material", "Declare this active reference non-material with a truthful legal reason. Existing semantic bindings must be removed explicitly first.", non_material, object_schema({"reference_id": TEXT, "reason": TEXT}, ["reference_id", "reason"])),
         ("remove_semantic_relation", "Correct a mistaken discovery relation before freeze, recording why and invalidating its reference review.", unlink, object_schema({"relation_id": TEXT, "reason": TEXT}, ["relation_id", "reason"])),
         ("review_source_node", "Record discovery review: enumerate ALL discovered claims in this node, or an explicit reason it has none. A context claim never hides a separate duty.", review_node, object_schema({"source_node_id": TEXT, "claim_ids": IDS, "no_relevant_claim_reason": TEXT}, ["source_node_id", "claim_ids"])),
@@ -547,6 +588,7 @@ def build_claim_tools(context):
         ("get_rule_authoring_status", "Bounded read-only projection of Rule authoring progress: the exact IDs and titles of your authored Requirements (assessable or not, with or without an AssessmentRule), your AssessmentRules, unbound relevant claims by role, any unresolved rejection of your last mutation and the next valid actions. Use it to get the exact legalRequirementId values author_assessment_rule needs. Not a second authority; pages of at most 40.", authoring_status, object_schema({"offset": {"type": "integer"}, "limit": {"type": "integer", "description": "Default and maximum 40"}})),
         ("validate_semantic_claim_inventory", "Validate discovery and source/reference review WITHOUT requiring Requirements. Reports the same authoring-readiness gaps as finalization (APPLICABILITY_AUTHORITY_MISSING). Fix grouped gaps before finalization.", lambda: ledger.validate_inventory(False), object_schema({})),
         ("finalize_semantic_claim_inventory", "Explicitly finalize discovery and persist an immutable inventory revision. Requirements are not required at this phase, but the inventory must be able to support one: it is refused (APPLICABILITY_AUTHORITY_MISSING) when duties exist and no SCOPE or CONDITION claim does. Reopen the owning unit with reopen_source_review and register that claim.", lambda: ledger.validate_inventory(True), object_schema({})),
+        ("conclude_no_operative_obligations", "End the Preparation with an explicit outcome when every review unit is complete and independently audited and the source states no duty, prohibition or permission (finalize then reports OPERATIVE_CLAIM_MISSING). The API accepts it only for such an inventory and it creates no Rule Set. Give a factual reason. Never use it to skip an unfinished unit or to dismiss an obligation the source states, and never register an obligation the source does not state.", ledger.conclude_no_operative_obligations, object_schema({"reason": {**TEXT, "maxLength": 2000}}, ["reason"])),
         ("start_rule_authoring", "Transition the same Agent from frozen inventory ready to Rule authoring against that revision.", ledger.begin_authoring, object_schema({})),
         ("reopen_semantic_claim_inventory", "Explicitly reopen discovery for a reason, increment revision, remap claim identities and invalidate ALL downstream candidates. Previous frozen revision stays immutable.", ledger.reopen, object_schema({"reason": TEXT}, ["reason"])),
         ("author_legal_requirement", "Bind selected frozen claim IDs to exact Requirement roles. Canonical actor/action/text/provenance and coverage-state shape are assembled from those claims. A non-assessable reason means external/non-repository performance, not a substitute software duty.", requirement, object_schema({"requirement_key": {**TEXT, "maxLength": 128}, "title": TEXT, "operative_claim_ids": {**IDS, "minItems": 1}, "applicability_claim_ids": IDS, "qualifier_claim_ids": IDS, "exception_claim_ids": IDS, "context_claim_ids": IDS, "non_repository_duty": {"type": "boolean"}, "non_assessable_reason": TEXT}, ["requirement_key", "title", "operative_claim_ids", "applicability_claim_ids"])),
@@ -560,12 +602,12 @@ def build_claim_tools(context):
         specs += [
           ("get_next_review_unit","Get the next runtime-scheduled bounded source unit. Repeated calls return your leased unit until you complete or block it. No global node bookkeeping is required.",ledger.frontier.next,object_schema({})),
           ("get_review_progress","Get compact persisted queue progress and the exact next action. Queue empty with zero blocked units makes discovery eligible to freeze.",ledger.frontier.progress,object_schema({})),
-          ("complete_source_review","Give the active unit a semantic disposition. Runtime collects ALL canonical claims authored here by default. Explicit claim_ids must include every authored claim. NO_RELEVANT_SEMANTIC_CLAIMS means no relevant semantic material of any role; definitions and context still require claims. No-claim needs a reason; blocking needs reference_ids. This never completes children/siblings.",ledger.frontier.complete,object_schema({"disposition":{"type":"string","enum":["CLAIMS_AUTHORED","NO_RELEVANT_SEMANTIC_CLAIMS","CONTEXT_ONLY","REQUIRES_REFERENCE_RESOLUTION"]},"claim_ids":IDS,"reason":{**TEXT,"maxLength":2000},"reference_ids":IDS},["disposition"])),
+          ("complete_source_review","Give the active unit a semantic disposition. Runtime collects ALL canonical claims authored here by default. Explicit claim_ids must include every authored claim; any additional claim must already be anchored on this active source node. This never transfers claim ownership or completes children/siblings. NO_RELEVANT_SEMANTIC_CLAIMS means no relevant semantic material of any role; definitions and context still require claims. No-claim needs a reason; blocking needs reference_ids.",ledger.frontier.complete,object_schema({"disposition":{"type":"string","enum":["CLAIMS_AUTHORED","NO_RELEVANT_SEMANTIC_CLAIMS","CONTEXT_ONLY","REQUIRES_REFERENCE_RESOLUTION"]},"claim_ids":IDS,"reason":{**TEXT,"maxLength":2000},"reference_ids":IDS},["disposition"])),
           ("expand_review_frontier","Explicitly include a structurally referenced target in scope, recording why. Existing target work is reused. Never silently expand the frontier.",ledger.frontier.expand,object_schema({"reference_ids":{**IDS,"minItems":1},"reason":{**TEXT,"maxLength":2000}},["reference_ids","reason"])),
           ("reopen_source_review","Explicitly reopen a completed/blocked unit to correct its semantics. The runtime will schedule it; other units remain unchanged.",ledger.frontier.reopen,object_schema({"source_node_id":TEXT,"reason":{**TEXT,"maxLength":2000}},["source_node_id","reason"])),
         ]
     if context.discovery_only:
-        specs=[spec for spec in specs if spec[0] not in {"start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory","get_rule_authoring_context","get_rule_authoring_status", "get_semantic_closure"}]
+        specs=[spec for spec in specs if spec[0] not in {"conclude_no_operative_obligations","start_rule_authoring","author_legal_requirement","author_assessment_rule","remove_rule_candidate","reopen_semantic_claim_inventory","get_rule_authoring_context","get_rule_authoring_status", "get_semantic_closure"}]
     tools = []
     for name, description, function, schema in specs:
         def invoke(_function=function, _schema=schema, _name=name, **kwargs):
@@ -585,7 +627,8 @@ def build_claim_tools(context):
                         ledger.current_layer, ledger.current_source = TOOL_SCHEMA, SOURCE_PREFLIGHT
                         result = ledger.rejected("CLAIM_SCHEMA_INVALID", _name + (("." + paths[0]) if paths and paths[0] != "<root>" else ""), "; ".join(
                             ".".join(map(str, e.absolute_path)) + (": " if e.absolute_path else "") + e.message[:160] for e in errors[:3]),
-                            fieldPaths=paths, repairKey=classify_schema_error(errors[0]))
+                            fieldPaths=paths, repairKey=classify_schema_error(errors[0]),
+                            **({"requiredAction": _name} if _name in {"register_semantic_claim", "update_semantic_claim"} else {}))
                     else:
                         try:
                             result = _function(**kwargs)

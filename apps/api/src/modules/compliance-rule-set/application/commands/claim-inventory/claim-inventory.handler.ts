@@ -3,11 +3,13 @@ import {
   AgentExecutionState,
   ClaimPreparationPhase,
   Prisma,
+  RuleSetPreparationFailureReason,
 } from "@prisma/client";
 import {
   CLAIM_INVENTORY_ACTIONS as A,
   CLAIM_INVENTORY_GAPS as G,
   COMPLIANCE_RULE_SET_ERROR_CODES,
+  RULE_SET_PREPARATION_FAILURE_REASONS as FAILURE_REASONS,
   CLAIM_PREPARATION_PHASES as P,
   COMPLIANCE_RULE_SET_VALIDATION_OUTCOMES as O,
   COMPLIANCE_RULE_SET_FAILURE_CODES as F,
@@ -21,6 +23,7 @@ import { LegalSourceSnapshotLoader } from "../../../infrastructure/persistence/l
 import {
   inventoryFingerprint,
   inventoryHash,
+  noOperativeObligationsFailures,
   normalizeInventory,
   validateClaimInventory,
 } from "../../../domain/claim-inventory.js";
@@ -66,6 +69,44 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           revision: run.claimInventoryRevision,
           failures: [{ code, ref: "claimInventory", detail }],
         });
+        const conclude = input.action === A.CONCLUDE_NO_OPERATIVE_OBLIGATIONS;
+        if (
+          conclude &&
+          run.executionState === AgentExecutionState.FAILED &&
+          run.failureReason ===
+            RuleSetPreparationFailureReason.NO_OPERATIVE_OBLIGATIONS
+        ) {
+          // A transport retry of the accepted conclusion is idempotent; a different inventory is never concluded twice.
+          const concluded = await tx.ruleSetPreparationClaimInventory.findUnique(
+            {
+              where: {
+                preparationRunId_revision: {
+                  preparationRunId: run.id,
+                  revision: input.revision,
+                },
+              },
+            },
+          );
+          return concluded &&
+            input.graph &&
+            concluded.fingerprint ===
+              inventoryFingerprint(
+                input.revision,
+                normalizeInventory(input.graph),
+              )
+            ? {
+                outcome: O.PASSED,
+                phase: P.COMPLETION,
+                revision: concluded.revision,
+                fingerprint: concluded.fingerprint,
+                failureReason: FAILURE_REASONS.NO_OPERATIVE_OBLIGATIONS,
+                alreadyConcluded: true,
+              }
+            : fail(
+                G.FROZEN,
+                "The Preparation already concluded with a different audited inventory",
+              );
+        }
         if (
           run.executionState !== AgentExecutionState.RUNNING &&
           !(
@@ -75,6 +116,11 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           )
         )
           return fail(G.PHASE, "Preparation is not running");
+        if (conclude && run.claimDiscoveryOnly)
+          return fail(
+            G.PHASE,
+            "A discovery-only diagnostic cannot conclude a Preparation",
+          );
         if (
           input.action === A.REOPEN &&
           run.claimInventoryRevision === input.revision + 1 &&
@@ -179,6 +225,11 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           );
         const graph = normalizeInventory(input.graph);
         const fingerprint = inventoryFingerprint(input.revision, graph);
+        if (conclude && frozen)
+          return fail(
+            G.FROZEN,
+            "A frozen inventory supports Rule authoring; it cannot conclude without operative obligations",
+          );
         if (frozen)
           return frozen.fingerprint === fingerprint
             ? {
@@ -370,9 +421,14 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             ? new Set(items.map((item) => item.sourceNodeId))
             : undefined,
         );
-        if (result.failures.length)
+        // INV-C2: the conclusion waives only the reported absence of an operative claim, never another gate.
+        const failures = conclude
+          ? noOperativeObligationsFailures(persistentGraph, result.failures)
+          : result.failures;
+        if (failures.length)
           return {
             ...result,
+            failures,
             outcome: O.FAILED,
             phase: P.CLAIM_INVENTORY_VALIDATION,
             revision: input.revision,
@@ -389,7 +445,7 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             ),
             requiredAction: "get_claim_inventory",
           };
-        if (result.failures.length || input.action === A.VALIDATE)
+        if (failures.length || input.action === A.VALIDATE)
           return {
             ...result,
             outcome: result.failures.length ? O.FAILED : O.PASSED,
@@ -418,6 +474,28 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
           },
           data: { frozenAt: new Date() },
         });
+        if (conclude) {
+          // Terminal and explicit: no Rule Set is created or activated; the audited inventory above is the record.
+          await tx.ruleSetPreparationRun.update({
+            where: { id: run.id },
+            data: {
+              claimPhase: ClaimPreparationPhase.COMPLETION,
+              executionState: AgentExecutionState.FAILED,
+              failureReason:
+                RuleSetPreparationFailureReason.NO_OPERATIVE_OBLIGATIONS,
+              completedAt: new Date(),
+            },
+          });
+          return {
+            outcome: O.PASSED,
+            phase: P.COMPLETION,
+            revision: input.revision,
+            fingerprint,
+            graphDigest: inventoryHash(graph),
+            failureReason: FAILURE_REASONS.NO_OPERATIVE_OBLIGATIONS,
+            coverage: result.coverage,
+          };
+        }
         await tx.ruleSetPreparationRun.update({
           where: { id: run.id },
           data: {

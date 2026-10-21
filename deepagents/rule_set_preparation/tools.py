@@ -128,6 +128,8 @@ class RuleSetPreparationContext:
     last_validation: dict[str, Any] | None = None
     validated_packet: dict[str, Any] | None = None
     source_blocked: dict[str, str] | None = None
+    # The API accepted the terminal no-operative-obligations conclusion (INV-C2): nothing further is authored or submitted.
+    concluded: dict[str, Any] | None = None
     errors: list[str] = field(default_factory=list)
     # The packet being authored in parts: section -> item label -> item, in insertion order.
     draft: dict[str, dict[str, dict[str, Any]]] = field(
@@ -400,6 +402,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
     def run_validation(packet: dict | None = None) -> str:
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
+        if context.concluded is not None:
+            return json.dumps({"error": "Preparation is already finished.", "concluded": context.concluded["failureReason"]})
         if context.inventory is None:
             context.validation_calls += 1
         else:
@@ -490,7 +494,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
         in the draft REPLACES it, which is how you correct an item. Nothing is checked here; call
         validate_compliance_rule_set with no arguments to validate the whole draft.
         """
-        if context.submission is not None or context.source_blocked is not None:
+        if context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished."})
         if context.inventory is not None:
             return json.dumps(context.inventory.rejected("CLAIM_PHASE_INVALID", "draft", "Use typed claim/review tools during discovery and typed Requirement/AssessmentRule tools after freeze"))
@@ -546,7 +550,7 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
     ) -> str:
         """Remove items from the packet draft by label. Only items named by the latest validation
         failures can be removed; to change any other item send it again with the same label."""
-        if context.submission is not None or context.source_blocked is not None:
+        if context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return json.dumps({"error": "Preparation is already finished."})
         removals = {"legalRequirements": legalRequirementIds, "assessmentRules": assessmentRuleIds,
                     "contextRelations": relationIds}
@@ -603,6 +607,8 @@ def build_rule_set_tools(context: RuleSetPreparationContext) -> list:
             return json.dumps({**context.submission, "alreadySubmitted": True}, ensure_ascii=False)
         if context.source_blocked is not None:
             return json.dumps({"sourceBlocked": context.source_blocked})
+        if context.concluded is not None:
+            return json.dumps({"error": "Preparation is already finished.", "concluded": context.concluded["failureReason"]})
         candidate: Any = packet
         gate: dict | None = None
         try:

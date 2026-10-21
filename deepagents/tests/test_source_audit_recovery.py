@@ -11,6 +11,8 @@ from review_frontier_harness import runtime, call, bridge
 from structural_semantic_fixture import mechanical_arguments
 from authoring_contract_harness import Step, run_script
 from test_rule_set_preparation_native_isolation_preparation import RuleSetPreparationScriptedModel
+from semantic_verifier_fixture import model_response
+from rule_set_preparation.source_completeness import source_spans
 
 pytestmark = pytest.mark.skipif("lcsp_review_frontier_test" not in os.environ.get("REVIEW_FRONTIER_DATABASE_URL", ""), reason="explicit owned frontier DB required")
 
@@ -29,12 +31,21 @@ def test_independent_failure_keeps_same_unit_visible_and_producer_repairs_before
                 "assertions": [{"id": cid, "verdict": verdict, "checks": checks, "gapCodes": [] if verdict == "SUPPORTED" else [verdict]}], "relations": []}
 
     def message(name, args, index):
-        return AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": "verifier-" + str(index)}])
+        wire = ({"coverage": {"fact_1": {"unitIds": [] if args["gaps"] else ["@claim[1]"], "finding": args["gaps"][0]["detail"] if args["gaps"] else ""}}} if name == "SourceCompletenessVerdict" else args if name == "SourceMaterialCatalog" else model_response(args, {"modalOperator": "NON_OPERATIVE", "semanticAuthority": "DEFINITION", "assessability": "NON_ASSESSABLE"} if missing else None))
+        return AIMessage(content="", tool_calls=[{"name": name, "args": wire, "id": "verifier-" + str(index)}])
 
     responses = ([message("SourceSemanticAuditVerdict", {"verdict": "SUPPORTED", "gaps": [], "assertions": [], "relations": []}, 0),
-                  message("SourceCompletenessVerdict", {"verdict": "MISSING_ASSERTION", "gaps": [{"code": "MISSING_ASSERTION", "detail": "The source unit's definition is absent"}]}, 1)] if missing else
-                 [message("SourceSemanticAuditVerdict", assertion("WRONG_ACTOR"), 0)])
+                  message("SourceCompletenessVerdict", {"verdict": "MISSING_ASSERTION", "gaps": [{"code": "MISSING_ASSERTION", "detail": "The source unit's definition is absent"}]}, 1),
+                  message("SourceCompletenessVerdict", {"verdict": "MISSING_ASSERTION", "gaps": [{"code": "MISSING_ASSERTION", "detail": "The source unit's definition is absent"}]}, 4)] if missing else
+                 [message("SourceSemanticAuditVerdict", assertion("WRONG_ACTOR"), 0),
+                  message("SourceSemanticAuditVerdict", assertion("WRONG_ACTOR"), 4),
+                  message("SourceCompletenessVerdict", {"verdict": "SUPPORTED", "gaps": []}, 1)])
     responses += [message("SourceSemanticAuditVerdict", assertion("SUPPORTED"), 2), message("SourceCompletenessVerdict", {"verdict": "SUPPORTED", "gaps": []}, 3)]
+    catalog = message("SourceMaterialCatalog", {"facts": [{"id": "fact", "dependency": "NONE", "modality": "NON_OPERATIVE" if missing else "DUTY", "semanticAuthority": "DEFINITION" if missing else "LEGAL_NORMATIVE", "startSpanId": source_spans(ctx.source_graph.nodes[unit])[0]["id"], "endSpanId": source_spans(ctx.source_graph.nodes[unit])[-1]["id"], "meaning": "Scripted source fact for recovery mechanics"}], "noMaterialReason": "", "nonMaterialSpans": []}, 5)
+    for fact in catalog.tool_calls[0]["args"]["facts"]:
+        for field in ["id", "dependency", "modality", "semanticAuthority"]: fact.pop(field)
+    roles = AIMessage(content="", tool_calls=[{"name": "SourceSemanticRoles", "args": {"readings": {"fact_1": {"addressee": "" if missing else "operator", "sourceRole": "DEFINITION" if missing else "LEGAL_NORMATIVE", "modalOperator": "NON_OPERATIVE" if missing else "DUTY", "operatorPolarity": "AFFIRMED", "dependency": "NONE"}}}, "id": "source-roles"}])
+    responses[:0] = [catalog, catalog, roles]
     verifier = RuleSetPreparationScriptedModel(responses=responses)
     original = usage_metering.assert_model_identity
     monkeypatch.setattr(usage_metering, "assert_model_identity", lambda m, response=None: None if isinstance(m, RuleSetPreparationScriptedModel) else original(m, response))
@@ -63,7 +74,7 @@ def test_independent_failure_keeps_same_unit_visible_and_producer_repairs_before
     run_script(ctx, steps, tmp_path, monkeypatch, events=events)
     receipts = reconstruct_audit_receipts(events)
     assert len(receipts) == 2 and receipts[-1]["verdict"] == "SUPPORTED" and receipts[0]["verifierOperationId"] != receipts[-1]["verifierOperationId"]
-    assert len(verifier.prompts) == (4 if missing else 3)
+    assert len(verifier.prompts) == 8
     persisted = bridge({"action": "STATE", "request": {"preparationRunId": ctx.run_id}})
     row = next(r for r in persisted["rows"] if r["sourceNodeId"] == unit)
     assert row["payload"]["semanticAudit"] == receipts[-1]

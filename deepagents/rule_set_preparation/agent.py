@@ -134,7 +134,9 @@ class PreparationObservationMiddleware(AgentMiddleware):
                 status="FAILED",
                 data={"activity_kind": "NO_PROGRESS_DETECTED", "tool_name": name},
             )
-            raise NoProgressDetected("NO_PROGRESS_DETECTED")
+            raise NoProgressDetected("NO_PROGRESS_DETECTED " + json.dumps({"tool": name,
+                "observationFingerprint": signature, "resultFingerprint": result_hash,
+                "progressRevision": revision}, separators=(",", ":")))
         return result.model_copy(update={"content": _with_observation_feedback(content, feedback)})
 
 
@@ -167,7 +169,7 @@ class PreparationCompletionMiddleware(AgentMiddleware):
 
     @hook_config(can_jump_to=["end"])
     def before_model(self, state: AgentState, runtime: Runtime) -> dict[str, Any] | None:
-        if (self.context.discovery_only and self.context.inventory and self.context.inventory.phase == "CLAIM_INVENTORY_READY") or self.context.submission is not None or self.context.source_blocked is not None:
+        if (self.context.discovery_only and self.context.inventory and self.context.inventory.phase == "CLAIM_INVENTORY_READY") or self.context.submission is not None or self.context.source_blocked is not None or self.context.concluded is not None:
             return {"jump_to": "end"}
         return None
 
@@ -177,7 +179,7 @@ class PreparationCompletionMiddleware(AgentMiddleware):
         if not isinstance(response, AIMessage) or response.tool_calls:
             return None
         context = self.context
-        if (context.discovery_only and context.inventory and context.inventory.phase == "CLAIM_INVENTORY_READY") or context.submission is not None or context.source_blocked is not None:
+        if (context.discovery_only and context.inventory and context.inventory.phase == "CLAIM_INVENTORY_READY") or context.submission is not None or context.source_blocked is not None or context.concluded is not None:
             return None
         outcome = (context.last_validation or {}).get("outcome")
         context.trace.append({
@@ -204,7 +206,9 @@ class PreparationCompletionMiddleware(AgentMiddleware):
                 "an assistant response: get_claim_inventory to inspect the current phase, "
                 "register/review claims and finalize_semantic_claim_inventory before Rule authoring; "
                 "validate_compliance_rule_set until PASSED, then submit_compliance_rule_set once "
-                "for the exact validated draft. There is no length limit. If the pinned source "
+                "for the exact validated draft. There is no length limit. If every unit is reviewed and "
+                "audited and the source states no obligation, conclude_no_operative_obligations ends the "
+                "run; never register an obligation the source does not state. If the pinned source "
                 "is truly unreadable or its pins inconsistent, use report_rule_set_source_blocked "
                 "instead."
             ))],

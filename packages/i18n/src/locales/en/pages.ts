@@ -117,6 +117,8 @@ export const enPages = {
       RULE_SET_VALIDATION_FAILED: "Integrity validation failed",
       SOURCE_VERSION_UNAVAILABLE: "Legal Source Version unavailable",
       RUNTIME_ERROR: "Runtime error",
+      NO_OPERATIVE_OBLIGATIONS:
+        "The audited source states no obligation, so no rule set was created",
     },
     result: {
       title: "Rule set result",

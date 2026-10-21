@@ -114,7 +114,7 @@ def corrected_graph():
     add("access.end", a8, "DUTY", "The restriction must end", "condition ceases.", actor="operator", action="end the export-interface access restriction when the unsafe-access condition ceases", assessability="MIXED", trigger="unsafe-access condition ceases", repositoryObservableAspect="Repository-visible termination of an access restriction", externalFulfillmentAspect="Actual cessation of the incident/unsafe condition and exercised restriction")
     add("condition.incident", a8, "CONDITION", "only while a", "access unsafe.", trigger="Documented specific security incident makes export-interface access unsafe")
     add("condition.incident-ended", a8, "CONDITION", "when that condition", "condition ceases.", trigger="The documented unsafe-access condition ceases")
-    add("guidance.condition-evidence", a8, "CONTEXT", "Evidence must", "respects it.", authority="EVIDENCE_GUIDANCE")
+    add("guidance.condition-evidence", a8, "CONTEXT", "Evidence must", "respects it.", authority="ASSESSMENT_GUIDANCE")
     add("context.no-automatic-control", a8, "CONTEXT", "This Article does not", "technical implementation.", qualifier="No automatic blocking, automatic unblocking or particular implementation is required")
 
     for target in ["export.software", "export.delivery"]:

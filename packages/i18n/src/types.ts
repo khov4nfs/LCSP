@@ -147,6 +147,7 @@ export type PagesMessages = {
       RULE_SET_VALIDATION_FAILED: string;
       SOURCE_VERSION_UNAVAILABLE: string;
       RUNTIME_ERROR: string;
+      NO_OPERATIVE_OBLIGATIONS: string;
     };
     result: {
       title: string;

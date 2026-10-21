@@ -137,8 +137,8 @@ def completion(context, disposition="CLAIMS_AUTHORED", **fields):
         graph = context.inventory.graph()
         node_id = frontier.active["sourceNodeId"]
         graph["sourceAccounting"] = [r for r in graph["sourceAccounting"] if r["sourceNodeId"] != node_id] + [{"sourceNodeId": node_id, "claimIds": [c["claimId"] for c in owned], "nonSemanticReason": None}]
-        from rule_set_preparation.semantic_audit import audit_input
-        payload["semanticAudit"] = context.semantic_auditor.audit(audit_input(context.source_graph, graph, node_id, 1))
+        from rule_set_preparation.semantic_audit import audit_input, attest_receipt
+        payload["semanticAudit"] = attest_receipt(context.semantic_auditor.audit(audit_input(context.source_graph, graph, node_id, 1)), context.run_id)
     return operation(context, "COMPLETE", sourceNodeId=frontier.active["sourceNodeId"], claimIds=[c["claimId"] for c in owned], payload=payload, disposition=disposition, **fields)
 
 
@@ -418,3 +418,35 @@ def test_scripted_managed_agent_three_node_cycle_reaches_inventory_ready(tmp_pat
     inspections = [json.loads(m.content) for m in result["messages"] if getattr(m, "name", None) == "inspect_semantic_reference_binding"]
     assert any(i["bindingCanProceed"] and not i["targetReviewComplete"] for i in inspections)
     assert len(context.inventory.frozen["claims"]) == 6 and len(context.inventory.frozen["relations"]) == 3
+
+
+def test_active_unit_whose_bound_target_is_reopened_removes_the_detached_relation_then_defers_and_resumes():
+    """The live deadlock: an audit faults a relation another unit owns; the owner is reopened while this unit is active."""
+    seed = bridge({"action": "SEED_DEPENDENCIES", "nodes": 2, "edges": [{"from": 0, "to": 1}, {"from": 1, "to": 0}]})
+    context, tools, _ = drive(seed, stop_after=2)
+    work = call(tools, "get_next_review_unit")
+    assert work["outcome"] == "PASSED" and work["unit"], work
+    active = work["unit"]["sourceNodeId"]
+    template = next(p for p in seed["templates"] if p["claims"] and p["claims"][0]["sourceNodeIds"] == [active])
+    origin = template["claims"][0]["claimId"]
+    for claim in template["claims"]:
+        if claim["claimId"] not in context.draft["semanticClaims"]:
+            assert call(tools, "register_semantic_claim", identity_key=template["identities"][claim["claimId"]], claim_type=claim["claimType"], statement=claim["statement"])["outcome"] == "PASSED"
+    ref = work["unit"]["references"][0]["referenceId"]
+    inspection = call(tools, "inspect_semantic_reference_binding", reference_id=ref)
+    target = next(c for c in inspection["targetClaims"] if c["claimId"] != origin)
+    bound = call(tools, "bind_semantic_reference", reference_id=ref, from_claim_id=origin, to_claim_id=target["claimId"], kind="CROSS_REFERENCE")
+    assert bound["outcome"] == "PASSED", bound
+    relation_id = bound["relation"]["relationId"]
+    owner = next(r["sourceNodeId"] for r in state(context)["rows"] if r["sourceNodeId"] != active)
+    assert call(tools, "reopen_source_review", source_node_id=owner, reason="An independent audit found a relation of this unit wrong")["outcome"] == "PASSED"
+    refused = call(tools, "complete_source_review", disposition="REQUIRES_REFERENCE_RESOLUTION", reference_ids=[ref], reason="The target is reopened for correction")
+    assert refused["outcome"] == "FAILED" and "SEMANTIC_DEPENDENCY_DETACHED" in refused["gaps"], refused
+    assert refused["requiredAction"] == "remove_semantic_relation" and relation_id in refused["guidance"], refused
+    assert refused["detachedRelations"] == [{"relationId": relation_id, "referenceId": ref, "ownerSourceNodeId": active, "targetClaimId": target["claimId"], "targetClaimCommitted": False}], refused
+    assert call(tools, "remove_semantic_relation", relation_id=relation_id, reason="The target unit was reopened for correction")["outcome"] == "PASSED"
+    refused = call(tools, "complete_source_review", disposition="REQUIRES_REFERENCE_RESOLUTION", reference_ids=[ref], reason="The target is reopened for correction")
+    assert refused["outcome"] == "PASSED", refused
+    assert call(tools, "get_next_review_unit")["unit"]["sourceNodeId"] == owner
+    context, tools, _ = drive(seed, context, tools, restart_each_commit=True)
+    assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == "PASSED"
