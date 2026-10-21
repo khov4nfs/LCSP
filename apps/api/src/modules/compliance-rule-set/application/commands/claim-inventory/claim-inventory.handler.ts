@@ -328,7 +328,7 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
         const persistentIdentities = Object.fromEntries(
           payloads.flatMap((p) => Object.entries(p.identities)),
         );
-        const { snapshot } = await this.source.load(run.legalSourceVersionId, {
+        const { snapshot } = await this.source.load(run, {
           legalRequirements: [],
           assessmentRules: [],
           contextRelations: [],

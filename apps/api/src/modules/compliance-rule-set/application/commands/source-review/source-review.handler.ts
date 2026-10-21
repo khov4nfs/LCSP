@@ -45,6 +45,7 @@ import {
   reviewCompletionFingerprint,
 } from "../../../domain/source-review-frontier.js";
 import { semanticReferenceBindings } from "../../../domain/semantic-reference-binding.js";
+import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 import { semanticAuditAttestationFailures } from "../../../domain/semantic-audit-attestation.js";
 import {
   semanticAuditInput,
@@ -212,7 +213,10 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               "phase",
               "Review starts only during running claim discovery",
             );
-          const graph = await this.graph.export(run.legalSourceVersionId);
+          const graph = await this.graph.export(
+            run.legalSourceVersionId,
+            await pinnedMaterializationId(tx, run.id),
+          );
           if (!graph)
             return failed(
               G.BINDING,
@@ -365,7 +369,10 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
         let dependencySnapshot:
           Awaited<ReturnType<typeof loadDependencies>> | undefined;
         const loadDependencies = async () => {
-          const graph = await this.graph.export(run.legalSourceVersionId);
+          const graph = await this.graph.export(
+            run.legalSourceVersionId,
+            frontier!.materializationId,
+          );
           if (!graph || graph.materializationId !== frontier!.materializationId)
             throw new Error("Pinned structural materialization is unavailable");
           const rows = await tx.ruleSetPreparationSourceReview.findMany({
@@ -629,7 +636,10 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           input.action === A.COMPLETE &&
           input.payload?.relations.some((r) => r.referenceId)
         ) {
-          const graph = await this.graph.export(run.legalSourceVersionId);
+          const graph = await this.graph.export(
+            run.legalSourceVersionId,
+            frontier.materializationId,
+          );
           if (!graph || graph.materializationId !== frontier.materializationId)
             return failed(
               G.STALE,
@@ -913,6 +923,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             );
           const graph = (await this.graph.export(
             run.legalSourceVersionId,
+            frontier.materializationId,
           )) as LegalDocumentGraph;
           if (graph.materializationId !== frontier.materializationId)
             return failed(

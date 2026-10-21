@@ -18,3 +18,16 @@ export async function frozenInventoryForRun(
       }
     : null;
 }
+
+/** The structural materialization a run's first review frontier pinned; reopened inventory revisions keep it. */
+export async function pinnedMaterializationId(
+  prisma: PrismaService | Prisma.TransactionClient,
+  runId: string,
+) {
+  const frontier = await prisma.ruleSetPreparationReviewFrontier.findFirst({
+    where: { preparationRunId: runId },
+    orderBy: { inventoryRevision: "asc" },
+    select: { materializationId: true },
+  });
+  return frontier?.materializationId;
+}

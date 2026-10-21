@@ -140,10 +140,16 @@ export class LegalDocumentGraphService {
     });
   }
 
+  /** A pinned materialization stays readable after a parser revision bump; unpinned reads get the current revision. */
   async export(
     legalSourceVersionId: string,
+    pinnedMaterializationId?: string,
   ): Promise<LegalDocumentGraph | null> {
-    const materialization = await this.current(legalSourceVersionId);
+    const materialization = pinnedMaterializationId
+      ? await this.prisma.legalDocumentMaterialization.findFirst({
+          where: { id: pinnedMaterializationId, legalSourceVersionId },
+        })
+      : await this.current(legalSourceVersionId);
     if (!materialization) return null;
     const where = {
       materializationId: materialization.id,

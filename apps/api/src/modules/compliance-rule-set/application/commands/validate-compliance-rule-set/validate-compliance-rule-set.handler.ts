@@ -54,7 +54,7 @@ export class ValidateComplianceRuleSetHandler implements ICommandHandler<Validat
         { status: HttpStatus.CONFLICT },
       );
     const legalSource = await this.legalSource.load(
-      run.legalSourceVersionId,
+      { id: input.request.preparationRunId, ...run },
       input.request.packet,
     );
     const { failures, coverage } = validateComplianceRuleSetPacket(

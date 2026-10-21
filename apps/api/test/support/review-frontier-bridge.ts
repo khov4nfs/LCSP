@@ -23,6 +23,7 @@ import { ClaimInventoryHandler } from "../../src/modules/compliance-rule-set/app
 import { ClaimInventoryCommand } from "../../src/modules/compliance-rule-set/application/commands/claim-inventory/claim-inventory.command.js";
 import { LegalDocumentGraphService } from "../../src/modules/legal-source/application/services/legal-document-graph.service.js";
 import { LegalSourceSnapshotLoader } from "../../src/modules/compliance-rule-set/infrastructure/persistence/legal-source-snapshot.service.js";
+import { pinnedMaterializationId } from "../../src/modules/compliance-rule-set/infrastructure/persistence/preparation-inventory.persistence.js";
 import type { PrismaService } from "../../src/infrastructure/prisma/prisma.service.js";
 import {
   legalSourceFactory,
@@ -87,7 +88,10 @@ async function invoke(input: BridgeInput) {
     const run = await db.ruleSetPreparationRun.findUniqueOrThrow({
       where: { id: request.preparationRunId },
     });
-    const source = (await graphs.export(run.legalSourceVersionId))!;
+    const source = (await graphs.export(
+      run.legalSourceVersionId,
+      await pinnedMaterializationId(db, run.id),
+    ))!;
     const rows = await db.ruleSetPreparationSourceReview.findMany({
       where: { preparationRunId: run.id, inventoryRevision: 1 },
     });
@@ -249,11 +253,14 @@ async function invoke(input: BridgeInput) {
     if (started.outcome !== "PASSED")
       throw new Error("Diagnostic setup refused");
     const snapshot = (
-      await new LegalSourceSnapshotLoader(service, graphs).load(source.id, {
-        legalRequirements: [],
-        assessmentRules: [],
-        contextRelations: [],
-      })
+      await new LegalSourceSnapshotLoader(service, graphs).load(
+        { id: String(started.preparationRunId), legalSourceVersionId: source.id },
+        {
+          legalRequirements: [],
+          assessmentRules: [],
+          contextRelations: [],
+        },
+      )
     ).snapshot;
     const packet = validPacket();
     const prior = fixtureLegalSource().documentGraph!;

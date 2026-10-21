@@ -11,6 +11,7 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { ClaimRuleSetPreparationCommand } from "./claim-rule-set-preparation.command.js";
 import { LegalDocumentGraphService } from "../../../../legal-source/application/services/legal-document-graph.service.js";
+import { pinnedMaterializationId } from "../../../infrastructure/persistence/preparation-inventory.persistence.js";
 
 /**
  * Claims a run for exactly one worker: QUEUED -> RUNNING. A duplicated or redelivered command
@@ -108,8 +109,12 @@ export class ClaimRuleSetPreparationHandler implements ICommandHandler<ClaimRule
         },
       },
     });
+    // A taken-over run resumes on the graph its review frontier pinned, even across a parser revision bump.
+    const pinned = await pinnedMaterializationId(this.prisma, run.id);
     return {
-      documentGraph: await this.graph.materialize(legalSource.id),
+      documentGraph: pinned
+        ? (await this.graph.export(legalSource.id, pinned))!
+        : await this.graph.materialize(legalSource.id),
       preparationRunId: run.id,
       executionState: state,
       legalSourceVersionId: legalSource.id,

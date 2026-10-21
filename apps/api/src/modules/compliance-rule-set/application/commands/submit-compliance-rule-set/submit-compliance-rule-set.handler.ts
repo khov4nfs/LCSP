@@ -71,10 +71,7 @@ export class SubmitComplianceRuleSetHandler implements ICommandHandler<SubmitCom
     );
     if (replay) return replay;
 
-    const legalSource = await this.legalSource.load(
-      run.legalSourceVersion.id,
-      request.packet,
-    );
+    const legalSource = await this.legalSource.load(run, request.packet);
     const validation = validateComplianceRuleSetPacket(
       request.packet,
       legalSource.snapshot,
