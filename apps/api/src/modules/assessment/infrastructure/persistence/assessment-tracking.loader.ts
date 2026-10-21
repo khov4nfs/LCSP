@@ -49,9 +49,14 @@ import {
   REPOSITORY_CONNECTION_STATUSES,
 } from "@lcsp/contracts/github-integration";
 import { LLM_USAGE_STATUSES } from "@lcsp/contracts/billing";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
+
+const CANONICAL_SQL_WHITESPACE = Prisma.raw(
+  `E' \\t\\n\\r\\x0B\\x0C\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff'`,
+);
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -659,11 +664,11 @@ export class AssessmentTrackingLoader {
               AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleId') = 'string'
               AND (ard."decision"->>'assessmentRuleId') IS NOT NULL
               AND ard."decision"->>'assessmentRuleId' = adc."assessmentRuleId"
-              AND length(trim(ard."decision"->>'assessmentRuleId')) BETWEEN 1 AND 200
+              AND length(btrim(ard."decision"->>'assessmentRuleId', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 200
               AND jsonb_typeof((ard."decision"::jsonb)->'assessmentRuleVersion') = 'string'
               AND (ard."decision"->>'assessmentRuleVersion') IS NOT NULL
               AND ard."decision"->>'assessmentRuleVersion' = adc."assessmentRuleVersion"
-              AND length(trim(ard."decision"->>'assessmentRuleVersion')) BETWEEN 1 AND 200
+              AND length(btrim(ard."decision"->>'assessmentRuleVersion', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 200
               AND jsonb_typeof((ard."decision"::jsonb)->'scopeId') = 'string'
               AND (ard."decision"->>'scopeId') IS NOT NULL
               AND ard."decision"->>'scopeId' = 'ASSESSMENT'
@@ -706,12 +711,12 @@ export class AssessmentTrackingLoader {
                   OR (lcr - ARRAY['legalContextId']) <> '{}'::jsonb
                   OR jsonb_typeof(lcr->'legalContextId') <> 'string'
                   OR lcr->>'legalContextId' IS NULL
-                  OR length(trim(lcr->>'legalContextId')) = 0
-                  OR length(trim(lcr->>'legalContextId')) > 200
+                  OR length(btrim(lcr->>'legalContextId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                  OR length(btrim(lcr->>'legalContextId', ${CANONICAL_SQL_WHITESPACE})) > 200
               )
               AND jsonb_typeof((ard."decision"::jsonb)->'rationale') = 'string'
               AND (ard."decision"->>'rationale') IS NOT NULL
-              AND length(trim(ard."decision"->>'rationale')) BETWEEN 1 AND 10000
+              AND length(btrim(ard."decision"->>'rationale', ${CANONICAL_SQL_WHITESPACE})) BETWEEN 1 AND 10000
               AND jsonb_typeof((ard."decision"::jsonb)->'references') = 'array'
               AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'references') = 'array' THEN (ard."decision"::jsonb)->'references' ELSE '[]'::jsonb END) >= 1
               AND (
@@ -721,7 +726,7 @@ export class AssessmentTrackingLoader {
                     AND jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array'
                     AND jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) >= 1
                     AND (
-                      SELECT count(DISTINCT trim(crit->>'criterionId'))
+                      SELECT count(DISTINCT btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE}))
                       FROM jsonb_array_elements(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END) crit
                     ) = jsonb_array_length(CASE WHEN jsonb_typeof((ard."decision"::jsonb)->'criteria') = 'array' THEN (ard."decision"::jsonb)->'criteria' ELSE '[]'::jsonb END)
                     AND NOT EXISTS (
@@ -731,15 +736,15 @@ export class AssessmentTrackingLoader {
                         OR (crit - ARRAY['criterionId', 'outcome', 'rationale', 'references']) <> '{}'::jsonb
                         OR jsonb_typeof(crit->'criterionId') <> 'string'
                         OR crit->>'criterionId' IS NULL
-                        OR length(trim(crit->>'criterionId')) = 0
-                        OR length(trim(crit->>'criterionId')) > 200
+                        OR length(btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                        OR length(btrim(crit->>'criterionId', ${CANONICAL_SQL_WHITESPACE})) > 200
                         OR jsonb_typeof(crit->'outcome') <> 'string'
                         OR crit->>'outcome' IS NULL
                         OR crit->>'outcome' NOT IN ('MET', 'NOT_MET')
                         OR jsonb_typeof(crit->'rationale') <> 'string'
                         OR crit->>'rationale' IS NULL
-                        OR length(trim(crit->>'rationale')) = 0
-                        OR length(trim(crit->>'rationale')) > 10000
+                        OR length(btrim(crit->>'rationale', ${CANONICAL_SQL_WHITESPACE})) = 0
+                        OR length(btrim(crit->>'rationale', ${CANONICAL_SQL_WHITESPACE})) > 10000
                         OR jsonb_typeof(crit->'references') <> 'array'
                         OR jsonb_array_length(CASE WHEN jsonb_typeof(crit->'references') = 'array' THEN crit->'references' ELSE '[]'::jsonb END) < 1
                     )
@@ -798,8 +803,8 @@ export class AssessmentTrackingLoader {
                       (all_refs.ref - ARRAY['type', 'evidenceId']) <> '{}'::jsonb
                       OR jsonb_typeof(all_refs.ref->'evidenceId') <> 'string'
                       OR all_refs.ref->>'evidenceId' IS NULL
-                      OR length(trim(all_refs.ref->>'evidenceId')) = 0
-                      OR length(trim(all_refs.ref->>'evidenceId')) > 200
+                      OR length(btrim(all_refs.ref->>'evidenceId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                      OR length(btrim(all_refs.ref->>'evidenceId', ${CANONICAL_SQL_WHITESPACE})) > 200
                       OR NOT EXISTS (
                         SELECT 1 FROM "AssessmentEvidence" ae
                         WHERE ae."evidenceId"::text = all_refs.ref->>'evidenceId'
@@ -816,8 +821,8 @@ export class AssessmentTrackingLoader {
                       (all_refs.ref - ARRAY['type', 'factId', 'caseRevision']) <> '{}'::jsonb
                       OR jsonb_typeof(all_refs.ref->'factId') <> 'string'
                       OR all_refs.ref->>'factId' IS NULL
-                      OR length(trim(all_refs.ref->>'factId')) = 0
-                      OR length(trim(all_refs.ref->>'factId')) > 200
+                      OR length(btrim(all_refs.ref->>'factId', ${CANONICAL_SQL_WHITESPACE})) = 0
+                      OR length(btrim(all_refs.ref->>'factId', ${CANONICAL_SQL_WHITESPACE})) > 200
                       OR jsonb_typeof(all_refs.ref->'caseRevision') <> 'number'
                       OR all_refs.ref->>'caseRevision' IS NULL
                       OR all_refs.ref->>'caseRevision' <> ac."caseRevision"::text

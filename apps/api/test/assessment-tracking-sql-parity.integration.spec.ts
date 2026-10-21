@@ -2587,6 +2587,232 @@ describe("AssessmentTrackingLoader Real PostgreSQL Integration & SQL Parity", ()
     expect(asmt?.compliance.unresolvedCount).toBe(1);
   });
 
+  it("proves SQL summary rejects decision with whitespace-only rationale (tabs/newlines) with 100% parity to ruleDecisionSchema", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Tab Whitespace Rationale Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"a".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const validEvidenceRef = {
+      type: "ASSESSMENT_EVIDENCE",
+      evidenceId,
+    };
+
+    // Stored JSON has whitespace-only root rationale: "\t" (or tab/newline mixed)
+    const decisionWithTabRationale = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "\t", // Whitespace-only, fails JS .trim().min(1)
+      references: [validEvidenceRef],
+      criteria: [
+        {
+          criterionId: "crit-1",
+          outcome: "MET",
+          rationale: "Criterion rationale is valid",
+          references: [validEvidenceRef],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest",
+        decision: decisionWithTabRationale,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-tab-rationale-${randomUUID()}`,
+    });
+
+    // Both SQL aggregate and per-assessment SafeParse evaluation must fail closed to UNRESOLVED
+    expect(result.complianceSummary.compliantCount).toBe(0);
+    expect(result.complianceSummary.unresolvedCount).toBe(1);
+
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(0);
+    expect(asmt?.compliance.unresolvedCount).toBe(1);
+  });
+
+  it("proves SQL summary rejects decision with tab-padded duplicate criteria IDs with 100% parity to ruleDecisionSchema", async () => {
+    const assessmentId = randomUUID();
+    const decisionId = randomUUID();
+    const evidenceId = randomUUID();
+
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: userId,
+        name: "Tab Duplicate Criteria Assessment",
+        lifecycleState: "ACTIVE",
+        lifecycleRevision: 1,
+      },
+    });
+
+    const { snapshotId, scanJobId } = await seedPinnedRepository(assessmentId);
+
+    await prisma.assessmentCase.create({
+      data: {
+        assessmentId,
+        caseRevision: 1,
+        ruleSetVersionId,
+        repositoryCommit: commitSha,
+        repositorySnapshotId: snapshotId,
+        repositoryScanJobId: scanJobId,
+        pinnedAt: new Date(),
+      },
+    });
+
+    await prisma.assessmentEvidence.create({
+      data: {
+        evidenceId,
+        assessmentId,
+        type: "REPOSITORY_SOURCE",
+        state: "ACCEPTED",
+        repositoryCommit: commitSha,
+        contentSha256: `sha256:${"b".repeat(64)}`,
+        payload: { path: "src/index.ts" },
+      },
+    });
+
+    const validEvidenceRef = {
+      type: "ASSESSMENT_EVIDENCE",
+      evidenceId,
+    };
+
+    // Stored JSON has criteria IDs "criterion-A" and "\tcriterion-A\t" that normalize to the same trimmed ID under JS .trim()
+    const decisionWithTabDuplicateCriteria = {
+      assessmentRuleId: "RULE-1",
+      assessmentRuleVersion: "1.0.0",
+      scopeId: "ASSESSMENT",
+      ruleSetVersionId,
+      repositorySnapshotId: snapshotId,
+      repositoryCommit: commitSha,
+      caseRevision: 1,
+      legalContextRefs: [{ legalContextId: "legal-1" }],
+      applicability: "APPLICABLE",
+      compliance: "COMPLIANT",
+      rationale: "Valid root rationale",
+      references: [validEvidenceRef],
+      criteria: [
+        {
+          criterionId: "criterion-A",
+          outcome: "MET",
+          rationale: "Criterion 1 rationale",
+          references: [validEvidenceRef],
+        },
+        {
+          criterionId: "\tcriterion-A\t", // Contains tabs, normalizes to criterion-A under JS .trim()
+          outcome: "MET",
+          rationale: "Criterion 2 rationale",
+          references: [validEvidenceRef],
+        },
+      ],
+    };
+
+    await prisma.assessmentRuleDecision.create({
+      data: {
+        decisionId,
+        assessmentId,
+        ruleSetVersionId,
+        assessmentRuleId: "RULE-1",
+        assessmentRuleVersion: "1.0.0",
+        scopeId: "ASSESSMENT",
+        decisionRevision: 1,
+        state: "ACCEPTED",
+        applicability: "APPLICABLE",
+        compliance: "COMPLIANT",
+        repositoryCommit: commitSha,
+        caseRevision: 1,
+        idempotencyKey: `idemp-${decisionId}`,
+        requestDigest: "digest",
+        decision: decisionWithTabDuplicateCriteria,
+      },
+    });
+
+    await resolveDecisionCoverage(assessmentId, "RULE-1", decisionId);
+
+    const result = await loader.loadCustomerOverview({
+      sessionUserId: userId,
+      subjectRole: AUTH_USER_ROLES.customer,
+      correlationId: `corr-tab-dupe-${randomUUID()}`,
+    });
+
+    // Both SQL aggregate and per-assessment SafeParse evaluation must fail closed to UNRESOLVED
+    expect(result.complianceSummary.compliantCount).toBe(0);
+    expect(result.complianceSummary.unresolvedCount).toBe(1);
+
+    const asmt = result.assessments.find(
+      (a) => a.assessmentId === assessmentId,
+    );
+    expect(asmt).toBeDefined();
+    expect(asmt?.compliance.compliantCount).toBe(0);
+    expect(asmt?.compliance.unresolvedCount).toBe(1);
+  });
+
   it("fails closed and rejects with ServiceUnavailableException when compliance summary SQL fails, never returning false all-zero success", async () => {
     const assessmentId = randomUUID();
     const evidenceId = randomUUID();
