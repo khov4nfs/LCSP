@@ -1,6 +1,7 @@
 import type { MessageKey } from "@lcsp/i18n";
 import {
   BookOpenIcon,
+  ActivityIcon,
   LayoutDashboardIcon,
   UsersIcon,
   WalletCardsIcon,
@@ -11,6 +12,11 @@ export const ADMIN_NAV_ITEMS = [
     href: "/admin",
     labelKey: "pages.admin.sidebar.navOverview",
     icon: LayoutDashboardIcon,
+  },
+  {
+    href: "/admin/tracking",
+    labelKey: "pages.workspace.tracking.adminTitle",
+    icon: ActivityIcon,
   },
   {
     href: "/admin/users",

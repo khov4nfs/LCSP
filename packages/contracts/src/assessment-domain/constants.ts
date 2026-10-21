@@ -234,6 +234,15 @@ export const TRACKING_ACTION_REASONS = {
 export type TrackingActionReason =
   (typeof TRACKING_ACTION_REASONS)[keyof typeof TRACKING_ACTION_REASONS];
 
+export const TRACKING_RULE_OUTCOMES = {
+  COMPLIANT: "COMPLIANT",
+  NON_COMPLIANT: "NON_COMPLIANT",
+  NOT_APPLICABLE: "NOT_APPLICABLE",
+  UNRESOLVED: "UNRESOLVED",
+} as const;
+export type TrackingRuleOutcome =
+  (typeof TRACKING_RULE_OUTCOMES)[keyof typeof TRACKING_RULE_OUTCOMES];
+
 /** Operational anomaly types for admin tracking. */
 export const TRACKING_ANOMALY_TYPES = {
   EXECUTION_FAILED: "EXECUTION_FAILED",

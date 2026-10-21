@@ -18,7 +18,7 @@ export function AssessmentReportActions({
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <Link
-        href={`/assessments/${id}/report`}
+        href={`/assessments/${id}/report?artifactId=${encodeURIComponent(artifactId)}`}
         className={buttonVariants({ size: "sm" })}
         data-report-action="view"
       >

@@ -80,7 +80,6 @@ export function LCSPLogo({
         height={asset.height}
         alt=""
         aria-hidden="true"
-        unoptimized
         className="absolute inset-0 block size-full dark:hidden"
       />
       <ImageComponent
@@ -89,7 +88,6 @@ export function LCSPLogo({
         height={asset.height}
         alt=""
         aria-hidden="true"
-        unoptimized
         className="absolute inset-0 hidden size-full dark:block"
       />
     </span>
