@@ -287,6 +287,51 @@ test("Stop is an interaction-bar action: it posts the stop for the CURRENT execu
   }
 });
 
+test("an ACTIVE queued assessment without an execution offers canonical orphan reconciliation", async () => {
+  const queued = detail({ execution: EXEC.QUEUED });
+  const orphan = {
+    ...queued,
+    runtime: {
+      ...queued.runtime!,
+      currentExecutionId: null,
+      checkpointId: null,
+    },
+  };
+  const stub = installFetch({
+    [`GET /api/assessments/${ASSESSMENT_ID}/runtime/control`]: null,
+    [`POST /api/assessments/${ASSESSMENT_ID}/reconcile-orphaned`]: {
+      assessmentId: ASSESSMENT_ID,
+      state: LIFE.CANCELLED,
+      reconciled: true,
+    },
+  });
+  try {
+    const view = render(
+      withClient(
+        <AssessmentInteractionBar
+          assessment={orphan}
+          state={customerAssessmentState(orphan.lifecycle, orphan.runtime)}
+          onRefresh={noop}
+        />,
+      ),
+    );
+    await settle();
+    assert.equal(view.querySelectorAll(".animate-spin").length, 0);
+    const reconcile = view.querySelector(
+      '[data-runtime-action="reconcile-orphaned"]',
+    );
+    assert.ok(reconcile);
+    click(reconcile);
+    await settle();
+    assert.match(
+      stub.calls.find((call) => call.method === "POST")?.url ?? "",
+      /\/reconcile-orphaned$/,
+    );
+  } finally {
+    stub.restore();
+  }
+});
+
 test("PAUSED shows Continue next to the thread, and no spinner", async () => {
   const paused = detail({ lifecycle: LIFE.PAUSED, execution: EXEC.PAUSED });
   const stub = installFetch({
