@@ -1,0 +1,3037 @@
+{
+  "RuleSetPreparationRun": [
+    {
+      "id": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "idempotencyKey": "rule-set-preparation:c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97:attempt:1",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "requestedBy": "rule-set-preparation-system",
+      "correlationId": "0c044c7e-9d00-44f6-8dc9-3d074f879bd6",
+      "executionState": "RUNNING",
+      "failureReason": null,
+      "outboxEventId": "outbox:3a21a605da6fcc7fa1d92bbb8bb617c6c22b3e518fedc3b75492bae39ce0b9ee",
+      "createdAt": "2026-10-21 11:48:11.376000",
+      "startedAt": "2026-10-21 11:48:13.382000",
+      "completedAt": null,
+      "claimPhase": "CLAIM_DISCOVERY",
+      "claimInventoryRevision": 1,
+      "claimInventoryReopenReason": null,
+      "claimDiscoveryOnly": false
+    }
+  ],
+  "RuleSetPreparationReviewFrontier": [
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "revision": 1,
+      "fingerprint": "0c3a2cd97cb822b2e924e64cd7a4fa5b528480af5cb526e22fd763fd1a695e22",
+      "stateFingerprint": "5bc70df2ff1eaaf86ec23b0028ce2656ff8dc24a1fa0e93197ad292611cd65aa",
+      "stateAccumulator": "c2b1596462a4a6df59c435e72b905aa54744bcb5949d71d33532bf045af3c979",
+      "unitCount": 12,
+      "pendingCount": 0,
+      "inReviewCount": 1,
+      "reviewedWithClaimsCount": 11,
+      "reviewedNoClaimsCount": 0,
+      "blockedCount": 0,
+      "persistedClaimCount": 19,
+      "expansions": [
+        {
+          "kind": "SOURCE_REOPEN",
+          "reason": "Relation 47b1963e9eff65c49f471bffd5781a3eee352f0f74a386a356175577b45f3dc0 has wrong direction: EXCEPTION_TO requires the exception claim as FROM, not TO. Correct the relation direction.",
+          "revision": 1,
+          "sourceNodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+          "previousCompletionFingerprint": "3b2b0d665633c76ef00db4fcf134529d0bb1c478e2f753af982d5ea32a26e17e"
+        },
+        {
+          "kind": "SOURCE_REOPEN",
+          "reason": "Need to add SCOPE claim for operator addressee and fix free-floating modifier relations",
+          "revision": 1,
+          "sourceNodeId": "95a3e43337e8e31f54cd912f8d2cb1004185f7c04a6054e795cf21e87b4d4595",
+          "previousCompletionFingerprint": "e5286a466e1e77ed45b400de46109387abd3c4706981a5f123c8d8c4786d74b8"
+        }
+      ],
+      "frozenAt": null,
+      "createdAt": "2026-10-21 11:48:21.225000"
+    }
+  ],
+  "RuleSetPreparationSourceReview": [
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/2/clause/1",
+      "ordinal": 1,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830",
+        "a96b5f8337f97172429263c81220b032e9c2085928f3cbc1a3d236bba85de594"
+      ],
+      "ownedClaimCount": 2,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830",
+            "claimType": "SCOPE",
+            "operative": null,
+            "statement": "This instrument applies only to operators offering the notice service to the public.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": "operators offering the notice service to the public",
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997",
+                "endOffset": 87,
+                "startOffset": 0,
+                "contentSha256": "34d8fe988a657cc25fcedbe8ce9a2e17f7f68e31395a78e785e98e094cf5a009"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "a96b5f8337f97172429263c81220b032e9c2085928f3cbc1a3d236bba85de594",
+            "claimType": "EXCEPTION",
+            "operative": null,
+            "statement": "Private household use is outside the scope of this instrument.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": "Private household use is outside this scope.",
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997",
+                "endOffset": 132,
+                "startOffset": 88,
+                "contentSha256": "cc9c39e5c4764a6ff87b11af63182d98c22b0c3787fb79b33ac483d8b4f8fd96"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "EXCEPTION_TO",
+            "toClaimId": "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830",
+            "relationId": "268e7b99a26c39b85f131b1f30fbc97057b53285f9839a490a21a0593a484933",
+            "fromClaimId": "a96b5f8337f97172429263c81220b032e9c2085928f3cbc1a3d236bba85de594",
+            "referenceId": null
+          }
+        ],
+        "identities": {
+          "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830": "scope_operators_public_notice",
+          "a96b5f8337f97172429263c81220b032e9c2085928f3cbc1a3d236bba85de594": "exception_private_household_use"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T11:52:34.777755Z",
+          "relations": [
+            {
+              "id": "268e7b99a26c39b85f131b1f30fbc97057b53285f9839a490a21a0593a484933",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "02a87fe4d4816b9e73b85d62ffe9d05b59c24bf1ac5224f8c30ed48cf8a934f6",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            }
+          ],
+          "assertions": [
+            {
+              "id": "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "84b15663e2b34a4fc60729c4ac963a32ccf398906548f50f9b66505059c539c2"
+            },
+            {
+              "id": "a96b5f8337f97172429263c81220b032e9c2085928f3cbc1a3d236bba85de594",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "59347e6e4154e8bfd9acebfd7ef404bbd3d4efb3bc30abb9111b29122b599dc4"
+            }
+          ],
+          "attestation": "hmac-sha256:368abc131f6ef4aca87f1ed79bace5697a6e54e97f534aa4bec1cfdd8977becb",
+          "sourceNodeId": "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "f79f08fa1aca9a8313fa0f3af66bbda2817e766848ce9056d74915a6ecf172d8",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "1ead1e29-beb2-4a13-b3ee-ad64b84eab58",
+          "assertionFingerprint": "b0a9b6d7cf6dca7796c0a1f9b01f3a5e4dd712b3e6af5366282a060eea810548",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "1bb2d4b3248d30344d3a3398207740faef1a990441ce70cfe845f3251b1db44f"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "fae615a3e9d1fe625690323138ec228501e361c034e1559ed5d6a77338b4006e",
+      "completionFingerprint": "c757e88057292c720ee6b4257a232f8d9e4154be71e5df2d4ca34ccbf300042d",
+      "completedAt": "2026-10-21 11:52:34.841000",
+      "updatedAt": "2026-10-21 11:52:34.846000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1/point/a",
+      "ordinal": 4,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "bdaa916c0178d1b70a42f4a8ea1dfe88fa30c9c01b8a26597aa14117745320f0",
+        "db11cdafc56d0eb5c0e3b899a2553d45d57a923d371e660c237c586a3230fd9e"
+      ],
+      "ownedClaimCount": 2,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "bdaa916c0178d1b70a42f4a8ea1dfe88fa30c9c01b8a26597aa14117745320f0",
+            "claimType": "CONTEXT",
+            "operative": null,
+            "statement": "The receipt timestamp begins the retention period.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544",
+                "endOffset": 53,
+                "startOffset": 3,
+                "contentSha256": "7bd60bd2458c0df07d579f4ad80ddc9efe591c9a4e00e4a7172f8f4283f665cb"
+              }
+            ],
+            "semanticAuthority": "DEFINITION",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "db11cdafc56d0eb5c0e3b899a2553d45d57a923d371e660c237c586a3230fd9e",
+            "claimType": "CONTEXT",
+            "operative": null,
+            "statement": "A receipt timestamp is recorded when the notice is received, not when it is drafted.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544",
+                "endOffset": 138,
+                "startOffset": 54,
+                "contentSha256": "69866661bb79179aa368f8e44e3d508569436144f337a373be63c9345519ca94"
+              }
+            ],
+            "semanticAuthority": "DEFINITION",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "bdaa916c0178d1b70a42f4a8ea1dfe88fa30c9c01b8a26597aa14117745320f0": "def_receipt_timestamp_begins_retention",
+          "db11cdafc56d0eb5c0e3b899a2553d45d57a923d371e660c237c586a3230fd9e": "def_receipt_timestamp_recorded_when_received"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:00:56.214002Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "bdaa916c0178d1b70a42f4a8ea1dfe88fa30c9c01b8a26597aa14117745320f0",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "c23053e35f46a072ed80ed74f9c057f89d5dea2ff23603c56fc6338830b774b5"
+            },
+            {
+              "id": "db11cdafc56d0eb5c0e3b899a2553d45d57a923d371e660c237c586a3230fd9e",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "b1227f3207a3165eb528cbf832ae49f9557a695d2bab828e5d3ee70b5c4eea91"
+            }
+          ],
+          "attestation": "hmac-sha256:ecc5556589e1a3b7b4db1e9ae87786143e3e984560265367c2a8c0e940a0787c",
+          "sourceNodeId": "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "1a6c8b1cbca585c169679c2781688d058157a456c5e3443a5360c03326c81d0a",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "598229c1-d110-4abe-a39a-da44abacd0e5",
+          "assertionFingerprint": "2d19525c76d9d0945583d39ee61e5099707bc8f8f1812976881dec42360a0e92",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "c378d0bcbca67691eabac0d9380f5850671b3f2909f46688eb244640a0180080"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "41004930c237568c7b7d55a70eae2f167da380b7a84429093eb15f8ac40ba2cd",
+      "completionFingerprint": "c186387c21521a333de2104de2d2855ed45c26d3e9f005282dd447a2d8d73b58",
+      "completedAt": "2026-10-21 12:00:56.273000",
+      "updatedAt": "2026-10-21 12:00:56.283000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1/point/a/occurrence/2",
+      "ordinal": 5,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "1ddbb8918e46d700c65daeccd4fee480f6a3f423f3a24056f85eaa906385df7e",
+        "4067342cf507c806647054a16cda0051e3d5b17c98b0e400c25eea6bdc911d7f"
+      ],
+      "ownedClaimCount": 2,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "1ddbb8918e46d700c65daeccd4fee480f6a3f423f3a24056f85eaa906385df7e",
+            "claimType": "CONTEXT",
+            "operative": null,
+            "statement": "A receipt timestamp is recorded when the notice is received, not when it is drafted.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de",
+                "endOffset": 138,
+                "startOffset": 54,
+                "contentSha256": "69866661bb79179aa368f8e44e3d508569436144f337a373be63c9345519ca94"
+              }
+            ],
+            "semanticAuthority": "DEFINITION",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "4067342cf507c806647054a16cda0051e3d5b17c98b0e400c25eea6bdc911d7f",
+            "claimType": "CONTEXT",
+            "operative": null,
+            "statement": "The receipt timestamp begins the retention period.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de",
+                "endOffset": 53,
+                "startOffset": 3,
+                "contentSha256": "7bd60bd2458c0df07d579f4ad80ddc9efe591c9a4e00e4a7172f8f4283f665cb"
+              }
+            ],
+            "semanticAuthority": "DEFINITION",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "1ddbb8918e46d700c65daeccd4fee480f6a3f423f3a24056f85eaa906385df7e": "occ2_receipt_timestamp_recorded_on_receipt",
+          "4067342cf507c806647054a16cda0051e3d5b17c98b0e400c25eea6bdc911d7f": "occ2_receipt_timestamp_begins_retention"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:02:44.333771Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "1ddbb8918e46d700c65daeccd4fee480f6a3f423f3a24056f85eaa906385df7e",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "be6ebb8ab6555387f79acf8a0c4b14b6f6a364a5cbf9db6ec6376c10fd1eec14"
+            },
+            {
+              "id": "4067342cf507c806647054a16cda0051e3d5b17c98b0e400c25eea6bdc911d7f",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "dc868e2dd7c47cef57c7cca8d07913cf1396cbed8bccd05bbbdd0eb484f89149"
+            }
+          ],
+          "attestation": "hmac-sha256:98b120a273dcb126d4dd642f885eda886f4d97c59918b2995c5a2fcb3eab9317",
+          "sourceNodeId": "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "66412629ff8baadd476258bf4e84e447a47dbfd78a7ef94f63edfd82bb943f6f",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "6b63a927-a4f2-49c9-bd4b-373f9181d6fa",
+          "assertionFingerprint": "b32532512806af8450731dbe77bd9d3af28f272e7138bb2cd3e1771312eb9b65",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "534a155df146ba3b51d9f6ab766f105c93c2ba3d8ecefdf824002e3f5e09a1b8"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "c67be4acd461e3f5edb8f1b177168d4f645a445d2d217b8ae3ef5c87667b9e54",
+      "completionFingerprint": "c4d9b5490c571331c941bd101cc202fc1e9663dcb03009fd473cbbb7f8680790",
+      "completedAt": "2026-10-21 12:02:44.386000",
+      "updatedAt": "2026-10-21 12:02:44.392000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "908954ec40b22283f6844a09d4010680b78f909a2aefd9e581761ccb20de158c",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/a",
+      "ordinal": 7,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "0c4cc6ebd627d50cf494686abaa424b795c7d517b8ca139070d1ce3250e42cbf"
+      ],
+      "ownedClaimCount": 1,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "0c4cc6ebd627d50cf494686abaa424b795c7d517b8ca139070d1ce3250e42cbf",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "keep the notice text with its receipt timestamp",
+              "modality": "DUTY"
+            },
+            "statement": "Keep the notice text with its receipt timestamp.",
+            "assessability": "REPOSITORY_VERIFIABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": "the notice text with its receipt timestamp",
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": "Stored records in the repository can be inspected to verify that the notice text is kept together with its receipt timestamp."
+            },
+            "sourceNodeIds": [
+              "908954ec40b22283f6844a09d4010680b78f909a2aefd9e581761ccb20de158c"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "908954ec40b22283f6844a09d4010680b78f909a2aefd9e581761ccb20de158c",
+                "endOffset": 51,
+                "startOffset": 3,
+                "contentSha256": "927e10767d2cdce00a75713d424eb9bb29be1623928603e3adf2ec57bf379ae8"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "0c4cc6ebd627d50cf494686abaa424b795c7d517b8ca139070d1ce3250e42cbf": "duty_keep_notice_text_with_receipt_timestamp"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:17:52.680853Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "0c4cc6ebd627d50cf494686abaa424b795c7d517b8ca139070d1ce3250e42cbf",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "d8a7467de865aed14cea335db779fded9f3bfe9ffbed751158db51d1c773edf4"
+            }
+          ],
+          "attestation": "hmac-sha256:28ac661e89afe460975d0d904c9cd8372cf66f7425a664bb25e76ac94db4351b",
+          "sourceNodeId": "908954ec40b22283f6844a09d4010680b78f909a2aefd9e581761ccb20de158c",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "fc343ce878d8f3ec97b8fd03ba9a9f8b30927dad7aec3618d1e077ad0cd18c12",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "006fc298-f75b-42a6-b02a-f051294cbded",
+          "assertionFingerprint": "16f87f06733c623610e816bd606437ff0e93b0092b16e452b20bd63476bf565b",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "6fb5fb5481dfe3ad35d9885064eed2c7f9ad06b2b7d7f7bcae672530cad021ee"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "6294b42acd0fd103d11f8efde27c6b5939515dcaf135cdd170d0b17bea31f23b",
+      "completionFingerprint": "f03cfe9ff1d2557275f716562812a541f4102f2293408327270ab779004adc9e",
+      "completedAt": "2026-10-21 12:17:52.735000",
+      "updatedAt": "2026-10-21 12:17:52.742000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "50c2706193f53c90e51d53c7c4344eff9c684b854e20d8e044aeac8fe55097cb",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/b",
+      "ordinal": 8,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "060f719f322ecfdd8f621ccfa4bddd5cb5b5a99e9fdd8ca27e38f14d000b9c17"
+      ],
+      "ownedClaimCount": 1,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "060f719f322ecfdd8f621ccfa4bddd5cb5b5a99e9fdd8ca27e38f14d000b9c17",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "preserve the notice text without removing its limiting language",
+              "modality": "DUTY"
+            },
+            "statement": "Preserve the notice text without removing its limiting language.",
+            "assessability": "REPOSITORY_VERIFIABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": "the notice text without removing its limiting language",
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": "The stored notice text in the repository can be verified to retain its limiting language without removal."
+            },
+            "sourceNodeIds": [
+              "50c2706193f53c90e51d53c7c4344eff9c684b854e20d8e044aeac8fe55097cb"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "50c2706193f53c90e51d53c7c4344eff9c684b854e20d8e044aeac8fe55097cb",
+                "endOffset": 67,
+                "startOffset": 3,
+                "contentSha256": "a21bf2bf7a1b648d258d95d2b47d56425736179925ff1eb24b96cfe71086fd2a"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "060f719f322ecfdd8f621ccfa4bddd5cb5b5a99e9fdd8ca27e38f14d000b9c17": "duty_preserve_notice_text_limiting_language"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:18:32.904544Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "060f719f322ecfdd8f621ccfa4bddd5cb5b5a99e9fdd8ca27e38f14d000b9c17",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "7b56e3f78244e08fca62ed4cf11ddf6851f8e99601d055e5060add5bd6843303"
+            }
+          ],
+          "attestation": "hmac-sha256:156ac13ff246b6751cbd924f0a9270adf54e7067286652f7092f84c60731d17f",
+          "sourceNodeId": "50c2706193f53c90e51d53c7c4344eff9c684b854e20d8e044aeac8fe55097cb",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "c1a573bdd4e38eacf03557d851e29f31931b2c487f71187eb67a543f6a100c31",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "b7cdce80-a916-4baf-92d6-342629b48066",
+          "assertionFingerprint": "310ac83567421057ce28822fb758115fe3c171aa1dafd28e1bbbffd295599246",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "8ccf4c04c1185e3f47dae651c1a2fa47f5ddcab568bab558bbfcddb967adb0d7"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "d3bb09659d818589ce73e7fb180bd9c759661a2d474b5c10962ccafedd9967b5",
+      "completionFingerprint": "42d11362957188d647352173ac1e05378ec08ae7b7aac79203b6061da53fa0c8",
+      "completedAt": "2026-10-21 12:18:32.951000",
+      "updatedAt": "2026-10-21 12:18:32.957000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "36f4c2060c2936ea9c89f4818111cc397e4bb9f8a2266a66e37cba29a1c0b0e8",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/a/occurrence/2",
+      "ordinal": 9,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": "Registered the DUTY to keep the notice text with its receipt timestamp as anchored on this occurrence/2 node, satisfying the independent audit.",
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "be1c4acea596c327027ad888e729711712e6fa7391f16c53c7cc287e8b2de0f5"
+      ],
+      "ownedClaimCount": 1,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "be1c4acea596c327027ad888e729711712e6fa7391f16c53c7cc287e8b2de0f5",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator within Article 2",
+              "action": "keep the notice text together with its receipt timestamp",
+              "modality": "DUTY"
+            },
+            "statement": "An operator within Article 2 must keep the notice text with its receipt timestamp.",
+            "assessability": "REPOSITORY_VERIFIABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": "the notice text and its receipt timestamp",
+              "trigger": null,
+              "exception": null,
+              "qualifier": "kept together as a unit during retention",
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "36f4c2060c2936ea9c89f4818111cc397e4bb9f8a2266a66e37cba29a1c0b0e8"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "36f4c2060c2936ea9c89f4818111cc397e4bb9f8a2266a66e37cba29a1c0b0e8",
+                "endOffset": 51,
+                "startOffset": 0,
+                "contentSha256": "eecf13d5d761815a81b1a94dbba9307a1000cdc43caa6335b1693f815612772b"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "be1c4acea596c327027ad888e729711712e6fa7391f16c53c7cc287e8b2de0f5": "art5_pt_a_occurrence2_keep_notice_with_timestamp"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:23:44.204107Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "be1c4acea596c327027ad888e729711712e6fa7391f16c53c7cc287e8b2de0f5",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "ab962d1d1bc64c1d678be5dc554799ef6bdb837adac7139a7b01a715d713ad10"
+            }
+          ],
+          "attestation": "hmac-sha256:8d3a8c440498f7a825ba98244b6db41f4d2ec7a7a1cc3e558c3e67367a9e0c36",
+          "sourceNodeId": "36f4c2060c2936ea9c89f4818111cc397e4bb9f8a2266a66e37cba29a1c0b0e8",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "615b521822aca5be89127a94c74f896908d734450182024afa010c14a4ede060",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "13c1dc08-2110-4759-9e8a-1295ffad63d9",
+          "assertionFingerprint": "24ffcccdc0f7a488a90a30bd4f62d30bab1f88d42e409b125d799b181933ecf8",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "14ae6a16cf1d309e1414a151b53513553ce6e659e43c83b1ff7adb72a53a29c8"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "ee0133f84c308cf0b4da6bee99d6547690bb2e88ffa2d572cdac4af5d1bfe3dc",
+      "completionFingerprint": "3e3e580c094884e4fe279c60024ef5090c68113e8f9a09d4cbd9a5ec77f44adf",
+      "completedAt": "2026-10-21 12:23:44.269000",
+      "updatedAt": "2026-10-21 12:23:44.275000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "1c5634b006c244212ec96177167a195e76fecfb628436a2f0d3f2a7d22177ada",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/b/occurrence/2",
+      "ordinal": 10,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": "Registered the DUTY to preserve the notice text without removing its limiting language, anchored on this occurrence/2 node.",
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "1551115f74eb695b951f0176b8676d9b608174989eee5a21d9a49637121f2e58"
+      ],
+      "ownedClaimCount": 1,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "1551115f74eb695b951f0176b8676d9b608174989eee5a21d9a49637121f2e58",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "preserve the notice text without removing its limiting language",
+              "modality": "DUTY"
+            },
+            "statement": "Operator must preserve the notice text without removing its limiting language.",
+            "assessability": "REPOSITORY_VERIFIABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": "the notice text without removing its limiting language",
+              "trigger": null,
+              "exception": null,
+              "qualifier": "limiting language must remain in the preserved text",
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": "The stored notice text in the repository can be verified to retain its limiting language without removal."
+            },
+            "sourceNodeIds": [
+              "1c5634b006c244212ec96177167a195e76fecfb628436a2f0d3f2a7d22177ada"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "1c5634b006c244212ec96177167a195e76fecfb628436a2f0d3f2a7d22177ada",
+                "endOffset": 67,
+                "startOffset": 0,
+                "contentSha256": "61434e9a80138498e52ad26a7a0f8e67c034fca7d05fc906df900fb61099d458"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "1551115f74eb695b951f0176b8676d9b608174989eee5a21d9a49637121f2e58": "art5_pt_b_occurrence2_preserve_notice_text_limiting_language"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:24:21.082188Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "1551115f74eb695b951f0176b8676d9b608174989eee5a21d9a49637121f2e58",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "d4890b72a0915f5bb305cf26e0801388d1207febd0318009796fe66f4fa7946b"
+            }
+          ],
+          "attestation": "hmac-sha256:d4ecb539d7bacac6bfd0560dba2b1562f6a1cca29be60b40f399ad1ae42cda65",
+          "sourceNodeId": "1c5634b006c244212ec96177167a195e76fecfb628436a2f0d3f2a7d22177ada",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "a5c34083804e1772d0cca4c99f93f2a2a277662da407e1f1c072f996ecc76b22",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "9a858889-846e-40b6-bca3-f38a5d16979e",
+          "assertionFingerprint": "e0bd7e1f91fd9abcc45b4fc7dffd2df8c2aed4297c3789b4253cedc85781b9b1",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "750aa2eec9fbfdb7b0fa298e67236e1e42c85c95d479ab0a1e910ef8b2f1d88d"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "965f9fb242dc243dcae02e6b765a73687267111aa13f79e2ceb54850f70f5c4c",
+      "completionFingerprint": "0fd635fb3dbd7e557a98d66dc85e05d478917405dadf02ba7b54b8d2b24c4c0d",
+      "completedAt": "2026-10-21 12:24:21.134000",
+      "updatedAt": "2026-10-21 12:24:21.138000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "95a3e43337e8e31f54cd912f8d2cb1004185f7c04a6054e795cf21e87b4d4595",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1",
+      "ordinal": 6,
+      "state": "IN_REVIEW",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": "Need to add SCOPE claim for operator addressee and fix free-floating modifier relations",
+      "operationId": "269b46a4-c411-4cba-9656-044535c385da",
+      "leaseExpiresAt": "2026-10-21 13:14:36.871000",
+      "claimIds": [
+        "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053"
+      ],
+      "ownedClaimCount": 1,
+      "referenceIds": [
+        "47e60a16a16b1984dead3f622dc871d254444a55c2a9e848686e0c904c6af6c4",
+        "194bbd5d16b8109b57f4453160b2e84beb8ce467637446646575277197052d13"
+      ],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "An operator within Article 2",
+              "action": "must retain each record for 7 days",
+              "modality": "DUTY"
+            },
+            "statement": "An operator within Article 2 must retain each record for 7 days, subject to Article 3.",
+            "assessability": "MIXED",
+            "semanticFrame": {
+              "scope": "An operator within Article 2",
+              "object": "each record",
+              "trigger": null,
+              "exception": "subject to Article 3",
+              "qualifier": "for 7 days",
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": "Actual notice storage and timestamp recording occur in the operator's system, not in the repository under analysis.",
+              "repositoryObservableAspect": "Records stored in the repository with timestamps can demonstrate retention duration."
+            },
+            "sourceNodeIds": [
+              "95a3e43337e8e31f54cd912f8d2cb1004185f7c04a6054e795cf21e87b4d4595"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "95a3e43337e8e31f54cd912f8d2cb1004185f7c04a6054e795cf21e87b4d4595",
+                "endOffset": 89,
+                "startOffset": 3,
+                "contentSha256": "6bbc8b2dde89ff338eb17c9d7c834c631919423d7fb7b05469219e4e532606be"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830",
+            "relationId": "3eae13d4aafbd302dd217b1d9ca4681f1af59b5427ebc754bbee8a317e2c5e37",
+            "fromClaimId": "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053",
+            "referenceId": "47e60a16a16b1984dead3f622dc871d254444a55c2a9e848686e0c904c6af6c4"
+          },
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279",
+            "relationId": "d5d52aa50cdc36436e5fc45f49704d63fc3a34e0295471c5ef61e1b5fff30703",
+            "fromClaimId": "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053",
+            "referenceId": "194bbd5d16b8109b57f4453160b2e84beb8ce467637446646575277197052d13"
+          }
+        ],
+        "identities": {
+          "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053": "duty_retain_record_7_days"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:13:19.263446Z",
+          "relations": [
+            {
+              "id": "3eae13d4aafbd302dd217b1d9ca4681f1af59b5427ebc754bbee8a317e2c5e37",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "c52bdc0946bdf19a9a458c57aa458014c5b4160f597456d89b40a2dd7b0f163f",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            },
+            {
+              "id": "d5d52aa50cdc36436e5fc45f49704d63fc3a34e0295471c5ef61e1b5fff30703",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "a09a31e005633c06c376bd781e513c8f9bda78728146cd61b66d119979e27b45",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            }
+          ],
+          "assertions": [
+            {
+              "id": "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "3413e6357c7d719075ac61417c4b8f1c456458f641eedd7d113bc540f36815bd"
+            }
+          ],
+          "attestation": "hmac-sha256:8c8043489f672a3aed1128dee4df90a838d23d0593601647aaf7b8276c4db1a9",
+          "sourceNodeId": "95a3e43337e8e31f54cd912f8d2cb1004185f7c04a6054e795cf21e87b4d4595",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "4524fc58c091520faff1daca5d04d8a377b0cbf1f59e4f234f18c074613a3ef4",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "0aa9e549-9ccd-460d-9ec4-0c8e01763cdc",
+          "assertionFingerprint": "087a3532b5dee7ded1788f62a8a4817686a3d0418c034f36f71767a264ddaa74",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "7ac4cd8bdf908356b11065383454f8e2a1db4871c9980ae66055064ec6d0560d"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "194bbd5d16b8109b57f4453160b2e84beb8ce467637446646575277197052d13",
+            "relationIds": [
+              "d5d52aa50cdc36436e5fc45f49704d63fc3a34e0295471c5ef61e1b5fff30703"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": true,
+            "referenceId": "47e60a16a16b1984dead3f622dc871d254444a55c2a9e848686e0c904c6af6c4",
+            "relationIds": [
+              "3eae13d4aafbd302dd217b1d9ca4681f1af59b5427ebc754bbee8a317e2c5e37"
+            ],
+            "nonMaterialReason": null
+          }
+        ],
+        "dependencyFingerprints": {
+          "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830": "84b15663e2b34a4fc60729c4ac963a32ccf398906548f50f9b66505059c539c2",
+          "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279": "5a3b927fa4c007cb2696737f345d8ad0cf5da962195c3745373c55cdc18c8a8a"
+        },
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "32112e71a250237baa5c1569cacd5f7c982912b65384b9c7b80dfa071a57b3b8",
+      "completionFingerprint": null,
+      "completedAt": null,
+      "updatedAt": "2026-10-21 12:44:36.877000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "1ba9f5c84bbb0afef0b207ad3ffe3fd72c63a1fde7d9971fd020975fa496862a",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/1/clause/1",
+      "ordinal": 0,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "b2572555895aa5dd28ae75313805755e87b42e1b5304f5e5141b45eddbc5f944"
+      ],
+      "ownedClaimCount": 1,
+      "referenceIds": [],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "b2572555895aa5dd28ae75313805755e87b42e1b5304f5e5141b45eddbc5f944",
+            "claimType": "DEFINITION",
+            "operative": null,
+            "statement": "\"record\" means a stored notice and its receipt timestamp",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "1ba9f5c84bbb0afef0b207ad3ffe3fd72c63a1fde7d9971fd020975fa496862a"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "1ba9f5c84bbb0afef0b207ad3ffe3fd72c63a1fde7d9971fd020975fa496862a",
+                "endOffset": 89,
+                "startOffset": 33,
+                "contentSha256": "b5851ed6428db9d1bca18dae4c8b58aa76211b382088fb74181375a160a59c73"
+              }
+            ],
+            "semanticAuthority": "DEFINITION",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "b2572555895aa5dd28ae75313805755e87b42e1b5304f5e5141b45eddbc5f944": "def_record"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T11:49:55.553526Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "b2572555895aa5dd28ae75313805755e87b42e1b5304f5e5141b45eddbc5f944",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "0bbf586860b225b1faca6d35243390ae13e96ec21b2850275426c1e9de07ea91"
+            }
+          ],
+          "attestation": "hmac-sha256:49ae0d37d50e5273342d061679058d55f5e6da43a161ad51e20258fd3f5c47d2",
+          "sourceNodeId": "1ba9f5c84bbb0afef0b207ad3ffe3fd72c63a1fde7d9971fd020975fa496862a",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "596162f05aafe1baa82cdbc80893831470fec9f342dae2fe1a9b16168a8b9f2b",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "6efeb510-31ce-4f64-ae4d-2b80c33491a7",
+          "assertionFingerprint": "a800273a15f8c8001579f5f2a9bca1f608dfabb029ad7b2c900243ad304974f1",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "2b802d1384326c1a0b0e93911a7d76578cc200104acbe247b615e018f7f32968"
+        },
+        "referenceAccounting": [],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "f88fe5ecac4222cbebe410b875879498df3fd979017977e4b5a5f16028d8981e",
+      "completionFingerprint": "d51d0ecb408a1e26cc2aa48d0a545e52cfbc916c34df6919bd38a90514be1359",
+      "completedAt": "2026-10-21 11:49:55.623000",
+      "updatedAt": "2026-10-21 11:49:55.630000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1",
+      "ordinal": 3,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "7882ce65973dae8d2e4f9c9e9a96d7a38e1a5a9f10e488c499dc0eb7190776f1",
+        "7e7f2d78912062deaeaafd0882a0b1d11e2d9c97c3c5f5ca50641ccac161b4db",
+        "84a3427a8a32b96e2bef3744ec59cea174f268c64256eb4235617d45580d92ca"
+      ],
+      "ownedClaimCount": 3,
+      "referenceIds": [
+        "85bd0c3f0bee5b138600683b26bee91611b34b38115851ed1901c288a212c90d",
+        "0ed6172260ebb2843f2e92bc7aba6a815a3b6e8d3d0ec9d18dfb3761bceb86b8",
+        "383777da1b10c95e8f283781c788432159a781bc159e8aef3fb433cdfbab999b",
+        "a8a2babde72fa53e109a882c5004bfa920ffe5225f050dae3fb8029ec5a8c1b6"
+      ],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "7882ce65973dae8d2e4f9c9e9a96d7a38e1a5a9f10e488c499dc0eb7190776f1",
+            "claimType": "CROSS_REFERENCE",
+            "operative": null,
+            "statement": "For the duty in Article 5, \"record\" is to be read as defined in Article 1.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+                "endOffset": 67,
+                "startOffset": 3,
+                "contentSha256": "d0903263bbbd8b82388a582a7685cee9106b05c6565da1848183106093dc5bb5"
+              }
+            ],
+            "semanticAuthority": "ASSESSMENT_GUIDANCE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "7e7f2d78912062deaeaafd0882a0b1d11e2d9c97c3c5f5ca50641ccac161b4db",
+            "claimType": "CROSS_REFERENCE",
+            "operative": null,
+            "statement": "For the duty in Article 5, the reading of \u201crecord\u201d is subject to Article 3.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": "the duty in Article 5",
+              "trigger": null,
+              "exception": null,
+              "qualifier": "subject to Article 3",
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+                "endOffset": 110,
+                "startOffset": 90,
+                "contentSha256": "1bbacd9b81c77e9b457d5d70c13dc638ee38421ae2a0985fe0eef4688c39b761"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "84a3427a8a32b96e2bef3744ec59cea174f268c64256eb4235617d45580d92ca",
+            "claimType": "CROSS_REFERENCE",
+            "operative": null,
+            "statement": "For the duty in Article 5, the reading of \u201crecord\u201d applies within Article 2.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": "the duty in Article 5",
+              "trigger": null,
+              "exception": null,
+              "qualifier": "within Article 2",
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+                "endOffset": 85,
+                "startOffset": 69,
+                "contentSha256": "4e69dd29974bb033a58cc0e8d7da3be35c492e5efab114ff46f6cd14ab84cb4b"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "DEFINED_BY",
+            "toClaimId": "b2572555895aa5dd28ae75313805755e87b42e1b5304f5e5141b45eddbc5f944",
+            "relationId": "128aeb8b48fd8ca1aab3faf1c12b56c99bf275a23b7155c20b26483af2d3635d",
+            "fromClaimId": "7882ce65973dae8d2e4f9c9e9a96d7a38e1a5a9f10e488c499dc0eb7190776f1",
+            "referenceId": "0ed6172260ebb2843f2e92bc7aba6a815a3b6e8d3d0ec9d18dfb3761bceb86b8"
+          },
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279",
+            "relationId": "8612a673c3c50d0ca658834f6a344db63e78de3015625dbd7ccf19611fb26ced",
+            "fromClaimId": "7e7f2d78912062deaeaafd0882a0b1d11e2d9c97c3c5f5ca50641ccac161b4db",
+            "referenceId": "a8a2babde72fa53e109a882c5004bfa920ffe5225f050dae3fb8029ec5a8c1b6"
+          },
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053",
+            "relationId": "e6ac997ef7cc54d3b39f77c76e7035914225b359693dfb659d627af36704b117",
+            "fromClaimId": "7882ce65973dae8d2e4f9c9e9a96d7a38e1a5a9f10e488c499dc0eb7190776f1",
+            "referenceId": "85bd0c3f0bee5b138600683b26bee91611b34b38115851ed1901c288a212c90d"
+          },
+          {
+            "kind": "CROSS_REFERENCE",
+            "toClaimId": "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830",
+            "relationId": "fc5c63169bb7b925f1e0a2a4852d7c19c2b408740dcca4ae937c071f29572574",
+            "fromClaimId": "84a3427a8a32b96e2bef3744ec59cea174f268c64256eb4235617d45580d92ca",
+            "referenceId": "383777da1b10c95e8f283781c788432159a781bc159e8aef3fb433cdfbab999b"
+          }
+        ],
+        "identities": {
+          "7882ce65973dae8d2e4f9c9e9a96d7a38e1a5a9f10e488c499dc0eb7190776f1": "xref_art4_record_defined_by_art1",
+          "7e7f2d78912062deaeaafd0882a0b1d11e2d9c97c3c5f5ca50641ccac161b4db": "xref_art4_subject_to_art3",
+          "84a3427a8a32b96e2bef3744ec59cea174f268c64256eb4235617d45580d92ca": "xref_art4_within_art2"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:33:25.182440Z",
+          "relations": [
+            {
+              "id": "128aeb8b48fd8ca1aab3faf1c12b56c99bf275a23b7155c20b26483af2d3635d",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "cff57c91ba0a5be3518e0c72048e4c203648abc95b96570cfc77f26bfa0c5b18",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            },
+            {
+              "id": "8612a673c3c50d0ca658834f6a344db63e78de3015625dbd7ccf19611fb26ced",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "31247e038d2ac4ed6e2925883b2fd56ef658c4ff4fd4fef8fdc6b4416b4bd2de",
+              "targetScopeReading": "SUPPORTED_MEMBER_OF_SOURCE_TARGET_SET"
+            },
+            {
+              "id": "e6ac997ef7cc54d3b39f77c76e7035914225b359693dfb659d627af36704b117",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "8e5039b0b001d7bd0a8e1dd3ec4b88cfa0b571675ec0c65b074affa0c4690f0e",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            },
+            {
+              "id": "fc5c63169bb7b925f1e0a2a4852d7c19c2b408740dcca4ae937c071f29572574",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "650de1e6451faa1ab644555c34f143700b19fce54b55c3f0ddaa644b8518fb12",
+              "targetScopeReading": "SUPPORTED_MEMBER_OF_SOURCE_TARGET_SET"
+            }
+          ],
+          "assertions": [
+            {
+              "id": "7882ce65973dae8d2e4f9c9e9a96d7a38e1a5a9f10e488c499dc0eb7190776f1",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "d4b21977b97749d85353a8f7715fd22f03e182f7fcfc16bd8beab6884f7abfce"
+            },
+            {
+              "id": "7e7f2d78912062deaeaafd0882a0b1d11e2d9c97c3c5f5ca50641ccac161b4db",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "2e1b17dc4f432da6988b83fc5779f37a8c77afd69f26243701779f9e70ecf1bd"
+            },
+            {
+              "id": "84a3427a8a32b96e2bef3744ec59cea174f268c64256eb4235617d45580d92ca",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "337230965e0811262580616def0ccd3d998258a3eecdd7cc8774878f1bb2702a"
+            }
+          ],
+          "attestation": "hmac-sha256:159a15b4baa91c54dc7ff7a4bc2ef6222225afc759aa6c428c26df7f9fa143ce",
+          "sourceNodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "c54a0b814e60c00d32f8c55c1c2bfc3399c7ec4374d0679053c96fd8aba37f90",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "984109fe-875d-44e7-9335-7f065cc1db4b",
+          "assertionFingerprint": "a1fdb80871000e99b5c730fa2cd89fa96f7b75425951b9cfd79962712a876c81",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "833a50f1f520474e0d37e01d385cdc5d8b5a3c35191ff56fa59f35528ddeb4e7"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "0ed6172260ebb2843f2e92bc7aba6a815a3b6e8d3d0ec9d18dfb3761bceb86b8",
+            "relationIds": [
+              "128aeb8b48fd8ca1aab3faf1c12b56c99bf275a23b7155c20b26483af2d3635d"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": true,
+            "referenceId": "383777da1b10c95e8f283781c788432159a781bc159e8aef3fb433cdfbab999b",
+            "relationIds": [
+              "fc5c63169bb7b925f1e0a2a4852d7c19c2b408740dcca4ae937c071f29572574"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": true,
+            "referenceId": "85bd0c3f0bee5b138600683b26bee91611b34b38115851ed1901c288a212c90d",
+            "relationIds": [
+              "e6ac997ef7cc54d3b39f77c76e7035914225b359693dfb659d627af36704b117"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": true,
+            "referenceId": "a8a2babde72fa53e109a882c5004bfa920ffe5225f050dae3fb8029ec5a8c1b6",
+            "relationIds": [
+              "8612a673c3c50d0ca658834f6a344db63e78de3015625dbd7ccf19611fb26ced"
+            ],
+            "nonMaterialReason": null
+          }
+        ],
+        "dependencyFingerprints": {
+          "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053": "3413e6357c7d719075ac61417c4b8f1c456458f641eedd7d113bc540f36815bd",
+          "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830": "84b15663e2b34a4fc60729c4ac963a32ccf398906548f50f9b66505059c539c2",
+          "b2572555895aa5dd28ae75313805755e87b42e1b5304f5e5141b45eddbc5f944": "0bbf586860b225b1faca6d35243390ae13e96ec21b2850275426c1e9de07ea91",
+          "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279": "5a3b927fa4c007cb2696737f345d8ad0cf5da962195c3745373c55cdc18c8a8a"
+        },
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "a9b8e02f0187fcd5cc1c24d2aaa1ae73c884b6e0a81df5e2adf2918c34811d6e",
+      "completionFingerprint": "3907098bb921586fab8b9c9c01fae5a9740eb04a5764f54c74816d824bc399a0",
+      "completedAt": "2026-10-21 12:33:25.237000",
+      "updatedAt": "2026-10-21 12:33:25.243000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/6/clause/1",
+      "ordinal": 11,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "6dc697e1ae709e955de81425ba989f7e0e73acd25d05f35ef5ebd406e8879278",
+        "9bdc66152c99385d0e7d6998eb5a4bf1b8a3c6c7ae673c88b7034effaf5edde2"
+      ],
+      "ownedClaimCount": 2,
+      "referenceIds": [
+        "98b02dfbcc5116a7959dec56fa1b10bf9af30459c2fa010f252f46e325cf0624"
+      ],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "6dc697e1ae709e955de81425ba989f7e0e73acd25d05f35ef5ebd406e8879278",
+            "claimType": "CONTEXT",
+            "operative": null,
+            "statement": "Attendance is recorded in the session register maintained by the organizer.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa",
+                "endOffset": 172,
+                "startOffset": 97,
+                "contentSha256": "05522f2162f6c3d5083e2ea14dba4f17fc556e652c995585d3377ff086c3a579"
+              }
+            ],
+            "semanticAuthority": "CONTEXT",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "9bdc66152c99385d0e7d6998eb5a4bf1b8a3c6c7ae673c88b7034effaf5edde2",
+            "claimType": "DUTY",
+            "operative": {
+              "actor": "operator",
+              "action": "appoint a person to attend the annual public information session in person",
+              "modality": "DUTY"
+            },
+            "statement": "Operator must appoint a person to attend the annual public information session in person.",
+            "assessability": "EXTERNAL_FULFILLMENT",
+            "semanticFrame": {
+              "scope": null,
+              "object": "a person to attend the annual public information session in person",
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": "annual",
+              "externalFulfillmentAspect": "The operator must appoint a person and ensure their physical attendance at the annual public information session, which is a real-world action.",
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa",
+                "endOffset": 96,
+                "startOffset": 3,
+                "contentSha256": "f1bd47a53a4685b4b0b8b6fdddd3d4de76e0d5b229ee45dc1003b934f7a1d1a0"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [],
+        "identities": {
+          "6dc697e1ae709e955de81425ba989f7e0e73acd25d05f35ef5ebd406e8879278": "art6_cl1_context_attendance_recorded_in_register",
+          "9bdc66152c99385d0e7d6998eb5a4bf1b8a3c6c7ae673c88b7034effaf5edde2": "art6_cl1_appoint_person_attend_session_in_person"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:25:45.385924Z",
+          "relations": [],
+          "assertions": [
+            {
+              "id": "6dc697e1ae709e955de81425ba989f7e0e73acd25d05f35ef5ebd406e8879278",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "9f40df19c2ed459bc3a708dddc733b11e90311b0f157996d0ea3be0899440491"
+            },
+            {
+              "id": "9bdc66152c99385d0e7d6998eb5a4bf1b8a3c6c7ae673c88b7034effaf5edde2",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "4ec2e50b6d82bc4c1ebd36cbe1bd8624e61213bff53b0be1533a1f52597db32c"
+            }
+          ],
+          "attestation": "hmac-sha256:0c4fc0943104d36da17e314dd5b5a414f43b1401c1a9b14b584cd1dea17043ba",
+          "sourceNodeId": "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "837263b4d4351bd0d2f06d6b0e0cd77e0fa26cad0e4cb8bbcc8e99d44f6b6e9b",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "b9c3d33a-56e7-4040-8a72-e679ae9f4430",
+          "assertionFingerprint": "11d5690e012eb95f1118f3362f062b410ecc648cccd22d4011d4dc2d99fed366",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "12f47bcef44b43a605b8a28cab0a9cc5c5576bd1897455ebf5b66a05a7e59657"
+        },
+        "referenceAccounting": [
+          {
+            "material": false,
+            "referenceId": "98b02dfbcc5116a7959dec56fa1b10bf9af30459c2fa010f252f46e325cf0624",
+            "relationIds": [],
+            "nonMaterialReason": "The reference text \"point a\" is not a legal cross-reference; it is the substring \"appoint a\" within \"must appoint a person to attend\" (chars 23-30 of the clause). It resolves to no structural target and carries no semantic dependency."
+          }
+        ],
+        "dependencyFingerprints": {},
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "4c4202daca127d733c195840096619f4f24a28d20bbbd64c50cf73fac13f324f",
+      "completionFingerprint": "933e832145898e9486c83de06fac84d9fd078b5d85c5a659767f097a6b27ec74",
+      "completedAt": "2026-10-21 12:26:05.642000",
+      "updatedAt": "2026-10-21 12:26:05.646000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "materializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+      "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97",
+      "sourceNodeId": "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/3/clause/1",
+      "ordinal": 2,
+      "state": "REVIEWED_WITH_CLAIMS",
+      "disposition": "CLAIMS_AUTHORED",
+      "reason": null,
+      "operationId": null,
+      "leaseExpiresAt": null,
+      "claimIds": [
+        "de9a019edb81499c48c7b1a4fcdf26eb59ff522f00ce18acc5b552925e50d9f7",
+        "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279"
+      ],
+      "ownedClaimCount": 2,
+      "referenceIds": [
+        "39aca904b46317f98c1891145e4b7e21f2dafe61ff0c0eb8f38a6625171639d7",
+        "53a39244d5b99192122868ca69c2e170ce628fd797abd78bd2b934380926806f"
+      ],
+      "blockedReferenceIds": [],
+      "payload": {
+        "claims": [
+          {
+            "state": "RELEVANT",
+            "claimId": "de9a019edb81499c48c7b1a4fcdf26eb59ff522f00ce18acc5b552925e50d9f7",
+            "claimType": "CONTEXT",
+            "operative": null,
+            "statement": "This exception does not remove the in-person duty in Article 6.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": null,
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": null,
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2",
+                "endOffset": 141,
+                "startOffset": 78,
+                "contentSha256": "73aff7c2e1d989d0e6103d7990a7cce02ac2bab89750f2b9d4dbbfbd3a5436b3"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          },
+          {
+            "state": "RELEVANT",
+            "claimId": "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279",
+            "claimType": "EXCEPTION",
+            "operative": null,
+            "statement": "The retention duty in Article 5 does not apply to a temporary test record.",
+            "assessability": "NON_ASSESSABLE",
+            "semanticFrame": {
+              "scope": null,
+              "object": null,
+              "trigger": null,
+              "exception": "The retention duty in Article 5 does not apply to a temporary test record.",
+              "qualifier": null,
+              "beneficiary": null,
+              "temporalApplicability": null,
+              "externalFulfillmentAspect": "Retention of a notice record is an external performance duty.",
+              "repositoryObservableAspect": null
+            },
+            "sourceNodeIds": [
+              "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2"
+            ],
+            "sourceSupport": [
+              {
+                "nodeId": "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2",
+                "endOffset": 77,
+                "startOffset": 3,
+                "contentSha256": "76174b76b2f91b510d804554833b8131508a12665369194690c5e172649048b3"
+              }
+            ],
+            "semanticAuthority": "LEGAL_NORMATIVE",
+            "nonOperativeReason": null,
+            "legalSourceVersionId": "c7c0db2d-0e72-4b1d-b9c5-13dc63ab9b97"
+          }
+        ],
+        "relations": [
+          {
+            "kind": "EXCEPTION_TO",
+            "toClaimId": "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053",
+            "relationId": "0f99c40448f14aafe8e6cbedd1b00b8e50e047fb24e28e66fc26d6e172150596",
+            "fromClaimId": "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279",
+            "referenceId": "39aca904b46317f98c1891145e4b7e21f2dafe61ff0c0eb8f38a6625171639d7"
+          },
+          {
+            "kind": "PRESERVES",
+            "toClaimId": "9bdc66152c99385d0e7d6998eb5a4bf1b8a3c6c7ae673c88b7034effaf5edde2",
+            "relationId": "36e70f17d4b6c555623961608db31482b938dc938ffa1147b8cea603fcb37456",
+            "fromClaimId": "de9a019edb81499c48c7b1a4fcdf26eb59ff522f00ce18acc5b552925e50d9f7",
+            "referenceId": "53a39244d5b99192122868ca69c2e170ce628fd797abd78bd2b934380926806f"
+          }
+        ],
+        "identities": {
+          "de9a019edb81499c48c7b1a4fcdf26eb59ff522f00ce18acc5b552925e50d9f7": "ctx_exception_preserves_inperson_duty",
+          "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279": "exception_temporary_test_record"
+        },
+        "semanticAudit": {
+          "gaps": [],
+          "verdict": "SUPPORTED",
+          "auditedAt": "2026-10-21T12:35:57.402282Z",
+          "relations": [
+            {
+              "id": "0f99c40448f14aafe8e6cbedd1b00b8e50e047fb24e28e66fc26d6e172150596",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "6b6db6e48f0e58c5858faa96cab7e2677942e0818a5f3fa476b4feeccf2e5bfc",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            },
+            {
+              "id": "36e70f17d4b6c555623961608db31482b938dc938ffa1147b8cea603fcb37456",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "b2c3990e34ba69ae63b1d41f777a82cf243b78659939649fa1e2228449101e84",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            },
+            {
+              "id": "8612a673c3c50d0ca658834f6a344db63e78de3015625dbd7ccf19611fb26ced",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "31247e038d2ac4ed6e2925883b2fd56ef658c4ff4fd4fef8fdc6b4416b4bd2de",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            },
+            {
+              "id": "d5d52aa50cdc36436e5fc45f49704d63fc3a34e0295471c5ef61e1b5fff30703",
+              "checks": {
+                "kind": "SUPPORTED",
+                "target": "SUPPORTED",
+                "direction": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "a09a31e005633c06c376bd781e513c8f9bda78728146cd61b66d119979e27b45",
+              "targetScopeReading": "EXACT_SOURCE_TARGET"
+            }
+          ],
+          "assertions": [
+            {
+              "id": "de9a019edb81499c48c7b1a4fcdf26eb59ff522f00ce18acc5b552925e50d9f7",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "e009a84ae21332aa3ce74d47baad6e4151057032a46d4bcfebcdd50eed6cb071"
+            },
+            {
+              "id": "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279",
+              "checks": {
+                "actor": "SUPPORTED",
+                "scope": "SUPPORTED",
+                "action": "SUPPORTED",
+                "modality": "SUPPORTED",
+                "assessability": "SUPPORTED",
+                "sourceSupport": "SUPPORTED",
+                "semanticAuthority": "SUPPORTED"
+              },
+              "verdict": "SUPPORTED",
+              "gapCodes": [],
+              "fingerprint": "5a3b927fa4c007cb2696737f345d8ad0cf5da962195c3745373c55cdc18c8a8a"
+            }
+          ],
+          "attestation": "hmac-sha256:45a93cae14834e0f3abf0c9add4ffe94230748ec1a06fd6c69c3c3785aaed02e",
+          "sourceNodeId": "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2",
+          "verifierRole": "legal-semantic-auditor",
+          "reviewHistory": [],
+          "sourceCatalog": null,
+          "relationAudits": [],
+          "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+          "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+          "reportedVerdict": "SUPPORTED",
+          "completenessAudit": null,
+          "inventoryRevision": 1,
+          "contextFingerprint": "b4949a898ca28b46d6583907ba4a5bbf166046583b58e439d9c5d64a14814b04",
+          "sourceConceptAudit": null,
+          "verifierOperationId": "5e4380d6-9903-4e47-945d-1414e1b8c55a",
+          "assertionFingerprint": "57813e2e13d7353653ba590309490b27acb8f168f9af97a2e3492eb24bdc1621",
+          "relatedSourceCatalogs": [],
+          "sourceSupportFingerprint": "9d4a005fd5182af625ae16068fad54162c8e4c73a8fc39dd8d6955d4314876ee"
+        },
+        "referenceAccounting": [
+          {
+            "material": true,
+            "referenceId": "39aca904b46317f98c1891145e4b7e21f2dafe61ff0c0eb8f38a6625171639d7",
+            "relationIds": [
+              "0f99c40448f14aafe8e6cbedd1b00b8e50e047fb24e28e66fc26d6e172150596"
+            ],
+            "nonMaterialReason": null
+          },
+          {
+            "material": true,
+            "referenceId": "53a39244d5b99192122868ca69c2e170ce628fd797abd78bd2b934380926806f",
+            "relationIds": [
+              "36e70f17d4b6c555623961608db31482b938dc938ffa1147b8cea603fcb37456"
+            ],
+            "nonMaterialReason": null
+          }
+        ],
+        "dependencyFingerprints": {
+          "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053": "3413e6357c7d719075ac61417c4b8f1c456458f641eedd7d113bc540f36815bd",
+          "9bdc66152c99385d0e7d6998eb5a4bf1b8a3c6c7ae673c88b7034effaf5edde2": "4ec2e50b6d82bc4c1ebd36cbe1bd8624e61213bff53b0be1533a1f52597db32c"
+        },
+        "invalidatedRelationIds": [],
+        "blockedEndpointFingerprints": {}
+      },
+      "stateFingerprint": "5939d93606c69195497af60063b2339aa06d34173ca1a61228ca8b4b161edb17",
+      "completionFingerprint": "f44ef24a1c4c80983523c5a0d940db30d458f526af37c2d235a2c3d7518e5824",
+      "completedAt": "2026-10-21 12:35:57.456000",
+      "updatedAt": "2026-10-21 12:35:57.462000"
+    }
+  ],
+  "RuleSetPreparationSemanticAudit": [
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:37:29.836808Z",
+        "relations": [
+          {
+            "id": "268e7b99a26c39b85f131b1f30fbc97057b53285f9839a490a21a0593a484933",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "02a87fe4d4816b9e73b85d62ffe9d05b59c24bf1ac5224f8c30ed48cf8a934f6",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "3eae13d4aafbd302dd217b1d9ca4681f1af59b5427ebc754bbee8a317e2c5e37",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "c52bdc0946bdf19a9a458c57aa458014c5b4160f597456d89b40a2dd7b0f163f",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "fc5c63169bb7b925f1e0a2a4852d7c19c2b408740dcca4ae937c071f29572574",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "650de1e6451faa1ab644555c34f143700b19fce54b55c3f0ddaa644b8518fb12",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          }
+        ],
+        "assertions": [
+          {
+            "id": "319e48eddafdcbd5aebcbbfa4f79213755747caf8f23d45b4179af4e2727a830",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "84b15663e2b34a4fc60729c4ac963a32ccf398906548f50f9b66505059c539c2"
+          },
+          {
+            "id": "a96b5f8337f97172429263c81220b032e9c2085928f3cbc1a3d236bba85de594",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "59347e6e4154e8bfd9acebfd7ef404bbd3d4efb3bc30abb9111b29122b599dc4"
+          }
+        ],
+        "attestation": "hmac-sha256:bd74e2fc98bde91034dd4da097c04f1e268c7814347f6bf869a528bfced362f5",
+        "sourceNodeId": "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "6e31f5431fa8897775e6198ee2b9f229f215c41696c86bd968bb02744e8d0d93",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "9087dafb-8d9d-4352-be22-f2541315467b",
+        "assertionFingerprint": "8b5dfa767b46caff029630ed69781a128bc1edd4b284b0eec060f036f253a4c7",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "1bb2d4b3248d30344d3a3398207740faef1a990441ce70cfe845f3251b1db44f"
+      },
+      "updatedAt": "2026-10-21 12:44:05.030000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "95a3e43337e8e31f54cd912f8d2cb1004185f7c04a6054e795cf21e87b4d4595",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:40:42.381600Z",
+        "relations": [
+          {
+            "id": "0f99c40448f14aafe8e6cbedd1b00b8e50e047fb24e28e66fc26d6e172150596",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "6b6db6e48f0e58c5858faa96cab7e2677942e0818a5f3fa476b4feeccf2e5bfc",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "3eae13d4aafbd302dd217b1d9ca4681f1af59b5427ebc754bbee8a317e2c5e37",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "c52bdc0946bdf19a9a458c57aa458014c5b4160f597456d89b40a2dd7b0f163f",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "d5d52aa50cdc36436e5fc45f49704d63fc3a34e0295471c5ef61e1b5fff30703",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "a09a31e005633c06c376bd781e513c8f9bda78728146cd61b66d119979e27b45",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "e6ac997ef7cc54d3b39f77c76e7035914225b359693dfb659d627af36704b117",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "8e5039b0b001d7bd0a8e1dd3ec4b88cfa0b571675ec0c65b074affa0c4690f0e",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          }
+        ],
+        "assertions": [
+          {
+            "id": "0cb602b74f663cf09bb32fb8d0240b572ecbf6c6ef7fdfb98b3e39794a86f053",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "3413e6357c7d719075ac61417c4b8f1c456458f641eedd7d113bc540f36815bd"
+          }
+        ],
+        "attestation": "hmac-sha256:75dfeea94b0f79cb969407fe47059eacc826f408b60fcc6a27b6f2bc5a12ecfd",
+        "sourceNodeId": "95a3e43337e8e31f54cd912f8d2cb1004185f7c04a6054e795cf21e87b4d4595",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "00009140c63ff437e72bfccd8c5ed96f4ed02ae25b550d2f30f3e8a020d080ad",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "a66660b9-0243-4050-a5ba-cba645149e4a",
+        "assertionFingerprint": "8a855cb2ac915f56b484f101d63f92d3fb331ac2024a3e5bbbf9319b2ffe705b",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "7ac4cd8bdf908356b11065383454f8e2a1db4871c9980ae66055064ec6d0560d"
+      },
+      "updatedAt": "2026-10-21 12:44:05.032000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "1c5634b006c244212ec96177167a195e76fecfb628436a2f0d3f2a7d22177ada",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:24:21.082188Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "1551115f74eb695b951f0176b8676d9b608174989eee5a21d9a49637121f2e58",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "d4890b72a0915f5bb305cf26e0801388d1207febd0318009796fe66f4fa7946b"
+          }
+        ],
+        "attestation": "hmac-sha256:d4ecb539d7bacac6bfd0560dba2b1562f6a1cca29be60b40f399ad1ae42cda65",
+        "sourceNodeId": "1c5634b006c244212ec96177167a195e76fecfb628436a2f0d3f2a7d22177ada",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "a5c34083804e1772d0cca4c99f93f2a2a277662da407e1f1c072f996ecc76b22",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "9a858889-846e-40b6-bca3-f38a5d16979e",
+        "assertionFingerprint": "e0bd7e1f91fd9abcc45b4fc7dffd2df8c2aed4297c3789b4253cedc85781b9b1",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "750aa2eec9fbfdb7b0fa298e67236e1e42c85c95d479ab0a1e910ef8b2f1d88d"
+      },
+      "updatedAt": "2026-10-21 12:44:05.025000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:44:04.957599Z",
+        "relations": [
+          {
+            "id": "36e70f17d4b6c555623961608db31482b938dc938ffa1147b8cea603fcb37456",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "b2c3990e34ba69ae63b1d41f777a82cf243b78659939649fa1e2228449101e84",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          }
+        ],
+        "assertions": [
+          {
+            "id": "6dc697e1ae709e955de81425ba989f7e0e73acd25d05f35ef5ebd406e8879278",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "9f40df19c2ed459bc3a708dddc733b11e90311b0f157996d0ea3be0899440491"
+          },
+          {
+            "id": "9bdc66152c99385d0e7d6998eb5a4bf1b8a3c6c7ae673c88b7034effaf5edde2",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "4ec2e50b6d82bc4c1ebd36cbe1bd8624e61213bff53b0be1533a1f52597db32c"
+          }
+        ],
+        "attestation": "hmac-sha256:97a6795ccdfaceae7558e497491360e4bf76c3a47dca74f967af3da4c5f8235e",
+        "sourceNodeId": "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "26e7a68c0ddcc95f4522fd5456f5a0b2105111faa8ade7f8c5c0390006647f9f",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "35f7b761-660c-4ad3-af42-4b3d45007efc",
+        "assertionFingerprint": "d166785a822dd55294b70878c2469fd1c001ee0b6ac8c9cfdae08ddc6fe42d6d",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "12f47bcef44b43a605b8a28cab0a9cc5c5576bd1897455ebf5b66a05a7e59657"
+      },
+      "updatedAt": "2026-10-21 12:44:05.023000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:33:25.182440Z",
+        "relations": [
+          {
+            "id": "128aeb8b48fd8ca1aab3faf1c12b56c99bf275a23b7155c20b26483af2d3635d",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "cff57c91ba0a5be3518e0c72048e4c203648abc95b96570cfc77f26bfa0c5b18",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "8612a673c3c50d0ca658834f6a344db63e78de3015625dbd7ccf19611fb26ced",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "31247e038d2ac4ed6e2925883b2fd56ef658c4ff4fd4fef8fdc6b4416b4bd2de",
+            "targetScopeReading": "SUPPORTED_MEMBER_OF_SOURCE_TARGET_SET"
+          },
+          {
+            "id": "e6ac997ef7cc54d3b39f77c76e7035914225b359693dfb659d627af36704b117",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "8e5039b0b001d7bd0a8e1dd3ec4b88cfa0b571675ec0c65b074affa0c4690f0e",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "fc5c63169bb7b925f1e0a2a4852d7c19c2b408740dcca4ae937c071f29572574",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "650de1e6451faa1ab644555c34f143700b19fce54b55c3f0ddaa644b8518fb12",
+            "targetScopeReading": "SUPPORTED_MEMBER_OF_SOURCE_TARGET_SET"
+          }
+        ],
+        "assertions": [
+          {
+            "id": "7882ce65973dae8d2e4f9c9e9a96d7a38e1a5a9f10e488c499dc0eb7190776f1",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "d4b21977b97749d85353a8f7715fd22f03e182f7fcfc16bd8beab6884f7abfce"
+          },
+          {
+            "id": "7e7f2d78912062deaeaafd0882a0b1d11e2d9c97c3c5f5ca50641ccac161b4db",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "2e1b17dc4f432da6988b83fc5779f37a8c77afd69f26243701779f9e70ecf1bd"
+          },
+          {
+            "id": "84a3427a8a32b96e2bef3744ec59cea174f268c64256eb4235617d45580d92ca",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "337230965e0811262580616def0ccd3d998258a3eecdd7cc8774878f1bb2702a"
+          }
+        ],
+        "attestation": "hmac-sha256:159a15b4baa91c54dc7ff7a4bc2ef6222225afc759aa6c428c26df7f9fa143ce",
+        "sourceNodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "c54a0b814e60c00d32f8c55c1c2bfc3399c7ec4374d0679053c96fd8aba37f90",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "984109fe-875d-44e7-9335-7f065cc1db4b",
+        "assertionFingerprint": "a1fdb80871000e99b5c730fa2cd89fa96f7b75425951b9cfd79962712a876c81",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "833a50f1f520474e0d37e01d385cdc5d8b5a3c35191ff56fa59f35528ddeb4e7"
+      },
+      "updatedAt": "2026-10-21 12:44:05.021000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:35:57.402282Z",
+        "relations": [
+          {
+            "id": "0f99c40448f14aafe8e6cbedd1b00b8e50e047fb24e28e66fc26d6e172150596",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "6b6db6e48f0e58c5858faa96cab7e2677942e0818a5f3fa476b4feeccf2e5bfc",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "36e70f17d4b6c555623961608db31482b938dc938ffa1147b8cea603fcb37456",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "b2c3990e34ba69ae63b1d41f777a82cf243b78659939649fa1e2228449101e84",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "8612a673c3c50d0ca658834f6a344db63e78de3015625dbd7ccf19611fb26ced",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "31247e038d2ac4ed6e2925883b2fd56ef658c4ff4fd4fef8fdc6b4416b4bd2de",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          },
+          {
+            "id": "d5d52aa50cdc36436e5fc45f49704d63fc3a34e0295471c5ef61e1b5fff30703",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "a09a31e005633c06c376bd781e513c8f9bda78728146cd61b66d119979e27b45",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          }
+        ],
+        "assertions": [
+          {
+            "id": "de9a019edb81499c48c7b1a4fcdf26eb59ff522f00ce18acc5b552925e50d9f7",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "e009a84ae21332aa3ce74d47baad6e4151057032a46d4bcfebcdd50eed6cb071"
+          },
+          {
+            "id": "ee9d23b38cc9ecbc7eadb6114d9dde4665da05804aac015ef40cbc161601c279",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "5a3b927fa4c007cb2696737f345d8ad0cf5da962195c3745373c55cdc18c8a8a"
+          }
+        ],
+        "attestation": "hmac-sha256:45a93cae14834e0f3abf0c9add4ffe94230748ec1a06fd6c69c3c3785aaed02e",
+        "sourceNodeId": "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "b4949a898ca28b46d6583907ba4a5bbf166046583b58e439d9c5d64a14814b04",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "5e4380d6-9903-4e47-945d-1414e1b8c55a",
+        "assertionFingerprint": "57813e2e13d7353653ba590309490b27acb8f168f9af97a2e3492eb24bdc1621",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "9d4a005fd5182af625ae16068fad54162c8e4c73a8fc39dd8d6955d4314876ee"
+      },
+      "updatedAt": "2026-10-21 12:44:05.029000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "1ba9f5c84bbb0afef0b207ad3ffe3fd72c63a1fde7d9971fd020975fa496862a",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:37:14.639319Z",
+        "relations": [
+          {
+            "id": "128aeb8b48fd8ca1aab3faf1c12b56c99bf275a23b7155c20b26483af2d3635d",
+            "checks": {
+              "kind": "SUPPORTED",
+              "target": "SUPPORTED",
+              "direction": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "cff57c91ba0a5be3518e0c72048e4c203648abc95b96570cfc77f26bfa0c5b18",
+            "targetScopeReading": "EXACT_SOURCE_TARGET"
+          }
+        ],
+        "assertions": [
+          {
+            "id": "b2572555895aa5dd28ae75313805755e87b42e1b5304f5e5141b45eddbc5f944",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "0bbf586860b225b1faca6d35243390ae13e96ec21b2850275426c1e9de07ea91"
+          }
+        ],
+        "attestation": "hmac-sha256:0401b92d619bca6990c903b16df8c953ec13fcfcd43e334787cbb7b47f231992",
+        "sourceNodeId": "1ba9f5c84bbb0afef0b207ad3ffe3fd72c63a1fde7d9971fd020975fa496862a",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "390db26ed06895fc89fff0147590c650d97f5bd4ea2848127d17a1c1a3dd4f04",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "b2380e85-821b-4cc9-9696-d70e912f3f3d",
+        "assertionFingerprint": "99943a88ac43405c5a1631e4b4c95d318b244f24a033ba349f9caa9801fc5582",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "2b802d1384326c1a0b0e93911a7d76578cc200104acbe247b615e018f7f32968"
+      },
+      "updatedAt": "2026-10-21 12:44:05.024000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "36f4c2060c2936ea9c89f4818111cc397e4bb9f8a2266a66e37cba29a1c0b0e8",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:23:44.204107Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "be1c4acea596c327027ad888e729711712e6fa7391f16c53c7cc287e8b2de0f5",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "ab962d1d1bc64c1d678be5dc554799ef6bdb837adac7139a7b01a715d713ad10"
+          }
+        ],
+        "attestation": "hmac-sha256:8d3a8c440498f7a825ba98244b6db41f4d2ec7a7a1cc3e558c3e67367a9e0c36",
+        "sourceNodeId": "36f4c2060c2936ea9c89f4818111cc397e4bb9f8a2266a66e37cba29a1c0b0e8",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "615b521822aca5be89127a94c74f896908d734450182024afa010c14a4ede060",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "13c1dc08-2110-4759-9e8a-1295ffad63d9",
+        "assertionFingerprint": "24ffcccdc0f7a488a90a30bd4f62d30bab1f88d42e409b125d799b181933ecf8",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "14ae6a16cf1d309e1414a151b53513553ce6e659e43c83b1ff7adb72a53a29c8"
+      },
+      "updatedAt": "2026-10-21 12:44:05.026000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:00:56.214002Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "bdaa916c0178d1b70a42f4a8ea1dfe88fa30c9c01b8a26597aa14117745320f0",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "c23053e35f46a072ed80ed74f9c057f89d5dea2ff23603c56fc6338830b774b5"
+          },
+          {
+            "id": "db11cdafc56d0eb5c0e3b899a2553d45d57a923d371e660c237c586a3230fd9e",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "b1227f3207a3165eb528cbf832ae49f9557a695d2bab828e5d3ee70b5c4eea91"
+          }
+        ],
+        "attestation": "hmac-sha256:ecc5556589e1a3b7b4db1e9ae87786143e3e984560265367c2a8c0e940a0787c",
+        "sourceNodeId": "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "1a6c8b1cbca585c169679c2781688d058157a456c5e3443a5360c03326c81d0a",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "598229c1-d110-4abe-a39a-da44abacd0e5",
+        "assertionFingerprint": "2d19525c76d9d0945583d39ee61e5099707bc8f8f1812976881dec42360a0e92",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "c378d0bcbca67691eabac0d9380f5850671b3f2909f46688eb244640a0180080"
+      },
+      "updatedAt": "2026-10-21 12:44:05.027000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "50c2706193f53c90e51d53c7c4344eff9c684b854e20d8e044aeac8fe55097cb",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:18:32.904544Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "060f719f322ecfdd8f621ccfa4bddd5cb5b5a99e9fdd8ca27e38f14d000b9c17",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "7b56e3f78244e08fca62ed4cf11ddf6851f8e99601d055e5060add5bd6843303"
+          }
+        ],
+        "attestation": "hmac-sha256:156ac13ff246b6751cbd924f0a9270adf54e7067286652f7092f84c60731d17f",
+        "sourceNodeId": "50c2706193f53c90e51d53c7c4344eff9c684b854e20d8e044aeac8fe55097cb",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "c1a573bdd4e38eacf03557d851e29f31931b2c487f71187eb67a543f6a100c31",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "b7cdce80-a916-4baf-92d6-342629b48066",
+        "assertionFingerprint": "310ac83567421057ce28822fb758115fe3c171aa1dafd28e1bbbffd295599246",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "8ccf4c04c1185e3f47dae651c1a2fa47f5ddcab568bab558bbfcddb967adb0d7"
+      },
+      "updatedAt": "2026-10-21 12:44:05.028000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "908954ec40b22283f6844a09d4010680b78f909a2aefd9e581761ccb20de158c",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:17:52.680853Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "0c4cc6ebd627d50cf494686abaa424b795c7d517b8ca139070d1ce3250e42cbf",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "d8a7467de865aed14cea335db779fded9f3bfe9ffbed751158db51d1c773edf4"
+          }
+        ],
+        "attestation": "hmac-sha256:28ac661e89afe460975d0d904c9cd8372cf66f7425a664bb25e76ac94db4351b",
+        "sourceNodeId": "908954ec40b22283f6844a09d4010680b78f909a2aefd9e581761ccb20de158c",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "fc343ce878d8f3ec97b8fd03ba9a9f8b30927dad7aec3618d1e077ad0cd18c12",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "006fc298-f75b-42a6-b02a-f051294cbded",
+        "assertionFingerprint": "16f87f06733c623610e816bd606437ff0e93b0092b16e452b20bd63476bf565b",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "6fb5fb5481dfe3ad35d9885064eed2c7f9ad06b2b7d7f7bcae672530cad021ee"
+      },
+      "updatedAt": "2026-10-21 12:44:05.031000"
+    },
+    {
+      "preparationRunId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+      "inventoryRevision": 1,
+      "sourceNodeId": "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de",
+      "receipt": {
+        "gaps": [],
+        "verdict": "SUPPORTED",
+        "auditedAt": "2026-10-21T12:02:44.333771Z",
+        "relations": [],
+        "assertions": [
+          {
+            "id": "1ddbb8918e46d700c65daeccd4fee480f6a3f423f3a24056f85eaa906385df7e",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "be6ebb8ab6555387f79acf8a0c4b14b6f6a364a5cbf9db6ec6376c10fd1eec14"
+          },
+          {
+            "id": "4067342cf507c806647054a16cda0051e3d5b17c98b0e400c25eea6bdc911d7f",
+            "checks": {
+              "actor": "SUPPORTED",
+              "scope": "SUPPORTED",
+              "action": "SUPPORTED",
+              "modality": "SUPPORTED",
+              "assessability": "SUPPORTED",
+              "sourceSupport": "SUPPORTED",
+              "semanticAuthority": "SUPPORTED"
+            },
+            "verdict": "SUPPORTED",
+            "gapCodes": [],
+            "fingerprint": "dc868e2dd7c47cef57c7cca8d07913cf1396cbed8bccd05bbbdd0eb484f89149"
+          }
+        ],
+        "attestation": "hmac-sha256:98b120a273dcb126d4dd642f885eda886f4d97c59918b2995c5a2fcb3eab9317",
+        "sourceNodeId": "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de",
+        "verifierRole": "legal-semantic-auditor",
+        "reviewHistory": [],
+        "sourceCatalog": null,
+        "relationAudits": [],
+        "schemaRevision": "SOURCE_SEMANTIC_AUDIT_V42",
+        "sourceRevision": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+        "reportedVerdict": "SUPPORTED",
+        "completenessAudit": null,
+        "inventoryRevision": 1,
+        "contextFingerprint": "66412629ff8baadd476258bf4e84e447a47dbfd78a7ef94f63edfd82bb943f6f",
+        "sourceConceptAudit": null,
+        "verifierOperationId": "6b63a927-a4f2-49c9-bd4b-373f9181d6fa",
+        "assertionFingerprint": "b32532512806af8450731dbe77bd9d3af28f272e7138bb2cd3e1771312eb9b65",
+        "relatedSourceCatalogs": [],
+        "sourceSupportFingerprint": "534a155df146ba3b51d9f6ab766f105c93c2ba3d8ecefdf824002e3f5e09a1b8"
+      },
+      "updatedAt": "2026-10-21 12:44:05.033000"
+    }
+  ],
+  "RuleSetPreparationClaimInventory": [],
+  "ComplianceRuleSetVersion": [],
+  "sourceStatus": [
+    {
+      "nodeId": "acb3cca0a1c9365bc2ed632a6013a6449234bda23f6801598316678903c832c5",
+      "structuralPath": "/document/synthetic-notice-instrument",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "4e44269d5d7b42f84510daed12c2c03081355d1c096887b93e51298e54427b94",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "f8f9f85de5e9e54e8eb7615f6975bba25c9b4d3602abcb28585c2017ee71a2fe",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/1",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "1ba9f5c84bbb0afef0b207ad3ffe3fd72c63a1fde7d9971fd020975fa496862a",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/1/clause/1",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "3318b33f87006ee1bd9572a013f4fafc936092acb21390734ff755ad8320152a",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/2",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "72605523d4f930926a37b3876ddc4c09f2818bcc63195020f73d6a43ffa7c997",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/2/clause/1",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "a3f28edd56340aff9337d233222da412271212d0912bcc845b0dffbcb9735559",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/3",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "5762aee4ee8507049929a58759b91fb1f8b79c44b8e91a7bc741a342c09145e2",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/3/clause/1",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "aa826f33f2a0fdac6ee75503d4511689181801a92c466dd1fcbe32f04289c7b4",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "094eace42de16ceb5b11461d08d83209871677b5c6288755cc5fa6eb96551af2",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "463c7a4a0ef7aea4678ab5ada321af053ae8b19e6905030e491bf2537257d544",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1/point/a",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "acfaf0f1b01f0bcfd335a884bb58a6d4684954af44e62a49437e3868852519de",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/4/clause/1/point/a/occurrence/2",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "399817d6b49a68d8faee7108020e582d6e24d17005a42b4471fae72a9ff95e9b",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "95a3e43337e8e31f54cd912f8d2cb1004185f7c04a6054e795cf21e87b4d4595",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "908954ec40b22283f6844a09d4010680b78f909a2aefd9e581761ccb20de158c",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/a",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "36f4c2060c2936ea9c89f4818111cc397e4bb9f8a2266a66e37cba29a1c0b0e8",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/a/occurrence/2",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "50c2706193f53c90e51d53c7c4344eff9c684b854e20d8e044aeac8fe55097cb",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/b",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "1c5634b006c244212ec96177167a195e76fecfb628436a2f0d3f2a7d22177ada",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/5/clause/1/point/b/occurrence/2",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "4799579b307da8ec8a5500bfee1a803b0842845008dea44aee9a672fd04226e8",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/6",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    },
+    {
+      "nodeId": "0e934d76294405d2afc48a1dca7b41f7228c47000f8b2a03d6d5fed33272d1aa",
+      "structuralPath": "/document/synthetic-notice-instrument/chapter/i/article/6/clause/1",
+      "legalEffectStatus": "UNKNOWN",
+      "legalStatusSourceRefs": []
+    }
+  ],
+  "usageRowCount": 0
+}

@@ -1,0 +1,8 @@
+{"fixture":"decisions","state":"SUCCEEDED","ruleSetVersionId":"df49f753-eb42-4d80-b67e-dd5c0b259665","providerCalls":0}
+{"fixture":"single","state":"SUCCEEDED","ruleSetVersionId":"f18465a6-9775-4fa1-aba5-3a65bc43e539","providerCalls":0}
+{"fixture":"source-answerable","state":"SUCCEEDED","ruleSetVersionId":"80299b8d-0153-43f6-8465-b68893dfb05c","providerCalls":0}
+{"fixture":"human","state":"SUCCEEDED","ruleSetVersionId":"d4157312-e59a-4cff-8bf8-0cef9bd9d813","providerCalls":0}
+{"fixture":"not-applicable","state":"SUCCEEDED","ruleSetVersionId":"323dc558-c1c2-4778-a351-241b1fb806a8","providerCalls":0}
+{"fixture":"bounded-absence","state":"SUCCEEDED","ruleSetVersionId":"da5e0a72-da29-45e7-b8fc-ef462c7ed978","providerCalls":0}
+{"fixture":"bounded-absence-gapped","state":"SUCCEEDED","ruleSetVersionId":"59e29b16-7711-4539-8272-f9b8d8930288","providerCalls":0}
+{"fixture":"fallback-found","state":"SUCCEEDED","ruleSetVersionId":"4a03dabb-35fc-4c2c-8faa-46f98c74d78c","providerCalls":0}

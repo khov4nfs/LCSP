@@ -1,0 +1,11 @@
+{
+  "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+  "workflowRunId": 39606632811,
+  "artifactId": 12350025321,
+  "artifactUrl": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/artifacts/12350025321",
+  "archiveSha256": "6c64531410f0f832cf9512b488467ac656f664edb4970f05346e6b89ce0e3f1a",
+  "selectedDirectory": "20261021131805_10172901644e/",
+  "rootfsAuditsPassed": 4,
+  "dockerIntegrationsPassed": 7,
+  "localRebuildPerformed": false
+}

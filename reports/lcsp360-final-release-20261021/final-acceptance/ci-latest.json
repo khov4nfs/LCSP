@@ -1,0 +1,335 @@
+{
+  "candidateSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+  "checkedAt": "2026-10-21T13:27:45.275306+00:00",
+  "allPassed": true,
+  "checks": [
+    {
+      "id": 119249119130,
+      "name": "V2 required release gate",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119249119130"
+    },
+    {
+      "id": 119246144782,
+      "name": "Require Jira issue key",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39607139445/job/119246144782"
+    },
+    {
+      "id": 119246143457,
+      "name": "Require Jira issue key",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39607139018/job/119246143457"
+    },
+    {
+      "id": 119246102939,
+      "name": "Require Jira issue key",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39607127373/job/119246102939"
+    },
+    {
+      "id": 119245991694,
+      "name": "Require Jira issue key",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39607092974/job/119245991694"
+    },
+    {
+      "id": 119245042187,
+      "name": "API checks",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606623050/job/119245042187"
+    },
+    {
+      "id": 119245041799,
+      "name": "Web checks",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606623050/job/119245041799"
+    },
+    {
+      "id": 119244964071,
+      "name": "Web checks",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632673/job/119244964071"
+    },
+    {
+      "id": 119244964020,
+      "name": "API checks",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632673/job/119244964020"
+    },
+    {
+      "id": 119244733368,
+      "name": "Require Jira issue key",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606730895/job/119244733368"
+    },
+    {
+      "id": 119244728998,
+      "name": "trustabl",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/runs/119244728998"
+    },
+    {
+      "id": 119244653301,
+      "name": "SecureAI-Scan",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/runs/119244653301"
+    },
+    {
+      "id": 119244646673,
+      "name": "CodeQL",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/runs/119244646673"
+    },
+    {
+      "id": 119244588597,
+      "name": "Trivy",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/runs/119244588597"
+    },
+    {
+      "id": 119244506110,
+      "name": "Python worker tests",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244506110"
+    },
+    {
+      "id": 119244506073,
+      "name": "Docker sandbox E2E",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244506073"
+    },
+    {
+      "id": 119244505958,
+      "name": "Assessment Root vertical",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244505958"
+    },
+    {
+      "id": 119244505927,
+      "name": "Billing and Admin Playwright E2E release gate",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244505927"
+    },
+    {
+      "id": 119244505780,
+      "name": "Windows dev launcher security tests",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244505780"
+    },
+    {
+      "id": 119244505774,
+      "name": "Workspace static checks",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244505774"
+    },
+    {
+      "id": 119244505686,
+      "name": "Web tests",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244505686"
+    },
+    {
+      "id": 119244505681,
+      "name": "API e2e tests",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244505681"
+    },
+    {
+      "id": 119244505643,
+      "name": "API unit tests",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244505643"
+    },
+    {
+      "id": 119244505637,
+      "name": "Web lint and production build",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244505637"
+    },
+    {
+      "id": 119244465073,
+      "name": "Python worker checks",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632673/job/119244465073"
+    },
+    {
+      "id": 119244465026,
+      "name": "Auto-fix imports and lint",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632673/job/119244465026"
+    },
+    {
+      "id": 119244434716,
+      "name": "Python worker checks",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606623050/job/119244434716"
+    },
+    {
+      "id": 119244434591,
+      "name": "Auto-fix imports and lint",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606623050/job/119244434591"
+    },
+    {
+      "id": 119244392945,
+      "name": "Detect test areas",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244392945"
+    },
+    {
+      "id": 119244392465,
+      "name": "PR review shadow triage packet",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632811/job/119244392465"
+    },
+    {
+      "id": 119244391361,
+      "name": "Detect changed areas",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632673/job/119244391361"
+    },
+    {
+      "id": 119244391308,
+      "name": "API coverage",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632652/job/119244391308"
+    },
+    {
+      "id": 119244391283,
+      "name": "SecureAI-Scan",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632652/job/119244391283"
+    },
+    {
+      "id": 119244391162,
+      "name": "Trivy repository scan",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632652/job/119244391162"
+    },
+    {
+      "id": 119244391076,
+      "name": "Dependency Review",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632758/job/119244391076"
+    },
+    {
+      "id": 119244390874,
+      "name": "Require Jira issue key",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632704/job/119244390874"
+    },
+    {
+      "id": 119244390734,
+      "name": "Trustabl agent reliability",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606632652/job/119244390734"
+    },
+    {
+      "id": 119244376438,
+      "name": "Analyze (javascript-typescript)",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606626521/job/119244376438"
+    },
+    {
+      "id": 119244376303,
+      "name": "Analyze (python)",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606626521/job/119244376303"
+    },
+    {
+      "id": 119244375999,
+      "name": "Analyze (actions)",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606626521/job/119244375999"
+    },
+    {
+      "id": 119244357374,
+      "name": "Detect changed areas",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "4ba42c7bf7c756d552088569772e8c1f1fef8fd0",
+      "url": "https://github.com/khov4nfs/LCSP/actions/runs/39606623050/job/119244357374"
+    }
+  ]
+}

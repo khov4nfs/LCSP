@@ -1,0 +1,9 @@
+file:///home/khovan/Workplaces/LCSP/reports/lcsp360-final-release-20261021/final-acceptance/probes/live_api_smoke.mjs:21
+  const versionId = active[0].id;
+                              ^
+
+TypeError: Cannot read properties of undefined (reading 'id')
+    at file:///home/khovan/Workplaces/LCSP/reports/lcsp360-final-release-20261021/final-acceptance/probes/live_api_smoke.mjs:21:31
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+Node.js v22.22.3

@@ -1,0 +1,58 @@
+{
+ "runId": "7a91def1-8baf-44a0-81a4-15c9fbc4b0c6",
+ "pinnedMaterializationId": "3b32e7e79f90c9c8a388a89c6fd5749bd0e5ee528723d2fd0f29c2e7c8dd03c3",
+ "allPassed": false,
+ "checks": {
+  "run_succeeded": {
+   "ok": false,
+   "detail": {
+    "state": "RUNNING",
+    "phase": "CLAIM_DISCOVERY",
+    "failure": null
+   }
+  },
+  "single_pinned_materialization": {
+   "ok": true,
+   "detail": {
+    "frontiers": 1
+   }
+  },
+  "inventory_frozen_on_pin": {
+   "ok": false,
+   "detail": {
+    "revision": 1
+   }
+  },
+  "source_support_hashes_recomputed": {
+   "ok": false,
+   "detail": {
+    "claims": 0,
+    "spans": 0,
+    "bad": []
+   }
+  },
+  "audit_receipts_hmac_and_supported": {
+   "ok": true,
+   "detail": {
+    "receipts": 12,
+    "unverified": []
+   }
+  },
+  "tampered_receipt_rejected": {
+   "ok": true
+  },
+  "receipt_bound_to_run": {
+   "ok": true
+  },
+  "frozen_inventory_receipts_verify": {
+   "ok": false,
+   "detail": {
+    "embedded": 0
+   }
+  },
+  "rule_set_version_active": {
+   "ok": false,
+   "detail": []
+  }
+ }
+}

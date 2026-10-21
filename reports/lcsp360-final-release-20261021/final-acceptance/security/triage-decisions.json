@@ -1,0 +1,130 @@
+[
+  {
+    "number": 77,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_tool_argument_precheck.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 76,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_tool_argument_precheck.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 75,
+    "rule": "LC-001",
+    "path": "deepagents/rule_set_preparation/claim_tools.py",
+    "reason": "false positive",
+    "evidence": "claim_tools.py:647 explicitly passes description=description to StructuredTool.from_function. Every specs entry supplies a description. The scanner misses this table-driven constructor.",
+    "state": "dismissed"
+  },
+  {
+    "number": 74,
+    "rule": "DS-0026",
+    "path": "reports/lcsp360-tool-contract-20261018/isolation.Dockerfile",
+    "reason": "used in tests",
+    "evidence": "Historical one-shot firewall fixture: ENTRYPOINT /bin/sh, run by isolate-runtime.py to install egress rules. No persistent service or health endpoint. Production Dockerfiles remain scanned.",
+    "state": "dismissed"
+  },
+  {
+    "number": 73,
+    "rule": "DS-0002",
+    "path": "reports/lcsp360-tool-contract-20261018/isolation.Dockerfile",
+    "reason": "used in tests",
+    "evidence": "Historical disposable firewall fixture. isolate-runtime.py:22 runs --cap-add NET_ADMIN --user 0 for iptables/ip6tables PostgreSQL egress rules. Not a release/runtime image; original evidence is preserved.",
+    "state": "dismissed"
+  },
+  {
+    "number": 52,
+    "rule": "META-003",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 51,
+    "rule": "LC-024",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 50,
+    "rule": "LC-024",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 49,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_response_localization.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 46,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 45,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 44,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 43,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 42,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 41,
+    "rule": "LC-019",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  },
+  {
+    "number": 38,
+    "rule": "LC-008",
+    "path": "deepagents/tests/test_model_governance.py",
+    "reason": "used in tests",
+    "evidence": "Provider-free regression fixture: intentionally short/ambiguous tools or sentinel exceptions test malformed-call rejection, resampling, localization and prechecks. Not production registrations. No test or security gate disabled.",
+    "state": "dismissed"
+  }
+]
