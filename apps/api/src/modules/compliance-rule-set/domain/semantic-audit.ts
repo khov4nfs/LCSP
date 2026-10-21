@@ -341,7 +341,7 @@ export function semanticRelationInput(
     ...(concepts
       ? {
           sourceConceptAudit: concepts,
-          conceptSource: semanticConceptInput(input, catalogs!),
+          conceptSource: semanticConceptInput(input, catalogs),
         }
       : {}),
     ...(catalogs
@@ -363,7 +363,10 @@ export function semanticRelationInput(
       : {}),
     sources: input.sources
       .filter((n) => selected.has(n.nodeId))
-      .map(({ completenessTarget: _, ...n }) => n),
+      .map(({ completenessTarget: _, ...n }) => {
+        void _;
+        return n;
+      }),
     relationEvidence: relations.map((r) => ({
       ...r,
       sourceReference: boundReference(r),
@@ -521,7 +524,7 @@ export function semanticAuditReceiptFailures(
       const question = semanticConceptInput(input, related);
       for (const batch of batches) {
         const material = semanticRelationInput(input, batch, related, concepts);
-        const edge = material.relationEvidence[0]!;
+        const edge = material.relationEvidence[0];
         const supported = semanticDefinitionTarget(edge, question, concepts);
         if (supported !== null) {
           const row = receipt.relations.find((r) => r.id === edge.relationId);
@@ -778,7 +781,7 @@ export function semanticTopologyFailures(graph: LegalSemanticGraph): string[] {
         const id = queue.pop()!;
         if (seen.has(id)) continue;
         seen.add(id);
-        if (id !== c.claimId && operativeClaim(claims.get(id)!)) {
+        if (id !== c.claimId && operativeClaim(claims.get(id))) {
           anchored = true;
           break;
         }

@@ -191,7 +191,12 @@ describe("Frozen Preparation claim inventory", () => {
     // This fixture deliberately has unaudited, unanchored synthetic context claims.
     // Benchmark the structural accounting layer, not V3 semantic freeze approval.
     const structural = validateSemanticClaimGraph(
-      { semanticGraph: f.graph, legalRequirements: [], assessmentRules: [], contextRelations: [] } as ReturnType<typeof validPacket>,
+      {
+        semanticGraph: f.graph,
+        legalRequirements: [],
+        assessmentRules: [],
+        contextRelations: [],
+      },
       f.source,
       true,
     );
@@ -218,12 +223,18 @@ describe("Frozen Preparation claim inventory", () => {
       const gaps = authoringReadinessGaps(f.graph);
       // External-fulfillment and non-assessable operative assertions need no
       // repository applicability, unlike repository-verifiable anchors.
-      const repositoryAnchors = operative(f).filter((c) =>
-        !["EXTERNAL_FULFILLMENT", "NON_ASSESSABLE"].includes(c.assessability!),
+      const repositoryAnchors = operative(f).filter(
+        (c) =>
+          !["EXTERNAL_FULFILLMENT", "NON_ASSESSABLE"].includes(
+            c.assessability!,
+          ),
       );
-      expect(gaps.filter((g) => g.code === F.APPLICABILITY_AUTHORITY_MISSING).map((g) => g.ref).sort()).toEqual(
-        repositoryAnchors.map((c) => `claim:${c.claimId}`).sort(),
-      );
+      expect(
+        gaps
+          .filter((g) => g.code === F.APPLICABILITY_AUTHORITY_MISSING)
+          .map((g) => g.ref)
+          .sort(),
+      ).toEqual(repositoryAnchors.map((c) => `claim:${c.claimId}`).sort());
       expect(gaps[0].detail).toMatch(/CONDITION or SCOPE/);
       // The authoritative gate that freezes the inventory reports the same machine-readable gaps.
       expect(
@@ -358,8 +369,7 @@ describe("Frozen Preparation claim inventory", () => {
     };
     const gate = (f: ReturnType<typeof fixture>) =>
       validateClaimInventory(RUN, 1, f.graph, f.identities, f.source).failures;
-    const codes = (failures: { code: string }[]) =>
-      failures.map((g) => g.code);
+    const codes = (failures: { code: string }[]) => failures.map((g) => g.code);
 
     it.each([true, false])(
       "is available only for a fully reviewed, audited inventory whose single gap is the absence of an operative claim (definition kept: %s)",
@@ -437,9 +447,9 @@ describe("Frozen Preparation claim inventory", () => {
       }
       const excluded = gate(f);
       expect(codes(excluded)).toContain(F.OPERATIVE_CLAIM_MISSING);
-      expect(codes(noOperativeObligationsFailures(f.graph, excluded))).toEqual(
-        [F.claimPhaseInvalid],
-      );
+      expect(codes(noOperativeObligationsFailures(f.graph, excluded))).toEqual([
+        F.claimPhaseInvalid,
+      ]);
     });
 
     it("never infers the outcome from silence: an empty gate result with no operative claim is refused", () => {

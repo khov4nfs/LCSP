@@ -11,7 +11,10 @@ import {
   LEGAL_REQUIREMENT_COVERAGE_STATES as COVERAGE,
 } from "@lcsp/contracts/compliance-rule-set";
 import { LEGAL_REFERENCE_RESOLUTION_STATES as R } from "@lcsp/contracts/legal-source";
-import { supportStructuralFixture, refreshStructuralAudits } from "../../../../test/support/structural-semantic-fixture.js";
+import {
+  supportStructuralFixture,
+  refreshStructuralAudits,
+} from "../../../../test/support/structural-semantic-fixture.js";
 import { validateSemanticClaimGraph } from "./semantic-claim-integrity.validator.js";
 import {
   authorFixtureClaims,

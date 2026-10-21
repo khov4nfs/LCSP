@@ -9,7 +9,10 @@ import {
 } from "@lcsp/contracts/legal-source";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
-import { buildLegalDocumentGraph, extractionGapsOf } from "../../domain/document-graph.js";
+import {
+  buildLegalDocumentGraph,
+  extractionGapsOf,
+} from "../../domain/document-graph.js";
 
 const BATCH_SIZE = 500;
 const batches = <T>(items: T[]) =>

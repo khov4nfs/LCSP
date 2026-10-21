@@ -572,17 +572,15 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             ]),
           );
           return reply({
-            records: records
-              .slice(0, limit)
-              .map((record) => ({
-                ...record,
-                payload: {
-                  ...reviewPayload(record),
-                  ...(receipts.has(record.sourceNodeId)
-                    ? { semanticAudit: receipts.get(record.sourceNodeId)! }
-                    : {}),
-                },
-              })),
+            records: records.slice(0, limit).map((record) => ({
+              ...record,
+              payload: {
+                ...reviewPayload(record),
+                ...(receipts.has(record.sourceNodeId)
+                  ? { semanticAudit: receipts.get(record.sourceNodeId)! }
+                  : {}),
+              },
+            })),
             nextOffset: records.length > limit ? offset + limit : null,
           });
         }
@@ -1257,7 +1255,8 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
               (r) =>
                 r.state === S.REOPENED &&
                 reviewPayload(r).relations.some(
-                  (rel) => owned.has(rel.fromClaimId) || owned.has(rel.toClaimId),
+                  (rel) =>
+                    owned.has(rel.fromClaimId) || owned.has(rel.toClaimId),
                 ),
             )
             .map((r) => r.sourceNodeId)
@@ -1388,7 +1387,9 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             ),
             payload.semanticAudit,
           );
-          auditGaps.push(...semanticAuditAttestationFailures(payload.semanticAudit, run.id));
+          auditGaps.push(
+            ...semanticAuditAttestationFailures(payload.semanticAudit, run.id),
+          );
           if (auditGaps.length)
             return failed(
               F.SEMANTIC_AUDIT_REQUIRED,

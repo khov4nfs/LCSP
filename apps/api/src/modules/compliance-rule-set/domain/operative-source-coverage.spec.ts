@@ -11,7 +11,11 @@ import {
   semanticStressSource,
 } from "../../../../test/support/semantic-stress-fixtures.js";
 import { validateComplianceRuleSetPacket } from "./compliance-rule-set-integrity.validator.js";
-import { fixtureLegalSource, validPacket, withDerivedAssessmentSemantics } from "../../../../test/support/compliance-rule-set-fixtures.js";
+import {
+  fixtureLegalSource,
+  validPacket,
+  withDerivedAssessmentSemantics,
+} from "../../../../test/support/compliance-rule-set-fixtures.js";
 import { authorFixtureClaims } from "../../../../test/support/legal-graph-fixtures.js";
 import { fixtureDocumentGraph } from "../../../../test/support/legal-graph-fixtures.js";
 
@@ -73,10 +77,14 @@ describe("operative source accounting", () => {
       action: "Perform a second compatible part of the same synthetic duty",
     });
     authorFixtureClaims(packet, source.documentGraph!, source.chunks);
-    const operative = parent.claimBindings!.filter((b) => b.role === "OPERATIVE_PROPOSITION");
+    const operative = parent.claimBindings!.filter(
+      (b) => b.role === "OPERATIVE_PROPOSITION",
+    );
     expect(operative).toHaveLength(2);
     expect(new Set(operative.map((b) => b.claimId)).size).toBe(2);
-    expect(validate(withDerivedAssessmentSemantics(packet, source), source)).toEqual([]);
+    expect(
+      validate(withDerivedAssessmentSemantics(packet, source), source),
+    ).toEqual([]);
   });
   it("rejects aggregation of different DUTY and PROHIBITION modalities", () => {
     const packet = semanticStressPacket();
@@ -106,11 +114,14 @@ describe("operative source accounting", () => {
         criterion.statement = rule.applicabilityGuidance;
       }
     }
-    expect(validate(withDerivedAssessmentSemantics(packet, semanticStressSource())))
-      .toContainEqual(expect.objectContaining({
+    expect(
+      validate(withDerivedAssessmentSemantics(packet, semanticStressSource())),
+    ).toContainEqual(
+      expect.objectContaining({
         code: Errors.SEMANTIC_CLOSURE_INVALID,
         detail: "INCOMPATIBLE_OPERATIVE_AGGREGATION",
-      }));
+      }),
+    );
   });
   it("does not let unrelated AssessmentRule citations discharge source coverage", () => {
     const packet = placeholderStressPacket();

@@ -26,7 +26,10 @@ import {
   semanticRelationInput,
   semanticRelationSourceNodes,
 } from "../../src/modules/compliance-rule-set/domain/semantic-audit.js";
-import { semanticSourceMaterialInput, semanticSourceRoleInput } from "../../src/modules/compliance-rule-set/domain/source-completeness.js";
+import {
+  semanticSourceMaterialInput,
+  semanticSourceRoleInput,
+} from "../../src/modules/compliance-rule-set/domain/source-completeness.js";
 
 export function supportStructuralFixture(
   packet: ComplianceRuleSetPacket,
@@ -120,7 +123,9 @@ export function supportStructuralFixture(
   refreshStructuralAudits(graph, source, 1);
 }
 
-function structuralCatalog(input: ReturnType<typeof semanticAuditInput>): SemanticSourceCatalog {
+function structuralCatalog(
+  input: ReturnType<typeof semanticAuditInput>,
+): SemanticSourceCatalog {
   const hash = inventoryHash(input);
   const initialReading = {
     verifierOperationId: `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`,
@@ -143,7 +148,11 @@ function structuralCatalog(input: ReturnType<typeof semanticAuditInput>): Semant
     classification: {
       verifierOperationId: initialReading.verifierOperationId,
       readings: [],
-      inputFingerprint: inventoryHash(semanticSourceRoleInput(semanticSourceMaterialInput(input), { facts: [] })),
+      inputFingerprint: inventoryHash(
+        semanticSourceRoleInput(semanticSourceMaterialInput(input), {
+          facts: [],
+        }),
+      ),
     },
     nonMaterialSpans: initialReading.nonMaterialSpans,
   };
@@ -157,8 +166,22 @@ export function structuralReceipt(
   const review = { sourceNodeId: input.sourceNodeId };
   const hash = inventoryHash(input);
   const sourceCatalog = structuralCatalog(input);
-  const relatedSourceCatalogs = semanticRelationSourceNodes(input).map((sourceNodeId) => ({ sourceNodeId, catalog: structuralCatalog({ ...input, sourceNodeId }) }));
-  const concepts = input.relations.some((r) => r.kind === R.DEFINED_BY) ? { inputFingerprint: inventoryHash(semanticConceptInput(input, relatedSourceCatalogs)), verifierOperationId: sourceCatalog.verifierOperationId, definitions: [], factUses: [] } : null;
+  const relatedSourceCatalogs = semanticRelationSourceNodes(input).map(
+    (sourceNodeId) => ({
+      sourceNodeId,
+      catalog: structuralCatalog({ ...input, sourceNodeId }),
+    }),
+  );
+  const concepts = input.relations.some((r) => r.kind === R.DEFINED_BY)
+    ? {
+        inputFingerprint: inventoryHash(
+          semanticConceptInput(input, relatedSourceCatalogs),
+        ),
+        verifierOperationId: sourceCatalog.verifierOperationId,
+        definitions: [],
+        factUses: [],
+      }
+    : null;
   return {
     schemaRevision: SEMANTIC_AUDIT.schemaRevision,
     sourceNodeId: review.sourceNodeId,
@@ -188,7 +211,9 @@ export function structuralReceipt(
     relations: input.relations.map((r) => ({
       id: r.relationId,
       targetScopeReading: T.EXACT_SOURCE_TARGET,
-      ...(r.kind === R.INCORPORATES ? { sourceContentReading: U.ADOPTED_PERFORMANCE } : {}),
+      ...(r.kind === R.INCORPORATES
+        ? { sourceContentReading: U.ADOPTED_PERFORMANCE }
+        : {}),
       fingerprint: inventoryHash(r),
       checks: {
         kind: V.SUPPORTED,
@@ -200,7 +225,9 @@ export function structuralReceipt(
     })),
     relationAudits: semanticRelationBatches(input).map((batch) => ({
       relationIds: batch.map((r) => r.relationId),
-      inputFingerprint: inventoryHash(semanticRelationInput(input, batch, relatedSourceCatalogs, concepts)),
+      inputFingerprint: inventoryHash(
+        semanticRelationInput(input, batch, relatedSourceCatalogs, concepts),
+      ),
       verifierOperationId: `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`,
       verdict: V.SUPPORTED,
       gaps: [],

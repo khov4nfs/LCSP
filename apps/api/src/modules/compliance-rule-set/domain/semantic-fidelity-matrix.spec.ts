@@ -125,7 +125,11 @@ describe("complete semantic fidelity matrix", () => {
     const previousOperativeCount = direct.operativePropositions!.length;
     direct.operativePropositions!.push(...prohibition.operativePropositions!);
     // The new gate must see both operative anchors, not merely two copied text rows.
-    direct.claimBindings!.push(...prohibition.claimBindings!.filter((b) => b.role === "OPERATIVE_PROPOSITION").map((b) => ({...b, index: previousOperativeCount + b.index})));
+    direct.claimBindings!.push(
+      ...prohibition
+        .claimBindings!.filter((b) => b.role === "OPERATIVE_PROPOSITION")
+        .map((b) => ({ ...b, index: previousOperativeCount + b.index })),
+    );
     direct.sourceRefs.push(
       ...prohibition.sourceRefs.filter(
         (r) => !direct.sourceRefs.some((x) => x.locator === r.locator),
@@ -152,10 +156,12 @@ describe("complete semantic fidelity matrix", () => {
         semanticStressSource(),
         () => false,
       ).failures,
-    ).toContainEqual(expect.objectContaining({
-      code: Gaps.SEMANTIC_CLOSURE_INVALID,
-      detail: "INCOMPATIBLE_OPERATIVE_AGGREGATION",
-    }));
+    ).toContainEqual(
+      expect.objectContaining({
+        code: Gaps.SEMANTIC_CLOSURE_INVALID,
+        detail: "INCOMPATIBLE_OPERATIVE_AGGREGATION",
+      }),
+    );
   });
   it.each([
     ["N1 actor reversed", "Actor: Organization B owes A's duty"],

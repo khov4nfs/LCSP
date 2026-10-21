@@ -102,7 +102,10 @@ function fixture() {
     },
   };
   catalog.reviewedReading.facts = catalog.facts.map(
-    ({ modality: _, dependency: __, semanticAuthority: ___, ...fact }) => fact,
+    ({ modality: _, dependency: __, semanticAuthority: ___, ...fact }) => {
+      void [_, __, ___];
+      return fact;
+    },
   );
   catalog.classification.inputFingerprint = inventoryHash(
     semanticSourceRoleInput(
@@ -144,12 +147,18 @@ describe("independent source material coverage integrity (scripted facts, not le
     const unit = input.sources.find((n) => n.completenessTarget)!;
     const heading = "Article X. Retention 📁";
     const body = "The operator must retain the export log.";
-    Object.assign(unit, { label: "X", title: "Retention 📁", content: heading + "\n" + body });
+    Object.assign(unit, {
+      label: "X",
+      title: "Retention 📁",
+      content: heading + "\n" + body,
+    });
     const spans = semanticSourceSpans(unit);
     expect(spans.map((span) => span.quote)).toEqual([heading, body]);
     expect(spans[0].sourceSupport.endOffset).toBe(heading.length);
     expect(spans[1].sourceSupport.startOffset).toBe(heading.length + 1);
-    expect(spans[1].sourceSupport.contentSha256).toBe(createHash("sha256").update(body).digest("hex"));
+    expect(spans[1].sourceSupport.contentSha256).toBe(
+      createHash("sha256").update(body).digest("hex"),
+    );
   });
   it("uses canonical heading metadata only for non-operative structural context", () => {
     const { input, catalog, coverage } = fixture();

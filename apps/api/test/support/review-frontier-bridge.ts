@@ -254,7 +254,10 @@ async function invoke(input: BridgeInput) {
       throw new Error("Diagnostic setup refused");
     const snapshot = (
       await new LegalSourceSnapshotLoader(service, graphs).load(
-        { id: String(started.preparationRunId), legalSourceVersionId: source.id },
+        {
+          id: String(started.preparationRunId),
+          legalSourceVersionId: source.id,
+        },
         {
           legalRequirements: [],
           assessmentRules: [],

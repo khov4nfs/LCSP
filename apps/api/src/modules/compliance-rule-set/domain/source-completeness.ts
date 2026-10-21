@@ -29,6 +29,7 @@ export function semanticSourceRoleInput(
   reading: Pick<SemanticSourceCatalog["reviewedReading"], "facts">,
 ) {
   const { sourceSpans: _locatorSpans, ...source } = material;
+  void _locatorSpans;
   return {
     ...source,
     propositions: reading.facts.map((fact) => ({
@@ -159,8 +160,10 @@ export function semanticSourceSpans(unit: Input["sources"][number]) {
   const ranges = [
     ...(boundary ? [{ text: unit.content.slice(0, boundary), offset: 0 }] : []),
     ...Array.from(
-      unit.content.slice(boundary).matchAll(/[^.!?。！？]+[.!?。！？]*|[.!?。！？]+/gu),
-      (match) => ({ text: match[0], offset: boundary + match.index! }),
+      unit.content
+        .slice(boundary)
+        .matchAll(/[^.!?。！？]+[.!?。！？]*|[.!?。！？]+/gu),
+      (match) => ({ text: match[0], offset: boundary + match.index }),
     ),
   ];
   for (const range of ranges) {

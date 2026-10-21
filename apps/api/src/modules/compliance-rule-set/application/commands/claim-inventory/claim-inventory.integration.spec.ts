@@ -322,11 +322,14 @@ suite("Frozen inventory real PostgreSQL lifecycle", () => {
     // under a forged receipt seal, even by an authenticated worker request.
     const forged = structuredClone(lacking);
     expect(forged.semanticAudits?.length).toBeGreaterThan(0);
-    forged.semanticAudits![0]!.attestation = "hmac-sha256:" + "0".repeat(64);
+    forged.semanticAudits![0].attestation = "hmac-sha256:" + "0".repeat(64);
     const refusedForgery = await operation(A.RECORD_SEMANTIC_AUDITS, forged);
     expect(refusedForgery).toMatchObject({ outcome: O.FAILED });
-    expect((refusedForgery.failures as {detail: string}[]).map((f) => f.detail).join("; "))
-      .toContain("VERIFIER_ATTESTATION_INVALID");
+    expect(
+      (refusedForgery.failures as { detail: string }[])
+        .map((f) => f.detail)
+        .join("; "),
+    ).toContain("VERIFIER_ATTESTATION_INVALID");
     const refused = await operation(A.FINALIZE);
     expect(refused.outcome).toBe(O.FAILED);
     expect(

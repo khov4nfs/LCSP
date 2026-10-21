@@ -47,9 +47,10 @@ export function canonicalInventoryFixture(
   packet.semanticGraph = normalizeInventory(graph);
   if (source) {
     refreshStructuralAudits(packet.semanticGraph, source, revision);
-    packet.semanticGraph.semanticAudits = packet.semanticGraph.semanticAudits?.map(
-      (receipt) => signSemanticAuditFixture(receipt, runId),
-    );
+    packet.semanticGraph.semanticAudits =
+      packet.semanticGraph.semanticAudits?.map((receipt) =>
+        signSemanticAuditFixture(receipt, runId),
+      );
   }
   packet.claimInventory = {
     revision,

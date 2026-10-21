@@ -77,16 +77,15 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
             RuleSetPreparationFailureReason.NO_OPERATIVE_OBLIGATIONS
         ) {
           // A transport retry of the accepted conclusion is idempotent; a different inventory is never concluded twice.
-          const concluded = await tx.ruleSetPreparationClaimInventory.findUnique(
-            {
+          const concluded =
+            await tx.ruleSetPreparationClaimInventory.findUnique({
               where: {
                 preparationRunId_revision: {
                   preparationRunId: run.id,
                   revision: input.revision,
                 },
               },
-            },
-          );
+            });
           return concluded &&
             input.graph &&
             concluded.fingerprint ===
@@ -408,7 +407,10 @@ export class ClaimInventoryHandler implements ICommandHandler<ClaimInventoryComm
         for (const receipt of persistentGraph.semanticAudits ?? []) {
           const originGaps = semanticAuditAttestationFailures(receipt, run.id);
           if (originGaps.length)
-            return fail(F.SEMANTIC_AUDIT_REQUIRED, `${receipt.sourceNodeId}: ${originGaps.join(", ")}`);
+            return fail(
+              F.SEMANTIC_AUDIT_REQUIRED,
+              `${receipt.sourceNodeId}: ${originGaps.join(", ")}`,
+            );
         }
         // Validate durable evidence before comparing projections, so legacy defects remain repairable.
         const result = validateClaimInventory(

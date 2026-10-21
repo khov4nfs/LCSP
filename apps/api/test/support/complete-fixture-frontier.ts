@@ -216,7 +216,9 @@ export async function completeFixtureFrontier(
   );
   if (progress.outcome !== O.PASSED) return progress;
   refreshStructuralAudits(graph, source, revision);
-  graph.semanticAudits = graph.semanticAudits?.map((receipt) => signSemanticAuditFixture(receipt, runId));
+  graph.semanticAudits = graph.semanticAudits?.map((receipt) =>
+    signSemanticAuditFixture(receipt, runId),
+  );
   return new ClaimInventoryHandler(
     db,
     new LegalSourceSnapshotLoader(db, new LegalDocumentGraphService(db)),

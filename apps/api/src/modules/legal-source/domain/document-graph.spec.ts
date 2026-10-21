@@ -61,10 +61,10 @@ describe("Legal Document AST: structural interpretation only", () => {
     ).toMatchObject({ pageStart: 2, pageEnd: 3 });
   });
   it("preserves detected extraction gaps as immutable graph limitations, not missing legal claims", () => {
-    const input = document([
-      "Article 1. An extracted legal sentence.",
-      "",
-    ], "partially-extracted-source");
+    const input = document(
+      ["Article 1. An extracted legal sentence.", ""],
+      "partially-extracted-source",
+    );
     input.extraction = {
       pages: ["Article 1. An extracted legal sentence.", ""],
       pageCount: 2,
@@ -72,9 +72,17 @@ describe("Legal Document AST: structural interpretation only", () => {
     };
     const partial = buildLegalDocumentGraph(version, [input]);
     expect(partial.extractionGaps).toEqual([
-      { documentId: "partially-extracted-source", kind: "NO_TEXT_LAYER", page: 2 },
+      {
+        documentId: "partially-extracted-source",
+        kind: "NO_TEXT_LAYER",
+        page: 2,
+      },
     ]);
-    input.extraction = { pages: ["Article 1. An extracted legal sentence.", ""], pageCount: 2, gaps: [] };
+    input.extraction = {
+      pages: ["Article 1. An extracted legal sentence.", ""],
+      pageCount: 2,
+      gaps: [],
+    };
     const complete = buildLegalDocumentGraph(version, [input]);
     expect(complete.extractionGaps).toEqual([]);
     expect(complete.nodes.map((node) => node.nodeId)).toEqual(
@@ -244,7 +252,9 @@ describe("Legal Document AST: structural interpretation only", () => {
     input.chunks[1].locator = "art-1";
     const repeatedLocator = buildLegalDocumentGraph(version, [input]);
     expect(repeatedLocator.chunkMappings[1].legalDocumentNodeId).toBe(
-      repeatedLocator.nodes.find((node) => node.nodeType === N.SECTION && node.label === "2")!.nodeId,
+      repeatedLocator.nodes.find(
+        (node) => node.nodeType === N.SECTION && node.label === "2",
+      )!.nodeId,
     );
   });
   it("maps legacy retrieval parts to the same stable clause, ignoring semantic metadata", () => {

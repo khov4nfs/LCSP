@@ -43,12 +43,48 @@ const DOTTED_REFERENCE_LABEL = String.raw`\d+(?:\.\d+)+[a-z]?`;
 const WORD_LABEL = String.raw`[\wIVXLCDM-]+`;
 
 const SPECS: readonly StructureSpec[] = [
-  { type: N.ANNEX, rank: 1, words: ["annex", "phụ lục"], label: WORD_LABEL, reference: REFERENCE_LABEL },
-  { type: N.SCHEDULE, rank: 1, words: ["schedule"], label: WORD_LABEL, reference: REFERENCE_LABEL },
-  { type: N.PART, rank: 1, words: ["part", "phần"], label: WORD_LABEL, reference: REFERENCE_LABEL },
-  { type: N.TITLE, rank: 2, words: ["title"], label: WORD_LABEL, reference: REFERENCE_LABEL },
-  { type: N.CHAPTER, rank: 3, words: ["chapter", "chương"], label: WORD_LABEL, reference: REFERENCE_LABEL },
-  { type: N.SUBCHAPTER, rank: 4, words: ["subchapter"], label: WORD_LABEL, reference: REFERENCE_LABEL },
+  {
+    type: N.ANNEX,
+    rank: 1,
+    words: ["annex", "phụ lục"],
+    label: WORD_LABEL,
+    reference: REFERENCE_LABEL,
+  },
+  {
+    type: N.SCHEDULE,
+    rank: 1,
+    words: ["schedule"],
+    label: WORD_LABEL,
+    reference: REFERENCE_LABEL,
+  },
+  {
+    type: N.PART,
+    rank: 1,
+    words: ["part", "phần"],
+    label: WORD_LABEL,
+    reference: REFERENCE_LABEL,
+  },
+  {
+    type: N.TITLE,
+    rank: 2,
+    words: ["title"],
+    label: WORD_LABEL,
+    reference: REFERENCE_LABEL,
+  },
+  {
+    type: N.CHAPTER,
+    rank: 3,
+    words: ["chapter", "chương"],
+    label: WORD_LABEL,
+    reference: REFERENCE_LABEL,
+  },
+  {
+    type: N.SUBCHAPTER,
+    rank: 4,
+    words: ["subchapter"],
+    label: WORD_LABEL,
+    reference: REFERENCE_LABEL,
+  },
   {
     type: N.SECTION,
     rank: 5,
@@ -65,12 +101,47 @@ const SPECS: readonly StructureSpec[] = [
     label: String.raw`\d+[a-z]?`,
     notFollowedBy: String.raw`(?!\s*\([\da-z]+\))`,
   },
-  { type: N.SUBSECTION, rank: 7, words: ["subsection"], label: String.raw`[\w.-]+`, parenthesised: true },
-  { type: N.CLAUSE, rank: 8, words: ["clause", "khoản"], label: String.raw`\d+` },
-  { type: N.PARAGRAPH, rank: 8, words: ["paragraph"], label: String.raw`\d+`, parenthesised: true },
-  { type: N.SUBPARAGRAPH, rank: 9, words: ["subparagraph"], label: String.raw`[\w.-]+`, parenthesised: true },
-  { type: N.POINT, rank: 10, words: ["point", "điểm"], label: String.raw`[\p{L}\d]+`, parenthesised: true },
-  { type: N.ITEM, rank: 11, words: ["item"], label: String.raw`[\w.-]+`, parenthesised: true },
+  {
+    type: N.SUBSECTION,
+    rank: 7,
+    words: ["subsection"],
+    label: String.raw`[\w.-]+`,
+    parenthesised: true,
+  },
+  {
+    type: N.CLAUSE,
+    rank: 8,
+    words: ["clause", "khoản"],
+    label: String.raw`\d+`,
+  },
+  {
+    type: N.PARAGRAPH,
+    rank: 8,
+    words: ["paragraph"],
+    label: String.raw`\d+`,
+    parenthesised: true,
+  },
+  {
+    type: N.SUBPARAGRAPH,
+    rank: 9,
+    words: ["subparagraph"],
+    label: String.raw`[\w.-]+`,
+    parenthesised: true,
+  },
+  {
+    type: N.POINT,
+    rank: 10,
+    words: ["point", "điểm"],
+    label: String.raw`[\p{L}\d]+`,
+    parenthesised: true,
+  },
+  {
+    type: N.ITEM,
+    rank: 11,
+    words: ["item"],
+    label: String.raw`[\w.-]+`,
+    parenthesised: true,
+  },
   {
     type: N.TABLE,
     rank: 7,
@@ -80,7 +151,8 @@ const SPECS: readonly StructureSpec[] = [
   },
 ];
 
-const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/gu, "\\$&").replace(/\s+/gu, "\\s+");
+const escape = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\/]/gu, "\\$&").replace(/\s+/gu, "\\s+");
 
 export interface LegalStructureHeading {
   readonly type: LegalDocumentNodeType;
@@ -90,8 +162,8 @@ export interface LegalStructureHeading {
   readonly pattern: RegExp;
 }
 
-export const LEGAL_STRUCTURE_HEADINGS: readonly LegalStructureHeading[] = SPECS.map(
-  (spec) => ({
+export const LEGAL_STRUCTURE_HEADINGS: readonly LegalStructureHeading[] =
+  SPECS.map((spec) => ({
     type: spec.type,
     rank: spec.rank,
     words: spec.words,
@@ -103,8 +175,7 @@ export const LEGAL_STRUCTURE_HEADINGS: readonly LegalStructureHeading[] = SPECS.
       }`,
       "iu",
     ),
-  }),
-);
+  }));
 
 /** Case-insensitive spelling of a word, so a reference label next to it can stay case-sensitive. */
 function anyCase(word: string): string {
@@ -137,7 +208,9 @@ const referenceGroups = referable.map((spec) => ({
 }));
 export const LEGAL_STRUCTURE_REFERENCE = new RegExp(
   referenceGroups
-    .flatMap((group) => group.words.map((word) => ({ word, label: group.label })))
+    .flatMap((group) =>
+      group.words.map((word) => ({ word, label: group.label })),
+    )
     .sort((a, b) => b.word.length - a.word.length)
     .map(
       ({ word, label }) =>
@@ -148,6 +221,8 @@ export const LEGAL_STRUCTURE_REFERENCE = new RegExp(
 );
 
 /** The node type a structural word names, in any configured language and case. */
-export function structuralWordType(word: string): LegalDocumentNodeType | undefined {
+export function structuralWordType(
+  word: string,
+): LegalDocumentNodeType | undefined {
   return wordsOf.get(word.toLocaleLowerCase().replace(/\s+/gu, " "));
 }
