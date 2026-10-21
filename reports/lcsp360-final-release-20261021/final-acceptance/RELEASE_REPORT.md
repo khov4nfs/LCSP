@@ -1,6 +1,6 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**BLOCKED** — live semantic/runtime acceptance did not complete. PR remains Draft.
+**BLOCKED** — final real-model preflight fails durable token accounting on `3768b9abf01faf447d3a12c99f4028796cf5ce24`. No fresh evaluation was dispatched. PR remains Draft.
 
 - Code candidate after recovery: `4ba42c7bf7c756d552088569772e8c1f1fef8fd0`.
 - Recovery commits: `7f101575b` (Prisma CI URL), `7577a820e` (security patches), `4ba42c7bf` (claim-first fixture journey).
@@ -99,11 +99,11 @@ Evidence: `security/alerts-before.json`, `security/triage-decisions.json`, final
 
 The historical local image run `reports/release-images/20261021120745_54c5e7380280/report.json` passed all four merged-rootfs audits, then failed **candidate source stability** after concurrent edits. It never reached a valid seven-integration receipt. GitHub Docker sandbox E2E passed on takeover HEAD and on `7f101575b`; final-code evidence is recorded below. No unnecessary local rebuild was launched while disk remained 97% full (16 GB available).
 
-Staging image/browser verification has **not run for the recovered candidate**. Live semantic acceptance is blocked and no retry of the paid evaluation was authorized. Existing images cannot establish staging acceptance for a changed candidate. No production merge/deployment occurred.
+Staging image/browser verification has **not run for the recovered candidate**. The subsequently authorized single fresh evaluation is conditional on passing preflight; it was not dispatched because durable token accounting fails (section 11). Existing images cannot establish staging acceptance for a changed candidate. No production merge/deployment occurred.
 
 ## 7. Remaining release blockers
 
-1. The one authorized live evaluation timed out before freeze and activation. The seeder defect is fixed and provider-free paths pass, but a newly authorized real-model run on a frozen candidate is required to prove semantic/runtime acceptance; it has **not** been started.
+1. The original live evaluation timed out before freeze and activation. The seeder defect is fixed and provider-free paths pass. The subsequently authorized single fresh evaluation on `3768b9abf` was stopped at preflight: durable usage is not preserved on interruption. Repair and verify accounting before repeating full preflight; no fresh paid evaluation has been started.
 2. After semantic/runtime acceptance passes (CI/security now pass), build stable release images and complete disposable staging/browser verification with the repository tooling. Do not use production secrets.
 3. Token usage for the aborted run cannot be recovered from the retained artifacts. Canonical usage remains unavailable; do not invent totals.
 
@@ -139,3 +139,28 @@ Code candidate: `4ba42c7bf7c756d552088569772e8c1f1fef8fd0`.
 This closes the CI/security and provider-free integration blockers. It does not close the live semantic/runtime or staging/browser blockers. Status remains **BLOCKED**; PR #427 remains Draft.
 
 Docker receipt: `docker-ci/receipt.json`, verified artifact ZIP SHA-256 `6c64531410f0f832cf9512b488467ac656f664edb4970f05346e6b89ce0e3f1a`. The selected 2026-10-21 manifest/report proves four rootfs audits and seven integrations on the code candidate; historical reports in the same GitHub artifact were excluded from this conclusion.
+
+## 11. Final real-model acceptance preflight — stopped before dispatch
+
+Requested candidate: `3768b9abf01faf447d3a12c99f4028796cf5ce24`; local HEAD and Draft PR head matched. Runtime source files were not modified. The new authorization permits one isolated bounded evaluation only after preflight passes and requires stopping at the first verified failure.
+
+**Root cause:** Durable token accounting fails. In `deepagents/tests/vertical/live_preparation.py:105`, `on_llm_end` writes a completion count to the trace but accumulates provider token numbers only in memory. The usage file is written at line 126, after `run_rule_set_preparation` returns. This standalone entry point and its runner do not activate the canonical metering state or an agent-stream session. The metering context defaults to None, and stream publication returns without a session. An interrupted evaluation therefore has no durable usage record to recover. This is corroborated by the retained actual timeout: 157 completion callbacks, no recovered usage rows and unavailable token totals. It is independent of the repaired source-effect seeder.
+
+**Fix required, not implemented:** Persist provider-response usage incrementally with run and invocation attribution, covering every model used by preparation and auditing. Verify interruption/recovery without paid calls before repeating the complete preflight. Runtime changes and another evaluation were not attempted after this failure, as instructed.
+
+| Preflight or acceptance gate | Result for this attempt |
+|---|---|
+| Candidate identity | PASS: exact requested local/PR SHA |
+| Canonical source-effect metadata | Source inspection only: EFFECTIVE and fixture provenance present in the seeder; no new database materialization |
+| Durable token accounting | **FAIL**: first verified preflight blocker |
+| Provider quota and HMAC configuration | NOT_CHECKED after preflight failure |
+| Database isolation and materialized source provenance | NOT_PROVISIONED / NOT_VERIFIED; no database created, reset or repaired |
+| Fresh real-model evaluation | NOT_STARTED; run ID: none; new provider calls: **0**; new input/output tokens: **0/0** |
+| Freeze → Requirements → Rules → Validator → PostgreSQL → activation | NOT_EVALUATED for the requested real-model candidate; Rule Set version: none; activation: not reached |
+| Independent semantics, hashes, receipts, API and tenant isolation | NOT_EVALUATED for a fresh real-model run |
+| CI/security on requested candidate | Retained exact-head receipt: **39 checks PASS**, including V2, Root, Docker and separate scanner policies; no matrix rerun |
+| Release-image, staging and browser acceptance | NOT_RUN after failed preflight |
+
+Zero new calls/tokens means no dispatch in this attempt; historical aborted-run token totals remain **unknown**, not zero. Disk was 97% full with 16 GB available. All three protected WIP files retained their SHA-256 values. No old evidence/database, runtime dependency, production deployment or merge was changed.
+
+Evidence: `final-real-model-preflight/preflight.json` (timestamp, exact candidate/source hashes, static assertions, prior-timeout corroboration and protected WIP hashes), `final-real-model-preflight/ci-candidate.json` (39 checks with exact head IDs/links, originally retrieved 2026-10-21 13:44 UTC). This is a preflight failure receipt, not a real-model acceptance receipt.
