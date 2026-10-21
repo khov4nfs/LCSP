@@ -58,7 +58,10 @@ test("Admin confirms Prepare once, sees running state, then shared ACTIVE metada
   );
   await page.route(`**${historyPath}/prepare`, async (route) => {
     posts += 1;
-    expect(route.request().postData()).toBeNull();
+    // Prepare names the version on screen so a stale page cannot prepare a newer one.
+    expect(route.request().postDataJSON()).toEqual({
+      legalSourceVersionId: fixture.clean.preparation.legalSourceVersionId,
+    });
     const run = fixture.queuedRun;
     history = {
       ...fixture.clean,
@@ -243,7 +246,10 @@ test("three failed attempts let Admin Prepare once and see Attempt 4 queued", as
   );
   await page.route(`**${historyPath}/prepare`, async (route) => {
     posts += 1;
-    expect(route.request().postData()).toBeNull();
+    // Prepare names the version on screen so a stale page cannot prepare a newer one.
+    expect(route.request().postDataJSON()).toEqual({
+      legalSourceVersionId: fixture.clean.preparation.legalSourceVersionId,
+    });
     history = {
       ...fixture.clean,
       preparation: {
