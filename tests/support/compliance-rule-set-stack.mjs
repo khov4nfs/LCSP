@@ -63,6 +63,7 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
       BILLING_SEPAY_BANK_ACCOUNT_NUMBER: "1",
       BILLING_SEPAY_ACCOUNT_HOLDER: "T",
       BILLING_SEPAY_QR_URL_TEMPLATE: "https://p.test/qr?amount={amountVnd}&content={paymentCode}",
+      LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY: process.env.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY || "7c".repeat(32),
   };
   const server = spawn("node", ["dist/src/main.js"], {
     cwd: apiDir,
@@ -155,7 +156,15 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
 /** Runs a Python script with the repo PYTHONPATH; resolves with the last JSON line it prints. */
 export function runPython(script, args, { env = {} } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(python, [script, ...args], { cwd: root, env: { ...process.env, PYTHONPATH: pythonPath, ...env } });
+    const child = spawn(python, [script, ...args], {
+      cwd: root,
+      env: {
+        ...process.env,
+        PYTHONPATH: pythonPath,
+        LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY: process.env.LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY || "7c".repeat(32),
+        ...env,
+      },
+    });
     let out = "";
     let err = "";
     child.stdout.on("data", (d) => (out += d));

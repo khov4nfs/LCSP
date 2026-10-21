@@ -1,0 +1,119 @@
+{
+  "provenance": {
+    "source": "frozen corpus-agnostic portfolio oracle (items P07, P10)",
+    "oracleSha256": "72544a2407fbf0424cd16ffbc57ca34aa8680f56a8928fa078bacfd540a0e510",
+    "note": "Semantic expectations only. Facts are located by exact substrings of the fixture text (anchors), never by keywords in model output."
+  },
+  "controls": {
+    "P07-unconditional-duty": {
+      "fixtureSha256": "a180e7d68caaf496b1f6d1a476a806c6d75705523b7353db5eb1a3eef7977b4f",
+      "terminalOutcome": "RULE_SET",
+      "oracleFacts": [
+        {
+          "gist": "every employee must complete security awareness training each calendar year",
+          "force": "DUTY",
+          "addressee": "employee"
+        },
+        {
+          "gist": "employees must not share passwords",
+          "force": "PROHIBITION",
+          "addressee": "employee"
+        }
+      ],
+      "oracleForbidden": [
+        {
+          "gist": "any applicability condition other than the named addressee (for example 'if the employee has system access')"
+        },
+        {
+          "gist": "any third operative claim"
+        }
+      ],
+      "anchors": [
+        {
+          "force": "DUTY",
+          "anchor": "must complete security awareness training once each calendar year",
+          "forbidApplicabilityConditions": true
+        },
+        {
+          "force": "PROHIBITION",
+          "anchor": "must not share their passwords with anyone",
+          "forbidApplicabilityConditions": true
+        }
+      ],
+      "maxReviewUnits": 2
+    },
+    "P10-multilingual-unfamiliar": {
+      "fixtureSha256": "a7a4331fc5ce4d46362a7f58ba9e7cc63d15898ea0813c19cf5894bcd63e0ff9",
+      "terminalOutcome": "RULE_SET",
+      "oracleFacts": [
+        {
+          "gist": "règlement applies to all company personnel",
+          "force": "SCOPE"
+        },
+        {
+          "gist": "definition of incident",
+          "force": "DEFINITION"
+        },
+        {
+          "gist": "personnel must report any incident to the DPO within 24 hours",
+          "force": "DUTY",
+          "addressee": "personnel"
+        },
+        {
+          "gist": "copying client data to personal media is prohibited",
+          "force": "PROHIBITION",
+          "addressee": "personnel"
+        },
+        {
+          "gist": "DPO may grant written derogation to article 4 for justified business need",
+          "force": "EXCEPTION",
+          "targets": "Art. 4 prohibition"
+        }
+      ],
+      "oracleForbidden": [
+        {
+          "gist": "the derogation read as a duty of the DPO"
+        }
+      ],
+      "anchors": [
+        {
+          "force": "SCOPE",
+          "anchor": "s'applique à tout le personnel"
+        },
+        {
+          "force": "DEFINITION",
+          "anchor": "on entend par « incident »"
+        },
+        {
+          "force": "DUTY",
+          "anchor": "doit signaler tout incident",
+          "notAddressee": [
+            "délégué",
+            "DPO",
+            "data protection"
+          ]
+        },
+        {
+          "force": "PROHIBITION",
+          "anchor": "interdit de copier des données clients"
+        },
+        {
+          "force": "EXCEPTION",
+          "anchor": "peut accorder une dérogation écrite",
+          "accept": [
+            "EXCEPTION"
+          ],
+          "observedAlso": [
+            "PERMISSION"
+          ],
+          "forbiddenClaimTypes": [
+            "DUTY",
+            "PROHIBITION"
+          ],
+          "targetsAnchor": "interdit de copier des données clients"
+        }
+      ],
+      "maxReviewUnits": 2
+    }
+  }
+}

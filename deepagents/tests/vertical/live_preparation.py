@@ -13,7 +13,17 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-ALLOWED_PREFIXES = ("GOOGLE_API_KEY", "GEMINI_API_KEY", "INCEPTION_", "APX_", "LLM_PROVIDER_TIMEOUT", "LLM_MAX_PROVIDER")
+ALLOWED_PREFIXES = (
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+    "INCEPTION_",
+    "APX_",
+    "MIRAI_",
+    "ANTHROPIC_",
+    "LCSP_",
+    "LLM_PROVIDER_TIMEOUT",
+    "LLM_MAX_PROVIDER",
+)
 
 
 def _load_llm_env() -> None:
@@ -50,12 +60,22 @@ def _route_rule_set_preparation_to(route_id: str, model: str | None = None) -> N
 def main() -> int:
     base, key, run_id, usage_out = sys.argv[1:5]
     _load_llm_env()
+    if not os.environ.get("LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY"):
+        os.environ["LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY"] = "7c" * 32
     if os.environ.get("LCSP_RULE_SET_PREPARATION_EVAL_ROUTE"):
         _route_rule_set_preparation_to(os.environ["LCSP_RULE_SET_PREPARATION_EVAL_ROUTE"], os.environ.get("LCSP_RULE_SET_PREPARATION_EVAL_MODEL"))
 
     from langchain_core.callbacks import BaseCallbackHandler
     from rule_set_preparation.runner import run_rule_set_preparation
     from tools.common.capabilities.platform.api_client import WorkerApiClient
+
+    trace_file = os.environ.get("LCSP_LIVE_TRACE_FILE")
+
+    def trace(event: str, **fields) -> None:
+        """One JSON line per model/tool event, written as it happens so a stalled run stays attributable."""
+        if trace_file:
+            with open(trace_file, "a", encoding="utf-8") as handle:
+                handle.write(json.dumps({"at": round(time.time(), 1), "event": event, **fields}) + "\n")
 
     class Usage(BaseCallbackHandler):
         def __init__(self) -> None:
@@ -64,17 +84,28 @@ def main() -> int:
             self.output_tokens = 0
             self.tool_calls: list[dict] = []
 
+        def on_chat_model_start(self, serialized, messages, **kwargs) -> None:  # noqa: ANN001
+            trace("model_start", messages=len(messages[0]) if messages else 0)
+
+        def on_llm_error(self, error, **kwargs) -> None:  # noqa: ANN001
+            trace("model_error", error=f"{type(error).__name__}: {str(error)[:300]}")
+
         def on_tool_start(self, serialized, input_str, **kwargs) -> None:  # noqa: ANN001
             self.tool_calls.append(
-                {"tool": (serialized or {}).get("name"), "input": str(input_str)[:140]}
+                {"tool": (serialized or {}).get("name"), "input": str(input_str)[:1200]}
             )
+            trace("tool_start", tool=self.tool_calls[-1]["tool"], input=str(input_str)[:400])
 
         def on_tool_end(self, output, **kwargs) -> None:  # noqa: ANN001
             if self.tool_calls:
-                self.tool_calls[-1]["output"] = str(getattr(output, "content", output))[:200]
+                text = str(getattr(output, "content", output))
+                # A rejected call keeps the exact finding (audit gaps, rejection text); passing calls stay short.
+                self.tool_calls[-1]["output"] = text[:6000] if '"outcome": "FAILED"' in text[:80] else text[:300]
+                trace("tool_end", tool=self.tool_calls[-1]["tool"], output=text[:300])
 
         def on_llm_end(self, response, **kwargs) -> None:  # noqa: ANN001
             self.calls += 1
+            trace("model_end", calls=self.calls)
             for generations in response.generations:
                 for generation in generations:
                     usage = getattr(getattr(generation, "message", None), "usage_metadata", None) or {}
