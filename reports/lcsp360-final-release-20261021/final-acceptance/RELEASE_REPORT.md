@@ -1,6 +1,8 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**BLOCKED** — final real-model preflight fails durable token accounting on `3768b9abf01faf447d3a12c99f4028796cf5ce24`. No fresh evaluation was dispatched. PR remains Draft.
+**RELEASE BLOCKED; PREFLIGHT_READY (non-paid checks)** — durable token accounting is repaired and verified on `9cf033e099225300ffe98247eb3717e254a79232`. No fresh real-model evaluation was dispatched. PR remains Draft; current CI/security and real-model/staging acceptance remain release gates.
+
+- Current accounting candidate: `9cf033e099225300ffe98247eb3717e254a79232` (section 12).
 
 - Code candidate after recovery: `4ba42c7bf7c756d552088569772e8c1f1fef8fd0`.
 - Recovery commits: `7f101575b` (Prisma CI URL), `7577a820e` (security patches), `4ba42c7bf` (claim-first fixture journey).
@@ -103,7 +105,7 @@ Staging image/browser verification has **not run for the recovered candidate**. 
 
 ## 7. Remaining release blockers
 
-1. The original live evaluation timed out before freeze and activation. The seeder defect is fixed and provider-free paths pass. The subsequently authorized single fresh evaluation on `3768b9abf` was stopped at preflight: durable usage is not preserved on interruption. Repair and verify accounting before repeating full preflight; no fresh paid evaluation has been started.
+1. The original live evaluation timed out before freeze and activation. The seeder defect and subsequent durable-accounting preflight blocker are fixed; non-paid preflight passes on `9cf033e09` (section 12). Real-model semantic/runtime acceptance remains unproven. The latest instruction explicitly prohibits starting evaluation, staging or deployment; none was started.
 2. After semantic/runtime acceptance passes (CI/security now pass), build stable release images and complete disposable staging/browser verification with the repository tooling. Do not use production secrets.
 3. Token usage for the aborted run cannot be recovered from the retained artifacts. Canonical usage remains unavailable; do not invent totals.
 
@@ -164,3 +166,45 @@ Requested candidate: `3768b9abf01faf447d3a12c99f4028796cf5ce24`; local HEAD and 
 Zero new calls/tokens means no dispatch in this attempt; historical aborted-run token totals remain **unknown**, not zero. Disk was 97% full with 16 GB available. All three protected WIP files retained their SHA-256 values. No old evidence/database, runtime dependency, production deployment or merge was changed.
 
 Evidence: `final-real-model-preflight/preflight.json` (timestamp, exact candidate/source hashes, static assertions, prior-timeout corroboration and protected WIP hashes), `final-real-model-preflight/ci-candidate.json` (39 checks with exact head IDs/links, originally retrieved 2026-10-21 13:44 UTC). This is a preflight failure receipt, not a real-model acceptance receipt.
+
+## 12. Durable usage repair and non-paid preflight
+
+Candidate: `9cf033e099225300ffe98247eb3717e254a79232`. **PREFLIGHT_READY for the non-paid checks below; release remains BLOCKED.** Section 11 preserves the failure at the earlier candidate and is superseded by this repair. No paid evaluation, staging, browser flow or deployment was authorized or executed in this pass.
+
+**Root cause:** Producer CLI callbacks were neither invocation-idempotent nor a complete observation point for the independently resolved Auditor model. Token totals existed only in memory until normal return. The timeout race also left the worker alive while the harness sampled evidence.
+
+**Fix:** The CLI activates the existing run-scoped metering port and records each raw answered invocation before semantic/schema rejection can trigger retry or fallback. Producer, reader, summarization and independently resolved Auditor work inherit that context. SDK internal retries remain disabled by the existing provider configuration (Gemini uses one attempt). Failed attempts without provider usage are not assigned invented tokens.
+
+The existing SQLite recovery store now supports retained RECORDED evidence, separate from pending assessment callbacks. Each `(run, invocation)` key commits atomically with WAL/FULL synchronization; duplicate delivery retains the first committed record. The archive preserves provider/model/role identity, reported usage/cache buckets and unavailable usage explicitly. It is not attributed to a fabricated customer assessment and is never drained as a billing callback. Storage failure stops without retrying the answered model.
+
+The CLI's adjacent `usage.json.sqlite3` is authoritative. Recovery reads committed rows without replay, rejects another run's archive and atomically replaces the derived JSON snapshot. Canonical input tokens exclude separately reported cache buckets. Aggregate dimensions become null when some invocation did not report them; known subtotals and raw numeric reported dimensions remain available per invocation. Coverage is explicitly **completed provider responses only**; usage of an unanswered/in-flight request remains unknown.
+
+The live harness retains its archive under the evidence directory, applies the execution deadline to the worker process, waits for worker exit, then runs the recovery-only CLI before writing its terminal report. Missing/corrupt accounting cannot produce a passing evaluation exit code. No historical evaluation process or database was changed.
+
+Verification:
+
+- Focused Python metering/telemetry, fallback and Preparation-governance suites: **153 passed**. The final accounting-only check after reporting refinements: **10 passed**. Includes real provider-free Producer and independent Auditor graphs, same-provider rejected-answer resampling, successful/failed fallback, duplicate records, missing/partial usage, foreign-run rejection and storage failure.
+- Crash (`os._exit`), SIGTERM and SIGKILL retain both committed Producer/Auditor records. The Node harness timeout test passed and recovered exactly **2 completed fixture invocations, 18 input / 8 output tokens**, with idempotent recovery.
+- Reconciliation fixture: **6 duplicate record attempts → 3 unique invocations; 21 uncached input + 6 cache-read + 3 cache-write = 30 reported input; 9 output**. These are synthetic usage records, with **zero provider calls**.
+- Import policy, JavaScript syntax, canonical terminology and whitespace checks passed. AST graph update completed without LLM calls; the optional HTML view could not regenerate at its existing graph-size limit.
+
+Non-paid preflight:
+
+| Gate | Evidence/result |
+|---|---|
+| Exact candidate identity | Local and Draft PR head `9cf033e09`; source hashes retained |
+| Database isolation | New loopback container on **55501**, database `lcsp360_usage_preflight_ef1ced5f65ff`; historical **55441** untouched. Diagnostic API stopped, then the owned ephemeral container stopped |
+| Canonical effect and provenance | **15 chunks**, fixture provenance refs and independent content hashes; **20 EFFECTIVE graph nodes**, **18 support hashes** recomputed |
+| Source pin | Version `70a43f56-31ec-4eb4-83d6-759f1584201f`; materialization `3b8d5d6a637859493767885aaa41cafcf9e4300826a8d9a47c4f4cc3465e847b` |
+| HMAC and authentication | Random ephemeral key shared by diagnostic API/worker, Python and independent Node verification; tamper/wrong-run rejection; missing worker key rejected. Only the key fingerprint is retained |
+| Primary provider availability | Read-only Mirai quota API returned HTTP 200, active expiry and **4,692,038 quota units remaining**. Official catalog advertises `claude-sonnet-5`, selected by both Producer and Auditor |
+| Fallback configuration | Credential pools present for every configured route; provider-free credential rotation, fallback and usage tests pass. **Fallback balances and live provider behavior are not verified** |
+| Durable usage | Atomic, invocation-idempotent, cache-preserving interruption/recovery checks above pass |
+
+Quota is point-in-time availability, not a guarantee of model liveness or sufficient budget for a complete evaluation. The quota endpoint is linked from the provider's official usage page: https://miraiapi.com/usage/. No completion/inference endpoint was called.
+
+Diagnostic Preparation row `bcc4449a-945f-4362-a68e-14b548fcc146` was used only to read the pinned bundle. It is **not** a real-model evaluation run: zero semantic-audit rows and zero Rule Set versions; no freeze, semantic verdict or activation is claimed. Fresh real-model run ID: **none**; paid model calls/tokens this pass: **0**. Historical aborted-run usage remains unavailable.
+
+CI/security workflows for `9cf033e09` are in progress at evidence capture; the 39 passing checks on `3768b9abf` are retained historical evidence, not current-head proof. No smoke matrix or manual CI rerun was launched. PR remains Draft.
+
+Evidence directory: `durable-token-accounting/`. `preflight-summary.json` pins source/WIP hashes and limitations; source/HMAC/database, provider quota/catalog and reconciliation receipts are separate JSONs. Focused JUnit reports, timeout output, replayable non-paid probe sources and the synthetic usage snapshot are retained. All protected WIP hashes match the prior receipt. Release still requires current CI/security, separately authorized real-model acceptance and subsequent release-image/staging/browser acceptance.

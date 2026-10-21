@@ -1,0 +1,61 @@
+{
+  "candidateSha": "9cf033e099225300ffe98247eb3717e254a79232",
+  "checkedAt": "2026-10-21T15:53:19.359Z",
+  "workflows": {
+    "workflow_runs": [
+      {
+        "id": 39629046729,
+        "name": "Security and Quality",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_number": 86,
+        "jobs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046729/jobs",
+        "logs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046729/logs",
+        "workflow_id": 386433702
+      },
+      {
+        "id": 39629046722,
+        "name": "Jira PR Link",
+        "status": "completed",
+        "conclusion": "success",
+        "run_number": 5047,
+        "jobs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046722/jobs",
+        "logs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046722/logs",
+        "workflow_id": 307973605
+      },
+      {
+        "id": 39629046704,
+        "name": "Dependency Review",
+        "status": "completed",
+        "conclusion": "success",
+        "run_number": 82,
+        "jobs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046704/jobs",
+        "logs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046704/logs",
+        "workflow_id": 386433703
+      },
+      {
+        "id": 39629046916,
+        "name": "Tests",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_number": 2696,
+        "jobs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046916/jobs",
+        "logs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046916/logs",
+        "workflow_id": 320202236
+      },
+      {
+        "id": 39629046721,
+        "name": "autofix.ci",
+        "status": "in_progress",
+        "conclusion": null,
+        "run_number": 4261,
+        "jobs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046721/jobs",
+        "logs_url": "https://api.github.com/repos/khov4nfs/LCSP/actions/runs/39629046721/logs",
+        "workflow_id": 313434901
+      }
+    ]
+  },
+  "commitStatuses": {
+    "statuses": []
+  }
+}

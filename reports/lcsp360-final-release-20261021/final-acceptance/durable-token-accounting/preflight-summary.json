@@ -1,0 +1,59 @@
+{
+  "checkedAt": 1792597998.7793674,
+  "candidateSha": "9cf033e099225300ffe98247eb3717e254a79232",
+  "status": "PREFLIGHT_READY",
+  "releaseStatus": "BLOCKED",
+  "paidModelCalls": 0,
+  "realModelEvaluationRunId": null,
+  "gates": {
+    "candidateIdentity": "PASS",
+    "canonicalEffectMetadataAndProvenance": "PASS",
+    "isolatedPostgreSql": "PASS",
+    "sharedEphemeralHmacAndTamperControls": "PASS",
+    "primaryProviderQuotaAndModelCatalog": "PASS_POINT_IN_TIME",
+    "configuredFallbackCredentials": "PASS_PRESENCE_ONLY",
+    "incrementalInvocationAccounting": "PASS_PROVIDER_FREE",
+    "forcedTerminationAndIdempotentRecovery": "PASS_PROVIDER_FREE",
+    "focusedTestsAndStaticChecks": "PASS"
+  },
+  "tests": {
+    "focused-tests.xml": {
+      "tests": 153,
+      "failures": 0
+    },
+    "final-usage-tests.xml": {
+      "tests": 10,
+      "failures": 0
+    }
+  },
+  "nodeTimeoutTest": {
+    "tests": 1,
+    "passed": 1,
+    "recoveredCalls": 2,
+    "inputTokens": 18,
+    "outputTokens": 8
+  },
+  "sourceSnapshot": "database-source-hmac-preflight.json",
+  "providerSnapshot": "provider-preflight.json",
+  "reconciliation": "reconciliation.json",
+  "sourceSha256": {
+    "deepagents/middleware/usage_recovery.py": "148ae5c46f5d7a104b9d0f432a26ef4f51b5c5fcf4369a0cd0d3e9dbdd7a15df",
+    "deepagents/tests/vertical/live_preparation.py": "5a2061d6818b5164e49b9dc113bf854388b66b314737d0bd6783e3ebbf648e03",
+    "deepagents/tests/test_live_preparation_usage.py": "ab8632c84e105f636af32e32f7f2bd1961ad22452d78a65e6de4f9f29b820dd2",
+    "tests/compliance-rule-set-live-eval.mjs": "b9e42864b8e4e03782288c425aa047258ab0e9e96d2b43750f8a88c55ac97dc6",
+    "tests/support/compliance-rule-set-stack.mjs": "61ce7076f06f4d021ed94a4cb87976e9ac189fc42df28801eac6bb341b07d968",
+    "tests/live-usage-recovery.test.mjs": "719701b4bff90ddbb36cf8ebb76bd6f6cbddd9bb73113f7dedd237c2d7482cdb"
+  },
+  "protectedWipSha256": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "limitations": [
+    "Primary quota is a point-in-time read-only availability check, not a guarantee of budget sufficiency or model liveness.",
+    "Fallback balances and real-provider retry/SDK behavior were not exercised; credential presence and provider-free governance/accounting are proven.",
+    "Usage covers completed provider responses only; in-flight requests or failed attempts without reported usage remain unknown.",
+    "Current-candidate CI/security is still in progress at evidence capture; prior-head green results are not current-head proof.",
+    "No real-model semantic acceptance, Rule Set activation, staging, browser or deployment was performed."
+  ]
+}
