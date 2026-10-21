@@ -25,6 +25,9 @@ import { ControlAssessmentRuntimeHandler } from "./application/commands/control-
 import { AssessmentHumanResolutionController } from "./presentation/http/assessment-human-resolution.controller.js";
 import { AssessmentProvenanceController } from "./presentation/http/assessment-provenance.controller.js";
 import { AssessmentProvenanceLoader } from "./infrastructure/persistence/assessment-provenance.loader.js";
+import { AssessmentTrackingController } from "./presentation/http/assessment-tracking.controller.js";
+import { AdminTrackingController } from "./presentation/http/admin-tracking.controller.js";
+import { AssessmentTrackingLoader } from "./infrastructure/persistence/assessment-tracking.loader.js";
 
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { AssessmentRuntimeControlService } from "../../platform/runtime-events/assessment-runtime-control.service.js";
@@ -91,11 +94,14 @@ import { AssessmentController } from "./presentation/http/assessment.controller.
     AssessmentHumanResolutionController,
     AssessmentArtifactController,
     AssessmentProvenanceController,
+    AssessmentTrackingController,
+    AdminTrackingController,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: RuntimeWriteFenceInterceptor },
     PublishAgentStreamEventHandler,
     AssessmentRuntimeControlService,
+    AssessmentTrackingLoader,
     GetRuntimeControlHandler,
     GetRootControlHandler,
     ControlAssessmentRuntimeHandler,
