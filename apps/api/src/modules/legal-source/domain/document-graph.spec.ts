@@ -60,6 +60,29 @@ describe("Legal Document AST: structural interpretation only", () => {
       graph.nodes.find((n) => n.nodeType === N.ARTICLE && n.label === "4"),
     ).toMatchObject({ pageStart: 2, pageEnd: 3 });
   });
+  it("preserves detected extraction gaps as immutable graph limitations, not missing legal claims", () => {
+    const input = document([
+      "Article 1. An extracted legal sentence.",
+      "",
+    ], "partially-extracted-source");
+    input.extraction = {
+      pages: ["Article 1. An extracted legal sentence.", ""],
+      pageCount: 2,
+      gaps: [{ kind: "NO_TEXT_LAYER", page: 2 }],
+    };
+    const partial = buildLegalDocumentGraph(version, [input]);
+    expect(partial.extractionGaps).toEqual([
+      { documentId: "partially-extracted-source", kind: "NO_TEXT_LAYER", page: 2 },
+    ]);
+    input.extraction = { pages: ["Article 1. An extracted legal sentence.", ""], pageCount: 2, gaps: [] };
+    const complete = buildLegalDocumentGraph(version, [input]);
+    expect(complete.extractionGaps).toEqual([]);
+    expect(complete.nodes.map((node) => node.nodeId)).toEqual(
+      partial.nodes.map((node) => node.nodeId),
+    );
+    expect(complete.materializationId).not.toBe(partial.materializationId);
+    expect(complete.graphDigest).not.toBe(partial.graphDigest);
+  });
   it("propagates recorded effect without interpreting source wording and preserves status on point children", () => {
     const input = document([
       "Preface. A keeper must keep a ledger.\nArticle 1. Text\n1. A duty.\na) Detail.",
@@ -184,6 +207,45 @@ describe("Legal Document AST: structural interpretation only", () => {
       buildLegalDocumentGraph("00000000-0000-4000-8000-000000000002", input)
         .nodes[0].nodeId,
     ).not.toBe(first.nodes[0].nodeId);
+  });
+  it("maps extracted chunks to the narrowest source node even when locator names differ from document structure", () => {
+    const input = document([
+      "Section 1. Identity\nThe first section keeps a ledger.\nSection 2. Processing\nThe second section checks the ledger.",
+    ]);
+    input.chunks = [
+      {
+        id: "chunk-one",
+        locator: "art-1",
+        content: "Section 1. Identity\nThe first section keeps a ledger.",
+        contentSha256: "source-owned-one",
+        hierarchy: {},
+        pageStart: 1,
+        pageEnd: 1,
+      },
+      {
+        id: "chunk-two",
+        locator: "art-2",
+        content: "Section 2. Processing\nThe second section checks the ledger.",
+        contentSha256: "source-owned-two",
+        hierarchy: {},
+        pageStart: 1,
+        pageEnd: 1,
+      },
+    ];
+    const graph = buildLegalDocumentGraph(version, [input]);
+    const owners = graph.chunkMappings.map((mapping) =>
+      graph.nodes.find((node) => node.nodeId === mapping.legalDocumentNodeId),
+    );
+    expect(owners.map((node) => [node?.nodeType, node?.label])).toEqual([
+      [N.SECTION, "1"],
+      [N.SECTION, "2"],
+    ]);
+    // A repeated retrieval locator must not override exact source position.
+    input.chunks[1].locator = "art-1";
+    const repeatedLocator = buildLegalDocumentGraph(version, [input]);
+    expect(repeatedLocator.chunkMappings[1].legalDocumentNodeId).toBe(
+      repeatedLocator.nodes.find((node) => node.nodeType === N.SECTION && node.label === "2")!.nodeId,
+    );
   });
   it("maps legacy retrieval parts to the same stable clause, ignoring semantic metadata", () => {
     const input = document([]);

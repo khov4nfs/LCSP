@@ -47,6 +47,19 @@ export const LEGAL_SOURCE_DOCUMENT_FAILURE_CODES = {
 export type LegalSourceDocumentFailureCode =
   (typeof LEGAL_SOURCE_DOCUMENT_FAILURE_CODES)[keyof typeof LEGAL_SOURCE_DOCUMENT_FAILURE_CODES];
 
+/**
+ * Content that was detected but not extracted. A gap is reported, never guessed around: a source with a gap is
+ * partially extracted and no consumer may claim it was read in full.
+ */
+export const LEGAL_SOURCE_EXTRACTION_GAP_KINDS = {
+  /** A PDF page has no text layer (for example a scanned page); `page` is its 1-based number. */
+  NO_TEXT_LAYER: "NO_TEXT_LAYER",
+  /** Word automatic numbering the extractor cannot render; `page` is null. */
+  UNSUPPORTED_NUMBERING: "UNSUPPORTED_NUMBERING",
+} as const;
+export type LegalSourceExtractionGapKind =
+  (typeof LEGAL_SOURCE_EXTRACTION_GAP_KINDS)[keyof typeof LEGAL_SOURCE_EXTRACTION_GAP_KINDS];
+
 /** Legal effect is source metadata, separate from ingestion/index lifecycle. */
 export const LEGAL_SOURCE_CHUNK_STATUSES = {
   EFFECTIVE: "EFFECTIVE",
@@ -480,6 +493,14 @@ export const activeLegalLibrarySchema = z.strictObject({
 });
 export type ActiveLegalLibrary = z.infer<typeof activeLegalLibrarySchema>;
 
+export const legalSourceExtractionGapSchema = z.strictObject({
+  kind: z.enum(LEGAL_SOURCE_EXTRACTION_GAP_KINDS),
+  page: z.number().int().positive().nullable(),
+});
+export type LegalSourceExtractionGap = z.infer<
+  typeof legalSourceExtractionGapSchema
+>;
+
 /** Worker -> API: what the ingestion runtime produced for one document. */
 export const legalSourceIngestionResultSchema = z.discriminatedUnion(
   "outcome",
@@ -494,10 +515,15 @@ export const legalSourceIngestionResultSchema = z.discriminatedUnion(
         pageCount: z.number().int().nullable(),
         textSha256: sha256Schema,
         characterCount: z.number().int().min(1),
-        /** Text before the first heading of a structured document; kept out of the chunks, never lost. */
+        /** Size of the text before the first heading (informational: that text is also persisted as a front-matter chunk). */
         frontMatterCharacters: z.number().int().min(0).optional(),
         /** Immutable extracted text for parser rebuilds, including front matter and page boundaries. */
         pages: z.array(z.string().max(8000000)).min(1).max(3000).optional(),
+        /**
+         * What was detected but not extracted. Absent on extractions made before gap detection existed; an empty
+         * array means "checked, nothing missing".
+         */
+        gaps: z.array(legalSourceExtractionGapSchema).max(3100).optional(),
       }),
       chunks: z
         .array(

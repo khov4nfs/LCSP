@@ -48,6 +48,20 @@ class PinnedSourceGraph:
     def __init__(self, graph: dict[str, Any], chunks: list[dict[str, Any]]):
         self.graph = graph
         self.version = graph["legalSourceVersionId"]
+        # Extracted but unreadable source material must remain visible to every
+        # pinned-source consumer. It cannot be treated as an empty legal source.
+        self.extraction_gaps = tuple(graph.get("extractionGaps") or ())
+        document_ids = {node["documentId"] for node in graph["nodes"]}
+        if any(
+            not isinstance(gap, dict)
+            or gap.get("documentId") not in document_ids
+            or gap.get("kind") not in {"NO_TEXT_LAYER", "UNSUPPORTED_NUMBERING"}
+            or (gap.get("page") is not None and (
+                not isinstance(gap["page"], int) or gap["page"] < 1
+            ))
+            for gap in self.extraction_gaps
+        ):
+            raise ValueError("invalid pinned source extraction gap")
         self.nodes = {n["nodeId"]: n for n in graph["nodes"]}
         if not re.fullmatch(r"[a-f0-9]{64}", graph["materializationId"]) or any(not re.fullmatch(r"[a-f0-9]{64}", nid) for nid in self.nodes):
             raise ValueError("invalid structural identity")

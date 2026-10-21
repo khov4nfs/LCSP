@@ -5,6 +5,7 @@ import {
   LEGAL_GRAPH_INPUT_MODES as MODES,
   LEGAL_REFERENCE_RESOLUTION_STATES as R,
   LEGAL_SOURCE_CHUNK_STATUSES as EFFECT,
+  legalSourceExtractionGapSchema,
   type LegalSourceChunkStatus,
   type LegalDocumentGraph,
   type LegalDocumentNode,
@@ -33,6 +34,23 @@ export interface StructuralSourceDocument {
   provenance?: unknown;
   chunks: StructuralSourceChunk[];
 }
+/** Source extraction limitations remain visible across materialization and Agent export.
+ * These are extraction facts, never inferred legal propositions. */
+export function extractionGapsOf(
+  documents: ReadonlyArray<Pick<StructuralSourceDocument, "documentId" | "extraction">>,
+) {
+  return documents.flatMap((document) => {
+    const extraction = document.extraction as { gaps?: unknown } | null;
+    if (!extraction || extraction.gaps === undefined) return [];
+    if (!Array.isArray(extraction.gaps)) throw new Error("Malformed source extraction gaps");
+    return extraction.gaps.map((value) => ({
+      documentId: document.documentId,
+      ...legalSourceExtractionGapSchema.parse(value),
+    }));
+  }).sort((a, b) => a.documentId.localeCompare(b.documentId) ||
+    (a.page ?? 0) - (b.page ?? 0) || a.kind.localeCompare(b.kind));
+}
+
 interface DraftNode {
   nodeType: LegalDocumentNodeType;
   parent: DraftNode | null;
@@ -104,9 +122,12 @@ function parseText(document: StructuralSourceDocument, pages: string[]) {
   const paged =
     (document.extraction as { pageCount?: number | null })?.pageCount != null;
   let vietnameseArticle = false;
+  let precedingPhysicalLine: string | null = null;
+  let genericHeadingOrdinal = 0;
   for (const [pageIndex, page] of pages.entries()) {
     for (const raw of page.split("\n")) {
       const line = raw.replace(/^\s*#{1,6}\s+/u, "").trim();
+      let namedHeading = false;
       let heading: {
         type: LegalDocumentNodeType;
         rank: number;
@@ -116,6 +137,7 @@ function parseText(document: StructuralSourceDocument, pages: string[]) {
       for (const spec of LEGAL_STRUCTURE_HEADINGS) {
         const match = spec.pattern.exec(line);
         if (match) {
+          namedHeading = true;
           heading = {
             type: spec.type,
             rank: spec.rank,
@@ -152,6 +174,25 @@ function parseText(document: StructuralSourceDocument, pages: string[]) {
             title: "",
           };
       }
+      // A line-wrapped continuation such as "referred to in\nparagraph 1."
+      // must not create a duplicate structural paragraph. Only a lowercase,
+      // title-less candidate directly after an unfinished physical line is
+      // ambiguous; keep it as body text rather than fabricate a new node.
+      if (
+        namedHeading && heading && !heading.title && precedingPhysicalLine !== null &&
+        /^\p{Ll}/u.test(line) && /[\p{L}\p{N}]$/u.test(precedingPhysicalLine.trim())
+      ) heading = null;
+      // Markdown heading marks are generic document syntax, not legal labels.
+      // Preserve unrecognized sections as independent, reviewable blocks.
+      if (!heading) {
+        const markdown = /^\s{0,3}(#{1,6})\s+(\S.*)$/u.exec(raw);
+        if (markdown) heading = {
+          type: N.UNSTRUCTURED_BLOCK,
+          rank: 1 + markdown[1].length * 2,
+          label: String(++genericHeadingOrdinal),
+          title: markdown[2],
+        };
+      }
       if (heading) {
         while (stack.length > 1 && stack[stack.length - 1].rank >= heading.rank)
           stack.pop();
@@ -176,6 +217,7 @@ function parseText(document: StructuralSourceDocument, pages: string[]) {
         }
       }
       offset += raw.length + 1;
+      precedingPhysicalLine = raw;
     }
   }
   return draft.nodes;
@@ -483,11 +525,29 @@ export function buildLegalDocumentGraph(
       if (locator)
         byLocator.set(locator, [...(byLocator.get(locator) ?? []), n]);
     }
+    // In extracted-text mode, chunks are located by their real source range.
+    // A retrieval locator such as art-N is not a canonical node type:
+    // section-based corpora can legitimately use that locator vocabulary.
+    const extractedText = raw ? (pages as string[]).join("\n") : null;
+    let sourceSearchOffset = 0;
     for (const chunk of document.chunks) {
+      const foundAt = extractedText?.indexOf(chunk.content, sourceSearchOffset) ?? -1;
+      const foundEnd = foundAt < 0 ? -1 : foundAt + chunk.content.length;
+      if (foundAt >= 0) sourceSearchOffset = foundEnd;
+      const positional = foundAt < 0 ? [] : drafts
+        .filter((n) =>
+          n.charStart !== null && n.charEnd !== null &&
+          n.charStart <= foundAt && n.charEnd >= foundEnd,
+        )
+        .sort((a, b) =>
+          (a.charEnd! - a.charStart!) - (b.charEnd! - b.charStart!) ||
+          b.rank - a.rank,
+        );
       const base = chunk.locator.replace(/::part-\d+$/u, "");
       const candidates = byLocator.get(base) ?? [];
       const owner =
         legacy?.ownerByChunk.get(chunk.id) ??
+        positional[0] ??
         candidates.find(
           (n) => ![N.POINT, N.ITEM].includes(n.nodeType as typeof N.POINT),
         ) ??
@@ -571,8 +631,9 @@ export function buildLegalDocumentGraph(
         node.legalStatusSourceRefs = [];
     }
   }
+  const extractionGaps = extractionGapsOf(documents);
   const sourceDigest = structuralHash(
-    documents
+    [extractionGaps, documents
       .map(
         (d) =>
           [
@@ -590,7 +651,7 @@ export function buildLegalDocumentGraph(
               .sort((a, b) => String(a[0]).localeCompare(String(b[0]), "en")),
           ] as const,
       )
-      .sort((a, b) => a[0].localeCompare(b[0], "en")),
+      .sort((a, b) => a[0].localeCompare(b[0], "en"))],
   );
   const retrievalUnits = buildLegalRetrievalUnits(nodes);
   const graph = {
@@ -605,6 +666,7 @@ export function buildLegalDocumentGraph(
     materializationRevision: REVISION.materializationRevision,
     sourceDigest,
     inputModes: [...inputModes].sort(),
+    extractionGaps,
     nodes,
     references: references(nodes),
     chunkMappings,

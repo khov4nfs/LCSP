@@ -13,7 +13,7 @@ from tools.legal.managed_documents.chunker import (
 from tools.legal.managed_documents.extract import MEDIA_MARKDOWN, ExtractionError, extract_document
 
 INGEST_TOOL = "managed-document-ingest"
-INGEST_TOOL_VERSION = "1.0.0"
+INGEST_TOOL_VERSION = "1.1.0"  # 1.1: lossless chunk partition, table/footnote/numbering extraction, explicit extraction gaps
 
 FAILURE_UNSUPPORTED = "UNSUPPORTED_MEDIA_TYPE"
 FAILURE_EXTRACTION = "EXTRACTION_FAILED"
@@ -51,6 +51,7 @@ def ingest_document(*, data: bytes, media_type: str, structure_profile: str, att
             "characterCount": len(text),
             "frontMatterCharacters": result.front_matter_characters,
             "pages": extracted.pages,
+            "gaps": extracted.gaps,
         },
         "chunks": result.chunks,
     }

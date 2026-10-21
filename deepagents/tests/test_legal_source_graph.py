@@ -129,3 +129,15 @@ def test_claim_draft_binds_pinned_graph_and_known_claims_cannot_disappear(source
     rejected = json.loads(tools["validate_compliance_rule_set"].invoke({}))
     assert "CLAIM_PHASE_INVALID" in rejected["gaps"]
     assert api.calls == 0
+
+
+def test_extraction_gaps_are_accessible_to_pinned_source_consumers():
+    graph, chunks = fixture()
+    graph["extractionGaps"] = [{"documentId": "synthetic", "page": 2, "kind": "NO_TEXT_LAYER"}]
+    source = PinnedSourceGraph(graph, chunks)
+    assert source.extraction_gaps == (
+        {"documentId": "synthetic", "page": 2, "kind": "NO_TEXT_LAYER"},
+    )
+    graph["extractionGaps"][0]["documentId"] = "unrelated-document"
+    with pytest.raises(ValueError, match="invalid pinned source extraction gap"):
+        PinnedSourceGraph(graph, chunks)

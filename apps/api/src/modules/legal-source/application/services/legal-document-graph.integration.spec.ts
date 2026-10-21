@@ -257,6 +257,48 @@ database("Legal graph derived-index lifecycle on isolated PostgreSQL", () => {
       }),
     ).toBe(graph.retrievalUnits.length);
   });
+  it("exports real persisted extraction gaps to the pinned graph consumer", async () => {
+    const label = randomUUID();
+    const source = await prisma.legalSourceVersion.create({
+      data: { version: `partial-${label}`, sourceManifest: {} },
+    });
+    const text = "Article 1. The first page contains extractable text.";
+    const document = await prisma.legalSourceDocument.create({
+      data: {
+        legalSourceVersionId: source.id,
+        documentId: "partial-document",
+        title: "Partially extractable PDF",
+        sourceUrl: "https://example.invalid/partial",
+        sourceSha256: "b".repeat(64),
+        sourceEffectStatus: "EFFECTIVE",
+        extraction: {
+          pages: [text, ""],
+          pageCount: 2,
+          gaps: [{ kind: "NO_TEXT_LAYER", page: 2 }],
+        },
+      },
+    });
+    await prisma.legalDocumentChunk.create({
+      data: {
+        id: `partial-${label}`,
+        legalSourceVersionId: source.id,
+        legalSourceDocumentId: document.id,
+        documentId: document.documentId,
+        locator: "p-0001",
+        content: text,
+        contentSha256: "sha256:" + "b".repeat(64),
+        hierarchy: {},
+        legalStatus: "ACTIVE",
+      },
+    });
+    const built = await service.materialize(source.id);
+    const persisted = await service.export(source.id);
+    expect(persisted).toEqual(built);
+    expect(persisted?.extractionGaps).toEqual([
+      { documentId: document.documentId, kind: "NO_TEXT_LAYER", page: 2 },
+    ]);
+    expect(built.nodes.some((node) => node.content.includes(text))).toBe(true);
+  });
   it("discards a draft index without rewriting source, and rebuilds the same identities", async () => {
     await prisma.$transaction((tx) =>
       discardDraftDocumentGraphs(tx, versionId),

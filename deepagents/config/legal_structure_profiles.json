@@ -1,7 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
   "maxChunkCharacters": 6000,
   "autoMinimumHeadings": 3,
+  "frontMatterLocator": "front-matter",
   "autoOrder": [
     "ARTICLES",
     "NUMBERED_SECTIONS"
@@ -12,13 +13,13 @@
       "levels": [
         {
           "name": "chapter",
-          "pattern": "^(?:chương|chapter|part)\\s+([ivxlcdm]+|\\d+)\\b[.:\\-]?\\s*(.*)$",
+          "pattern": "^(?:chương|chapter|part)\\s+([ivxlcdm]+|\\d+)\\b(?:\\s*(?:[.:-](?=\\s|$)|[\\u2013\\u2014])\\s*|\\s*$)(.*)$",
           "titleOnNextLine": true,
-          "locatorPrefix": null
+          "locatorPrefix": "chap-"
         },
         {
           "name": "article",
-          "pattern": "^(?:điều|article|section)\\s+(\\d+[a-z]?)\\s*[.:\\u2013\\u2014-]\\s*(.*)$",
+          "pattern": "^(?:điều|article|section)\\s+(\\d+[a-z]?)\\s*(?:[.:-](?!\\d)|[\\u2013\\u2014])\\s*(.*)$",
           "locatorPrefix": "art-"
         },
         {

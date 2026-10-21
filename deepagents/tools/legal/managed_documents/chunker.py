@@ -3,12 +3,19 @@
 The heading vocabulary of every profile lives in ``config/legal_structure_profiles.json``; this
 module only applies the patterns it is given. Legacy locators remain retrieval/provenance addresses.
 Canonical legal hierarchy and semantic accounting use the derived document AST and Agent claim graph.
+
+The chunks are a lossless partition (INV-R1): every normalised non-empty line of the extracted text
+belongs to exactly one chunk. Text before the first heading becomes a front-matter chunk, the heading
+line (and any introductory text) of a chapter becomes a chapter-level chunk, and a repeated locator
+keeps its text under a ``::dup-N`` locator. Only a single line longer than the chunk bound is cut
+(``::part-N``), at a whitespace boundary where one exists; every other line stays whole.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from functools import lru_cache
 from hashlib import sha256
@@ -19,6 +26,7 @@ PROFILE_AUTO = "AUTO"
 PROFILE_PARAGRAPHS = "PARAGRAPHS"
 CONFIG_PATH = Path(__file__).resolve().parents[3] / "config" / "legal_structure_profiles.json"
 LOCATOR_SEPARATOR = "::"
+FRONT_MATTER_LOCATOR = "front-matter"
 MAX_CHUNKS = 20000  # the API contract refuses more
 _SPACES = re.compile(r"[ \t]+")
 
@@ -86,7 +94,8 @@ def _compile(pattern: str) -> re.Pattern[str]:
     return re.compile(pattern, re.IGNORECASE)
 
 
-def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[list[Chunk], int]:
+def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[Chunk | None, list[Chunk], int]:
+    """Returns ``(front matter chunk, structural chunks, front matter characters)``."""
     levels = {level["name"]: level for level in profile["levels"]}
     chapter = levels.get("chapter")
     article = levels["article"]
@@ -95,10 +104,12 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[lis
     article_re = _compile(article["pattern"])
     clause_re = _compile(clause["pattern"])
     article_prefix, clause_prefix = article["locatorPrefix"], clause["locatorPrefix"]
+    chapter_prefix = (chapter or {}).get("locatorPrefix") or "chap-"
 
     chunks: list[Chunk] = []
-    front_matter = 0
+    front: list[Line] = []
     chapter_info: dict[str, Any] = {}
+    chapter_chunk: Chunk | None = None  # the chapter heading and its text up to the first article
     current_article: dict[str, Any] | None = None
     article_locator = ""
     intro: list[Line] = []
@@ -117,27 +128,34 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[lis
         else:
             chunks.append(Chunk(article_locator, list(intro), dict(current_article)))
         intro, clause_chunks, current_clause, last_clause = [], [], None, 0
+        current_article = None
+
+    def close_chapter() -> None:
+        nonlocal chapter_chunk
+        if chapter_chunk is not None:
+            chunks.append(chapter_chunk)
+            chapter_chunk = None
 
     index = 0
     while index < len(lines):
         line = lines[index]
         text = line.text
-        if current_article is None:
-            front_matter_here = True
-        else:
-            front_matter_here = False
         if chapter_re and (match := chapter_re.match(text)):
             close_article()
-            current_article = None
+            close_chapter()
             title = match.group(2).strip()
+            heading = [line]
             if not title and chapter.get("titleOnNextLine") and index + 1 < len(lines):
                 following = lines[index + 1].text
                 if not (article_re.match(following) or clause_re.match(following)) and len(following) <= 160:
                     title = following
+                    heading.append(lines[index + 1])
                     index += 1
             chapter_info = {"chapterNumber": match.group(1), "chapterTitle": title}
+            chapter_chunk = Chunk(f"{chapter_prefix}{match.group(1).lower()}", heading, dict(chapter_info))
         elif match := article_re.match(text):
             close_article()
+            close_chapter()
             number = match.group(1)
             current_article = {
                 **chapter_info,
@@ -162,11 +180,15 @@ def _chunk_heading_tree(lines: list[Line], profile: dict[str, Any]) -> tuple[lis
             clause_chunks.append(current_clause)
         elif current_article is not None:
             (current_clause.lines if current_clause else intro).append(line)
-        elif front_matter_here:
-            front_matter += len(text) + 1
+        elif chapter_chunk is not None:
+            chapter_chunk.lines.append(line)  # introductory text of the chapter, before its first article
+        else:
+            front.append(line)
         index += 1
     close_article()
-    return chunks, front_matter
+    close_chapter()
+    front_chunk = Chunk(front_matter_locator(), front, {}) if front else None
+    return front_chunk, chunks, sum(len(line.text) + 1 for line in front)
 
 
 def _heading_count(lines: list[Line], profile: dict[str, Any]) -> int:
@@ -182,12 +204,12 @@ def _heading_count(lines: list[Line], profile: dict[str, Any]) -> int:
 # --- profile: numbered outline (1 / 1.2 / 1.2.3) --------------------------------------------------
 
 
-def _chunk_numbered_outline(lines: list[Line], profile: dict[str, Any]) -> tuple[list[Chunk], int]:
+def _chunk_numbered_outline(lines: list[Line], profile: dict[str, Any]) -> tuple[Chunk | None, list[Chunk], int]:
     pattern = _compile(profile["pattern"])
     prefix = profile["locatorPrefix"]
     max_heading = int(profile.get("maxHeadingCharacters", 160))
     sections: list[tuple[str, str, list[Line]]] = []
-    front_matter = 0
+    front: list[Line] = []
     for line in lines:
         match = pattern.match(line.text)
         if match and len(line.text) <= max_heading and not line.text.rstrip().endswith((";", ",")):
@@ -195,23 +217,22 @@ def _chunk_numbered_outline(lines: list[Line], profile: dict[str, Any]) -> tuple
         elif sections:
             sections[-1][2].append(line)
         else:
-            front_matter += len(line.text) + 1
+            front.append(line)
     chunks: list[Chunk] = []
-    seen: set[str] = set()
     for number, title, body in sections:
         parts = number.split(".")
         locator = LOCATOR_SEPARATOR.join(f"{prefix}{'.'.join(parts[: depth + 1])}" for depth in range(len(parts)))
-        if locator in seen:
-            continue
-        seen.add(locator)
+        # A number that restarts (list items inside a section) repeats the locator; ``chunk_document`` keeps
+        # such a section under a ``::dup-N`` locator instead of dropping its text.
         chunks.append(Chunk(locator, body, {"sectionNumber": number, "sectionTitle": title}))
-    return chunks, front_matter
+    front_chunk = Chunk(front_matter_locator(), front, {}) if front else None
+    return front_chunk, chunks, sum(len(line.text) + 1 for line in front)
 
 
 # --- profile: paragraph windows -------------------------------------------------------------------
 
 
-def _chunk_paragraphs(lines: list[Line], profile: dict[str, Any], limit: int) -> tuple[list[Chunk], int]:
+def _chunk_paragraphs(lines: list[Line], profile: dict[str, Any], limit: int) -> tuple[None, list[Chunk], int]:
     prefix = profile["locatorPrefix"]
     chunks: list[Chunk] = []
     window: list[Line] = []
@@ -224,10 +245,38 @@ def _chunk_paragraphs(lines: list[Line], profile: dict[str, Any], limit: int) ->
         size += len(line.text) + 1
     if window:
         chunks.append(Chunk(f"{prefix}{len(chunks) + 1:04d}", window, {"ordinal": len(chunks) + 1}))
-    return chunks, 0
+    return None, chunks, 0
+
+
+def front_matter_locator() -> str:
+    return str(load_profiles().get("frontMatterLocator") or FRONT_MATTER_LOCATOR)
 
 
 # --- splitting and output -------------------------------------------------------------------------
+
+
+def _cut_line(text: str, limit: int) -> list[str]:
+    """Pieces of one over-long line: each at most ``limit`` characters, cut at whitespace where possible.
+
+    Whitespace between two pieces is dropped, so the pieces joined by one space give the line back. Without any
+    whitespace in the window the cut is a hard one, moved back so it never separates a combining mark from its base.
+    """
+    pieces: list[str] = []
+    rest = text
+    while len(rest) > limit:
+        cut = rest.rfind(" ", 1, limit + 1)
+        if cut > 0:
+            pieces.append(rest[:cut].rstrip())
+            rest = rest[cut + 1 :].lstrip()
+            continue
+        cut = limit
+        while cut > 1 and unicodedata.combining(rest[cut]):
+            cut -= 1
+        pieces.append(rest[:cut])
+        rest = rest[cut:]
+    if rest:
+        pieces.append(rest)
+    return pieces
 
 
 def _split_oversized(chunk: Chunk, limit: int) -> list[Chunk]:
@@ -237,25 +286,33 @@ def _split_oversized(chunk: Chunk, limit: int) -> list[Chunk]:
     window: list[Line] = []
     size = 0
 
+    def emit(lines: list[Line]) -> None:
+        parts.append(
+            Chunk(
+                f"{chunk.locator}{LOCATOR_SEPARATOR}part-{len(parts) + 1}",
+                lines,
+                {**chunk.hierarchy, "partOf": chunk.locator},
+            )
+        )
+
     def flush() -> None:
         nonlocal window, size
         if window:
-            parts.append(
-                Chunk(
-                    f"{chunk.locator}{LOCATOR_SEPARATOR}part-{len(parts) + 1}",
-                    window,
-                    {**chunk.hierarchy, "partOf": chunk.locator},
-                )
-            )
+            emit(window)
             window, size = [], 0
 
     for line in chunk.lines:
-        pieces = [line.text[i : i + limit] for i in range(0, len(line.text), limit)] or [line.text]
-        for piece in pieces:
-            if window and size + len(piece) + 1 > limit:
-                flush()
-            window.append(Line(piece, line.page))
-            size += len(piece) + 1
+        if len(line.text) > limit:
+            # A piece of a cut line never shares a chunk with another line, so every part is either whole lines
+            # or text of exactly one line.
+            flush()
+            for piece in _cut_line(line.text, limit):
+                emit([Line(piece, line.page)])
+            continue
+        if window and size + len(line.text) + 1 > limit:
+            flush()
+        window.append(line)
+        size += len(line.text) + 1
     flush()
     return parts
 
@@ -277,30 +334,38 @@ def chunk_document(pages: list[str], *, profile: str, markdown: bool = False) ->
     else:
         raise UnknownStructureProfile(profile)
 
-    spec = profiles[chosen]
-    if spec["kind"] == "heading-tree":
-        raw, front = _chunk_heading_tree(lines, spec)
-    elif spec["kind"] == "numbered-outline":
-        raw, front = _chunk_numbered_outline(lines, spec)
-    else:
-        raw, front = _chunk_paragraphs(lines, spec, limit)
-    if not raw and chosen != PROFILE_PARAGRAPHS:
+    def run(name: str) -> tuple[Chunk | None, list[Chunk], int]:
+        spec = profiles[name]
+        if spec["kind"] == "heading-tree":
+            return _chunk_heading_tree(lines, spec)
+        if spec["kind"] == "numbered-outline":
+            return _chunk_numbered_outline(lines, spec)
+        return _chunk_paragraphs(lines, spec, limit)
+
+    front_chunk, structural, front = run(chosen)
+    if not structural and chosen != PROFILE_PARAGRAPHS:
         # A structured profile that found no structure still has to keep the text.
         chosen = PROFILE_PARAGRAPHS
-        raw, front = _chunk_paragraphs(lines, profiles[PROFILE_PARAGRAPHS], limit)
+        front_chunk, structural, front = run(chosen)
+    raw = ([front_chunk] if front_chunk else []) + structural
 
     chunks: list[dict[str, Any]] = []
-    seen: dict[str, int] = {}
+    used: set[str] = set()
+    repeats: dict[str, int] = {}
     for chunk in raw:
         for part in _split_oversized(chunk, limit):
             content = part.content
             if not content:
                 continue
             # A repeated heading keeps its text under a distinct locator instead of being dropped.
-            repeats = seen.get(part.locator, 0)
-            seen[part.locator] = repeats + 1
-            if repeats:
-                part.locator = f"{part.locator}{LOCATOR_SEPARATOR}dup-{repeats + 1}"
+            base = part.locator
+            repeats[base] = repeats.get(base, 0) + 1
+            if repeats[base] > 1:
+                part.locator = f"{base}{LOCATOR_SEPARATOR}dup-{repeats[base]}"
+            while part.locator in used:  # defensive: a dup locator can never collide with another chunk
+                repeats[base] += 1
+                part.locator = f"{base}{LOCATOR_SEPARATOR}dup-{repeats[base]}"
+            used.add(part.locator)
             start, end = part.pages
             chunks.append(
                 {

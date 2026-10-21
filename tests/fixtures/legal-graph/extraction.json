@@ -3,7 +3,7 @@
   "attempt": 1,
   "extraction": {
     "tool": "managed-document-ingest:pypdf",
-    "toolVersion": "1.0.0",
+    "toolVersion": "1.1.0",
     "structureProfile": "ARTICLES",
     "pageCount": 3,
     "textSha256": "sha256:a3c9ddf17c52ca2d90ce06f40c9d4dfdfae371737e4010da6a32b16ba4f874a6",
@@ -13,9 +13,21 @@
       "Chapter I\nArticle 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument.\nArticle 2. Export and portability\n1. The operator of a covered service must implement a software export function that produces a portable\ncopy for a requesting customer. The operator must deliver the copy within seven calendar days after\nreceiving the request.\n",
       "The implemented export function and actual timely delivery are distinct aspects: configured software\nalone does not establish fulfillment of an individual request.\n2. The operator must not impose commercial charges or technical obstacles intended to prevent a customer\nmoving their customer-created records to another service. For both charges and obstacles, this\nprohibition is limited to those intended to prevent that portability; it does not prohibit charges\ngenerally. The limited exception in Article 3(2) applies.\nArticle 3. Remedy and exception\n1. If failure to perform Article 2(1) causes a customer documented financial loss, the operator must\ncompensate that customer for the documented loss within thirty calendar days after receiving notice of\nthe loss. A compensation policy alone does not perform this payment duty.\n2. As an exception to Article 2(2), the operator may temporarily block a transfer only while a\ndocumented, specific security threat makes that transfer unsafe. The block must be proportionate to that\nthreat and end when the threat ends. This exception does not remove or delay the portable-copy duty in\nArticle 2(1).\nChapter II\nArticle 4. Temporal transition\nThis instrument takes effect on 1 January 2026. For covered services already operating before that date,\nthe duties in Article 2(1) and Article 2(2) become applicable on 1 July 2026 after a six-month\ntransition.\n",
       "For covered services first operating on or after 1 January 2026, those duties apply immediately on first\noperation.\nArticle 5. Incorporated duties\nWhen an operator delegates export fulfillment to an external fulfillment provider, that provider must\nimplement the portable-copy software function and perform the same delivery duty required by Article\n2(1), with the same seven-day period and the definitions in Article 1. Delegation does not remove the\noperator's own duty.\nArticle 6. Context and separate configuration duties\n1. Repository storage means the storage surface used by the covered service for customer-created records.\nAn audit entry means the event record about an export request. This paragraph supplies context and\ndefinitions; it creates no independent duty, prohibition or permission.\n2. The operator must maintain a software configuration identifying the relevant covered service. For its\nexport function, the operator must record the authorization decision in an audit entry and must record\ncompletion or failure with its timestamp in the audit entry. These two audit duties are compatible and\nboth must survive a combined representation. The operator must implement appropriate software safeguards\nprotecting customer-created records during processing and export. A repository assessment may inspect\nstorage encryption as one narrower evidence slice; this does not replace the safeguards duty or require a\nparticular cipher.\nArticle 7. Delegated fulfillment and direction\nActor A is the covered-service operator and holder of Article 2(1). Actor B is the fulfillment provider.\nIf A delegates export fulfillment to B, A must maintain a software configuration identifying B as its\ndelegate for that service, and B must implement the delegated portable-copy software path on behalf of A.\nB performs fulfillment while A remains responsible for Article 2(1). B's express duty in Article 5 does\nnot transfer or replace A's duty. B delegating to A is not this condition. The customer is the requesting\nrecord owner and beneficiary; an auditor owes no export-fulfillment duty.\nArticle 8. Conditional permission and evidence\nThe operator may restrict access to the export interface only while a documented, specific security\nincident makes access unsafe. The restriction must end when that condition ceases. Evidence must\ndemonstrate whether that condition holds and whether any restriction respects it. This Article does not\nrequire automatic blocking, automatic unblocking, or any other particular technical implementation.\n"
-    ]
+    ],
+    "gaps": []
   },
   "chunks": [
+    {
+      "locator": "chap-i",
+      "content": "Chapter I",
+      "contentSha256": "sha256:e9bb4a2354ecf6a95f1b4d9a8d0a44960c86288deff44b070cf286c6997125c4",
+      "hierarchy": {
+        "chapterNumber": "I",
+        "chapterTitle": ""
+      },
+      "pageStart": 1,
+      "pageEnd": 1
+    },
     {
       "locator": "art-1",
       "content": "Article 1. Definitions\nA covered service stores customer-created records and offers them through a digital interface. The\noperator controls that service. A portable copy contains all customer-created records in an interoperable\nmachine-readable format. A fulfillment provider is a separate entity selected by the operator to run its\nexport software. These definitions apply throughout this instrument.",
@@ -107,6 +119,17 @@
         "articleNumber": "3",
         "articleTitle": "Remedy and exception",
         "clauseNumber": "2"
+      },
+      "pageStart": 2,
+      "pageEnd": 2
+    },
+    {
+      "locator": "chap-ii",
+      "content": "Chapter II",
+      "contentSha256": "sha256:b0f19d99e23e221666f9c1899a55ca2e3b52cb6fe2f066293e5fdff0105f1fb0",
+      "hierarchy": {
+        "chapterNumber": "II",
+        "chapterTitle": ""
       },
       "pageStart": 2,
       "pageEnd": 2

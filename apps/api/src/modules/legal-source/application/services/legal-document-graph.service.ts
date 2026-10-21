@@ -9,7 +9,7 @@ import {
 } from "@lcsp/contracts/legal-source";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
-import { buildLegalDocumentGraph } from "../../domain/document-graph.js";
+import { buildLegalDocumentGraph, extractionGapsOf } from "../../domain/document-graph.js";
 
 const BATCH_SIZE = 500;
 const batches = <T>(items: T[]) =>
@@ -149,7 +149,7 @@ export class LegalDocumentGraphService {
       materializationId: materialization.id,
       legalSourceVersionId,
     };
-    const [nodes, references, chunkMappings, retrievalUnits] =
+    const [nodes, references, chunkMappings, retrievalUnits, sourceDocuments] =
       await Promise.all([
         this.prisma.legalDocumentNode.findMany({
           where,
@@ -161,6 +161,10 @@ export class LegalDocumentGraphService {
           where,
           orderBy: [{ legalDocumentNodeId: "asc" }, { ordinal: "asc" }],
         }),
+        this.prisma.legalSourceDocument.findMany({
+          where: { legalSourceVersionId },
+          select: { documentId: true, extraction: true },
+        }),
       ]);
     return {
       materializationId: materialization.id,
@@ -171,6 +175,7 @@ export class LegalDocumentGraphService {
       graphDigest: materialization.graphDigest,
       inputModes:
         materialization.inputModes as LegalDocumentGraph["inputModes"],
+      extractionGaps: extractionGapsOf(sourceDocuments),
       nodes: nodes.map(({ materializationId: _revision, ...node }) => {
         void _revision;
         return {

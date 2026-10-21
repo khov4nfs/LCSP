@@ -88,8 +88,11 @@ class TestHeadingTreeProfile:
         result = chunk_document([STATUTE], profile="ARTICLES")
 
         assert result.profile == "ARTICLES"
-        assert locators(result) == ["art-1", "art-2", "art-2::cl-1", "art-2::cl-2", "art-3"]
+        # Text before the first heading and the chapter heading are chunks too (the partition is lossless).
+        assert locators(result) == ["front-matter", "chap-i", "art-1", "art-2", "art-2::cl-1", "art-2::cl-2", "art-3"]
         by_locator = {chunk["locator"]: chunk for chunk in result.chunks}
+        assert by_locator["chap-i"]["content"] == "Chương I\nQUY ĐỊNH CHUNG"
+        assert by_locator["chap-i"]["hierarchy"] == {"chapterNumber": "I", "chapterTitle": "QUY ĐỊNH CHUNG"}
         clause = by_locator["art-2::cl-1"]
         assert clause["hierarchy"] == {
             "chapterNumber": "I",
@@ -104,10 +107,13 @@ class TestHeadingTreeProfile:
         # The article keeps its own lead-in as a non-leaf chunk above its clauses.
         assert by_locator["art-2"]["content"].endswith("phải:")
 
-    def test_front_matter_is_counted_but_not_chunked(self):
+    def test_front_matter_is_counted_and_kept_as_its_own_chunk(self):
         result = chunk_document([STATUTE], profile="ARTICLES")
-        assert result.front_matter_characters > 0
-        assert all("QUỐC HỘI" not in chunk["content"] for chunk in result.chunks)
+        assert result.front_matter_characters > 0  # informational counter, kept for compatibility
+        front = result.chunks[0]
+        assert front["locator"] == "front-matter" and front["hierarchy"] == {}
+        assert front["content"] == "QUỐC HỘI\nLuật số 99/2099/QH99"
+        assert sum("QUỐC HỘI" in chunk["content"] for chunk in result.chunks) == 1
 
     def test_hashes_are_of_the_exact_stored_text(self):
         result = chunk_document([STATUTE], profile="ARTICLES")
@@ -116,8 +122,8 @@ class TestHeadingTreeProfile:
 
     def test_headings_come_from_configuration_not_code(self):
         result = chunk_document([ENGLISH], profile="ARTICLES")
-        assert locators(result) == ["art-1", "art-2", "art-2::cl-1", "art-2::cl-2", "art-3"]
-        assert result.chunks[0]["hierarchy"]["articleTitle"] == "Scope"
+        assert locators(result) == ["front-matter", "art-1", "art-2", "art-2::cl-1", "art-2::cl-2", "art-3"]
+        assert result.chunks[1]["hierarchy"]["articleTitle"] == "Scope"
 
     def test_only_the_next_clause_number_opens_a_clause(self):
         text = "Article 1. Scope\n1. First.\n3. Not the next clause.\n2. Second.\n"
@@ -137,6 +143,7 @@ class TestOtherProfiles:
     def test_numbered_sections_nest_by_number(self):
         result = chunk_document([OUTLINE], profile="NUMBERED_SECTIONS")
         assert locators(result) == [
+            "front-matter",
             "sec-1",
             "sec-1::sec-1.1",
             "sec-2",
@@ -283,7 +290,9 @@ class TestIngestResult:
             "characterCount",
             "frontMatterCharacters",
             "pages",
+            "gaps",
         }
+        assert result["extraction"]["gaps"] == []  # checked, nothing missing
         assert result["extraction"]["structureProfile"] == "ARTICLES"
         assert set(result["chunks"][0]) == {
             "locator",

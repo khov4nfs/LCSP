@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LEGAL_SOURCE_CHUNK_STATUSES } from "./management.ts";
+import { LEGAL_SOURCE_CHUNK_STATUSES, legalSourceExtractionGapSchema } from "./management.ts";
 
 export const LEGAL_DOCUMENT_NODE_TYPES = {
   DOCUMENT: "DOCUMENT",
@@ -30,8 +30,8 @@ export const LEGAL_REFERENCE_RESOLUTION_STATES = {
   UNRESOLVED: "UNRESOLVED",
 } as const;
 export const LEGAL_DOCUMENT_GRAPH = {
-  parserRevision: "legal-structure-v1",
-  materializationRevision: "legal-graph-v1",
+  parserRevision: "legal-structure-v2",
+  materializationRevision: "legal-graph-v2",
   maxContextNodes: 20,
   maxContextCharacters: 24000,
   maxSearchResults: 50,
@@ -120,6 +120,7 @@ export const legalDocumentGraphSchema = z.strictObject({
   sourceDigest: hash,
   graphDigest: hash,
   inputModes: z.array(z.enum(LEGAL_GRAPH_INPUT_MODES)),
+  extractionGaps: z.array(legalSourceExtractionGapSchema.extend({ documentId: z.string().min(1) })).optional(),
   nodes: z.array(legalDocumentNodeSchema),
   references: z.array(legalDocumentReferenceSchema),
   chunkMappings: z.array(legalChunkNodeMappingSchema),
