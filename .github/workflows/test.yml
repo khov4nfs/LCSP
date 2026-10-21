@@ -309,6 +309,8 @@ jobs:
       - name: Validate LangGraph Agent Runtime config
         env:
           OPENAI_API_KEY: ci-import-only
+          # The default route is Mirai, whose key is never inherited from another provider.
+          MIRAI_API_KEY: ci-import-only
           LANGSMITH_TRACING: "false"
           LANGCHAIN_TRACING_V2: "false"
         run: |
