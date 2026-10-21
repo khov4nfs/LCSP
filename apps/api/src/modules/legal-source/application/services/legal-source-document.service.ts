@@ -799,12 +799,12 @@ export class LegalSourceDocumentService {
   private async addDocument(
     input: NewDocument,
   ): Promise<LegalSourceDocumentView> {
-    if (input.bytes.length === 0) {
+    if (input.bytes.byteLength === 0) {
       throw problemException(Errors.documentEmpty, input.correlationId, {
         status: HttpStatus.UNPROCESSABLE_ENTITY,
       });
     }
-    if (input.bytes.length > LEGAL_SOURCE_LIMITS.maxDocumentBytes) {
+    if (input.bytes.byteLength > LEGAL_SOURCE_LIMITS.maxDocumentBytes) {
       throw problemException(Errors.documentTooLarge, input.correlationId, {
         status: HttpStatus.PAYLOAD_TOO_LARGE,
       });
@@ -851,7 +851,7 @@ export class LegalSourceDocumentService {
         data: [
           {
             sha256,
-            byteLength: input.bytes.length,
+            byteLength: input.bytes.byteLength,
             bytes: new Uint8Array(input.bytes),
           },
         ],
@@ -884,7 +884,7 @@ export class LegalSourceDocumentService {
           ingestionAttempt: 1,
           mediaType,
           originalFileName: input.fileName,
-          byteLength: input.bytes.length,
+          byteLength: input.bytes.byteLength,
           blobSha256: sha256,
           structureProfile: input.structureProfile,
           provenance: input.provenance,
@@ -910,7 +910,7 @@ export class LegalSourceDocumentService {
           documentRowId: created.id,
           documentId,
           mediaType,
-          byteLength: input.bytes.length,
+          byteLength: input.bytes.byteLength,
           sourceSha256: `sha256:${sha256}`,
         },
       );
