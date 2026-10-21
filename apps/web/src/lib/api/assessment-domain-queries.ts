@@ -108,6 +108,31 @@ export function useAnswerHumanRequestMutation(id: string, requestId: string) {
   });
 }
 
+export function useAnswerAnyHumanRequestMutation(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      answer,
+    }: {
+      requestId: string;
+      answer: AnswerAssessmentHumanRequest;
+    }) =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/human-requests/${encodeURIComponent(requestId)}/answers`,
+        answerAssessmentHumanRequestResultSchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(
+            answerAssessmentHumanRequestSchema.parse(answer),
+          ),
+        },
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["assessment", id] }),
+  });
+}
+
 /** The stored final report of one assessment, parsed against the artifact contract. */
 export function useAssessmentReportQuery(id: string, artifactId: string | null) {
   return useQuery({

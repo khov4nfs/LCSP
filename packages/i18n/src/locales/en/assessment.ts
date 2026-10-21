@@ -10,4 +10,12 @@ export const enAssessment: AssessmentMessages = {
     modelStepCompleted: "Assessment reasoning completed",
     repositoryInspected: "Repository evidence inspected",
   },
+  tracking: {
+    reportReadyTitle: "Final Report available for {name}",
+    reportReadyDescription: "Canonical compliance report is ready for download.",
+    reassessmentRequiredTitle: "New commit detected for {name}",
+    reassessmentRequiredDescription: "Repository has newer commit ({commit}) than assessed snapshot. Reassessment required.",
+    outcomeCompletedTitle: "Assessment completed for {name}",
+    outcomeCompletedDescription: "Evaluation completed across canonical rules.",
+  },
 };

@@ -34,7 +34,8 @@ export function ConversationQuestionTurn({
       <div
         data-human-request={request.requestId}
         data-request-state={turn.open ? "OPEN" : "CLOSED"}
-        className="flex flex-col gap-3"
+        tabIndex={-1}
+        className="flex flex-col gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       >
         <p id={titleId} className="font-medium whitespace-pre-wrap">
           {request.question}
