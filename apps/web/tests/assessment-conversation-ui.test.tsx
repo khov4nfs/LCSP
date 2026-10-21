@@ -391,3 +391,127 @@ test("the layout stays a readable, contained chat column on desktop, tablet and 
   assert.match(view, /aria-live="polite" className="sr-only"/, "a status region speaks; the log stays quiet");
   assert.doesNotMatch(`${slots}${bar}`, /(?:min-|max-)?w-\[\d{3,}px\]/);
 });
+
+test("request deep-link target renders as a focusable element with tabIndex=-1 and disables transcript auto-scroll", () => {
+  const req1Id = "11111111-1111-4111-8111-111111111111";
+  const req2Id = "22222222-2222-4222-8222-222222222222";
+  const req1 = request("OPEN", {
+    requestId: req1Id,
+    question: "First question?",
+  });
+  const req2 = request("OPEN", {
+    requestId: req2Id,
+    question: "Second question?",
+  });
+  const proj = projectConversation({
+    assessmentId: ASSESSMENT_ID,
+    events: ACTIVITY,
+    detail: detail(),
+    requests: [req1, req2],
+    repository: REPOSITORY,
+  });
+
+  const view = render(
+    <AssessmentConversation
+      projection={proj}
+      answerPending={false}
+      answerFailed={false}
+      onAnswer={noop}
+      targetRequestId={req2Id}
+    />,
+  );
+
+  const targetEl = view.querySelector<HTMLElement>(
+    `[data-human-request="${req2Id}"]`,
+  );
+  assert.ok(targetEl, "target request element must exist");
+  assert.equal(
+    targetEl.getAttribute("tabindex"),
+    "-1",
+    "target request must be focusable via tabIndex=-1",
+  );
+  assert.ok(
+    targetEl.className.includes("focus-visible:ring-2"),
+    "must have focus-visible styling",
+  );
+
+  const otherEl = view.querySelector<HTMLElement>(
+    `[data-human-request="${req1Id}"]`,
+  );
+  assert.ok(otherEl, "other request element also renders");
+  assert.equal(otherEl.getAttribute("tabindex"), "-1");
+});
+
+test("multiple open human requests route submission strictly to their own request ID", async () => {
+  const req1Id = "11111111-1111-4111-8111-111111111111";
+  const req2Id = "22222222-2222-4222-8222-222222222222";
+    const req1 = request("OPEN", {
+      requestId: req1Id,
+      question: "First question?",
+      choices: [{ label: "Choice A", value: "val-a" }],
+    });
+    const req2 = request("OPEN", {
+      requestId: req2Id,
+      question: "Second question?",
+      choices: [{ label: "Choice B", value: "val-b" }],
+    });
+    const proj = projectConversation({
+      assessmentId: ASSESSMENT_ID,
+      events: ACTIVITY,
+      detail: detail(),
+      requests: [req1, req2],
+      repository: REPOSITORY,
+    });
+
+    const submitted: Array<{ answer: StructuredAnswer; requestId: string }> = [];
+    const handleAnswer = (
+      answer: StructuredAnswer,
+      req: { requestId: string },
+    ) => {
+      submitted.push({ answer, requestId: req.requestId });
+    };
+
+    const view = render(
+      <AssessmentConversation
+        projection={proj}
+        answerPending={false}
+        answerFailed={false}
+        onAnswer={handleAnswer as unknown as Parameters<typeof AssessmentConversation>[0]["onAnswer"]}
+        targetRequestId={req2Id}
+      />,
+    );
+
+    // Click choice A under Question 1
+    const req1El = view.querySelector<HTMLElement>(
+      `[data-human-request="${req1Id}"]`,
+    );
+    assert.ok(req1El, "request 1 container exists");
+    const btn1 = byText<HTMLButtonElement>(req1El, "button", /Choice A/);
+    assert.ok(btn1, "choice button A exists");
+    click(btn1);
+
+    assert.equal(submitted.length, 1);
+    assert.equal(
+      submitted[0].requestId,
+      req1Id,
+      "submitting question 1 must write to request 1, even if deep-linked to request 2",
+    );
+    assert.equal(submitted[0].answer.doesNotKnow, false);
+
+    // Click choice B under Question 2
+    const req2El = view.querySelector<HTMLElement>(
+      `[data-human-request="${req2Id}"]`,
+    );
+    assert.ok(req2El, "request 2 container exists");
+    const btn2 = byText<HTMLButtonElement>(req2El, "button", /Choice B/);
+    assert.ok(btn2, "choice button B exists");
+    click(btn2);
+
+    assert.equal(submitted.length, 2);
+    assert.equal(
+      submitted[1].requestId,
+      req2Id,
+      "submitting question 2 must write to request 2",
+    );
+});
+

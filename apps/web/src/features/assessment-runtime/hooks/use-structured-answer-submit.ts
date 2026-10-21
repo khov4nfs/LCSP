@@ -1,7 +1,7 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { AssessmentHumanRequestView } from "@lcsp/contracts/assessment-domain";
-import { useAnswerHumanRequestMutation } from "@/lib/api/assessment-domain-queries";
+import { useAnswerAnyHumanRequestMutation } from "@/lib/api/assessment-domain-queries";
 import type { StructuredAnswer } from "../types/structured-answer.types";
 
 /**
@@ -13,26 +13,50 @@ export function useStructuredAnswerSubmit(
   request: AssessmentHumanRequestView | undefined,
   caseRevision: number | undefined,
 ) {
-  const mutation = useAnswerHumanRequestMutation(
-    assessmentId,
-    request?.requestId ?? "",
-  );
-  const replay = useRef<{ key: string; digest: string } | null>(null);
-  const submit = async (answer: StructuredAnswer) => {
-    if (!request || caseRevision === undefined) return;
+  const mutation = useAnswerAnyHumanRequestMutation(assessmentId);
+  const [submittingRequestId, setSubmittingRequestId] = useState<string | null>(null);
+  const [failedRequestId, setFailedRequestId] = useState<string | null>(null);
+  const replay = useRef<Map<string, { key: string; digest: string }>>(new Map());
+
+  const submit = async (
+    answer: StructuredAnswer,
+    explicitRequest?: AssessmentHumanRequestView,
+  ) => {
+    const target = explicitRequest ?? request;
+    if (!target || caseRevision === undefined) return;
+    setSubmittingRequestId(target.requestId);
+    setFailedRequestId(null);
+
     const packet = {
       expectedCaseRevision: caseRevision,
-      expectedRequestRevision: request.requestRevision,
+      expectedRequestRevision: target.requestRevision,
       ...(answer.doesNotKnow
         ? { doesNotKnow: true as const }
         : { doesNotKnow: false as const, answer: answer.answer }),
     };
     const digest = JSON.stringify(packet);
-    if (replay.current?.digest !== digest)
-      replay.current = { key: crypto.randomUUID(), digest };
-    await mutation
-      .mutateAsync({ ...packet, idempotencyKey: replay.current.key })
-      .catch(() => undefined);
+    let keyInfo = replay.current.get(target.requestId);
+    if (!keyInfo || keyInfo.digest !== digest) {
+      keyInfo = { key: crypto.randomUUID(), digest };
+      replay.current.set(target.requestId, keyInfo);
+    }
+    try {
+      await mutation.mutateAsync({
+        requestId: target.requestId,
+        answer: { ...packet, idempotencyKey: keyInfo.key },
+      });
+    } catch {
+      setFailedRequestId(target.requestId);
+    } finally {
+      setSubmittingRequestId(null);
+    }
   };
-  return { submit, pending: mutation.isPending, failed: mutation.isError };
+
+  return {
+    submit,
+    pending: mutation.isPending,
+    failed: mutation.isError,
+    submittingRequestId,
+    failedRequestId,
+  };
 }
