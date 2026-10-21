@@ -277,6 +277,8 @@ jobs:
 
       - name: Build runtime packages and Prisma client
         working-directory: .
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public
         run: |
           pnpm run build:runtime-packages
           pnpm --filter @lcsp/api prisma:generate
