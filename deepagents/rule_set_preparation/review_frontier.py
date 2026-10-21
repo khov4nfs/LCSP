@@ -244,30 +244,50 @@ class ReviewFrontier:
             return node_id == root or nodes.get(node_id, {}).get("structuralPath", "").startswith(nodes.get(root, {}).get("structuralPath", "\0") + "/")
         into_owner = sorted({r["referenceId"] for r in self.context.source_graph.graph["references"]
                              if r["fromNodeId"] == active and r.get("toNodeId") and any(inside(r["toNodeId"], o) for o in owners.values())})
+        # A reopened owner's claims stop being committed endpoints, so the API refuses every completion, yield included, while these remain.
+        bound = sorted(rid for rid, r in self.context.draft["claimRelations"].items() if self.relation_owners.get(rid) == active
+                       and {self.claim_owners.get(r["fromClaimId"]), self.claim_owners.get(r["toClaimId"])} & set(owners.values()))
+        steps = ["reopen_source_review for each owner."]
+        if bound:
+            steps.append("remove_semantic_relation " + ", ".join(bound) + ": this unit's relations to the owner's claims cannot be committed while it is reopened; "
+                         "re-create them when this unit resurfaces.")
+        steps += [("Yield this unit with complete_source_review disposition REQUIRES_REFERENCE_RESOLUTION, a factual reason, and reference_ids " + ", ".join(into_owner)
+                   if into_owner else "Yield this unit with complete_source_review disposition REQUIRES_REFERENCE_RESOLUTION and a factual reason, without reference_ids: "
+                   "it has no reference into the owner, so it waits until the reopened owner completes") + "; get_next_review_unit then schedules the reopened owner.",
+                  "Correct the relation in the owner; this unit resurfaces and is audited again."]
         return {"relationOwners": owners, "requiredAction": "reopen_source_review", "sourceNodeId": sorted(set(owners.values()))[0], "guidance": (
             "Relation(s) " + ", ".join(sorted(owners)) + " belong to unit(s) " + ", ".join(sorted(set(owners.values()))) + " and cannot be changed from this unit. "
-            "Do not retry changing them here. (1) reopen_source_review for each owner. (2) Yield this unit with complete_source_review disposition "
-            "REQUIRES_REFERENCE_RESOLUTION, a factual reason, and reference_ids from this unit's references that resolve into the owner"
-            + (" (" + ", ".join(into_owner) + ")" if into_owner else "") + "; get_next_review_unit then schedules the reopened owner. "
-            "(3) Correct the relation in the owner; this unit resurfaces and is audited again.")}
+            "Do not retry changing them here. " + " ".join(f"({i}) {step}" for i, step in enumerate(steps, 1)))}
 
     def reference_guidance(self, result, listed):
         """The API names one unaccounted reference per refusal; list every one and the allowed ways to account for it."""
         active = (self.active or {}).get("sourceNodeId")
-        detached_rows = [f for f in result.get("failures", []) if f.get("code") == "SEMANTIC_DEPENDENCY_DETACHED"
-                         and str(f.get("ref", "")).startswith("claimRelation:") and self.relation_owners.get(f["ref"][len("claimRelation:"):]) == active]
-        detached = [f["ref"][len("claimRelation:"):] for f in detached_rows]
+        relations = self.context.draft["claimRelations"]
+        detached = {}
+        for f in result.get("failures", []):
+            ref = str(f.get("ref", ""))
+            # A reference-bound relation is refused by its claimRelation: id; an unreferenced link only by its uncommitted endpoint claim.
+            if f.get("code") == "SEMANTIC_DEPENDENCY_DETACHED" and ref.startswith("claimRelation:"):
+                rows = [(ref[len("claimRelation:"):], f.get("suppliedToClaimId"), f.get("suppliedToClaimId") in (f.get("targetClaimIds") or []))]
+            elif f.get("code") == "TARGET_CLAIMS_NOT_AVAILABLE":
+                rows = [(rid, ref, False) for rid, r in relations.items() if ref in (r["fromClaimId"], r["toClaimId"])]
+            else:
+                continue
+            for rid, target, committed in rows:
+                if self.relation_owners.get(rid) == active:
+                    detached[rid] = {"relationId": rid, "referenceId": (relations.get(rid) or {}).get("referenceId", f.get("referenceId")),
+                                     "ownerSourceNodeId": active, "targetClaimId": target, "targetClaimCommitted": committed}
         if detached:
-            return {**result, "requiredAction": "remove_semantic_relation", "detachedRelations": [
-                {"relationId": f["ref"][len("claimRelation:"):], "referenceId": f.get("referenceId"), "ownerSourceNodeId": active,
-                 "targetClaimId": f.get("suppliedToClaimId"), "targetClaimCommitted": f.get("suppliedToClaimId") in (f.get("targetClaimIds") or [])}
-                for f in detached_rows], "guidance": (
+            return {**result, "requiredAction": "remove_semantic_relation", "detachedRelations": list(detached.values()), "guidance": (
                 "Relation(s) " + ", ".join(detached) + " of this unit bind a claim that is no longer a committed target (its unit was reopened or changed). "
-                "Remove each with remove_semantic_relation and a factual reason, then complete this unit again; bind the reference once the target is republished.")}
+                "Remove each with remove_semantic_relation and a factual reason, then complete this unit again; re-create the binding once the target is republished.")}
         if not any(f.get("code") == "SOURCE_REVIEW_REFERENCE_BLOCKED" for f in result.get("failures", [])) or not self.active:
             return result
         accounted = self.context.draft["referenceAccounting"]
         pending = [rid for rid in self.active["referenceIds"] if rid not in accounted and rid not in set(listed or [])]
+        if not pending and not listed:
+            return {**result, "guidance": "This unit has no unaccounted reference to wait on. A yield without reference_ids is accepted only while a reopened unit owns a relation "
+                    "that touches this unit's claims; otherwise complete it with CLAIMS_AUTHORED or NO_RELEVANT_SEMANTIC_CLAIMS."}
         return {**result, "unaccountedReferenceIds": pending, "guidance": (
             "Every explicit reference of this unit must be accounted before it completes. For each: bind_semantic_reference when a target claim exists, "
             "mark_reference_non_material with a truthful reason, or, when the target unit is not reviewed yet, complete this unit with disposition "

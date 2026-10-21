@@ -170,7 +170,13 @@ export function referenceDependencyView(
       ),
     };
   };
-  return { endpoints, target, binding };
+  const reviewComplete = (sourceNodeId: string) =>
+    scoped.some(
+      (r) =>
+        r.sourceNodeId === sourceNodeId &&
+        completedReviewStates.includes(r.state as never),
+    );
+  return { endpoints, target, binding, reviewComplete };
 }
 
 /** A monotone publication fixed point; no DAG assumption and no model retries. */
@@ -189,7 +195,10 @@ export function referenceDependencyWake(
   // Recover legacy or inconsistent idle states even when their snapshot was already available.
   const allAvailable =
     blockers.length > 0 && blockers.every((b) => b.bindingCanProceed);
-  return { wake: changed || allAvailable, blockers };
+  const ownersRecommitted =
+    !!payload.blockedSourceNodeIds?.length &&
+    payload.blockedSourceNodeIds.every(view.reviewComplete);
+  return { wake: changed || allAvailable || ownersRecommitted, blockers };
 }
 
 /** Preserve the Agent's original decisions, but withdraw their authority until explicit repair. */
@@ -220,12 +229,13 @@ export function referenceDependencyWaits(
   const edges = new Map(
     blocked.map((r) => [
       r.sourceNodeId,
-      r.blockedReferenceIds.flatMap((id) =>
-        view
-          .target(id)
-          .targetReviews.map((target) => target.sourceNodeId)
-          .filter((id) => ids.has(id)),
-      ),
+      [
+        ...r.blockedReferenceIds.flatMap((id) =>
+          view.target(id).targetReviews.map((target) => target.sourceNodeId),
+        ),
+        ...(sourceReviewPayloadSchema.parse(r.payload).blockedSourceNodeIds ??
+          []),
+      ].filter((id) => ids.has(id)),
     ]),
   );
   const index = new Map<string, number>(),

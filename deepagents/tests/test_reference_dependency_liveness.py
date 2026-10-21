@@ -16,8 +16,8 @@ from rule_set_preparation.tools import RuleSetPreparationContext, build_rule_set
 pytestmark = pytest.mark.skipif("lcsp_review_frontier_test" not in os.environ.get("REVIEW_FRONTIER_DATABASE_URL", ""), reason="explicit owned frontier DB required")
 
 
-def restore(seed):
-    context = RuleSetPreparationContext(seed["preparationRunId"], DatabaseFrontierApi(), discovery_only=True, semantic_auditor=StructuralFixtureAuditor(),
+def restore(seed, auditor=None):
+    context = RuleSetPreparationContext(seed["preparationRunId"], DatabaseFrontierApi(), discovery_only=True, semantic_auditor=auditor or StructuralFixtureAuditor(),
         source_graph=PinnedSourceGraph(seed["documentGraph"], [{**c, "chunkId": c["id"]} for c in seed["chunks"]]))
     return context, MechanicalTools(context, build_rule_set_tools(context))
 
@@ -449,4 +449,180 @@ def test_active_unit_whose_bound_target_is_reopened_removes_the_detached_relatio
     assert refused["outcome"] == "PASSED", refused
     assert call(tools, "get_next_review_unit")["unit"]["sourceNodeId"] == owner
     context, tools, _ = drive(seed, context, tools, restart_each_commit=True)
+    assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == "PASSED"
+
+
+class ReversedRelationAuditor(StructuralFixtureAuditor):
+    """Scripted Run 7 (f978894d) verdicts: the owner's own audit accepted its reversed relation, the dependent's audit faulted it."""
+    def __init__(self):
+        super().__init__()
+        self.faults = {}
+
+    def audit(self, value):
+        receipt = super().audit(value)
+        wrong = self.faults.get(value["sourceNodeId"], set()) & {r["relationId"] for r in value["relations"]}
+        if not wrong:
+            return receipt
+        for row in receipt["relations"]:
+            if row["id"] in wrong:
+                row.update(verdict="WRONG_RELATION", gapCodes=["WRONG_RELATION"], checks={**row["checks"], "direction": "WRONG_RELATION"})
+        return {**receipt, "verdict": "WRONG_RELATION", "reportedVerdict": "WRONG_RELATION",
+                "gaps": [{"code": "WRONG_RELATION", "detail": rid + "/direction: FROM and TO are swapped"} for rid in sorted(wrong)]}
+
+
+@pytest.mark.parametrize("binding,edited,correction", [("REFERENCE", False, "CORRECTED"), ("LINK", False, "CORRECTED"),
+                                                      ("REFERENCE", True, "CORRECTED"), ("REFERENCE", False, "REVERSED_AGAIN")])
+def test_run7_foreign_reversed_relation_recovers_through_owner_reopen_correction_and_rebind(binding, edited, correction):
+    """Run 7: A (exception) is active, its audit faults B's (duty) reversed relation; B must be reopened and corrected and A rebound."""
+    seed = bridge({"action": "SEED_DEPENDENCIES", "nodes": 2, "edges": [{"from": 0, "to": 1}, {"from": 1, "to": 0}]})
+    auditor = ReversedRelationAuditor()
+    context, tools = restore(seed, auditor)
+    a, b = (n["nodeId"] for n in seed["documentGraph"]["nodes"])
+    a_to_b, b_to_a = (r["referenceId"] for r in seed["documentGraph"]["references"])
+    templates = {p["claims"][0]["sourceNodeIds"][0]: p for p in seed["templates"]}
+    exception, duty = templates[a]["claims"][0]["claimId"], templates[b]["claims"][0]["claimId"]
+    roles = {exception: dict(claim_type="EXCEPTION", statement="The retention duty does not apply to a temporary test record"),
+             duty: dict(claim_type="DUTY", statement="An operator must retain each record for 7 days", actor="An operator", action="retain each record for 7 days")}
+
+    def acquire(node):
+        work = call(tools, "get_next_review_unit")
+        assert work["outcome"] == "PASSED" and work["unit"]["sourceNodeId"] == node, work
+        for claim in templates[node]["claims"]:
+            if claim["claimId"] not in context.draft["semanticClaims"]:
+                assert call(tools, "register_semantic_claim", identity_key=templates[node]["identities"][claim["claimId"]],
+                            **roles.get(claim["claimId"], dict(claim_type=claim["claimType"], statement=claim["statement"])))["outcome"] == "PASSED"
+        return work
+
+    def yield_to_owner():
+        return call(tools, "complete_source_review", disposition="REQUIRES_REFERENCE_RESOLUTION", reference_ids=[a_to_b], reason="The referenced duty unit is not committed")
+
+    acquire(a)
+    assert yield_to_owner()["outcome"] == "PASSED"
+    acquire(b)
+    reversed_binding = dict(reference_id=b_to_a, from_claim_id=duty, to_claim_id=exception, kind="EXCEPTION_TO")
+    bad = call(tools, "bind_semantic_reference", **reversed_binding)["relation"]["relationId"]
+    assert call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")["outcome"] == "PASSED"
+    auditor.faults[a] = {bad}
+
+    acquire(a)
+    good_binding = dict(reference_id=a_to_b, from_claim_id=exception, to_claim_id=duty, kind="EXCEPTION_TO")
+    own = call(tools, "bind_semantic_reference" if binding == "REFERENCE" else "link_semantic_claims",
+               **(good_binding if binding == "REFERENCE" else {k: v for k, v in good_binding.items() if k != "reference_id"}))["relation"]["relationId"]
+    faulted = call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")
+    assert "SEMANTIC_AUDIT_REQUIRED" in faulted["gaps"] and faulted["relationOwners"] == {bad: b} and faulted["requiredAction"] == "reopen_source_review", faulted
+    assert "remove_semantic_relation " + own in faulted["guidance"] and a_to_b in faulted["guidance"], "the exit names this unit's relation that will detach"
+    assert "CLAIM_SOURCE_BINDING_INVALID" in call(tools, "remove_semantic_relation", relation_id=bad, reason="Roles swapped")["gaps"], "the dependent never edits the owner's relation"
+    assert call(tools, "reopen_source_review", source_node_id=b, reason="Article 3's audit found this unit's relation roles swapped")["outcome"] == "PASSED"
+    if edited:  # Run 7 T159: the dependent corrected its own claim, so the yield invalidates the owner's relation to it
+        assert call(tools, "update_semantic_claim", claim_id=exception, claim_type="EXCEPTION", statement="The 7-day retention duty does not apply to a temporary test record")["outcome"] == "PASSED"
+
+    # Run 7 T177: yielding while this unit still binds the reopened owner's claim is refused; the refusal must name the relation to remove.
+    refused = yield_to_owner()
+    assert {"REFERENCE": "SEMANTIC_DEPENDENCY_DETACHED", "LINK": "TARGET_CLAIMS_NOT_AVAILABLE"}[binding] in refused["gaps"], refused
+    assert refused["requiredAction"] == "remove_semantic_relation" and [r["relationId"] for r in refused["detachedRelations"]] == [own], refused
+    assert "NO_PROGRESS" in yield_to_owner(), "an unchanged repeat still earns no-progress feedback"
+    assert call(tools, "remove_semantic_relation", relation_id=own, reason="Its target unit was reopened for correction")["outcome"] == "PASSED"
+    assert yield_to_owner()["outcome"] == "PASSED"
+
+    owner = acquire(b)
+    assert [r["relationId"] for r in owner["unit"]["invalidatedRelations"]] == ([bad] if edited else []), owner["unit"]
+    assert call(tools, "remove_semantic_relation", relation_id=bad, reason="FROM and TO were swapped; the exception binds from Article 3")["outcome"] == "PASSED"
+    corrected = dict(reversed_binding, kind="CROSS_REFERENCE") if correction == "CORRECTED" else reversed_binding
+    corrected_id = call(tools, "bind_semantic_reference", **corrected)["relation"]["relationId"]
+    assert call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")["outcome"] == "PASSED"
+
+    acquire(a)
+    assert call(tools, "inspect_semantic_reference_binding", reference_id=a_to_b)["bindingCanProceed"]
+    assert "SEMANTIC_DEPENDENCY_DETACHED" in call(tools, "bind_semantic_reference", **dict(good_binding, from_claim_id=duty, to_claim_id=exception))["gaps"], "a reversed rebind stays invalid"
+    good = call(tools, "bind_semantic_reference", **good_binding)["relation"]["relationId"]
+    done = call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")
+    rows = {r["sourceNodeId"]: r for r in state(context)["rows"]}
+    assert {c["claimId"] for r in rows.values() for c in r["payload"]["claims"]} == {c["claimId"] for p in templates.values() for c in p["claims"]}, "no claim is lost"
+    if correction == "REVERSED_AGAIN":
+        assert "SEMANTIC_AUDIT_REQUIRED" in done["gaps"] and done["relationOwners"] == {bad: b}, done
+        assert rows[a]["state"] == "IN_REVIEW" and call(tools, "finalize_semantic_claim_inventory")["outcome"] == "FAILED"
+        return
+    assert done["outcome"] == "PASSED", done
+    assert call(tools, "get_next_review_unit")["unit"] is None
+    assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == "PASSED"
+    assert {r["relationId"] for r in context.inventory.frozen["relations"]} == {good, corrected_id}
+
+
+def unreferenced_owner_fixture():
+    """A (exception) and B (duty) share no structural reference; B links the exception reversed and its own audit accepts it."""
+    seed = bridge({"action": "SEED_DEPENDENCIES", "nodes": 2, "edges": []})
+    auditor = ReversedRelationAuditor()
+    context, tools = restore(seed, auditor)
+    a, b = (n["nodeId"] for n in seed["documentGraph"]["nodes"])
+    templates = {p["claims"][0]["sourceNodeIds"][0]: p for p in seed["templates"]}
+    exception, duty = templates[a]["claims"][0]["claimId"], templates[b]["claims"][0]["claimId"]
+    roles = {exception: dict(claim_type="EXCEPTION", statement="The retention duty does not apply to a temporary test record"),
+             duty: dict(claim_type="DUTY", statement="An operator must retain each record for 7 days", actor="An operator", action="retain each record for 7 days")}
+
+    def acquire(node):
+        work = call(tools, "get_next_review_unit")
+        assert work["outcome"] == "PASSED" and work["unit"]["sourceNodeId"] == node and not work["unit"]["references"], work
+        for claim in templates[node]["claims"]:
+            if claim["claimId"] not in context.draft["semanticClaims"]:
+                assert call(tools, "register_semantic_claim", identity_key=templates[node]["identities"][claim["claimId"]],
+                            **roles.get(claim["claimId"], dict(claim_type=claim["claimType"], statement=claim["statement"])))["outcome"] == "PASSED"
+
+    acquire(a)
+    assert call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")["outcome"] == "PASSED"
+    acquire(b)
+    bad = call(tools, "link_semantic_claims", from_claim_id=duty, to_claim_id=exception, kind="EXCEPTION_TO")["relation"]["relationId"]
+    assert call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")["outcome"] == "PASSED"
+    auditor.faults[a] = {bad}
+    return context, tools, acquire, a, b, exception, duty, bad
+
+
+def correct_owner(tools, acquire, b, exception, duty, bad, correction):
+    acquire(b)
+    assert call(tools, "remove_semantic_relation", relation_id=bad, reason="FROM and TO were swapped")["outcome"] == "PASSED"
+    corrected = dict(from_claim_id=exception, to_claim_id=duty) if correction == "CORRECTED" else dict(from_claim_id=duty, to_claim_id=exception)
+    assert call(tools, "link_semantic_claims", kind="EXCEPTION_TO", **corrected)["outcome"] == "PASSED"
+    assert call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")["outcome"] == "PASSED"
+
+
+@pytest.mark.parametrize("correction", ["CORRECTED", "REVERSED_AGAIN"])
+def test_unreferenced_foreign_relation_fault_at_freeze_names_the_owner_not_the_audited_unit(correction):
+    context, tools, acquire, a, b, exception, duty, bad = unreferenced_owner_fixture()
+    refused = call(tools, "finalize_semantic_claim_inventory")
+    assert refused["outcome"] == "FAILED" and refused["relationOwners"] == {bad: b} and refused["requiredAction"] == "reopen_source_review", refused
+    assert "do not reopen it" in refused["guidance"] and b in refused["guidance"], "A cannot change B's relation, so only the owner is reopened"
+    assert call(tools, "reopen_source_review", source_node_id=b, reason="Article A's audit found this unit's relation reversed")["outcome"] == "PASSED"
+    correct_owner(tools, acquire, b, exception, duty, bad, correction)
+    rows = {r["sourceNodeId"]: r["state"] for r in state(context)["rows"]}
+    assert rows == {a: "REVIEWED_WITH_CLAIMS", b: "REVIEWED_WITH_CLAIMS"}, "A was never reopened; the freeze re-audits it in place"
+    assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == ("PASSED" if correction == "CORRECTED" else "FAILED")
+
+
+@pytest.mark.parametrize("correction", ["CORRECTED", "REVERSED_AGAIN"])
+def test_active_unit_without_reference_into_owner_waits_for_the_reopened_owner(correction):
+    """Deferral by reference is unavailable: A has no reference at all, yet its audit faults B's relation while A is active."""
+    context, tools, acquire, a, b, exception, duty, bad = unreferenced_owner_fixture()
+    assert call(tools, "reopen_source_review", source_node_id=a, reason="Reconsider this unit")["outcome"] == "PASSED"
+    acquire(a)
+    faulted = call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")
+    assert faulted["relationOwners"] == {bad: b} and "without reference_ids" in faulted["guidance"], faulted
+    yield_ = dict(disposition="REQUIRES_REFERENCE_RESOLUTION", reason="The unit owning the faulted relation is reopened for correction")
+    refused = call(tools, "complete_source_review", **yield_)
+    assert "SOURCE_REVIEW_REFERENCE_BLOCKED" in refused["gaps"] and "reopened unit" in refused["guidance"], "nothing to wait on until the owner is reopened"
+    assert call(tools, "reopen_source_review", source_node_id=b, reason="Article A's audit found this unit's relation reversed")["outcome"] == "PASSED"
+    assert call(tools, "complete_source_review", **yield_)["outcome"] == "PASSED"
+    rows = {r["sourceNodeId"]: r for r in state(context)["rows"]}
+    assert rows[a]["state"] == "BLOCKED_REFERENCE" and rows[a]["blockedReferenceIds"] == [] and rows[a]["payload"]["blockedSourceNodeIds"] == [b]
+    correct_owner(tools, acquire, b, exception, duty, bad, correction)
+    assert {r["sourceNodeId"]: r["state"] for r in state(context)["rows"]}[a] == "REOPENED", "the owner's recommit wakes the waiting unit"
+    acquire(a)
+    done = call(tools, "complete_source_review", disposition="CLAIMS_AUTHORED")
+    rows = {r["sourceNodeId"]: r for r in state(context)["rows"]}
+    claims = {c["claimId"] for r in rows.values() for c in r["payload"]["claims"]}
+    assert len(claims) == 4 and {exception, duty} <= claims, "no claim is lost"
+    if correction == "REVERSED_AGAIN":
+        assert done["outcome"] == "FAILED" and done["relationOwners"], done
+        assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == "FAILED"
+        return
+    assert done["outcome"] == "PASSED", done
+    assert call(tools, "get_next_review_unit")["unit"] is None
     assert call(tools, "finalize_semantic_claim_inventory")["outcome"] == "PASSED"

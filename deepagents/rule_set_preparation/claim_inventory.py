@@ -362,9 +362,18 @@ class ClaimInventory:
         failures = [{"code": "SEMANTIC_AUDIT_REQUIRED", "ref": "node:" + node_id, "sourceNodeId": node_id, "detail": g["code"] + ": " + g["detail"]} for g in gaps[:12]]
         failures.extend({"code": "SEMANTIC_AUDIT_REQUIRED", "ref": "claim:" + r["id"], "sourceNodeId": node_id, "detail": r["verdict"] + ": " + ", ".join(r["gapCodes"])} for r in receipt.get("assertions", []) + receipt.get("relations", []) if r["verdict"] != "SUPPORTED" or r["gapCodes"])
         reopen = self.frontier and (not self.frontier.active or self.frontier.active["sourceNodeId"] != node_id)
-        return {"outcome": "FAILED", "failures": failures or [{"code": "SEMANTIC_AUDIT_REQUIRED", "ref": "node:" + node_id, "sourceNodeId": node_id, "detail": receipt["verdict"]}],
-                "requiredAction": "reopen_source_review" if reopen else "register_semantic_claim" if any(g["code"] == "MISSING_ASSERTION" for g in gaps) else "update_semantic_claim",
-                "guidance": "Repair this same source review unit from independent factual gaps. " + ("Explicitly reopen sourceNodeId=" + node_id + " before editing its claims or relations." if reopen else "Add omissions and correct unsupported assertions/relations, then complete this leased unit again."), "semanticAuditVerdict": receipt["verdict"]}
+        result = {"outcome": "FAILED", "failures": failures or [{"code": "SEMANTIC_AUDIT_REQUIRED", "ref": "node:" + node_id, "sourceNodeId": node_id, "detail": receipt["verdict"]}],
+                  "requiredAction": "reopen_source_review" if reopen else "register_semantic_claim" if any(g["code"] == "MISSING_ASSERTION" for g in gaps) else "update_semantic_claim",
+                  "guidance": "Repair this same source review unit from independent factual gaps. " + ("Explicitly reopen sourceNodeId=" + node_id + " before editing its claims or relations." if reopen else "Add omissions and correct unsupported assertions/relations, then complete this leased unit again."), "semanticAuditVerdict": receipt["verdict"]}
+        # A faulted relation another unit owns is corrected only in that unit; this unit is re-audited at the next finalize.
+        faulted = [r for r in receipt.get("assertions", []) + receipt.get("relations", []) if r["verdict"] != "SUPPORTED" or r["gapCodes"]]
+        foreign = {r["id"]: self.frontier.relation_owners[r["id"]] for r in faulted if reopen and self.frontier.relation_owners.get(r["id"]) not in (None, node_id)}
+        if foreign:
+            own = [r for r in faulted if r["id"] not in foreign] + [g for g in gaps if not any(g["detail"].startswith(rid + "/") for rid in foreign)]
+            owners = sorted(set(foreign.values()))
+            result.update(relationOwners=foreign, guidance="Relation(s) " + ", ".join(sorted(foreign)) + " belong to unit(s) " + ", ".join(owners) + ": reopen_source_review those units and correct the relations there. "
+                          "sourceNodeId=" + node_id + " cannot change them and is re-audited at the next finalize" + (", but also reopen it for its own gaps." if own else "; do not reopen it."))
+        return result
 
     def review_complete(self) -> bool:
         """Every review unit is complete (the independent audits are checked by the API before any conclusion)."""

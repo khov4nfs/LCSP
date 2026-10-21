@@ -1249,6 +1249,21 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
           },
         });
         const blocked = input.disposition === D.REQUIRES_REFERENCE_RESOLUTION;
+        delete payload.blockedSourceNodeIds;
+        if (blocked && !input.referenceIds?.length) {
+          // With no structural reference to wait on, a unit may wait for the reopened units whose relations touch its claims.
+          const waitsFor = (await dependencies()).rows
+            .filter(
+              (r) =>
+                r.state === S.REOPENED &&
+                reviewPayload(r).relations.some(
+                  (rel) => owned.has(rel.fromClaimId) || owned.has(rel.toClaimId),
+                ),
+            )
+            .map((r) => r.sourceNodeId)
+            .sort();
+          if (waitsFor.length) payload.blockedSourceNodeIds = waitsFor;
+        }
         if (blocked) {
           payload.blockedEndpointFingerprints = {};
           for (const id of input.referenceIds ?? []) {
@@ -1274,22 +1289,23 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
         if (
           blocked &&
           (!input.reason ||
-            !input.referenceIds?.length ||
-            input.referenceIds.some(
+            (!input.referenceIds?.length &&
+              !payload.blockedSourceNodeIds?.length) ||
+            input.referenceIds?.some(
               (id) => !refs.some((r) => r.referenceId === id),
             ))
         )
           return failed(
             G.REFERENCE,
             existing.sourceNodeId,
-            "Blocking needs specific outgoing reference IDs and a reason",
+            "Blocking needs specific outgoing reference IDs, or a reopened unit whose relations touch this unit's claims, and a reason",
             "complete_source_review",
           );
         for (const ref of refs) {
           const accounting = payload.referenceAccounting.find(
             (r) => r.referenceId === ref.referenceId,
           );
-          if (blocked && input.referenceIds!.includes(ref.referenceId))
+          if (blocked && input.referenceIds?.includes(ref.referenceId))
             continue;
           if (
             !accounting ||
@@ -1414,7 +1430,7 @@ export class SourceReviewHandler implements ICommandHandler<SourceReviewCommand>
             ownedClaimCount: payload.claims.length,
             payload,
             completionFingerprint,
-            blockedReferenceIds: blocked ? input.referenceIds! : [],
+            blockedReferenceIds: blocked ? (input.referenceIds ?? []) : [],
             operationId: null,
             leaseExpiresAt: null,
             completedAt: blocked ? null : new Date(),

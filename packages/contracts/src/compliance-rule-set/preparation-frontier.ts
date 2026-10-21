@@ -24,6 +24,8 @@ export const sourceReviewPayloadSchema = z.strictObject({
   // Runtime-owned authority snapshots; Agent intent remains in claims/relations.
   dependencyFingerprints: z.record(id, hash).optional(),
   blockedEndpointFingerprints: z.record(id, hash).optional(),
+  // Reopened units a reference-less yield waits for; set by the API, never by the Agent.
+  blockedSourceNodeIds: z.array(hash).max(20000).optional(),
   invalidatedRelationIds: z.array(id).max(20000).optional(),
 });
 export const sourceReviewOperationSchema = z.strictObject({
