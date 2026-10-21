@@ -77,7 +77,7 @@ async function verifyJourney(runId, result, started) {
   const counts = version
     ? (await one(`SELECT (SELECT count(*) FROM "LegalRequirement" WHERE "ruleSetVersionId"=$1)::int AS requirements,
                          (SELECT count(*) FROM "AssessmentRule" WHERE "ruleSetVersionId"=$1)::int AS rules,
-                         (SELECT count(*) FROM "LegalRequirementClaimBinding" b JOIN "LegalRequirement" l ON l.id=b."legalRequirementId" WHERE l."ruleSetVersionId"=$1)::int AS bindings,
+                         (SELECT count(*) FROM "LegalRequirementClaimBinding" b JOIN "LegalRequirement" l ON l.id=b."legalRequirementRowId" WHERE l."ruleSetVersionId"=$1)::int AS bindings,
                          (SELECT count(*) FROM "ComplianceRuleSetActivationRecord" WHERE "ruleSetVersionId"=$1)::int AS activations`, [version.id]))
     : null;
   step("07_legalRequirementsAuthored", counts?.requirements > 0, counts?.requirements);

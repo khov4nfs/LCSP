@@ -6,6 +6,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { LEGAL_SOURCE_CHUNK_STATUSES } from "@lcsp/contracts/legal-source";
 
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const apiDir = path.join(root, "apps/api");
@@ -120,9 +121,9 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
     );
     for (const chunk of chunks) {
       await q(
-        `INSERT INTO "LegalDocumentChunk"(id,"legalSourceVersionId","legalSourceDocumentId","documentId",locator,content,"contentSha256",hierarchy,"legalStatus")
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,'IN_FORCE')`,
-        [`${name}-${chunk.locator}`, legalSourceId, documentRow, documentId, chunk.locator, chunk.content, chunk.contentSha256, JSON.stringify(chunk.hierarchy ?? {})],
+        `INSERT INTO "LegalDocumentChunk"(id,"legalSourceVersionId","legalSourceDocumentId","documentId",locator,content,"contentSha256",hierarchy,"legalStatus","legalEffectStatus","legalStatusSourceRef")
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,'IN_FORCE',$9,$10)`,
+        [`${name}-${chunk.locator}`, legalSourceId, documentRow, documentId, chunk.locator, chunk.content, chunk.contentSha256, JSON.stringify(chunk.hierarchy ?? {}), LEGAL_SOURCE_CHUNK_STATUSES.EFFECTIVE, `fixture:${name}`],
       );
     }
     await q(

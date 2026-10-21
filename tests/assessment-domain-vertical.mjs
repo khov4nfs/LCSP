@@ -315,7 +315,7 @@ try {
   eq(first.captured.rejected.code, "ASSESSMENT_DECISION_VALIDATION_FAILED");
   for (const failure of [
     "UNKNOWN_LEGAL_CONTEXT:LR-NOT-LINKED",
-    "CRITERIA_INCOMPLETE:C-1",
+    ...first.captured.rule_set.assessmentRules.find((r) => r.assessmentRuleId === "ER-RET").criterionIds.map((id) => `CRITERIA_INCOMPLETE:${id}`),
     "UNKNOWN_CRITERION:C-9",
   ]) {
     ok(
@@ -329,6 +329,7 @@ try {
       first.captured.decision_ret.decisionRevision,
     ],
     [true, 1],
+    JSON.stringify(first.captured.decision_ret),
   );
 
   // every pinned rule is covered by exactly one accepted decision
@@ -1059,7 +1060,7 @@ try {
       expectedCaseRevision: deletionCaseRevision,
       idempotencyKey: "release-deletion-open-request",
       assessmentRuleId: "ER-RET",
-      criterionIds: ["C-1"],
+      criterionIds: first.captured.rule_set.assessmentRules.find((r) => r.assessmentRuleId === "ER-RET").criterionIds,
       question: "Who owns the external operational retention process?",
       unresolvedFact: "External organizational ownership",
       decisionImpact: ["Ownership determines the operational duty."],

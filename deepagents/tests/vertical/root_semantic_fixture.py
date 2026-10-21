@@ -24,6 +24,7 @@ def fixture(mode):
     for name,(lr,concept,intent,guidance,criterion) in definitions.items():
         legal[lr]["title"] = concept
         legal[lr]["proposition"] = intent
+        legal[lr]["applicabilityConditions"] = [guidance]
         rules[name].update(concept=concept, legalIntent=intent, applicabilityGuidance=guidance,
             criteria=[{"criterionId":"C-1","statement":criterion}], investigationGoals=[criterion], requiredEvidence=["Accepted repository source or authenticated bounded search coverage"], keywords=[])
     files = {
@@ -107,7 +108,13 @@ def fixture(mode):
     # The integrity validator requires every leaf in the seeded legal_source to be covered.
     # Keep only chunks this focused one-rule packet actually cites.
     locators = [locator for locator in locators if locator in referenced_locators]
-    return {"documentId":DOC,"hashes":hashes,"chunks":[{"locator":l,"content":text,"contentSha256":hashes[l]} for l in locators],"packet":packet,"files":files,"fixture":mode}
+    return {"documentId":DOC,"hashes":hashes,"chunks":[{"locator":l,"content":text,"contentSha256":hashes[l]} for l in locators],"packet":packet,"files":files,"fixture":mode,
+            # Ownership may be documented in the repository or supplied as a confirmed human fact.
+            "assessability": {"LR-PERSON": "MIXED"} if mode in {"source-answerable", "human"} else {},
+            "semanticFrames": {"LR-PERSON": {
+                "repositoryObservableAspect": "An approved operations register may document the designated owner.",
+                "externalFulfillmentAspect": "The organization must actually designate its responsible owner."
+            }} if mode in {"source-answerable", "human"} else {}}
 
 
 if __name__ == "__main__":

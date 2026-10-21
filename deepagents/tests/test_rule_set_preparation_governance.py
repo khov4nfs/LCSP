@@ -324,8 +324,9 @@ def test_offline_preparation_cli_remains_provider_free(monkeypatch, tmp_path, ca
     api = FakeApi()
     monkeypatch.setattr(scripted_preparation, "WorkerApiClient", lambda *args: api)
     monkeypatch.setattr(sys, "argv", ["scripted_preparation.py", "http://fixture.invalid",
-                                     "fixture-worker", RUN_ID, str(seed), "valid"])
+                                     "fixture-worker", RUN_ID, str(seed), "no-submit"])
 
     assert scripted_preparation.main() == 0
-    assert json.loads(capsys.readouterr().out.splitlines()[-1])["state"] == "SUCCEEDED"
-    assert api.names() == ["claim", "validate", "submit"]
+    result = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert result["state"] == "FAILED" and result["failureReason"] == "NO_SUBMISSION"
+    assert api.names() == ["claim", "fail"]
