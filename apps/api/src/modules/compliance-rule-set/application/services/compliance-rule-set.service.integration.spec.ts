@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ensureMigratedSchema } from "../../../../../test/support/auth-workspace-test-helpers.js";
 import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
 
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
@@ -152,6 +153,8 @@ function buildRuleSetUseCases(
 }
 
 describeDatabase("Legal ruleSet use cases PostgreSQL integration", () => {
+  // Graph materialization needs the migration's deferrable parent FK.
+  beforeAll(ensureMigratedSchema, 180_000);
   let prisma: PrismaClient;
   let outbox: OutboxRepository;
   let service: ReturnType<typeof buildRuleSetUseCases>;

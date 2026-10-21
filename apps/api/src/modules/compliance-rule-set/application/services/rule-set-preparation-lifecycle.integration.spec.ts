@@ -1,4 +1,5 @@
 import { pinFixtureRequest } from "../../../../../test/support/pin-legal-graph-fixture.js";
+import { ensureMigratedSchema } from "../../../../../test/support/auth-workspace-test-helpers.js";
 import { randomUUID } from "node:crypto";
 
 import {
@@ -85,6 +86,8 @@ describeDatabase(
     let consumer: LegalSourceActivatedConsumer;
     let startCommands = 0;
 
+    // Graph materialization needs the migration's deferrable parent FK.
+    beforeAll(ensureMigratedSchema, 180_000);
     beforeAll(async () => {
       prisma = new PrismaClient({ adapter: new PrismaPg(databaseUrl) });
       await prisma.$connect();

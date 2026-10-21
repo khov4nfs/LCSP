@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ensureMigratedSchema } from "../../../../../../test/support/auth-workspace-test-helpers.js";
 import { beforeAll, afterAll, describe, expect, it } from "@jest/globals";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
@@ -40,6 +41,8 @@ const suite = /@(127\.0\.0\.1|localhost):/u.test(url)
   ? describe
   : describe.skip;
 suite("Frozen inventory real PostgreSQL lifecycle", () => {
+  // Graph materialization needs the migration's deferrable parent FK.
+  beforeAll(ensureMigratedSchema, 180_000);
   let db: PrismaClient,
     service: PrismaService,
     handler: ClaimInventoryHandler,
