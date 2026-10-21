@@ -2443,9 +2443,7 @@ describe("AssessmentTrackingLoader", () => {
               assessmentRule: { concept: "Multi-factor authentication" },
             },
           ],
-          artifacts: [
-            { artifactId: reportArtifactId, createdAt: assessedAt },
-          ],
+          artifacts: [{ artifactId: reportArtifactId, createdAt: assessedAt }],
         },
       };
       const notComplete = {
