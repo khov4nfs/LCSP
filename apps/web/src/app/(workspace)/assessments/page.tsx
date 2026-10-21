@@ -1,5 +1,5 @@
-import { AssessmentsDirectory } from "@/features/workspace/components/organisms/assessments-directory";
+import { TrackingAssessmentsPage } from "@/features/tracking/components/organisms/tracking-assessments-page";
 
 export default function AssessmentsPage() {
-  return <AssessmentsDirectory />;
+  return <TrackingAssessmentsPage />;
 }

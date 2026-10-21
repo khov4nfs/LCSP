@@ -75,6 +75,7 @@ describe("AssessmentTrackingControllers", () => {
           owner: "acme",
           pinnedCommit: "abc1234",
           latestCommit: "abc1234",
+          observedAt: "2026-10-22T00:00:00.000Z",
           freshnessStatus: TRACKING_FRESHNESS_STATUSES.CURRENT,
           isStale: false,
         },
