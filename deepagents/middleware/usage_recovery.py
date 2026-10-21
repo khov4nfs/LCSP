@@ -1,7 +1,8 @@
 """Durable, callback-only recovery for usage-telemetry delivery.
 
-The provider is never replayed from this store. Rows contain only the usage
-contract payload (numeric usage and identities), never prompts or model output.
+The provider is never replayed from this store. Rows contain usage contract
+payloads or invocation evidence (numeric usage and identities), never prompts or
+model output. RECORDED evidence is retained and never drained as a callback.
 
 There is no reservation or release row: assessment execution never reserves or
 debits credits, so the only durable side effect left to retry is provider
@@ -44,6 +45,33 @@ def enqueue_usage(path: str | Path, payload: SettledUsagePayload) -> None:
         usage_recovery_key(payload),
         payload.model_dump(mode="json"),
     )
+
+
+def record_usage_evidence(path: str | Path, key: str, payload: dict[str, Any]) -> None:
+    """Archive one invocation atomically; never drain it as an assessment callback."""
+    db = _connect(path)
+    try:
+        db.execute("PRAGMA synchronous=FULL")
+        db.execute(
+            """INSERT INTO usage_recovery(kind, recovery_key, payload, state)
+               VALUES ('EVIDENCE', ?, ?, 'RECORDED')
+               ON CONFLICT(recovery_key) DO NOTHING""",
+            (key, json.dumps(payload, separators=(",", ":"), sort_keys=True)),
+        )
+        db.commit()
+    finally:
+        db.close()
+
+
+def read_usage_evidence(path: str | Path) -> list[dict[str, Any]]:
+    """Read committed evidence without replaying providers or deleting records."""
+    db = sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True, timeout=10)
+    try:
+        return [json.loads(row[0]) for row in db.execute(
+            "SELECT payload FROM usage_recovery WHERE kind = 'EVIDENCE' ORDER BY id"
+        )]
+    finally:
+        db.close()
 
 
 def drain(path: str | Path, api_client: Any) -> int:
@@ -230,6 +258,8 @@ def _normalize_usage_recovery_payload(payload: dict[str, Any]) -> dict[str, Any]
 __all__ = [
     "usage_recovery_key",
     "enqueue_usage",
+    "record_usage_evidence",
+    "read_usage_evidence",
     "drain",
     "start_background_worker",
 ]

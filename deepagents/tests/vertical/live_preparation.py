@@ -1,7 +1,10 @@
 """Run the REAL Rule Set Preparation agent with the configured model against a live API.
 
 usage: live_preparation.py <apiBase> <workerKey> <runId> <usageOut>
+recovery: live_preparation.py --recover-usage <usageOut> <runId> (no provider calls)
 Only LLM provider credentials from the repository .env are loaded into this process.
+The adjacent .sqlite3 file is authoritative; JSON totals cover completed responses only.
+Canonical input tokens exclude separately reported cache-read/write buckets.
 """
 
 from __future__ import annotations
@@ -9,8 +12,16 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
+from langchain_core.exceptions import ModelError
+
+from middleware.usage_metering import (
+    AgentRunState, activate_agent_run_state, extract_provider_usage,
+    provider_identity, provider_usage_telemetry,
+)
+from middleware.usage_recovery import read_usage_evidence, record_usage_evidence
 
 ROOT = Path(__file__).resolve().parents[3]
 ALLOWED_PREFIXES = (
@@ -24,6 +35,71 @@ ALLOWED_PREFIXES = (
     "LLM_PROVIDER_TIMEOUT",
     "LLM_MAX_PROVIDER",
 )
+
+
+class LiveUsage(AgentRunState):
+    """Use the governed per-response port, including independent Auditor calls."""
+
+    def __init__(self, run_id: str, usage_out: str) -> None:
+        super().__init__(run_id=run_id, agent_role="rule-set-preparation")
+        self.store = Path(usage_out + ".sqlite3")
+        if self.store.exists() and any(row.get("runId") != run_id for row in read_usage_evidence(self.store)):
+            raise ValueError("Usage evidence does not belong to the requested run")
+        record_usage_evidence(self.store, f"run:{run_id}", {
+            "runId": run_id, "event": "RUN_STARTED", "startedAt": time.time(),
+        })
+
+    def record(self, response, model, invocation_id, *, agent_role=None) -> None:
+        provider, model_name = provider_identity(model, response)
+        payload = {
+            "runId": self.run_id, "invocationId": invocation_id,
+            "event": "MODEL_RESPONSE", "agentRole": agent_role or self.agent_role,
+            "provider": provider, "model": model_name, "occurredAt": time.time(),
+            "usage": extract_provider_usage(response, model),
+            "reportedUsage": provider_usage_telemetry(response),
+        }
+        try:
+            record_usage_evidence(self.store, f"invocation:{self.run_id}:{invocation_id}", payload)
+        except Exception as error:
+            # Replaying an answered model call cannot repair a local evidence write.
+            raise ModelError("Durable live usage commit failed; stop without replaying the model") from error
+
+
+def recover_usage(usage_out: str, run_id: str) -> dict:
+    """SQLite is authoritative even when the worker never wrote its final JSON."""
+    store = Path(usage_out + ".sqlite3")
+    if not store.exists():
+        return {"runId": run_id, "accountingState": "UNAVAILABLE", "modelCalls": None,
+                "inputTokens": None, "outputTokens": None, "profileKey": None}
+    rows = read_usage_evidence(store)
+    if not rows or any(row.get("runId") != run_id for row in rows):
+        raise ValueError("Usage evidence does not belong to the requested run")
+    started = next(row["startedAt"] for row in rows if row["event"] == "RUN_STARTED")
+    records = [row for row in rows if row["event"] == "MODEL_RESPONSE"]
+    complete = all(row["usage"] is not None for row in records)
+    known = [row["usage"] for row in records if row["usage"] is not None]
+    profiles = sorted({f"{row['provider']}:{row['model']}" for row in records})
+    summary = {
+        "runId": run_id, "accountingState": "COMPLETE" if complete else "MISSING_PROVIDER_USAGE",
+        "coverage": "completed_provider_responses_only", "modelCalls": len(records),
+        "missingUsageCalls": len(records) - len(known), "invocations": records,
+        "seconds": round(time.time() - started, 1), "profiles": profiles,
+        "profileKey": profiles[0] if len(profiles) == 1 else None,
+    }
+    for field in ("inputTokens", "outputTokens"):
+        summary["known" + field[0].upper() + field[1:]] = sum(int(row[field]) for row in known)
+        summary[field] = summary["known" + field[0].upper() + field[1:]] if complete else None
+    for field in ("cachedInputTokens", "cacheWriteTokens", "reasoningTokens", "totalTokens"):
+        values = [int(row[field]) for row in known if field in row]
+        summary["known" + field[0].upper() + field[1:]] = sum(values) if values else None
+        summary[field] = sum(values) if values and len(values) == len(records) else None
+    target = Path(usage_out)
+    with tempfile.NamedTemporaryFile(mode="w", dir=target.parent, delete=False, encoding="utf-8") as handle:
+        json.dump(summary, handle)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(handle.name, target)
+    return summary
 
 
 def _load_llm_env() -> None:
@@ -42,8 +118,6 @@ def _load_llm_env() -> None:
 def _route_rule_set_preparation_to(route_id: str, model: str | None = None) -> None:
     """Point only the rule-set-preparation role at ``route_id`` (optionally overriding that
     route's model) through a temporary routes file; the repository config is never changed."""
-    import tempfile
-
     import yaml
 
     config = yaml.safe_load((ROOT / "deepagents" / "config" / "model_routes.yaml").read_text(encoding="utf-8"))
@@ -58,6 +132,9 @@ def _route_rule_set_preparation_to(route_id: str, model: str | None = None) -> N
 
 
 def main() -> int:
+    if sys.argv[1:2] == ["--recover-usage"]:
+        print(json.dumps(recover_usage(*sys.argv[2:4])))
+        return 0
     base, key, run_id, usage_out = sys.argv[1:5]
     _load_llm_env()
     if not os.environ.get("LCSP_SEMANTIC_AUDIT_ATTESTATION_KEY"):
@@ -77,11 +154,9 @@ def main() -> int:
             with open(trace_file, "a", encoding="utf-8") as handle:
                 handle.write(json.dumps({"at": round(time.time(), 1), "event": event, **fields}) + "\n")
 
-    class Usage(BaseCallbackHandler):
+    class Trace(BaseCallbackHandler):
         def __init__(self) -> None:
             self.calls = 0
-            self.input_tokens = 0
-            self.output_tokens = 0
             self.tool_calls: list[dict] = []
 
         def on_chat_model_start(self, serialized, messages, **kwargs) -> None:  # noqa: ANN001
@@ -106,31 +181,19 @@ def main() -> int:
         def on_llm_end(self, response, **kwargs) -> None:  # noqa: ANN001
             self.calls += 1
             trace("model_end", calls=self.calls)
-            for generations in response.generations:
-                for generation in generations:
-                    usage = getattr(getattr(generation, "message", None), "usage_metadata", None) or {}
-                    self.input_tokens += int(usage.get("input_tokens", 0))
-                    self.output_tokens += int(usage.get("output_tokens", 0))
 
-    usage = Usage()
+    trace_callback = Trace()
+    usage = LiveUsage(run_id, usage_out)
     api = WorkerApiClient(base, key)
-    started = time.time()
-    # Count tokens from every model call by wrapping the default model's callbacks.
     from rule_set_preparation.agent import RULE_SET_PREPARATION_ROLE
-    from model_policy import resolve_role, resolve_agent_model
+    from model_policy import resolve_agent_model
 
-    config = resolve_role(RULE_SET_PREPARATION_ROLE)
-    model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
-    model.callbacks = [usage]
-    result = run_rule_set_preparation(api, run_id, model=model, callbacks=[usage])
-    Path(usage_out).write_text(json.dumps({
-        "modelCalls": usage.calls,
-        "toolCalls": usage.tool_calls,
-        "inputTokens": usage.input_tokens,
-        "outputTokens": usage.output_tokens,
-        "seconds": round(time.time() - started, 1),
-        "profileKey": f"{config.provider}:{config.model}",
-    }), encoding="utf-8")
+    try:
+        with activate_agent_run_state(usage):
+            model = resolve_agent_model(RULE_SET_PREPARATION_ROLE)
+            result = run_rule_set_preparation(api, run_id, model=model, callbacks=[trace_callback])
+    finally:
+        recover_usage(usage_out, run_id)
     print(json.dumps(result))
     return 0
 

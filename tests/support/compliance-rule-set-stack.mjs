@@ -155,10 +155,12 @@ export async function startStack({ database, apiPort, dbPort = Number(process.en
 }
 
 /** Runs a Python script with the repo PYTHONPATH; resolves with the last JSON line it prints. */
-export function runPython(script, args, { env = {} } = {}) {
+export function runPython(script, args, { env = {}, timeoutMs = 0 } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(python, [script, ...args], {
       cwd: root,
+      timeout: timeoutMs,
+      killSignal: "SIGKILL",
       env: {
         ...process.env,
         PYTHONPATH: pythonPath,
@@ -170,8 +172,9 @@ export function runPython(script, args, { env = {} } = {}) {
     let err = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (err += d));
-    child.on("close", (code) => {
-      if (code !== 0) return reject(new Error(`python ${path.basename(script)} exited ${code}\n${err.slice(-3000)}`));
+    child.on("error", reject);
+    child.on("close", (code, signal) => {
+      if (code !== 0) return reject(new Error(`python ${path.basename(script)} exited ${code} signal=${signal} budgetMs=${timeoutMs}\n${err.slice(-3000)}`));
       const line = out.trim().split("\n").filter((l) => l.startsWith("{")).pop();
       resolve(JSON.parse(line));
     });

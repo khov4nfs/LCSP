@@ -11,8 +11,7 @@
 //   LCSP_RULE_SET_PREPARATION_EVAL_OUT          output directory (default reports/lcsp360-final-release-20261021)
 //   LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS     per-request provider timeout for this run (default 600; a request the gateway
 //                                               drops would otherwise wait for the 3600 s timeout configured in .env)
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { root, runPython, startStack, workerKey } from "./support/compliance-rule-set-stack.mjs";
@@ -129,17 +128,15 @@ try {
   const legalSourceId = await stack.seedLegalSource({ name: `live-${control ?? "synthetic-v1"}`, status: "ACTIVE", documentId: fixture.documentId, chunks: fixture.chunks });
   const started = await stack.activateLegalSource(legalSourceId);
   const runId = started.preparationRunId;
-  const usageFile = path.join(mkdtempSync(path.join(tmpdir(), "lcsp-compliance_rule_set-live-")), "usage.json");
+  const usageFile = path.join(mkdtempSync(path.join(outDir, `${stem}.usage-`)), "usage.json");
   const t0 = Date.now();
   const poll = setInterval(() => sample(runId, t0).catch(() => undefined), 30_000);
   let result;
   try {
-    result = await Promise.race([
-      runPython(path.join(tests, "live_preparation.py"), [stack.base, workerKey, runId, usageFile], {
-        env: { LCSP_LIVE_TRACE_FILE: traceFile, LLM_PROVIDER_TIMEOUT_SECONDS: process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ?? "600" },
-      }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error(`live run exceeded ${timeoutMs} ms`)), timeoutMs)),
-    ]);
+    result = await runPython(path.join(tests, "live_preparation.py"), [stack.base, workerKey, runId, usageFile], {
+      timeoutMs,
+      env: { LCSP_LIVE_TRACE_FILE: traceFile, LLM_PROVIDER_TIMEOUT_SECONDS: process.env.LCSP_LIVE_EVAL_PROVIDER_TIMEOUT_SECONDS ?? "600" },
+    });
   } catch (error) {
     // An exhausted budget or crashed worker still gets its evidence written (frontier, trace, verdict) instead of vanishing.
     result = { state: "RUN_ABORTED", failureReason: String(error?.message ?? error).slice(0, 600) };
@@ -147,22 +144,27 @@ try {
     clearInterval(poll);
     await sample(runId, t0).catch(() => undefined);
   }
-  const usage = existsSync(usageFile)
-    ? JSON.parse(readFileSync(usageFile, "utf8"))
-    : { profileKey: null, modelCalls: null, inputTokens: null, outputTokens: null, seconds: Math.round((Date.now() - t0) / 1000), toolCalls: [] };
+  let usage;
+  try {
+    usage = await runPython(path.join(tests, "live_preparation.py"), ["--recover-usage", usageFile, runId]);
+  } catch (error) {
+    usage = { runId, accountingState: "RECOVERY_FAILED", modelCalls: null, inputTokens: null, outputTokens: null, profileKey: null };
+    result = { state: "RUN_ABORTED", failureReason: `durable usage recovery failed: ${String(error).slice(0, 500)}` };
+  }
+  const accountingComplete = usage.accountingState === "COMPLETE" && usage.modelCalls > 0;
   const run = (await stack.q(`SELECT "executionState","failureReason" FROM "RuleSetPreparationRun" WHERE id=$1`, [runId])).rows[0];
   const invalid = (await stack.q(`SELECT "validationFailures" FROM "ComplianceRuleSetVersion" WHERE "preparationRunId"=$1`, [runId])).rows[0];
   const grading = control ? await gradeControl(runId, control).catch((error) => ({ graded: false, reason: String(error).slice(0, 300) })) : null;
   const journey = await verifyJourney(runId, result, started);
 
   const output = {
-    generatedAt: new Date().toISOString(), fixture: fixtureId, model: usage.profileKey, usage, runId, run, result, journey, grading,
+    generatedAt: new Date().toISOString(), fixture: fixtureId, model: usage.profileKey, usage, usageFile, accountingComplete, runId, run, result, journey, grading,
     validationFailures: invalid?.validationFailures ?? null,
     fixtureChunks: fixture.chunks.map((c) => ({ locator: c.locator, content: c.content })),
   };
   writeFileSync(path.join(outDir, `${stem}.json`), JSON.stringify(output, null, 2));
   console.log(JSON.stringify({ fixture: fixtureId, model: usage.profileKey, usage: { modelCalls: usage.modelCalls, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, seconds: usage.seconds }, run, state: result.state, failureReason: result.failureReason, journeyComplete: journey.complete, steps: Object.fromEntries(Object.entries(journey.steps).map(([k, v]) => [k, v.ok])), grading: grading && { graded: grading.graded, facts: grading.facts?.map((f) => `${f.force}:${f.ok}`) } }));
-  process.exitCode = journey.complete && (!grading || (grading.graded && grading.noExtraOperativeClaim && grading.facts.every((f) => f.ok))) ? 0 : 1;
+  process.exitCode = journey.complete && accountingComplete && (!grading || (grading.graded && grading.noExtraOperativeClaim && grading.facts.every((f) => f.ok))) ? 0 : 1;
 } finally {
   await stopOnce(stack);
 }
