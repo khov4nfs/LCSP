@@ -820,6 +820,7 @@ function dockerWorkerEnv() {
     "GOOGLE_API_KEY",
     // Every provider key list is forwarded whole: the worker rotates across the
     // comma-separated slots, so each configured provider needs its own variable.
+    "MIRAI_API_KEY",
     "INCEPTION_API_KEY",
     "INCEPTION_BASE_URL",
     "APX_API_KEY",
