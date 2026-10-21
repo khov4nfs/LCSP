@@ -5,7 +5,6 @@ import os
 
 INCEPTION_DEFAULT_BASE_URL = "https://api.inceptionlabs.ai/v1"
 APX_DEFAULT_BASE_URL = "https://api.apmix.ai"
-NARA_DEFAULT_BASE_URL = "https://router.bynara.id/v1"
 MIRAI_DEFAULT_BASE_URL = "https://api.miraiapi.com"
 
 PROVIDER_KEY_ENV = {
@@ -14,7 +13,6 @@ PROVIDER_KEY_ENV = {
     "inception": ("INCEPTION_API_KEY",),
     "apx": ("APX_API_KEY",),
     "anthropic": ("ANTHROPIC_API_KEY",),
-    "nara": ("NARA_API_KEY",),
     "miraiapi": ("MIRAI_API_KEY",),
 }
 # One request timeout for every provider, including slower routes with large prompts.
@@ -28,7 +26,6 @@ NO_SDK_RETRY_MAX_RETRIES = {
     "inception": 0,
     "apx": 0,
     "anthropic": 0,
-    "nara": 0,
     "miraiapi": 0,
 }
 
@@ -98,7 +95,7 @@ def credential_init_kwargs(provider: str) -> dict[str, object]:
     tokens = provider_tokens(provider)
     if not tokens:
         # Proxy credentials must never inherit a native SDK's environment key.
-        if provider in {"nara", "miraiapi"}:
+        if provider == "miraiapi":
             raise RuntimeError(f"{provider} requires {PROVIDER_KEY_ENV[provider][0]}")
         return {}
     # Explicitly pass one key: SDKs must never receive the comma-separated list.

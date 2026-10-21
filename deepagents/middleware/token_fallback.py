@@ -24,7 +24,6 @@ from model_policy import attach_model_route, model_route_config, route_for_model
 from orchestration.agent_stream import model_wait_heartbeat, note_model_step
 from provider_credentials import (
     INCEPTION_DEFAULT_BASE_URL,
-    NARA_DEFAULT_BASE_URL,
     NO_SDK_RETRY_MAX_RETRIES,
     apx_base_url,
     inception_base_url,
@@ -184,8 +183,6 @@ def model_provider(model) -> str | None:
             return "inception"
         if base_url == apx_base_url("openai"):
             return "apx"
-        if base_url == NARA_DEFAULT_BASE_URL:
-            return "nara"
         if base_url == mirai_base_url():
             return "miraiapi"
         return "openai"

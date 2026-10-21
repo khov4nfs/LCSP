@@ -23,7 +23,6 @@ async def test_mirai_uses_native_transport_and_metering_identity(
     monkeypatch.setenv("MIRAI_API_KEY", "offline-mirai-first,offline-mirai-second")
     monkeypatch.setenv("OPENAI_API_KEY", "offline-openai-unused")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "offline-anthropic-unused")
-    monkeypatch.setenv("NARA_API_KEY", "offline-nara-unused")
     assert provider_tokens("miraiapi") == ("offline-mirai-first", "offline-mirai-second")
     set_model_routes({
         "routes": {"r": {"provider": "miraiapi", "protocol": protocol, "model": "claude-sonnet-5"}},

@@ -43,7 +43,6 @@ from anthropic_stream_usage import init_chat_model
 
 from model_routes_config import DUAL_PROTOCOL_PROVIDERS, DUAL_PROTOCOLS, PROTOCOLS, read_model_routes
 from provider_credentials import (
-    NARA_DEFAULT_BASE_URL,
     apx_base_url,
     credential_init_kwargs,
     inception_base_url,
@@ -92,16 +91,6 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
         "anthropic_compatible_messages",
         lambda: {
             "base_url": apx_base_url(),
-            "timeout": llm_provider_timeout_seconds(),
-        },
-    ),
-    "nara": (
-        "openai",
-        "openai_compatible_chat_completions",
-        lambda: {
-            "base_url": NARA_DEFAULT_BASE_URL,
-            "use_responses_api": False,
-            "stream_usage": True,
             "timeout": llm_provider_timeout_seconds(),
         },
     ),

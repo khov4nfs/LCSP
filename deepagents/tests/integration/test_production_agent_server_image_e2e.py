@@ -261,8 +261,6 @@ def _start_server_container(
             "-e",
             "OPENAI_API_KEY=lcsp-production-image-smoke",
             "-e",
-            "NARA_API_KEY=lcsp-production-image-smoke",
-            "-e",
             "MIRAI_API_KEY=lcsp-production-image-smoke",
             server_image,
         ],

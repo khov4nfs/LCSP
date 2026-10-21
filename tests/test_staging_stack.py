@@ -20,12 +20,12 @@ SPEC.loader.exec_module(staging)
 
 
 class StagingStackTests(unittest.TestCase):
-    def test_nara_pool_is_forwarded_whole_with_process_environment_precedence(self) -> None:
+    def test_provider_pool_is_forwarded_whole_with_process_environment_precedence(self) -> None:
         credentials = staging.provider_credentials(
-            {"APX_API_KEY": "apx-test-key", "NARA_API_KEY": "nara-first,nara-second"},
-            {"NARA_API_KEY": "unused-file-key"},
+            {"APX_API_KEY": "apx-first,apx-second"},
+            {"APX_API_KEY": "unused-file-key"},
         )
-        self.assertEqual(credentials["NARA_API_KEY"], "nara-first,nara-second")
+        self.assertEqual(credentials["APX_API_KEY"], "apx-first,apx-second")
 
     def test_value_error_writes_safe_operation_and_readiness_diagnostics(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

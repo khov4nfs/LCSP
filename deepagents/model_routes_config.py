@@ -17,7 +17,6 @@ DEFAULT_PROTOCOLS = {
     "anthropic": "anthropic",
     "google_genai": "google_genai",
     "inception": "openai",
-    "nara": "openai",
     "miraiapi": "openai",
 }
 DUAL_PROTOCOL_PROVIDERS = frozenset({"apx", "miraiapi"})

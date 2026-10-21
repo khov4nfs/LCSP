@@ -26,7 +26,7 @@ from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parents[1]
 OWNER_LABEL = "lcsp.release-staging"
-PROVIDER_KEYS = ("APX_API_KEY", "INCEPTION_API_KEY", "NARA_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY")
+PROVIDER_KEYS = ("APX_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY")
 SERVICE_ROLES = ("postgres", "rabbitmq", "server", "api", "bridge", "web")
 EXPECTED_QUEUE_BOUNDARIES = frozenset({
     "lcsp.agent_runtime.boundary.legal_change_detection_requested",
