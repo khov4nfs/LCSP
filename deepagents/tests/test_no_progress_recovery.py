@@ -347,3 +347,14 @@ def test_quote_spans_reject_ambiguous_missing_and_mixed_evidence_and_offset_span
     assert stale["outcome"] == "FAILED" and "SOURCE_SUPPORT_INVALID" in stale["gaps"], stale
     explicit = call(tools, "get_source_support", node_id=node, quote=content[:10] if content.count(content[:10]) == 1 else content.strip()[:25])["sourceSupport"]
     assert call(tools, "register_semantic_claim", **_quote_claim(nodes, [explicit], key="explicit"))["outcome"] == "PASSED"
+
+
+def test_an_overlapping_repeat_is_an_ambiguous_quote():
+    ctx, tools, nodes = runtime()
+    call(tools, "get_next_review_unit")
+    node = ctx.inventory.frontier.active["sourceNodeId"]
+    ctx.source_graph.nodes[node]["content"] = "a) Keep the notice. Keep the notice. Keep the notice."
+    quote = "Keep the notice. Keep the notice."  # occurs at 3 and 20; str.count reports one
+    assert "SOURCE_SUPPORT_INVALID" in call(tools, "get_source_support", node_id=node, quote=quote)["gaps"]
+    assert "SOURCE_SUPPORT_INVALID" in call(tools, "register_semantic_claim", **_quote_claim(nodes, [{"nodeId": node, "quote": quote}]))["gaps"]
+    assert call(tools, "get_source_support", node_id=node, quote="a) " + quote)["sourceSupport"]["startOffset"] == 0

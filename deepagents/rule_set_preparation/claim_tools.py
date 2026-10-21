@@ -100,18 +100,17 @@ def build_claim_tools(context):
         if not node or not quote:
             return ledger.rejected("SOURCE_SUPPORT_INVALID", node_id, "Copy a unique exact minimal passage from the pinned node, preserving line breaks; no normalized or paraphrased quotation", requiredAction="get_source_support")
         content = node["content"]
-        if content.count(quote) == 1:
-            start = content.index(quote)
-            matched = quote
-        else:
+        def unique(text, needle):
+            # str.count misses overlapping repeats ("A. A." inside "A. A. A."), which are just as ambiguous.
+            start = text.find(needle)
+            return start if start >= 0 and text.find(needle, start + 1) < 0 else None
+        start, matched = unique(content, quote), quote
+        if start is None:
             trans = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'"})
-            content_norm = content.translate(trans)
-            quote_norm = quote.translate(trans)
-            if content_norm.count(quote_norm) == 1:
-                start = content_norm.index(quote_norm)
-                matched = content[start : start + len(quote)]
-            else:
+            start = unique(content.translate(trans), quote.translate(trans))
+            if start is None:
                 return ledger.rejected("SOURCE_SUPPORT_INVALID", node_id, "Copy a unique exact minimal passage from the pinned node, preserving line breaks; no normalized or paraphrased quotation", requiredAction="get_source_support")
+            matched = content[start : start + len(quote)]
         from rule_set_preparation.semantic_audit import text_sha
         offset = len(content[:start].encode("utf-16-le")) // 2
         return {"outcome": "PASSED", "sourceSupport": {"nodeId": node_id, "startOffset": offset, "endOffset": offset + len(matched.encode("utf-16-le")) // 2, "contentSha256": text_sha(matched)}}
