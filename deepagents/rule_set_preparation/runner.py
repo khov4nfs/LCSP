@@ -209,7 +209,7 @@ def run_rule_set_preparation(
                 {**chunk, "documentId": document["documentId"], "legalSourceVersionId": bundle["legalSourceVersionId"]}
                 for document in bundle["documents"] for chunk in document["chunks"]
             ])
-            # A partly extracted corpus cannot prove source completeness. Stop
+            # A partly extracted legal source cannot prove source completeness. Stop
             # before paying for model calls or asking the Producer to invent
             # material from pages or document parts that were not extracted.
             if context.source_graph.extraction_gaps:

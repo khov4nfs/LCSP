@@ -1,6 +1,6 @@
 {
   "provenance": {
-    "source": "frozen corpus-agnostic portfolio oracle (items P07, P10)",
+    "source": "frozen source-agnostic oracle (items P07, P10)",
     "oracleSha256": "72544a2407fbf0424cd16ffbc57ca34aa8680f56a8928fa078bacfd540a0e510",
     "note": "Semantic expectations only. Facts are located by exact substrings of the fixture text (anchors), never by keywords in model output."
   },

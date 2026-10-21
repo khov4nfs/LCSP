@@ -1,8 +1,8 @@
-"""Corpus representation (INV-R1, INV-R5): lossless chunk partition and honest extraction.
+"""Legal-source representation (INV-R1, INV-R5): lossless chunk partition and honest extraction.
 
-Provider-free and network-free. Every document here is synthetic or taken from the frozen portfolio oracle
+Provider-free and network-free. Every document here is synthetic or taken from the frozen source-agnostic oracle
 (read-only); nothing names a real instrument. The partition property is asserted for every profile and every
-portfolio text, with a negative control proving the checker itself can fail.
+oracle text, with a negative control proving the checker itself can fail.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ from tools.legal.managed_documents.extract import (
 from tools.legal.managed_documents.ingest import ingest_document
 
 ROOT = Path(__file__).resolve().parents[2]
-ORACLE = ROOT / "reports/lcsp360-semantic-convergence/corpus-agnostic-20261020/portfolio/portfolio-oracle.json"
+ORACLE = ROOT / "deepagents/tests/fixtures/source-agnostic-oracle.json"
 SYNTHETIC = ROOT / "tests/fixtures/legal-graph/source.json"
 PROFILES = ["AUTO", "ARTICLES", "NUMBERED_SECTIONS", "PARAGRAPHS"]
 

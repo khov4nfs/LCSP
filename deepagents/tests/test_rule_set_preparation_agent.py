@@ -707,7 +707,7 @@ def test_incomplete_source_extraction_fails_before_model_invocation(tmp_path: Pa
 
     monkeypatch.setattr(
         runner, "create_rule_set_preparation_agent",
-        lambda **kwargs: pytest.fail("incomplete corpus must not invoke Producer"),
+        lambda **kwargs: pytest.fail("incomplete legal source must not invoke Producer"),
     )
     monkeypatch.setattr(
         runner, "publish_agent_stream_event", lambda *args, **kwargs: None,
