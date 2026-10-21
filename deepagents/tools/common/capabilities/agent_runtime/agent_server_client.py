@@ -77,6 +77,17 @@ def dispatch_agent_runtime_event(
         "scan_job_id",
     )
 
+    from orchestration.context import resolve_response_language
+
+    response_language = resolve_response_language(
+        _find_text(message, "responseLanguage", "response_language", "locale", "language", "lcsp_locale")
+        or (message.get("user") or {}).get("locale")
+        or (message.get("metadata") or {}).get("locale")
+        or (message.get("metadata") or {}).get("responseLanguage")
+        or (message.get("runtimeContext") or {}).get("response_language")
+        or (message.get("runtimeContext") or {}).get("responseLanguage")
+    )
+
     context = {
         "assessment_id": assessment_id,
         "workflow_run_id": workflow_run_id,
@@ -89,6 +100,7 @@ def dispatch_agent_runtime_event(
         "system_deadline_at": deadline_at,
         "system_event": message,
         "repository_path": "/",
+        "response_language": response_language,
     }
 
     client = get_sync_client(
@@ -267,6 +279,17 @@ def resume_agent_runtime_run(
         "scanJobId",
         "scan_job_id",
     )
+    from orchestration.context import resolve_response_language
+
+    response_language = resolve_response_language(
+        _find_text(message, "responseLanguage", "response_language", "locale", "language", "lcsp_locale")
+        or (message.get("user") or {}).get("locale")
+        or (message.get("metadata") or {}).get("locale")
+        or (message.get("metadata") or {}).get("responseLanguage")
+        or (message.get("runtimeContext") or {}).get("response_language")
+        or (message.get("runtimeContext") or {}).get("responseLanguage")
+        or (message.get("runtimeContext") or {}).get("locale")
+    )
     context = {
         "assessment_id": assessment_id,
         "workflow_run_id": workflow_run_id,
@@ -278,12 +301,14 @@ def resume_agent_runtime_run(
         "system_boundary_name": boundary_name,
         "system_event": message,
         "repository_path": "/",
+        "response_language": response_language,
     }
     original_context = message.get("runtimeContext")
     if isinstance(original_context, Mapping):
         # Resume the frozen event and repository pins, with a fresh cancellation
         # generation. Never reinterpret the resume command as an Interview answer.
         context = dict(original_context)
+        context["response_language"] = response_language
         context["logical_run_id"] = _find_text(message, "logicalRunId")
         stopped_at = _find_text(message, "stoppedAt")
         deadline_at = context.get("system_deadline_at")

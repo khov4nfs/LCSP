@@ -287,6 +287,8 @@ export type PagesMessages = {
       notApplicable: string;
       viewReport: string;
       downloadReport: string;
+      viewProvenance: string;
+      downloadProvenance: string;
     };
     bar: {
       working: string;
@@ -350,6 +352,30 @@ export type PagesMessages = {
       basedOn: string;
       loading: string;
       failed: string;
+    };
+    provenance: {
+      title: string;
+      back: string;
+      viewProvenance: string;
+      downloadProvenance: string;
+      downloading: string;
+      loading: string;
+      failed: string;
+      empty: string;
+      overview: string;
+      pins: string;
+      ruleSet: string;
+      repository: string;
+      lineage: string;
+      facts: string;
+      evidence: string;
+      humanResolutions: string;
+      decisions: string;
+      events: string;
+      artifacts: string;
+      integrityVerified: string;
+      contentFingerprint: string;
+      checksum: string;
     };
   };
   agenticAssessment: {
@@ -2263,6 +2289,14 @@ export type AssessmentMessages = {
     taskFinished: string;
     modelStepCompleted: string;
     repositoryInspected: string;
+  };
+  tracking: {
+    reportReadyTitle: string;
+    reportReadyDescription: string;
+    reassessmentRequiredTitle: string;
+    reassessmentRequiredDescription: string;
+    outcomeCompletedTitle: string;
+    outcomeCompletedDescription: string;
   };
 };
 

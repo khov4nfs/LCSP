@@ -1,5 +1,6 @@
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
-import { appLocale } from "@/lib/locale";
+import type { Locale } from "@lcsp/contracts/shared";
+import { getAppLocaleSnapshot } from "@/lib/locale";
 
 const PREFIX = "pages.assessmentConversation.";
 
@@ -7,8 +8,10 @@ const PREFIX = "pages.assessmentConversation.";
 export function copy(
   key: string,
   values: Record<string, string | number> = {},
+  locale?: Locale,
 ): string {
-  let text = resolveMessage(appLocale, `${PREFIX}${key}` as MessageKey);
+  const activeLocale = locale ?? getAppLocaleSnapshot();
+  let text = resolveMessage(activeLocale, `${PREFIX}${key}` as MessageKey);
   for (const [name, value] of Object.entries(values))
     text = text.replaceAll(`{${name}}`, String(value));
   return text;

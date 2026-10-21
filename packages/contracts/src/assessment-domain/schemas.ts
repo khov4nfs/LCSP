@@ -30,14 +30,26 @@ import {
   ASSESSMENT_FACT_AUTHORITIES,
   ASSESSMENT_FACT_KINDS,
   ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION,
+  ASSESSMENT_PROVENANCE_SCHEMA_VERSION,
   ASSESSMENT_RECORD_STATES,
   SEARCH_COVERAGE_SCOPE_KINDS,
+  TRACKING_ACTION_REASONS,
+  TRACKING_ANOMALY_TYPES,
+  TRACKING_CHANGE_TYPES,
+  TRACKING_FRESHNESS_STATUSES,
+  TRACKING_IMPACT_REASONS,
+  TRACKING_TRUST_STATUSES,
+  TRACKING_UNTRUSTED_REASONS,
 } from "./constants.ts";
 import { assessmentRuntimeSchema } from "../evidence/assessment-runtime.ts";
 import {
   ASSESSMENT_DESCRIPTION_MAX_LENGTH,
   ASSESSMENT_NAME_MAX_LENGTH,
 } from "../assessment/constants.ts";
+import {
+  DEFAULT_RESPONSE_LANGUAGE,
+  LOCALES,
+} from "../shared/locale.ts";
 import {
   CREDENTIAL_PROVIDERS,
   REPOSITORY_CONNECTION_STATUSES,
@@ -393,6 +405,7 @@ export const assessmentRootContextSchema = z.strictObject({
   facts: z.array(assessmentCaseFactSchema),
   evidence: z.array(assessmentEvidenceSchema),
   openHumanRequestIds: z.array(uuidSchema),
+  responseLanguage: z.enum(LOCALES).default(DEFAULT_RESPONSE_LANGUAGE),
 });
 export type AssessmentRootContext = z.infer<typeof assessmentRootContextSchema>;
 
@@ -784,4 +797,285 @@ export const pinnedLegalSourceSearchResultSchema = z.strictObject({
 });
 export type PinnedLegalSourceSearchResult = z.infer<
   typeof pinnedLegalSourceSearchResultSchema
+>;
+
+/** Canonical assessment provenance artifact for Story 8.7 / LCSP-58. */
+export const assessmentProvenanceArtifactSchema = z.strictObject({
+  schemaVersion: z.literal(ASSESSMENT_PROVENANCE_SCHEMA_VERSION),
+  assessmentId: uuidSchema,
+  name: z.string().trim().min(1),
+  ownerId: z.string().min(1),
+  generatedAt: z.iso.datetime(),
+  contentFingerprintSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  correlationId: z.string(),
+  lifecycle: assessmentLifecycleSchema.nullable(),
+  pins: z
+    .strictObject({
+      ruleSet: assessmentRuleSetSummarySchema.nullable(),
+      repositorySnapshotId: identifierSchema.nullable(),
+      repositoryScanJobId: identifierSchema.nullable(),
+      repositoryCommit: commitSchema.nullable(),
+      pinnedAt: z.iso.datetime().nullable(),
+    })
+    .nullable(),
+  runtime: assessmentRuntimeSchema.nullable(),
+  acceptedFacts: z.array(assessmentCaseFactSchema),
+  acceptedEvidence: z.array(assessmentEvidenceSchema),
+  humanResolutions: z.array(assessmentHumanRequestViewSchema),
+  decisions: z.array(ruleDecisionRecordSchema),
+  coverage: z.array(
+    decisionCoverageSchema.extend({ concept: z.string().min(1) }),
+  ),
+  events: z.array(assessmentEventSchema),
+  artifacts: z.array(assessmentArtifactViewSchema),
+});
+export type AssessmentProvenanceArtifact = z.infer<
+  typeof assessmentProvenanceArtifactSchema
+>;
+
+/** Canonical deterministic downloaded export payload. Excludes request-volatile transport metadata. */
+export const assessmentProvenanceExportSchema = z.strictObject({
+  schemaVersion: z.literal(ASSESSMENT_PROVENANCE_SCHEMA_VERSION),
+  assessmentId: uuidSchema,
+  name: z.string().trim().min(1),
+  ownerId: z.string().min(1),
+  contentFingerprintSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  lifecycle: assessmentLifecycleSchema.nullable(),
+  pins: z
+    .strictObject({
+      ruleSet: assessmentRuleSetSummarySchema.nullable(),
+      repositorySnapshotId: identifierSchema.nullable(),
+      repositoryScanJobId: identifierSchema.nullable(),
+      repositoryCommit: commitSchema.nullable(),
+      pinnedAt: z.iso.datetime().nullable(),
+    })
+    .nullable(),
+  runtime: assessmentRuntimeSchema.nullable(),
+  acceptedFacts: z.array(assessmentCaseFactSchema),
+  acceptedEvidence: z.array(assessmentEvidenceSchema),
+  humanResolutions: z.array(assessmentHumanRequestViewSchema),
+  decisions: z.array(ruleDecisionRecordSchema),
+  coverage: z.array(
+    decisionCoverageSchema.extend({ concept: z.string().min(1) }),
+  ),
+  events: z.array(assessmentEventSchema),
+  artifacts: z.array(assessmentArtifactViewSchema),
+});
+export type AssessmentProvenanceExport = z.infer<
+  typeof assessmentProvenanceExportSchema
+>;
+
+/** Tracking enum schemas derived from canonical constants. */
+export const trackingChangeTypeSchema = z.enum(TRACKING_CHANGE_TYPES);
+export const trackingTrustStatusSchema = z.enum(TRACKING_TRUST_STATUSES);
+export const trackingFreshnessStatusSchema = z.enum(TRACKING_FRESHNESS_STATUSES);
+export const trackingActionReasonSchema = z.enum(TRACKING_ACTION_REASONS);
+export const trackingAnomalyTypeSchema = z.enum(TRACKING_ANOMALY_TYPES);
+export const trackingUntrustedReasonSchema = z.enum(TRACKING_UNTRUSTED_REASONS);
+export const trackingImpactReasonSchema = z.enum(TRACKING_IMPACT_REASONS);
+
+export const customerTrackingActionItemSchema = z.strictObject({
+  requestId: uuidSchema,
+  assessmentId: uuidSchema,
+  assessmentName: z.string().trim().min(1),
+  assessmentRuleId: z.string().trim().min(1),
+  question: z.string().trim().min(1),
+  unresolvedFact: z.string().trim().min(1),
+  actionReason: trackingActionReasonSchema,
+  createdAt: z.iso.datetime(),
+  destinationUrl: z.string().trim().min(1),
+});
+export type CustomerTrackingActionItem = z.infer<
+  typeof customerTrackingActionItemSchema
+>;
+
+export const customerTrackingChangeItemSchema = z.strictObject({
+  assessmentId: uuidSchema,
+  assessmentName: z.string().trim().min(1),
+  changeType: trackingChangeTypeSchema,
+  titleKey: z.string().trim().min(1),
+  descriptionKey: z.string().trim().min(1),
+  title: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  occurredAt: z.iso.datetime(),
+  destinationUrl: z.string().trim().min(1),
+});
+export type CustomerTrackingChangeItem = z.infer<
+  typeof customerTrackingChangeItemSchema
+>;
+
+export const customerTrackingComplianceSummarySchema = z.strictObject({
+  compliantCount: z.number().int().nonnegative(),
+  nonCompliantCount: z.number().int().nonnegative(),
+  notApplicableCount: z.number().int().nonnegative(),
+  unresolvedCount: z.number().int().nonnegative(),
+  totalRulesEvaluated: z.number().int().nonnegative(),
+});
+export type CustomerTrackingComplianceSummary = z.infer<
+  typeof customerTrackingComplianceSummarySchema
+>;
+
+export const customerTrackingAssessmentItemSchema = z.strictObject({
+  assessmentId: uuidSchema,
+  name: z.string().trim().min(1),
+  lifecycleState: z.string().nullable(),
+  executionState: z.string().nullable(),
+  repository: z.strictObject({
+    name: z.string().nullable(),
+    owner: z.string().nullable(),
+    pinnedCommit: z.string().nullable(),
+    latestCommit: z.string().nullable(),
+    freshnessStatus: trackingFreshnessStatusSchema,
+    isStale: z.boolean(),
+  }),
+  ruleSet: z.strictObject({
+    ruleSetVersionId: z.string().nullable(),
+    ruleSetName: z.string().nullable(),
+    ruleSetVersion: z.string().nullable(),
+    isCurrent: z.boolean(),
+  }),
+  trust: z.strictObject({
+    isTrustworthy: z.boolean(),
+    trustStatus: trackingTrustStatusSchema,
+    reason: z.string().nullable(),
+  }),
+  compliance: z.strictObject({
+    compliantCount: z.number().int().nonnegative(),
+    nonCompliantCount: z.number().int().nonnegative(),
+    notApplicableCount: z.number().int().nonnegative(),
+    unresolvedCount: z.number().int().nonnegative(),
+  }),
+  report: z.strictObject({
+    hasFinalReport: z.boolean(),
+    finalReportArtifactId: uuidSchema.nullable(),
+    finalReportCreatedAt: z.iso.datetime().nullable(),
+    isReady: z.boolean(),
+  }),
+  pendingActionCount: z.number().int().nonnegative(),
+  updatedAt: z.iso.datetime(),
+});
+export type CustomerTrackingAssessmentItem = z.infer<
+  typeof customerTrackingAssessmentItemSchema
+>;
+
+export const trackingPaginationSchema = z.strictObject({
+  total: z.number().int().nonnegative(),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  hasMore: z.boolean(),
+});
+export type TrackingPagination = z.infer<typeof trackingPaginationSchema>;
+
+export const customerTrackingOverviewSchema = z.strictObject({
+  actions: z.array(customerTrackingActionItemSchema),
+  changes: z.array(customerTrackingChangeItemSchema),
+  actionsPagination: trackingPaginationSchema.optional(),
+  changesPagination: trackingPaginationSchema.optional(),
+  complianceSummary: customerTrackingComplianceSummarySchema,
+  assessments: z.array(customerTrackingAssessmentItemSchema),
+  pagination: trackingPaginationSchema,
+  correlationId: z.string().min(1),
+  generatedAt: z.iso.datetime(),
+});
+export type CustomerTrackingOverview = z.infer<
+  typeof customerTrackingOverviewSchema
+>;
+
+export const customerTrackingOverviewQuerySchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  actionsLimit: z.coerce.number().int().min(1).max(100).optional(),
+  actionsOffset: z.coerce.number().int().min(0).optional(),
+  changesLimit: z.coerce.number().int().min(1).max(100).optional(),
+  changesOffset: z.coerce.number().int().min(0).optional(),
+  since: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.iso.datetime({ offset: true }).optional(),
+  ),
+  locale: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.string().trim().max(10).optional(),
+  ),
+});
+export type CustomerTrackingOverviewQuery = z.infer<
+  typeof customerTrackingOverviewQuerySchema
+>;
+
+export const adminTrackingImpactedAssessmentSchema = z.strictObject({
+  assessmentId: uuidSchema,
+  ownerId: z.string().min(1),
+  name: z.string().trim().min(1),
+  lifecycleState: z.string().nullable(),
+  executionState: z.string().nullable(),
+  blockerReason: z.string().nullable(),
+  impactReason: trackingImpactReasonSchema,
+  lastActivityAt: z.iso.datetime(),
+});
+export type AdminTrackingImpactedAssessment = z.infer<
+  typeof adminTrackingImpactedAssessmentSchema
+>;
+
+export const adminTrackingExecutionAnomalySchema = z.strictObject({
+  assessmentId: uuidSchema,
+  executionId: z.string().nullable(),
+  executionState: z.string(),
+  rootAgentVersion: z.string().nullable(),
+  anomalyType: trackingAnomalyTypeSchema,
+  durationSeconds: z.number().int().nonnegative().nullable(),
+  detectedAt: z.iso.datetime(),
+});
+export type AdminTrackingExecutionAnomaly = z.infer<
+  typeof adminTrackingExecutionAnomalySchema
+>;
+
+export const adminTrackingUnreconciledUsageSchema = z.strictObject({
+  eventId: uuidSchema,
+  assessmentId: uuidSchema.nullable(),
+  model: z.string(),
+  promptTokens: z.number().int().nonnegative().nullable(),
+  completionTokens: z.number().int().nonnegative().nullable(),
+  totalTokens: z.number().int().nonnegative().nullable(),
+  reconciled: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type AdminTrackingUnreconciledUsage = z.infer<
+  typeof adminTrackingUnreconciledUsageSchema
+>;
+
+export const adminTrackingUntrustedProjectionSchema = z.strictObject({
+  assessmentId: uuidSchema,
+  name: z.string().trim().min(1),
+  untrustedReason: trackingUntrustedReasonSchema,
+  detail: z.string().trim().min(1),
+  detectedAt: z.iso.datetime(),
+});
+export type AdminTrackingUntrustedProjection = z.infer<
+  typeof adminTrackingUntrustedProjectionSchema
+>;
+
+export const adminTrackingPlatformHealthSchema = z.strictObject({
+  totalActiveAssessments: z.number().int().nonnegative(),
+  totalFailedAssessments: z.number().int().nonnegative(),
+  totalBlockedAssessments: z.number().int().nonnegative(),
+  totalExecutionAnomalies: z.number().int().nonnegative(),
+  totalUnreconciledUsageEvents: z.number().int().nonnegative(),
+  totalUntrustedProjections: z.number().int().nonnegative(),
+});
+export type AdminTrackingPlatformHealth = z.infer<
+  typeof adminTrackingPlatformHealthSchema
+>;
+
+export const adminTrackingOperationalSchema = z.strictObject({
+  platformHealth: adminTrackingPlatformHealthSchema,
+  impactedAssessments: z.array(adminTrackingImpactedAssessmentSchema),
+  executionAnomalies: z.array(adminTrackingExecutionAnomalySchema),
+  unreconciledUsage: z.array(adminTrackingUnreconciledUsageSchema),
+  untrustedProjections: z.array(adminTrackingUntrustedProjectionSchema),
+  correlationId: z.string().min(1),
+  generatedAt: z.iso.datetime(),
+});
+export type AdminTrackingOperational = z.infer<
+  typeof adminTrackingOperationalSchema
 >;

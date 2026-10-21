@@ -12,6 +12,7 @@ import { StorageModule } from "../../platform/storage/storage.module.js";
 import { AnswerHumanRequestHandler } from "./application/commands/answer-human-request/answer-human-request.handler.js";
 import { GetHumanRequestsHandler } from "./application/queries/get-human-requests/get-human-requests.handler.js";
 import { AssessmentHumanRequestSupport } from "./infrastructure/persistence/assessment-human-request-support.service.js";
+import { LocalePresentationProjectionService } from "./infrastructure/presentation/locale-presentation-projection.service.js";
 import { AssessmentDetailLoader } from "./infrastructure/persistence/assessment-detail.loader.js";
 import { AssessmentReportLoader } from "./infrastructure/persistence/assessment-report.loader.js";
 import { GetAssessmentReportHandler } from "./application/queries/get-assessment-report/get-assessment-report.handler.js";
@@ -22,6 +23,11 @@ import { GetRuntimeControlHandler } from "./application/queries/get-runtime-cont
 import { GetRootControlHandler } from "./application/queries/get-root-control/get-root-control.handler.js";
 import { ControlAssessmentRuntimeHandler } from "./application/commands/control-assessment-runtime/control-assessment-runtime.handler.js";
 import { AssessmentHumanResolutionController } from "./presentation/http/assessment-human-resolution.controller.js";
+import { AssessmentProvenanceController } from "./presentation/http/assessment-provenance.controller.js";
+import { AssessmentProvenanceLoader } from "./infrastructure/persistence/assessment-provenance.loader.js";
+import { AssessmentTrackingController } from "./presentation/http/assessment-tracking.controller.js";
+import { AdminTrackingController } from "./presentation/http/admin-tracking.controller.js";
+import { AssessmentTrackingLoader } from "./infrastructure/persistence/assessment-tracking.loader.js";
 
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { AssessmentRuntimeControlService } from "../../platform/runtime-events/assessment-runtime-control.service.js";
@@ -90,11 +96,15 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentDomainController,
     AssessmentHumanResolutionController,
     AssessmentArtifactController,
+    AssessmentProvenanceController,
+    AssessmentTrackingController,
+    AdminTrackingController,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: RuntimeWriteFenceInterceptor },
     PublishAgentStreamEventHandler,
     AssessmentRuntimeControlService,
+    AssessmentTrackingLoader,
     GetRuntimeControlHandler,
     GetRootControlHandler,
     ControlAssessmentRuntimeHandler,
@@ -105,6 +115,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     AssessmentCaseSupport,
     AssessmentEvidenceInvalidation,
     AssessmentCompletionGate,
+    LocalePresentationProjectionService,
     AssessmentHumanRequestSupport,
     AnswerHumanRequestHandler,
     GetHumanRequestsHandler,
@@ -142,6 +153,7 @@ import { ReconcileOrphanedAssessmentHandler } from "./application/commands/recon
     GetWorkspaceRuntimeHandler,
     AssessmentDetailLoader,
     AssessmentReportLoader,
+    AssessmentProvenanceLoader,
     AssessmentRepositorySetupLoader,
     GetRepositorySetupHandler,
     GetAssessmentReportHandler,

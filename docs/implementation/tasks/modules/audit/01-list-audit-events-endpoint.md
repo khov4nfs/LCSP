@@ -3,7 +3,7 @@ task_id: MW-aud-001
 module: audit
 runtime: nestjs-api
 priority: P1
-status: READY_FOR_DEV
+status: DONE
 epic_story: 8.6
 depends_on:
   - platform/audit-writer/02-audit-writer-service.md

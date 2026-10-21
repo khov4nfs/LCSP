@@ -12,6 +12,7 @@ export class AnswerHumanRequestCommand extends Command<AnswerAssessmentHumanRequ
     public readonly actor: RbacRequestContext,
     public readonly request: AnswerAssessmentHumanRequest,
     public readonly correlationId: string,
+    public readonly responseLanguage?: string | null,
   ) {
     super();
   }

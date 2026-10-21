@@ -54,6 +54,8 @@ export const ASSESSMENT_ARTIFACT_KINDS = {
 } as const;
 export const ASSESSMENT_FINAL_REPORT_SCHEMA_VERSION =
   "ASSESSMENT_FINAL_REPORT_V1" as const;
+export const ASSESSMENT_PROVENANCE_SCHEMA_VERSION =
+  "ASSESSMENT_PROVENANCE_V1" as const;
 
 export const ASSESSMENT_COMPLETION_BLOCKER_CODES = {
   ASSESSMENT_NOT_ACTIVE: "ASSESSMENT_NOT_ACTIVE",
@@ -146,6 +148,8 @@ export const ASSESSMENT_DOMAIN_ERROR_CODES = {
   COMPLETION_GATE_BLOCKED: "ASSESSMENT_COMPLETION_GATE_BLOCKED",
   FINAL_REPORT_INVALID: "ASSESSMENT_FINAL_REPORT_INVALID",
   FINAL_REPORT_ALREADY_CREATED: "ASSESSMENT_FINAL_REPORT_ALREADY_CREATED",
+  PROVENANCE_INTEGRITY_MISMATCH: "ASSESSMENT_PROVENANCE_INTEGRITY_MISMATCH",
+  PROVENANCE_NOT_FOUND: "ASSESSMENT_PROVENANCE_NOT_FOUND",
 } as const;
 export type AssessmentDomainErrorCode =
   (typeof ASSESSMENT_DOMAIN_ERROR_CODES)[keyof typeof ASSESSMENT_DOMAIN_ERROR_CODES];
@@ -196,3 +200,74 @@ export const ASSESSMENT_ROOT_BOUNDARY = "ASSESSMENT_ROOT" as const;
 
 /** Largest page of canonical assessment events one customer read returns. */
 export const ASSESSMENT_EVENTS_PAGE_LIMIT = 500;
+
+/** Tracking change types indicating material change since latest usable result. */
+export const TRACKING_CHANGE_TYPES = {
+  REPORT_READY: "REPORT_READY",
+  REASSESSMENT_REQUIRED: "REASSESSMENT_REQUIRED",
+  OUTCOME_COMPLETED: "OUTCOME_COMPLETED",
+} as const;
+export type TrackingChangeType =
+  (typeof TRACKING_CHANGE_TYPES)[keyof typeof TRACKING_CHANGE_TYPES];
+
+/** Trust status of an assessed system/result. */
+export const TRACKING_TRUST_STATUSES = {
+  TRUSTED: "TRUSTED",
+  STALE: "STALE",
+  IN_PROGRESS: "IN_PROGRESS",
+  BLOCKED: "BLOCKED",
+  DATA_UNAVAILABLE: "DATA_UNAVAILABLE",
+} as const;
+export type TrackingTrustStatus =
+  (typeof TRACKING_TRUST_STATUSES)[keyof typeof TRACKING_TRUST_STATUSES];
+
+/** Freshness status of the assessed repository commit relative to authoritative sources. */
+export const TRACKING_FRESHNESS_STATUSES = {
+  CURRENT: "FRESHNESS_CURRENT",
+  STALE: "FRESHNESS_STALE",
+  UNKNOWN: "FRESHNESS_UNKNOWN",
+} as const;
+export type TrackingFreshnessStatus =
+  (typeof TRACKING_FRESHNESS_STATUSES)[keyof typeof TRACKING_FRESHNESS_STATUSES];
+
+/** Action reasons for actionable items requiring customer input. */
+export const TRACKING_ACTION_REASONS = {
+  HUMAN_FACT_REQUIRED: "HUMAN_FACT_REQUIRED",
+  CLARIFICATION_REQUIRED: "CLARIFICATION_REQUIRED",
+} as const;
+export type TrackingActionReason =
+  (typeof TRACKING_ACTION_REASONS)[keyof typeof TRACKING_ACTION_REASONS];
+
+/** Operational anomaly types for admin tracking. */
+export const TRACKING_ANOMALY_TYPES = {
+  EXECUTION_FAILED: "EXECUTION_FAILED",
+  EXECUTION_PAUSED: "EXECUTION_PAUSED",
+  EXECUTION_INTERRUPTED: "EXECUTION_INTERRUPTED",
+  ABNORMAL_RUNTIME_DURATION: "ABNORMAL_RUNTIME_DURATION",
+} as const;
+export type TrackingAnomalyType =
+  (typeof TRACKING_ANOMALY_TYPES)[keyof typeof TRACKING_ANOMALY_TYPES];
+
+/** Untrusted projection reasons for admin tracking. */
+export const TRACKING_UNTRUSTED_REASONS = {
+  MISSING_PINS: "MISSING_PINS",
+  SOURCE_SNAPSHOT_STALE: "SOURCE_SNAPSHOT_STALE",
+  SOURCE_FRESHNESS_UNKNOWN: "SOURCE_FRESHNESS_UNKNOWN",
+  RULE_SET_UNAVAILABLE: "RULE_SET_UNAVAILABLE",
+  DECISIONS_INVALIDATED: "DECISIONS_INVALIDATED",
+  EVIDENCE_INVALIDATED: "EVIDENCE_INVALIDATED",
+  INCOMPLETE_COVERAGE: "INCOMPLETE_COVERAGE",
+  DECISION_INCONSISTENCY: "DECISION_INCONSISTENCY",
+} as const;
+export type TrackingUntrustedReason =
+  (typeof TRACKING_UNTRUSTED_REASONS)[keyof typeof TRACKING_UNTRUSTED_REASONS];
+
+/** Customer-impacting platform failure or blocker reason for admin tracking. */
+export const TRACKING_IMPACT_REASONS = {
+  PLATFORM_FAILURE: "PLATFORM_FAILURE",
+  BLOCKED_ON_INPUT: "BLOCKED_ON_INPUT",
+  UNRESOLVABLE_FACT: "UNRESOLVABLE_FACT",
+  RESOURCE_UNAVAILABLE: "RESOURCE_UNAVAILABLE",
+} as const;
+export type TrackingImpactReason =
+  (typeof TRACKING_IMPACT_REASONS)[keyof typeof TRACKING_IMPACT_REASONS];

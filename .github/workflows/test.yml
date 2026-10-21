@@ -350,6 +350,11 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Show Docker environment
+        run: |
+          docker --version
+          docker compose version
+
       - name: Candidate builds, merged-rootfs absence and Docker integrations
         run: python tests/release-images.py
 

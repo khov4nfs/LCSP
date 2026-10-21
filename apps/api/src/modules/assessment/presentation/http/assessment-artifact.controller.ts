@@ -42,6 +42,8 @@ export class AssessmentArtifactController {
     @Req() req: AuthenticatedRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
+    const locale =
+      (req.headers?.["x-lcsp-locale"] as string | undefined) ?? null;
     const report = await this.queries.execute(
       new GetAssessmentReportQuery(
         assessmentId,
@@ -49,6 +51,7 @@ export class AssessmentArtifactController {
         req.rbacContext.userId,
         req.rbacContext.role,
         req.correlationId || randomUUID(),
+        locale,
       ),
     );
     response.setHeader("Cache-Control", "private, no-store");

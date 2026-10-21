@@ -30,6 +30,20 @@ class LCSPRunContext:
     system_deadline_at: float | None = None
     system_event: dict[str, Any] = field(default_factory=dict)
     repository_path: str | None = None
+    response_language: str = "vi"
+
+
+DEFAULT_RESPONSE_LANGUAGE = "vi"
+SUPPORTED_RESPONSE_LANGUAGES = ("en", "vi")
+
+
+def resolve_response_language(value: Any, fallback: str = DEFAULT_RESPONSE_LANGUAGE) -> str:
+    """Normalize and validate response language against supported locales."""
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in SUPPORTED_RESPONSE_LANGUAGES:
+            return normalized
+    return fallback
 
 
 def coerce_run_context(value: Any) -> LCSPRunContext | None:
@@ -40,7 +54,12 @@ def coerce_run_context(value: Any) -> LCSPRunContext | None:
         try:
             return LCSPRunContext(**value)
         except TypeError:
-            return None
+            valid_keys = {f for f in LCSPRunContext.__dataclass_fields__}
+            filtered = {k: v for k, v in value.items() if k in valid_keys}
+            try:
+                return LCSPRunContext(**filtered)
+            except TypeError:
+                return None
     return None
 
 

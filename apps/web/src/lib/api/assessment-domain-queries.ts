@@ -6,6 +6,7 @@ import {
   assessmentEventsPageSchema,
   assessmentFinalReportArtifactSchema,
   assessmentHumanRequestsResultSchema,
+  assessmentProvenanceArtifactSchema,
   assessmentRepositorySetupSchema,
   reconcileOrphanedAssessmentResultSchema,
   answerAssessmentHumanRequestSchema,
@@ -20,6 +21,7 @@ export const assessmentDomainKeys = {
   requests: (id: string) => ["assessment", id, "human-requests"] as const,
   setup: (id: string) => ["assessment", id, "repository-setup"] as const,
   events: (id: string) => ["assessment", id, "events"] as const,
+  provenance: (id: string) => ["assessment", id, "provenance"] as const,
 };
 export function useAssessmentDetailQuery(id: string) {
   return useQuery({
@@ -126,6 +128,31 @@ export function useAnswerHumanRequestMutation(id: string, requestId: string) {
   });
 }
 
+export function useAnswerAnyHumanRequestMutation(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      answer,
+    }: {
+      requestId: string;
+      answer: AnswerAssessmentHumanRequest;
+    }) =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/human-requests/${encodeURIComponent(requestId)}/answers`,
+        answerAssessmentHumanRequestResultSchema,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(
+            answerAssessmentHumanRequestSchema.parse(answer),
+          ),
+        },
+      ),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["assessment", id] }),
+  });
+}
+
 /** The stored final report of one assessment, parsed against the artifact contract. */
 export function useAssessmentReportQuery(id: string, artifactId: string | null) {
   return useQuery({
@@ -136,5 +163,18 @@ export function useAssessmentReportQuery(id: string, artifactId: string | null) 
         assessmentFinalReportArtifactSchema,
       ),
     enabled: Boolean(id) && artifactId !== null,
+  });
+}
+
+/** The immutable, validated provenance artifact of one assessment. */
+export function useAssessmentProvenanceQuery(id: string) {
+  return useQuery({
+    queryKey: assessmentDomainKeys.provenance(id),
+    queryFn: () =>
+      apiValidated(
+        `/api/assessments/${encodeURIComponent(id)}/provenance`,
+        assessmentProvenanceArtifactSchema,
+      ),
+    enabled: Boolean(id),
   });
 }

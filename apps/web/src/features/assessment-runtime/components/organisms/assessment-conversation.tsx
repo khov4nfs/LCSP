@@ -12,6 +12,7 @@ import { ConversationDecisionTurn } from "../molecules/conversation-decision-tur
 import { ConversationNoticeTurn } from "../molecules/conversation-notice-turn";
 import { ConversationOpeningTurn } from "../molecules/conversation-opening-turn";
 import { ConversationQuestionTurn } from "../molecules/conversation-question-turn";
+import type { AssessmentHumanRequestView } from "@lcsp/contracts/assessment-domain";
 import { ConversationWorkTurn } from "../molecules/conversation-work-turn";
 import { copy } from "../../utils/conversation-copy";
 
@@ -19,9 +20,15 @@ type AssessmentConversationProps = {
   projection: ConversationProjection;
   answerPending: boolean;
   answerFailed: boolean;
-  onAnswer: (answer: StructuredAnswer) => void;
+  onAnswer: (
+    answer: StructuredAnswer,
+    request: AssessmentHumanRequestView,
+  ) => void;
+  submittingRequestId?: string | null;
+  failedRequestId?: string | null;
   /** Rendered after the last turn inside the scroll area (e.g. a load error). */
   footer?: ReactNode;
+  targetRequestId?: string;
 };
 
 /**
@@ -34,17 +41,26 @@ export function AssessmentConversation({
   answerPending,
   answerFailed,
   onAnswer,
+  submittingRequestId,
+  failedRequestId,
   footer,
+  targetRequestId,
 }: AssessmentConversationProps) {
   return (
     <AssessmentTranscript
       ariaLabel={copy("transcriptLabel")}
-      autoScrollKey={projection.followKey}
+      autoScrollKey={targetRequestId ? undefined : projection.followKey}
       live="off"
     >
       {projection.turns.map((turn) => (
         <div key={turn.id} data-turn-kind={turn.kind}>
-          {renderTurn(turn, { answerPending, answerFailed, onAnswer })}
+          {renderTurn(turn, {
+            answerPending,
+            answerFailed,
+            submittingRequestId,
+            failedRequestId,
+            onAnswer,
+          })}
         </div>
       ))}
       {footer}
@@ -57,7 +73,12 @@ function renderTurn(
   context: {
     answerPending: boolean;
     answerFailed: boolean;
-    onAnswer: (answer: StructuredAnswer) => void;
+    submittingRequestId?: string | null;
+    failedRequestId?: string | null;
+    onAnswer: (
+      answer: StructuredAnswer,
+      request: AssessmentHumanRequestView,
+    ) => void;
   },
 ) {
   switch (turn.kind) {
@@ -69,9 +90,17 @@ function renderTurn(
       return (
         <ConversationQuestionTurn
           turn={turn}
-          pending={context.answerPending}
-          failed={context.answerFailed}
-          onAnswer={context.onAnswer}
+          pending={
+            context.submittingRequestId
+              ? context.submittingRequestId === turn.request.requestId
+              : context.answerPending
+          }
+          failed={
+            context.failedRequestId
+              ? context.failedRequestId === turn.request.requestId
+              : context.answerFailed
+          }
+          onAnswer={(answer) => context.onAnswer(answer, turn.request)}
         />
       );
     case CONVERSATION_TURN_KINDS.ANSWER:

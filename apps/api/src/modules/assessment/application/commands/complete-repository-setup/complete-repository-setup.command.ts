@@ -11,6 +11,7 @@ export class CompleteRepositorySetupCommand extends Command<CompleteRepositorySe
     public readonly assessmentId: string,
     public readonly actorId: string,
     public readonly correlationId: string,
+    public readonly responseLanguage?: string | null,
   ) {
     super();
   }
