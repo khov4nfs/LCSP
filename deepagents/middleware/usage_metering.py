@@ -25,6 +25,7 @@ from langchain.agents.middleware import AgentMiddleware
 from middleware.token_fallback import model_protocol, model_provider
 from middleware.usage_recovery import enqueue_usage
 from model_policy import (
+    ResolvedModelConfig,
     attach_model_route,
     config_snapshot,
     distinct_runtime_identities,
@@ -104,6 +105,12 @@ def _active_logical_invocation_id() -> str | None:
     return invocation_id if isinstance(invocation_id, str) else None
 
 
+def _active_metered_invocation_id() -> str | None:
+    summary = active_model_step_summary.get()
+    invocation_id = summary.get("settlement_invocation_id") if summary else None
+    return invocation_id if isinstance(invocation_id, str) else None
+
+
 @dataclass
 class AgentRunState:
     """Run-scoped identity, provider-route state and usage port for one agent run.
@@ -167,6 +174,7 @@ class AgentRunState:
                 provider,
                 model_name,
                 model_protocol(model),
+                model_route_config(model),
             ),
             occurredAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             **usage,
@@ -524,7 +532,9 @@ class _ModelCallTelemetry:
         self.protocol = model_protocol(model) or "unknown"
         self.timeout_seconds = llm_provider_timeout_seconds()
         self.model_step_id = active_model_step_id() or str(uuid4())
-        self.invocation_id = invocation_id or _active_logical_invocation_id()
+        self.invocation_id = _active_logical_invocation_id() or invocation_id
+        self.settlement_invocation_id = invocation_id
+        self.logical_invocation_id = _active_logical_invocation_id()
         self.agent_role = active_agent_role()
         self.operation_type = active_model_operation()
         self._started_at = time.monotonic()
@@ -536,6 +546,7 @@ class _ModelCallTelemetry:
         note_model_step("provider_attempts")
         self.attempt_ordinal = self._summary.get("provider_attempts") if self._summary else None
         if self._summary is not None:
+            self._summary["settlement_invocation_id"] = self.settlement_invocation_id
             self._summary["provider"] = self.provider.lower()
             self._summary["protocol"] = self.protocol
             self._summary["model"] = self.model_name
@@ -658,6 +669,10 @@ class _ModelCallTelemetry:
         }
         if self.invocation_id:
             data["invocation_id"] = self.invocation_id
+        if self.logical_invocation_id:
+            data["logical_invocation_id"] = self.logical_invocation_id
+        if self.settlement_invocation_id:
+            data["settlement_invocation_id"] = self.settlement_invocation_id
         if self.agent_role:
             data["agent_role"] = self.agent_role
         if self.operation_type:
@@ -919,7 +934,8 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
     def wrap_model_call(self, request, handler):
         request, model = self._prepare(request)
-        invocation_id = _active_logical_invocation_id() or str(uuid4())
+        # Each answered attempt must survive the API's settlement idempotency key.
+        invocation_id = str(uuid4())
         telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
@@ -940,7 +956,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
     async def awrap_model_call(self, request, handler):
         request, model = self._prepare(request)
-        invocation_id = _active_logical_invocation_id() or str(uuid4())
+        invocation_id = str(uuid4())
         telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
@@ -969,20 +985,23 @@ class UsageMeteringMiddleware(AgentMiddleware):
 
 
 def effective_runtime_model(
-    role: str, provider: str, model: str, protocol: str | None = None
+    role: str, provider: str, model: str, protocol: str | None = None,
+    route: ResolvedModelConfig | None = None,
 ) -> dict[str, str] | None:
     """Audit identity of the route that actually answered, scoped to the agent role.
 
-    The role's own route wins when it matches the used model; otherwise the configured
-    route for that provider/model (a fallback route) is hashed with the same role.
-    Unconfigured models report no identity rather than an invented one.
+    Attached route options are authoritative, including when several inference
+    policies share a physical model. Untagged clients use role/unique identity lookup.
+    Mismatched or unconfigured identities remain unknown.
     """
     canonical = provider.lower()  # inverse of provider_identity()'s UPPER ledger form; no aliasing
-    config = resolve_role(role)
+    config = route or resolve_role(role)
     if (
         (config.provider, config.model) != (canonical, model)
         or (protocol is not None and config.protocol != protocol)
     ):
+        if route is not None:
+            return None
         config = route_for_model(canonical, model, protocol)
     if config is None:
         return None

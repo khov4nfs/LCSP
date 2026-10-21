@@ -54,6 +54,35 @@ def test_usage_metering_is_the_innermost_governed_model_boundary() -> None:
     assert metering_index == len(MODEL_GOVERNANCE_MIDDLEWARE) - 1
 
 
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.asyncio
+async def test_one_native_schema_repair_requires_explicit_request_policy_and_never_becomes_unbounded(asynchronous):
+    from langchain.agents.structured_output import ToolStrategy
+    from langchain_core.messages import ToolMessage
+    from pydantic import BaseModel
+    from middleware.model_governance import OneNativeSchemaRepair, StopSchemaRepairMiddleware
+    from middleware.failure_policy import StructuredOutputRejected
+    class Answer(BaseModel):
+        count: int
+    policy = OneNativeSchemaRepair()
+    request = MagicMock(response_format=ToolStrategy(Answer, handle_errors=policy))
+    response = ModelResponse(result=[ToolMessage(content="Contract rejected", tool_call_id="native", name="Answer")])
+    handler = AsyncMock(return_value=response) if asynchronous else MagicMock(return_value=response)
+    guard = StopSchemaRepairMiddleware()
+    async def invoke():
+        return await guard.awrap_model_call(request, handler) if asynchronous else guard.wrap_model_call(request, handler)
+    assert await invoke() is response
+    with pytest.raises(StructuredOutputRejected):
+        await invoke()
+    request.response_format = ToolStrategy(Answer, handle_errors=OneNativeSchemaRepair())
+    assert await invoke() is response
+    request.response_format = ToolStrategy(Answer)
+    with pytest.raises(StructuredOutputRejected):
+        await invoke()
+    feedback = policy(ValueError("field maxLength, input_value={'private': 'do-not-copy'}, input_type=dict"))
+    assert "do-not-copy" not in feedback and "maxLength" in feedback
+
+
 def test_lcsp_effective_middleware_has_no_model_call_limit() -> None:
     middleware = MODEL_GOVERNANCE_MIDDLEWARE
     assert "ModelCallLimitMiddleware" not in {

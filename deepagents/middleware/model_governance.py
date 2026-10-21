@@ -65,8 +65,25 @@ def _rejection_detail(response) -> str:
 logger = get_logger(__name__)
 
 
+class OneNativeSchemaRepair:
+    """Explicit per-invocation opt-in; the shared guard permits one native correction."""
+
+    def __init__(self):
+        self.used = False
+
+    def __call__(self, error):
+        detail = " ".join(_PYDANTIC_INPUT_VALUE.sub(", input_type=", str(error)).split())
+        return "Output contract rejected: " + detail[:400] + ". Correct the returned data to the supplied schema and identities."
+
+    def allow_feedback(self):
+        if self.used:
+            return False
+        self.used = True
+        return True
+
+
 class StopSchemaRepairMiddleware(AgentMiddleware):
-    """Stop auto-strategy repair before another model call, preserving native output."""
+    """Preserve native output and enforce the explicit request's schema repair policy."""
 
     @staticmethod
     def _check(request, response):
@@ -86,6 +103,8 @@ class StopSchemaRepairMiddleware(AgentMiddleware):
         strategy = output_format if isinstance(output_format, ToolStrategy) else ToolStrategy(schema)
         names = {spec.name for spec in strategy.schema_specs}
         if any(isinstance(message, ToolMessage) and message.name in names for message in response.result):
+            if isinstance(strategy.handle_errors, OneNativeSchemaRepair) and strategy.handle_errors.allow_feedback():
+                return response
             raise StructuredOutputRejected(
                 "Structured output schema validation failed; automatic repair disabled"
                 + _rejection_detail(response)

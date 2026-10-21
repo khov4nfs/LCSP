@@ -943,3 +943,25 @@ def test_corrupt_row_is_quarantined_and_does_not_block_later_rows(tmp_path):
     assert drain(path, delivered) == 1
     assert [p.invocationId for p in delivered.payloads] == ["invocation-2"]
     assert [s for _, s, _ in _store_rows(path)] == ["POISON"]
+
+
+@pytest.mark.parametrize("actual_route", ["audit-fallback", "general-fallback"])
+def test_usage_keeps_attached_route_options_when_provider_model_protocol_are_shared(monkeypatch, actual_route):
+    use_model_routes(monkeypatch, {
+        "routes": {
+            "primary": {"provider": "openai", "model": "model-alpha"},
+            "audit-fallback": {"provider": "google_genai", "model": "shared-model", "options": {"reasoning_effort": "high"}},
+            "general-fallback": {"provider": "google_genai", "model": "shared-model"},
+        },
+        "roles": {"default": "primary", "planner": "primary"},
+        "fallbacks": {"primary": ["audit-fallback"]},
+    })
+    assert mp.route_for_model("google_genai", "shared-model", "google_genai") is None
+    route = mp.load_model_routes().config(actual_route, "planner")
+    model = mp.attach_model_route(SimpleNamespace(provider="google_genai", model_name="shared-model"), route)
+    client = FakeClient()
+    with activate_agent_run_state(_state(client, role="planner")):
+        UsageMeteringMiddleware().wrap_model_call(SimpleNamespace(model=model, messages=[], tools=[]), lambda _: response())
+    expected = mp.config_snapshot(route, "planner")
+    expected.pop("role")
+    assert client.payloads[0].effectiveRuntimeModel == expected

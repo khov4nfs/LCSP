@@ -1,5 +1,6 @@
 import json
 import os
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -210,6 +211,51 @@ async def _async_chain(request, raw_handler):
         return await token_fallback.awrap_model_call(next_request, raw_handler)
 
     return await ProviderFallbackMiddleware().awrap_model_call(request, token_handler)
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.parametrize("success_at", [0, 1, 2, 3, None])
+@pytest.mark.asyncio
+async def test_configured_workflow_chain_rotates_only_own_keys_in_provider_order(
+    monkeypatch, asynchronous, success_at
+):
+    import model_policy as policy
+
+    monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
+    policy.load_model_routes.cache_clear()
+    providers = ["miraiapi", "inception", "google_genai", "apx"]
+    for provider, name in zip(providers, ["MIRAI_API_KEY", "INCEPTION_API_KEY", "GOOGLE_API_KEY", "APX_API_KEY"]):
+        monkeypatch.setenv(name, f"offline-{provider}-a,offline-{provider}-b")
+    calls = []
+
+    def handle(request):
+        provider = model_provider(request.model)
+        key = _model_api_key(request.model)
+        assert key in {f"offline-{provider}-a", f"offline-{provider}-b"}
+        calls.append((provider, key))
+        if success_at is not None and provider == providers[success_at]:
+            return "actual-selected-provider-result"
+        raise AllowanceExhaustedError()
+
+    async def ahandle(request):
+        return handle(request)
+
+    request = _FakeRequest(policy.resolve_agent_model("legal-semantic-auditor"))
+    state = AgentRunState(run_id="ordered-workflow-control", agent_role="legal-semantic-auditor")
+    with activate_agent_run_state(state):
+        if success_at is None:
+            with pytest.raises(TerminalCredentialError):
+                if asynchronous:
+                    await _async_chain(request, ahandle)
+                else:
+                    _sync_chain(request, handle)
+        else:
+            result = await _async_chain(request, ahandle) if asynchronous else _sync_chain(request, handle)
+            assert result == "actual-selected-provider-result"
+    expected = [(p, f"offline-{p}-{slot}") for p in providers[:success_at if success_at is not None else 4] for slot in ("a", "b")]
+    if success_at is not None:
+        expected.append((providers[success_at], f"offline-{providers[success_at]}-a"))
+    assert calls == expected
 
 
 def _usage_response() -> ModelResponse:
@@ -860,7 +906,7 @@ def test_structured_output_rejection_is_provider_scoped_not_retried():
     assert is_terminal_task_error(rejected) is True
     assert retry_model_error(rejected) is False
     assert provider_fallback_failure(rejected) is True
-    assert provider_circuit_breaker_failure(rejected) is True
+    assert provider_circuit_breaker_failure(rejected) is False
     # Other schema/request failures stay terminal without switching providers.
     generic = TerminalSchemaError("Tool argument schema validation failed")
     assert provider_fallback_failure(generic) is False
@@ -888,7 +934,7 @@ def _rejection_session(monkeypatch, routes=("google_genai",)):
 
 @pytest.mark.parametrize("asynchronous", [False, True])
 @pytest.mark.asyncio
-async def test_apx_output_rejection_falls_back_and_opens_circuit(monkeypatch, asynchronous):
+async def test_apx_output_rejection_falls_back_without_poisoning_independent_questions(monkeypatch, asynchronous):
     # Regression: scan 581af151 — codestral (APX) returned an invalid
     # RepositoryAnalysisResult; the rejection killed the scan although Gemini was configured.
     from middleware.failure_policy import StructuredOutputRejected
@@ -915,8 +961,8 @@ async def test_apx_output_rejection_falls_back_and_opens_circuit(monkeypatch, as
                 result = fallback.wrap_model_call(request, provider_handler)
             assert isinstance(result, ModelResponse)
 
-    assert calls == ["apx", "google_genai", "google_genai"]
-    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
+    assert calls == ["apx", "google_genai", "apx", "google_genai"]
+    assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is False
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -940,6 +986,43 @@ async def test_output_rejected_by_every_route_reraises_the_schema_error(monkeypa
                 await fallback.awrap_model_call(request, async_reject)
             else:
                 fallback.wrap_model_call(request, reject)
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.asyncio
+async def test_all_provider_output_rejections_in_one_question_do_not_poison_later_question(monkeypatch, asynchronous):
+    from middleware.failure_policy import StructuredOutputRejected
+
+    session = _rejection_session(monkeypatch)
+    call_count = {"n": 0}
+
+    def response(request):
+        call_count["n"] += 1
+        if call_count["n"] <= 2:
+            raise StructuredOutputRejected("Invalid response only for this source question")
+        return ModelResponse(result=[])
+
+    async def async_response(request):
+        return response(request)
+
+    fallback = ProviderFallbackMiddleware()
+    request = _FakeRequest(_FakeModel("apx"))
+    with activate_agent_run_state(session):
+        with pytest.raises(StructuredOutputRejected, match="this source question"):
+            if asynchronous:
+                await fallback.awrap_model_call(request, async_response)
+            else:
+                fallback.wrap_model_call(request, response)
+        # A different source unit is independently valid on the original primary.
+        if asynchronous:
+            result = await fallback.awrap_model_call(request, async_response)
+        else:
+            result = fallback.wrap_model_call(request, response)
+        assert isinstance(result, ModelResponse)
+
+    assert call_count["n"] == 3
+    assert not session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic"))
+    assert not session.provider_route_disabled(route_key("google_genai", MODEL_FOR["google_genai"], "unknown"))
 
 
 def test_rate_limited_apx_pool_moves_to_google_without_cooldown_wait(monkeypatch):
@@ -1426,6 +1509,49 @@ def test_sticky_fallback_reports_usage_per_answered_attempt_without_extra_logica
     # Only the answering route reports usage; the failed primary attempt reports none.
     assert [p.provider for p in client.payloads] == ["APX", "APX"]
     assert len({p.invocationId for p in client.payloads}) == 2
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.asyncio
+async def test_answered_schema_fallback_has_distinct_settlement_ids_in_one_logical_step(
+    monkeypatch, asynchronous
+):
+    import middleware.provider_fallback as fallback_module
+    from middleware.usage_metering import activate_model_step, _active_logical_invocation_id
+    from middleware.failure_policy import StructuredOutputRejected
+
+    _routes(monkeypatch, "openai", "apx")
+    monkeypatch.setattr(fallback_module, "fallback_model", lambda c: _FakeModel(c.provider, c.model))
+    payloads, logical_ids = [], []
+    client = SimpleNamespace(post_settled_usage=payloads.append)
+    state = AgentRunState(api_client=client, assessment_id="a", run_id="schema-billing", agent_role="root")
+    billing, fallback = UsageMeteringMiddleware(), ProviderFallbackMiddleware()
+
+    def handled(request):
+        logical_ids.append(_active_logical_invocation_id())
+        response = billing.wrap_model_call(request, lambda _: _usage_response())
+        if request.model.provider == "openai":
+            raise StructuredOutputRejected("invalid answered primary")
+        return response
+
+    async def ahandled(request):
+        logical_ids.append(_active_logical_invocation_id())
+        async def answer(_):
+            return _usage_response()
+        response = await billing.awrap_model_call(request, answer)
+        if request.model.provider == "openai":
+            raise StructuredOutputRejected("invalid answered primary")
+        return response
+
+    with activate_agent_run_state(state), activate_model_step("schema-fallback"):
+        request = _FakeRequest(_FakeModel("openai"))
+        if asynchronous:
+            await fallback.awrap_model_call(request, ahandled)
+        else:
+            fallback.wrap_model_call(request, handled)
+    assert [p.provider for p in payloads] == ["OPENAI", "APX"]
+    assert len(set(logical_ids)) == 1 and logical_ids[0]
+    assert len({p.invocationId for p in payloads}) == 2
 
 
 def _raw_routes(monkeypatch, routes: dict, chain: list[str]) -> None:

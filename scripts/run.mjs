@@ -822,6 +822,7 @@ function dockerWorkerEnv() {
     // comma-separated slots, so each configured provider needs its own variable.
     "INCEPTION_API_KEY",
     "INCEPTION_BASE_URL",
+    "NARA_API_KEY",
     "APX_API_KEY",
     "APX_BASE_URL",
     ...providerTimeoutKeys,

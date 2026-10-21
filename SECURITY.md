@@ -25,7 +25,7 @@ Third-party model providers, identity providers, repository hosts, payment servi
 
 Provider keys and deployment credentials are supplied through environment-managed secrets and must never be committed. Raw credentials must not appear in logs, activity streams, issue reports, or release artifacts. Operational logs may use request identifiers and non-secret credential fingerprints.
 
-Supported provider credential names include `APX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, and `INCEPTION_API_KEY`. A comma-separated `APX_API_KEY` pool is secret material: treat every slot and the complete value as credentials, not safe configuration. Repository tokens, OAuth secrets, encryption keys, webhook secrets, database URLs, and worker keys are also secret material.
+Supported provider credential names include `APX_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `INCEPTION_API_KEY`, `NARA_API_KEY`, and `MIRAI_API_KEY`. Comma-separated provider key pools are secret material: treat every slot and the complete value as credentials, not safe configuration. Repository tokens, OAuth secrets, encryption keys, webhook secrets, database URLs, and worker keys are also secret material.
 
 ## Proxy-provider security model
 
@@ -37,7 +37,7 @@ Canonical provider identity and transport protocol are separate. A route can sel
 
 ## Credential rotation and fallback
 
-For an APX pool, LCSP selects one key per request. Permanent allowance exhaustion retires only the affected slot; transient rate limits use cooldown handling. Provider fallback follows same-provider credential handling and uses the configured route chain, currently APX to Google GenAI to Inception. SDK clients receive an individual key, not the comma-separated pool. Logs may contain provider, model, protocol, request identifiers, and safe fingerprints, but never raw key values.
+For a provider pool, LCSP selects one key per request. Permanent allowance exhaustion retires only the affected slot; transient rate limits use cooldown handling. Provider fallback follows same-provider credential handling and uses the configured route chain, currently Mirai API to Inception to Google GenAI to APX. Mirai API uses only `MIRAI_API_KEY` through its own Anthropic Messages or OpenAI-compatible endpoint. Nara always uses `NARA_API_KEY`, independently of `OPENAI_API_KEY`, through the OpenAI-compatible Chat Completions endpoint. SDK clients receive an individual key, not the comma-separated pool. Logs may contain provider, model, protocol, request identifiers, and safe fingerprints, but never raw key values.
 
 ## Agent Runtime safety
 

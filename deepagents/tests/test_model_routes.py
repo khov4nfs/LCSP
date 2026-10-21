@@ -51,11 +51,12 @@ def test_default_file_loads_without_override(monkeypatch):
     monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
     routes = mp.load_model_routes()
     assert mp.DEFAULT_ROUTES_FILE == Path(mp.__file__).resolve().parent / "config" / "model_routes.yaml"
-    assert routes.roles["default"] == "primary" and routes.fallbacks["primary"] == ("fallback", "fallback-01")
+    assert routes.roles["default"] == "primary" and routes.fallbacks["primary"] == ("fallback", "fallback-01", "fallback-02")
+    assert (routes.config("primary").provider, routes.config("primary").model) == ("miraiapi", "claude-sonnet-5")
     for role in ("root", "assessment-root", "repository-researcher", "rule-set-preparation"):
         assert role in routes.roles
     # The committed default names a model, but tests must not pin which one: model id is configuration.
-    assert routes.routes["primary"]["provider"] == "apx"
+    assert routes.routes["primary"]["provider"] == "miraiapi"
     assert routes.routes["primary"]["protocol"] == "anthropic"
     assert isinstance(routes.routes["primary"]["model"], str) and routes.routes["primary"]["model"].strip()
 
@@ -305,3 +306,24 @@ def test_effective_telemetry_and_identities(routes):
         ("GOOGLE_GENAI", "google_genai", "Future-Model-X9"),
         ("APX", "anthropic", "model-gamma"),
     }
+
+
+def test_workflow_roles_resolve_mirai_inception_gemini_apx_with_native_options(monkeypatch):
+    monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
+    for role in mp.load_model_routes().roles:
+        primary = mp.resolve_role(role)
+        chain = (primary, *mp.fallback_routes(primary.route_id))
+        assert [(r.provider, r.protocol, r.model) for r in chain] == [
+            ("miraiapi", "anthropic", "claude-sonnet-5"),
+            ("inception", "openai", "mercury-2.5"),
+            ("google_genai", "google_genai", "gemini-3.5-flash-lite"),
+            ("apx", "anthropic", "claude-sonnet-4-6-free"),
+        ]
+        assert all(r.options["streaming"] for r in chain)
+        assert "thinking" not in primary.options and "effort" not in primary.options
+        assert [r.options["max_output_tokens"] for r in chain[1:]] == [32768, 65536, 64000]
+        if role == "legal-semantic-auditor":
+            assert chain[-1].options["thinking"] == {"type": "adaptive"}
+            assert chain[-1].options["effort"] == "high"
+        else:
+            assert "thinking" not in chain[-1].options

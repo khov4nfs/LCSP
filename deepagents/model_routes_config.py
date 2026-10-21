@@ -17,8 +17,11 @@ DEFAULT_PROTOCOLS = {
     "anthropic": "anthropic",
     "google_genai": "google_genai",
     "inception": "openai",
+    "nara": "openai",
+    "miraiapi": "openai",
 }
-APX_PROTOCOLS = frozenset({"anthropic", "openai"})
+DUAL_PROTOCOL_PROVIDERS = frozenset({"apx", "miraiapi"})
+DUAL_PROTOCOLS = frozenset({"anthropic", "openai"})
 # Option keys are normalised (lowercase, strip every char outside [a-z0-9]) and rejected when the
 # result is "auth" or contains one of these parts: credentials, base URLs/endpoints, headers, proxy,
 # client objects and transports are trusted adapter config, never route options.
@@ -165,9 +168,9 @@ def parse_model_routes(text: str, providers: tuple[str, ...]) -> tuple[dict, dic
         protocol = route["protocol"] if "protocol" in route else _default_protocol(provider, model)
         if not isinstance(protocol, str) or protocol not in PROTOCOLS:
             raise ValueError(f"{where}.protocol must be exactly one of: {', '.join(sorted(PROTOCOLS))} (got {protocol!r})")
-        if provider == "apx" and protocol not in APX_PROTOCOLS:
-            raise ValueError(f"{where}.protocol must be one of: {', '.join(sorted(APX_PROTOCOLS))}")
-        if provider in DEFAULT_PROTOCOLS and protocol != DEFAULT_PROTOCOLS[provider]:
+        if provider in DUAL_PROTOCOL_PROVIDERS and protocol not in DUAL_PROTOCOLS:
+            raise ValueError(f"{where}.protocol must be one of: {', '.join(sorted(DUAL_PROTOCOLS))}")
+        if provider in DEFAULT_PROTOCOLS and provider not in DUAL_PROTOCOL_PROVIDERS and protocol != DEFAULT_PROTOCOLS[provider]:
             raise ValueError(f"{where}.protocol must be {DEFAULT_PROTOCOLS[provider]!r} for provider {provider!r}")
         options = route.get("options", {})
         if not isinstance(options, dict):

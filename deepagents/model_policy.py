@@ -41,12 +41,14 @@ disable_langsmith_tracing_by_default()
 
 from anthropic_stream_usage import init_chat_model
 
-from model_routes_config import APX_PROTOCOLS, PROTOCOLS, read_model_routes
+from model_routes_config import DUAL_PROTOCOL_PROVIDERS, DUAL_PROTOCOLS, PROTOCOLS, read_model_routes
 from provider_credentials import (
+    NARA_DEFAULT_BASE_URL,
     apx_base_url,
     credential_init_kwargs,
     inception_base_url,
     llm_provider_timeout_seconds,
+    mirai_base_url,
 )
 
 ROUTES_FILE_ENV = "LCSP_MODEL_ROUTES_FILE"
@@ -90,6 +92,26 @@ _PROVIDERS: dict[str, tuple[str, str, Any]] = {
         "anthropic_compatible_messages",
         lambda: {
             "base_url": apx_base_url(),
+            "timeout": llm_provider_timeout_seconds(),
+        },
+    ),
+    "nara": (
+        "openai",
+        "openai_compatible_chat_completions",
+        lambda: {
+            "base_url": NARA_DEFAULT_BASE_URL,
+            "use_responses_api": False,
+            "stream_usage": True,
+            "timeout": llm_provider_timeout_seconds(),
+        },
+    ),
+    "miraiapi": (
+        "openai",
+        "openai_compatible_chat_completions",
+        lambda: {
+            "base_url": mirai_base_url(),
+            "use_responses_api": False,
+            "stream_usage": True,
             "timeout": llm_provider_timeout_seconds(),
         },
     ),
@@ -141,13 +163,12 @@ def provider_client(provider: str, protocol: str | None = None) -> str:
         raise RuntimeError(
             f"unsupported model protocol {protocol!r}; supported: {', '.join(sorted(PROTOCOLS))}"
         )
-    if provider == "apx":
-        if protocol not in APX_PROTOCOLS:
+    if provider in DUAL_PROTOCOL_PROVIDERS:
+        if protocol not in DUAL_PROTOCOLS:
             raise RuntimeError(
-                f"unsupported APX protocol {protocol!r}; supported: {', '.join(sorted(APX_PROTOCOLS))}"
+                f"unsupported {provider.upper()} protocol {protocol!r}; supported: {', '.join(sorted(DUAL_PROTOCOLS))}"
             )
-        if protocol == "openai":
-            return "openai_compatible_chat_completions"
+        return "openai_compatible_chat_completions" if protocol == "openai" else "anthropic_compatible_messages"
     elif protocol != _PROVIDERS[provider][0]:
         raise RuntimeError(
             f"unsupported protocol {protocol!r} for provider {provider!r}"
@@ -165,17 +186,19 @@ def provider_init_kwargs(
         raise RuntimeError(
             f"unsupported model protocol {protocol!r}; supported: {', '.join(sorted(PROTOCOLS))}"
         )
-    if provider == "apx":
-        if protocol not in APX_PROTOCOLS:
+    if provider in DUAL_PROTOCOL_PROVIDERS:
+        if protocol not in DUAL_PROTOCOLS:
             raise RuntimeError(
-                f"unsupported APX protocol {protocol!r}; supported: {', '.join(sorted(APX_PROTOCOLS))}"
+                f"unsupported {provider.upper()} protocol {protocol!r}; supported: {', '.join(sorted(DUAL_PROTOCOLS))}"
             )
         kwargs: dict[str, object] = {
-            "base_url": apx_base_url(protocol),
+            "base_url": apx_base_url(protocol) if provider == "apx" else mirai_base_url(protocol),
             "timeout": llm_provider_timeout_seconds(),
         }
         if protocol == "openai":
             kwargs["use_responses_api"] = False
+            if provider == "miraiapi":
+                kwargs["stream_usage"] = True
         return kwargs
     if protocol != _PROVIDERS[provider][0]:
         raise RuntimeError(

@@ -163,7 +163,12 @@ def _exhaustion_error(errors: list[BaseException]) -> BaseException:
 
 def provider_circuit_breaker_failure(error: BaseException) -> bool:
     """Return whether this provider route should stay disabled for the active run."""
-    if is_provider_route_incompatibility(error) or is_structured_output_rejection(error):
+    # A model-generated invalid structured answer belongs to one invocation,
+    # not to the provider route for every independent later source question.
+    # It still triggers bounded cross-provider fallback for this invocation.
+    if is_structured_output_rejection(error):
+        return False
+    if is_provider_route_incompatibility(error):
         return True
     # A model the provider has withdrawn or overloaded will not recover inside
     # this run, so stop re-selecting the route that just reported it.
@@ -211,8 +216,9 @@ def _stick_to_fallback(failed: list[str | None]) -> None:
     """Keep routes that failed transiently disabled for the rest of the active run.
 
     A credential cooldown expiring mid-run must not send later turns back through a
-    pool that just exhausted. The state lives on the run-scoped run state, so a
-    new run reconsiders every configured route; there is no process-wide blacklist.
+    pool that just exhausted. A model's malformed output/refusal is request-local
+    and must never add that route here. The state lives on the run-scoped run state,
+    so a new run reconsiders every configured route; there is no process-wide blacklist.
     """
     state = active_agent_run_state()
     if state is None:
@@ -291,7 +297,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 _trip_provider_circuit(current_provider, error)
                 first_error = error
                 errors.append(error)
-                failed.append(current_provider)
+                if not is_structured_output_rejection(error) and not is_provider_refusal(error):
+                    failed.append(current_provider)
                 if _is_rate_limited_chain(error):
                     limited.append(None)
         elif current_provider:
@@ -314,7 +321,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 _trip_provider_circuit(provider, error)
                 first_error = first_error or error
                 errors.append(error)
-                failed.append(provider)
+                if not is_structured_output_rejection(error) and not is_provider_refusal(error):
+                    failed.append(provider)
                 if _is_rate_limited_chain(error):
                     limited.append(config)
                 continue
@@ -379,7 +387,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 _trip_provider_circuit(current_provider, error)
                 first_error = error
                 errors.append(error)
-                failed.append(current_provider)
+                if not is_structured_output_rejection(error) and not is_provider_refusal(error):
+                    failed.append(current_provider)
                 if _is_rate_limited_chain(error):
                     limited.append(None)
         elif current_provider:
@@ -402,7 +411,8 @@ class ProviderFallbackMiddleware(AgentMiddleware):
                 _trip_provider_circuit(provider, error)
                 first_error = first_error or error
                 errors.append(error)
-                failed.append(provider)
+                if not is_structured_output_rejection(error) and not is_provider_refusal(error):
+                    failed.append(provider)
                 if _is_rate_limited_chain(error):
                     limited.append(config)
                 continue
