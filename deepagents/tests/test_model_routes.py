@@ -312,6 +312,9 @@ def test_workflow_roles_resolve_mirai_inception_gemini_apx_with_native_options(m
     monkeypatch.delenv("LCSP_MODEL_ROUTES_FILE", raising=False)
     for role in mp.load_model_routes().roles:
         primary = mp.resolve_role(role)
+        if role == "response-transform":  # rewrites a finished answer's language on the light Gemini route
+            assert (primary.provider, primary.model, mp.fallback_routes(primary.route_id)) == ("google_genai", "gemini-3.5-flash-lite", ())
+            continue
         chain = (primary, *mp.fallback_routes(primary.route_id))
         assert [(r.provider, r.protocol, r.model) for r in chain] == [
             ("miraiapi", "anthropic", "claude-sonnet-5"),

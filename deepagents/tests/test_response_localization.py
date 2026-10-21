@@ -1185,6 +1185,7 @@ def test_assessment_root_tools_persist_canonical_domain_data_without_locale_poll
             unresolved_fact="Retention schedule is unconfirmed.",
             decision_impact=["Affects GDPR Art 5 compliance."],
             resolution_attempts=["Read config.json and found no retention setting."],
+            criterion_ids=["CRIT-01"],  # a question must name the rule element it settles
             choices=[{"value": "CHOICE_30D", "label": "30 days"}],
         )
 

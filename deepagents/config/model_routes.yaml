@@ -64,7 +64,7 @@ roles:
   repository-researcher: primary
   rule-set-preparation: primary
   legal-semantic-auditor: semantic-primary
-  response-transform: fallback
+  response-transform: fallback-01
 
 # Ordered fallback chain per route (optional; cycles are rejected).
 fallbacks:
