@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-10-22T08:25:50.499259+00:00",
+  "diagnosticExecution": "PASS",
+  "documentSourceDigestGate": "FAIL",
+  "sourceBytesAndAllChunkHashes": "PASS",
+  "retainedExactHead39Checks": "PASS",
+  "protectedWipAndInspectedRuntimeHashes": "PASS",
+  "envelopeDisabledAndZeroAuthorizedSpend": "PASS",
+  "ownedContainerStopped": "PASS",
+  "newEvaluationRunId": null,
+  "paidModelCalls": 0,
+  "paidInputTokens": 0,
+  "paidOutputTokens": 0,
+  "paidCostUSD": 0,
+  "historicalUsageAndCost": "UNAVAILABLE"
+}

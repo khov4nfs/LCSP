@@ -1,6 +1,6 @@
 # LCSP-360 final acceptance and release report (2026-10-21)
 
-**PREFLIGHT_READY (non-paid)** — CVE-2026-113786 is fixed on runtime candidate `6baf188379b9f4beb119216f709504226d298ecd`; all 36 exact-candidate CI/security checks and the focused PDF/runtime preflight pass. **Release remains BLOCKED** pending real-model semantic/runtime acceptance and subsequent release-image/staging/browser acceptance. No paid evaluation was dispatched. PR remains Draft; see section 14. Section 13 retains the earlier security failure.
+**BLOCKED — document source-byte digest binding** on acceptance candidate `6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a`. The retained preflight checked chunks/supports but missed that the seeder stores the fixture-name hash as the document hash. A read-only query confirms the mismatch; see section 15. The pypdf repair and 39 passing CI/security checks remain valid historical evidence. No paid evaluation was dispatched; PR remains Draft.
 
 - Current accounting candidate: `9cf033e099225300ffe98247eb3717e254a79232` (section 12).
 
@@ -105,8 +105,8 @@ Staging image/browser verification has **not run for the recovered candidate**. 
 
 ## 7. Remaining release blockers
 
-0. No non-paid security/runtime preflight failure remains on `6baf188379b9` (section 14). This does not establish release readiness or authorize model dispatch.
-1. The original live evaluation timed out before freeze and activation. The seeder defect, durable-accounting blocker and latest security blocker are fixed. Real-model semantic/runtime acceptance remains unproven. The current instruction stops before paid evaluation.
+0. First current failed gate: the shared disposable seeder writes a fixture-name hash into `LegalSourceDocument.sourceSha256` instead of the verified source-byte digest (section 15). Prior chunk/support/hash checks did not prove this document binding. Repair and a focused regression/preflight are required before any model dispatch.
+1. The original live evaluation timed out before freeze and activation. The canonical-effect seeder defect, durable-accounting blocker and latest security blocker are fixed. Real-model semantic/runtime acceptance remains unproven. No approved spending ceiling or shared pre-dispatch budget enforcement exists; the latest instruction permits non-paid readiness only until those prerequisites pass.
 2. After separately authorized semantic/runtime acceptance passes, build stable release images and complete disposable staging/browser verification with the repository tooling. The dependency-image checks in section 14 do not substitute for that acceptance. Do not use production secrets.
 3. Token usage for the aborted run cannot be recovered from the retained artifacts. Canonical usage remains unavailable; do not invent totals.
 
@@ -268,3 +268,43 @@ Provider-free diagnostic run: **`ed72c8ae-86a8-480c-afa2-1b9a5590855c`**, source
 Fresh real-model evaluation run ID: **none**; new paid model calls/input/output tokens: **0/0/0**. Historical aborted-run usage remains unavailable. Full release-image matrix, staging, browser acceptance, merge and deployment were **NOT_RUN**. Quota is a point-in-time availability check, not a model-liveness or budget guarantee. No broad local suite or manual CI rerun was launched; normal push-triggered checks verify each published head. Disk was checked before builds and remains 97% full with approximately 16 GB free.
 
 Evidence: [`pypdf-security-20261022/preflight-summary.json`](pypdf-security-20261022/preflight-summary.json), lock-change receipt, focused test log/JUnit, clean-context source hashes, both build logs and installed-runtime/dependency receipts, complete `ci-candidate.json`, fixed-alert receipt, source/HMAC/database and provider-readiness snapshots, replayable provider-free probes and `preservation.json`. Raw worker-build and PDF-test logs are published as `.log.gz`, with byte-exact round-trip/hash receipts in `raw-log-archives.json`; original local logs remain unchanged. Evidence publication leaves runtime inputs unchanged; PR #427 records the exact publication head and its CI results separately. PR remains Draft. Next release gate requires a **separate authorization** for one bounded real-model evaluation; this task stops here.
+
+## 15. Acceptance continuation — stopped at document provenance gate
+
+Inspected/frozen candidate: **`6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a`**, local ref `refs/lcsp360/acceptance-envelope-20261022-6f37b38c2`. Local and Draft PR heads matched; all three protected WIP hashes matched. No concurrent source edits or active live-evaluation processes were found. This pass contains evidence only; no runtime/dependency change or test-matrix rerun.
+
+**Root cause:** `fixture_chunks.py` returns the true `sourceSha256`, but the live harness drops it when calling `seedLegalSource`. The shared helper writes `contentHash(name)` into the document's `sourceSha256`. Correct chunk/support hashes and authentic HMAC receipts can coexist with this incorrect document digest; the earlier provenance readiness statement was incomplete.
+
+**Required fix, not applied under the stop-on-blocker instruction:** Carry the independently verified source-byte digest into the shared seeder, persist it as the document hash and add a focused provider-free regression. Recheck affected provenance gates on a newly frozen candidate. Do not repair retained databases or receipts in place.
+
+Read-only persisted evidence from the owned preflight database `lcsp360_pypdf_preflight_7a3088043efe`, source version `6887d934-139f-4e16-8a05-c5f897a57661`:
+
+- Actual pinned source digest: **`b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1`** (1,185 source bytes; all 15 chunk hashes independently pass).
+- Stored document digest: **`9f4ee581919363af294eb32196175da57961c290b68f0213581bf61e1fd846a9`**, exactly SHA-256 of fixture name `pypdf-preflight-1792643354451`, unequal to the source-byte digest.
+- One SELECT with `default_transaction_read_only=on`; no new Preparation, evaluation or domain mutation. Owned container 55502 stopped afterward, volume retained. Historical 55441 was not started or queried. No resource was deleted.
+
+Resource inspection: approximately **15.25 GiB free disk** and **4.98 GiB available RAM** at capture. Btrfs inode counters are dynamic, not exhausted. Docker has 285 images, 131 containers, 246 volumes and 1,020 cache records; reported shared/reclaimable sizes are not ownership proof. No large disposable resource was conclusively established, so no cleanup occurred. Small-run disk allocation (4 GiB working allowance plus 4 GiB reserve) fits. Memory changed during inspection; an initial larger proposal failed admission. A 3 GiB process-tree / 256 MiB PostgreSQL proposal still needs enforced limits and a fresh headroom check. No exact future peak is claimed.
+
+Phase D resource gate is deferred and currently **BLOCKED**: historical four-image payload totals 8.63 GiB, with a largest sequential rootfs export of 2.44 GiB. Builds retain images and intermediates, and exports use RAM-backed `/tmp`. The envelope records a conservative 24 GiB free-disk planning floor, not a measured future peak. Do not build before semantic acceptance and fresh resource admission.
+
+A **non-executable execution-envelope proposal** is published: one complete existing 15-chunk/12-unit synthetic source case, immutable source/config hashes, independent Producer/Auditor and unchanged fallback policy, **256 provider dispatches**, **4,000,000 input/cache tokens**, **256,000 output/reasoning tokens**, **USD 25 aggregate spending**, existing **3,600-second worker / 600-second request** timeouts and proposed **4,200-second total / per-stage limits**. These limits are unapproved and not workload/cost estimates. The controlled synthetic case cannot establish official-law corpus authority.
+
+Paid authorization remains **0 calls / 0 tokens / USD 0**. The harness lacks shared pre-dispatch attempt/token/cost admission; completion metering and generic per-agent finalization are insufficient. Approved limits, verified tariffs/settlement and provider-free proof of enforcement are prerequisites after the document gate is fixed. No launch command is supplied and no approval is inferred from quota. Fresh read-only provider readiness passed; quota remains 4,692,038 units, with configured model advertised and key unexpired at capture. Live fallback balances/behavior are unverified.
+
+| Gate | Status | Evidence |
+|---|---|---|
+| Identity, source immutability, protected WIP | PASS | Exact checkpoint/ref and recorded hashes |
+| CI/security | PASS | Retained **39** successes on `6f37b38c2`; no rerun or reopened security finding |
+| Source-file/chunk hashes | PASS | Independent full-source and 15-chunk recomputation |
+| Persisted document-byte digest | **FAIL** | Stored hash equals name hash, not source bytes |
+| Effects, graph support, HMAC/auth, accounting recovery | PASS | Retained provider-free receipts; no real-model acceptance claim |
+| Provider metadata availability | PASS | Fresh read-only check; zero inference calls |
+| Paid authorization / aggregate enforcement | BLOCKED | No approved spending or shared admission guard |
+| Small-run resource headroom | PASS | Point-in-time proposed allocation only; enforcement not applied |
+| Fresh real-model semantics, freeze, Requirements/Rules, Validator, persistence, activation | NOT_RUN | No new evaluation run or Rule Set version |
+| Release-image capacity | BLOCKED | Deferred Phase D resource gate |
+| Staging/browser, merge, production | NOT_RUN | C has not passed; no production authorization |
+
+New real-model run ID / activated Rule Set version: **none / none**. New paid model calls/input/output/cost: **0 / 0 / 0 / USD 0**. Historical aborted-run usage and cost remain **UNAVAILABLE**. Stopped at the first verified integrity failure, as instructed; no paid retry, source patch or acceptance bypass followed.
+
+Evidence and exact commands/results: [`acceptance-envelope-20261022/execution-envelope.md`](acceptance-envelope-20261022/execution-envelope.md), machine-readable `execution-envelope.json`, `document-digest-blocker.json` (full SQL and values), `source-snapshot.json`, resource/preservation/provider receipts, retained exact-head CI identities and checkpoint hashes. Raw host-wide inventories remain local with hashes in the resource receipt. **Next action: fix document source-byte digest propagation and add its focused regression before another provenance preflight.** PR remains Draft; status **BLOCKED**.

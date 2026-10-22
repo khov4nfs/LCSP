@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-10-22T08:21:53.004200+00:00",
+  "status": "BLOCKED",
+  "executable": false,
+  "launchCommand": null,
+  "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
+  "freezeRef": "refs/lcsp360/acceptance-envelope-20261022-6f37b38c2",
+  "firstFailedGate": "DOCUMENT_SOURCE_BYTE_DIGEST_BINDING",
+  "blockerReceipt": "document-digest-blocker.json",
+  "scope": {
+    "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
+    "evaluationCount": 1,
+    "preparationRunCount": 1,
+    "fixture": "synthetic",
+    "sourceDocumentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "sourceFile": "deepagents/tests/fixtures/compliance_rule_set_context/synthetic-notice-v1.txt",
+    "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+    "chunks": 15,
+    "expectedReviewUnits": 12,
+    "subsetReductionAllowed": false,
+    "authority": "Explicit controlled synthetic legal instrument; fixture EFFECTIVE provenance is not official-law authority or production-corpus acceptance",
+    "acceptanceCases": [
+      "Complete source scope/exclusion, definition, cross-article exception/reference and both retention/in-person duties",
+      "Full inventory -> typed Requirements/Rules -> Validator -> persistence -> atomic activation",
+      "Independent semantic and artifact verification, API/auth/tenant/pinning negative controls"
+    ],
+    "unfamiliarControls": "P07/P10 frozen text/oracles retained in repository; not silently substituted for full case, not run in this pass, and additional paid preparations need separate scope authorization"
+  },
+  "routes": {
+    "rule-set-preparation": [
+      {
+        "route": "primary",
+        "provider": "miraiapi",
+        "model": "claude-sonnet-5",
+        "protocol": "anthropic",
+        "credentialSlots": 1,
+        "sdkMaxRetries": 0
+      },
+      {
+        "route": "fallback",
+        "provider": "inception",
+        "model": "mercury-2.5",
+        "protocol": "openai",
+        "credentialSlots": 14,
+        "sdkMaxRetries": 0
+      },
+      {
+        "route": "fallback-01",
+        "provider": "google_genai",
+        "model": "gemini-3.5-flash-lite",
+        "protocol": "google_genai",
+        "credentialSlots": 6,
+        "sdkMaxRetries": 1
+      },
+      {
+        "route": "fallback-02",
+        "provider": "apx",
+        "model": "claude-sonnet-4-6-free",
+        "protocol": "anthropic",
+        "credentialSlots": 9,
+        "sdkMaxRetries": 0
+      }
+    ],
+    "legal-semantic-auditor": [
+      {
+        "route": "semantic-primary",
+        "provider": "miraiapi",
+        "model": "claude-sonnet-5",
+        "protocol": "anthropic",
+        "credentialSlots": 1,
+        "sdkMaxRetries": 0
+      },
+      {
+        "route": "fallback",
+        "provider": "inception",
+        "model": "mercury-2.5",
+        "protocol": "openai",
+        "credentialSlots": 14,
+        "sdkMaxRetries": 0
+      },
+      {
+        "route": "fallback-01",
+        "provider": "google_genai",
+        "model": "gemini-3.5-flash-lite",
+        "protocol": "google_genai",
+        "credentialSlots": 6,
+        "sdkMaxRetries": 1
+      },
+      {
+        "route": "semantic-final",
+        "provider": "apx",
+        "model": "claude-sonnet-4-6-free",
+        "protocol": "anthropic",
+        "credentialSlots": 9,
+        "sdkMaxRetries": 0
+      }
+    ]
+  },
+  "retryPolicy": {
+    "sameRunProviderGovernance": "Preserve current MODEL_RETRIES=5 plus existing ordered credential rotation/fallback; do not silently override routes, pools or protocols",
+    "allAttemptsCountTowardCeiling": true,
+    "evaluationRetries": 0,
+    "recovery": "Recover/read committed usage only after interruption. No second paid invocation/run, database repair or resume dispatch. No silent provider switch outside frozen configured chain."
+  },
+  "proposedLimitsNotApproved": {
+    "maximumProviderDispatches": 256,
+    "maximumInputTokensIncludingCacheReadAndWrite": 4000000,
+    "maximumOutputTokensIncludingReasoning": 256000,
+    "maximumCombinedTokens": 4256000,
+    "maximumProviderSpending": {
+      "currency": "USD",
+      "amount": 25,
+      "scope": "Aggregate actual provider charges across every configured provider, role, retry, fallback and internal call",
+      "tariffs": "NOT_VERIFIED; require frozen verified tariffs or independent provider-side aggregate spending control before dispatch",
+      "sufficiency": "Not established. Historical token/cost totals are UNAVAILABLE. These are proposed stop ceilings, not a workload/cost estimate."
+    },
+    "wallClockSeconds": 4200,
+    "workerTimeoutSeconds": 3600,
+    "providerRequestTimeoutSeconds": 600,
+    "stageTimeoutSeconds": {
+      "sourceDatabaseProvisioning": 120,
+      "sourceGraphMaterialization": 120,
+      "discoveryAndIndependentAudit": 2400,
+      "inventoryFreeze": 180,
+      "typedAuthoringAndValidation": 720,
+      "persistenceActivationAndReopen": 180,
+      "independentPostRunVerification": 300
+    },
+    "stageTimingScope": "Worker stages sum to 3600 s. Provisioning and independent verification are outside worker budget; global 4200 s includes teardown allowance."
+  },
+  "authorization": {
+    "paidInferenceApproved": false,
+    "approvedMaximumProviderDispatches": 0,
+    "approvedMaximumTokens": 0,
+    "approvedMaximumSpendingUSD": 0,
+    "source": "Latest user Phase B: non-paid readiness only; no explicit approval and enforceable budget exists",
+    "quotaIsAuthorization": false
+  },
+  "enforcement": {
+    "status": "BLOCKED",
+    "existing": [
+      "Worker SIGKILL timeout waits for exit before durable SQLite recovery",
+      "Duplicate run claim exits before model construction",
+      "Novelty/no-progress guard and unchanged deterministic/semantic rejection gates",
+      "Per-provider configured SDK retry/output settings and governed fallback"
+    ],
+    "notPresent": [
+      "Shared pre-dispatch attempt/token/spending reservation over Producer, Auditor, source reader, summarization, SDK retries and fallback",
+      "Frozen provider tariff/settlement evidence for actual-cost reconciliation",
+      "Global/per-stage deadline supervision and process-tree/resource/output-allocation ceilings described by this proposal"
+    ],
+    "requirements": [
+      "Fix source document digest binding first; then freeze a new candidate and run focused provenance regression/preflight",
+      "Before paid approval becomes executable, implement/reuse and provider-free verify shared admission controls. Completion-only callbacks are not a hard spending cap",
+      "Pre-reserve worst-case admitted input/cache/output cost, count attempts atomically and fail closed before exceeding approved ceilings; unavailable tariff/usage must block further dispatch",
+      "Budget exhaustion is terminal failure, never an accepted inventory or fabricated semantic verdict. Do not use generic forced-finalize prompting to bypass legal completion."
+    ],
+    "productionCodeChanged": false
+  },
+  "isolation": {
+    "newOwnedPostgresContainerRequired": true,
+    "proposedLoopbackDatabasePort": 55503,
+    "proposedApiPort": 3459,
+    "database": "lcsp_compliance_rule_set_live on a NEW empty PostgreSQL instance; shared helper would reset this fixed name, so never point it at retained 55441 or existing databases",
+    "sourceVersionId": null,
+    "runId": null,
+    "ruleSetVersionId": null,
+    "ephemeralAuditKey": "Generate random 32-byte key and explicitly share API/worker; no default fixture key; publish fingerprint only",
+    "noConcurrentRuntimeEdits": true
+  },
+  "resources": {
+    "processTreeMemoryMaxBytes": 3221225472,
+    "postgresMemoryMaxBytes": 268435456,
+    "memoryReserveBytes": 1073741824,
+    "cpuQuotaPercent": 200,
+    "additionalRunDiskAllocationBytes": 4294967296,
+    "minimumInitialFreeDiskBytes": 8589934592,
+    "minimumRemainingFreeDiskBytes": 4294967296,
+    "evidenceAllocationBytes": 1073741824,
+    "postgresAllocationBytes": 1073741824,
+    "limitsApplied": false,
+    "freshAdmissionRequired": true,
+    "resourceReceipt": "resource-readiness.json",
+    "exactFuturePeak": "UNAVAILABLE; no live inference/load or release build run was performed"
+  },
+  "cancellation": [
+    "Any immutable source/SHA/HMAC mismatch, document authority/extraction gap, tampered/foreign receipt, failed mandatory gate or source-identity drift",
+    "Terminal runtime/semantic/no-progress error, approved dispatch/token/spend/deadline/resource ceiling, unresolved unknown provider charge, or unapproved provider transition",
+    "Terminate owned process tree, wait for exit, recover SQLite records, capture database/trace/verdict and retain evidence; never automatically retry"
+  ],
+  "passCriteria": {
+    "legalSemantics": "Independent review of every persisted claim and relation against the pinned complete source: obligations/addressees/scope/exceptions/definitions/cross-unit support; completeness and no fabricated, unsupported or contradictory claim. Signed machine verdict alone is insufficient. Controlled-fixture success cannot establish official-law corpus acceptance.",
+    "freeze": "All source units reviewed; dependencies resolved; authentic SUPPORTED independent audit receipts; frozen inventory pinned to exact materialization and complete integrity hashes",
+    "typedAuthoring": "Real author_legal_requirement and author_assessment_rule events and complete claim bindings; all required semantic relationships preserved; no direct-packet bypass",
+    "validator": "Real deterministic Validator PASSED, zero failures, exact same validated/submitted draft",
+    "persistenceActivation": "One coherent PostgreSQL Rule Set version, same source and digest, exactly one atomic activation; restarted API serves identical active artifacts; retained provider-free rollback/negative controls remain passing",
+    "integrityAuthIsolation": "Independent receipt HMAC/tamper/wrong-run controls, recomputed source-byte/chunk/span/support/graph hashes, API authentication, tenant isolation and assessment pinning using existing probes on exact run",
+    "reliabilityUsageCost": "Correct stage transitions; novelty/loop/cancel guards; no duplicate operations; committed invocation-level usage reconciliation and independently supported actual provider charges. Unanswered/unreported usage stays unavailable and cannot satisfy a complete cost gate."
+  },
+  "outputs": [
+    "candidate/source/route/configuration hash manifest",
+    "live-eval-synthetic.json, progress.jsonl and trace.jsonl",
+    "unique usage directory with authoritative usage.json.sqlite3 and derived recovered usage.json",
+    "persisted run/source/materialization/inventory/version/activation snapshots",
+    "independent artifact verifier and run-specific API smoke receipts",
+    "full semantic review with source anchors, negative controls, stage timings, dispatch/usage/cost reconciliation",
+    "resource and termination receipts; no key or production secret values"
+  ],
+  "phaseD": {
+    "status": "NOT_RUN",
+    "requires": "Phase C full acceptance PASS and explicitly authorized isolated staging environment",
+    "releaseImageTool": "tests/release-images.py",
+    "stagingTool": "tests/staging-stack.py",
+    "browserTool": "tests/staging-browser-flow.mjs",
+    "resourceGate": "Current free disk below proposed 24 GiB release-build floor; reassess actual peak/temp storage and ownership after C passes",
+    "mergeDraftRemovalProductionDeployment": "NOT_AUTHORIZED"
+  },
+  "paidModelCalls": 0,
+  "paidInputTokens": 0,
+  "paidOutputTokens": 0,
+  "paidCostUSD": 0,
+  "historicalUsageAndCost": "UNAVAILABLE",
+  "nextAction": "Fix document source-byte digest propagation and add the focused regression before another provenance preflight; do not start inference."
+}

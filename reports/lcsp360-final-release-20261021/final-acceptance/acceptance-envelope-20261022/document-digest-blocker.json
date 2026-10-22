@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-22T08:19:43.067539+00:00",
+  "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
+  "status": "FAIL",
+  "gate": "DOCUMENT_SOURCE_BYTE_DIGEST_BINDING",
+  "evidenceType": "Read-only query of retained provider-free preflight; no domain mutation or model call",
+  "container": "lcsp360-final-20261022-pg-55502",
+  "database": "lcsp360_pypdf_preflight_7a3088043efe",
+  "query": "SELECT json_build_object('database',current_database(),'versionName',v.version,'documentId',d.\"documentId\",'sourceSha256',d.\"sourceSha256\",'sourceUrl',d.\"sourceUrl\",'sourceVersionId',v.id,'chunks',(SELECT count(*) FROM \"LegalDocumentChunk\" c WHERE c.\"legalSourceVersionId\"=v.id)) FROM \"LegalSourceVersion\" v JOIN \"LegalSourceDocument\" d ON d.\"legalSourceVersionId\"=v.id WHERE v.id='6887d934-139f-4e16-8a05-c5f897a57661';",
+  "persisted": {
+    "database": "lcsp360_pypdf_preflight_7a3088043efe",
+    "versionName": "pypdf-preflight-1792643354451",
+    "documentId": "SYNTHETIC-NOTICE-INSTRUMENT",
+    "sourceSha256": "sha256:9f4ee581919363af294eb32196175da57961c290b68f0213581bf61e1fd846a9",
+    "sourceUrl": "https://example.invalid/n",
+    "sourceVersionId": "6887d934-139f-4e16-8a05-c5f897a57661",
+    "chunks": 15
+  },
+  "actualSourceFile": "deepagents/tests/fixtures/compliance_rule_set_context/synthetic-notice-v1.txt",
+  "actualSourceFileSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1",
+  "sha256OfFixtureName": "9f4ee581919363af294eb32196175da57961c290b68f0213581bf61e1fd846a9",
+  "persistedDigestMatchesName": true,
+  "persistedDigestMatchesSourceBytes": false,
+  "rootCause": "fixture_chunks.py returns sourceSha256, but live harness passes no sourceSha256 to seedLegalSource; seedLegalSource writes contentHash(name) instead of the actual source bytes digest. Per-chunk/support hashes can still pass, masking the document-level mismatch.",
+  "requiredFix": "Pass the verified fixture sourceSha256 into the shared seeder, persist it as the document digest, and add a provider-free regression proving it equals the source bytes and not the fixture name. Recheck only the affected provenance/preflight gates on a new immutable candidate.",
+  "paidCalls": 0,
+  "newRunId": null
+}
