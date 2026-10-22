@@ -1,0 +1,22 @@
+{
+  "baseHead": "0c05a1f5c534145e09e98f0a035bbe21d530b09c",
+  "sourceCandidate": "implementation commit containing this receipt; exact hash published in PR checkpoint",
+  "adminUsageAnalytics": "PASS",
+  "tokenBudgetGovernance": "PASS",
+  "pythonRegressions": 307,
+  "billingUnitTests": 33,
+  "referencePriceTests": 9,
+  "webTests": 23,
+  "realApiPostgresAssertions": 60,
+  "realModelAcceptance": "NOT_RUN",
+  "paidCalls": 0,
+  "paidTokens": 0,
+  "paidCostUsd": "0",
+  "strictFinancialMode": "OPTIONAL_UNCHANGED_SCHEMA_2",
+  "callTokenMode": "SCHEMA_3_NO_FINANCIAL_CLAIM",
+  "historicalAccountRequest": "SUPERSEDED_FOR_ADMIN_REFERENCE_ANALYTICS",
+  "exactHeadCI": "PENDING_PUSH",
+  "runtimeReadiness": "PENDING_GLOBAL_STAGE_SUPERVISION_AND_FRESH_FROZEN_CONTEXT",
+  "releaseAcceptance": "NOT_RUN",
+  "draft": true
+}

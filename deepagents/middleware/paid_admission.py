@@ -29,15 +29,8 @@ def fingerprint(value: dict) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-class ChargePolicy(BaseModel):
-    """Reviewed all-charge USD contract, including strict provider token bounds.
-
-    The input bound covers the entire provider request (system/tools/cache and
-    provider overhead), regardless of the local estimator. Output includes
-    reasoning. Rates are integer nano-USD per token after all multipliers/FX;
-    fixed, minimum and rounding fees must include every other provider charge.
-    Missing usage buckets never establish a zero charge.
-    """
+class TokenPolicy(BaseModel):
+    """Pinned technical token allowances; these do not guarantee a provider charge."""
     model_config = ConfigDict(extra="forbid", frozen=True)
     route_id: str = Field(min_length=1, max_length=100)
     route_fingerprint: Digest
@@ -47,6 +40,14 @@ class ChargePolicy(BaseModel):
     provider: str = Field(min_length=1, max_length=40)
     protocol: Literal["anthropic", "openai", "google_genai"]
     model: str = Field(min_length=1, max_length=200)
+    valid_from: Positive
+    expires_at: Positive
+    input_upper_bound: Positive
+    output_upper_bound: Positive
+
+
+class ChargePolicy(TokenPolicy):
+    """Optional independently verified all-charge contract; unchanged schema-2 semantics."""
     evidence_url: str = Field(pattern=r"^https://", max_length=1000)
     evidence_sha256: Digest
     verified_by: str = Field(min_length=1, max_length=100)
@@ -97,12 +98,32 @@ class RunBudget(BaseModel):
     policies: tuple[ChargePolicy, ...]
 
 
+class TokenRunBudget(BaseModel):
+    """Call/token governance independent of reference pricing or private billing."""
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    schema_version: Literal[3]
+    run_id: str = Field(min_length=1, max_length=200)
+    candidate_sha: Annotated[str, Field(pattern=r"^[a-f0-9]{40}$")]
+    model_routes_sha256: Digest
+    credential_salt: Digest
+    valid_from: Positive
+    expires_at: Positive
+    maximum_calls: UInt
+    maximum_input_tokens: UInt
+    maximum_output_tokens: UInt
+    policies: tuple[TokenPolicy, ...]
+
+
+def parse_run_budget(value: dict) -> RunBudget | TokenRunBudget:
+    return (TokenRunBudget if value.get("schema_version") == 3 else RunBudget).model_validate(value)
+
+
 class RunAdmission:
     """Atomic reservations and reconciliation; all rows share the usage SQLite file."""
 
-    def __init__(self, path: str | Path, budget: RunBudget, expected_fingerprint: str):
+    def __init__(self, path: str | Path, budget: RunBudget | TokenRunBudget, expected_fingerprint: str):
         self.path = Path(path)
-        self.budget = RunBudget.model_validate(budget.model_dump())
+        self.budget = parse_run_budget(budget.model_dump())
         self.identity = fingerprint(self.budget.model_dump(mode="json"))
         self.run_id = budget.run_id
         if self.identity != expected_fingerprint:
@@ -147,7 +168,7 @@ class RunAdmission:
             raise PaidAdmissionError("BUDGET_CHANGED", self.run_id)
         return row
 
-    def admit(self, attempt_id: str, identity: dict, *, reason: str | None = None) -> ChargePolicy:
+    def admit(self, attempt_id: str, identity: dict, *, reason: str | None = None) -> ChargePolicy | TokenPolicy:
         """Commit admission or terminal denial before the caller may dispatch."""
         policy = next((p for p in self.budget.policies if (p.route_id, p.credential_fingerprint)
                        == (identity.get("route_id"), identity.get("credential_fingerprint"))), None)
@@ -155,7 +176,7 @@ class RunAdmission:
         if not self.budget.valid_from <= now < self.budget.expires_at:
             reason = "BUDGET_EXPIRED"
         if policy is None:
-            reason = reason or "UNKNOWN_TARIFF"
+            reason = reason or ("UNKNOWN_TOKEN_POLICY" if isinstance(self.budget, TokenRunBudget) else "UNKNOWN_TARIFF")
         elif any(identity.get(k) != getattr(policy, k) for k in (
             "route_id", "route_fingerprint", "credential_fingerprint", "endpoint_fingerprint", "sdk_fingerprint", "provider", "protocol", "model"
         )) or not policy.valid_from <= now < policy.expires_at:
@@ -170,13 +191,13 @@ class RunAdmission:
                 db.commit()
                 raise PaidAdmissionError("DUPLICATE_ATTEMPT", self.run_id, attempt_id)
             reason = envelope["stopped"] or reason
-            exposure = (policy.input_upper_bound, policy.output_upper_bound, policy.exposure()) if policy else (0, 0, 0)
+            exposure = (policy.input_upper_bound, policy.output_upper_bound, (policy.exposure() if isinstance(policy, ChargePolicy) else 0)) if policy else (0, 0, 0)
             totals = db.execute("""SELECT count(*),coalesce(sum(input_exposure),0),coalesce(sum(output_exposure),0),coalesce(sum(charge_exposure),0)
                 FROM inference_attempts WHERE run_id=? AND state!='DENIED'""", (self.run_id,)).fetchone()
             for label, used, increment, limit in zip(
                 ("CALL_LIMIT", "INPUT_LIMIT", "OUTPUT_LIMIT", "CHARGE_LIMIT"), totals,
                 (1, *exposure), (self.budget.maximum_calls, self.budget.maximum_input_tokens,
-                                 self.budget.maximum_output_tokens, self.budget.maximum_charge_nano_usd)
+                                 self.budget.maximum_output_tokens, getattr(self.budget, "maximum_charge_nano_usd", 0))
             ):
                 if used + increment > limit:
                     reason = reason or label
@@ -217,7 +238,8 @@ class RunAdmission:
             row = db.execute("SELECT * FROM inference_attempts WHERE run_id=? AND attempt_id=?", (self.run_id, attempt_id)).fetchone()
             if row is None or row["state"] == "DENIED":
                 raise PaidAdmissionError("ATTEMPT_IDENTITY", self.run_id, attempt_id)
-            fields = ("inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens", "reasoningTokens")
+            token_only = isinstance(self.budget, TokenRunBudget)
+            fields = ("inputTokensIncludingCache", "outputTokens") if token_only else ("inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens", "reasoningTokens")
             usage = {k: usage[k] for k in fields if k in usage} if isinstance(usage, dict) else None
             raw = json.dumps(usage, sort_keys=True) if usage is not None else None
             if row["state"] == "SETTLED":
@@ -242,9 +264,13 @@ class RunAdmission:
                     break
                 numbers.append(value)
             state, exposure, charge = "OUTCOME_UNKNOWN", None, None
-            if len(numbers) == 5:
-                inputs, cached, written, output, reasoning = numbers
-                charge = policy.charge(*numbers)
+            if len(numbers) == len(fields):
+                if token_only:
+                    inputs, output = numbers
+                    cached, written, reasoning, charge = 0, 0, 0, 0
+                else:
+                    inputs, cached, written, output, reasoning = numbers
+                    charge = policy.charge(*numbers)
                 if (inputs + cached + written > policy.input_upper_bound or output > policy.output_upper_bound
                         or reasoning > output or charge > row["charge_exposure"]):
                     failure = PaidAdmissionError("PROVIDER_BOUND_BREACH", self.run_id, attempt_id)
@@ -257,7 +283,7 @@ class RunAdmission:
                     state, exposure = "SETTLED", (inputs + cached + written, output, charge)
             history = json.loads(row["history"]) + [{"state": state, "at": time.time()}]
             db.execute("UPDATE inference_attempts SET state=?,usage=?,actual_charge=?,history=? WHERE run_id=? AND attempt_id=?",
-                       (state, raw, charge, json.dumps(history), self.run_id, attempt_id))
+                       (state, raw, None if token_only else charge, json.dumps(history), self.run_id, attempt_id))
             if exposure:
                 db.execute("UPDATE inference_attempts SET input_exposure=?,output_exposure=?,charge_exposure=? WHERE run_id=? AND attempt_id=?",
                            (*exposure, self.run_id, attempt_id))
@@ -276,7 +302,8 @@ def recover_admission(path: str | Path, run_id: str) -> dict:
         if not budget:
             return {"state": "LEGACY_UNBOUNDED", "runId": run_id}
         rows = [dict(r) for r in db.execute("SELECT * FROM inference_attempts WHERE run_id=? ORDER BY rowid", (run_id,))]
-        return {"state": "STOPPED" if budget["stopped"] else "BOUNDED", "runId": run_id,
+        token_only = json.loads(budget["envelope"])["schema_version"] == 3
+        result = {"state": "STOPPED" if budget["stopped"] else "BOUNDED", "runId": run_id,
                 "schemaVersion": json.loads(budget["envelope"])["schema_version"],
                 "budgetFingerprint": budget["fingerprint"], "terminalReason": budget["stopped"],
                 "attempts": rows, "admittedAttempts": sum(r["state"] != "DENIED" for r in rows),
@@ -288,6 +315,11 @@ def recover_admission(path: str | Path, run_id: str) -> dict:
                                         else sum(r["actual_charge"] or 0 for r in rows)),
                 "unresolvedChargeExposureNanoUSD": sum(r["charge_exposure"] for r in rows if r["state"] != "SETTLED"),
                 "unresolvedAttempts": sum(r["state"] in {"ADMITTED", "IN_FLIGHT", "OUTCOME_UNKNOWN"} for r in rows)}
+        result["financialEnforcement"] = "DISABLED" if token_only else "STRICT_ACCOUNT_CONTRACT"
+        if token_only:
+            for key in ("chargeExposureNanoUSD", "knownActualChargeNanoUSD", "actualChargeNanoUSD", "unresolvedChargeExposureNanoUSD"):
+                result[key] = None
+        return result
     finally:
         db.close()
 
@@ -297,14 +329,14 @@ def reconcile_admission_evidence(path: str | Path, run_id: str, records: list[di
     snapshot = recover_admission(path, run_id)
     if snapshot["state"] == "LEGACY_UNBOUNDED":
         return snapshot
-    if snapshot["schemaVersion"] != 2:
+    if snapshot["schemaVersion"] not in (2, 3):
         return {**snapshot, "state": "LEGACY_RESERVATIONS_RETAINED", "reconciliation": "REQUIRES_ORIGINAL_POLICY_VERSION"}
     db = sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True, timeout=10)
     try:
         raw, digest = db.execute("SELECT envelope,fingerprint FROM inference_budgets WHERE run_id=?", (run_id,)).fetchone()
     finally:
         db.close()
-    admission = RunAdmission(path, RunBudget.model_validate_json(raw), digest)
+    admission = RunAdmission(path, parse_run_budget(json.loads(raw)), digest)
     attempts = {r["attempt_id"]: r for r in snapshot["attempts"]}
     for record in records:
         attempt_id = record["invocationId"]

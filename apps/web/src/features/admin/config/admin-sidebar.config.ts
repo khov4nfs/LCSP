@@ -3,6 +3,7 @@ import {
   BookOpenIcon,
   LayoutDashboardIcon,
   UsersIcon,
+  ActivityIcon,
   WalletCardsIcon,
 } from "lucide-react";
 
@@ -16,6 +17,11 @@ export const ADMIN_NAV_ITEMS = [
     href: "/admin/users",
     labelKey: "pages.admin.sidebar.navUserAccounts",
     icon: UsersIcon,
+  },
+  {
+    href: "/admin/usage",
+    labelKey: "pages.admin.sidebar.navUsage",
+    icon: ActivityIcon,
   },
   {
     href: "/admin/billing",

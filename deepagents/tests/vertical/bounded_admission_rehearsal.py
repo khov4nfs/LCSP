@@ -22,13 +22,13 @@ from middleware.failure_policy import PaidAdmissionError
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, _GovernedInternalModelRunnable
 from middleware import token_fallback
 from middleware.usage_metering import AgentRoleMiddleware, activate_agent_run_state, active_agent_role
-from middleware.paid_admission import fingerprint, recover_admission, request_identity
+from middleware.paid_admission import TokenRunBudget, TokenPolicy, fingerprint, recover_admission, request_identity
 from model_policy import DEFAULT_ROUTES_FILE, load_model_routes
 from test_paid_admission import native, answer, budget_for
 from vertical.live_preparation import LiveUsage, recover_usage
 
 
-def main(output: str) -> dict:
+def main(output: str, *, token_only: bool = False) -> dict:
     target = Path(output)
     target.mkdir(parents=True, exist_ok=False)
     dispatches, lock = [], threading.Lock()
@@ -51,6 +51,10 @@ def main(output: str) -> dict:
                   native("fallback"), native("fallback-01"), native("fallback-02"), native("semantic-final")]
         candidate = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
         budget = budget_for(*models, run_id="offline-admission-rehearsal", maximum_calls=7, candidate_sha=candidate)
+        if token_only:
+            values = {k: v for k, v in budget.model_dump().items() if k in TokenRunBudget.model_fields}
+            values.update(schema_version=3, policies=tuple(TokenPolicy.model_validate({k: v for k, v in p.model_dump().items() if k in TokenPolicy.model_fields}) for p in budget.policies))
+            budget = TokenRunBudget.model_validate(values)
         budget_file = target / "offline-budget.json"
         budget_file.write_text(budget.model_dump_json(indent=2) + "\n")
         state = LiveUsage(budget.run_id, str(target / "usage.json"), budget=budget,
@@ -91,10 +95,13 @@ def main(output: str) -> dict:
             assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert ledger["inputExposure"] <= budget.maximum_input_tokens
         assert ledger["outputExposure"] <= budget.maximum_output_tokens
-        assert ledger["chargeExposureNanoUSD"] <= budget.maximum_charge_nano_usd
+        if token_only:
+            assert ledger["chargeExposureNanoUSD"] is None and ledger["financialEnforcement"] == "DISABLED"
+        else:
+            assert ledger["chargeExposureNanoUSD"] <= budget.maximum_charge_nano_usd
         result = {"status": "OFFLINE_ADMISSION_PASS", "candidateSha": candidate,
                   "runId": budget.run_id, "budgetFingerprint": state.admission.identity,
-                  "tariffAuthority": "SYNTHETIC_OFFLINE_ONLY; no real provider charging contract",
+                  "tariffAuthority": "NOT_REQUIRED_TOKEN_ONLY" if token_only else "SYNTHETIC_OFFLINE_ONLY; no real provider charging contract",
                   "dispatches": dispatches, "physicalOfflineHandlerCalls": len(dispatches),
                   "admission": ledger, "recoveredCompletedResponses": recovered["modelCalls"],
                   "denial": denial, "noDispatchAfterDenial": True, "sqliteIntegrity": "ok",
@@ -105,5 +112,5 @@ def main(output: str) -> dict:
 
 
 if __name__ == "__main__":
-    result = main(sys.argv[1])
+    result = main(sys.argv[1], token_only="--tokens" in sys.argv[2:])
     print(json.dumps({k: result[k] for k in ["status", "candidateSha", "physicalOfflineHandlerCalls", "recoveredCompletedResponses", "denial", "paidModelCalls"]}))

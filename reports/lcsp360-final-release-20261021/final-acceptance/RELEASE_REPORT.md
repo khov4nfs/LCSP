@@ -510,3 +510,35 @@ All original three protected WIP SHA-256 values are unchanged. Historical 55441 
 Evidence directory: [`charging-contracts-20261022/`](charging-contracts-20261022/). Commands, source/evidence fingerprints, independent reconciliation and preservation receipts accompany this section. PR #427 remains Draft. Paid calls / tokens / cost: **0 / 0 / USD 0**. Historical real usage/cost: **UNAVAILABLE**. New real-model run ID / activated Rule Set version: **none / none**.
 
 **Next action:** the LCSP Mirai credential owner supplies the dated account-to-slot charging and strict token-bound statement through an approved restricted evidence location, with a sanitized digest-linked extract for independent review; see the prepared request.
+
+
+## 19. Admin token analytics and official reference pricing — product requirement corrected
+
+The authoritative product decision supersedes Section 18's account-owner evidence request **for Admin reference-cost reporting**. That historical investigation remains intact; its unavailable contracts were not fulfilled. Private account billing, invoice reconciliation, gateway quota conversion and strict financial ChargePolicy approval are not prerequisites for usage analytics. Official reference cost is not an actual gateway charge or a guaranteed provider-spending ceiling.
+
+Base checkpoint: `0c05a1f5c534145e09e98f0a035bbe21d530b09c`. The implementation candidate is the commit containing this section; its exact hash and push-triggered CI results are published in the PR checkpoint. PR #427 remains Draft. No paid inference, Rule Set activation, staging, image build, merge or deployment was performed.
+
+Root cause: completion-only assessment callbacks omitted physical failed attempts and system Preparation ownership. Bounded call/token governance was coupled to an account charging contract. Fix: extend the existing usage journal/callback and `LlmUsageEvent`, preserve immutable per-invocation official-price snapshots, add the existing-RBAC Admin `/admin/usage` API/BFF/UI, and add schema-3 token-only admission using the same atomic reservation tables. Schema-2 strict financial enforcement and historical journal identities remain supported.
+
+Automated Preparation uses the canonical system actor rather than a customer. Its usage has nullable user ownership and a database-enforced unique run/invocation key; no fabricated User is created. Customer callbacks still resolve assessment ownership server-side. System and customer usage are visible only through the existing global Admin scope; customer tokens cannot query either.
+
+Registry sources: [Anthropic](https://platform.claude.com/docs/en/about-claude/pricing), [Google](https://ai.google.dev/gemini-api/docs/pricing?hl=en), [Inception](https://docs.inceptionlabs.ai/get-started/models.md), [OpenAI](https://developers.openai.com/api/docs/pricing.md). [APX's exact model page](https://apmix.ai/models/claude-sonnet-4-6-free) confirms the Sonnet 4.6 alias. Standard schedules captured on 2026-10-22 are pinned by version and SHA-256; effective dates are UNKNOWN when unpublished. Earlier invocations are not backfilled with today's prices. The calculator uses integer attodollars, separates cache-read/write TTL buckets, does not add reasoning twice, and marks missing/contradictory buckets or unknown models PARTIAL/UNKNOWN/UNPRICED. Known subtotals are explicitly incomplete when appropriate. Non-token fees are excluded from the reference scope.
+
+Provider-free verification:
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Call/token admission, original strict admission, lifecycle, retry/fallback, recovery, interruption, independent Auditor and runtime cancellation | PASS — 307 tests | `admin-usage-analytics-20261022/python-regressions.log` |
+| Billing unit/regression tests | PASS — 33 tests | `admin-usage-analytics-20261022/api-unit-tests.log` |
+| Deterministic official-reference pricing | PASS — 9 tests | `admin-usage-analytics-20261022/reference-price-tests.log` |
+| Admin/BFF/contracts/route regressions | PASS — 23 tests | `admin-usage-analytics-20261022/web-tests.log` |
+| Real authenticated API/PostgreSQL, duplicate/concurrent callbacks, late response, system Preparation ownership, filters, tenant denial, restart and identical snapshots | PASS — 60 assertions | `admin-usage-analytics-20261022/api-postgres-proof.json`, `system-scope-postgres-proof.json` |
+| Real local Playwright flow and EN/VI rendering | PASS | `admin-usage-analytics-20261022/browser-proof.json`, EN/VI screenshots |
+| Exact implementation HEAD CI/security | PENDING push-triggered checks | Do not reuse historical 38 passes as this candidate's result |
+| Frozen runtime context, global/per-stage supervision and execution resource admission | PENDING | Must complete non-paid runtime readiness before requesting live authorization |
+| Real-model legal-semantic acceptance | NOT_RUN | No paid authorization |
+| Release-image/staging/full application acceptance | NOT_RUN | Requires successful authorized live acceptance |
+
+The fresh owned PostgreSQL instance is `lcsp360-admin-usage-20261022-pg-55504`, database `lcsp_admin_usage_test`. Both additive migrations replayed successfully. The seven-invocation owner fixture has known reference subtotal USD 0.00021179, with an explicitly incomplete total; these are **synthetic usage records**, not paid consumption. The APX Auditor snapshot is `anthropic:claude-sonnet-4-6:standard:2026-10-22` at reference USD 0.0001056. A late response updates one physical attempt rather than creating a duplicate. Restarted API responses and stored snapshots agree.
+
+The three protected WIP SHA-256 hashes match the original checkpoint exactly (`admin-usage-analytics-20261022/protected-wip.json`). Historical databases on 55441, 55502 and 55503, signed receipts and evidence were not modified or started. Actual new paid calls/tokens/cost: **0 / 0 / USD 0**. Historical unavailable usage remains UNAVAILABLE. Chrome DevTools could not start without an X server; Playwright provided real browser interaction, console and HTTP proof. The unchanged Admin shell emits an existing `unoptimized` DOM-attribute warning, separately recorded in the browser receipt.

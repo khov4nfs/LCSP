@@ -999,6 +999,13 @@ enum BillingReservationStatus {
   RELEASED
 }
 
+enum ModelAttemptStatus {
+  STARTED
+  COMPLETED
+  FAILED
+  OUTCOME_UNKNOWN
+}
+
 enum LlmUsageStatus {
   SETTLED
   UNAVAILABLE
@@ -1200,7 +1207,7 @@ model RuntimeModelPolicySnapshot {
 
 model LlmUsageEvent {
   id                      String                      @id @default(uuid())
-  userId                  String
+  userId                  String?
   assessmentId            String?
   runId                   String?
   agentRole               String                      @default("LEGACY")
@@ -1210,6 +1217,13 @@ model LlmUsageEvent {
   status                  LlmUsageStatus              @default(SETTLED)
   availabilityReason      String?
   providerResponseId      String?
+  attemptStatus              ModelAttemptStatus?
+  failureClass               String?
+  referenceCostSnapshot      Json?
+  inputTokensIncludingCache  BigInt?
+  cacheWrite5mTokens         BigInt?
+  cacheWrite1hTokens         BigInt?
+  visibleOutputTokens        BigInt?
   inputTokens             BigInt?
   cachedInputTokens       BigInt?
   cacheWriteTokens        BigInt?
@@ -1224,12 +1238,13 @@ model LlmUsageEvent {
   chargedCredits          BigInt?
   occurredAt              DateTime                    @default(now())
   createdAt               DateTime                    @default(now())
-  user                    User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user                    User?                        @relation(fields: [userId], references: [id], onDelete: Restrict)
   assessment              Assessment?                 @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
   pricingSnapshot         ModelPricingSnapshot?       @relation(fields: [pricingSnapshotId], references: [id], onDelete: Restrict)
   runtimePolicySnapshot   RuntimeModelPolicySnapshot? @relation(fields: [runtimePolicySnapshotId], references: [id], onDelete: Restrict)
   reservation             BillingReservation?         @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
+  @@index([occurredAt])
   @@unique([userId, invocationId])
   @@unique([provider, providerResponseId])
   @@index([assessmentId, runId, createdAt])

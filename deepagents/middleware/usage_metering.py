@@ -21,9 +21,10 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 from langchain.agents.middleware import AgentMiddleware
+from langchain_core.exceptions import ModelError
 
 from middleware.token_fallback import model_protocol, model_provider
-from middleware.usage_recovery import enqueue_usage
+from middleware.usage_recovery import enqueue_usage, record_usage_evidence, drain
 from middleware.paid_admission import RunAdmission, prepare_admitted_request
 from middleware.failure_policy import PaidAdmissionError
 from model_policy import (
@@ -124,9 +125,11 @@ class AgentRunState:
     run_id: str
     agent_role: str
     assessment_id: str | None = None
+    preparation_run_id: str | None = None
     api_client: WorkerApiClient | None = None
     admission: RunAdmission | None = None
     bounded: bool = False
+    _attempt_times: dict[str, str] = field(default_factory=dict, init=False)
     _disabled_provider_routes: set[str] = field(default_factory=set, init=False)
     _sticky_provider_routes: set[str] = field(default_factory=set, init=False)
 
@@ -146,66 +149,36 @@ class AgentRunState:
             and provider.strip().lower() in self._disabled_provider_routes
         )
 
-    def record(
-        self,
-        response: Any,
-        model: Any,
-        invocation_id: str,
-        *,
-        agent_role: str | None = None,
-    ) -> None:
-        """Report provider-reported token usage; best effort, never fails the run.
-
-        Nothing is posted when the provider returned no usage numbers (no invented
-        counts) or when the run has no assessment to attribute usage to.
-        """
-        if self.api_client is None or not self.assessment_id:
+    def record_attempt(self, model, invocation_id: str, status: str, *, agent_role=None, response=None, error=None):
+        """Commit physical attempt evidence before dispatch; never persist prompts or error text."""
+        if not (self.assessment_id or self.preparation_run_id or hasattr(self, "store")):
             return
-        usage = extract_provider_usage(response, model)
-        if usage is None:
-            return
-        provider, model_name = provider_identity(model, response)
+        started = self._attempt_times.setdefault(invocation_id, datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+        provider, name = provider_identity(model, response)
+        values = extract_provider_usage(response, model) or {} if response is not None else {}
         payload = SettledUsagePayload(
-            assessmentId=self.assessment_id,
-            runId=self.run_id,
-            invocationId=invocation_id,
-            agentRole=agent_role or self.agent_role,
-            providerResponseId=usage.pop("providerResponseId", None),
-            provider=provider,
-            model=model_name,
-            effectiveRuntimeModel=effective_runtime_model(
-                agent_role or self.agent_role,
-                provider,
-                model_name,
-                model_protocol(model),
-                model_route_config(model),
-            ),
-            occurredAt=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            **usage,
-        )
+            assessmentId=self.assessment_id, preparationRunId=self.preparation_run_id,
+            runId=self.run_id, invocationId=invocation_id, agentRole=agent_role or self.agent_role,
+            provider=provider, model=name, attemptStatus=status,
+            failureClass=type(error).__name__ if error is not None else None,
+            effectiveRuntimeModel=effective_runtime_model(agent_role or self.agent_role, provider, name, model_protocol(model), model_route_config(model)),
+            occurredAt=started, **values)
+        path = getattr(self, "store", None) or resolve_usage_recovery_store_path()
         try:
-            self.api_client.post_settled_usage(payload)
-        except Exception as error:
-            # Usage is telemetry: the provider already answered, so failing (and
-            # replaying) the model call would only duplicate work.
-            logger.warning(
-                "MODEL_USAGE_DELIVERY_FAILED",
-                invocation_id=invocation_id,
-                error_type=type(error).__name__,
-            )
-            self._enqueue_for_recovery(payload, invocation_id)
+            record_usage_evidence(path, f"attempt:{self.run_id}:{invocation_id}:{status}", {
+                "event": "MODEL_ATTEMPT", **payload.model_dump(mode="json", exclude_none=True)})
+            if self.api_client is not None:
+                enqueue_usage(path, payload)
+        except Exception as commit_error:
+            raise ModelError("Durable usage commit failed; stop without replaying the model") from commit_error
+        if self.api_client is not None:
+            try:
+                drain(path, self.api_client)
+            except Exception as delivery_error:
+                logger.warning("MODEL_USAGE_DELIVERY_FAILED", invocation_id=invocation_id, error_type=type(delivery_error).__name__)
 
-    @staticmethod
-    def _enqueue_for_recovery(payload: SettledUsagePayload, invocation_id: str) -> None:
-        """Keep undelivered usage durable for the background drain; never raises."""
-        try:
-            enqueue_usage(resolve_usage_recovery_store_path(), payload)
-        except Exception as error:  # noqa: BLE001 - telemetry never fails the model call
-            logger.error(
-                "MODEL_USAGE_RECOVERY_ENQUEUE_FAILED",
-                invocation_id=invocation_id,
-                error_type=type(error).__name__,
-            )
+    def record(self, response, model, invocation_id: str, *, agent_role: str | None = None) -> None:
+        self.record_attempt(model, invocation_id, "COMPLETED", agent_role=agent_role, response=response)
 
 
 _active_state: ContextVar[AgentRunState | None] = ContextVar(
@@ -956,13 +929,19 @@ class UsageMeteringMiddleware(AgentMiddleware):
             state.admission.transition(invocation_id, "IN_FLIGHT")
         elif _bounded_scope.get() is not None:
             raise PaidAdmissionError("MISSING_RUN_BUDGET", _bounded_scope.get().run_id, invocation_id)
+        if state is not None:
+            state.record_attempt(request.model, invocation_id, "STARTED", agent_role=active_agent_role())
         return request
 
     @staticmethod
-    def _unknown(invocation_id):
+    def _unknown(invocation_id, model, error):
         state = active_agent_run_state()
-        if state is not None and state.admission is not None:
-            state.admission.transition(invocation_id, "OUTCOME_UNKNOWN")
+        if state is not None:
+            if state.admission is not None:
+                state.admission.transition(invocation_id, "OUTCOME_UNKNOWN")
+            code = getattr(error, "status_code", None)
+            status = "FAILED" if type(code) is int and 400 <= code <= 599 else "OUTCOME_UNKNOWN"
+            state.record_attempt(model, invocation_id, status, agent_role=active_agent_role(), error=error)
 
     def wrap_model_call(self, request, handler):
         request, model = self._prepare(request)
@@ -976,7 +955,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             self._record(response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            self._unknown(invocation_id)
+            self._unknown(invocation_id, model, error)
             from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
             cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
@@ -1001,7 +980,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             await asyncio.to_thread(self._record, response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
-            await asyncio.to_thread(self._unknown, invocation_id)
+            await asyncio.to_thread(self._unknown, invocation_id, model, error)
             from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
             cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
@@ -1092,16 +1071,18 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
         "candidatesTokenCount",
         "outputTokenCount",
     )
-    if input_tokens is None or output_tokens is None:
-        return None
-
-    result: dict[str, Any] = {"outputTokens": str(output_tokens)}
+    result: dict[str, Any] = {}
+    if output_tokens is not None:
+        result["outputTokens"] = str(output_tokens)
     nested_input = metadata.get("input_token_details")
     nested_output = metadata.get("output_token_details")
     if isinstance(nested_input, dict):
         metadata = {**metadata, **nested_input}
     if isinstance(nested_output, dict):
         metadata = {**metadata, **nested_output}
+    cache_creation = metadata.get("cache_creation")
+    if isinstance(cache_creation, dict):
+        metadata = {**metadata, **cache_creation}
     optional = (
         (
             "cachedInputTokens",
@@ -1127,26 +1108,44 @@ def extract_provider_usage(response: Any, model: Any) -> dict[str, Any] | None:
             "reasoning_tokens",
             "reasoning",
             "thoughts_token_count",
+            "thoughtsTokenCount",
             "reasoningTokenCount",
         ),
+        ("cacheWrite5mTokens", "ephemeral_5m_input_tokens"),
+        ("cacheWrite1hTokens", "ephemeral_1h_input_tokens"),
         ("totalTokens", "total_tokens", "total_token_count", "totalTokenCount"),
     )
     for target, *keys in optional:
         value = _number(metadata, *keys)
         if value is not None:
             result[target] = str(value)
-    cached_input = int(result.get("cachedInputTokens", "0"))
-    cache_write = int(result.get("cacheWriteTokens", "0"))
     provider, _ = provider_identity(model, response)
-    # LangChain totals include cache slices for native and gateway protocols;
-    # raw Anthropic usage excludes them.
-    if provider in {"OPENAI", "GOOGLE_GENAI"} or (
-        model_protocol(model) in {"anthropic", "openai"} and normalized
-    ):
-        if cached_input + cache_write > input_tokens:
-            return None
-        input_tokens = max(input_tokens - cached_input - cache_write, 0)
-    result["inputTokens"] = str(input_tokens)
+    if input_tokens is not None:
+        inclusive = provider in {"OPENAI", "GOOGLE_GENAI", "INCEPTION"} or (model_protocol(model) in {"anthropic", "openai"} and normalized)
+        cached = result.get("cachedInputTokens")
+        written = result.get("cacheWriteTokens")
+        if inclusive:
+            result["inputTokensIncludingCache"] = str(input_tokens)
+            # No cache-creation bucket exists in OpenAI-compatible/Google token usage.
+            if model_protocol(model) in {"openai", "google_genai"} and written is None:
+                written = "0"  # These protocols have no separate cache-creation input bucket.
+            if cached is not None and written is not None:
+                uncached = input_tokens - int(cached) - int(written)
+                if uncached < 0:
+                    return None
+                result["inputTokens"] = str(uncached)
+        else:
+            result["inputTokens"] = str(input_tokens)
+            if cached is not None and written is not None:
+                result["inputTokensIncludingCache"] = str(input_tokens + int(cached) + int(written))
+    if not normalized and provider == "GOOGLE_GENAI" and "candidatesTokenCount" in metadata:
+        result["visibleOutputTokens"] = str(output_tokens) if output_tokens is not None else None
+        if output_tokens is not None and "reasoningTokens" in result:
+            result["outputTokens"] = str(output_tokens + int(result["reasoningTokens"]))
+        else:
+            result.pop("outputTokens", None)
+    if not result:
+        return None
     response_id = _response_identity(response)
     if response_id:
         result["providerResponseId"] = response_id
@@ -1229,6 +1228,8 @@ def _usage_metadata(response: Any, *, include_root: bool = True) -> dict[str, An
     if isinstance(response_metadata, dict):
         candidates.extend(
             [
+                response_metadata.get("usage_metadata"),
+                response_metadata.get("usageMetadata"),
                 response_metadata.get("token_usage"),
                 response_metadata.get("usage"),
                 *([response_metadata] if include_root else []),

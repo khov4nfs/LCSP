@@ -100,8 +100,8 @@ def test_reasoning_thinking_and_unknown_numeric_become_details_without_model_bra
     }
     assert isinstance(data["duration_ms"], int)
     # The event keeps the provider total; the ledger separates its cache slice.
-    assert session.api_client.payloads[0].inputTokens == "4"
-    assert session.api_client.payloads[0].cachedInputTokens == "1"
+    assert [p for p in session.api_client.payloads if p.attemptStatus == "COMPLETED"][0].inputTokensIncludingCache == "5"
+    assert [p for p in session.api_client.payloads if p.attemptStatus == "COMPLETED"][0].cachedInputTokens == "1"
 
 
 def test_unsafe_or_untrusted_values_are_dropped():

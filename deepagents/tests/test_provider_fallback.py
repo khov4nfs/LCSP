@@ -348,9 +348,11 @@ def test_apx_402_fallback_reports_usage_of_the_answering_route_only(monkeypatch)
 
     assert isinstance(response, ModelResponse)
     assert provider_calls == ["apx", "google_genai"]
-    # Only the provider-answered attempt reports usage; the failed attempt has none.
-    assert [payload.provider for payload in payloads] == ["GOOGLE_GENAI"]
-    assert payloads[0].inputTokens == "3"
+    # Only the answered callback carries usage; both physical attempts retain lifecycle evidence.
+    assert [payload.provider for payload in payloads if payload.attemptStatus == "COMPLETED"] == ["GOOGLE_GENAI"]
+    payloads = [p for p in payloads if p.attemptStatus == "COMPLETED"]
+    assert payloads[0].inputTokens is None
+    assert payloads[0].inputTokensIncludingCache == "3"
     assert payloads[0].outputTokens == "2"
 
 
@@ -413,7 +415,7 @@ def test_apx_402_opens_run_scoped_circuit_and_skips_next_primary(monkeypatch):
 
     assert provider_calls == ["apx", "google_genai", "google_genai"]
     assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
-    assert [payload.provider for payload in client.payloads] == [
+    assert [payload.provider for payload in client.payloads if payload.attemptStatus == "COMPLETED"] == [
         "GOOGLE_GENAI",
         "GOOGLE_GENAI",
     ]
@@ -521,7 +523,8 @@ def test_apx_upstream_unprocessable_fallback_preserves_tool_continuation_and_ope
     ]
     assert session.provider_route_disabled(route_key("apx", MODEL_FOR["apx"], "anthropic")) is True
     # No provider-reported usage on these responses: nothing is posted, no zeros invented.
-    assert client.payloads == []
+    assert len([p for p in client.payloads if p.attemptStatus == "COMPLETED"]) == 2
+    assert all(p.inputTokens is None and p.outputTokens is None for p in client.payloads)
     # Routing transitions are infrastructure, never assessment events.
     assert not {"PROVIDER_FALLBACK", "CREDENTIAL_ROTATION"} & {
         event_type for event_type, _ in stream_events
@@ -1506,9 +1509,10 @@ def test_sticky_fallback_reports_usage_per_answered_attempt_without_extra_logica
 
     # Turn 1: failed primary attempt + fallback success; turn 2: fallback only.
     assert calls == ["openai", "apx", "apx"]
-    # Only the answering route reports usage; the failed primary attempt reports none.
-    assert [p.provider for p in client.payloads] == ["APX", "APX"]
-    assert len({p.invocationId for p in client.payloads}) == 2
+    # The failed attempt remains observable without fabricated usage.
+    assert [p.provider for p in client.payloads if p.attemptStatus == "COMPLETED"] == ["APX", "APX"]
+    assert len({p.invocationId for p in client.payloads}) == 3
+    assert [p.attemptStatus for p in client.payloads] == ["STARTED", "FAILED", "STARTED", "COMPLETED", "STARTED", "COMPLETED"]
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -1549,9 +1553,10 @@ async def test_answered_schema_fallback_has_distinct_settlement_ids_in_one_logic
             await fallback.awrap_model_call(request, ahandled)
         else:
             fallback.wrap_model_call(request, handled)
-    assert [p.provider for p in payloads] == ["OPENAI", "APX"]
+    assert [p.provider for p in payloads if p.attemptStatus == "COMPLETED"] == ["OPENAI", "APX"]
     assert len(set(logical_ids)) == 1 and logical_ids[0]
     assert len({p.invocationId for p in payloads}) == 2
+    assert len(payloads) == 4  # Two physical starts and two completed responses.
 
 
 def _raw_routes(monkeypatch, routes: dict, chain: list[str]) -> None:

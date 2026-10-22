@@ -64,7 +64,7 @@ def test_missing_or_partial_usage_is_not_invented(tmp_path):
     assert summary["accountingState"] == "MISSING_PROVIDER_USAGE"
     assert summary["modelCalls"] == 3 and summary["missingUsageCalls"] == 2
     assert summary["inputTokens"] is None and summary["outputTokens"] is None
-    assert summary["knownInputTokens"] == 7 and summary["knownOutputTokens"] == 3
+    assert summary["knownInputTokens"] == 7 and summary["knownOutputTokens"] == 8
     assert summary["cachedInputTokens"] is None and summary["knownCachedInputTokens"] == 2
     assert summary["invocations"][1]["reportedUsage"] == {"output_tokens": 5}
     assert summary["invocations"][2]["usage"] is None
@@ -136,7 +136,8 @@ def test_rejected_answer_is_committed_before_fallback_or_terminal_failure(tmp_pa
     summary = recover_usage(out, "run")
     assert attempts == ["apx", "google_genai"]
     assert summary["modelCalls"] == (2 if fallback_succeeds else 1)
-    assert summary["inputTokens"] == (10 if fallback_succeeds else 5)
+    assert summary["inputTokens"] is None
+    assert summary["inputTokensIncludingCache"] == (10 if fallback_succeeds else 5)
     assert [r["provider"] for r in summary["invocations"]] == (["APX", "GOOGLE_GENAI"] if fallback_succeeds else ["APX"])
 
 
@@ -211,7 +212,7 @@ time.sleep(30)
         cli = Path(__file__).parent / "vertical/live_preparation.py"
         recovered = subprocess.check_output([sys.executable, str(cli), "--recover-usage", out, "interrupted"], env=env, text=True)
         summary = json.loads(recovered.strip().splitlines()[-1])
-        assert summary["modelCalls"] == 2 and summary["inputTokens"] == 14 and summary["outputTokens"] == 6
+        assert summary["modelCalls"] == 2 and summary["inputTokens"] is None and summary["inputTokensIncludingCache"] == 14 and summary["outputTokens"] == 6
         assert {r["agentRole"] for r in summary["invocations"]} == {"rule-set-preparation", "legal-semantic-auditor"}
     finally:
         if child.poll() is None:

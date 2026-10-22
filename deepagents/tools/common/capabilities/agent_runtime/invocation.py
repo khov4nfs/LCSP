@@ -253,6 +253,7 @@ def _agent_run_state(
         run_id=run_id,
         agent_role=boundary_name,
         assessment_id=assessment_id,
+        preparation_run_id=preparation_run_id,
         api_client=client,
     )
 

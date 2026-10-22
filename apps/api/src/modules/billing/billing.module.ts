@@ -39,6 +39,9 @@ import {
   BillingUsageKernel,
 } from "./application/shared/billing-usage.kernel.js";
 
+import { AdminUsageController } from "./presentation/http/admin-usage.controller.js";
+import { GetAdminUsageHandler } from "./application/queries/get-admin-usage/get-admin-usage.handler.js";
+
 @Module({
   imports: [
     CqrsModule,
@@ -48,6 +51,7 @@ import {
   ],
   controllers: [
     BillingUsageController,
+    AdminUsageController,
     BillingCustomerController,
     SePayWebhookController,
     BillingAdminReconciliationController,
@@ -56,6 +60,7 @@ import {
   ],
   providers: [
     PrismaService,
+    GetAdminUsageHandler,
     PrismaBillingTransaction,
     {
       provide: BILLING_TRANSACTION_PORT,

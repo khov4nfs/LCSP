@@ -1,6 +1,8 @@
 import type {
   BILLING_ORDER_STATUSES,
   LlmUsageStatus,
+  ModelAttemptStatus,
+  ReferenceCostSnapshot,
 } from "@lcsp/contracts/billing";
 
 export type WalletRecord = {
@@ -59,7 +61,7 @@ export type PaymentRecord = {
 };
 export type UsageRecord = {
   id: string;
-  userId: string;
+  userId: string | null;
   assessmentId: string | null;
   runId: string | null;
   agentRole: string;
@@ -69,6 +71,13 @@ export type UsageRecord = {
   status: string;
   availabilityReason: string | null;
   providerResponseId: string | null;
+  attemptStatus?: ModelAttemptStatus | null;
+  failureClass?: string | null;
+  referenceCostSnapshot?: unknown;
+  inputTokensIncludingCache?: bigint | null;
+  cacheWrite5mTokens?: bigint | null;
+  cacheWrite1hTokens?: bigint | null;
+  visibleOutputTokens?: bigint | null;
   inputTokens: bigint | null;
   cachedInputTokens: bigint | null;
   cacheWriteTokens: bigint | null;
@@ -205,17 +214,26 @@ export interface WebhookEventPort {
 }
 export interface LlmUsagePort {
   findByInvocation(
-    userId: string,
+    userId: string | null,
     invocationId: string,
+    runId?: string,
   ): Promise<UsageRecord | null>;
   findByProviderResponse(
     provider: string,
     responseId: string,
   ): Promise<UsageRecord | null>;
+  update(id: string, input: UsageUpdate): Promise<UsageRecord>;
   create(input: {
-    userId: string;
+    userId: string | null;
     assessmentId?: string;
     runId?: string;
+    attemptStatus?: ModelAttemptStatus;
+    failureClass?: string;
+    referenceCostSnapshot?: ReferenceCostSnapshot;
+    inputTokensIncludingCache?: bigint;
+    cacheWrite5mTokens?: bigint;
+    cacheWrite1hTokens?: bigint;
+    visibleOutputTokens?: bigint;
     agentRole: string;
     provider: string;
     model: string;
@@ -276,3 +294,5 @@ export interface BillingTransactionPort {
 }
 
 export const BILLING_TRANSACTION_PORT = Symbol("BILLING_TRANSACTION_PORT");
+
+export type UsageUpdate = Partial<Parameters<LlmUsagePort["create"]>[0]>;

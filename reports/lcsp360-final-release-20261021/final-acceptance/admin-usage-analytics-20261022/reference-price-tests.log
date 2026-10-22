@@ -1,0 +1,64 @@
+TAP version 13
+# Subtest: official reference mapping MIRAIAPI/claude-sonnet-5
+ok 1 - official reference mapping MIRAIAPI/claude-sonnet-5
+  ---
+  duration_ms: 0.960955
+  type: 'test'
+  ...
+# Subtest: official reference mapping APX/claude-sonnet-4-6-free
+ok 2 - official reference mapping APX/claude-sonnet-4-6-free
+  ---
+  duration_ms: 0.139444
+  type: 'test'
+  ...
+# Subtest: official reference mapping INCEPTION/mercury-2.5
+ok 3 - official reference mapping INCEPTION/mercury-2.5
+  ---
+  duration_ms: 0.148922
+  type: 'test'
+  ...
+# Subtest: official reference mapping GOOGLE_GENAI/gemini-3.5-flash-lite
+ok 4 - official reference mapping GOOGLE_GENAI/gemini-3.5-flash-lite
+  ---
+  duration_ms: 0.080437
+  type: 'test'
+  ...
+# Subtest: official reference mapping OPENAI/gpt-4o
+ok 5 - official reference mapping OPENAI/gpt-4o
+  ---
+  duration_ms: 0.064568
+  type: 'test'
+  ...
+# Subtest: cache read/write TTL buckets and reasoning are counted once
+ok 6 - cache read/write TTL buckets and reasoning are counted once
+  ---
+  duration_ms: 0.114989
+  type: 'test'
+  ...
+# Subtest: partial usage retains exact known subtotal, never presents a complete total
+ok 7 - partial usage retains exact known subtotal, never presents a complete total
+  ---
+  duration_ms: 0.162532
+  type: 'test'
+  ...
+# Subtest: version selection does not invent historical prices or mutate existing snapshots
+ok 8 - version selection does not invent historical prices or mutate existing snapshots
+  ---
+  duration_ms: 5.131403
+  type: 'test'
+  ...
+# Subtest: context tiers require measured inclusive input and exact precision survives large counts
+ok 9 - context tiers require measured inclusive input and exact precision survives large counts
+  ---
+  duration_ms: 0.463242
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 201.965579

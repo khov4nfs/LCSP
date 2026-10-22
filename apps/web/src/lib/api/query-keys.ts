@@ -23,6 +23,8 @@ export const apiQueryKeys = {
     selection: () => ["mock-workspace-selection"] as const,
   },
   admin: {
+    usage: (params: Record<string, unknown>) =>
+      ["admin", "usage", params] as const,
     overview: (period?: string) =>
       ["admin", "overview", period ?? "30D"] as const,
     billing: (

@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "mode": "REAL_LOCAL_API_POSTGRES_PLAYWRIGHT",
+  "web": "http://127.0.0.1:3496",
+  "api": "http://127.0.0.1:3460",
+  "checks": [
+    "Admin sign-in",
+    "usage overview from persisted invocations",
+    "owner filter: exactly seven invocation rows",
+    "independent Auditor role breakdown",
+    "pinned Sonnet 4.6 reference-price drill-down",
+    "empty provider filter",
+    "English and Vietnamese labels"
+  ],
+  "screenshots": [
+    "admin-usage-en.png",
+    "admin-usage-vi.png"
+  ],
+  "console": {
+    "newFeatureErrors": 0,
+    "existingAdminShellWarning": "React non-boolean unoptimized attribute from shared branding; reproduced on unchanged Admin overview before usage navigation"
+  },
+  "chromeDevTools": "UNAVAILABLE_MISSING_X_SERVER; Playwright console and real API requests used",
+  "semanticAcceptance": "NOT_RUN",
+  "paidCalls": 0
+}

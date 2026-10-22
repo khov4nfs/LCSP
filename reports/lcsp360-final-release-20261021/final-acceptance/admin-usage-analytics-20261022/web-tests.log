@@ -1,0 +1,148 @@
+TAP version 13
+# Subtest: Admin overview data mapping: unavailable metrics must not be coerced to zero
+ok 1 - Admin overview data mapping: unavailable metrics must not be coerced to zero
+  ---
+  duration_ms: 17.535177
+  type: 'test'
+  ...
+# Subtest: Figma fixture isolation: Figma mock values must not be hardcoded as production truth
+ok 2 - Figma fixture isolation: Figma mock values must not be hardcoded as production truth
+  ---
+  duration_ms: 0.1402
+  type: 'test'
+  ...
+# Subtest: Admin i18n invariance: dynamic runtime values must not be translated
+ok 3 - Admin i18n invariance: dynamic runtime values must not be translated
+  ---
+  duration_ms: 0.138181
+  type: 'test'
+  ...
+# Subtest: Destructive action dismissal contract: Cancel, Backdrop, Escape generate 0 mutations
+ok 4 - Destructive action dismissal contract: Cancel, Backdrop, Escape generate 0 mutations
+  ---
+  duration_ms: 0.094514
+  type: 'test'
+  ...
+# Subtest: Browser security: client request builder must never attach worker credentials
+ok 5 - Browser security: client request builder must never attach worker credentials
+  ---
+  duration_ms: 0.196189
+  type: 'test'
+  ...
+# Subtest: Audit payload sanitizer recursively redacts credentials and tokens
+ok 6 - Audit payload sanitizer recursively redacts credentials and tokens
+  ---
+  duration_ms: 0.375535
+  type: 'test'
+  ...
+# Subtest: Post-auth redirect policy: Admin enters the Admin surface and Customer enters the workspace
+ok 7 - Post-auth redirect policy: Admin enters the Admin surface and Customer enters the workspace
+  ---
+  duration_ms: 0.567332
+  type: 'test'
+  ...
+# Subtest: Admin route policy: path matcher classification
+ok 8 - Admin route policy: path matcher classification
+  ---
+  duration_ms: 0.114733
+  type: 'test'
+  ...
+# Subtest: Admin route policy: unauthenticated visitors are redirected to sign-in preserving next path and query
+ok 9 - Admin route policy: unauthenticated visitors are redirected to sign-in preserving next path and query
+  ---
+  duration_ms: 0.101576
+  type: 'test'
+  ...
+# Subtest: Admin route policy: non-admin roles are redirected to customer workspace
+ok 10 - Admin route policy: non-admin roles are redirected to customer workspace
+  ---
+  duration_ms: 0.114451
+  type: 'test'
+  ...
+# Subtest: Admin route policy: verified Admin navigating to /admin landing is allowed directly with 0 redirect
+ok 11 - Admin route policy: verified Admin navigating to /admin landing is allowed directly with 0 redirect
+  ---
+  duration_ms: 0.069151
+  type: 'test'
+  ...
+# Subtest: Admin route policy: verified Admin is allowed into /admin/users and child routes with 0 redirect
+ok 12 - Admin route policy: verified Admin is allowed into /admin/users and child routes with 0 redirect
+  ---
+  duration_ms: 0.064059
+  type: 'test'
+  ...
+# Subtest: Admin route policy: non-admin paths return null without interfering
+ok 13 - Admin route policy: non-admin paths return null without interfering
+  ---
+  duration_ms: 0.096541
+  type: 'test'
+  ...
+# Subtest: usage BFF denies unauthenticated access before any upstream call
+ok 14 - usage BFF denies unauthenticated access before any upstream call
+  ---
+  duration_ms: 4.418431
+  type: 'test'
+  ...
+# Subtest: usage period/filter validation is bounded and date fields produce UTC boundaries
+ok 15 - usage period/filter validation is bounded and date fields produce UTC boundaries
+  ---
+  duration_ms: 2.714999
+  type: 'test'
+  ...
+# Subtest: preparation usage scope resolves ownership on the API and cannot claim another scope
+ok 16 - preparation usage scope resolves ownership on the API and cannot claim another scope
+  ---
+  duration_ms: 1.240674
+  type: 'test'
+  ...
+# Subtest: usage navigation follows existing Admin role boundary
+ok 17 - usage navigation follows existing Admin role boundary
+  ---
+  duration_ms: 0.129086
+  type: 'test'
+  ...
+# Subtest: Billing amount schema enforces the canonical amount boundaries
+ok 18 - Billing amount schema enforces the canonical amount boundaries
+  ---
+  duration_ms: 1.364099
+  type: 'test'
+  ...
+# Subtest: Billing LLM usage report is telemetry only and rejects invalid tokens
+ok 19 - Billing LLM usage report is telemetry only and rejects invalid tokens
+  ---
+  duration_ms: 2.109652
+  type: 'test'
+  ...
+# Subtest: Billing response schemas validate customer and admin data
+ok 20 - Billing response schemas validate customer and admin data
+  ---
+  duration_ms: 1.999227
+  type: 'test'
+  ...
+# Subtest: Billing BFF response adapter rejects invalid upstream data
+ok 21 - Billing BFF response adapter rejects invalid upstream data
+  ---
+  duration_ms: 2.426483
+  type: 'test'
+  ...
+# Subtest: Billing browser client uses schemas for local input and response checks
+ok 22 - Billing browser client uses schemas for local input and response checks
+  ---
+  duration_ms: 1.020203
+  type: 'test'
+  ...
+# Subtest: Admin billing export client fetches one snapshot report and validates it
+ok 23 - Admin billing export client fetches one snapshot report and validates it
+  ---
+  duration_ms: 1.294401
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 515.291095

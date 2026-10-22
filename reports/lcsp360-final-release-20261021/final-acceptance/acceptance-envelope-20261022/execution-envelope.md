@@ -91,3 +91,10 @@ Historical release images total **8.63 GiB**; the largest sequential rootfs expo
 New evaluation run ID / activated version: **none / none**. New paid calls/input/output/cost: **0 / 0 / 0 / USD 0**. Historical aborted-run usage and cost remain **UNAVAILABLE**.
 
 Next action: **obtain and independently verify complete charging and strict token-bound contracts for all configured accounts/routes, starting with Mirai, then pin their policies**. The proposed paid envelope remains blocked; do not execute it.
+
+
+## Product requirement supersession — Admin usage analytics
+
+Section 19 of RELEASE_REPORT.md supersedes account-contract approval as an Admin analytics prerequisite. Actual provider token usage, immutable estimates at official developer standard pricing, and runtime call/token controls are separate. Schema-3 token governance does not claim a guaranteed provider charge. Schema-2 strict financial enforcement remains optional and requires its original evidence.
+
+Admin/API/PostgreSQL/browser provider-free verification passes; exact new-HEAD CI/security and non-paid runtime readiness are still pending. The envelope remains disabled. All proposed limits remain UNAPPROVED. No paid run, staging, production deployment, merge or Draft removal is authorized. Historical account evidence requests are retained and superseded for reference analytics, not fulfilled.

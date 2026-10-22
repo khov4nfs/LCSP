@@ -22,7 +22,7 @@ from middleware.usage_metering import (
     provider_identity, provider_usage_telemetry,
 )
 from middleware.usage_recovery import read_usage_evidence, record_usage_evidence
-from middleware.paid_admission import RunAdmission, RunBudget, reconcile_admission_evidence
+from middleware.paid_admission import parse_run_budget, RunAdmission, RunBudget, reconcile_admission_evidence
 from middleware.failure_policy import PaidAdmissionError
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -52,7 +52,7 @@ class LiveUsage(AgentRunState):
             if budget.run_id != run_id:
                 raise PaidAdmissionError("BUDGET_IDENTITY", run_id)
             if self.store.exists():
-                from middleware.paid_admission import recover_admission
+                from middleware.paid_admission import parse_run_budget, recover_admission
                 if (recover_admission(self.store, run_id)["state"] == "LEGACY_UNBOUNDED"
                         or any(row.get("event") == "MODEL_RESPONSE" for row in read_usage_evidence(self.store))):
                     raise PaidAdmissionError("HISTORICAL_UNRESERVED_USAGE", run_id)
@@ -64,6 +64,7 @@ class LiveUsage(AgentRunState):
         })
 
     def record(self, response, model, invocation_id, *, agent_role=None) -> None:
+        super().record(response, model, invocation_id, agent_role=agent_role)
         provider, model_name = provider_identity(model, response)
         payload = {
             "runId": self.run_id, "invocationId": invocation_id,
@@ -90,20 +91,38 @@ def recover_usage(usage_out: str, run_id: str) -> dict:
         raise ValueError("Usage evidence does not belong to the requested run")
     started = next(row["startedAt"] for row in rows if row["event"] == "RUN_STARTED")
     records = [row for row in rows if row["event"] == "MODEL_RESPONSE"]
-    complete = all(row["usage"] is not None for row in records)
+    response_ids = {r["invocationId"] for r in records}
+    fields = ("inputTokens", "inputTokensIncludingCache", "cachedInputTokens", "cacheWriteTokens", "cacheWrite5mTokens", "cacheWrite1hTokens", "outputTokens", "visibleOutputTokens", "reasoningTokens", "totalTokens", "providerResponseId")
+    for row in rows:
+        if row.get("event") == "MODEL_ATTEMPT" and row.get("attemptStatus") == "COMPLETED" and row["invocationId"] not in response_ids:
+            records.append({**row, "event": "MODEL_RESPONSE", "usage": {k: row[k] for k in fields if k in row} or None,
+                "reportedUsage": None, "recoveredFromAttemptCommit": True})
+            response_ids.add(row["invocationId"])
+    complete = all(row["usage"] is not None and "inputTokens" in row["usage"] and "outputTokens" in row["usage"] for row in records)
     known = [row["usage"] for row in records if row["usage"] is not None]
     profiles = sorted({f"{row['provider']}:{row['model']}" for row in records})
     summary = {
         "runId": run_id, "accountingState": "COMPLETE" if complete else "MISSING_PROVIDER_USAGE",
-        "coverage": "completed_provider_responses_only", "modelCalls": len(records),
-        "missingUsageCalls": len(records) - len(known), "invocations": records,
+        "coverage": "physical_attempts" if any(r.get("event") == "MODEL_ATTEMPT" for r in rows) else "completed_provider_responses_only", "modelCalls": len(records),
+        "missingUsageCalls": sum(not row["usage"] or "inputTokens" not in row["usage"] or "outputTokens" not in row["usage"] for row in records), "invocations": records,
         "seconds": round(time.time() - started, 1), "profiles": profiles,
         "profileKey": profiles[0] if len(profiles) == 1 else None,
     }
+    attempts = {}
+    for row in rows:
+        if row.get("event") == "MODEL_ATTEMPT":
+            previous = attempts.get(row["invocationId"])
+            if not previous or previous["attemptStatus"] != "COMPLETED":
+                attempts[row["invocationId"]] = row
+    summary["physicalAttempts"] = len(attempts) if attempts else None
+    summary["successfulResponses"] = len(records)
+    summary["unresolvedAttempts"] = sum(r["attemptStatus"] in {"STARTED", "OUTCOME_UNKNOWN"} for r in attempts.values()) if attempts else None
+    summary["failedAttempts"] = sum(r["attemptStatus"] == "FAILED" for r in attempts.values()) if attempts else None
+    summary["attempts"] = list(attempts.values())
     summary["admission"] = reconcile_admission_evidence(store, run_id, records)
-    for field in ("inputTokens", "outputTokens"):
-        summary["known" + field[0].upper() + field[1:]] = sum(int(row[field]) for row in known)
-        summary[field] = summary["known" + field[0].upper() + field[1:]] if complete else None
+    for field in ("inputTokens", "inputTokensIncludingCache", "outputTokens"):
+        summary["known" + field[0].upper() + field[1:]] = sum(int(row[field]) for row in known if field in row)
+        summary[field] = summary["known" + field[0].upper() + field[1:]] if len(known) == len(records) and all(field in row for row in known) else None
     for field in ("cachedInputTokens", "cacheWriteTokens", "reasoningTokens", "totalTokens"):
         values = [int(row[field]) for row in known if field in row]
         summary["known" + field[0].upper() + field[1:]] = sum(values) if values else None
@@ -199,7 +218,7 @@ def main() -> int:
 
     trace_callback = Trace()
     budget_path = os.environ.get("LCSP_LIVE_BUDGET_FILE")
-    budget = RunBudget.model_validate_json(Path(budget_path).read_bytes()) if budget_path else None
+    budget = parse_run_budget(json.loads(Path(budget_path).read_bytes())) if budget_path else None
     if budget is not None:
         import subprocess
         if budget.candidate_sha != subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip():
@@ -207,6 +226,8 @@ def main() -> int:
     usage = LiveUsage(run_id, usage_out, budget=budget,
                       budget_fingerprint=os.environ.get("LCSP_LIVE_BUDGET_SHA256"), bounded=True)
     api = WorkerApiClient(base, key)
+    usage.api_client = api
+    usage.preparation_run_id = run_id
     from rule_set_preparation.agent import RULE_SET_PREPARATION_ROLE
     from model_policy import resolve_agent_model
 

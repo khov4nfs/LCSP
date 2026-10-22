@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "BLOCKED_EXTERNAL_CONTRACT_EVIDENCE",
+  "status": "IMPLEMENTATION_VERIFIED_CI_AND_RUNTIME_PENDING",
   "executable": false,
   "launchCommand": null,
-  "candidateSha": "1ed318e4257d93b7ea89973832afedad766a036a",
-  "freezeRef": "refs/lcsp360/paid-admission-reconciled-20261022",
-  "firstFailedGate": "VERIFIED_ACCOUNT_CHARGE_AND_TOKEN_BOUND_CONTRACTS",
+  "candidateSha": null,
+  "freezeRef": null,
+  "firstFailedGate": "EXACT_HEAD_CI_AND_RUNTIME_READINESS",
   "blockerReceipt": "../charging-contracts-20261022/charging-evidence-matrix.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
@@ -38,7 +38,8 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
+        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback",
@@ -49,7 +50,8 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
+        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback-01",
@@ -60,7 +62,8 @@
         "sdkMaxRetries": 1,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
+        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback-02",
@@ -71,7 +74,8 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
+        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       }
     ],
     "legal-semantic-auditor": [
@@ -84,7 +88,8 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
+        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback",
@@ -95,7 +100,8 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
+        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "fallback-01",
@@ -106,7 +112,8 @@
         "sdkMaxRetries": 1,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
+        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       },
       {
         "route": "semantic-final",
@@ -117,7 +124,8 @@
         "sdkMaxRetries": 0,
         "maximumPhysicalSdkAttempts": 1,
         "verifiedProductionChargePolicy": null,
-        "boundedAdmission": "DENIED_UNKNOWN_TARIFF"
+        "boundedAdmission": "UNAPPROVED_TOKEN_ENVELOPE_NOT_CONFIGURED",
+        "strictFinancialAdmission": "DENIED_UNKNOWN_TARIFF"
       }
     ]
   },
@@ -137,7 +145,8 @@
       "amount": 25,
       "scope": "Aggregate actual provider charges across every configured provider, role, retry, fallback and internal call",
       "tariffs": "NOT_VERIFIED; require frozen verified tariffs or independent provider-side aggregate spending control before dispatch",
-      "sufficiency": "Not established. Historical token/cost totals are UNAVAILABLE. These are proposed stop ceilings, not a workload/cost estimate."
+      "sufficiency": "Not established. Historical token/cost totals are UNAVAILABLE. These are proposed stop ceilings, not a workload/cost estimate.",
+      "currentApplicability": "SUPERSEDED_AS_ADMIN_ANALYTICS_GATE; no guaranteed actual charge ceiling is enabled by official reference pricing"
     },
     "wallClockSeconds": 4200,
     "workerTimeoutSeconds": 3600,
@@ -158,11 +167,11 @@
     "approvedMaximumProviderDispatches": 0,
     "approvedMaximumTokens": 0,
     "approvedMaximumSpendingUSD": 0,
-    "source": "Current user: no authorized account billing records, portal sessions or owner contacts supplied; only non-paid verification permitted",
+    "source": "Current product correction and runtime continuation authorize non-paid implementation only; separate paid/live-test authorization and approved execution limits remain absent",
     "quotaIsAuthorization": false
   },
   "enforcement": {
-    "status": "OFFLINE_ADMISSION_PASS_REAL_POLICY_BLOCKED",
+    "status": "TOKEN_GOVERNANCE_PASS_CI_RUNTIME_PENDING",
     "existing": [
       "Worker SIGKILL timeout waits for exit before durable SQLite recovery",
       "Duplicate run claim exits before model construction",
@@ -175,16 +184,15 @@
       "Idempotent late settlement and crash reconciliation from committed usage evidence; old policy versions retained without repricing"
     ],
     "notPresent": [
-      "Verified real account/provider charging contracts and all-request hard input/cache/output/reasoning bounds for every configured route",
-      "Approved paid ceilings and production ChargePolicy evidence fingerprints",
-      "Global/per-stage deadline supervision and process-tree/resource ceilings proposed by the envelope still need execution-time verification"
+      "Approved live-evaluation call/token/time/resource ceilings",
+      "Frozen new-candidate run context and global/per-stage supervision"
     ],
     "requirements": [
-      "Document/source-byte gate remains passed and source/semantic/route/dependency inputs unchanged",
-      "Pin independently reviewed exact account/route/endpoint/SDK ChargePolicy evidence; unknown tariffs or strict token bounds deny dispatch",
-      "Input reservation uses the full provider-guaranteed charged-input bound, never the local estimator; output/native reasoning/candidate limits must be covered by that contract",
-      "Only complete authoritative usage buckets and exact verified charging rules may refund unused capacity; unknown or contradictory outcomes retain conservative exposure and terminate on bound breach",
-      "No paid execution without separate explicit authorization; quota or an offline fixture policy is not authorization"
+      "One immutable schema-3 run envelope pins candidate, routes, actual native SDK/endpoint/credential identities and conservative per-request token allowances",
+      "Reserve shared calls and input/output allowances atomically; unknown outcomes retain outstanding reservations; reported bound breaches stop further dispatch",
+      "Official model reference pricing is reporting only and does not control call/token admission or claim actual gateway charges",
+      "Optional schema-2 financial mode retains its independent all-charge contract requirements",
+      "No paid execution without separate explicit authorization; provider quota and offline fixtures are not authorization"
     ],
     "productionCodeChanged": true,
     "identifiedReusePoint": "IMPLEMENTED in UsageMeteringMiddleware and AgentRunState, using the same LiveUsage SQLite file and existing usage recovery connector; no new agent pipeline or customer-credit reservation.",
@@ -238,7 +246,7 @@
     "validator": "Real deterministic Validator PASSED, zero failures, exact same validated/submitted draft",
     "persistenceActivation": "One coherent PostgreSQL Rule Set version, same source and digest, exactly one atomic activation; restarted API serves identical active artifacts; retained provider-free rollback/negative controls remain passing",
     "integrityAuthIsolation": "Independent receipt HMAC/tamper/wrong-run controls, recomputed source-byte/chunk/span/support/graph hashes, API authentication, tenant isolation and assessment pinning using existing probes on exact run",
-    "reliabilityUsageCost": "Correct stage transitions; novelty/loop/cancel guards; no duplicate operations; committed invocation-level usage reconciliation and independently supported actual provider charges. Unanswered/unreported usage stays unavailable and cannot satisfy a complete cost gate."
+    "reliabilityUsageCost": "Reconcile every physical attempt and durable provider-reported token bucket; unknown usage remains UNKNOWN. Report immutable official model reference-cost snapshots and incomplete subtotals explicitly; no actual gateway invoice claim."
   },
   "outputs": [
     "candidate/source/route/configuration hash manifest",
@@ -263,7 +271,7 @@
   "paidOutputTokens": 0,
   "paidCostUSD": 0,
   "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "LCSP Mirai credential owner must supply restricted, dated account-to-slot charging and strict token-bound evidence with a sanitized digest-linked extract; see owner request. No paid inference authorized.",
+  "nextAction": "Complete exact-head CI and non-paid frozen runtime/deadline readiness, then request authorization for exactly one bounded live evaluation.",
   "updatedAt": "2026-10-22T14:13:37.102062+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
@@ -321,7 +329,9 @@
     "productionPolicies": [],
     "publicMiraiRatio": 0.5,
     "publicRatioIsAccountOrUsdContract": false,
-    "paidAuthorization": false
+    "paidAuthorization": false,
+    "supersededFor": "ADMIN_OFFICIAL_REFERENCE_COST_REPORTING",
+    "currentRequirement": "OPTIONAL_STRICT_FINANCIAL_MODE_ONLY"
   },
   "deadlineReadiness": {
     "workerHelperOffline": "PASS_SIGKILL_250MS",
@@ -331,5 +341,23 @@
     "evaluationProcessTreeCpuMemoryLimits": "NOT_APPLIED",
     "diskWriteCeilings": "NOT_APPLIED",
     "receipt": "../charging-contracts-20261022/resource-deadline-readiness.json"
-  }
+  },
+  "adminUsageAnalytics": {
+    "status": "PASS_PROVIDER_FREE",
+    "receipt": "../admin-usage-analytics-20261022/verification-summary.json",
+    "referenceCostLabel": "Estimated cost (official model pricing)",
+    "billingContractRequired": false,
+    "financialHardCap": "OPTIONAL_SEPARATE_CAPABILITY",
+    "newAdmissionSchema": 3
+  },
+  "acceptanceGates": [
+    "DURABLE_PROVIDER_USAGE",
+    "OFFICIAL_REFERENCE_PRICE_REGISTRY",
+    "DETERMINISTIC_REFERENCE_ESTIMATE",
+    "ADMIN_VISIBILITY_AND_RECONCILIATION",
+    "CALL_TOKEN_DEADLINE_RESOURCE_SAFETY",
+    "REAL_MODEL_LEGAL_SEMANTIC_ACCEPTANCE",
+    "RELEASE_IMAGE_STAGING_BROWSER_ACCEPTANCE"
+  ],
+  "previousCandidateSha": "1ed318e4257d93b7ea89973832afedad766a036a"
 }

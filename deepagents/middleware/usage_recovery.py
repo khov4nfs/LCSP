@@ -35,7 +35,7 @@ MAX_PENDING_ROWS = 1000
 
 def usage_recovery_key(payload: SettledUsagePayload) -> str:
     """Stable per-invocation key; usage is idempotent on the API side."""
-    return f"usage:{payload.assessmentId}:{payload.runId}:{payload.invocationId}"
+    return f"usage:{payload.assessmentId or payload.preparationRunId}:{payload.runId}:{payload.invocationId}" + (f":{payload.attemptStatus}" if payload.attemptStatus else "")
 
 
 def enqueue_usage(path: str | Path, payload: SettledUsagePayload) -> None:
@@ -83,6 +83,15 @@ def drain(path: str | Path, api_client: Any) -> int:
     db = _connect(path)
     delivered = 0
     try:
+        # Recover a crash between the evidence commit and callback enqueue.
+        for (raw,) in db.execute("SELECT payload FROM usage_recovery WHERE kind='EVIDENCE'").fetchall():
+            record = json.loads(raw)
+            if record.get("event") != "MODEL_ATTEMPT" or not (record.get("assessmentId") or record.get("preparationRunId")):
+                continue
+            payload = SettledUsagePayload.model_validate({k: v for k, v in record.items() if k != "event"})
+            db.execute("INSERT INTO usage_recovery(kind,recovery_key,payload) VALUES ('USAGE',?,?) ON CONFLICT(recovery_key) DO NOTHING",
+                (usage_recovery_key(payload), payload.model_dump_json()))
+        db.commit()
         rows = db.execute(
             """
             SELECT id, kind, payload
@@ -118,7 +127,10 @@ def drain(path: str | Path, api_client: Any) -> int:
                 # One poisoned callback must not block unrelated users. The
                 # row remains pending for retry/quarantine by the API contract.
                 continue
-            db.execute("DELETE FROM usage_recovery WHERE id = ?", (row_id,))
+            if kind == "USAGE" and payload.get("attemptStatus"):
+                db.execute("UPDATE usage_recovery SET state='DELIVERED' WHERE id=?", (row_id,))
+            else:
+                db.execute("DELETE FROM usage_recovery WHERE id = ?", (row_id,))
             db.commit()
             delivered += 1
     finally:
@@ -154,10 +166,14 @@ def start_background_worker(
 def _enqueue(path: str | Path, kind: str, key: str, payload: dict[str, Any]) -> None:
     db = _connect(path)
     try:
+        db.execute("PRAGMA synchronous=FULL")
         pending = db.execute(
             "SELECT COUNT(*) FROM usage_recovery WHERE state = 'PENDING'"
         ).fetchone()[0]
-        if pending >= MAX_PENDING_ROWS:
+        if pending >= MAX_PENDING_ROWS and payload.get("attemptStatus"):
+            if not db.execute("SELECT 1 FROM usage_recovery WHERE recovery_key=?", (key,)).fetchone():
+                raise RuntimeError("Durable usage delivery queue is full; stop before further model work")
+        elif pending >= MAX_PENDING_ROWS:
             _logger.error("Usage recovery store full; dropping key=%s", key)
             return
         db.execute(

@@ -9,6 +9,7 @@ import {
   BILLING_PAYMENT_PROVIDERS,
   PREPAID_BILLING_CONFIG,
 } from "./prepaid.ts";
+import { MODEL_ATTEMPT_STATUSES } from "./usage-analytics.ts";
 import { effectiveRuntimeModelSchema } from "./runtime-model.ts";
 import {
   BILLING_ORDER_STATUSES,
@@ -25,8 +26,8 @@ const nonNegativeIntegerText = z
   .union([z.string(), z.number()])
   .transform((value) => String(value).trim())
   .pipe(z.string().regex(/^\d+$/));
-const positiveIntegerText = nonNegativeIntegerText.refine(
-  (value) => /[1-9]/.test(value),
+const positiveIntegerText = nonNegativeIntegerText.refine((value) =>
+  /[1-9]/.test(value),
 );
 
 const minimumAmountVnd = Number(PREPAID_BILLING_CONFIG.minimumAmountVnd);
@@ -150,7 +151,13 @@ export const billingResourceIdSchema = nonEmptyText;
  */
 export const billingLlmUsageReportSchema = z
   .object({
-    assessmentId: nonEmptyText,
+    assessmentId: nonEmptyText.optional(),
+    preparationRunId: nonEmptyText.optional(),
+    attemptStatus: z.enum(MODEL_ATTEMPT_STATUSES).optional(),
+    failureClass: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_]{0,99}$/)
+      .optional(),
     runId: nonEmptyText,
     invocationId: flexibleText,
     agentRole: nonEmptyText,
@@ -159,6 +166,10 @@ export const billingLlmUsageReportSchema = z
     effectiveRuntimeModel: effectiveRuntimeModelSchema.optional(),
     providerResponseId: flexibleText.optional(),
     inputTokens: nonNegativeIntegerText.optional(),
+    inputTokensIncludingCache: nonNegativeIntegerText.optional(),
+    cacheWrite5mTokens: nonNegativeIntegerText.optional(),
+    cacheWrite1hTokens: nonNegativeIntegerText.optional(),
+    visibleOutputTokens: nonNegativeIntegerText.optional(),
     cachedInputTokens: nonNegativeIntegerText.optional(),
     cacheWriteTokens: nonNegativeIntegerText.optional(),
     outputTokens: nonNegativeIntegerText.optional(),
@@ -167,6 +178,16 @@ export const billingLlmUsageReportSchema = z
     occurredAt: z.iso.datetime(),
   })
   .superRefine((value, context) => {
+    if (
+      Boolean(value.assessmentId) === Boolean(value.preparationRunId) ||
+      (value.preparationRunId && value.preparationRunId !== value.runId)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "Exactly one assessment or matching preparation run scope is required",
+      });
+    }
     const runtime = value.effectiveRuntimeModel;
     if (
       runtime &&
