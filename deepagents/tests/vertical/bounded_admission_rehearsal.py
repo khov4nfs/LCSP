@@ -41,8 +41,11 @@ def main(output: str) -> dict:
         load_model_routes.cache_clear()
         def no_network(*args, **kwargs):
             raise AssertionError("Rehearsal cannot reach a provider endpoint")
-        patch.setattr(httpx.HTTPTransport, "handle_request", no_network)
-        patch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", no_network)
+        import anthropic._base_client as anthropic_client
+        sdk_httpx = getattr(anthropic_client, "httpx2", None) or getattr(anthropic_client, "httpx")
+        for family in {httpx, sdk_httpx}:
+            patch.setattr(family.HTTPTransport, "handle_request", no_network)
+            patch.setattr(family.AsyncHTTPTransport, "handle_async_request", no_network)
         primary, rotated, auditor = native(), native(key="offline-rotated-key"), native("semantic-primary")
         models = [primary, rotated, auditor, native("semantic-primary", key="offline-rotated-key"),
                   native("fallback"), native("fallback-01"), native("fallback-02"), native("semantic-final")]
@@ -58,7 +61,7 @@ def main(output: str) -> dict:
         def dispatch(model, *args, **kwargs):
             with lock:
                 number = len(dispatches) + 1
-                dispatches.append({"number": number, "role": active_agent_role(), **request_identity(model)})
+                dispatches.append({"number": number, "role": active_agent_role(), **request_identity(model, budget.credential_salt)})
             if number == 1: raise RuntimeError("offline application retry")
             if number == 2: raise TimeoutError("offline unanswered timeout")
             if number == 3: raise OfflineQuotaError("offline fallback")

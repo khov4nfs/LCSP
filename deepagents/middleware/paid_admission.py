@@ -83,10 +83,11 @@ class ChargePolicy(BaseModel):
 class RunBudget(BaseModel):
     """One immutable run envelope. Constructing one does not authorize inference."""
     model_config = ConfigDict(extra="forbid", frozen=True)
-    schema_version: Literal[1]
+    schema_version: Literal[2]
     run_id: str = Field(min_length=1, max_length=200)
     candidate_sha: Annotated[str, Field(pattern=r"^[a-f0-9]{40}$")]
     model_routes_sha256: Digest
+    credential_salt: Digest
     valid_from: Positive
     expires_at: Positive
     maximum_calls: UInt
@@ -272,6 +273,7 @@ def recover_admission(path: str | Path, run_id: str) -> dict:
             return {"state": "LEGACY_UNBOUNDED", "runId": run_id}
         rows = [dict(r) for r in db.execute("SELECT * FROM inference_attempts WHERE run_id=? ORDER BY rowid", (run_id,))]
         return {"state": "STOPPED" if budget["stopped"] else "BOUNDED", "runId": run_id,
+                "schemaVersion": json.loads(budget["envelope"])["schema_version"],
                 "budgetFingerprint": budget["fingerprint"], "terminalReason": budget["stopped"],
                 "attempts": rows, "admittedAttempts": sum(r["state"] != "DENIED" for r in rows),
                 "inputExposure": sum(r["input_exposure"] for r in rows),
@@ -291,6 +293,8 @@ def reconcile_admission_evidence(path: str | Path, run_id: str, records: list[di
     snapshot = recover_admission(path, run_id)
     if snapshot["state"] == "LEGACY_UNBOUNDED":
         return snapshot
+    if snapshot["schemaVersion"] != 2:
+        return {**snapshot, "state": "LEGACY_RESERVATIONS_RETAINED", "reconciliation": "REQUIRES_ORIGINAL_POLICY_VERSION"}
     db = sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True, timeout=10)
     try:
         raw, digest = db.execute("SELECT envelope,fingerprint FROM inference_budgets WHERE run_id=?", (run_id,)).fetchone()
@@ -314,13 +318,14 @@ def route_fingerprint(route) -> str:
                         "model": route.model, "options": route.options})
 
 
-def request_identity(model) -> dict:
+def request_identity(model, credential_salt: str) -> dict:
     """Bind billing policy to the actual native client, endpoint and credential."""
     from langchain_anthropic import ChatAnthropic
     from langchain_openai import ChatOpenAI
     from langchain_google_genai import ChatGoogleGenerativeAI
     from model_policy import model_route_config
     from importlib.metadata import version
+    import anthropic._base_client as anthropic_client
 
     route = model_route_config(model)
     if route is None:
@@ -348,12 +353,13 @@ def request_identity(model) -> dict:
     raw = key.get_secret_value() if hasattr(key, "get_secret_value") else key
     if not isinstance(raw, str) or not raw or endpoint == "None":
         raise PaidAdmissionError("UNBOUND_ACCOUNT", "unknown")
-    packages = {"anthropic": ("langchain-anthropic", "anthropic", "httpx"),
+    anthropic_http = getattr(anthropic_client, "httpx2", None) or getattr(anthropic_client, "httpx")
+    packages = {"anthropic": ("langchain-anthropic", "anthropic", anthropic_http.__name__),
                 "openai": ("langchain-openai", "openai", "httpx"),
                 "google_genai": ("langchain-google-genai", "google-genai", "httpx")}
     return {"route_id": route.route_id, "route_fingerprint": route_fingerprint(route),
             "provider": route.provider, "protocol": route.protocol, "model": route.model,
-            "credential_fingerprint": hashlib.sha256(raw.encode()).hexdigest(),
+            "credential_fingerprint": hashlib.pbkdf2_hmac("sha256", raw.encode(), bytes.fromhex(credential_salt), 600000).hex(),
             "endpoint_fingerprint": hashlib.sha256(endpoint.encode()).hexdigest(),
             "sdk_fingerprint": fingerprint({name: version(name) for name in packages[route.protocol]})}
 
@@ -365,7 +371,7 @@ def prepare_admitted_request(admission: RunAdmission, request, attempt_id: str, 
 
     identity, reason = {}, None
     try:
-        identity = request_identity(request.model)
+        identity = request_identity(request.model, admission.budget.credential_salt)
     except PaidAdmissionError as error:
         reason = error.reason
     except (AttributeError, TypeError, ValueError):

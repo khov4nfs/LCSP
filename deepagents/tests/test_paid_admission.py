@@ -22,12 +22,18 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from middleware import paid_admission, usage_metering
 from middleware.failure_policy import PaidAdmissionError, retry_model_error
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, _GovernedInternalModelRunnable
-from middleware.paid_admission import ChargePolicy, RunAdmission, RunBudget, fingerprint, recover_admission, request_identity
+from middleware.paid_admission import ChargePolicy, RunAdmission, RunBudget, fingerprint, recover_admission, request_identity as native_request_identity
 from middleware.provider_fallback import ProviderFallbackMiddleware, provider_fallback_failure
 from middleware.token_fallback import TokenFallbackMiddleware
 from middleware.usage_metering import AgentRoleMiddleware, UsageMeteringMiddleware, activate_agent_run_state
 from model_policy import DEFAULT_ROUTES_FILE, build_model, load_model_routes, model_route_config
 from vertical.live_preparation import LiveUsage, recover_usage
+
+OFFLINE_CREDENTIAL_SALT = "c" * 64
+
+
+def request_identity(model):
+    return native_request_identity(model, OFFLINE_CREDENTIAL_SALT)
 
 
 @pytest.fixture(autouse=True)
@@ -38,8 +44,11 @@ def offline(monkeypatch):
     load_model_routes.cache_clear()
     def blocked(*args, **kwargs):
         raise AssertionError("Provider networking is prohibited in admission tests")
-    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", blocked)
-    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", blocked)
+    import anthropic._base_client as anthropic_client
+    sdk_httpx = getattr(anthropic_client, "httpx2", None) or getattr(anthropic_client, "httpx")
+    for family in {httpx, sdk_httpx}:
+        monkeypatch.setattr(family.HTTPTransport, "handle_request", blocked)
+        monkeypatch.setattr(family.AsyncHTTPTransport, "handle_async_request", blocked)
 
 
 def native(route="primary", key=None):
@@ -60,7 +69,8 @@ def policy_for(model):
 
 
 def budget_for(*models, **changes):
-    data = dict(schema_version=1, run_id="run", candidate_sha="1" * 40,
+    data = dict(schema_version=2, run_id="run", candidate_sha="1" * 40,
+        credential_salt=OFFLINE_CREDENTIAL_SALT,
         model_routes_sha256=hashlib.sha256(DEFAULT_ROUTES_FILE.read_bytes()).hexdigest(),
         valid_from=1, expires_at=4102444800, maximum_calls=20, maximum_input_tokens=20000,
         maximum_output_tokens=20 * 262144, maximum_charge_nano_usd=100000000,
@@ -194,6 +204,15 @@ def test_bad_changed_stale_policy_and_route_identity_reject(tmp_path, monkeypatc
     with pytest.raises(PaidAdmissionError, match="BUDGET_EXPIRED"): invoke(state, model)
 
 
+def test_credential_fingerprint_is_salted_and_pinned_in_budget(tmp_path):
+    model = native()
+    identity = request_identity(model)
+    assert identity["credential_fingerprint"] != hashlib.sha256(b"offline-admission-key").hexdigest()
+    assert identity["credential_fingerprint"] != native_request_identity(model, "d" * 64)["credential_fingerprint"]
+    state = state_for(tmp_path, model, credential_salt="d" * 64)
+    with pytest.raises(PaidAdmissionError, match="UNKNOWN_TARIFF"): invoke(state, model)
+
+
 @pytest.mark.parametrize("change", ["credential", "endpoint", "policy_expired", "route_file", "output_override", "http_override", "sdk_retries", "model_id", "async_key", "sdk_version"])
 def test_unverified_request_changes_reject_before_dispatch(tmp_path, monkeypatch, change):
     model = native()
@@ -300,6 +319,21 @@ def test_legacy_journal_is_not_retroactively_called_bounded(tmp_path):
     budget = budget_for(native(), run_id="legacy")
     with pytest.raises(PaidAdmissionError, match="HISTORICAL_UNRESERVED_USAGE"):
         LiveUsage("legacy", str(tmp_path / "legacy.json"), budget=budget, budget_fingerprint=fingerprint(budget.model_dump(mode="json")))
+
+
+def test_old_unsalted_policy_ledger_is_retained_without_repricing(tmp_path):
+    model = native(); state = state_for(tmp_path, model)
+    state.admission.admit("old-unanswered", request_identity(model))
+    old = state.admission.budget.model_dump(mode="json")
+    old["schema_version"] = 1
+    old.pop("credential_salt")
+    with sqlite3.connect(state.store) as db:
+        db.execute("UPDATE inference_budgets SET envelope=?,fingerprint=? WHERE run_id=?", (json.dumps(old), fingerprint(old), state.run_id))
+    before = state.store.read_bytes()
+    recovered = recover_usage(str(tmp_path / "run.json"), "run")["admission"]
+    assert recovered["state"] == "LEGACY_RESERVATIONS_RETAINED"
+    assert recovered["unresolvedAttempts"] == 1 and recovered["chargeExposureNanoUSD"] > 0
+    assert state.store.read_bytes() == before
 
 
 def test_durability_commit_failure_prevents_handler(tmp_path, monkeypatch):
@@ -482,14 +516,21 @@ def test_native_sdk_error_sends_exactly_one_mock_http_request(tmp_path, route, a
     from google.genai import types
     model = native(route)
     requests = []
+    protocol = model_route_config(model).protocol
+    # Anthropic 1.x uses httpx2; the locked 0.x SDK uses httpx. Exercise the
+    # actual SDK transport family rather than substituting an incompatible URL type.
+    if protocol == "anthropic":
+        import anthropic._base_client as anthropic_client
+        sdk_httpx = getattr(anthropic_client, "httpx2", None) or getattr(anthropic_client, "httpx")
+    else:
+        sdk_httpx = httpx
     def http_handler(request):
         requests.append(json.loads(request.content))
-        return httpx.Response(503, json={"error": {"code": 503, "message": "offline server failure", "type": "api_error"}})
-    transport = httpx.MockTransport(http_handler)
+        return sdk_httpx.Response(503, json={"error": {"code": 503, "message": "offline server failure", "type": "api_error"}})
+    transport = sdk_httpx.MockTransport(http_handler)
     clients = []
-    protocol = model_route_config(model).protocol
     if protocol == "anthropic":
-        sync, async_ = httpx.Client(transport=transport), httpx.AsyncClient(transport=transport)
+        sync, async_ = sdk_httpx.Client(transport=transport), sdk_httpx.AsyncClient(transport=transport)
         model._client._client, model._async_client._client = sync, async_
         clients = [sync, async_]
     elif protocol == "openai":
@@ -504,13 +545,15 @@ def test_native_sdk_error_sends_exactly_one_mock_http_request(tmp_path, route, a
     async def execute():
         async def handler(request): return await request.model.ainvoke(request.messages, **request.model_settings)
         with activate_agent_run_state(state):
-            with pytest.raises(Exception): await UsageMeteringMiddleware().awrap_model_call(req(model), handler)
+            with pytest.raises(Exception) as captured: await UsageMeteringMiddleware().awrap_model_call(req(model), handler)
+        return captured.value
     try:
-        if asynchronous: asyncio.run(execute())
+        if asynchronous: error = asyncio.run(execute())
         else:
-            with pytest.raises(Exception):
+            with pytest.raises(Exception) as captured:
                 invoke(state, model, lambda r: r.model.invoke(r.messages, **r.model_settings))
-        assert len(requests) == 1
+            error = captured.value
+        assert len(requests) == 1, repr(error)
         payload = requests[0]
         cap = payload.get("max_tokens") or payload.get("max_completion_tokens") or payload.get("generationConfig", {}).get("maxOutputTokens")
         assert cap == usage_metering.output_token_limit(model)
