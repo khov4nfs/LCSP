@@ -10,6 +10,10 @@ import {
   type LCSPLogoVariant,
 } from "../types/lcsp-logo.types";
 
+// Node ESM can wrap Next's CommonJS export; keep React's forwardRef component intact.
+const ImageComponent =
+  (Image as typeof Image & { default?: typeof Image }).default ?? Image;
+
 const LOGO_ASSETS = {
   [LCSP_LOGO_VARIANTS.mark]: {
     light: "/brand/lcsp-mark-light.svg",
@@ -61,7 +65,7 @@ export function LCSPLogo({
       style={{ width: dimensions.width, height: dimensions.height }}
       {...accessibilityProps}
     >
-      <Image
+      <ImageComponent
         src={asset.light}
         width={asset.width}
         height={asset.height}
@@ -70,7 +74,7 @@ export function LCSPLogo({
         unoptimized
         className="absolute inset-0 block size-full dark:hidden"
       />
-      <Image
+      <ImageComponent
         src={asset.dark}
         width={asset.width}
         height={asset.height}
