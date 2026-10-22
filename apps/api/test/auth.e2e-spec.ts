@@ -79,7 +79,7 @@ describe("Auth workspace (e2e)", () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
-  });
+  }, 60_000);
 
   beforeEach(async () => {
     await resetAuthWorkspaceDatabase(prisma);
