@@ -290,7 +290,8 @@ def test_framework_summarization_uses_full_model_governance(monkeypatch, termina
         assert settled[0][0] == ("GOOGLE_GENAI", "gemini-3.5-flash-lite")
         assert settled[0][1] == completed[0]["settlement_invocation_id"]
         assert completed[0]["logical_invocation_id"] == starts[0]["invocation_id"]
-        assert settled[0][2]["inputTokens"] == "7"
+        assert settled[0][2]["inputTokensIncludingCache"] == "7"
+        assert "inputTokens" not in settled[0][2]  # Uncached input requires cache usage.
         assert settled[0][2]["outputTokens"] == "3"
         assert settled[0][2]["totalTokens"] == "10"
 

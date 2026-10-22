@@ -21,6 +21,7 @@
   "GET /admin/legal-sources/:sourceId",
   "GET /admin/overview",
   "GET /admin/tracking/operational",
+  "GET /admin/usage",
   "GET /admin/users",
   "GET /admin/users/:id",
   "GET /assessments",

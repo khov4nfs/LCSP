@@ -220,6 +220,12 @@ def preserved_database(conn, state: dict, *, renamed: bool = False) -> str:
             for column in ("basedOnVersionId", "createdBy", "legalSourceId"):
                 row["row"].pop(column, None)
     value["LlmUsageEvent"] = list(conn.execute('SELECT to_jsonb(t)-\'assessmentId\' AS row FROM "LlmUsageEvent" t ORDER BY id'))
+    if not renamed:
+        # New nullable telemetry columns must default to NULL without changing old values.
+        for row in value["LlmUsageEvent"]:
+            for column in ("attemptStatus", "failureClass", "referenceCostSnapshot", "inputTokensIncludingCache",
+                           "cacheWrite5mTokens", "cacheWrite1hTokens", "visibleOutputTokens"):
+                row["row"][column] = None
     value["rootTurns"] = list(conn.execute('SELECT to_jsonb(t) AS row FROM "AssessmentRuntimeTurn" t '
                                          "WHERE boundary='ASSESSMENT_ROOT' ORDER BY id"))
     return purge.digest(value)
