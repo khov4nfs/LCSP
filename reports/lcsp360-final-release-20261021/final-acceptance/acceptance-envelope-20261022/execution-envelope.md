@@ -1,3 +1,5 @@
+> Current external gate: **BLOCKED_EXTERNAL_CI**. Required exact-publication results are queued/pending during GitHub's [Actions incident](https://www.githubstatus.com/incidents/wq8305lppdc2). See [captured receipt](../runtime-readiness-20261022/external-ci-blocker.json) and Release Report 19.3. No paid launch is permitted; AWAITING_LIVE_TEST_AUTHORIZATION applies only after these checks pass.
+
 # Current token-only execution proposal — 2026-10-22
 
 Frozen source candidate: `6336350cd900fe1f270475aab1b2b69ae43b8f5d`. Evidence-only descendant publications are permitted only after an exact tracked non-report source comparison. Exact final publication CI/security results belong to the PR checkpoint; earlier HEAD results are historical.

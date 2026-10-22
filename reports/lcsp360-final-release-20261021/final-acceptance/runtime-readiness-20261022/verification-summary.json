@@ -1,6 +1,6 @@
 {
   "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
-  "status": "NON_PAID_RUNTIME_PASS_CI_PENDING",
+  "status": "BLOCKED_EXTERNAL_CI",
   "recordedAt": "2026-10-22T16:24:41.000036+00:00",
   "adminAnalytics": "PASS_PROVIDER_FREE_API_POSTGRES_PLAYWRIGHT",
   "callTokenGovernance": "PASS_PROVIDER_FREE",
@@ -67,5 +67,6 @@
   "paidTokens": 0,
   "paidCostUSD": 0,
   "authorization": "ABSENT",
-  "ci": "EXACT_HEAD_PENDING"
+  "ci": "REQUIRED_EXACT_PUBLICATION_RESULTS_QUEUED_PENDING",
+  "externalBlocker": "external-ci-blocker.json"
 }

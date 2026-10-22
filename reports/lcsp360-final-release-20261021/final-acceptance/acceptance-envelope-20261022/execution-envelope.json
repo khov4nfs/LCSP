@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "NON_PAID_GATES_PASS_PUBLICATION_CI_REQUIRED",
+  "status": "BLOCKED_EXTERNAL_CI",
   "executable": false,
   "launchCommand": null,
   "candidateSha": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
   "freezeRef": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
-  "firstFailedGate": "PAID_AUTHORIZATION_AFTER_EXACT_PUBLICATION_CI_PASS",
-  "blockerReceipt": "../runtime-readiness-20261022/verification-summary.json",
+  "firstFailedGate": "EXACT_PUBLICATION_HEAD_CI_SECURITY_PENDING",
+  "blockerReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -275,7 +275,7 @@
   "paidOutputTokens": 0,
   "paidCostUSD": 0,
   "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "After exact-publication-head CI/security PASS, explicitly authorize one token/call/deadline-bounded live run; no guaranteed provider USD cap is represented",
+  "nextAction": "Allow queued exact-publication CI to finish after GitHub Actions recovery; diagnose any real failure before seeking paid authorization",
   "updatedAt": "2026-10-22T16:27:39.095845+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
@@ -289,10 +289,13 @@
     "sourceSha256": "b69a711386e79d62e287eac4f8c447932c9a5b999e5618e623745b5c9f280cc1"
   },
   "ciCodeCandidate": {
-    "status": "FINAL_PUBLICATION_CHECKS_RECORDED_IN_PR_CHECKPOINT",
+    "status": "BLOCKED_EXTERNAL_CI",
     "sourceCandidate": "6336350cd900fe1f270475aab1b2b69ae43b8f5d",
     "historicalReceipt": "../admin-usage-analytics-20261022/initial-ci-static-failure.log",
-    "note": "Every publication needs fresh checks; use exact-head GitHub checks and final PR comment, not older 38-check snapshots."
+    "note": "Every publication needs fresh checks; use exact-head GitHub checks and final PR comment, not older 38-check snapshots.",
+    "reviewedPublicationSha": "09efdfbbda43e16442765b56a7b045e9ff9485d5",
+    "externalReceipt": "../runtime-readiness-20261022/external-ci-blocker.json",
+    "incidentUrl": "https://www.githubstatus.com/incidents/wq8305lppdc2"
   },
   "previousAdmissionCheckpoint": {
     "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
