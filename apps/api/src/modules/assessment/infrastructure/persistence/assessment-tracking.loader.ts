@@ -1859,7 +1859,7 @@ export class AssessmentTrackingLoader {
         generatedAt: new Date().toISOString(),
       });
     }
-    const rows = await this.loadCustomerPortfolioRows(input.sessionUserId);
+    const rows = await this.loadCustomerTrackingRows(input.sessionUserId);
     const ready = rows
       .filter((row) => row.reportArtifactId !== null && row.lifecycleComplete)
       .filter(
@@ -1907,7 +1907,7 @@ export class AssessmentTrackingLoader {
         generatedAt: new Date().toISOString(),
       });
     }
-    const rows = await this.loadCustomerPortfolioRows(input.sessionUserId);
+    const rows = await this.loadCustomerTrackingRows(input.sessionUserId);
     const groups = new Map<
       string,
       {
@@ -1986,7 +1986,7 @@ export class AssessmentTrackingLoader {
     });
   }
 
-  private async loadCustomerPortfolioRows(sessionUserId: string) {
+  private async loadCustomerTrackingRows(sessionUserId: string) {
     const assessments = await this.prisma.assessment.findMany({
       where: { ownerId: sessionUserId },
       orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
@@ -2264,8 +2264,7 @@ export class AssessmentTrackingLoader {
       const report = domainCase?.artifacts[0] ?? null;
       const lifecycleComplete =
         assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.COMPLETE;
-      let trustStatus: TrackingTrustStatus =
-        TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
+      let trustStatus: TrackingTrustStatus;
       if (!completePins) trustStatus = TRACKING_TRUST_STATUSES.DATA_UNAVAILABLE;
       else if (
         assessment.lifecycleState === ASSESSMENT_LIFECYCLE_STATES.BLOCKED ||

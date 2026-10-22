@@ -6,15 +6,15 @@ import {
   customerTrackingObligationsSchema,
   customerTrackingOverviewSchema,
   customerTrackingReportsSchema,
-  type CustomerTrackingPortfolioQuery,
+  type CustomerTrackingListQuery,
 } from "@lcsp/contracts/assessment-domain";
 import { apiValidated } from "./api-request";
 import { getAppLocaleSnapshot } from "../locale";
 
 const trackingKeys = {
   overview: (search: string) => ["tracking", "overview", search, getAppLocaleSnapshot()] as const,
-  obligations: (query: CustomerTrackingPortfolioQuery) => ["tracking", "obligations", query] as const,
-  reports: (query: CustomerTrackingPortfolioQuery) => ["tracking", "reports", query] as const,
+  obligations: (query: CustomerTrackingListQuery) => ["tracking", "obligations", query] as const,
+  reports: (query: CustomerTrackingListQuery) => ["tracking", "reports", query] as const,
   admin: ["tracking", "admin-operational"] as const,
 };
 
@@ -38,7 +38,7 @@ export function useCustomerTrackingOverviewQuery(search = "", offset = 0) {
   });
 }
 
-export function useCustomerTrackingObligationsQuery(query: CustomerTrackingPortfolioQuery = {}) {
+export function useCustomerTrackingObligationsQuery(query: CustomerTrackingListQuery = {}) {
   const params = queryString({ ...query, limit: query.limit ?? 50 });
   return useQuery({
     queryKey: trackingKeys.obligations(query),
@@ -46,7 +46,7 @@ export function useCustomerTrackingObligationsQuery(query: CustomerTrackingPortf
   });
 }
 
-export function useCustomerTrackingReportsQuery(query: CustomerTrackingPortfolioQuery = {}) {
+export function useCustomerTrackingReportsQuery(query: CustomerTrackingListQuery = {}) {
   const params = queryString({ ...query, limit: query.limit ?? 50 });
   return useQuery({
     queryKey: trackingKeys.reports(query),

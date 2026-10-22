@@ -1068,13 +1068,13 @@ export const customerTrackingReportsSchema = z.strictObject({
 });
 export type CustomerTrackingReports = z.infer<typeof customerTrackingReportsSchema>;
 
-export const customerTrackingPortfolioQuerySchema = z.strictObject({
+export const customerTrackingListQuerySchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).optional(),
   outcome: trackingRuleOutcomeSchema.optional(),
   freshness: trackingFreshnessStatusSchema.optional(),
 });
-export type CustomerTrackingPortfolioQuery = z.infer<typeof customerTrackingPortfolioQuerySchema>;
+export type CustomerTrackingListQuery = z.infer<typeof customerTrackingListQuerySchema>;
 
 export const adminTrackingImpactedAssessmentSchema = z.strictObject({
   assessmentId: uuidSchema,

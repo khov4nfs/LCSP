@@ -3,9 +3,9 @@ import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   customerTrackingOverviewQuerySchema,
-  customerTrackingPortfolioQuerySchema,
+  customerTrackingListQuerySchema,
   type CustomerTrackingOverviewQuery,
-  type CustomerTrackingPortfolioQuery,
+  type CustomerTrackingListQuery,
 } from "@lcsp/contracts/assessment-domain";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
@@ -49,8 +49,8 @@ export class AssessmentTrackingController {
   @RequireRoles(AUTH_USER_ROLES.customer)
   async getObligations(
     @Req() request: AuthenticatedRequest,
-    @Query(new ZodValidationPipe(customerTrackingPortfolioQuerySchema))
-    query: CustomerTrackingPortfolioQuery,
+    @Query(new ZodValidationPipe(customerTrackingListQuerySchema))
+    query: CustomerTrackingListQuery,
   ) {
     const data = await this.trackingLoader.loadCustomerObligations({
       sessionUserId: request.rbacContext.userId,
@@ -65,8 +65,8 @@ export class AssessmentTrackingController {
   @RequireRoles(AUTH_USER_ROLES.customer)
   async getReports(
     @Req() request: AuthenticatedRequest,
-    @Query(new ZodValidationPipe(customerTrackingPortfolioQuerySchema))
-    query: CustomerTrackingPortfolioQuery,
+    @Query(new ZodValidationPipe(customerTrackingListQuerySchema))
+    query: CustomerTrackingListQuery,
   ) {
     const data = await this.trackingLoader.loadCustomerReports({
       sessionUserId: request.rbacContext.userId,
