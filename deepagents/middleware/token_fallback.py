@@ -16,6 +16,7 @@ from middleware.failure_policy import (
     TerminalSchemaError,
     error_status,
     is_auth_failure,
+    is_paid_admission_error,
     is_provider_capacity_failure,
     is_provider_quota_exhaustion,
     is_terminal_task_error,
@@ -163,7 +164,7 @@ def credential_failure(error: BaseException) -> bool:
     Authentication failures are handled separately: they mark the failing slot dead for
     this process instead of being treated as a transient failure of the same slot.
     """
-    return is_provider_capacity_failure(error) or _is_retryable_transient_error(error)
+    return not is_paid_admission_error(error) and (is_provider_capacity_failure(error) or _is_retryable_transient_error(error))
 
 
 def model_provider(model) -> str | None:

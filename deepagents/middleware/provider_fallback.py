@@ -14,6 +14,7 @@ from middleware.failure_policy import (
     TerminalCredentialError,
     error_status,
     is_auth_failure,
+    is_paid_admission_error,
     is_provider_capacity_failure,
     is_provider_model_unavailable,
     is_provider_quota_exhaustion,
@@ -116,6 +117,8 @@ def _contains_terminal_credential_error(error: BaseException) -> bool:
 
 def provider_fallback_failure(error: BaseException) -> bool:
     """Return whether a provider-level route may be attempted for this failure."""
+    if is_paid_admission_error(error):
+        return False
     if _contains_terminal_credential_error(error):
         return True
     if is_provider_route_incompatibility(error):
@@ -163,6 +166,8 @@ def _exhaustion_error(errors: list[BaseException]) -> BaseException:
 
 def provider_circuit_breaker_failure(error: BaseException) -> bool:
     """Return whether this provider route should stay disabled for the active run."""
+    if is_paid_admission_error(error):
+        return False
     # A model-generated invalid structured answer belongs to one invocation,
     # not to the provider route for every independent later source question.
     # It still triggers bounded cross-provider fallback for this invocation.

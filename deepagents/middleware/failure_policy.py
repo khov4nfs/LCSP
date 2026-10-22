@@ -84,6 +84,24 @@ class AgentRunBudgetExceeded(RuntimeError):
     """
 
 
+class PaidAdmissionError(AgentRunBudgetExceeded):
+    """Terminal bounded-inference denial; safe metadata only, never a provider fault."""
+
+    def __init__(self, reason: str, run_id: str, attempt_id: str | None = None):
+        self.reason, self.run_id, self.attempt_id = reason, run_id, attempt_id
+        super().__init__(f"Paid inference admission stopped: {reason}")
+
+
+def is_paid_admission_error(error: BaseException) -> bool:
+    seen: set[int] = set()
+    while error is not None and id(error) not in seen:
+        seen.add(id(error))
+        if isinstance(error, PaidAdmissionError):
+            return True
+        error = error.__cause__ or error.__context__
+    return False
+
+
 class NoProgressDetected(RuntimeError):
     """The Agent repeated the same ineffective action after no-progress feedback."""
 
@@ -298,7 +316,8 @@ def retry_model_error(error: Exception) -> bool:
     # Re-sending the same request with the same rejected credential cannot succeed.
     # Queue redelivery policy lives in is_terminal_boundary_error.
     return (
-        not is_terminal_task_error(error)
+        not is_paid_admission_error(error)
+        and not is_terminal_task_error(error)
         and not is_auth_failure(error)
         and not is_provider_capacity_failure(error)
         # Resending to a model the provider just called unavailable only burns

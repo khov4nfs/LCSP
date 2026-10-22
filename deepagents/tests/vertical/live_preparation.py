@@ -22,6 +22,8 @@ from middleware.usage_metering import (
     provider_identity, provider_usage_telemetry,
 )
 from middleware.usage_recovery import read_usage_evidence, record_usage_evidence
+from middleware.paid_admission import RunAdmission, RunBudget, reconcile_admission_evidence
+from middleware.failure_policy import PaidAdmissionError
 
 ROOT = Path(__file__).resolve().parents[3]
 ALLOWED_PREFIXES = (
@@ -40,11 +42,23 @@ ALLOWED_PREFIXES = (
 class LiveUsage(AgentRunState):
     """Use the governed per-response port, including independent Auditor calls."""
 
-    def __init__(self, run_id: str, usage_out: str) -> None:
-        super().__init__(run_id=run_id, agent_role="rule-set-preparation")
+    def __init__(self, run_id: str, usage_out: str, *, budget: RunBudget | None = None,
+                 budget_fingerprint: str | None = None, bounded: bool = False) -> None:
+        super().__init__(run_id=run_id, agent_role="rule-set-preparation", bounded=bounded)
         self.store = Path(usage_out + ".sqlite3")
         if self.store.exists() and any(row.get("runId") != run_id for row in read_usage_evidence(self.store)):
             raise ValueError("Usage evidence does not belong to the requested run")
+        if budget is not None:
+            if budget.run_id != run_id:
+                raise PaidAdmissionError("BUDGET_IDENTITY", run_id)
+            if self.store.exists():
+                from middleware.paid_admission import recover_admission
+                if (recover_admission(self.store, run_id)["state"] == "LEGACY_UNBOUNDED"
+                        or any(row.get("event") == "MODEL_RESPONSE" for row in read_usage_evidence(self.store))):
+                    raise PaidAdmissionError("HISTORICAL_UNRESERVED_USAGE", run_id)
+            self.admission = RunAdmission(self.store, budget, budget_fingerprint)
+        elif bounded:
+            raise PaidAdmissionError("MISSING_RUN_BUDGET", run_id)
         record_usage_evidence(self.store, f"run:{run_id}", {
             "runId": run_id, "event": "RUN_STARTED", "startedAt": time.time(),
         })
@@ -86,6 +100,7 @@ def recover_usage(usage_out: str, run_id: str) -> dict:
         "seconds": round(time.time() - started, 1), "profiles": profiles,
         "profileKey": profiles[0] if len(profiles) == 1 else None,
     }
+    summary["admission"] = reconcile_admission_evidence(store, run_id, records)
     for field in ("inputTokens", "outputTokens"):
         summary["known" + field[0].upper() + field[1:]] = sum(int(row[field]) for row in known)
         summary[field] = summary["known" + field[0].upper() + field[1:]] if complete else None
@@ -183,7 +198,14 @@ def main() -> int:
             trace("model_end", calls=self.calls)
 
     trace_callback = Trace()
-    usage = LiveUsage(run_id, usage_out)
+    budget_path = os.environ.get("LCSP_LIVE_BUDGET_FILE")
+    budget = RunBudget.model_validate_json(Path(budget_path).read_bytes()) if budget_path else None
+    if budget is not None:
+        import subprocess
+        if budget.candidate_sha != subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip():
+            raise PaidAdmissionError("CANDIDATE_CHANGED", run_id)
+    usage = LiveUsage(run_id, usage_out, budget=budget,
+                      budget_fingerprint=os.environ.get("LCSP_LIVE_BUDGET_SHA256"), bounded=True)
     api = WorkerApiClient(base, key)
     from rule_set_preparation.agent import RULE_SET_PREPARATION_ROLE
     from model_policy import resolve_agent_model

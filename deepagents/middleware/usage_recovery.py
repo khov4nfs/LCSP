@@ -4,9 +4,9 @@ The provider is never replayed from this store. Rows contain usage contract
 payloads or invocation evidence (numeric usage and identities), never prompts or
 model output. RECORDED evidence is retained and never drained as a callback.
 
-There is no reservation or release row: assessment execution never reserves or
-debits credits, so the only durable side effect left to retry is provider
-reported usage telemetry.
+Evaluation admission uses separate immutable run/attempt tables in this same
+journal. They never drain as callbacks or debit customer credits. Historical
+usage-only journals remain readable without retroactive reservations.
 """
 
 from __future__ import annotations

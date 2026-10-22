@@ -24,6 +24,8 @@ from langchain.agents.middleware import AgentMiddleware
 
 from middleware.token_fallback import model_protocol, model_provider
 from middleware.usage_recovery import enqueue_usage
+from middleware.paid_admission import RunAdmission, prepare_admitted_request
+from middleware.failure_policy import PaidAdmissionError
 from model_policy import (
     ResolvedModelConfig,
     attach_model_route,
@@ -123,6 +125,8 @@ class AgentRunState:
     agent_role: str
     assessment_id: str | None = None
     api_client: WorkerApiClient | None = None
+    admission: RunAdmission | None = None
+    bounded: bool = False
     _disabled_provider_routes: set[str] = field(default_factory=set, init=False)
     _sticky_provider_routes: set[str] = field(default_factory=set, init=False)
 
@@ -207,17 +211,23 @@ class AgentRunState:
 _active_state: ContextVar[AgentRunState | None] = ContextVar(
     "active_agent_run_state", default=None
 )
+_bounded_scope: ContextVar[AgentRunState | None] = ContextVar("bounded_inference_scope", default=None)
 
 
 @contextmanager
 def activate_agent_run_state(
     state: AgentRunState | None,
 ) -> Iterator[AgentRunState | None]:
+    parent = _bounded_scope.get()
+    if parent is not None and (state is None or state.run_id != parent.run_id or state.admission is not parent.admission):
+        raise PaidAdmissionError("BOUNDED_SCOPE_CHANGED", parent.run_id)
+    bounded_token = _bounded_scope.set(state if state and (state.bounded or state.admission) else parent)
     token = _active_state.set(state)
     try:
         yield state
     finally:
         _active_state.reset(token)
+        _bounded_scope.reset(bounded_token)
 
 
 def active_agent_run_state() -> AgentRunState | None:
@@ -930,12 +940,35 @@ class UsageMeteringMiddleware(AgentMiddleware):
     def _record(self, response, model, invocation_id: str) -> None:
         state = active_agent_run_state()
         if state is not None:
-            state.record(response, model, invocation_id, agent_role=active_agent_role())
+            try:
+                state.record(response, model, invocation_id, agent_role=active_agent_role())
+            finally:
+                if state.admission is not None:
+                    state.admission.settle(invocation_id, extract_provider_usage(response, model))
+
+    @staticmethod
+    def _admit(request, invocation_id):
+        state = active_agent_run_state()
+        if state is not None and (state.bounded or state.admission is not None):
+            if state.admission is None or state.admission.run_id != state.run_id:
+                raise PaidAdmissionError("MISSING_RUN_BUDGET", state.run_id, invocation_id)
+            request = prepare_admitted_request(state.admission, request, invocation_id, active_agent_role() or state.agent_role)
+            state.admission.transition(invocation_id, "IN_FLIGHT")
+        elif _bounded_scope.get() is not None:
+            raise PaidAdmissionError("MISSING_RUN_BUDGET", _bounded_scope.get().run_id, invocation_id)
+        return request
+
+    @staticmethod
+    def _unknown(invocation_id):
+        state = active_agent_run_state()
+        if state is not None and state.admission is not None:
+            state.admission.transition(invocation_id, "OUTCOME_UNKNOWN")
 
     def wrap_model_call(self, request, handler):
         request, model = self._prepare(request)
         # Each answered attempt must survive the API's settlement idempotency key.
         invocation_id = str(uuid4())
+        request = self._admit(request, invocation_id)
         telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
@@ -943,6 +976,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             self._record(response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
+            self._unknown(invocation_id)
             from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
             cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
@@ -957,6 +991,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
     async def awrap_model_call(self, request, handler):
         request, model = self._prepare(request)
         invocation_id = str(uuid4())
+        request = await asyncio.to_thread(self._admit, request, invocation_id)
         telemetry = _ModelCallTelemetry(model, invocation_id=invocation_id)
         telemetry.start()
         try:
@@ -966,6 +1001,7 @@ class UsageMeteringMiddleware(AgentMiddleware):
             await asyncio.to_thread(self._record, response, model, invocation_id)
             check_agent_execution_active()
         except BaseException as error:
+            await asyncio.to_thread(self._unknown, invocation_id)
             from langgraph.errors import NodeCancelledError
             from orchestration.agent_stream import AgentStreamInterrupted
             cancelled = isinstance(error, (AgentStreamInterrupted, asyncio.CancelledError, NodeCancelledError))
