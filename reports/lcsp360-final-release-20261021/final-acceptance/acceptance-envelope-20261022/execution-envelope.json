@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "createdAt": "2026-10-22T08:21:53.004200+00:00",
-  "status": "BLOCKED",
+  "status": "BLOCKED_EXTERNAL_CONTRACT_EVIDENCE",
   "executable": false,
   "launchCommand": null,
   "candidateSha": "1ed318e4257d93b7ea89973832afedad766a036a",
   "freezeRef": "refs/lcsp360/paid-admission-reconciled-20261022",
   "firstFailedGate": "VERIFIED_ACCOUNT_CHARGE_AND_TOKEN_BOUND_CONTRACTS",
-  "blockerReceipt": "../paid-admission-20261022/tariff-review.json",
+  "blockerReceipt": "../charging-contracts-20261022/charging-evidence-matrix.json",
   "scope": {
     "referenceEntrypoint": "tests/compliance-rule-set-live-eval.mjs",
     "evaluationCount": 1,
@@ -158,7 +158,7 @@
     "approvedMaximumProviderDispatches": 0,
     "approvedMaximumTokens": 0,
     "approvedMaximumSpendingUSD": 0,
-    "source": "Latest user: no paid calls permitted in provenance repair; proposed limits remain unapproved",
+    "source": "Current user: no authorized account billing records, portal sessions or owner contacts supplied; only non-paid verification permitted",
     "quotaIsAuthorization": false
   },
   "enforcement": {
@@ -222,7 +222,9 @@
     "limitsApplied": false,
     "freshAdmissionRequired": true,
     "resourceReceipt": "resource-readiness.json",
-    "exactFuturePeak": "UNAVAILABLE; no live inference/load or release build run was performed"
+    "exactFuturePeak": "UNAVAILABLE; no live inference/load or release build run was performed",
+    "latestNonPaidReceipt": "../charging-contracts-20261022/resource-deadline-readiness.json",
+    "offlineCgroupCapability": "PASS 3 GiB / 200% CPU, owned tree terminated at deadline; not applied to evaluation"
   },
   "cancellation": [
     "Any immutable source/SHA/HMAC mismatch, document authority/extraction gap, tampered/foreign receipt, failed mandatory gate or source-identity drift",
@@ -261,8 +263,8 @@
   "paidOutputTokens": 0,
   "paidCostUSD": 0,
   "historicalUsageAndCost": "UNAVAILABLE",
-  "nextAction": "Obtain and independently verify complete account-specific charging and strict token-bound contracts for every configured route, starting with Mirai, then pin reviewed policies; no inference is authorized.",
-  "updatedAt": "2026-10-22T10:52:43.055415+00:00",
+  "nextAction": "LCSP Mirai credential owner must supply restricted, dated account-to-slot charging and strict token-bound evidence with a sanitized digest-linked extract; see owner request. No paid inference authorized.",
+  "updatedAt": "2026-10-22T14:13:37.102062+00:00",
   "historicalDocumentDigestFailure": {
     "candidateSha": "6f37b38c2b38a93d92cc905d3dd432c3f2f9c40a",
     "receipt": "document-digest-blocker.json",
@@ -277,7 +279,10 @@
   "ciCodeCandidate": {
     "status": "PUBLICATION_HEAD_CHECKS_REQUIRED",
     "historicalReceipt": "../document-provenance-20261022/ci-code-candidate.json",
-    "note": "Prior 38 checks do not prove these changes. Fresh exact publication HEAD status and links are recorded in the PR checkpoint comment."
+    "note": "38 PASS on 090775bb are verified historical admission-code evidence. This evidence-only publication requires its own push-triggered results, recorded in the new PR checkpoint; no manual broad reruns.",
+    "verifiedPublicationHead": "090775bb763b8bbcf43d524050b03de4424755fe",
+    "verifiedPublicationChecks": 38,
+    "checkpointComment": "https://github.com/khov4nfs/LCSP/pull/427#issuecomment-6339425284"
   },
   "previousAdmissionCheckpoint": {
     "candidateSha": "bf3bc2a409944746dc0185b6afa6693b75565089",
@@ -301,5 +306,30 @@
     "launchEnabled": false,
     "providerPricingReceipt": "../paid-admission-20261022/tariff-review.json",
     "cacheReconciliation": "Normalized OpenAI-compatible gateway cache buckets subtracted once; independent journal arithmetic verifies synthetic settlements"
+  },
+  "accountContractVerification": {
+    "reviewedHead": "090775bb763b8bbcf43d524050b03de4424755fe",
+    "matrixReceipt": "../charging-contracts-20261022/charging-evidence-matrix.json",
+    "matrixFingerprint": "cd7f155dfb9119eb29ea398bb541751c7c1c1ec56972f9bfcbd6f193cc4e9eaf",
+    "providerReviewReceipt": "../charging-contracts-20261022/provider-contract-review.json",
+    "ownerRequest": "../charging-contracts-20261022/ACCOUNT_EVIDENCE_REQUEST.md",
+    "status": "BLOCKED_EXTERNAL_CONTRACT_EVIDENCE",
+    "configuredBindings": 40,
+    "distinctLocalProviderCredentials": 30,
+    "verifiedAccountContracts": 0,
+    "eligibleRoutes": [],
+    "productionPolicies": [],
+    "publicMiraiRatio": 0.5,
+    "publicRatioIsAccountOrUsdContract": false,
+    "paidAuthorization": false
+  },
+  "deadlineReadiness": {
+    "workerHelperOffline": "PASS_SIGKILL_250MS",
+    "providerOverride": "Live harness overrides checkout 3600s request setting to 600s; native SDK propagation previously tested",
+    "global4200Seconds": "NOT_WIRED_TO_LIVE_ENTRYPOINT",
+    "perStageCeilings": "NOT_WIRED_TO_LIVE_ENTRYPOINT",
+    "evaluationProcessTreeCpuMemoryLimits": "NOT_APPLIED",
+    "diskWriteCeilings": "NOT_APPLIED",
+    "receipt": "../charging-contracts-20261022/resource-deadline-readiness.json"
   }
 }

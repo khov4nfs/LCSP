@@ -1,0 +1,3319 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-22T13:59:23.886665+00:00",
+  "reviewedHead": "090775bb763b8bbcf43d524050b03de4424755fe",
+  "status": "BLOCKED_EXTERNAL_CONTRACT_EVIDENCE",
+  "credentialSalt": "cab77834f80e001a4618ac9f1a8a0ad343861db31827b8128ff5ec37319996f8",
+  "credentialKdf": "PBKDF2-HMAC-SHA256, 600000 iterations; same admission function",
+  "routeConfigSha256": "b61fa3013f0e4e0bab482ab3912ee827ebbac67af5c7377893f866ae601ecd5b",
+  "bindingSnapshotFingerprint": "a7a12f32a0bff09f6d2a87c56a7efffd97d5a6efcd07dc608eeb5c9a2c16c03d",
+  "providerReviewFingerprint": "a43bd76c041f2f6bf9fc51a6b6059e0718150a591bad646427d7cc5a3f74909b",
+  "bindingCount": 40,
+  "distinctProviderCredentialCount": 30,
+  "verifiedAccountContracts": 0,
+  "productionChargePolicies": [],
+  "eligibleRoutes": [],
+  "bindings": [
+    {
+      "route_id": "primary",
+      "route_fingerprint": "f9ea0a63568565f50f62ba2743271cfcde0174b4d65aeae9a955db6dde81b150",
+      "provider": "miraiapi",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-5",
+      "credential_fingerprint": "ef8a292ca444709e20ad8264388704d00925af488aef451d60ff579d3322f8de",
+      "endpoint_fingerprint": "bd5633119a08166a4ca30c151eed3db2eb1bf111ed78702ce8138bb29da49e05",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 1,
+      "credential_env_name": "MIRAI_API_KEY",
+      "account_alias": "UNVERIFIED-miraiapi-slot-01",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "mirai-usage",
+          "url": "https://miraiapi.com/usage/",
+          "capturedAt": "2026-10-22T13:59:37.892395+00:00",
+          "sha256": "89ea25b14ca275c1e334c67976dc362daa573b8eac1dd7ac925937700f6860cc",
+          "status": 200
+        },
+        {
+          "id": "mirai-public-catalog",
+          "url": "https://api.miraiapi.com/api/mirai/catalog",
+          "capturedAt": "2026-10-22T14:09:16.312562+00:00",
+          "sha256": "877d03c8b9895737d2f0f6cbaa8f9b9cc2814d8f291f1814b4086be78395676b",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "UNVERIFIED",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "USD cost or binding maximum incremental financial exposure per quota unit; balance alone is insufficient",
+        "Whether the public 0.5 ratio is fixed for this account/model, including caches, reasoning and unsuccessful requests"
+      ],
+      "reviewFingerprint": "04d8397e96d014d2f1a6476a66b2c5b1f137d87aaa2c7e00fea763d07e559934",
+      "authoritativeOwner": "LCSP Mirai account owner and Mirai billing/operator support; contact unprovided",
+      "ownerPortal": "https://miraiapi.com/usage/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "a97af9913d7188a76504cf18cbccf05f70eda50713b0c405f90babf12c8e173c",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 1,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-01",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "a391badab47c8b22afb8d8b17e651560459a8ce5bfcd2f91660eaaa42fe3c968",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 2,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-02",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "2456c9a12c0024d282086b43e29e8c5377f58735da32cccbc8ee0572270dd6ce",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 3,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-03",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "038e69eb68d3bdc7418b7e564c09fb5b89f2d7e36a0b338740ac84c9ca7c30aa",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 4,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-04",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "ab048326b4aa62352c3e0438f3a3b474bfa3d807d4f4298f69d9d26372062c36",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 5,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-05",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "45481ad5008b18e0e6e464e384945a2e0f7044d1884c8fcfd4f850bf45044245",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 6,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-06",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "11637e0c87bccc9f8a5025868df945cc4e039ace6cf80ef19700bd36cc5ae28b",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 7,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-07",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "1239463707e663eeb3f2499f459bf42827ee86c88e58de4bd7a5a1ff5912f750",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 8,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-08",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "3edb5b9f0c9c4346356e151731f82a414f73ee723288a17097a2617473573149",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 9,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-09",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "f095ed1c637ddc14444e89f2994a191374cfa98e794342cbfb66b84f85c9a630",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 10,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-10",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "3bd897add266f83df4a89412cc63ded9c26805ea42136a25f06980d9d212416c",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 11,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-11",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "199b758a2d091d1e24bfdb087317707692025c43528f9aaf465395fbd0d61c65",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 12,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-12",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "77423ee73ece23520a0ae063e18050f3c0102a62045e3c891bb4c1d847fd87ff",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 13,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-13",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback",
+      "route_fingerprint": "408779e7d795fea3cd0428b9eb9deb1d30c9f20cdfdc1cae46299b25a35f975c",
+      "provider": "inception",
+      "protocol": "openai",
+      "model": "mercury-2.5",
+      "credential_fingerprint": "6cf0184b91d4f1e09e13130885864854cf88126b5775549e51232902f9f9e977",
+      "endpoint_fingerprint": "d055cdeec88120bfc570e8aa43102a541edf09fe4975901edcd77b42e1417ca7",
+      "sdk_fingerprint": "4897f252cd3632180b98cfa9908dce8c6077c5328b3753ca0c906af32517b8fe",
+      "credential_slot": 14,
+      "credential_env_name": "INCEPTION_API_KEY",
+      "account_alias": "UNVERIFIED-inception-slot-14",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "inception-announcement",
+          "url": "https://www.inceptionlabs.ai/blog/introducing-mercury-2-5",
+          "capturedAt": "2026-10-22T13:59:37.893509+00:00",
+          "sha256": "2f89395f90b9bd36791b4d38ef49b81beb60f5998ae35a4654057585fb33b476",
+          "status": 200
+        },
+        {
+          "id": "inception-models",
+          "url": "https://docs.inceptionlabs.ai/get-started/models.md",
+          "capturedAt": "2026-10-22T13:59:37.894401+00:00",
+          "sha256": "6f3d6e8bad6809b2e70a44b48704e4936af12d6f48238881272c9996c6758ad3",
+          "status": 200
+        },
+        {
+          "id": "inception-chat",
+          "url": "https://docs.inceptionlabs.ai/api-reference/chat/create-a-chat-completion.md",
+          "capturedAt": "2026-10-22T13:59:37.895551+00:00",
+          "sha256": "26ed3a422994311a7f1dd148c622384ebf0a4f50fcd00abcd61b804747865ece",
+          "status": 200
+        },
+        {
+          "id": "inception-reasoning",
+          "url": "https://docs.inceptionlabs.ai/capabilities/reasoning-efforts.md",
+          "capturedAt": "2026-10-22T13:59:38.472305+00:00",
+          "sha256": "d37541a4c570b690e0e57dbfc3ad89dcee309295c5dfbac0def0449665df6401",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Per-slot account mapping and accepted standard/promotion/enterprise schedule",
+        "Exact prompt/tool/overhead charged-input ceiling and complete cache-write/reasoning/failure/fee rules"
+      ],
+      "reviewFingerprint": "f6c0974b195a8b60c94de74d272e3eff8006e4e389a91eb80dba7c8b6f7104bc",
+      "authoritativeOwner": "LCSP Inception account owner(s) and Inception billing/API support; owner contacts unprovided",
+      "ownerPortal": "https://platform.inceptionlabs.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-01",
+      "route_fingerprint": "daa2891af133f88e96459cea56809cb0e7aa3f10b799506397b73b637e308e07",
+      "provider": "google_genai",
+      "protocol": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "credential_fingerprint": "b0d9d8c4591ca85fb724a4b118f266165f58c00a92e1e8b8b0dda2a9403c2d0f",
+      "endpoint_fingerprint": "a0e7b7e7de8182cfd1c69ac37b77cc902d1e516ba7d879b8f486201910d15235",
+      "sdk_fingerprint": "6ffecf813efcde8253f05f29e8f2b26a16d91b81a15d66e273e85f135d902282",
+      "credential_slot": 1,
+      "credential_env_name": "GEMINI_API_KEY",
+      "account_alias": "UNVERIFIED-google_genai-slot-01",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "google-pricing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/pricing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.841052+00:00",
+          "sha256": "7e7e8780d60161baf04f176798e04f95a5f887ab7a711507af9a0b48da767d1e",
+          "status": 200
+        },
+        {
+          "id": "google-billing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/billing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.842505+00:00",
+          "sha256": "73c6d0ec34b58971369ca43a88b93f2cb396867267db143b771a1028b04431a2",
+          "status": 200
+        },
+        {
+          "id": "google-model-english",
+          "url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.843412+00:00",
+          "sha256": "bf76def09a40836b452feec61a1f0705ce4f5a8019d70569f42e9195b6fdf68f",
+          "status": 200
+        },
+        {
+          "id": "google-tokens-english",
+          "url": "https://ai.google.dev/gemini-api/docs/tokens?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.844186+00:00",
+          "sha256": "d4252950f795bd4086c367b1ad306fd93b59bed64dd2d7d3e358da96efa03713",
+          "status": 200
+        },
+        {
+          "id": "google-generation",
+          "url": "https://ai.google.dev/api/generate-content",
+          "capturedAt": "2026-10-22T14:00:09.777120+00:00",
+          "sha256": "0fc3757840c5bd3c21268841481459dcac860b4ec085d607c114c63136926fa2",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "All six key-to-project-to-billing-account/tier mappings, using pseudonymous public references",
+        "Current billing plan, tax/currency conversion, auto-reload and delayed-overage conditions",
+        "Provider-confirmed coverage of billable units and separately charged tools/cache operations under bounded request options"
+      ],
+      "reviewFingerprint": "0e23a572210f675d36ef875080421541335bff298afbb18e44927ab440f57f7e",
+      "authoritativeOwner": "LCSP Google project owner(s), Cloud Billing administrator(s), Google support; owner contacts unprovided",
+      "ownerPortal": "https://aistudio.google.com/billing",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-01",
+      "route_fingerprint": "daa2891af133f88e96459cea56809cb0e7aa3f10b799506397b73b637e308e07",
+      "provider": "google_genai",
+      "protocol": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "credential_fingerprint": "611980d9196f3d0119f25d90973a140f41917b3fa9c354cfcaaaff3d02fb417c",
+      "endpoint_fingerprint": "a0e7b7e7de8182cfd1c69ac37b77cc902d1e516ba7d879b8f486201910d15235",
+      "sdk_fingerprint": "6ffecf813efcde8253f05f29e8f2b26a16d91b81a15d66e273e85f135d902282",
+      "credential_slot": 2,
+      "credential_env_name": "GEMINI_API_KEY",
+      "account_alias": "UNVERIFIED-google_genai-slot-02",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "google-pricing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/pricing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.841052+00:00",
+          "sha256": "7e7e8780d60161baf04f176798e04f95a5f887ab7a711507af9a0b48da767d1e",
+          "status": 200
+        },
+        {
+          "id": "google-billing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/billing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.842505+00:00",
+          "sha256": "73c6d0ec34b58971369ca43a88b93f2cb396867267db143b771a1028b04431a2",
+          "status": 200
+        },
+        {
+          "id": "google-model-english",
+          "url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.843412+00:00",
+          "sha256": "bf76def09a40836b452feec61a1f0705ce4f5a8019d70569f42e9195b6fdf68f",
+          "status": 200
+        },
+        {
+          "id": "google-tokens-english",
+          "url": "https://ai.google.dev/gemini-api/docs/tokens?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.844186+00:00",
+          "sha256": "d4252950f795bd4086c367b1ad306fd93b59bed64dd2d7d3e358da96efa03713",
+          "status": 200
+        },
+        {
+          "id": "google-generation",
+          "url": "https://ai.google.dev/api/generate-content",
+          "capturedAt": "2026-10-22T14:00:09.777120+00:00",
+          "sha256": "0fc3757840c5bd3c21268841481459dcac860b4ec085d607c114c63136926fa2",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "All six key-to-project-to-billing-account/tier mappings, using pseudonymous public references",
+        "Current billing plan, tax/currency conversion, auto-reload and delayed-overage conditions",
+        "Provider-confirmed coverage of billable units and separately charged tools/cache operations under bounded request options"
+      ],
+      "reviewFingerprint": "0e23a572210f675d36ef875080421541335bff298afbb18e44927ab440f57f7e",
+      "authoritativeOwner": "LCSP Google project owner(s), Cloud Billing administrator(s), Google support; owner contacts unprovided",
+      "ownerPortal": "https://aistudio.google.com/billing",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-01",
+      "route_fingerprint": "daa2891af133f88e96459cea56809cb0e7aa3f10b799506397b73b637e308e07",
+      "provider": "google_genai",
+      "protocol": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "credential_fingerprint": "49b450afce75500b0bafc2bb5bb5d4f45ebb232b5392aa6675c03ae8a346dfed",
+      "endpoint_fingerprint": "a0e7b7e7de8182cfd1c69ac37b77cc902d1e516ba7d879b8f486201910d15235",
+      "sdk_fingerprint": "6ffecf813efcde8253f05f29e8f2b26a16d91b81a15d66e273e85f135d902282",
+      "credential_slot": 3,
+      "credential_env_name": "GEMINI_API_KEY",
+      "account_alias": "UNVERIFIED-google_genai-slot-03",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "google-pricing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/pricing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.841052+00:00",
+          "sha256": "7e7e8780d60161baf04f176798e04f95a5f887ab7a711507af9a0b48da767d1e",
+          "status": 200
+        },
+        {
+          "id": "google-billing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/billing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.842505+00:00",
+          "sha256": "73c6d0ec34b58971369ca43a88b93f2cb396867267db143b771a1028b04431a2",
+          "status": 200
+        },
+        {
+          "id": "google-model-english",
+          "url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.843412+00:00",
+          "sha256": "bf76def09a40836b452feec61a1f0705ce4f5a8019d70569f42e9195b6fdf68f",
+          "status": 200
+        },
+        {
+          "id": "google-tokens-english",
+          "url": "https://ai.google.dev/gemini-api/docs/tokens?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.844186+00:00",
+          "sha256": "d4252950f795bd4086c367b1ad306fd93b59bed64dd2d7d3e358da96efa03713",
+          "status": 200
+        },
+        {
+          "id": "google-generation",
+          "url": "https://ai.google.dev/api/generate-content",
+          "capturedAt": "2026-10-22T14:00:09.777120+00:00",
+          "sha256": "0fc3757840c5bd3c21268841481459dcac860b4ec085d607c114c63136926fa2",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "All six key-to-project-to-billing-account/tier mappings, using pseudonymous public references",
+        "Current billing plan, tax/currency conversion, auto-reload and delayed-overage conditions",
+        "Provider-confirmed coverage of billable units and separately charged tools/cache operations under bounded request options"
+      ],
+      "reviewFingerprint": "0e23a572210f675d36ef875080421541335bff298afbb18e44927ab440f57f7e",
+      "authoritativeOwner": "LCSP Google project owner(s), Cloud Billing administrator(s), Google support; owner contacts unprovided",
+      "ownerPortal": "https://aistudio.google.com/billing",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-01",
+      "route_fingerprint": "daa2891af133f88e96459cea56809cb0e7aa3f10b799506397b73b637e308e07",
+      "provider": "google_genai",
+      "protocol": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "credential_fingerprint": "81ed918a7f4b05dd0959b92524212bb8f42d8d5670b4b9674ead1bafe14a9a64",
+      "endpoint_fingerprint": "a0e7b7e7de8182cfd1c69ac37b77cc902d1e516ba7d879b8f486201910d15235",
+      "sdk_fingerprint": "6ffecf813efcde8253f05f29e8f2b26a16d91b81a15d66e273e85f135d902282",
+      "credential_slot": 4,
+      "credential_env_name": "GEMINI_API_KEY",
+      "account_alias": "UNVERIFIED-google_genai-slot-04",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "google-pricing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/pricing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.841052+00:00",
+          "sha256": "7e7e8780d60161baf04f176798e04f95a5f887ab7a711507af9a0b48da767d1e",
+          "status": 200
+        },
+        {
+          "id": "google-billing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/billing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.842505+00:00",
+          "sha256": "73c6d0ec34b58971369ca43a88b93f2cb396867267db143b771a1028b04431a2",
+          "status": 200
+        },
+        {
+          "id": "google-model-english",
+          "url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.843412+00:00",
+          "sha256": "bf76def09a40836b452feec61a1f0705ce4f5a8019d70569f42e9195b6fdf68f",
+          "status": 200
+        },
+        {
+          "id": "google-tokens-english",
+          "url": "https://ai.google.dev/gemini-api/docs/tokens?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.844186+00:00",
+          "sha256": "d4252950f795bd4086c367b1ad306fd93b59bed64dd2d7d3e358da96efa03713",
+          "status": 200
+        },
+        {
+          "id": "google-generation",
+          "url": "https://ai.google.dev/api/generate-content",
+          "capturedAt": "2026-10-22T14:00:09.777120+00:00",
+          "sha256": "0fc3757840c5bd3c21268841481459dcac860b4ec085d607c114c63136926fa2",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "All six key-to-project-to-billing-account/tier mappings, using pseudonymous public references",
+        "Current billing plan, tax/currency conversion, auto-reload and delayed-overage conditions",
+        "Provider-confirmed coverage of billable units and separately charged tools/cache operations under bounded request options"
+      ],
+      "reviewFingerprint": "0e23a572210f675d36ef875080421541335bff298afbb18e44927ab440f57f7e",
+      "authoritativeOwner": "LCSP Google project owner(s), Cloud Billing administrator(s), Google support; owner contacts unprovided",
+      "ownerPortal": "https://aistudio.google.com/billing",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-01",
+      "route_fingerprint": "daa2891af133f88e96459cea56809cb0e7aa3f10b799506397b73b637e308e07",
+      "provider": "google_genai",
+      "protocol": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "credential_fingerprint": "b70d9c2be01b86b0b1de8348e4dd5ef59ff7128d26e52f60500e746bbb1664bf",
+      "endpoint_fingerprint": "a0e7b7e7de8182cfd1c69ac37b77cc902d1e516ba7d879b8f486201910d15235",
+      "sdk_fingerprint": "6ffecf813efcde8253f05f29e8f2b26a16d91b81a15d66e273e85f135d902282",
+      "credential_slot": 5,
+      "credential_env_name": "GEMINI_API_KEY",
+      "account_alias": "UNVERIFIED-google_genai-slot-05",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "google-pricing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/pricing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.841052+00:00",
+          "sha256": "7e7e8780d60161baf04f176798e04f95a5f887ab7a711507af9a0b48da767d1e",
+          "status": 200
+        },
+        {
+          "id": "google-billing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/billing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.842505+00:00",
+          "sha256": "73c6d0ec34b58971369ca43a88b93f2cb396867267db143b771a1028b04431a2",
+          "status": 200
+        },
+        {
+          "id": "google-model-english",
+          "url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.843412+00:00",
+          "sha256": "bf76def09a40836b452feec61a1f0705ce4f5a8019d70569f42e9195b6fdf68f",
+          "status": 200
+        },
+        {
+          "id": "google-tokens-english",
+          "url": "https://ai.google.dev/gemini-api/docs/tokens?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.844186+00:00",
+          "sha256": "d4252950f795bd4086c367b1ad306fd93b59bed64dd2d7d3e358da96efa03713",
+          "status": 200
+        },
+        {
+          "id": "google-generation",
+          "url": "https://ai.google.dev/api/generate-content",
+          "capturedAt": "2026-10-22T14:00:09.777120+00:00",
+          "sha256": "0fc3757840c5bd3c21268841481459dcac860b4ec085d607c114c63136926fa2",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "All six key-to-project-to-billing-account/tier mappings, using pseudonymous public references",
+        "Current billing plan, tax/currency conversion, auto-reload and delayed-overage conditions",
+        "Provider-confirmed coverage of billable units and separately charged tools/cache operations under bounded request options"
+      ],
+      "reviewFingerprint": "0e23a572210f675d36ef875080421541335bff298afbb18e44927ab440f57f7e",
+      "authoritativeOwner": "LCSP Google project owner(s), Cloud Billing administrator(s), Google support; owner contacts unprovided",
+      "ownerPortal": "https://aistudio.google.com/billing",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-01",
+      "route_fingerprint": "daa2891af133f88e96459cea56809cb0e7aa3f10b799506397b73b637e308e07",
+      "provider": "google_genai",
+      "protocol": "google_genai",
+      "model": "gemini-3.5-flash-lite",
+      "credential_fingerprint": "3f75289949e168e5dbd1ef2a7f2f9f26ed5b1e23388afbd2add66e9e00c1b56e",
+      "endpoint_fingerprint": "a0e7b7e7de8182cfd1c69ac37b77cc902d1e516ba7d879b8f486201910d15235",
+      "sdk_fingerprint": "6ffecf813efcde8253f05f29e8f2b26a16d91b81a15d66e273e85f135d902282",
+      "credential_slot": 6,
+      "credential_env_name": "GEMINI_API_KEY",
+      "account_alias": "UNVERIFIED-google_genai-slot-06",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "google-pricing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/pricing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.841052+00:00",
+          "sha256": "7e7e8780d60161baf04f176798e04f95a5f887ab7a711507af9a0b48da767d1e",
+          "status": 200
+        },
+        {
+          "id": "google-billing-english",
+          "url": "https://ai.google.dev/gemini-api/docs/billing?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.842505+00:00",
+          "sha256": "73c6d0ec34b58971369ca43a88b93f2cb396867267db143b771a1028b04431a2",
+          "status": 200
+        },
+        {
+          "id": "google-model-english",
+          "url": "https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.843412+00:00",
+          "sha256": "bf76def09a40836b452feec61a1f0705ce4f5a8019d70569f42e9195b6fdf68f",
+          "status": 200
+        },
+        {
+          "id": "google-tokens-english",
+          "url": "https://ai.google.dev/gemini-api/docs/tokens?hl=en",
+          "capturedAt": "2026-10-22T14:07:05.844186+00:00",
+          "sha256": "d4252950f795bd4086c367b1ad306fd93b59bed64dd2d7d3e358da96efa03713",
+          "status": 200
+        },
+        {
+          "id": "google-generation",
+          "url": "https://ai.google.dev/api/generate-content",
+          "capturedAt": "2026-10-22T14:00:09.777120+00:00",
+          "sha256": "0fc3757840c5bd3c21268841481459dcac860b4ec085d607c114c63136926fa2",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "All six key-to-project-to-billing-account/tier mappings, using pseudonymous public references",
+        "Current billing plan, tax/currency conversion, auto-reload and delayed-overage conditions",
+        "Provider-confirmed coverage of billable units and separately charged tools/cache operations under bounded request options"
+      ],
+      "reviewFingerprint": "0e23a572210f675d36ef875080421541335bff298afbb18e44927ab440f57f7e",
+      "authoritativeOwner": "LCSP Google project owner(s), Cloud Billing administrator(s), Google support; owner contacts unprovided",
+      "ownerPortal": "https://aistudio.google.com/billing",
+      "workflowConsumers": [
+        "rule-set-preparation",
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "e2dc0295356af01cb43169b88d09dd33e204fcdad6b4fd1835aebb6eccb603bf",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 1,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-01",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "5c2689ac6a22ddd98cdd5dd4f6f710f8f905f6575c3325ad83b8396fc9ce2396",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 2,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-02",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "13b4c82277cdb0ff666f6d2dc4cf5625a33c5e087c57fc8df9683125551e24c4",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 3,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-03",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "578970d090c4248472cf809fb0335f9d87af5f8925330fad8690d3e40a6be198",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 4,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-04",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "68c3aec7c31fdfc3a3c301689cdcf79bdee6781495d49f27aa0199b378b00368",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 5,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-05",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "f0ae4ad96199bdd3b36d712e0f0eaec87ce52b757ddb0e3080f2fceb96a0b72b",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 6,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-06",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "cca343be5a33f873c6af9e020c8a31d9cbfa4c6c0dcd6351ac67caf762fb9859",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 7,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-07",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "8a4f759ae1fb8a6e4b22c3e0222bca8ac844a166a8d93d3879727efb5c54ba72",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 8,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-08",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "fallback-02",
+      "route_fingerprint": "c0a841e68b9b1e0b01f084d1b1ff761c9142f451127dff22961a9fc8f87e8326",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "66c0bc38ac70d2319060561fcff3d893bbbabf25b82543f7f8711c8007e51973",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 9,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-09",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "rule-set-preparation"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-primary",
+      "route_fingerprint": "9c25504fc24e76ae1b5093e9ea5fc02ca25b2321d1e6581422c6ef67291650bd",
+      "provider": "miraiapi",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-5",
+      "credential_fingerprint": "ef8a292ca444709e20ad8264388704d00925af488aef451d60ff579d3322f8de",
+      "endpoint_fingerprint": "bd5633119a08166a4ca30c151eed3db2eb1bf111ed78702ce8138bb29da49e05",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 1,
+      "credential_env_name": "MIRAI_API_KEY",
+      "account_alias": "UNVERIFIED-miraiapi-slot-01",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "mirai-usage",
+          "url": "https://miraiapi.com/usage/",
+          "capturedAt": "2026-10-22T13:59:37.892395+00:00",
+          "sha256": "89ea25b14ca275c1e334c67976dc362daa573b8eac1dd7ac925937700f6860cc",
+          "status": 200
+        },
+        {
+          "id": "mirai-public-catalog",
+          "url": "https://api.miraiapi.com/api/mirai/catalog",
+          "capturedAt": "2026-10-22T14:09:16.312562+00:00",
+          "sha256": "877d03c8b9895737d2f0f6cbaa8f9b9cc2814d8f291f1814b4086be78395676b",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "UNVERIFIED",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "USD cost or binding maximum incremental financial exposure per quota unit; balance alone is insufficient",
+        "Whether the public 0.5 ratio is fixed for this account/model, including caches, reasoning and unsuccessful requests"
+      ],
+      "reviewFingerprint": "04d8397e96d014d2f1a6476a66b2c5b1f137d87aaa2c7e00fea763d07e559934",
+      "authoritativeOwner": "LCSP Mirai account owner and Mirai billing/operator support; contact unprovided",
+      "ownerPortal": "https://miraiapi.com/usage/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "e2dc0295356af01cb43169b88d09dd33e204fcdad6b4fd1835aebb6eccb603bf",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 1,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-01",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "5c2689ac6a22ddd98cdd5dd4f6f710f8f905f6575c3325ad83b8396fc9ce2396",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 2,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-02",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "13b4c82277cdb0ff666f6d2dc4cf5625a33c5e087c57fc8df9683125551e24c4",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 3,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-03",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "578970d090c4248472cf809fb0335f9d87af5f8925330fad8690d3e40a6be198",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 4,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-04",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "68c3aec7c31fdfc3a3c301689cdcf79bdee6781495d49f27aa0199b378b00368",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 5,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-05",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "f0ae4ad96199bdd3b36d712e0f0eaec87ce52b757ddb0e3080f2fceb96a0b72b",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 6,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-06",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "cca343be5a33f873c6af9e020c8a31d9cbfa4c6c0dcd6351ac67caf762fb9859",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 7,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-07",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "8a4f759ae1fb8a6e4b22c3e0222bca8ac844a166a8d93d3879727efb5c54ba72",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 8,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-08",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    },
+    {
+      "route_id": "semantic-final",
+      "route_fingerprint": "e7e8143255d346b97c93c1366f044b4374ff2248af5f222d54bbbff35c54ae66",
+      "provider": "apx",
+      "protocol": "anthropic",
+      "model": "claude-sonnet-4-6-free",
+      "credential_fingerprint": "66c0bc38ac70d2319060561fcff3d893bbbabf25b82543f7f8711c8007e51973",
+      "endpoint_fingerprint": "0b6617859969c5c0249e534a2203710c1fd3615835e28559bd5f044b2c58ba2c",
+      "sdk_fingerprint": "711f76dd43f8023b1174e87c2aecba4df7c8f9c5e8dc129dd42c4d0431767c66",
+      "credential_slot": 9,
+      "credential_env_name": "APX_API_KEY",
+      "account_alias": "UNVERIFIED-apx-slot-09",
+      "account_classification": "UNAVAILABLE_NO_AUTHORIZED_ACCOUNT_RECORDS",
+      "account_or_project_fingerprint": null,
+      "plan_entitlement_topup_overage_tax": null,
+      "production_policy_fingerprint": null,
+      "effective_date": null,
+      "expiration_date": null,
+      "reviewer": "Codex: local identity and public documentation only",
+      "account_contract_review": "PENDING_ACCOUNT_OWNER_AND_INDEPENDENT_REVIEW",
+      "verified_charged_token_buckets": [],
+      "guaranteed_charge_bounds": null,
+      "verified_usd_charge_rules": null,
+      "status": "BLOCKED",
+      "admission": "DENIED_UNKNOWN_TARIFF",
+      "sdkVersions": {
+        "langchain-anthropic": "1.7.2",
+        "anthropic": "0.125.0",
+        "httpx": "0.28.1",
+        "langchain-openai": "1.6.0",
+        "openai": "3.3.1",
+        "langchain-google-genai": "4.4.0",
+        "google-genai": "2.25.0"
+      },
+      "officialEvidence": [
+        {
+          "id": "apx-pricing",
+          "url": "https://apmix.ai/pricing",
+          "capturedAt": "2026-10-22T14:00:10.068992+00:00",
+          "sha256": "2960640cf7d44c15c3cf7d7c7f81d76bb1a6c8d4311454afdda51ad05daf09d7",
+          "status": 200
+        },
+        {
+          "id": "apx-model",
+          "url": "https://apmix.ai/models/claude-sonnet-4-6-free",
+          "capturedAt": "2026-10-22T14:00:10.167195+00:00",
+          "sha256": "f7cd07f33d1724d22e17ccb9fbaff6d2630d68ee11fb95b312748e42bc29e807",
+          "status": 200
+        },
+        {
+          "id": "apx-terms",
+          "url": "https://apmix.ai/terms",
+          "capturedAt": "2026-10-22T14:00:10.841731+00:00",
+          "sha256": "fab29e74a71a739f35644f14512ded3315432ac632f925c53cf577d4715f0b95",
+          "status": 200
+        }
+      ],
+      "publicPriceEvidence": "PARTIAL",
+      "accountEvidence": "UNAVAILABLE",
+      "hardBoundEvidence": "PARTIAL",
+      "unresolvedRequirements": [
+        "Binding from each salted credential fingerprint to its actual billing account/project and accepted terms",
+        "Account effective plan, promotion/entitlement, renewal, top-up, overage and tax/FX terms",
+        "Complete input, cache-read/write, output/reasoning, fixed/minimum/rounding and failed-request charging contract",
+        "Provider guarantee covering all serialized system/messages/tools/schemas, provider overhead and other billable operations",
+        "Contract validity interval, immutable evidence digest and independent account-contract reviewer",
+        "Separate account/plan/remaining-entitlement mapping for every configured APX credential; different keys need not be different accounts",
+        "Explicit zero-incremental-charge guarantee if relying on prepaid/free entitlement, including exhausted allowance, renewal/top-up and failure rules",
+        "Exact stable multiplier/token accounting and maximum billable request exposure for this gateway model"
+      ],
+      "reviewFingerprint": "514f0d768a98708152b2d4c3638852383991fce30d8b0e2d671e207fce432306",
+      "authoritativeOwner": "LCSP APX account owner(s) and support@apmix.ai (official public support); account-owner contacts unprovided",
+      "ownerPortal": "https://apmix.ai/",
+      "workflowConsumers": [
+        "legal-semantic-auditor"
+      ],
+      "internalOperations": "Source readers and summarization inherit the governed model/run; no independent unlisted credential route was introduced"
+    }
+  ],
+  "reviewer": "Codex public/local evidence review; independent account-contract reviewer NOT_AVAILABLE",
+  "reviewStatus": "BLOCKED_ACCOUNT_OWNER_EVIDENCE_REQUIRED",
+  "accountAliases": "UNVERIFIED aliases identify local credential slots, not billing accounts; same or different account ownership cannot be inferred",
+  "configuredBindingsOnly": "Native client endpoint/credential/SDK fingerprints; no production account access assumed",
+  "paidAuthorization": false,
+  "paidCalls": 0,
+  "paidTokens": 0,
+  "paidCostUSD": 0,
+  "matrixFingerprint": "cd7f155dfb9119eb29ea398bb541751c7c1c1ec56972f9bfcbd6f193cc4e9eaf"
+}

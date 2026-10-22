@@ -1,0 +1,39 @@
+{
+  "checkedAt": "2026-10-22T14:16:51.564400+00:00",
+  "reviewedHead": "090775bb763b8bbcf43d524050b03de4424755fe",
+  "status": "PASS_EVIDENCE_INTEGRITY_NOT_ACCOUNT_VERIFICATION",
+  "bindingsIndependentlyReconciled": 40,
+  "distinctCredentialKdfChecks": 30,
+  "rawCredentialLeaks": 0,
+  "endpointFingerprintChecks": 40,
+  "publicBodyDigestsVerified": 14,
+  "initialTimeoutReceiptsRetained": 4,
+  "admissionCodeFilesUnchanged": 9,
+  "historicalAdmissionEvidenceFilesUnchanged": 27,
+  "historicalSections12Through17": "BYTE_IDENTICAL_CONTENT",
+  "protectedWipSha256": {
+    "reports/lcsp360-tool-contract-20261018/ACCEPTANCE_ROUTES.json": "f24bb14908ee98048a53493b0997d543a7ce920e07c3ecb86c390f3962a854f1",
+    "reports/lcsp360-tool-contract-20261018/PROVIDER_READINESS_final.json": "731fc4ee8ed0b6943ee7ff75b73b2065a0d6b52665dda5182c7a13099ac653ce",
+    "apps/api/src/modules/assessment/application/commands/reconcile-orphaned-assessment/reconcile-orphaned-assessment.handler.spec.ts": "47ccee04f6e6fd8fd8697938a10cb502b9e77bae642526db126923358ba8547b"
+  },
+  "containers": [
+    {
+      "name": "lcsp360-final-20261022-pg-55502",
+      "id": "0ecb45ba3ef9a1204c883ad327df8c2fe5b364aec0026df6da651a94516997ab",
+      "state": "exited"
+    },
+    {
+      "name": "lcsp360-source-digest-20261022-pg-55503",
+      "id": "d39477b4dc0e92f871856796aaf5142d73a83f7ba8465ccb6f5c10232b2037db",
+      "state": "exited"
+    }
+  ],
+  "historical55441": "NOT_STARTED_OR_QUERIED",
+  "matrixFingerprint": "cd7f155dfb9119eb29ea398bb541751c7c1c1ec56972f9bfcbd6f193cc4e9eaf",
+  "productionPolicies": 0,
+  "eligibleRoutes": [],
+  "paidCalls": 0,
+  "paidTokens": 0,
+  "paidCostUSD": 0,
+  "originalPrivateAccountDocuments": "NONE_ACCESSED_OR_COPIED"
+}
