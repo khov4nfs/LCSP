@@ -160,7 +160,7 @@ def test_same_provider_resampling_keeps_usage_for_rejected_answer(tmp_path, monk
 
     @tool
     def fixture_tool(number: int) -> str:
-        """Provider-free fixture tool."""
+        """Return the supplied integer as text for the provider-free resampling regression."""
         return str(number)
 
     rejected = AIMessage(content="", tool_calls=[{"name": "fixture_tool", "args": {"number": "invalid"}, "id": "rejected"}],
